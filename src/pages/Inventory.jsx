@@ -99,8 +99,8 @@ const Inventory = () => {
                                 <th>Category</th>
                                 <th style={{ textAlign: 'right' }}>Price & Cost</th>
                                 <th style={{ textAlign: 'center' }}>Tax</th>
-                                <th style={{ textAlign: 'center' }}>Stock</th>
-                                <th style={{ textAlign: 'right' }}>Actions</th>
+                                <th style={{ textAlign: 'center' }}>Stock Level</th>
+                                <th style={{ textAlign: 'right' }}>Quick Adjust</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -158,24 +158,64 @@ const Inventory = () => {
                                             {isLow && <span className="badge badge-warning">Critical</span>}
                                         </td>
                                         <td style={{ textAlign: 'right' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '0.5rem' }}>
+                                            <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
+                                                <button 
+                                                    onClick={() => {
+                                                        const current = parseInt(adjustAmounts[product.id]) || 0;
+                                                        setAdjustAmounts({ ...adjustAmounts, [product.id]: current - 1 });
+                                                    }}
+                                                    style={{ padding: '0.4rem 0.6rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'var(--transition)' }}
+                                                    onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; e.currentTarget.style.color = 'var(--text-main)'; }}
+                                                    onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+                                                >
+                                                    <span style={{ fontSize: '1.25rem', lineHeight: '1', paddingBottom: '2px' }}>−</span>
+                                                </button>
+                                                
                                                 <input
                                                     type="number"
-                                                    placeholder="± Qty"
-                                                    className="input-field"
-                                                    style={{ width: '80px', padding: '0.5rem', textAlign: 'center' }}
-                                                    value={adjustAmounts[product.id] || ''}
+                                                    style={{ width: '45px', padding: '0.4rem 0', textAlign: 'center', border: 'none', borderLeft: '1px solid var(--border-light)', borderRight: '1px solid var(--border-light)', background: 'transparent', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', appearance: 'textfield' }}
+                                                    value={adjustAmounts[product.id] === undefined ? '' : adjustAmounts[product.id]}
                                                     onChange={(e) => setAdjustAmounts({ ...adjustAmounts, [product.id]: e.target.value })}
+                                                    onBlur={() => {
+                                                       if (adjustAmounts[product.id] && parseInt(adjustAmounts[product.id]) !== 0) {
+                                                           handleAdjust(product.id);
+                                                       } else {
+                                                           setAdjustAmounts({ ...adjustAmounts, [product.id]: '' });
+                                                       }
+                                                    }}
+                                                    onKeyDown={(e) => {
+                                                       if (e.key === 'Enter' && adjustAmounts[product.id] && parseInt(adjustAmounts[product.id]) !== 0) {
+                                                            handleAdjust(product.id);
+                                                            e.target.blur();
+                                                       }
+                                                    }}
+                                                    placeholder="0"
                                                 />
-                                                <button
-                                                    className="btn btn-primary"
-                                                    style={{ padding: '0.5rem 1rem' }}
-                                                    onClick={() => handleAdjust(product.id)}
-                                                    disabled={!adjustAmounts[product.id]}
+
+                                                <button 
+                                                    onClick={() => {
+                                                        const current = parseInt(adjustAmounts[product.id]) || 0;
+                                                        setAdjustAmounts({ ...adjustAmounts, [product.id]: current + 1 });
+                                                    }}
+                                                    style={{ padding: '0.4rem 0.6rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'var(--transition)' }}
+                                                    onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; e.currentTarget.style.color = 'var(--text-main)'; }}
+                                                    onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
                                                 >
-                                                    Adjust
+                                                    <span style={{ fontSize: '1.25rem', lineHeight: '1', paddingBottom: '2px' }}>+</span>
                                                 </button>
                                             </div>
+                                            
+                                            {adjustAmounts[product.id] && parseInt(adjustAmounts[product.id]) !== 0 && (
+                                                <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                                                    <button 
+                                                        className="btn btn-primary" 
+                                                        style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', borderRadius: '8px' }}
+                                                        onClick={() => handleAdjust(product.id)}
+                                                    >
+                                                        Save
+                                                    </button>
+                                                </div>
+                                            )}
                                         </td>
                                     </tr>
                                 );
