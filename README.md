@@ -1,16 +1,51 @@
-# React + Vite
+# Nova Scotia Immigration Tracker
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+## Environments
 
-Currently, two official plugins are available:
+| Environment | Purpose | Database | Access |
+| :--- | :--- | :--- | :--- |
+| **Local Dev** | Workspace for development and testing | `ledgrpro-dev` | `.env` |
+| **Staging** | Pre-production testing | `ledgrpro-test` | `.env.staging` (push to `develop` branch) |
+| **Production** | Live site | `ledgrpro-prd` | Vercel (push to `main` branch) |
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✅ Development Rules
 
-## React Compiler
+- **Always work on the `develop` branch.**
+- **Always test on `ledgrpro-test` (Local Dev) first.**
+- **Always create a backup before making schema changes.**
+- **Only push to Staging by merging to the `develop` branch.**
+- **Only push to Production by merging `develop` into `main`.**
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🗄️ Database Change Rules
 
-## Expanding the ESLint configuration
+### Before ANY schema change (ALTER, DROP, CREATE TABLE):
+- 🔒 **Always create a backup first:**
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- 🧪 **Always make changes on `ledgrpro-dev` ONLY.**
+- ❌ **Never touch `ircc` (production) directly.**
+
+### Guidelines by Change Type:
+- **Adding a new column:**
+  - Use `ALTER TABLE ... ADD COLUMN` ✅
+  - Never `DROP` and recreate the table ❌
+- **Modifying a column:**
+  - Create new table → copy data → drop old → rename ✅
+  - Always wrap in `BEGIN TRANSACTION` and `COMMIT`
+  - Always verify row count before and after
+- **Foreign keys:**
+  - Always use `ON DELETE RESTRICT` ✅
+  - Never use `ON DELETE CASCADE` ❌
+
+### After ANY change:
+- Run `SELECT COUNT(*) FROM [table]` to verify data.
+- Test on dev before pushing to staging.
+- **Never merge to `main` without USER approval.**
+
+## ❌ Critical Restrictions
+
+- **Never** commit directly to the `main` branch.
+- **Never** modify the production `.env` on Vercel.
+- **Never** perform `DROP` or `ALTER` table operations directly in Production.
+
+---
+*Note: Ensure `.env` and `.env.staging` are never committed to the repository.*
