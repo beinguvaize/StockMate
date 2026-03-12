@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Truck, Map, Settings, Plus, Play, Flag, FileText, AlertTriangle } from 'lucide-react';
+import { Truck, Map, Settings, Plus, Play, Flag, FileText, AlertTriangle, X } from 'lucide-react';
 
 const Vehicles = () => {
     const { vehicles, addVehicle, routes, dispatchRoute, reconcileRoute, products, orders, businessProfile } = useAppContext();
@@ -155,6 +155,7 @@ const Vehicles = () => {
     };
 
     return (
+        <>
         <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', height: '100%', maxWidth: '1400px', margin: '0 auto' }}>
 
             {/* Header */}
@@ -289,11 +290,18 @@ const Vehicles = () => {
                 </div>
             )}
 
+        </div>
+
             {/* --- ADD VEHICLE MODAL --- */}
             {showVehicleModal && (
                 <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(12px)' }}>
-                    <div className="glass-panel animate-scale-up" style={{ padding: '2rem', width: '100%', maxWidth: '400px' }}>
-                        <h2 style={{ marginBottom: '1.5rem', fontWeight: 700, color: 'var(--text-main)' }}>Add New Vehicle</h2>
+                    <div className="glass-panel animate-scale-up" style={{ padding: '2rem', width: '100%', maxWidth: '400px', background: '#ffffff', borderRadius: '24px', position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h2 style={{ fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Add New Vehicle</h2>
+                            <button className="btn btn-secondary" style={{ padding: '0.5rem', borderRadius: '12px', minWidth: '40px' }} onClick={() => setShowVehicleModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
                         <form onSubmit={handleAddVehicle} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             <div>
                                 <label>Vehicle Name / Model</label>
@@ -315,8 +323,13 @@ const Vehicles = () => {
             {/* --- DISPATCH MODAL --- */}
             {showDispatchModal && (
                 <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(12px)' }}>
-                    <div className="glass-panel animate-scale-up" style={{ padding: '2rem', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
-                        <h2 style={{ marginBottom: '1.5rem', fontWeight: 700, color: 'var(--text-main)' }}>Dispatch New Route</h2>
+                    <div className="glass-panel animate-scale-up" style={{ padding: '2.5rem', width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto', background: '#ffffff', borderRadius: '24px', position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h2 style={{ fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Dispatch New Route</h2>
+                            <button className="btn btn-secondary" style={{ padding: '0.5rem', borderRadius: '12px', minWidth: '40px' }} onClick={() => setShowDispatchModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
 
                         {vehicles.length === 0 ? (
                             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--danger)', background: 'var(--danger-light)', borderRadius: '12px' }}>
@@ -352,12 +365,12 @@ const Vehicles = () => {
                                         </label>
                                         <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Select products and quantities to load onto this truck for the day.</p>
 
-                                        <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '0.5rem' }}>
+                                        <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '0.5rem', background: 'white' }}>
                                             {products.filter(p => p.stock > 0).map(p => (
-                                                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', borderBottom: '1px solid var(--border-color)' }}>
+                                                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}>
                                                     <div>
-                                                        <div style={{ fontWeight: 600 }}>{p.name}</div>
-                                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Main Stock: {p.stock} {p.unit}</div>
+                                                        <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.9rem' }}>{p.name}</div>
+                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>Main Stock: <span style={{ fontWeight: 600 }}>{p.stock} {p.unit}</span></div>
                                                     </div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                                         <input
@@ -365,7 +378,7 @@ const Vehicles = () => {
                                                             min="0"
                                                             max={p.stock}
                                                             className="input-field"
-                                                            style={{ width: '80px', padding: '0.4rem' }}
+                                                            style={{ width: '90px', padding: '0.5rem', textAlign: 'center' }}
                                                             placeholder="0"
                                                             value={dispatchForm.loadedStock[p.id] || ''}
                                                             onChange={(e) => setDispatchForm({
@@ -394,8 +407,13 @@ const Vehicles = () => {
             {/* --- RECONCILE MODAL --- */}
             {showReconcileModal && (
                 <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(12px)' }}>
-                    <div className="glass-panel animate-scale-up" style={{ padding: '2rem', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto' }}>
-                        <h2 style={{ marginBottom: '1.5rem', fontWeight: 700, color: 'var(--text-main)' }}>Reconcile Route</h2>
+                    <div className="glass-panel animate-scale-up" style={{ padding: '2.5rem', width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', background: '#ffffff', borderRadius: '24px', position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h2 style={{ fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Reconcile Route</h2>
+                            <button className="btn btn-secondary" style={{ padding: '0.5rem', borderRadius: '12px', minWidth: '40px' }} onClick={() => setShowReconcileModal(null)}>
+                                <X size={20} />
+                            </button>
+                        </div>
                         <form onSubmit={handleReconcile} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                             <div>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
@@ -459,7 +477,7 @@ const Vehicles = () => {
                     </div >
                 </div >
             )}
-        </div >
+        </>
     );
 };
 

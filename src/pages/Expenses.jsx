@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Receipt, Plus, Search, Calendar, Tag, User } from 'lucide-react';
+import { Receipt, Plus, Search, Calendar, Tag, User, X } from 'lucide-react';
 
 const CATEGORIES = ['Travel', 'Meals', 'Supplies', 'Vehicle', 'Other'];
 
@@ -31,6 +31,7 @@ const Expenses = () => {
     const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
 
     return (
+        <>
         <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', height: '100%', maxWidth: '1000px', margin: '0 auto' }}>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
@@ -42,65 +43,6 @@ const Expenses = () => {
                     <Plus size={20} /> Log New Expense
                 </button>
             </div>
-
-            {showAddForm && (
-                <div className="glass-panel animate-fade-in" style={{ padding: '2rem' }}>
-                    <h2 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Receipt size={20} className="text-primary" /> Log Expense
-                    </h2>
-                    <form onSubmit={handleAddSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
-                        <div>
-                            <label>Amount ($)</label>
-                            <input
-                                required
-                                type="number"
-                                step="0.01"
-                                min="0.01"
-                                className="input-field"
-                                value={newExpense.amount}
-                                onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })}
-                                placeholder="0.00"
-                            />
-                        </div>
-                        <div>
-                            <label>Category</label>
-                            <select
-                                className="input-field"
-                                value={newExpense.category}
-                                onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}
-                            >
-                                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label>Link to Route (Optional)</label>
-                            <select
-                                className="input-field"
-                                value={newExpense.routeId}
-                                onChange={e => setNewExpense({ ...newExpense, routeId: e.target.value })}
-                            >
-                                <option value="">None (General Store Expense)</option>
-                                {activeRoutes.map(r => <option key={r.id} value={r.id}>Route: {r.driverId} ({new Date(r.date).toLocaleDateString()})</option>)}
-                            </select>
-                        </div>
-                        <div style={{ gridColumn: '1 / -1' }}>
-                            <label>Description</label>
-                            <input
-                                required
-                                type="text"
-                                className="input-field"
-                                value={newExpense.description}
-                                onChange={e => setNewExpense({ ...newExpense, description: e.target.value })}
-                                placeholder="e.g. Fuel for delivery van"
-                            />
-                        </div>
-                        <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
-                            <button type="button" className="btn btn-secondary" onClick={() => setShowAddForm(false)}>Cancel</button>
-                            <button type="submit" className="btn btn-primary">Save Expense</button>
-                        </div>
-                    </form>
-                </div>
-            )}
 
             <div className="glass-panel" style={{ overflow: 'hidden' }}>
                 <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -164,8 +106,72 @@ const Expenses = () => {
                     </table>
                 </div>
             </div>
-
         </div>
+
+        {showAddForm && (
+            <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', backdropFilter: 'blur(12px)' }}>
+                <div className="glass-panel animate-scale-up" style={{ padding: '2.5rem', width: '100%', maxWidth: '600px', maxHeight: '90vh', overflowY: 'auto', background: '#ffffff', borderRadius: '24px', position: 'relative' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.5rem' }}>
+                        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--text-main)' }}>
+                            <Receipt size={24} className="text-primary" /> Log Expense
+                        </h2>
+                        <button className="btn btn-secondary" style={{ padding: '0.5rem', borderRadius: '12px', minWidth: '40px' }} onClick={() => setShowAddForm(false)}><X size={20} /></button>
+                    </div>
+                    <form onSubmit={handleAddSubmit} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Amount ({businessProfile.currencySymbol})</label>
+                            <input
+                                required
+                                type="number"
+                                step="0.01"
+                                min="0.01"
+                                className="input-field"
+                                value={newExpense.amount}
+                                onChange={e => setNewExpense({ ...newExpense, amount: e.target.value })}
+                                placeholder="0.00"
+                            />
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Category</label>
+                            <select
+                                className="input-field"
+                                value={newExpense.category}
+                                onChange={e => setNewExpense({ ...newExpense, category: e.target.value })}
+                            >
+                                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Link to Route (Optional)</label>
+                            <select
+                                className="input-field"
+                                value={newExpense.routeId}
+                                onChange={e => setNewExpense({ ...newExpense, routeId: e.target.value })}
+                            >
+                                <option value="">None (General Store Expense)</option>
+                                {activeRoutes.map(r => <option key={r.id} value={r.id}>Route: {r.driverId} ({new Date(r.date).toLocaleDateString()})</option>)}
+                            </select>
+                        </div>
+                        <div style={{ gridColumn: '1 / -1' }}>
+                            <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Description</label>
+                            <input
+                                required
+                                type="text"
+                                className="input-field"
+                                value={newExpense.description}
+                                onChange={e => setNewExpense({ ...newExpense, description: e.target.value })}
+                                placeholder="e.g. Fuel for delivery van"
+                            />
+                        </div>
+                        <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end', gap: '1rem', marginTop: '1rem' }}>
+                            <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowAddForm(false)}>Cancel</button>
+                            <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Save Expense</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        )}
+        </>
     );
 };
 

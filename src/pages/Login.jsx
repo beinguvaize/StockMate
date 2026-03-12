@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { ShieldCheck, ShoppingCart, Package, Eye, Truck } from 'lucide-react';
 
-const ROLE_ICONS = { ADMIN: ShieldCheck, SALES: ShoppingCart, INVENTORY: Package, FLEET: Truck, VIEW_ONLY: Eye };
+const ROLE_ICONS = { GLOBAL_ADMIN: ShieldCheck, ADMIN: ShieldCheck, SALES: ShoppingCart, INVENTORY: Package, FLEET: Truck, VIEW_ONLY: Eye };
 const ROLE_COLORS = {
+    GLOBAL_ADMIN: { bg: 'rgba(79, 70, 229, 0.15)', color: '#4338ca' },
     ADMIN: { bg: 'rgba(79, 70, 229, 0.1)', color: 'var(--primary)' },
     SALES: { bg: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)' },
     INVENTORY: { bg: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)' },
@@ -19,7 +20,7 @@ const Login = () => {
     const handleLogin = (user) => {
         login(user.id);
         const roles = user.roles || [user.role || 'SALES'];
-        if (roles.includes('ADMIN')) navigate('/dashboard');
+        if (roles.includes('ADMIN') || roles.includes('GLOBAL_ADMIN')) navigate('/dashboard');
         else if (roles.includes('SALES')) navigate('/sales');
         else navigate('/dashboard');
     };

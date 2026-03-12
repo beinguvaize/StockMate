@@ -11,7 +11,7 @@ const Sidebar = ({ isMobileOpen, setIsMobileOpen }) => {
         if (!currentUser) return items;
 
         const roles = currentUser.roles || [currentUser.role || 'SALES'];
-        const isAdmin = roles.includes('ADMIN');
+        const isAdmin = roles.includes('ADMIN') || roles.includes('GLOBAL_ADMIN');
 
         if (isAdmin) {
             items.push({ label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> });
@@ -24,7 +24,9 @@ const Sidebar = ({ isMobileOpen, setIsMobileOpen }) => {
             items.push({ label: 'Reports', path: '/reports', icon: <BarChart3 size={20} /> });
             items.push({ label: 'Payroll', path: '/payroll', icon: <Banknote size={20} /> });
             items.push({ label: 'Users', path: '/users', icon: <Users size={20} /> });
-            items.push({ label: 'Settings', path: '/settings', icon: <SettingsIcon size={20} /> });
+            if (currentUser.roles.includes('GLOBAL_ADMIN')) {
+                items.push({ label: 'Settings', path: '/settings', icon: <SettingsIcon size={20} /> });
+            }
         } else {
             const added = new Set();
             const addItem = (item) => {
@@ -152,7 +154,8 @@ const Sidebar = ({ isMobileOpen, setIsMobileOpen }) => {
                     align-items: center;
                     gap: 0.85rem;
                     padding: 0.85rem 1.5rem;
-                    color: var(--text-muted);
+                    font-size: 14px;
+                    color: #475569;
                     text-decoration: none;
                     transition: var(--transition);
                     border-left: 3px solid transparent;
@@ -162,12 +165,12 @@ const Sidebar = ({ isMobileOpen, setIsMobileOpen }) => {
                 }
                 .sidebar-link:hover {
                     background: var(--surface-hover);
-                    color: white;
+                    color: #4F46E5;
                 }
                 .sidebar-link.active {
-                    background: linear-gradient(90deg, var(--primary-transparent) 0%, transparent 100%);
-                    color: white;
-                    border-left-color: var(--primary);
+                    background: rgba(79, 70, 229, 0.08);
+                    color: #4F46E5;
+                    border-left-color: #4F46E5;
                     font-weight: 600;
                 }
                 @media (min-width: 1024px) {
@@ -187,14 +190,33 @@ const Sidebar = ({ isMobileOpen, setIsMobileOpen }) => {
                         display: none !important;
                     }
                 }
+                @media (max-width: 1023px) {
+                    .desktop-only {
+                        display: none !important;
+                    }
+                }
             `}</style>
         </>
     );
 };
 
 const AppLayout = () => {
-    const { currentUser } = useAppContext();
+    const { currentUser, businessProfile } = useAppContext();
     const [isMobileOpen, setIsMobileOpen] = React.useState(false);
+    
+    // Country to ISO Code Mapping
+    const getFlagUrl = (countryName) => {
+        const country = countryName?.toLowerCase() || '';
+        let code = 'ae'; // Default
+        if (country.includes('emirates') || country.includes('uae')) code = 'ae';
+        else if (country.includes('states') || country.includes('us')) code = 'us';
+        else if (country.includes('kingdom') || country.includes('uk')) code = 'gb';
+        else if (country.includes('canada') || country.includes('ca')) code = 'ca';
+        else if (country.includes('australia') || country.includes('au')) code = 'au';
+        else if (country.includes('india') || country.includes('in')) code = 'in';
+        
+        return `https://flagcdn.com/w40/${code}.png`;
+    };
 
     if (!currentUser) return <Navigate to="/login" />;
 
@@ -202,12 +224,41 @@ const AppLayout = () => {
         <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: 'var(--bg-color)' }}>
             <Sidebar isMobileOpen={isMobileOpen} setIsMobileOpen={setIsMobileOpen} />
             
-            <main className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%' }}>
-                <header className="mobile-header" style={{ display: 'flex', alignItems: 'center', padding: '1rem', backgroundColor: 'white', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, zIndex: 30 }}>
-                    <button onClick={() => setIsMobileOpen(true)} style={{ background: 'none', border: 'none', marginRight: '1rem', cursor: 'pointer', color: 'var(--text-main)' }}>
-                        <Menu size={24} />
-                    </button>
-                    <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>CashBook</h1>
+            <main className="main-content" style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', position: 'relative' }}>
+                {/* Global Identity Bar (Top Right) */}
+                <div style={{
+                    position: 'absolute',
+                    top: '1.5rem',
+                    right: '1.5rem',
+                    zIndex: 20,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.4rem 0.8rem',
+                    background: 'rgba(255, 255, 255, 0.9)',
+                    backdropFilter: 'blur(10px)',
+                    borderRadius: '50px',
+                    border: '1px solid var(--border-color)',
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
+                    pointerEvents: 'none',
+                }} className="desktop-only">
+                    <img src={getFlagUrl(businessProfile?.country)} alt="flag" style={{ width: '22px', height: 'auto', borderRadius: '2px' }} />
+                    <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main)', letterSpacing: '0.05em' }}>{businessProfile?.currency}</span>
+                </div>
+
+                <header className="mobile-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', backgroundColor: 'white', borderBottom: '1px solid var(--border-color)', position: 'sticky', top: 0, zIndex: 30 }}>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <button onClick={() => setIsMobileOpen(true)} style={{ background: 'none', border: 'none', marginRight: '1rem', cursor: 'pointer', color: 'var(--text-main)' }}>
+                            <Menu size={24} />
+                        </button>
+                        <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>CashBook</h1>
+                    </div>
+                    
+                    {/* Mobile Identity */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#f8fafc', padding: '0.3rem 0.6rem', borderRadius: '12px' }}>
+                        <img src={getFlagUrl(businessProfile?.country)} alt="flag" style={{ width: '18px', height: 'auto', borderRadius: '1px' }} />
+                        <span style={{ fontWeight: 600, fontSize: '0.75rem' }}>{businessProfile?.currency}</span>
+                    </div>
                 </header>
                 <div style={{ padding: '1.5rem', flex: 1 }}>
                     <Outlet />

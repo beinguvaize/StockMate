@@ -7,6 +7,7 @@ const Settings = () => {
 
     const [profileData, setProfileData] = useState({
         name: businessProfile.name || '',
+        country: businessProfile.country || '',
         currency: businessProfile.currency || 'USD',
         currencySymbol: businessProfile.currencySymbol || '$',
         lowStockThreshold: businessProfile.lowStockThreshold || 20
@@ -21,12 +22,13 @@ const Settings = () => {
         setTimeout(() => setSavedStatus(false), 3000);
     };
 
-    if (currentUser?.role !== 'Admin') {
+    const { hasRole } = useAppContext();
+    if (!hasRole('GLOBAL_ADMIN')) {
         return (
             <div className="page-container animate-fade-in" style={{ textAlign: 'center', marginTop: '10vh' }}>
                 <Shield size={48} color="var(--danger)" style={{ marginBottom: '1rem' }} />
                 <h1 className="page-title">Access Restricted</h1>
-                <p style={{ color: 'var(--text-muted)' }}>Only authorized Admin accounts can access business settings.</p>
+                <p style={{ color: 'var(--text-muted)' }}>Only Global Administrators can access system settings.</p>
             </div>
         );
     }
@@ -60,10 +62,44 @@ const Settings = () => {
                             />
                         </div>
 
+                        <div>
+                            <label>Country</label>
+                            <select className="input-field" value={profileData.country} onChange={e => {
+                                const country = e.target.value;
+                                let currency = profileData.currency;
+                                let currencySymbol = profileData.currencySymbol;
+                                
+                                if (country === 'India') {
+                                    currency = 'INR';
+                                    currencySymbol = '₹';
+                                } else if (country === 'United Arab Emirates') {
+                                    currency = 'AED';
+                                    currencySymbol = 'AED';
+                                } else if (country === 'United States') {
+                                    currency = 'USD';
+                                    currencySymbol = '$';
+                                } else if (country === 'United Kingdom') {
+                                    currency = 'GBP';
+                                    currencySymbol = '£';
+                                }
+                                
+                                setProfileData({ ...profileData, country, currency, currencySymbol });
+                            }}>
+                                <option value="United Arab Emirates">🇦🇪 United Arab Emirates</option>
+                                <option value="United States">🇺🇸 United States</option>
+                                <option value="United Kingdom">🇬🇧 United Kingdom</option>
+                                <option value="Canada">🇨🇦 Canada</option>
+                                <option value="Australia">🇦🇺 Australia</option>
+                                <option value="India">🇮🇳 India</option>
+                            </select>
+                        </div>
+
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                             <div>
                                 <label>Currency Code</label>
                                 <select className="input-field" value={profileData.currency} onChange={e => setProfileData({ ...profileData, currency: e.target.value })}>
+                                    <option value="INR">INR - Indian Rupee</option>
+                                    <option value="AED">AED - UAE Dirham</option>
                                     <option value="USD">USD - US Dollar</option>
                                     <option value="EUR">EUR - Euro</option>
                                     <option value="GBP">GBP - British Pound</option>

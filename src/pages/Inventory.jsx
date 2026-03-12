@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Plus, PackagePlus, AlertCircle, History, Tag as TagIcon, Barcode as BarcodeIcon } from 'lucide-react';
+import { Plus, PackagePlus, AlertCircle, History, Tag as TagIcon, Barcode as BarcodeIcon, X } from 'lucide-react';
 import Barcode from 'react-barcode';
 
 const CATEGORIES = ['Electronics', 'Accessories', 'Furniture', 'Clothing', 'Other'];
 const UNITS = ['pcs', 'kg', 'ltr', 'box', 'set'];
 
 const Inventory = () => {
-    const { products, addProduct, updateProduct, adjustStock, movementLog, businessProfile } = useAppContext();
+    const { products, addProduct, updateProduct, deleteProduct, adjustStock, movementLog, businessProfile } = useAppContext();
 
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
@@ -73,6 +73,7 @@ const Inventory = () => {
     };
 
     return (
+        <>
         <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', height: '100%', maxWidth: '1400px', margin: '0 auto' }}>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
@@ -95,11 +96,12 @@ const Inventory = () => {
                     <table className="data-table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, textAlign: 'left', minWidth: '1000px' }}>
                         <thead>
                             <tr>
-                                <th>Product Info</th>
-                                <th>Category</th>
-                                <th style={{ textAlign: 'right' }}>Price & Cost</th>
-                                <th style={{ textAlign: 'center' }}>Tax</th>
-                                <th style={{ textAlign: 'center' }}>Stock Level</th>
+                                <th>Product & SKU</th>
+                                <th>Category & Tags</th>
+                                <th style={{ textAlign: 'right' }}>Cost</th>
+                                <th style={{ textAlign: 'right' }}>Price</th>
+                                <th style={{ textAlign: 'center' }}>Tax %</th>
+                                <th style={{ textAlign: 'center' }}>Current Stock</th>
                                 <th style={{ textAlign: 'right' }}>Quick Adjust</th>
                             </tr>
                         </thead>
@@ -110,119 +112,132 @@ const Inventory = () => {
 
                                 return (
                                     <tr key={product.id}>
-                                        <td style={{ cursor: 'pointer' }} onClick={() => openEditModal(product)}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-                                                <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', flexShrink: 0, border: '1px solid var(--border-color)', overflow: 'hidden' }}>
+                                        <td style={{ padding: '0.75rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                <div style={{ width: '40px', height: '40px', borderRadius: '8px', background: 'var(--surface-hover)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)', flexShrink: 0, border: '1px solid var(--border-color)', overflow: 'hidden' }}>
                                                     {product.image ? (
                                                         <img src={product.image} alt={product.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                                                     ) : (
-                                                        <PackagePlus size={22} strokeWidth={1.5} />
+                                                        <PackagePlus size={18} strokeWidth={1.5} />
                                                     )}
                                                 </div>
                                                 <div>
-                                                    <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '1rem' }}>{product.name}</div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', color: 'var(--text-dim)', fontWeight: 700, marginTop: '0.125rem' }}>
-                                                        <BarcodeIcon size={14} className="text-primary" /> {product.sku}
+                                                    <div style={{ fontWeight: 600, color: '#2563EB', fontSize: '13px', lineHeight: '1.2' }}>{product.name}</div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '11px', color: '#94A3B8', fontWeight: 500, marginTop: '0.125rem' }}>
+                                                        <BarcodeIcon size={12} style={{ color: '#94A3B8' }} /> {product.sku}
                                                     </div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td>
-                                            <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>{product.category}</div>
-                                            <div style={{ display: 'flex', gap: '0.375rem', flexWrap: 'wrap' }}>
+                                        <td style={{ padding: '0.75rem' }}>
+                                            <div style={{ fontWeight: 600, color: 'var(--text-main)', marginBottom: '0.25rem', fontSize: '13px' }}>{product.category}</div>
+                                            <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
                                                 {product.tags && product.tags.map(t => (
-                                                    <span key={t} className="badge badge-gray">
-                                                        {t}
+                                                    <span key={t} className="badge badge-gray" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', padding: '1px 6px', fontSize: '10px' }}>
+                                                        <TagIcon size={10} /> {t}
                                                     </span>
                                                 ))}
                                             </div>
                                         </td>
-                                        <td style={{ textAlign: 'right' }}>
-                                            <div style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-main)' }}>{businessProfile.currencySymbol}{product.sellingPrice.toFixed(2)}</div>
-                                            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginTop: '0.125rem' }}>Cost: {businessProfile.currencySymbol}{product.costPrice.toFixed(2)}</div>
+                                        <td style={{ textAlign: 'right', padding: '0.75rem' }}>
+                                            <div style={{ fontWeight: 500, fontSize: '14px', color: '#1E293B' }}>{businessProfile.currencySymbol}{product.costPrice.toFixed(2)}</div>
+                                            <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 500, marginTop: '0.125rem' }}>per {product.unit}</div>
                                         </td>
-                                        <td style={{ textAlign: 'center' }}>
+                                        <td style={{ textAlign: 'right', padding: '0.75rem' }}>
+                                            <div style={{ fontWeight: 600, fontSize: '14px', color: '#1E293B' }}>{businessProfile.currencySymbol}{product.sellingPrice.toFixed(2)}</div>
+                                            <div style={{ fontSize: '11px', color: '#94A3B8', fontWeight: 500, marginTop: '0.125rem' }}>per {product.unit}</div>
+                                        </td>
+                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>
                                             {product.taxRate > 0 ? (
-                                                <span className="badge badge-warning">
-                                                    {product.taxRate}% VAT
+                                                <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '13px' }}>
+                                                    {product.taxRate}%
                                                 </span>
                                             ) : (
-                                                <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontWeight: 500 }}>EXEMPT</span>
+                                                <span style={{ color: 'var(--text-muted)', fontSize: '14px' }}>—</span>
                                             )}
                                         </td>
-                                        <td style={{ textAlign: 'center' }}>
-                                            <div style={{ fontSize: '1.25rem', fontWeight: 700, color: isOut ? 'var(--danger)' : isLow ? 'var(--warning)' : 'var(--text-main)', marginBottom: '0.375rem', letterSpacing: '-0.025em' }}>
+                                        <td style={{ textAlign: 'center', padding: '0.75rem' }}>
+                                            <div style={{ fontSize: '15px', fontWeight: 700, color: isOut ? 'var(--danger)' : isLow ? 'var(--warning)' : '#1E293B', letterSpacing: '-0.01em' }}>
                                                 {product.stock}
                                             </div>
-                                            {isOut && <span className="badge badge-danger">Depleted</span>}
-                                            {isLow && <span className="badge badge-warning">Critical</span>}
                                         </td>
-                                        <td style={{ textAlign: 'right' }}>
-                                            <div style={{ display: 'inline-flex', alignItems: 'center', background: 'var(--surface)', border: '1px solid var(--border-color)', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.02)' }}>
-                                                <button 
-                                                    onClick={() => {
-                                                        const current = parseInt(adjustAmounts[product.id]) || 0;
-                                                        setAdjustAmounts({ ...adjustAmounts, [product.id]: current - 1 });
-                                                    }}
-                                                    style={{ padding: '0.4rem 0.6rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'var(--transition)' }}
-                                                    onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; e.currentTarget.style.color = 'var(--text-main)'; }}
-                                                    onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-                                                >
-                                                    <span style={{ fontSize: '1.25rem', lineHeight: '1', paddingBottom: '2px' }}>−</span>
-                                                </button>
-                                                
-                                                <input
-                                                    type="number"
-                                                    style={{ width: '45px', padding: '0.4rem 0', textAlign: 'center', border: 'none', borderLeft: '1px solid var(--border-light)', borderRight: '1px solid var(--border-light)', background: 'transparent', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-main)', appearance: 'textfield' }}
-                                                    value={adjustAmounts[product.id] === undefined ? '' : adjustAmounts[product.id]}
-                                                    onChange={(e) => setAdjustAmounts({ ...adjustAmounts, [product.id]: e.target.value })}
-                                                    onBlur={() => {
-                                                       if (adjustAmounts[product.id] && parseInt(adjustAmounts[product.id]) !== 0) {
-                                                           handleAdjust(product.id);
-                                                       } else {
-                                                           setAdjustAmounts({ ...adjustAmounts, [product.id]: '' });
-                                                       }
-                                                    }}
-                                                    onKeyDown={(e) => {
-                                                       if (e.key === 'Enter' && adjustAmounts[product.id] && parseInt(adjustAmounts[product.id]) !== 0) {
-                                                            handleAdjust(product.id);
-                                                            e.target.blur();
-                                                       }
-                                                    }}
-                                                    placeholder="0"
-                                                />
-
-                                                <button 
-                                                    onClick={() => {
-                                                        const current = parseInt(adjustAmounts[product.id]) || 0;
-                                                        setAdjustAmounts({ ...adjustAmounts, [product.id]: current + 1 });
-                                                    }}
-                                                    style={{ padding: '0.4rem 0.6rem', border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'var(--transition)' }}
-                                                    onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(0,0,0,0.05)'; e.currentTarget.style.color = 'var(--text-main)'; }}
-                                                    onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-                                                >
-                                                    <span style={{ fontSize: '1.25rem', lineHeight: '1', paddingBottom: '2px' }}>+</span>
-                                                </button>
-                                            </div>
-                                            
-                                            {adjustAmounts[product.id] && parseInt(adjustAmounts[product.id]) !== 0 && (
-                                                <div style={{ marginTop: '0.5rem', display: 'flex', justifyContent: 'flex-end' }}>
+                                        <td style={{ textAlign: 'right', verticalAlign: 'middle', padding: '0.75rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', justifyContent: 'flex-end' }}>
+                                                {/* Action Buttons */}
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                     <button 
-                                                        className="btn btn-primary" 
-                                                        style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem', borderRadius: '8px' }}
-                                                        onClick={() => handleAdjust(product.id)}
+                                                        className="btn btn-secondary" 
+                                                        style={{ padding: '0.4rem 0.75rem', fontSize: '12px', minWidth: 'auto' }}
+                                                        onClick={() => openEditModal(product)}
                                                     >
-                                                        Save
+                                                        Edit
+                                                    </button>
+                                                    <button 
+                                                        className="btn btn-secondary" 
+                                                        style={{ padding: '0.4rem 0.75rem', fontSize: '12px', minWidth: 'auto', color: 'var(--danger)', borderColor: 'rgba(239, 68, 68, 0.2)' }}
+                                                        onClick={() => {
+                                                            if (window.confirm(`Are you sure you want to delete ${product.name}?`)) {
+                                                                deleteProduct(product.id);
+                                                            }
+                                                        }}
+                                                    >
+                                                        Delete
                                                     </button>
                                                 </div>
-                                            )}
+
+                                                <div style={{ width: '1px', height: '30px', backgroundColor: 'var(--border-color)' }}></div>
+
+                                                {/* Quick Adjust Container */}
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', width: '220px' }}>
+                                                    <div style={{ display: 'flex', width: '100%', border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden', background: 'white' }}>
+                                                        <select 
+                                                            style={{ flex: '0 0 auto', width: '80px', padding: '0.3rem', border: 'none', background: 'transparent', fontSize: '11px', color: '#64748B', outline: 'none' }}
+                                                            value={adjustSources[product.id] || 'IN-HOUSE'}
+                                                            onChange={(e) => setAdjustSources({ ...adjustSources, [product.id]: e.target.value })}
+                                                        >
+                                                            <option value="IN-HOUSE">House</option>
+                                                            <option value="SUPPLIER">Supplier</option>
+                                                            <option value="DAMAGE">Dmg</option>
+                                                            <option value="RETURN">Ret</option>
+                                                        </select>
+                                                        <div style={{ width: '1px', backgroundColor: 'var(--border-color)' }}></div>
+                                                        <input 
+                                                            type="text" 
+                                                            placeholder="Note" 
+                                                            style={{ flex: '1', padding: '0.3rem 0.5rem', border: 'none', background: 'transparent', outline: 'none', fontSize: '11px' }}
+                                                            value={adjustReasons[product.id] || ''}
+                                                            onChange={(e) => setAdjustReasons({ ...adjustReasons, [product.id]: e.target.value })}
+                                                        />
+                                                    </div>
+                                                    
+                                                    <div style={{ display: 'flex', width: '100%', border: '1px solid var(--border-color)', borderRadius: '6px', overflow: 'hidden', background: 'white' }}>
+                                                        <input 
+                                                            type="number" 
+                                                            placeholder="+/- Qty" 
+                                                            style={{ flex: '1', padding: '0.3rem 0.5rem', border: 'none', background: 'transparent', textAlign: 'center', outline: 'none', fontSize: '11px' }}
+                                                            value={adjustAmounts[product.id] || ''}
+                                                            onChange={(e) => setAdjustAmounts({ ...adjustAmounts, [product.id]: e.target.value })}
+                                                            onKeyDown={(e) => {
+                                                                if (e.key === 'Enter') handleAdjust(product.id);
+                                                            }}
+                                                        />
+                                                        <div style={{ width: '1px', backgroundColor: 'var(--border-color)' }}></div>
+                                                        <button 
+                                                            style={{ padding: '0 0.5rem', border: 'none', background: 'transparent', color: '#64748B', cursor: 'pointer' }}
+                                                            onClick={() => handleAdjust(product.id)}
+                                                        >
+                                                            <Plus size={14} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 );
                             })}
                             {products.length === 0 && (
                                 <tr>
-                                    <td colSpan="6" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                                    <td colSpan="7" style={{ padding: '4rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                                         No products found in inventory. Add one to get started.
                                     </td>
                                 </tr>
@@ -231,69 +246,73 @@ const Inventory = () => {
                     </table>
                 </div>
             </div>
+        </div>
 
-            {/* Add/Edit Product Modal */}
+        {/* Add/Edit Product Modal */}
             {showAddModal && (
-                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1.5rem', backdropFilter: 'blur(12px)' }}>
-                    <div className="glass-panel animate-scale-up" style={{ padding: '2.5rem', width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto' }}>
-                        <div>
-                            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.5rem', color: 'var(--text-main)' }}>{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
+                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(12px)' }}>
+                    <div className="glass-panel animate-scale-up" style={{ padding: '2.5rem', width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto', background: '#ffffff', borderRadius: '24px', position: 'relative' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
+                            <button className="btn btn-secondary" style={{ padding: '0.5rem', borderRadius: '12px', minWidth: '40px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowAddModal(false)}>
+                                <X size={20} />
+                            </button>
                         </div>
 
                         <form onSubmit={handleAddSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                             <div style={{ gridColumn: '1 / -1' }}>
-                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Official Product Name</label>
+                                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Product Name</label>
                                 <input required type="text" className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. Ergonomic Office Chair V2" />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-dim)', marginBottom: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>SKU Identification</label>
-                                <input required type="text" className="input-field" value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value })} placeholder="ACC-00124" style={{ padding: '0.75rem 1rem', fontWeight: 700, borderRadius: '14px' }} />
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>SKU</label>
+                                <input required type="text" className="input-field" value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value })} placeholder="ACC-00124" />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-dim)', marginBottom: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Master Category</label>
-                                <select className="input-field" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })} style={{ padding: '0.75rem 1rem', fontWeight: 700, borderRadius: '14px' }}>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Category</label>
+                                <select className="input-field" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
                                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
 
-                            <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: '#f8fafc', padding: '1.5rem', borderRadius: '24px', border: '2px dashed var(--border-main)', alignItems: 'center', justifyContent: 'center' }}>
-                                <label style={{ alignSelf: 'center', color: 'var(--text-dim)', fontSize: '0.7rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em' }}>Barcode Engine Visualization</label>
+                            <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: '#f8fafc', padding: '1.25rem', borderRadius: '12px', border: '1px dashed var(--border-color)', alignItems: 'center', justifyContent: 'center' }}>
+                                <label style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.03em' }}>Barcode Preview</label>
                                 {formData.sku ? (
-                                    <div style={{ padding: '1rem', backgroundColor: 'white', borderRadius: '16px', boxShadow: 'var(--shadow-sm)' }}>
+                                    <div style={{ padding: '0.75rem', backgroundColor: 'white', borderRadius: '8px' }}>
                                         <Barcode value={formData.sku} height={50} displayValue={true} background="transparent" lineColor="#0f172a" font="Inter" fontSize={14} textMargin={8} />
                                     </div>
                                 ) : (
-                                    <div style={{ color: 'var(--text-dim)', fontSize: '0.875rem', fontWeight: 600, fontStyle: 'italic' }}>Pending SKU input for logic generation...</div>
+                                    <div style={{ color: 'var(--text-muted)', fontSize: '0.85rem', fontWeight: 500 }}>Enter a SKU to preview barcode</div>
                                 )}
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-dim)', marginBottom: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Purchase Cost ({businessProfile.currencySymbol})</label>
-                                <input required type="number" step="0.01" min="0" className="input-field" value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value })} placeholder="0.00" style={{ padding: '0.75rem 1rem', fontWeight: 700, borderRadius: '14px' }} />
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Cost Price ({businessProfile.currencySymbol})</label>
+                                <input required type="number" step="0.01" min="0" className="input-field" value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value })} placeholder="0.00" />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-dim)', marginBottom: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Unit Retail Price ({businessProfile.currencySymbol})</label>
-                                <input required type="number" step="0.01" min="0" className="input-field" value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value })} placeholder="0.00" style={{ padding: '0.75rem 1rem', fontWeight: 800, borderRadius: '14px', color: 'var(--primary)' }} />
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Selling Price ({businessProfile.currencySymbol})</label>
+                                <input required type="number" step="0.01" min="0" className="input-field" value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value })} placeholder="0.00" />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-dim)', marginBottom: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Standard Volume Unit</label>
-                                <select className="input-field" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })} style={{ padding: '0.75rem 1rem', fontWeight: 700, borderRadius: '14px' }}>
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Unit</label>
+                                <select className="input-field" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
                                     {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                                 </select>
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-dim)', marginBottom: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tax Liability (%)</label>
-                                <input type="number" step="0.1" min="0" max="100" className="input-field" value={formData.taxRate} onChange={e => setFormData({ ...formData, taxRate: e.target.value })} placeholder="0" style={{ padding: '0.75rem 1rem', fontWeight: 700, borderRadius: '14px' }} />
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Tax Rate (%)</label>
+                                <input type="number" step="0.1" min="0" max="100" className="input-field" value={formData.taxRate} onChange={e => setFormData({ ...formData, taxRate: e.target.value })} placeholder="0" />
                             </div>
 
                             <div style={{ gridColumn: '1 / -1' }}>
-                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, color: 'var(--text-dim)', marginBottom: '0.625rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Search Metadata (Tags)</label>
-                                <input type="text" className="input-field" value={formData.tags} onChange={e => setFormData({ ...formData, tags: e.target.value })} placeholder="e.g. wholesale, high-demand, local" style={{ padding: '0.75rem 1rem', fontWeight: 600, borderRadius: '14px' }} />
+                                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.03em' }}>Tags</label>
+                                <input type="text" className="input-field" value={formData.tags} onChange={e => setFormData({ ...formData, tags: e.target.value })} placeholder="e.g. wholesale, high-demand, local" />
                             </div>
 
                             <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '1rem', marginTop: '1.5rem' }}>
@@ -353,7 +372,7 @@ const Inventory = () => {
                 </div>
             )}
 
-        </div>
+        </>
     );
 };
 

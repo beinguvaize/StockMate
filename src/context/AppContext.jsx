@@ -102,6 +102,7 @@ const INITIAL_PRODUCTS = [
 ];
 
 const INITIAL_USERS = [
+    { id: 'u0', name: 'Global Admin', email: 'global@stockmate.com', roles: ['GLOBAL_ADMIN'], status: 'ACTIVE' },
     { id: 'u1', name: 'Admin User', email: 'admin@stockmate.com', roles: ['ADMIN'], status: 'ACTIVE' },
     { id: 'u2', name: 'Sales Rep 1', email: 'sales@stockmate.com', roles: ['SALES'], status: 'ACTIVE' },
 ];
@@ -113,14 +114,16 @@ const INITIAL_SHOPS = [
 
 const INITIAL_BUSINESS = {
     name: 'StockMate Demo Corp',
-    currency: 'USD',
-    currencySymbol: '$',
+    country: 'United Arab Emirates', // Default country
+    currency: 'AED',
+    currencySymbol: 'AED',
     lowStockThreshold: 20
 };
 
 // Available role definitions
 export const AVAILABLE_ROLES = [
-    { key: 'ADMIN', label: 'Administrator', description: 'Full access to all features' },
+    { key: 'GLOBAL_ADMIN', label: 'Global Administrator', description: 'System-wide settings and full access' },
+    { key: 'ADMIN', label: 'Administrator', description: 'Full access except system settings' },
     { key: 'SALES', label: 'Sales Rep', description: 'Can create sales and manage POS' },
     { key: 'INVENTORY', label: 'Inventory Manager', description: 'Can manage products and stock' },
     { key: 'FLEET', label: 'Fleet Manager', description: 'Can manage vehicles and routes' },
@@ -206,13 +209,15 @@ export const AppProvider = ({ children }) => {
     // Helper: check if current user has a specific role
     const hasRole = (role) => {
         if (!currentUser) return false;
-        // Legacy support: if user has single 'role' string
-        if (currentUser.role && !currentUser.roles) {
-            return currentUser.role === role;
-        }
-        // Admin has all roles
-        if (currentUser.roles && currentUser.roles.includes('ADMIN')) return true;
-        return currentUser.roles && currentUser.roles.includes(role);
+        const roles = currentUser.roles || (currentUser.role ? [currentUser.role] : ['SALES']);
+        
+        // GLOBAL_ADMIN has all roles
+        if (roles.includes('GLOBAL_ADMIN')) return true;
+        
+        // ADMIN has all roles except GLOBAL_ADMIN specific parts (checked at component level)
+        if (role !== 'GLOBAL_ADMIN' && roles.includes('ADMIN')) return true;
+        
+        return roles.includes(role);
     };
 
     const isViewOnly = () => {
@@ -370,6 +375,11 @@ export const AppProvider = ({ children }) => {
         setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
     };
 
+    const deleteProduct = (id) => {
+        setProducts(prev => prev.filter(p => p.id !== id));
+        setMovementLog(prev => prev.filter(l => l.productId !== id));
+    };
+
     const adjustStock = (productId, amount, reason, source = 'ADJUSTMENT') => {
         setProducts(products.map(p =>
             p.id === productId ? { ...p, stock: Math.max(0, p.stock + amount) } : p
@@ -491,7 +501,7 @@ export const AppProvider = ({ children }) => {
     const value = {
         currentUser, login, logout,
         businessProfile, updateBusinessProfile,
-        products, addProduct, updateProduct, adjustStock,
+        products, addProduct, updateProduct, deleteProduct, adjustStock,
         shops, addShop, updateShop, deleteShop,
         orders, placeOrder, updateOrder,
         expenses, addExpense,
