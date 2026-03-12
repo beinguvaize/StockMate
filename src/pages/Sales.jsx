@@ -22,6 +22,8 @@ const Sales = () => {
     const [mobileCartOpen, setMobileCartOpen] = useState(false);
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [selectedCategory, setSelectedCategory] = useState('All');
+    const [customerSearch, setCustomerSearch] = useState('');
+    const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
 
     useEffect(() => {
         const handler = () => setIsMobile(window.innerWidth < 768);
@@ -80,6 +82,15 @@ const Sales = () => {
         return filtered;
     }, [availableProducts, searchTerm, selectedCategory]);
 
+    const filteredCustomers = useMemo(() => {
+        if (!customerSearch) return shops;
+        const lower = customerSearch.toLowerCase();
+        return (shops || []).filter(s => 
+            s.name.toLowerCase().includes(lower) || 
+            (s.phone && s.phone.includes(lower))
+        );
+    }, [shops, customerSearch]);
+
     const addToCart = (product) => {
         const existing = cart.find(item => item.productId === product.id);
         if (existing) {
@@ -91,6 +102,7 @@ const Sales = () => {
                 productId: product.id,
                 quantity: 1,
                 price: product.sellingPrice,
+                sellingPrice: product.sellingPrice,
                 discount: 0,
                 taxRate: product.taxRate || 0,
                 name: product.name,
@@ -145,7 +157,8 @@ const Sales = () => {
         return { lines, subtotal, totalDiscount, totalTax, finalTotal, totalItems: cart.reduce((sum, item) => sum + item.quantity, 0) };
     }, [cart]);
 
-    const handleConfirmTransaction = () => {
+    const handleConfirmTransaction = (statusOverride) => {
+        const status = statusOverride || 'COMPLETED';
         const orderId = placeOrder(
             selectedShopId === 'WALKIN' ? 'POS-WALKIN' : selectedShopId,
             cart,
@@ -156,7 +169,7 @@ const Sales = () => {
             customerInfo,
             pendingPaymentMethod,
             selectedRoute || null,
-            pendingOrderStatus
+            status
         );
         setLastOrderId(orderId);
         setLastOrderTotal(cartCalc.finalTotal);
@@ -216,22 +229,81 @@ const Sales = () => {
                 <div style={{ marginBottom: '1rem' }}>
                     <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--text-muted)' }}>Select Customer</label>
                     <div style={{ position: 'relative' }}>
-                        <User size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
-                        <select className="input-field" value={selectedShopId} onChange={e => {
-                            setSelectedShopId(e.target.value);
-                            if (e.target.value === 'WALKIN') setCustomerInfo({ name: 'Walk-in Customer', phone: '' });
-                            else { const shop = shops.find(s => s.id === e.target.value); setCustomerInfo({ name: shop?.name || 'Customer', phone: shop?.phone || '' }); }
-                        }} style={{ paddingLeft: '2.5rem', marginBottom: 0 }}>
-                            <option value="WALKIN">Walking Customer</option>
-                            {shops.map(s => <option key={s.id} value={s.id}>{s.name} - {s.phone}</option>)}
-                        </select>
+                        <User size={18} style={{ position: 'absolute', left: '1rem', top: '12px', zIndex: 1, color: 'var(--text-muted)' }} />
+                        <input 
+                            type="text" 
+                            className="input-field" 
+                            placeholder="Search or select customer..." 
+                            value={customerSearch || (selectedShopId === 'WALKIN' ? 'Walking Customer' : customerInfo.name)}
+                            onFocus={() => {
+                                setShowCustomerDropdown(true);
+                                setCustomerSearch('');
+                            }}
+                            onChange={e => {
+                                setCustomerSearch(e.target.value);
+                                setShowCustomerDropdown(true);
+                            }}
+                            style={{ paddingLeft: '2.5rem', marginBottom: 0 }}
+                        />
+                        
+                        {showCustomerDropdown && (
+                            <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'white', borderRadius: '12px', border: '1px solid var(--border-color)', boxShadow: '0 10px 25px rgba(0,0,0,0.1)', zIndex: 100, marginTop: '5px', maxHeight: '200px', overflowY: 'auto' }}>
+                                <div 
+                                    style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid var(--border-color)', fontWeight: 600, color: 'var(--primary)', backgroundColor: selectedShopId === 'WALKIN' ? 'var(--primary-transparent)' : 'transparent' }}
+                                    onClick={() => {
+                                        setSelectedShopId('WALKIN');
+                                        setCustomerInfo({ name: 'Walk-in Customer', phone: '' });
+                                        setCustomerSearch('');
+                                        setShowCustomerDropdown(false);
+                                    }}
+                                >
+                                    Walking Customer
+                                </div>
+                                {filteredCustomers.map(s => (
+                                    <div 
+                                        key={s.id} 
+                                        style={{ padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid var(--border-color)', backgroundColor: selectedShopId === s.id ? 'var(--primary-transparent)' : 'transparent' }}
+                                        onClick={() => {
+                                            setSelectedShopId(s.id);
+                                            setCustomerInfo({ name: s.name, phone: s.phone || '' });
+                                            setCustomerSearch('');
+                                            setShowCustomerDropdown(false);
+                                        }}
+                                    >
+                                        <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.9rem' }}>{s.name}</div>
+                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{s.phone}</div>
+                                    </div>
+                                ))}
+                                {filteredCustomers.length === 0 && (
+                                    <div style={{ padding: '1rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>No customers found</div>
+                                )}
+                            </div>
+                        )}
+                        {showCustomerDropdown && (
+                            <div 
+                                style={{ position: 'fixed', inset: 0, zIndex: 90 }} 
+                                onClick={() => setShowCustomerDropdown(false)} 
+                            />
+                        )}
                     </div>
                 </div>
                 
-                {selectedShopId === 'WALKIN' && (
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                        <input type="text" className="input-field" placeholder="Name" value={customerInfo.name} onChange={e => setCustomerInfo({...customerInfo, name: e.target.value})} style={{ marginBottom: 0 }} />
-                        <input type="text" className="input-field" placeholder="Phone" value={customerInfo.phone} onChange={e => setCustomerInfo({...customerInfo, phone: e.target.value})} style={{ marginBottom: 0 }} />
+                {selectedShopId === 'WALKIN' && !showCustomerDropdown && (
+                    <div style={{ display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
+                        <input type="text" className="input-field" placeholder="Name" value={customerInfo.name} onChange={e => setCustomerInfo({...customerInfo, name: e.target.value})} style={{ marginBottom: 0, fontSize: '0.85rem' }} />
+                        <input type="text" className="input-field" placeholder="Phone" value={customerInfo.phone} onChange={e => setCustomerInfo({...customerInfo, phone: e.target.value})} style={{ marginBottom: 0, fontSize: '0.85rem' }} />
+                    </div>
+                )}
+                
+                {selectedShopId !== 'WALKIN' && !showCustomerDropdown && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--primary-transparent)', padding: '0.5rem 0.75rem', borderRadius: '8px', border: '1px solid var(--primary-light)' }}>
+                        <div style={{ background: 'var(--primary)', color: 'white', padding: '4px', borderRadius: '50%', display: 'flex' }}>
+                            <User size={12} />
+                        </div>
+                        <div>
+                            <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--primary)' }}>{customerInfo.name}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--primary)', opacity: 0.8 }}>{customerInfo.phone}</div>
+                        </div>
                     </div>
                 )}
             </div>
@@ -316,12 +388,12 @@ const Sales = () => {
                 </div>
 
                 <div style={{ display: 'flex', gap: '1rem' }}>
-                    {selectedShopId !== 'WALKIN' && (
-                        <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center', padding: '1rem', letterSpacing: '0.02em', background: 'rgba(0,0,0,0.02)' }} disabled={cart.length === 0 || isViewOnly()} onClick={() => { setPendingOrderStatus('PENDING'); setShowPaymentModal(true); }}>
-                            <Clock size={18} /> Pending
-                        </button>
-                    )}
-                    <button className="btn btn-primary" style={{ flex: 2, justifyContent: 'center', padding: '1rem', letterSpacing: '0.02em' }} disabled={cart.length === 0 || isViewOnly()} onClick={() => { setPendingOrderStatus('COMPLETED'); setShowPaymentModal(true); }}>
+                    <button className="btn btn-secondary" style={{ flex: 1, justifyContent: 'center', padding: '1rem', letterSpacing: '0.02em', background: 'rgba(0,0,0,0.02)' }} disabled={cart.length === 0 || isViewOnly()} onClick={() => { 
+                        handleConfirmTransaction('PENDING'); 
+                    }}>
+                        <Clock size={18} /> Book Order
+                    </button>
+                    <button className="btn btn-primary" style={{ flex: 2, justifyContent: 'center', padding: '1rem', letterSpacing: '0.02em' }} disabled={cart.length === 0 || isViewOnly()} onClick={() => { setShowPaymentModal(true); }}>
                         <Check size={18} /> Checkout
                     </button>
                 </div>
@@ -513,7 +585,7 @@ const Sales = () => {
 
                         <div style={{ display: 'flex', gap: '1rem' }}>
                             <button className="btn btn-secondary" style={{ flex: 1, padding: '1rem', justifyContent: 'center' }} onClick={() => setShowPaymentModal(false)}>Cancel</button>
-                            <button className="btn btn-primary" style={{ flex: 1, padding: '1rem', justifyContent: 'center' }} onClick={handleConfirmTransaction}>Complete Order <Check size={18} /></button>
+                            <button className="btn btn-primary" style={{ flex: 1, padding: '1rem', justifyContent: 'center' }} onClick={() => handleConfirmTransaction('COMPLETED')}>Complete Order <Check size={18} /></button>
                         </div>
                     </div>
                 </div>

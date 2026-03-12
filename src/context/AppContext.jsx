@@ -292,7 +292,7 @@ export const AppProvider = ({ children }) => {
         // 1. Deduct stock & log movement (Only if not a route sale, as route stock is deducted on dispatch)
         let totalCogs = 0;
 
-        if (!routeId) {
+        if (!routeId && status === 'COMPLETED') {
             const updatedProducts = [...products];
             cartItems.forEach(item => {
                 const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
@@ -312,7 +312,7 @@ export const AppProvider = ({ children }) => {
             setProducts(updatedProducts);
             totalCogs = cartItems.reduce((sum, item) => sum + (item.cogs || 0), 0);
         } else {
-            // For route sales, we still need to calculate COGS but DON'T deduct from main inventory
+            // For route sales or pending orders, we still need to calculate COGS but DON'T deduct from main inventory
             cartItems.forEach(item => {
                 const product = products.find(p => p.id === item.productId);
                 item.cogs = (product?.costPrice || 0) * item.quantity;
