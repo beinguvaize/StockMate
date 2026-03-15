@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, LayoutDashboard } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, LayoutDashboard, Activity } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DailyRevenueTrendChart from '../components/DailyRevenueTrendChart';
 import { 
@@ -520,9 +520,45 @@ const Dashboard = () => {
                 </div>
             </div>
 
-            {/* Daily Revenue Trend: Primary Insights */}
-            <div className="w-full">
-                <DailyRevenueTrendChart />
+            {/* Intelligence Row 2: Trend & Utilization */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                    <DailyRevenueTrendChart />
+                </div>
+                
+                {/* Secondary Insight: Asset Utilization (New) */}
+                <div className="bg-white p-8 rounded-[2rem] shadow-premium border border-black/5 flex flex-col h-[400px]">
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 className="text-xl font-bold text-ink-primary uppercase tracking-tight">Utilisation</h2>
+                            <p className="text-[10px] font-black text-ink-secondary/40 uppercase tracking-widest">Asset Efficiency Index</p>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-accent-signature/10 flex items-center justify-center text-ink-primary">
+                            <Activity size={18} />
+                        </div>
+                    </div>
+                    
+                    <div className="flex-1 flex flex-col justify-center gap-6">
+                        {[
+                            { label: 'Vehicle Payload', value: 84, color: 'bg-accent-signature' },
+                            { label: 'Route Coverage', value: 72, color: 'bg-blue-500' },
+                            { label: 'Stock Turnover', value: 91, color: 'bg-purple-500' }
+                        ].map((stat, i) => (
+                            <div key={i} className="space-y-2">
+                                <div className="flex justify-between items-end">
+                                    <span className="text-[10px] font-black text-ink-secondary uppercase tracking-widest">{stat.label}</span>
+                                    <span className="text-sm font-black text-ink-primary font-mono">{stat.value}%</span>
+                                </div>
+                                <div className="h-2 w-full bg-canvas rounded-full overflow-hidden">
+                                    <div 
+                                        className={`h-full ${stat.color} transition-all duration-1000`} 
+                                        style={{ width: `${stat.value}%` }}
+                                    ></div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             {/* Logs & Alerts Activity */}

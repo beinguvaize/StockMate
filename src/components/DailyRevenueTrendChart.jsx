@@ -101,7 +101,7 @@ const DailyRevenueTrendChart = () => {
     };
 
     return (
-        <div className="bg-white p-8 rounded-[2rem] shadow-premium border border-black/5 flex flex-col h-[500px] overflow-hidden">
+        <div className="bg-white p-8 rounded-[2rem] shadow-premium border border-black/5 flex flex-col h-[400px] overflow-hidden">
             {/* Legend & Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
                 <div>
