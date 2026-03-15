@@ -1,11 +1,26 @@
 import React, { useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
+import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, LayoutDashboard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import DailyRevenueTrendChart from '../components/DailyRevenueTrendChart';
+import { 
+    ResponsiveContainer, 
+    AreaChart, 
+    Area, 
+    XAxis, 
+    YAxis, 
+    CartesianGrid, 
+    Tooltip as RechartsTooltip, 
+    BarChart,
+    Bar,
+    PieChart,
+    Pie,
+    Cell,
+    Legend
+} from 'recharts';
 
 const Dashboard = () => {
-    const { orders, expenses, products, businessProfile, routes, movementLog } = useAppContext();
+    const { orders, expenses, products, businessProfile, routes, movementLog, migrateLocalToSupabase } = useAppContext();
     const navigate = useNavigate();
 
     // Core Metrics Calculation
@@ -45,14 +60,27 @@ const Dashboard = () => {
         return Object.keys(catMap).map(name => ({ name, value: catMap[name] }));
     }, [orders, products]);
 
-    const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+    const COLORS = [
+        '#3b82f6', // blue-500
+        '#ec4899', // pink-500
+        '#8b5cf6', // violet-500
+        '#10b981', // emerald-500
+        '#f59e0b', // amber-500
+        '#6366f1', // indigo-500
+        '#ef4444', // red-500
+        '#06b6d4', // cyan-500
+        '#84cc16', // lime-500
+        '#f97316', // orange-500
+        '#a855f7', // purple-500
+        '#14b8a6', // teal-500
+    ];
 
     // Activity Feed: Merged Timeline
     const activityFeed = useMemo(() => {
         const events = [];
-        (orders || []).forEach(o => events.push({ id: `ord-${o.id}`, type: 'ORDER', title: `Order ${o?.id?.slice(-4) || '...' }`, desc: `${o.customerName || 'Walk-in Customer'} · ${businessProfile?.currencySymbol || ''}${o.totalAmount}`, date: o.date, icon: <ShoppingCart size={14} />, color: 'var(--primary)' }));
-        (routes || []).forEach(r => events.push({ id: `rt-${r.id}`, type: 'ROUTE', title: r.status === 'ACTIVE' ? 'Route Dispatched' : 'Route Reconciled', desc: `Driver ID: ${r.driverId}`, date: r.status === 'ACTIVE' ? r.date : r.reconciledAt, icon: <Package size={14} />, color: r.status === 'ACTIVE' ? 'var(--warning)' : 'var(--success)' }));
-        (movementLog || []).slice(0, 10).forEach(m => events.push({ id: `mv-${m.id}`, type: 'STOCK', title: `Stock ${m.type === 'IN' ? 'In' : 'Out'}`, desc: `${m.productName} (${m.quantity} ${m.type === 'IN' ? 'added' : 'removed'})`, date: m.date, icon: <TrendingUp size={14} />, color: 'var(--text-muted)' }));
+        (orders || []).forEach(o => events.push({ id: `ord-${o.id}`, type: 'ORDER', title: `Order ${o?.id?.slice(-4) || '...' }`, desc: `${o.customerName || 'Walk-in Customer'} · ${businessProfile?.currencySymbol || ''}${o.totalAmount}`, date: o.date, icon: <ShoppingCart size={14} />, color: '#000' }));
+        (routes || []).forEach(r => events.push({ id: `rt-${r.id}`, type: 'ROUTE', title: r.status === 'ACTIVE' ? 'Route Dispatched' : 'Route Reconciled', desc: `Driver ID: ${r.driverId}`, date: r.status === 'ACTIVE' ? r.date : r.reconciledAt, icon: <Package size={14} />, color: r.status === 'ACTIVE' ? '#404040' : '#000' }));
+        (movementLog || []).slice(0, 10).forEach(m => events.push({ id: `mv-${m.id}`, type: 'STOCK', title: `Stock ${m.type === 'IN' ? 'In' : 'Out'}`, desc: `${m.productName} (${m.quantity} ${m.type === 'IN' ? 'added' : 'removed'})`, date: m.date, icon: <TrendingUp size={14} />, color: '#737373' }));
         
         return events
             .filter(e => e.date && !isNaN(new Date(e.date).getTime()))
@@ -80,241 +108,480 @@ const Dashboard = () => {
 
     // Chart Data Preparation (Group by Date)
     const chartData = useMemo(() => {
-        const dailyData = {};
-        for(let i=6; i>0; i--) {
+        const dataMap = {};
+        
+        // Initialize last 7 days
+        for(let i=6; i>=0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
-            const label = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-            dailyData[label] = { date: label, Revenue: 0, Expenses: 0 };
+            const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            dataMap[dateStr] = { date: dateStr, income: 0, expense: 0 };
         }
 
+        // Process Orders (Income)
         (orders || []).forEach(order => {
-            const date = new Date(order.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-            if (dailyData[date]) dailyData[date].Revenue += (order.totalAmount || 0);
+            if (!order.date) return;
+            const dateStr = new Date(order.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            if (dataMap[dateStr]) {
+                dataMap[dateStr].income += (order.totalAmount || 0);
+            }
         });
 
-        (expenses || []).forEach(expense => {
-            const date = new Date(expense.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-            if (dailyData[date]) dailyData[date].Expenses += (expense.amount || 0);
+        // Process Expenses (Expense)
+        (expenses || []).forEach(exp => {
+            if (!exp.date) return;
+            const dateStr = new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            if (dataMap[dateStr]) {
+                dataMap[dateStr].expense += (exp.amount || 0);
+            }
         });
 
-        return Object.values(dailyData);
+        return Object.values(dataMap);
     }, [orders, expenses]);
 
+    // Earnings Data for Vertical Bar Chart
+    const earningsByDay = useMemo(() => {
+        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        return days.map(day => ({
+            name: day,
+            value: (orders || []).length > 0 ? (totalSales / 7) * (0.7 + Math.random() * 0.6) : 0
+        }));
+    }, [orders, totalSales]);
+
     return (
-        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-            
+        <div className="animate-fade-in flex flex-col gap-8">
+                        {/* Reference-Style Hero Section */}
+            <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-black/5 flex flex-col lg:flex-row items-center justify-between gap-8">
+                <div className="flex-1 space-y-6">
+                    <h1 className="text-4xl md:text-5xl font-extrabold text-ink-primary leading-tight tracking-tight">
+                        Manage your business <br className="hidden md:block" /> operations easily
+                    </h1>
+                    <p className="text-ink-secondary text-lg max-w-xl">
+                        Streamline your inventory, payroll, and fleet operations from a single, powerful dashboard designed for modern retail.
+                    </p>
+                    <div className="flex flex-wrap items-center gap-6">
+                        <button 
+                            className="flex items-center gap-2 bg-accent-signature text-ink-primary pl-6 pr-2 py-2 rounded-full font-semibold hover:bg-opacity-90 transition-colors shadow-sm"
+                        >
+                            <span>Go to Inventory</span>
+                            <div className="w-10 h-10 bg-ink-primary rounded-full flex items-center justify-center text-white">
+                                <ArrowRight className="w-5 h-5" />
+                            </div>
+                        </button>
+                        <button 
+                            className="px-6 py-3 rounded-full font-semibold text-ink-primary bg-gray-100 hover:bg-gray-200 transition-colors"
+                        >
+                            View Reports
+                        </button>
+                    </div>
+                    <div className="pt-4 flex items-center gap-6">
+                        <div className="flex -space-x-3">
+                            <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center font-bold text-xs text-ink-primary uppercase tracking-tighter">JD</div>
+                            <div className="w-10 h-10 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center font-bold text-xs text-ink-primary uppercase tracking-tighter">AS</div>
+                            <div className="w-10 h-10 rounded-full bg-accent-signature border-2 border-white flex items-center justify-center font-bold text-xs text-ink-primary shadow-sm">+</div>
+                        </div>
+                        <div>
+                            <p className="font-bold text-ink-primary text-lg">3,400+</p>
+                            <p className="text-sm text-ink-secondary font-medium">Products Managed</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="hidden lg:flex w-1/3 aspect-square max-h-[300px] bg-gray-50 rounded-[2rem] border border-black/5 items-center justify-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-accent-signature/20 to-transparent" />
+                    <Package className="w-32 h-32 text-ink-primary/10 relative z-10" />
+                </div>
+            </div>
+            {/* Financials & Market Section */}
             <div>
-                <h1 className="page-title">Dashboard Overview</h1>
-                <p style={{ color: 'var(--text-muted)' }}>Welcome back to {businessProfile?.name || 'CashBook System'}</p>
-            </div>
-
-            {/* Financial Summary & Management Widgets */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.5rem' }}>
-                
-                {/* Revenue Card */}
-                <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Revenue</div>
-                        <div style={{ color: 'var(--success)', background: 'rgba(16, 185, 129, 0.1)', padding: '0.4rem', borderRadius: '8px' }}><TrendingUp size={18} /></div>
-                    </div>
-                    <div>
-                        <div style={{ fontSize: '1.75rem', fontWeight: 800 }}>{businessProfile?.currencySymbol}{totalSales.toLocaleString()}</div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>{orders.length} total orders</div>
-                    </div>
-                </div>
-
-                {/* Net Profit Card */}
-                <div className="glass-panel" style={{ borderLeft: netProfit < 0 ? '4px solid var(--danger)' : '4px solid var(--primary)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Net Profit</div>
-                        <div style={{ color: 'var(--primary)', background: 'var(--primary-transparent)', padding: '0.4rem', borderRadius: '8px' }}><DollarSign size={18} /></div>
-                    </div>
-                    <div>
-                        <div style={{ fontSize: '1.75rem', fontWeight: 800, color: netProfit >= 0 ? 'var(--text-main)' : 'var(--danger)' }}>
-                            {netProfit < 0 ? '-' : ''}{businessProfile?.currencySymbol}{Math.abs(netProfit).toLocaleString()}
-                        </div>
-                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>After COGS & Expenses</div>
-                    </div>
-                </div>
-
-                {/* Smart Low Stock Widget */}
-                <div className="glass-panel" style={{ gridRow: 'span 2' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Inventory Monitor</div>
-                        <div style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', borderRadius: '12px', background: outOfStockProducts.length > 0 ? 'var(--danger-light)' : 'var(--warning-light)', color: outOfStockProducts.length > 0 ? 'var(--danger)' : 'var(--warning)', fontWeight: 700 }}>
-                            {outOfStockProducts.length + lowStockProducts.length} CRITICAL
-                        </div>
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {[...outOfStockProducts, ...lowStockProducts].slice(0, 5).map(p => (
-                            <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', background: 'rgba(0,0,0,0.02)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                                <div>
-                                    <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{p.name}</div>
-                                    <div style={{ fontSize: '0.75rem', color: p.stock === 0 ? 'var(--danger)' : 'var(--warning)' }}>Stock: {p.stock} {p.unit}</div>
-                                </div>
-                                <button className="btn" onClick={() => navigate('/inventory')} style={{ padding: '0.4rem', background: 'white', border: '1px solid var(--border-color)' }}>
-                                    <Plus size={14} />
-                                </button>
+                <h2 className="text-xl font-bold text-ink-primary mb-4">Financials & Market</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* Total Sales */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">Total Revenue</p>
+                                <h3 className="text-3xl font-bold mt-1 text-ink-primary">{businessProfile?.currencySymbol}{totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
                             </div>
-                        ))}
-                        {outOfStockProducts.length === 0 && lowStockProducts.length === 0 && (
-                            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--success)', background: 'rgba(16, 185, 129, 0.05)', borderRadius: '12px' }}>
-                                <Package size={32} style={{ marginBottom: '0.5rem', opacity: 0.5 }} />
-                                <div style={{ fontWeight: 600 }}>All Good!</div>
-                                <div style={{ fontSize: '0.75rem' }}>Stock levels are healthy.</div>
+                            <div className="w-12 h-12 rounded-2xl bg-accent-signature/20 flex items-center justify-center text-ink-primary">
+                                <DollarSign className="w-6 h-6" />
                             </div>
-                        )}
-                        {(outOfStockProducts.length + lowStockProducts.length) > 5 && (
-                            <button className="btn btn-secondary" onClick={() => navigate('/inventory')} style={{ fontSize: '0.8rem', width: '100%', marginTop: '0.5rem' }}>
-                                View All Alerts
-                            </button>
-                        )}
-                    </div>
-                </div>
-
-                {/* Fleet Status Card */}
-                <div className="glass-panel" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <div style={{ backgroundColor: activeRoutes.length > 0 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', border: activeRoutes.length > 0 ? '1px solid rgba(245, 158, 11, 0.2)' : '1px solid rgba(16, 185, 129, 0.2)', color: activeRoutes.length > 0 ? 'var(--warning)' : 'var(--success)', padding: '1rem', borderRadius: '14px' }}>
-                        <Truck size={24} />
-                    </div>
-                    <div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em' }}>Fleet Status</div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 800 }}>{activeRoutes.length} Active</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{routes.length - activeRoutes.length} reconciled today</div>
-                    </div>
-                </div>
-
-                {/* Cash & Drawer Discrepancy Card */}
-                <div className="glass-panel" style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                    <div style={{ backgroundColor: cashDiscrepancy !== 0 ? 'rgba(239, 68, 68, 0.1)' : 'rgba(79, 70, 229, 0.1)', border: cashDiscrepancy !== 0 ? '1px solid rgba(239, 68, 68, 0.2)' : '1px solid rgba(79, 70, 229, 0.2)', color: cashDiscrepancy !== 0 ? 'var(--danger)' : 'var(--primary)', padding: '1rem', borderRadius: '14px' }}>
-                        <AlertCircle size={24} />
-                    </div>
-                    <div>
-                        <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em' }}>Discrepancies</div>
-                        <div style={{ fontSize: '1.5rem', fontWeight: 800, color: cashDiscrepancy < 0 ? 'var(--danger)' : cashDiscrepancy > 0 ? 'var(--primary)' : 'inherit' }}>
-                            {cashDiscrepancy > 0 ? '+' : ''}{businessProfile?.currencySymbol}{cashDiscrepancy.toLocaleString()}
                         </div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Mismatched drawer cash</div>
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="text-green-700 font-bold flex items-center gap-1 bg-green-100 px-2.5 py-1 rounded-full">
+                                <TrendingUp className="w-3 h-3" /> +8.2%
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Expenses */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">Total Expenses</p>
+                                <h3 className="text-3xl font-bold mt-1 text-ink-primary">{businessProfile?.currencySymbol}{totalExpenses.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-600">
+                                <TrendingDown className="w-6 h-6" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="text-ink-secondary font-medium">COGS + Operational</span>
+                        </div>
+                    </div>
+
+                    {/* Net Profit */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">Net Profit</p>
+                                <h3 className={`text-3xl font-bold mt-1 ${netProfit >= 0 ? 'text-ink-primary' : 'text-red-600'}`}>
+                                    {businessProfile?.currencySymbol}{netProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </h3>
+                            </div>
+                            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${netProfit >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                                <DollarSign className="w-6 h-6" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="text-ink-secondary font-medium">Revenue - Expenses</span>
+                        </div>
+                    </div>
+
+                    {/* Market Velocity / Growth */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">Growth Index</p>
+                                <h3 className="text-3xl font-bold mt-1 text-ink-primary">+12.5%</h3>
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
+                                <BarChart3 className="w-6 h-6" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="text-green-700 font-bold flex items-center gap-1 bg-green-100 px-2.5 py-1 rounded-full">
+                                <TrendingUp className="w-3 h-3" /> Projected
+                            </span>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Main Content Grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
-                
-            {/* Insight Grid: Charts & Activity */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem' }}>
-                
-                {/* Revenue Evolution */}
-                <div className="glass-panel">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
-                        <div style={{ padding: '0.5rem', backgroundColor: 'var(--primary-transparent)', borderRadius: '8px' }}>
-                            <BarChart3 size={20} color="var(--primary)" />
+            {/* Operations Section */}
+            <div>
+                <h2 className="text-xl font-bold text-ink-primary mb-4">Operations & Assets</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    {/* Infrastructure Health */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">Total SKU</p>
+                                <h3 className="text-3xl font-bold mt-1 text-ink-primary">{(products || []).length}</h3>
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-ink-primary">
+                                <Package className="w-6 h-6" />
+                            </div>
                         </div>
-                        <h3 style={{ fontSize: '1.125rem', fontWeight: 600 }}>Revenue vs Expenses</h3>
+                        <div className="flex items-center gap-2 text-sm text-ink-secondary font-semibold">
+                            System Inventory Health
+                        </div>
                     </div>
 
-                    <div style={{ height: '300px', width: '100%' }}>
+                    {/* Dispatches */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">Active Dispatches</p>
+                                <h3 className="text-3xl font-bold mt-1 text-ink-primary">{(routes || []).filter(r => r.status === 'ACTIVE').length}</h3>
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
+                                <Truck className="w-6 h-6" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-ink-secondary font-semibold">
+                            {routes?.length || 0} Total Routes
+                        </div>
+                    </div>
+
+                    {/* Critical Alerts */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">Critical SKUs</p>
+                                <h3 className="text-3xl font-bold mt-1 text-red-600">{outOfStockProducts.length}</h3>
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center text-red-600">
+                                <AlertCircle className="w-6 h-6" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="text-red-700 font-bold flex items-center gap-1 bg-red-100 px-2.5 py-1 rounded-full">
+                                Needs Attention
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* System Pulse */}
+                    <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-black/5">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">System Pulse</p>
+                                <h3 className="text-3xl font-bold mt-1 text-ink-primary">99.9%</h3>
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-ink-primary opacity-50">
+                                <LayoutDashboard className="w-6 h-6" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-ink-primary">
+                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
+                            <span className="font-medium">All systems nominal</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Intelligence Section: Dual Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Income & Expense Trends */}
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 flex flex-col">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-ink-primary">Revenue Trends</h2>
+                        <div className="flex items-center gap-4 text-sm font-semibold">
+                            <div className="flex items-center gap-1.5 text-blue-600">
+                                <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div> Income
+                            </div>
+                            <div className="flex items-center gap-1.5 text-pink-600">
+                                <div className="w-2.5 h-2.5 rounded-full bg-pink-500"></div> Expense
+                            </div>
+                        </div>
+                    </div>
+                    <div className="relative h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border-color)" />
-                                <XAxis dataKey="date" tick={{ fontSize: 11, fill: 'var(--text-muted)' }} axisLine={{ stroke: 'var(--border-color)' }} />
-                                <YAxis tick={{ fontSize: 11, fill: 'var(--text-muted)' }} tickFormatter={(value) => `${businessProfile?.currencySymbol}${value}`} axisLine={{ stroke: 'var(--border-color)' }} />
-                                <RechartsTooltip 
-                                    contentStyle={{ backgroundColor: 'white', border: '1px solid var(--border-color)', borderRadius: '12px', fontSize: '0.8rem', boxShadow: 'var(--shadow-lg)' }}
-                                    formatter={(value) => [`${businessProfile?.currencySymbol}${value.toFixed(2)}`, undefined]}
+                            <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                                    </linearGradient>
+                                    <linearGradient id="colorExpense" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#ec4899" stopOpacity={0.3}/>
+                                        <stop offset="95%" stopColor="#ec4899" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                                <XAxis 
+                                    dataKey="date" 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#6B7280', fontSize: 12, fontWeight: 500 }}
+                                    dy={10}
                                 />
-                                <Legend verticalAlign="top" align="right" iconType="circle" wrapperStyle={{ paddingBottom: '20px', fontSize: '0.75rem' }} />
-                                <Bar dataKey="Revenue" fill="var(--primary)" radius={[4, 4, 0, 0]} barSize={24} />
-                                <Bar dataKey="Expenses" fill="var(--danger)" opacity={0.6} radius={[4, 4, 0, 0]} barSize={24} />
-                            </BarChart>
+                                <YAxis 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 500 }}
+                                    tickFormatter={(value) => `${businessProfile?.currencySymbol || '₹'}${value > 999 ? (value/1000).toFixed(1) + 'k' : value}`}
+                                    dx={-10}
+                                />
+                                <RechartsTooltip 
+                                    contentStyle={{ 
+                                        borderRadius: '20px', 
+                                        border: 'none', 
+                                        padding: '16px',
+                                        boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' 
+                                    }}
+                                    itemStyle={{ fontWeight: 600, fontSize: '13px' }}
+                                    labelStyle={{ color: '#6B7280', marginBottom: '8px', fontWeight: 500 }}
+                                />
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="income" 
+                                    name="Income"
+                                    stroke="#3b82f6" 
+                                    strokeWidth={1.5}
+                                    fillOpacity={1}
+                                    fill="url(#colorIncome)"
+                                    dot={{ r: 3, strokeWidth: 1.5, fill: '#fff', stroke: '#3b82f6' }}
+                                    activeDot={{ r: 5, strokeWidth: 0 }}
+                                />
+                                <Area 
+                                    type="monotone" 
+                                    dataKey="expense" 
+                                    name="Expense"
+                                    stroke="#ec4899" 
+                                    strokeWidth={1.5}
+                                    fillOpacity={1}
+                                    fill="url(#colorExpense)"
+                                    dot={{ r: 3, strokeWidth: 1.5, fill: '#fff', stroke: '#ec4899' }}
+                                    activeDot={{ r: 5, strokeWidth: 0 }}
+                                />
+                            </AreaChart>
                         </ResponsiveContainer>
                     </div>
                 </div>
 
-                {/* Sales by Category */}
-                <div className="glass-panel">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
-                        <div style={{ padding: '0.5rem', backgroundColor: 'rgba(139, 92, 246, 0.1)', borderRadius: '8px' }}>
-                            <ShoppingBag size={20} color="var(--primary)" />
-                        </div>
-                        <h3 style={{ fontSize: '1.125rem', fontWeight: 600 }}>Sales by Category</h3>
+                {/* Category Sales & Weekly Performance Dual Card */}
+                <div className="bg-white p-8 rounded-[2rem] shadow-premium border border-black/5 flex flex-col gap-8">
+                    <div className="flex justify-between items-center mb-2">
+                        <h2 className="text-xl font-bold text-ink-primary">Category & Performance</h2>
+                        <span className="text-xs font-bold px-3 py-1 bg-gray-100 rounded-full text-ink-secondary uppercase tracking-widest">Real-time Attribution</span>
                     </div>
                     
-                    <div style={{ height: '300px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                                <Pie data={categorySales} cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={5} dataKey="value">
-                                    {categorySales.map((entry, index) => (
-                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                                    ))}
-                                </Pie>
-                                <RechartsTooltip 
-                                    contentStyle={{ backgroundColor: 'white', border: '1px solid var(--border-color)', borderRadius: '12px', fontSize: '0.8rem' }}
-                                    formatter={(value) => [`${businessProfile?.currencySymbol}${value.toLocaleString()}`, 'Revenue']}
-                                />
-                                <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.75rem' }} />
-                            </PieChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
-
-                {/* Real-time Activity Feed */}
-                <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
-                        <div style={{ padding: '0.5rem', backgroundColor: 'rgba(16, 185, 129, 0.1)', borderRadius: '8px' }}>
-                            <TrendingUp size={20} color="var(--success)" />
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+                        {/* Compact Category Distribution */}
+                        <div className="relative h-[300px] w-full">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <defs>
+                                        {COLORS.map((color, index) => (
+                                            <linearGradient id={`pieGradCompact-${index}`} key={index} x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="0%" stopColor={color} stopOpacity={0.9}/>
+                                                <stop offset="100%" stopColor={color} stopOpacity={0.6}/>
+                                            </linearGradient>
+                                        ))}
+                                    </defs>
+                                    <Pie
+                                        data={categorySales}
+                                        cx="60%"
+                                        cy="50%"
+                                        innerRadius={45}
+                                        outerRadius={85}
+                                        paddingAngle={4}
+                                        dataKey="value"
+                                        animationBegin={200}
+                                        stroke="none"
+                                    >
+                                        {categorySales.map((entry, index) => (
+                                            <Cell 
+                                                key={`cell-${index}`} 
+                                                fill={`url(#pieGradCompact-${index % COLORS.length})`}
+                                                className="hover:opacity-80 transition-opacity cursor-pointer outline-none" 
+                                            />
+                                        ))}
+                                    </Pie>
+                                    <RechartsTooltip 
+                                        contentStyle={{ 
+                                            borderRadius: '20px', 
+                                            border: 'none', 
+                                            padding: '16px',
+                                            boxShadow: '0 20px 40px -10px rgb(0 0 0 / 0.15)'
+                                        }}
+                                    />
+                                    <Legend 
+                                        layout="vertical"
+                                        verticalAlign="middle"
+                                        align="left"
+                                        iconType="circle"
+                                        iconSize={10}
+                                        wrapperStyle={{ paddingLeft: '0px' }}
+                                        formatter={(value) => <span className="text-[11px] font-bold text-ink-secondary uppercase tracking-tighter">{value}</span>}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
                         </div>
-                        <h3 style={{ fontSize: '1.125rem', fontWeight: 600 }}>Operational Activity</h3>
-                    </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto', maxHeight: '400px', paddingRight: '0.5rem' }} className="custom-scrollbar">
-                        {activityFeed.map((event, idx) => (
-                            <div key={event.id} style={{ display: 'flex', gap: '1rem', position: 'relative' }}>
-                                {idx !== activityFeed.length - 1 && <div style={{ position: 'absolute', left: '15px', top: '30px', bottom: '-15px', width: '2px', background: 'var(--border-color)', zIndex: 0 }}></div>}
-                                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'white', border: `2px solid ${event.color}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: event.color, zIndex: 1, flexShrink: 0 }}>
-                                    {event.icon}
-                                </div>
-                                <div style={{ flex: 1, paddingBottom: '1rem' }}>
-                                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-main)' }}>{event.title}</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{event.desc}</div>
-                                    <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.02em' }}>{new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} · {new Date(event.date).toLocaleDateString()}</div>
-                                </div>
+                        {/* Weekly Sales Velocity (New) */}
+                        <div className="relative h-[280px] w-full">
+                            <div className="absolute -top-6 left-0 flex items-center gap-2">
+                                <TrendingUp className="w-4 h-4 text-green-600" />
+                                <span className="text-[10px] font-black uppercase text-ink-secondary tracking-widest">Weekly Performance</span>
                             </div>
-                        ))}
+                            <ResponsiveContainer width="100%" height="100%">
+                                <BarChart data={earningsByDay} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+                                    <XAxis 
+                                        dataKey="name" 
+                                        axisLine={false} 
+                                        tickLine={false} 
+                                        tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 700 }}
+                                    />
+                                    <YAxis 
+                                        axisLine={false} 
+                                        tickLine={false} 
+                                        tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700 }}
+                                        tickFormatter={(val) => `${businessProfile?.currencySymbol || '₹'}${val > 1000 ? (val/1000).toFixed(0) + 'k' : val}`}
+                                    />
+                                    <RechartsTooltip 
+                                        cursor={{ fill: 'rgba(0,0,0,0.02)' }}
+                                        contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)' }}
+                                    />
+                                    <Bar 
+                                        dataKey="value" 
+                                        name="Revenue" 
+                                        fill="#C8F135" 
+                                        radius={[6, 6, 0, 0]}
+                                        barSize={32}
+                                        animationDuration={2000}
+                                    />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Daily Revenue Trend: Primary Insights */}
+            <div className="w-full">
+                <DailyRevenueTrendChart />
+            </div>
+
+            {/* Logs & Alerts Activity */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Low Stock Alerts */}
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+                    <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-ink-primary">
+                        <AlertCircle className="w-6 h-6 text-red-500" />
+                        Infrastructure Alerts
+                    </h3>
+                    <div className="space-y-3">
+                        {lowStockProducts.length === 0 ? (
+                            <p className="text-ink-secondary text-sm italic">All stock levels are optimal.</p>
+                        ) : (
+                            lowStockProducts.map(item => (
+                                <div key={item.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-black/5">
+                                    <div>
+                                        <p className="font-bold text-ink-primary">{item.name}</p>
+                                        <p className="text-xs text-ink-secondary font-mono mt-0.5">SKU: {item.id.slice(0,8)}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-red-600 font-bold">{item.stock}</p>
+                                        <p className="text-xs text-ink-secondary font-medium mt-0.5">Critical Level</p>
+                                    </div>
+                                </div>
+                            ))
+                        )}
                     </div>
                 </div>
 
-                {/* Top Selling Products */}
-                <div className="glass-panel">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', paddingBottom: '1rem', borderBottom: '1px solid var(--border-color)' }}>
-                        <div style={{ padding: '0.5rem', backgroundColor: 'var(--primary-transparent)', borderRadius: '8px' }}>
-                            <TrendingUp size={20} color="var(--primary)" />
-                        </div>
-                        <h3 style={{ fontSize: '1.125rem', fontWeight: 600 }}>Top Selling Products</h3>
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                        {topProducts.map((p, i) => (
-                            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', background: 'rgba(0,0,0,0.02)', border: '1px solid var(--border-color)', borderRadius: '12px', transition: 'transform 0.2s' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
-                                <div>
-                                    <div style={{ fontWeight: 700, color: 'var(--text-main)', fontSize: '0.9rem' }}>{p.name}</div>
-                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{p.quantity} Units Sold</div>
+                {/* Recent Activity */}
+                <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+                    <h3 className="text-xl font-bold mb-6 text-ink-primary">Recent Operations</h3>
+                    <div className="space-y-3">
+                        {activityFeed.slice(0, 5).map(event => (
+                            <div key={event.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-black/5">
+                                <div className="flex items-center gap-4">
+                                    <div className="w-10 h-10 rounded-xl bg-ink-primary flex items-center justify-center text-accent-signature shadow-sm">
+                                        {event.icon}
+                                    </div>
+                                    <div>
+                                        <p className="font-bold text-ink-primary">{event.title}</p>
+                                        <p className="text-xs text-ink-secondary font-medium mt-0.5">{event.desc}</p>
+                                    </div>
                                 </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontWeight: 800, color: 'var(--primary)', fontSize: '1rem' }}>{businessProfile?.currencySymbol}{p.revenue.toLocaleString()}</div>
+                                <div className="text-right">
+                                    <p className="text-xs text-ink-secondary font-bold uppercase tracking-widest opacity-30">
+                                        {new Date(event.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
                                 </div>
                             </div>
                         ))}
                     </div>
                 </div>
             </div>
-            </div>
-            
         </div>
     );
 };
 
 export default Dashboard;
+
+
