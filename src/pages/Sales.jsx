@@ -444,8 +444,8 @@ const Sales = () => {
                 {/* Header Section */}
                 <div className="flex justify-between items-end pb-2 border-b border-black/5">
                     <div>
-                        <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">Sales.</h1>
-                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">Point of Sale & Billing</p>
+                        <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">SALES.</h1>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">POINT OF SALE & BILLING</p>
                     </div>
                     {!isMobile && (
                         <div className="text-right">

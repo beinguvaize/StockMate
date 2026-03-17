@@ -152,8 +152,8 @@ const Payroll = () => {
                 {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-4 border-b border-black/5">
                 <div>
-                    <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">Payroll.</h1>
-                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">Compensation & Staff Accounts</p>
+                    <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">PAYROLL.</h1>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">COMPENSATION & STAFF ACCOUNTS</p>
                 </div>
             </div>
 

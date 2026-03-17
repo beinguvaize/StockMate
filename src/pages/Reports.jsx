@@ -169,11 +169,11 @@ const Reports = () => {
                     <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-4">
                             <div className="w-1.5 h-10 bg-accent-signature rounded-full"></div>
-                            <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none">Reports.</h1>
+                            <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none">REPORTS.</h1>
                         </div>
                         <p className="text-[10px] font-black text-[#747576] tracking-widest uppercase opacity-40 flex items-center gap-2 mt-2">
                             <Activity size={14} className="text-accent-signature" />
-                            Business Overview & Analytics
+                            BUSINESS OVERVIEW & ANALYTICS
                         </p>
                     </div>
                     <div className="flex items-center gap-4 bg-canvas/30 p-2 rounded-2xl border border-black/5 shadow-inner">

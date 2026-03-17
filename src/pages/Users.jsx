@@ -113,8 +113,8 @@ const Users = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-12 border-b border-black/5">
                 <div>
-                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">Staff.</h1>
-                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">Personnel & Access Control</p>
+                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">STAFF.</h1>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">PERSONNEL & ACCESS CONTROL</p>
                 </div>
                 <button className="btn-signature h-20 !text-base" onClick={openAdd}>
                     ADD STAFF MEMBER
