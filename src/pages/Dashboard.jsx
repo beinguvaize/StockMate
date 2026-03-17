@@ -156,7 +156,7 @@ const Dashboard = () => {
                     <h1 className="text-6xl font-black text-ink-primary leading-tight tracking-tight uppercase">
                         Manage your business <br className="hidden md:block" /> operations easily
                     </h1>
-                    <p className="text-ink-secondary text-[10px] uppercase tracking-widest font-black opacity-40 max-w-xl">
+                    <p className="text-ink-secondary text-[10px] tracking-widest font-black opacity-40 max-w-xl">
                         Overview of your business performance, inventory, and operations.
                     </p>
                     <div className="flex flex-wrap items-center gap-6">
