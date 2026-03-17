@@ -153,11 +153,11 @@ const Dashboard = () => {
                         {/* Reference-Style Hero Section */}
             <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-black/5 flex flex-col lg:flex-row items-center justify-between gap-8">
                 <div className="flex-1 space-y-6">
-                    <h1 className="text-5xl font-extrabold text-ink-primary leading-tight tracking-tight uppercase">
-                        Dashboard
+                    <h1 className="text-6xl font-black text-ink-primary leading-tight tracking-tight uppercase">
+                        DASHBOARD
                     </h1>
-                    <p className="text-ink-secondary text-[10px] uppercase tracking-tight font-medium max-w-xl">
-                        Overview of your business performance, inventory, and operations.
+                    <p className="text-ink-secondary text-[10px] uppercase tracking-widest font-black opacity-40 max-w-xl">
+                        OVERVIEW OF YOUR BUSINESS PERFORMANCE, INVENTORY, AND OPERATIONS.
                     </p>
                     <div className="flex flex-wrap items-center gap-6">
                         <button 

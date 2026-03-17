@@ -428,8 +428,8 @@ const Vehicles = () => {
                         <div className="absolute top-0 left-0 w-2 h-full bg-accent-signature"></div>
 
                         <div className="mb-6">
-                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">Add Vehicle</h3>
-                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Register new vehicle to fleet</p>
+                            <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">FLEET.</h1>
+                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">LOGISTICS & MISSION CONTROL</p>
                         </div>
 
                         <form onSubmit={handleAddVehicle} className="space-y-6">

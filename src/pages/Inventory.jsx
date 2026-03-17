@@ -301,8 +301,8 @@ const Inventory = () => {
                     <div className="glass-modal !p-0 !max-w-[1200px] flex flex-col !rounded-bento overflow-hidden">
                         <div className="p-6 border-b border-black/5 flex justify-between items-center bg-canvas">
                             <div>
-                                <h2 className="text-5xl font-black text-ink-primary uppercase tracking-tighter">Stock History.</h2>
-                                <p className="text-[10px] font-medium text-ink-secondary tracking-tight uppercase opacity-50">Stock Management & Asset Distribution</p>
+                                <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">INVENTORY.</h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">STOCK MANAGEMENT & LOGISTICS</p>
                             </div>
                             <button className="w-12 h-12 rounded-pill border border-black/10 flex items-center justify-center hover:bg-ink-primary hover:text-surface transition-all cursor-pointer text-ink-primary" onClick={() => setShowHistoryModal(false)}>
                                 <X size={24} />

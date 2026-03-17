@@ -62,8 +62,8 @@ const Settings = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-8 border-b border-black/5">
                 <div>
-                    <h1 className="text-5xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Settings.</h1>
-                    <p className="text-[10px] font-medium text-ink-secondary tracking-tight uppercase opacity-50">App Preferences & System Configuration</p>
+                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">SETTINGS.</h1>
+                    <p className="text-[10px] font-black text-ink-secondary tracking-widest uppercase opacity-40">SYSTEM CONFIGURATION & PREFERENCES</p>
                 </div>
                 {savedStatus && (
                     <div className="bg-accent-signature/10 text-ink-primary px-8 py-4 rounded-pill text-[10px] font-black uppercase tracking-widest border border-accent-signature/20 flex items-center gap-3 animate-in slide-in-from-right-6 duration-500">
@@ -271,8 +271,8 @@ const Settings = () => {
                         <div className="absolute top-0 right-0 p-16 opacity-5 scale-200 pointer-events-none">
                             <ShieldCheck size={140} />
                         </div>
-                        <h3 className="text-xl font-black uppercase tracking-tighter mb-3">Cloud Security</h3>
-                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-accent-signature mb-10">Status: Local Data Only</div>
+                        <h3 className="text-xl font-black uppercase tracking-tighter mb-1 pt-12">Cloud Security</h3>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-accent-signature mb-10 opacity-70">Status: Local Data Only</div>
                         <p className="text-sm font-medium text-surface/50 leading-relaxed mb-12 relative z-10">
                             You are currently operating within the local simulation environment. Cloud synchronization and production database locks will activate upon enterprise deployment.
                         </p>

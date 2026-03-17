@@ -173,8 +173,8 @@ const Clients = () => {
                             <div className="flex justify-center mb-8 opacity-10">
                                 <UserCircle size={80} strokeWidth={1} />
                             </div>
-                            <h3 className="text-xl font-black text-ink-primary uppercase tracking-tighter mb-2">No ClientsFound</h3>
-                            <p className="text-sm font-bold text-ink-secondary uppercase tracking-[0.3em] opacity-40">No clients found matching your search</p>
+                            <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">CLIENTS.</h1>
+                            <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">CUSTOMER NETWORK & ACCOUNTS</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
