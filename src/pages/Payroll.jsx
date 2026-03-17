@@ -135,7 +135,7 @@ const Payroll = () => {
                     </div>
                     <h2 className="text-4xl font-black mb-3 tracking-tighter text-ink-primary uppercase leading-tight">Access Prohibited.</h2>
                     <p className="text-ink-secondary mb-10 font-black uppercase text-[10px] tracking-widest opacity-60">
-                        Human Resource Management Matrix Locked
+                        Payroll Management Locked
                     </p>
                     <button className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary hover:bg-black/5 transition-all text-xs uppercase" onClick={() => window.history.back()}>
                         Go Back
@@ -152,8 +152,8 @@ const Payroll = () => {
                 {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-4 border-b border-black/5">
                 <div>
-                    <h1 className="text-7xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Capital.</h1>
-                    <p className="text-sm font-medium text-ink-secondary tracking-tight uppercase opacity-50">Workforce Resource & Human Capital Distribution</p>
+                    <h1 className="text-5xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Payroll.</h1>
+                    <p className="text-[10px] font-medium text-ink-secondary tracking-tight uppercase opacity-50">Staff Payments & Resource Distribution</p>
                 </div>
             </div>
 
@@ -165,8 +165,8 @@ const Payroll = () => {
                         <Users size={14} className="text-accent-signature" />
                     </div>
                     <div className="flex flex-col -space-y-1">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Active Nodes</div>
-                        <div className="text-2xl font-black text-ink-primary tracking-tighter leading-none">{activeEmployeesCount} Units</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Active Staff</div>
+                        <div className="text-2xl font-black text-ink-primary tracking-tighter leading-none">{activeEmployeesCount} Staff</div>
                     </div>
                 </div>
 
@@ -176,7 +176,7 @@ const Payroll = () => {
                         <Banknote size={14} className="text-ink-primary" />
                     </div>
                     <div className="flex flex-col -space-y-1">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Cumulative Cost Est.</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Monthly Cost</div>
                         <div className="text-2xl font-black text-ink-primary tracking-tighter leading-none tabular-nums">
                             {businessProfile.currencySymbol}{totalMonthlyPayroll.toLocaleString()}
                         </div>
@@ -189,7 +189,7 @@ const Payroll = () => {
                         <Calendar size={14} className={lastPayRun ? 'text-accent-signature' : 'text-red-500'} />
                     </div>
                     <div className="flex flex-col -space-y-1">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Operational Status</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Status</div>
                         <div className="flex items-baseline gap-2">
                              <div className={`text-2xl font-black tracking-tighter leading-none ${lastPayRun ? 'text-ink-primary' : 'text-red-500'}`}>
                                 {lastPayRun ? 'SYNCED' : 'PENDING'}
@@ -213,7 +213,7 @@ const Payroll = () => {
                         )}
                         {!viewOnly && (
                             <button className="btn-signature h-10 px-8 !py-0 !rounded-pill !text-[10px]" onClick={openAdd}>
-                                ONBOARD STAFF
+                                ADD EMPLOYEE
                                 <div className="icon-nest ml-2">
                                     <UserPlus size={14} />
                                 </div>
@@ -230,7 +230,7 @@ const Payroll = () => {
                         onClick={() => setActiveTab('EMPLOYEES')}
                         className={`px-10 py-4 rounded-pill text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'EMPLOYEES' ? 'bg-ink-primary text-surface shadow-premium' : 'text-ink-secondary hover:text-ink-primary'}`}
                     >
-                        Workforce Roster
+                        Employees
                     </button>
                     <button
                         onClick={() => setActiveTab('HISTORY')}
@@ -246,17 +246,17 @@ const Payroll = () => {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="bg-canvas border-b border-black/5">
-                                        <th className="p-4 pl-8 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Personnel</th>
-                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Strategic Unit</th>
-                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Frequency</th>
-                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50 text-right">Allocation</th>
+                                        <th className="p-4 pl-8 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Employee</th>
+                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Department</th>
+                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Pay Type</th>
+                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50 text-right">Salary</th>
                                         <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50 text-center">Status</th>
                                         <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-black/5 bg-surface">
                                     {employees.length === 0 ? (
-                                            <tr><td colSpan="6" className="p-10 text-center text-ink-secondary uppercase font-black text-[10px] tracking-[0.5em] opacity-30 italic">No personnel records indexed</td></tr>
+                                            <tr><td colSpan="6" className="p-10 text-center text-ink-secondary uppercase font-black text-[10px] tracking-[0.5em] opacity-30 italic">No employees found</td></tr>
                                         ) : (
                                             employees.map(emp => (
                                                 <tr key={emp.id} className={`group hover:bg-canvas transition-all duration-300 ${emp.status !== 'ACTIVE' ? 'opacity-40 grayscale' : ''}`}>
@@ -302,9 +302,9 @@ const Payroll = () => {
                             {payrollRecords.length === 0 ? (
                                 <div className="glass-panel p-40 text-center bg-surface border border-black/5 shadow-premium !rounded-bento">
                                     <Banknote size={100} className="mx-auto mb-10 text-ink-primary opacity-5" strokeWidth={1} />
-                                    <h3 className="text-sm font-black text-ink-primary uppercase tracking-[0.5em] mb-4 opacity-50">Zero Capital Displacement</h3>
-                                    <p className="text-[10px] font-black text-ink-secondary uppercase opacity-40 mb-12 tracking-widest max-w-sm mx-auto leading-loose">No institutional payroll records identified within the historical archive substrate.</p>
-                                    <button className="btn-signature mx-auto h-20" onClick={openPayRun}>AUTHORIZE DISTRIBUTION</button>
+                                    <h3 className="text-sm font-black text-ink-primary uppercase tracking-[0.5em] mb-4 opacity-50">No History</h3>
+                                    <p className="text-[10px] font-black text-ink-secondary uppercase opacity-40 mb-12 tracking-widest max-w-sm mx-auto leading-loose">No payroll records found in the system.</p>
+                                    <button className="btn-signature mx-auto h-20" onClick={openPayRun}>RUN PAYROLL</button>
                                 </div>
                             ) : (
                                 payrollRecords.map(record => (
@@ -327,7 +327,7 @@ const Payroll = () => {
                                                     <div className="text-4xl font-black text-ink-primary tracking-tighter mb-1">
                                                         {businessProfile.currencySymbol}{record.totalNet.toLocaleString()}
                                                     </div>
-                                                    <div className="text-sm font-black text-ink-secondary uppercase tracking-[0.2em] opacity-40">Cumulative Displacement</div>
+                                                    <div className="text-sm font-black text-ink-secondary uppercase tracking-[0.2em] opacity-40">Total Paid</div>
                                                 </div>
                                                 <div className={`w-14 h-14 rounded-full border border-black/10 flex items-center justify-center transition-all duration-700 shadow-sm ${expandedRecord === record.id ? 'rotate-180 bg-ink-primary text-accent-signature' : 'bg-canvas text-ink-primary'}`}>
                                                     <ChevronDown size={24} />
@@ -350,7 +350,7 @@ const Payroll = () => {
                                                         <div className="text-2xl font-black text-red-500">-{businessProfile.currencySymbol}{record.totalDeductions.toLocaleString()}</div>
                                                     </div>
                                                     <div className="p-8 rounded-bento bg-ink-primary text-surface shadow-2xl">
-                                                        <div className="text-[10px] font-black text-surface/40 uppercase tracking-[0.3em] mb-3 opacity-40">Net Capital</div>
+                                                        <div className="text-[10px] font-black text-surface/40 uppercase tracking-[0.3em] mb-3 opacity-40">Total Net</div>
                                                         <div className="text-2xl font-black text-accent-signature">{businessProfile.currencySymbol}{record.totalNet.toLocaleString()}</div>
                                                     </div>
                                                 </div>
@@ -358,8 +358,8 @@ const Payroll = () => {
                                                     <table className="w-full text-left">
                                                         <thead>
                                                             <tr className="bg-canvas/50">
-                                                                <th className="p-6 text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-40">Counterparty (Personnel)</th>
-                                                                <th className="p-6 text-right text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-40">Net Transmission</th>
+                                                                <th className="p-6 text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-40">Employee</th>
+                                                                <th className="p-6 text-right text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-40">Net Pay</th>
                                                             </tr>
                                                         </thead>
                                                         <tbody className="divide-y divide-black/5">
@@ -397,15 +397,15 @@ const Payroll = () => {
 
                         <div className="mb-6">
                             <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">
-                                {editingEmployee ? 'Refine Record' : 'New Integration'}
+                                {editingEmployee ? 'Edit Employee' : 'Add Employee'}
                             </h3>
-                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Human Capital Integration Protocol</p>
+                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Employee Information</p>
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Institutional Identity</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Name</label>
                                     <input 
                                         required 
                                         type="text" 
@@ -417,7 +417,7 @@ const Payroll = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Comm Vector (Email)</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Email</label>
                                     <input 
                                         type="email" 
                                         className="input-field !rounded-xl !py-2.5 font-bold bg-canvas/30 text-xs" 
@@ -428,7 +428,7 @@ const Payroll = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Voice Link (Phone)</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Phone</label>
                                     <input 
                                         type="text" 
                                         className="input-field !rounded-xl !py-2.5 font-bold bg-canvas/30 text-xs" 
@@ -439,7 +439,7 @@ const Payroll = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Strategic Unit</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Department</label>
                                     <select 
                                         className="input-field !rounded-xl !py-2.5 font-bold bg-canvas/30 text-xs appearance-none cursor-pointer" 
                                         value={empForm.department} 
@@ -450,7 +450,7 @@ const Payroll = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Functional Rank</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Position</label>
                                     <input 
                                         required 
                                         type="text" 
@@ -462,7 +462,7 @@ const Payroll = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Comp Model</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Pay Frequency</label>
                                     <select 
                                         className="input-field !rounded-xl !py-2.5 font-bold bg-canvas/30 text-xs appearance-none cursor-pointer" 
                                         value={empForm.payType} 
@@ -473,7 +473,7 @@ const Payroll = () => {
                                 </div>
 
                                 <div className="p-4 rounded-xl bg-ink-primary flex flex-col justify-center">
-                                    <label className="block text-[8px] font-black uppercase tracking-widest text-surface/40 mb-1">Base Allocation</label>
+                                    <label className="block text-[8px] font-black uppercase tracking-widest text-surface/40 mb-1">Salary</label>
                                     <div className="flex items-center gap-2">
                                         <span className="text-xl font-black text-surface/30">{businessProfile.currencySymbol}</span>
                                         <input 
@@ -488,7 +488,7 @@ const Payroll = () => {
                                 </div>
 
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Bank Node</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Bank Account</label>
                                     <div className="relative">
                                         <input 
                                             type="text" 
@@ -503,9 +503,9 @@ const Payroll = () => {
                             </div>
 
                             <div className="flex gap-4 pt-6">
-                                <button type="button" className="flex-1 py-3 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-[10px] tracking-widest uppercase" onClick={() => setShowForm(false)}>Abort</button>
+                                <button type="button" className="flex-1 py-3 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-[10px] tracking-widest uppercase" onClick={() => setShowForm(false)}>CANCEL</button>
                                 <button type="submit" className="btn-signature flex-[2] !py-3 !rounded-pill">
-                                    {editingEmployee ? 'AUTHORIZE UPDATE' : 'AUTHORIZE INTEGRATION'}
+                                    {editingEmployee ? 'SAVE CHANGES' : 'ADD EMPLOYEE'}
                                     <div className="icon-nest">
                                         <Save size={20} />
                                     </div>
@@ -522,8 +522,8 @@ const Payroll = () => {
                     <div className="glass-modal !max-w-[1300px] !p-0 !overflow-hidden flex flex-col bg-surface border border-black/5 shadow-2xl">
                         <div className="p-8 border-b border-black/5 flex justify-between items-center bg-canvas/30">
                             <div>
-                                <h2 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-3">Strategic Distribution.</h2>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-40">Period Protocol: {new Date(payRunMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
+                                <h2 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-3">Process Payroll.</h2>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-40">Period: {new Date(payRunMonth).toLocaleString('default', { month: 'long', year: 'numeric' })}</p>
                             </div>
                             <div className="flex gap-6 items-center">
                                 <input type="month" className="bg-canvas border-2 border-black/5 rounded-pill px-10 py-5 font-black text-sm text-ink-primary outline-none focus:border-accent-signature transition-all shadow-premium" value={payRunMonth} onChange={e => setPayRunMonth(e.target.value)} />
@@ -540,12 +540,12 @@ const Payroll = () => {
                             <table className="w-full text-left border-collapse">
                                 <thead className="sticky top-0 z-10 bg-surface">
                                     <tr className="border-b border-ink-primary/20">
-                                        <th className="pb-4 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50">Personnel Unit</th>
-                                        <th className="pb-4 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 text-right">Base Allocation</th>
-                                        <th className="pb-4 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 text-right">Operational Overtime</th>
-                                        <th className="pb-4 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 text-right">Performance Bonus</th>
-                                        <th className="pb-4 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 text-right">System Deductions</th>
-                                        <th className="pb-4 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 text-right">Net Value</th>
+                                        <th className="pb-4 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50">Employee</th>
+                                        <th className="pb-4 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 text-right">Base Salary</th>
+                                        <th className="pb-4 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 text-right">Overtime</th>
+                                        <th className="pb-4 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 text-right">Bonus</th>
+                                        <th className="pb-4 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 text-right">Deductions</th>
+                                        <th className="pb-4 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 text-right">Net Pay</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-black/5">
@@ -577,18 +577,18 @@ const Payroll = () => {
                         <div className="p-8 bg-ink-primary flex justify-between items-center shadow-2xl relative">
                             <div className="flex gap-12">
                                 <div>
-                                    <div className="text-[9px] font-black text-surface/40 uppercase tracking-[0.3em] mb-1 leading-none">Cumulative Net Transmission</div>
+                                    <div className="text-[9px] font-black text-surface/40 uppercase tracking-[0.3em] mb-1 leading-none">Total Net Pay</div>
                                     <div className="text-3xl font-black text-accent-signature tracking-tighter">
                                         {businessProfile.currencySymbol}{payRunItems.reduce((sum, i) => sum + i.netPay, 0).toLocaleString()}
                                     </div>
                                 </div>
                                 <div>
-                                    <div className="text-[9px] font-black text-surface/40 uppercase tracking-[0.3em] mb-1 leading-none">Personnel Spectrum</div>
-                                    <div className="text-3xl font-black text-surface tracking-tighter">{payRunItems.length} UNITS.</div>
+                                    <div className="text-[9px] font-black text-surface/40 uppercase tracking-[0.3em] mb-1 leading-none">Staff Count</div>
+                                    <div className="text-3xl font-black text-surface tracking-tighter">{payRunItems.length} STAFF</div>
                                 </div>
                             </div>
                             <button className="btn-signature !h-16 !px-12 !text-base" onClick={handleProcessPayroll}>
-                                COMMIT DISTRIBUTION
+                                PROCESS PAYROLL
                                 <div className="icon-nest ml-6">
                                     <Check size={24} />
                                 </div>

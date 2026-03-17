@@ -81,10 +81,10 @@ const Expenses = () => {
     }, [filteredExpenses]);
 
     const getFilterLabel = () => {
-        if (filterType === 'today') return "Today's Outflow";
-        if (filterType === 'yesterday') return "Yesterday's Outflow";
-        if (filterType === 'custom' && filterDate) return `Outflow for ${new Date(filterDate).toLocaleDateString()}`;
-        return "Total Periodic Outflow";
+        if (filterType === 'today') return "Today's Expenses";
+        if (filterType === 'yesterday') return "Yesterday's Expenses";
+        if (filterType === 'custom' && filterDate) return `Expenses for ${new Date(filterDate).toLocaleDateString()}`;
+        return "Total Expenses";
     };
 
     const handleSubmit = (e) => {
@@ -142,8 +142,8 @@ const Expenses = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-4 border-b border-black/5">
                 <div>
-                    <h1 className="text-7xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Outflow.</h1>
-                    <p className="text-sm font-medium text-ink-secondary tracking-tight uppercase opacity-50">Expense Management & Fiscal Tracking</p>
+                    <h1 className="text-5xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Expenses.</h1>
+                    <p className="text-[10px] font-medium text-ink-secondary tracking-tight uppercase opacity-50">Expense Tracking & Operational Costs</p>
                 </div>
                 <div className="flex items-center gap-6">
                     <div className="text-right mr-4">
@@ -154,7 +154,7 @@ const Expenses = () => {
                     </div>
                     {hasPermission('ADD_EXPENSE') && (
                         <button className="btn-signature h-12 !px-5 !rounded-pill flex items-center justify-between gap-6 group transition-all duration-500 hover:shadow-[0_0_20px_rgba(200,241,53,0.3)]" onClick={() => setIsAdding(true)}>
-                            <span className="text-xs font-black uppercase tracking-widest px-2">LOG OUTFLOW</span>
+                            <span className="text-xs font-black uppercase tracking-widest px-2">ADD EXPENSE</span>
                             <div className="icon-nest !w-8 !h-8 bg-black shadow-lg">
                                 <Plus size={16} className="text-accent-signature" />
                             </div>
@@ -171,12 +171,12 @@ const Expenses = () => {
                             <TrendingDown size={18} />
                         </div>
                         <div className="flex flex-col -space-y-1">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Active Drain</div>
+                            <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Total Records</div>
                             <div className="text-2xl font-black text-ink-primary tracking-tighter leading-none">{filteredExpenses.length} Records</div>
                         </div>
                     </div>
                     <div className="flex flex-col items-end -space-y-1 pl-6 pr-6 border-l border-black/5">
-                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 whitespace-nowrap">Monthly Est.</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 whitespace-nowrap">Monthly Avg.</div>
                         <div className="text-2xl font-black text-ink-primary tracking-tighter leading-none">
                             {businessProfile?.currencySymbol || '$'}{dailyAvg.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </div>
@@ -187,7 +187,7 @@ const Expenses = () => {
                     <Search size={18} className="absolute left-5 text-ink-primary opacity-20 group-focus-within:opacity-100 transition-opacity z-10" />
                     <input 
                         type="text" 
-                        placeholder="Identify expenditure records..." 
+                        placeholder="Search expenses..." 
                         className="input-field !pl-12 !h-full !py-0 !rounded-pill bg-surface border border-black/5 shadow-premium text-sm font-bold placeholder:text-ink-secondary/30"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
@@ -243,17 +243,17 @@ const Expenses = () => {
             <div className="glass-panel !p-0 !rounded-bento border border-black/5 shadow-premium overflow-hidden">
                 <div className="bg-ink-primary p-4 flex items-center gap-4">
                     <Briefcase size={16} className="text-accent-signature" />
-                    <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-surface">Consolidated Ledger</h2>
+                    <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-surface">Expense History</h2>
                 </div>
                 
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-black/5 bg-canvas">
-                                <th className="p-1.5 pl-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50">Transaction Identifier</th>
-                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 text-center">Classification</th>
-                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 text-center">Temporal Log</th>
-                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 text-right">Capital Value</th>
+                                <th className="p-1.5 pl-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50">Expense Name</th>
+                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 text-center">Category</th>
+                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 text-center">Date</th>
+                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 text-right">Amount</th>
                                 <th className="p-1.5 pr-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -315,7 +315,7 @@ const Expenses = () => {
                         <div className="flex justify-center mb-6 opacity-10">
                             <Layers size={64} strokeWidth={1} />
                         </div>
-                        <p className="text-sm font-black uppercase tracking-[0.4em] text-[#747576]">Vault Integrity Confirmed: Zero Records</p>
+                        <p className="text-sm font-black uppercase tracking-[0.4em] text-[#747576]">No expenses found</p>
                     </div>
                 )}
                 </div>
@@ -338,18 +338,18 @@ const Expenses = () => {
                             <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">
                                 {editingExpense ? 'Modify' : 'Log'} Expense
                             </h3>
-                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Financial Inventory Update</p>
+                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Expense Details</p>
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary/70 mb-2">Transaction Title</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary/70 mb-2">Title</label>
                                     <input 
                                         required 
                                         type="text" 
                                         list="expense-titles"
-                                        placeholder="Identify the expenditure..."
+                                        placeholder="Expense Title..."
                                         className="input-field !rounded-xl !py-2.5 font-black text-lg bg-canvas/30" 
                                         value={formData.title} 
                                         onChange={e => setFormData({...formData, title: e.target.value})} 
@@ -362,7 +362,7 @@ const Expenses = () => {
                                 </div>
                                 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary/70 mb-2">Capital Value</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary/70 mb-2">Amount</label>
                                     <div className="relative">
                                         <div className="absolute left-6 top-1/2 -translate-y-1/2 text-xl font-black text-ink-primary opacity-30">
                                             {businessProfile?.currencySymbol || '$'}
@@ -379,7 +379,7 @@ const Expenses = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary/70 mb-2">Sector Label</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary/70 mb-2">Category</label>
                                     <select 
                                         className="input-field !rounded-xl !py-2.5 font-bold appearance-none bg-canvas/30 text-xs" 
                                         value={formData.category} 
@@ -390,7 +390,7 @@ const Expenses = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary/70 mb-2">Date Log</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary/70 mb-2">Date</label>
                                     <input 
                                         type="date" 
                                         className="input-field !rounded-xl !py-2.5 font-bold bg-canvas/30 text-xs" 
@@ -400,10 +400,10 @@ const Expenses = () => {
                                 </div>
 
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary/70 mb-2">Supplemental Metadata (Notes)</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary/70 mb-2">Notes</label>
                                     <textarea 
                                         className="input-field !rounded-2xl !py-3 font-medium min-h-[60px] resize-none bg-canvas/30 text-xs" 
-                                        placeholder="Add contextual details for this outflow..."
+                                        placeholder="Add details for this expense..."
                                         value={formData.notes} 
                                         onChange={e => setFormData({...formData, notes: e.target.value})} 
                                     />
@@ -411,9 +411,9 @@ const Expenses = () => {
                             </div>
 
                             <div className="flex gap-4 pt-6">
-                                <button type="button" className="flex-1 py-3 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-xs tracking-widest uppercase" onClick={handleCloseModal}>Abort</button>
+                                <button type="button" className="flex-1 py-3 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-xs tracking-widest uppercase" onClick={handleCloseModal}>CANCEL</button>
                                 <button type="submit" className="btn-signature flex-[2] !py-3 !rounded-pill">
-                                    {editingExpense ? 'UPDATE RECORD' : 'AUTHORIZE LOG'}
+                                    {editingExpense ? 'SAVE CHANGES' : 'SAVE'}
                                     <div className="icon-nest">
                                         <Save size={20} />
                                     </div>

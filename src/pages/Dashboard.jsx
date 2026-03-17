@@ -153,11 +153,11 @@ const Dashboard = () => {
                         {/* Reference-Style Hero Section */}
             <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-black/5 flex flex-col lg:flex-row items-center justify-between gap-8">
                 <div className="flex-1 space-y-6">
-                    <h1 className="text-4xl md:text-5xl font-extrabold text-ink-primary leading-tight tracking-tight">
-                        Manage your business <br className="hidden md:block" /> operations easily
+                    <h1 className="text-5xl font-extrabold text-ink-primary leading-tight tracking-tight uppercase">
+                        Dashboard
                     </h1>
-                    <p className="text-ink-secondary text-lg max-w-xl">
-                        Streamline your inventory, payroll, and fleet operations from a single, powerful dashboard designed for modern retail.
+                    <p className="text-ink-secondary text-[10px] uppercase tracking-tight font-medium max-w-xl">
+                        Overview of your business performance, inventory, and operations.
                     </p>
                     <div className="flex flex-wrap items-center gap-6">
                         <button 
@@ -193,13 +193,13 @@ const Dashboard = () => {
             </div>
             {/* Financials & Market Section */}
             <div>
-                <h2 className="text-xl font-bold text-ink-primary mb-4">Financials & Market</h2>
+                <h2 className="text-xl font-bold text-ink-primary mb-4">Financial Overview</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {/* Total Sales */}
                     <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <p className="text-ink-secondary text-sm font-medium">Total Revenue</p>
+                                <p className="text-ink-secondary text-sm font-medium">Total Sales</p>
                                 <h3 className="text-3xl font-bold mt-1 text-ink-primary">{businessProfile?.currencySymbol}{totalSales.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h3>
                             </div>
                             <div className="w-12 h-12 rounded-2xl bg-accent-signature/20 flex items-center justify-center text-ink-primary">
@@ -233,7 +233,7 @@ const Dashboard = () => {
                     <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <p className="text-ink-secondary text-sm font-medium">Net Profit</p>
+                                <p className="text-ink-secondary text-sm font-medium">Profit</p>
                                 <h3 className={`text-3xl font-bold mt-1 ${netProfit >= 0 ? 'text-ink-primary' : 'text-red-600'}`}>
                                     {businessProfile?.currencySymbol}{netProfit.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </h3>
@@ -251,7 +251,7 @@ const Dashboard = () => {
                     <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <p className="text-ink-secondary text-sm font-medium">Growth Index</p>
+                                <p className="text-ink-secondary text-sm font-medium">Growth</p>
                                 <h3 className="text-3xl font-bold mt-1 text-ink-primary">+12.5%</h3>
                             </div>
                             <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
@@ -269,13 +269,13 @@ const Dashboard = () => {
 
             {/* Operations Section */}
             <div>
-                <h2 className="text-xl font-bold text-ink-primary mb-4">Operations & Assets</h2>
+                <h2 className="text-xl font-bold text-ink-primary mb-4">Operations</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {/* Infrastructure Health */}
                     <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <p className="text-ink-secondary text-sm font-medium">Total SKU</p>
+                                <p className="text-ink-secondary text-sm font-medium">Total Products</p>
                                 <h3 className="text-3xl font-bold mt-1 text-ink-primary">{(products || []).length}</h3>
                             </div>
                             <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center text-ink-primary">
@@ -291,7 +291,7 @@ const Dashboard = () => {
                     <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <p className="text-ink-secondary text-sm font-medium">Active Dispatches</p>
+                                <p className="text-ink-secondary text-sm font-medium">Active Trips</p>
                                 <h3 className="text-3xl font-bold mt-1 text-ink-primary">{(routes || []).filter(r => r.status === 'ACTIVE').length}</h3>
                             </div>
                             <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
@@ -307,7 +307,7 @@ const Dashboard = () => {
                     <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <p className="text-ink-secondary text-sm font-medium">Critical SKUs</p>
+                                <p className="text-ink-secondary text-sm font-medium">Low Stock</p>
                                 <h3 className="text-3xl font-bold mt-1 text-red-600">{outOfStockProducts.length}</h3>
                             </div>
                             <div className="w-12 h-12 rounded-2xl bg-red-100 flex items-center justify-center text-red-600">
@@ -325,7 +325,7 @@ const Dashboard = () => {
                     <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-black/5">
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <p className="text-ink-secondary text-sm font-medium">System Pulse</p>
+                                <p className="text-ink-secondary text-sm font-medium">System Status</p>
                                 <h3 className="text-3xl font-bold mt-1 text-ink-primary">99.9%</h3>
                             </div>
                             <div className="w-12 h-12 rounded-2xl bg-gray-50 flex items-center justify-center text-ink-primary opacity-50">
@@ -345,7 +345,7 @@ const Dashboard = () => {
                 {/* Income & Expense Trends */}
                 <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 flex flex-col">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-ink-primary">Revenue Trends</h2>
+                        <h2 className="text-xl font-bold text-ink-primary">Sales Trends</h2>
                         <div className="flex items-center gap-4 text-sm font-semibold">
                             <div className="flex items-center gap-1.5 text-blue-600">
                                 <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div> Income
@@ -423,8 +423,8 @@ const Dashboard = () => {
                 {/* Category Sales & Weekly Performance Dual Card */}
                 <div className="bg-white p-8 rounded-[2rem] shadow-premium border border-black/5 flex flex-col gap-8">
                     <div className="flex justify-between items-center mb-2">
-                        <h2 className="text-xl font-bold text-ink-primary">Category & Performance</h2>
-                        <span className="text-xs font-bold px-3 py-1 bg-gray-100 rounded-full text-ink-secondary uppercase tracking-widest">Real-time Attribution</span>
+                        <h2 className="text-xl font-bold text-ink-primary">Analytics</h2>
+                        <span className="text-xs font-bold px-3 py-1 bg-gray-100 rounded-full text-ink-secondary uppercase tracking-widest">Sales by Category</span>
                     </div>
                     
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
@@ -530,8 +530,8 @@ const Dashboard = () => {
                 <div className="bg-white p-8 rounded-[2rem] shadow-premium border border-black/5 flex flex-col h-[400px]">
                     <div className="flex justify-between items-center mb-6">
                         <div>
-                            <h2 className="text-xl font-bold text-ink-primary uppercase tracking-tight">Utilisation</h2>
-                            <p className="text-[10px] font-black text-ink-secondary/40 uppercase tracking-widest">Asset Efficiency Index</p>
+                            <h2 className="text-xl font-bold text-ink-primary uppercase tracking-tight">Efficiency</h2>
+                            <p className="text-[10px] font-black text-ink-secondary/40 uppercase tracking-widest">Performance</p>
                         </div>
                         <div className="w-10 h-10 rounded-xl bg-accent-signature/10 flex items-center justify-center text-ink-primary">
                             <Activity size={18} />
@@ -567,7 +567,7 @@ const Dashboard = () => {
                 <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
                     <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-ink-primary">
                         <AlertCircle className="w-6 h-6 text-red-500" />
-                        Infrastructure Alerts
+                        Alerts
                     </h3>
                     <div className="space-y-3">
                         {lowStockProducts.length === 0 ? (
@@ -591,7 +591,7 @@ const Dashboard = () => {
 
                 {/* Recent Activity */}
                 <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
-                    <h3 className="text-xl font-bold mb-6 text-ink-primary">Recent Operations</h3>
+                    <h3 className="text-xl font-bold mb-6 text-ink-primary">Recent Activity</h3>
                     <div className="space-y-3">
                         {activityFeed.slice(0, 5).map(event => (
                             <div key={event.id} className="flex items-center justify-between p-4 rounded-2xl bg-gray-50 border border-black/5">

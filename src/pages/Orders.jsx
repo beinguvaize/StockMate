@@ -40,7 +40,7 @@ const Orders = () => {
     const handleCancelOrder = (orderId) => {
         const order = orders.find(o => o.id === orderId);
         if (order) {
-            if (window.confirm("Authorize permanent cancellation of this Pending Request?")) {
+            if (window.confirm("Cancel this order?")) {
                 updateOrder({ ...order, status: 'CANCELLED' });
             }
         }
@@ -71,7 +71,7 @@ const Orders = () => {
                             </h3>
                         </div>
                         <div className="text-right">
-                            <div className="text-sm font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1">Booked On</div>
+                            <div className="text-sm font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1">Date</div>
                             <div className="text-xs font-bold text-[#111] uppercase tracking-tight">
                                 {new Date(order.date).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                             </div>
@@ -81,7 +81,7 @@ const Orders = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                         <div>
                             <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-3">
-                                <MapPin size={10} /> Consignee
+                                <MapPin size={10} /> Customer
                             </div>
                             <div className="text-base font-black text-ink-primary uppercase tracking-tight">{getShopName(order.shopId)}</div>
                             {order.customerInfo?.phone && (
@@ -92,16 +92,16 @@ const Orders = () => {
                         </div>
                         <div>
                             <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-3">
-                                <MapPin size={10} /> Consignee
+                                <Calendar size={10} /> Scheduled Date
                             </div>
                             <div className="text-base font-black text-ink-primary uppercase tracking-tight">{order.scheduledDate || 'N/A: IMMEDIATE'}</div>
                         </div>
                         <div>
                             <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-3">
-                                <Truck size={10} /> Logistics Unit
+                                <Truck size={10} /> Vehicle
                             </div>
                             <div className="text-base font-black text-ink-primary uppercase tracking-tight">
-                                {order.shopId === 'POS-WALKIN' ? 'INTERNAL COUNTER' : getVehicleName(order.deliveredBy || 'UNASSIGNED')}
+                                {order.shopId === 'POS-WALKIN' ? 'STORE PICKUP' : getVehicleName(order.deliveredBy || 'UNASSIGNED')}
                             </div>
                         </div>
                     </div>
@@ -124,13 +124,13 @@ const Orders = () => {
                 {/* Right Action Section */}
                 <div className="lg:w-[320px] p-5 bg-canvas/30 backdrop-blur-sm flex flex-col justify-between">
                     <div>
-                        <div className="text-xs font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40 mb-1">Total Financial Commitment</div>
+                        <div className="text-xs font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40 mb-1">Total Amount</div>
                         <div className="text-4xl font-black text-ink-primary tracking-tighter mb-4">
                             {businessProfile.currencySymbol}{order.totalAmount.toLocaleString()}
                         </div>
                         <div className="flex items-center gap-3 text-sm font-black uppercase tracking-widest mt-2">
                             <CreditCard size={12} className="text-ink-primary opacity-30" />
-                            <span className="text-ink-secondary opacity-60">Payment Vector:</span>
+                            <span className="text-ink-secondary opacity-60">Payment Method:</span>
                             <span className={order.paymentMethod === 'CASH' ? 'text-green-600' : 'text-blue-600'}>{order.paymentMethod}</span>
                             <div className="h-4 w-px bg-black/10 mx-1"></div>
                             <span className={`px-3 py-1 rounded-full text-[10px] border ${
@@ -145,25 +145,25 @@ const Orders = () => {
 
                     <div className="flex flex-col gap-3 mt-8">
                         <button className="w-full py-3.5 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-xs tracking-widest uppercase flex items-center justify-center gap-2" onClick={() => setShowReceipt(order)}>
-                            <Printer size={14} /> PRINT ARCHIVE
+                            <Printer size={14} /> PRINT RECEIPT
                         </button>
                         
                     {isPending ? (
                             <div className="flex gap-2">
                                 {hasPermission('MANAGE_ORDERS') && (
                                     <button className="flex-1 py-3.5 rounded-pill border border-red-100 bg-red-50 text-red-500 font-bold hover:bg-red-100 transition-all text-[10px] tracking-widest uppercase" onClick={() => handleCancelOrder(order.id)}>
-                                        ABORT
+                                        CANCEL
                                     </button>
                                 )}
                                 <button className="flex-[2] btn-signature !py-3.5 !rounded-pill !text-xs shadow-xl shadow-accent-signature/20" onClick={() => handleMarkDelivered(order.id)}>
-                                    FINALIZE LOG
+                                    COMPLETE ORDER
                                 </button>
                             </div>
                         ) : (
                             <div className="flex flex-col gap-2">
                                 {order.deliveryDate && (
                                     <div className="flex items-center justify-center gap-2 py-4 rounded-full bg-[#C8F135]/10 text-[#111] text-sm font-black uppercase tracking-widest border border-[#C8F135]/20">
-                                        <CheckCircle size={16} /> FULFILLED {new Date(order.deliveryDate).toLocaleDateString()}
+                                        <CheckCircle size={16} /> COMPLETED {new Date(order.deliveryDate).toLocaleDateString()}
                                     </div>
                                 )}
                                 {order.paymentMethod === 'CREDIT' && order.paymentStatus !== 'PAID' && (
@@ -171,7 +171,7 @@ const Orders = () => {
                                         className="w-full py-4 rounded-full bg-ink-primary text-accent-signature font-black text-xs uppercase tracking-widest hover:scale-[1.02] transition-all flex items-center justify-center gap-3 shadow-xl"
                                         onClick={() => settleOrder(order.id, order.totalAmount)}
                                     >
-                                        <DollarSign size={16} /> SETTLE PAYMENT
+                                        <DollarSign size={16} /> PAY NOW
                                     </button>
                                 )}
                             </div>
@@ -187,8 +187,8 @@ const Orders = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-8 border-b border-black/5">
                 <div>
-                    <h1 className="text-4xl font-black tracking-tighter text-ink-primary leading-none mb-2">Pipeline.</h1>
-                    <p className="text-xs font-medium text-ink-secondary tracking-tight uppercase opacity-50">Fulfillment Pipeline & History</p>
+                    <h1 className="text-5xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">Orders.</h1>
+                    <p className="text-[10px] font-medium text-ink-secondary tracking-tight uppercase opacity-50">Order Pipeline & History</p>
                 </div>
                 
                 <div className="glass-panel !p-1.5 !rounded-pill flex gap-1 bg-surface border border-black/5 shadow-premium">
@@ -212,9 +212,9 @@ const Orders = () => {
             {activeTab === 'PENDING' && (
                 <div className="flex gap-3 overflow-x-auto pb-4 custom-scrollbar">
                     {[
-                        { id: 'ALL', label: `Across Domain (${pendingCount})` },
-                        { id: 'WALKIN', label: `Pick-up Units (${walkinPendingCount})` },
-                        { id: 'DELIVERY', label: `Fleet Delivery (${deliveryPendingCount})` }
+                        { id: 'ALL', label: `All Orders (${pendingCount})` },
+                        { id: 'WALKIN', label: `Pickups (${walkinPendingCount})` },
+                        { id: 'DELIVERY', label: `Deliveries (${deliveryPendingCount})` }
                     ].map(type => (
                         <button
                             key={type.id}
@@ -238,8 +238,8 @@ const Orders = () => {
                         <div className="flex justify-center mb-8 opacity-10">
                             <ShoppingCart size={80} strokeWidth={1} />
                         </div>
-                        <h3 className="text-xl font-black text-[#111] uppercase tracking-tighter mb-2">Null Sector</h3>
-                        <p className="text-sm font-bold text-[#747576] uppercase tracking-[0.3em] opacity-40">No matching logistical records identified</p>
+                        <h3 className="text-xl font-black text-[#111] uppercase tracking-tighter mb-2">No Orders</h3>
+                        <p className="text-sm font-bold text-[#747576] uppercase tracking-[0.3em] opacity-40">No orders found in this category</p>
                     </div>
                 ) : (
                     filteredOrders.map(order => <OrderCard key={order.id} order={order} isPending={order.status === 'PENDING'} />)
@@ -260,27 +260,27 @@ const Orders = () => {
                         <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar">
                             <div className="text-center mb-10 pb-10 border-b border-dashed border-black/10">
                                 <div className="text-2xl font-black text-[#111] tracking-tighter uppercase mb-1">{businessProfile.name}</div>
-                                <div className="text-sm font-bold text-[#747576] uppercase tracking-[0.3em] opacity-40">Digital Fiscal Voucher</div>
+                                <div className="text-sm font-bold text-[#747576] uppercase tracking-[0.3em] opacity-40">Sales Receipt</div>
                                 <div className="text-sm font-black text-[#111] mt-4 opacity-100">{new Date(showReceipt.date).toLocaleString()}</div>
                             </div>
 
                             <div className="space-y-6 mb-10">
                                 <div className="grid grid-cols-2 gap-6">
                                     <div>
-                                        <div className="text-[9px] font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1 text-left">Unit Pointer</div>
+                                        <div className="text-[9px] font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1 text-left">Order ID</div>
                                         <div className="text-xs font-black text-[#111] uppercase text-left">{showReceipt.id.split('-').pop()}</div>
                                     </div>
                                     <div>
-                                        <div className="text-[9px] font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1 text-right">Consignee</div>
+                                        <div className="text-[9px] font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1 text-right">Customer</div>
                                         <div className="text-xs font-black text-[#111] uppercase text-right">{getShopName(showReceipt.shopId)}</div>
                                     </div>
                                     <div>
-                                        <div className="text-[9px] font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1 text-left">Internal Rep</div>
+                                        <div className="text-[9px] font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1 text-left">Staff Member</div>
                                         <div className="text-xs font-black text-[#111] uppercase text-left">{getUserName(showReceipt.bookedBy)}</div>
                                     </div>
                                     {showReceipt.deliveredBy && (
                                         <div>
-                                            <div className="text-[9px] font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1 text-right">Logistics Unit</div>
+                                            <div className="text-[9px] font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1 text-right">Vehicle</div>
                                             <div className="text-xs font-black text-[#111] uppercase text-right">{getVehicleName(showReceipt.deliveredBy)}</div>
                                         </div>
                                     )}
@@ -300,21 +300,21 @@ const Orders = () => {
                             </div>
 
                             <div className="flex justify-between items-end mb-10">
-                                <span className="text-xs font-black uppercase tracking-[0.2em] text-[#111]">Aggregate Value</span>
+                                <span className="text-xs font-black uppercase tracking-[0.2em] text-[#111]">Total Amount</span>
                                 <span className="text-4xl font-black text-[#111] tracking-tighter">
                                     {businessProfile.currencySymbol}{showReceipt.totalAmount.toLocaleString()}
                                 </span>
                             </div>
 
                             <div className="text-center">
-                                <div className="text-sm font-black text-[#747576] uppercase tracking-[0.4em] opacity-30">Transaction Authorized</div>
+                                <div className="text-sm font-black text-[#747576] uppercase tracking-[0.4em] opacity-30">Order Completed</div>
                             </div>
                         </div>
 
                         <div className="flex gap-4 mt-10 pt-10 border-t border-black/5 no-print">
                             <button className="flex-1 py-5 rounded-full border border-black/10 font-bold text-[#111] hover:bg-black/5 transition-all text-sm tracking-widest uppercase" onClick={() => setShowReceipt(null)}>CLOSE</button>
                             <button className="btn-signature flex-[2]" onClick={() => window.print()}>
-                                EXECUTE PRINT
+                                PRINT RECEIPT
                                 <div className="icon-nest">
                                     <Printer size={18} />
                                 </div>

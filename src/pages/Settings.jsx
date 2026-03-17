@@ -44,10 +44,10 @@ const Settings = () => {
                     </div>
                     <h2 className="text-4xl font-black tracking-tighter text-[#111] uppercase mb-4">Access Denied</h2>
                     <p className="text-sm font-bold text-[#747576] tracking-widest uppercase opacity-40 mb-10 leading-relaxed">
-                        Security Clearance Insufficient. Infrastructure parameters are restricted to Global Owners.
+                        Settings are restricted to Administrators.
                     </p>
                     <button className="btn-signature w-full h-16" onClick={() => window.history.back()}>
-                        SYSTEM ABORT
+                        GO BACK
                         <div className="icon-nest">
                             <ShieldCheck size={20} />
                         </div>
@@ -62,8 +62,8 @@ const Settings = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-8 border-b border-black/5">
                 <div>
-                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Settings.</h1>
-                    <p className="text-sm font-medium text-ink-secondary tracking-tight uppercase opacity-50">Global Parameters & Configuration Matrix</p>
+                    <h1 className="text-5xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Settings.</h1>
+                    <p className="text-[10px] font-medium text-ink-secondary tracking-tight uppercase opacity-50">App Preferences & System Configuration</p>
                 </div>
                 {savedStatus && (
                     <div className="bg-accent-signature/10 text-ink-primary px-8 py-4 rounded-pill text-[10px] font-black uppercase tracking-widest border border-accent-signature/20 flex items-center gap-3 animate-in slide-in-from-right-6 duration-500">
@@ -79,26 +79,26 @@ const Settings = () => {
                     <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium">
                         <div className="bg-ink-primary p-6 flex items-center gap-4">
                             <Building size={20} className="text-accent-signature" />
-                            <h2 className="text-xs font-black uppercase tracking-[0.3em] text-surface">Institutional Identity</h2>
+                            <h2 className="text-xs font-black uppercase tracking-[0.3em] text-surface">Business Details</h2>
                         </div>
                         
                         <div className="p-6 bg-surface">
                             <form onSubmit={handleSaveProfile} className="space-y-10">
                                 <div>
-                                    <label className="block text-sm font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 mb-4">Business Legal Title</label>
+                                    <label className="block text-sm font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 mb-4">Business Name</label>
                                     <input
                                         required
                                         type="text"
                                         className="input-field !rounded-2xl !py-5 font-black text-2xl !bg-canvas border border-black/5"
                                         value={profileData.name}
                                         onChange={e => setProfileData({ ...profileData, name: e.target.value })}
-                                        placeholder="Institutional Name..."
+                                        placeholder="Business Name..."
                                     />
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div>
-                                        <label className="block text-sm font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 mb-4">Fiscal Territory</label>
+                                        <label className="block text-sm font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 mb-4">Country</label>
                                         <div className="relative">
                                             <Globe size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
                                             <select className="input-field !pl-16 !rounded-2xl !py-4 font-black text-lg appearance-none !bg-canvas border border-black/5" value={profileData.country} onChange={e => {
@@ -122,7 +122,7 @@ const Settings = () => {
                                     </div>
 
                                     <div>
-                                        <label className="block text-sm font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 mb-4">Currency Baseline</label>
+                                        <label className="block text-sm font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 mb-4">Currency</label>
                                         <div className="relative">
                                             <Coins size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
                                             <select className="input-field !pl-16 !rounded-2xl !py-4 font-black text-lg appearance-none !bg-canvas border border-black/5" value={profileData.currency} onChange={e => setProfileData({ ...profileData, currency: e.target.value })}>
@@ -138,7 +138,7 @@ const Settings = () => {
 
                                 <div className="flex gap-4 pt-8 border-t border-black/5">
                                     <button type="submit" className="btn-signature w-full !rounded-2xl !py-6 !text-base">
-                                        UPDATE PARAMETERS
+                                        SAVE SETTINGS
                                         <div className="icon-nest">
                                             <Save size={24} />
                                         </div>
@@ -153,9 +153,9 @@ const Settings = () => {
                         <div className="bg-ink-primary p-6 flex items-center justify-between">
                             <div className="flex items-center gap-4">
                                 <Tag size={20} className="text-accent-signature" />
-                                <h2 className="text-xs font-black uppercase tracking-[0.3em] text-surface">Fiscal Classifications</h2>
+                                <h2 className="text-xs font-black uppercase tracking-[0.3em] text-surface">Expense Categories</h2>
                             </div>
-                            <div className="text-[9px] font-black uppercase tracking-widest text-accent-signature opacity-70">Expense Categories</div>
+                            <div className="text-[9px] font-black uppercase tracking-widest text-accent-signature opacity-70">Manage Categories</div>
                         </div>
                         
                         <div className="p-6 space-y-8">
@@ -163,7 +163,7 @@ const Settings = () => {
                             <div className="flex gap-3">
                                 <input
                                     type="text"
-                                    placeholder="Enter new sector label..."
+                                    placeholder="New Category..."
                                     className="input-field !rounded-xl !py-4 font-bold text-sm bg-canvas border border-black/5 flex-1"
                                     value={newCategory}
                                     onChange={e => setNewCategory(e.target.value)}
@@ -250,8 +250,8 @@ const Settings = () => {
                             <Zap size={36} />
                         </div>
                         <div className="flex-1">
-                            <div className="text-sm font-black uppercase tracking-[0.4em] text-ink-secondary opacity-40 mb-3">Operational Alerts</div>
-                            <h3 className="text-2xl font-black text-ink-primary uppercase tracking-tighter mb-4">Low-Stock Sensitivity</h3>
+                            <div className="text-sm font-black uppercase tracking-[0.4em] text-ink-secondary opacity-40 mb-3">Inventory Alerts</div>
+                            <h3 className="text-2xl font-black text-ink-primary uppercase tracking-tighter mb-4">Low Stock Threshold</h3>
                             <div className="flex items-center gap-6">
                                 <input
                                     type="number"
@@ -259,7 +259,7 @@ const Settings = () => {
                                     value={profileData.lowStockThreshold}
                                     onChange={e => setProfileData({ ...profileData, lowStockThreshold: parseInt(e.target.value) || 0 })}
                                 />
-                                <span className="text-xs font-black text-ink-secondary uppercase tracking-widest opacity-40 leading-tight">Minimum Unit<br/>Retention Baseline</span>
+                                <span className="text-xs font-black text-ink-secondary uppercase tracking-widest opacity-40 leading-tight">Minimum Stock<br/>Level</span>
                             </div>
                         </div>
                     </div>
@@ -272,7 +272,7 @@ const Settings = () => {
                             <ShieldCheck size={140} />
                         </div>
                         <h3 className="text-xl font-black uppercase tracking-tighter mb-3">Cloud Security</h3>
-                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-accent-signature mb-10">Status: Decentralized Mock</div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-accent-signature mb-10">Status: Local Data Only</div>
                         <p className="text-sm font-medium text-surface/50 leading-relaxed mb-12 relative z-10">
                             You are currently operating within the local simulation environment. Cloud synchronization and production database locks will activate upon enterprise deployment.
                         </p>
@@ -292,7 +292,7 @@ const Settings = () => {
                                 <h3 className="text-base font-black uppercase tracking-[0.2em] leading-none">Factory Reset</h3>
                             </div>
                             <p className="text-[11px] font-black text-red-900/60 uppercase tracking-widest leading-relaxed">
-                                Irreversibly wipe local storage and re-seed the environment with fresh transactional assets.
+                                Irreversibly wipe local storage and reset with sample data.
                             </p>
                         </div>
                         {currentUser?.roles?.includes('GLOBAL_ADMIN') && (
@@ -301,7 +301,7 @@ const Settings = () => {
                                 onClick={resetAndSeedLocal}
                             >
                                 <RotateCcw size={18} className="group-hover:rotate-180 transition-transform duration-700" />
-                                EXECUTE FULL RESET
+                                RESET ALL DATA
                             </button>
                         )}
                     </div>

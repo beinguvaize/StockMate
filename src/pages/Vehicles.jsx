@@ -89,6 +89,7 @@ const Vehicles = () => {
         dispatchRoute({
             vehicleId: dispatchForm.vehicleId,
             driverId: dispatchForm.driverId,
+            location: dispatchForm.location,
             initialOdometer: parseInt(dispatchForm.initialOdometer),
             assignedOrders: dispatchForm.assignedOrders,
             loadedStock: stockArray
@@ -99,6 +100,7 @@ const Vehicles = () => {
         setDispatchForm({ 
             vehicleId: defaultVid, 
             driverId: '', 
+            location: '',
             initialOdometer: getLastOdometer(defaultVid), 
             assignedOrders: [], 
             loadedStock: {}, 
@@ -111,6 +113,7 @@ const Vehicles = () => {
         setDispatchForm({
             vehicleId: defaultVid,
             driverId: '',
+            location: '',
             initialOdometer: getLastOdometer(defaultVid),
             assignedOrders: [],
             loadedStock: {},
@@ -176,8 +179,8 @@ const Vehicles = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-black/5">
                 <div>
-                    <h1 className="text-7xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Traffic.</h1>
-                    <p className="text-sm font-medium text-ink-secondary tracking-tight uppercase opacity-50">Fleet Optimization & Multi-Vector Fulfillment</p>
+                    <h1 className="text-5xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Fleet.</h1>
+                    <p className="text-[10px] font-medium text-ink-secondary tracking-tight uppercase opacity-50">Vehicle Optimization & Delivery Management</p>
                 </div>
             </div>
 
@@ -238,10 +241,10 @@ const Vehicles = () => {
 
             {activeTab === 'ROUTES' && (
                 <div className="space-y-8">
-                    {/* Active Mission Control - Extreme Density */}
+                    {/* Active Trips - Extreme Density */}
                     <div className="flex items-center gap-3">
                         <div className="w-2 h-6 bg-accent-signature rounded-pill"></div>
-                        <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-60">Active Mission Control</h2>
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-60">Active Trips</h2>
                     </div>
 
                     <div className="glass-panel !p-0 overflow-hidden border border-black/5 bg-surface shadow-premium !rounded-bento">
@@ -249,11 +252,12 @@ const Vehicles = () => {
                             <table className="w-full text-left border-collapse">
                                 <thead className="bg-canvas border-b border-black/5">
                                     <tr>
-                                        <th className="p-1.5 pl-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40">Vector / Unit</th>
-                                        <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40">Command Agent</th>
-                                        <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 text-center">Loadout</th>
-                                        <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 text-right">Telemetry</th>
-                                        <th className="p-1.5 text-right text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40">Mission Status</th>
+                                        <th className="p-1.5 pl-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40">Vehicle</th>
+                                        <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40">Driver</th>
+                                        <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 text-center">Route / Area</th>
+                                        <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 text-center">Stock</th>
+                                        <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 text-right">Odometer</th>
+                                        <th className="p-1.5 text-right text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-black/5">
@@ -277,6 +281,13 @@ const Vehicles = () => {
                                                     <span className="text-xs font-black text-ink-primary uppercase tracking-tighter">{getEmployeeName(route.driverId)}</span>
                                                 </td>
                                                 <td className="p-1.5 text-center">
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest bg-canvas px-2 py-0.5 rounded-pill border border-black/5">
+                                                            {route.location || 'GLOBAL'}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-1.5 text-center">
                                                     <span className="px-2 py-0.5 rounded-pill bg-accent-signature/10 text-[10px] font-black text-ink-primary border border-accent-signature/20">
                                                         {itemsLoaded} UNITS
                                                     </span>
@@ -288,10 +299,10 @@ const Vehicles = () => {
                                                 </td>
                                                 <td className="p-1.5 text-right">
                                                     <button 
-                                                        className="px-4 py-1.5 rounded-pill bg-ink-primary text-accent-signature font-black text-[10px] tracking-widest uppercase hover:shadow-lg transition-all"
+                                                        className="px-6 py-2 rounded-pill bg-ink-primary text-surface text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
                                                         onClick={() => openReconcile(route)}
                                                     >
-                                                        TERMINATE
+                                                        END TRIP
                                                     </button>
                                                 </td>
                                             </tr>
@@ -299,8 +310,8 @@ const Vehicles = () => {
                                     })}
                                     {activeRoutes.length === 0 && (
                                         <tr>
-                                            <td colSpan="5" className="py-20 text-center text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-20">
-                                                Zero active vectors in mission zone
+                                            <td colSpan="6" className="py-20 text-center text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-20">
+                                                Zero active vehicles in field
                                             </td>
                                         </tr>
                                     )}
@@ -309,18 +320,19 @@ const Vehicles = () => {
                         </div>
                     </div>
 
-                    {/* Historical Archive */}
+                    {/* Trip History */}
                     <div className="pt-20">
                         <div className="flex items-center gap-5 mb-8">
                             <History size={20} className="text-ink-primary opacity-20" />
-                            <h2 className="text-sm font-black uppercase tracking-[0.5em] text-ink-secondary opacity-60">Fulfillment Archive</h2>
+                            <h2 className="text-sm font-black uppercase tracking-[0.5em] text-ink-secondary opacity-60">Trip History</h2>
                         </div>
                         <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
                             <table className="w-full text-left">
                                 <thead>
                                     <tr className="bg-canvas border-b border-black/5 text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">
                                         <th className="p-1.5 pl-8">Temporal Log</th>
-                                        <th className="p-1.5">Unit & Vector Agent</th>
+                                        <th className="p-1.5">Vehicle & Driver</th>
+                                        <th className="p-1.5 text-center">Location</th>
                                         <th className="p-1.5 text-right">Distance</th>
                                         <th className="p-1.5 text-right">Status</th>
                                     </tr>
@@ -336,6 +348,9 @@ const Vehicles = () => {
                                                 <td className="p-1.5">
                                                     <div className="text-xs font-black text-ink-primary uppercase tracking-tight leading-none mb-1">{vehicle?.name}</div>
                                                     <div className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">{getEmployeeName(route.driverId)}</div>
+                                                </td>
+                                                <td className="p-1.5 text-center">
+                                                    <span className="text-[10px] font-black text-ink-secondary uppercase tracking-widest">{route.location || 'GLOBAL'}</span>
                                                 </td>
                                                 <td className="p-1.5 text-right text-sm font-black text-ink-primary uppercase whitespace-nowrap tracking-tighter font-mono tabular-nums">
                                                     {route.finalOdometer - route.initialOdometer} <span className="text-[10px] opacity-30 ml-1">NET KM</span>
@@ -413,13 +428,13 @@ const Vehicles = () => {
                         <div className="absolute top-0 left-0 w-2 h-full bg-accent-signature"></div>
 
                         <div className="mb-6">
-                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">Unit Registry</h3>
-                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Inbound Asset Integration Protocol</p>
+                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">Add Vehicle</h3>
+                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Register new vehicle to fleet</p>
                         </div>
 
                         <form onSubmit={handleAddVehicle} className="space-y-6">
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Unit Nomenclature</label>
+                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Vehicle Name</label>
                                 <input 
                                     required 
                                     type="text" 
@@ -443,7 +458,7 @@ const Vehicles = () => {
                             <div className="flex gap-4 pt-6">
                                 <button type="button" className="flex-1 py-3 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-[10px] tracking-widest uppercase" onClick={() => setShowVehicleModal(false)}>Abort</button>
                                 <button type="submit" className="btn-signature flex-[2] !py-3 !rounded-pill">
-                                    AUTHORIZE REGISTRY
+                                    SAVE VEHICLE
                                     <div className="icon-nest">
                                         <Plus size={20} />
                                     </div>
@@ -468,14 +483,14 @@ const Vehicles = () => {
                         <div className="absolute top-0 left-0 w-2 h-full bg-accent-signature"></div>
 
                         <div className="mb-6">
-                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">Command Dispatch</h3>
-                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Asset Deployment Matrix</p>
+                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">New Dispatch</h3>
+                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Assign vehicle and driver</p>
                         </div>
 
                         <form onSubmit={handleDispatch} className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-6">
                                 <div className="p-6 bg-canvas/30 rounded-2xl border border-black/5">
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-4">Vector Assignment</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-4">Vehicle Assignment</label>
                                     <div className="space-y-4">
                                         <div>
                                             <label className="text-[8px] font-black text-ink-secondary uppercase opacity-50 block mb-1 px-1">Selected Unit</label>
@@ -495,17 +510,28 @@ const Vehicles = () => {
                                             </select>
                                         </div>
                                         <div>
-                                            <label className="text-[8px] font-black text-ink-secondary uppercase opacity-50 block mb-1 px-1">Clearance Agent</label>
+                                            <label className="text-[8px] font-black text-ink-secondary uppercase opacity-50 block mb-1 px-1">Driver</label>
                                             <select required className="input-field !rounded-xl !py-2 !h-10 font-black text-xs uppercase appearance-none cursor-pointer" value={dispatchForm.driverId} onChange={e => setDispatchForm({ ...dispatchForm, driverId: e.target.value })}>
-                                                <option value="">SELECT AGENT...</option>
+                                                <option value="">SELECT DRIVER...</option>
                                                 {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
                                             </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[8px] font-black text-ink-secondary uppercase opacity-50 block mb-1 px-1">Route / Area</label>
+                                            <input 
+                                                required 
+                                                type="text" 
+                                                className="input-field !rounded-xl !py-2 !h-10 font-black text-xs uppercase" 
+                                                placeholder="TARGET AREA..."
+                                                value={dispatchForm.location} 
+                                                onChange={e => setDispatchForm({ ...dispatchForm, location: e.target.value })} 
+                                            />
                                         </div>
                                     </div>
                                 </div>
 
                                 <div className="p-6 bg-canvas/30 rounded-2xl border border-black/5">
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-4">Telemetry Baseline</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-4">Starting Odometer</label>
                                     <input required type="number" className="input-field !rounded-xl !py-2.5 font-black text-lg" placeholder="Odometer Index..." value={dispatchForm.initialOdometer} onChange={e => setDispatchForm({ ...dispatchForm, initialOdometer: e.target.value })} />
                                 </div>
                             </div>
@@ -513,7 +539,7 @@ const Vehicles = () => {
                             <div className="flex flex-col">
                                 <div className="flex-1 p-6 bg-ink-primary rounded-2xl flex flex-col mb-6">
                                     <label className="block text-[10px] font-black uppercase tracking-widest text-surface/30 mb-4 flex items-center gap-2">
-                                        <ShoppingCart size={12} className="text-accent-signature" /> Fulfillment Pipeline
+                                        <ShoppingCart size={12} className="text-accent-signature" /> Pending Orders
                                     </label>
                                     <div className="flex-1 overflow-y-auto max-h-[200px] space-y-2 custom-scrollbar pr-2">
                                         {products.filter(p => p.stock > 0).map(p => (
@@ -538,7 +564,7 @@ const Vehicles = () => {
                                 </div>
 
                                 <button type="submit" className="btn-signature !h-14 w-full">
-                                    AUTHORIZE DISPATCH
+                                    CONFIRM DISPATCH
                                     <div className="icon-nest">
                                         <CheckCircle2 size={24} />
                                     </div>
@@ -563,18 +589,20 @@ const Vehicles = () => {
                         <div className="absolute top-0 left-0 w-2 h-full bg-accent-signature"></div>
 
                         <div className="mb-6">
-                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">Mission Debrief</h3>
-                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Operational Reconciliation protocol</p>
+                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">Trip Summary</h3>
+                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">
+                                Trip Completion & Review • {showReconcileModal.location || 'GLOBAL'}
+                            </p>
                         </div>
 
                         <form onSubmit={handleReconcile} className="space-y-6">
                             <div className="grid grid-cols-2 gap-6">
                                 <div className="p-4 bg-canvas/30 rounded-2xl border border-black/5">
-                                    <label className="block text-[8px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Final Telemetry</label>
+                                    <label className="block text-[8px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Ending Odometer</label>
                                     <input required type="number" className="bg-transparent border-none w-full p-0 text-xl font-black text-ink-primary outline-none" placeholder="Index..." value={reconcileForm.finalOdometer} onChange={e => setReconcileForm({ ...reconcileForm, finalOdometer: e.target.value })} />
                                 </div>
                                 <div className="p-4 bg-canvas/30 rounded-2xl border border-black/5">
-                                    <label className="block text-[8px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Capital Recovery</label>
+                                    <label className="block text-[8px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Cash Collected</label>
                                     <div className="flex items-center gap-2">
                                         <span className="text-lg font-black text-ink-primary opacity-20">{businessProfile.currencySymbol}</span>
                                         <input required type="number" step="0.01" className="bg-transparent border-none w-full p-0 text-xl font-black text-emerald-500 outline-none" placeholder="0.00" value={reconcileForm.actualCash} onChange={e => setReconcileForm({ ...reconcileForm, actualCash: e.target.value })} />
@@ -583,7 +611,7 @@ const Vehicles = () => {
                             </div>
 
                             <div className="space-y-3">
-                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50">Asset Audit</label>
+                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50">Stock Check</label>
                                 <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
                                     {Object.keys(getExpectedLeftovers(showReconcileModal)).map(productId => {
                                         const data = getExpectedLeftovers(showReconcileModal)[productId];

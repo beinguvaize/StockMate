@@ -86,16 +86,16 @@ const Inventory = () => {
             
             <div className="flex justify-between items-end pb-6 border-b border-black/5 text-ink-primary mb-2">
                 <div>
-                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary mb-2 uppercase">Inventory.</h1>
-                    <p className="text-ink-secondary font-medium uppercase tracking-tight text-sm opacity-50">Strategic Asset Management & Stock Control</p>
+                    <h1 className="text-5xl font-black tracking-tighter text-ink-primary mb-2 uppercase">Inventory.</h1>
+                    <p className="text-ink-secondary font-medium uppercase tracking-tight text-[10px] opacity-50">Stock Management & Asset Distribution</p>
                 </div>
                 <div className="flex gap-6">
                     <button className="px-8 py-4 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-xs uppercase cursor-pointer tracking-widest" onClick={() => setShowHistoryModal(true)}>
-                        <History size={16} className="inline mr-3 opacity-40" /> Movement Logs
+                        <History size={16} className="inline mr-3 opacity-40" /> History
                     </button>
                     {hasPermission('MANAGE_INVENTORY') && (
                         <button className="btn-signature group" onClick={openAddModal}>
-                            ADD ASSET
+                            ADD PRODUCT
                             <div className="icon-nest">
                                 <Plus size={20} className="group-hover:rotate-90 transition-transform duration-500" />
                             </div>
@@ -109,11 +109,11 @@ const Inventory = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-canvas border-b border-black/5">
-                                <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80">Product Details</th>
-                                <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 hidden md:table-cell">Categorization</th>
-                                <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 text-right whitespace-nowrap">Price (Cost / Sell)</th>
-                                <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 text-center hidden sm:table-cell whitespace-nowrap">Stock Level</th>
-                                <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 text-right">Management</th>
+                                <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80">Product</th>
+                                <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 hidden md:table-cell">Category</th>
+                                <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 text-right whitespace-nowrap">Cost / Sell Price</th>
+                                <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 text-center hidden sm:table-cell whitespace-nowrap">Stock</th>
+                                <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-black/5">
@@ -174,7 +174,7 @@ const Inventory = () => {
                                                         </button>
                                                         <button 
                                                             onClick={() => {
-                                                                 if (window.confirm(`Delete asset ${product.name}?`)) deleteProduct(product.id);
+                                                                 if (window.confirm(`Delete product ${product.name}?`)) deleteProduct(product.id);
                                                             }}
                                                             className="w-10 h-10 rounded-pill bg-surface border border-red-100 flex items-center justify-center shadow-premium hover:bg-red-500 hover:text-white transition-all text-red-500"
                                                         >
@@ -199,8 +199,8 @@ const Inventory = () => {
                                         <div className="w-24 h-24 rounded-pill bg-canvas flex items-center justify-center mx-auto mb-6">
                                             <PackagePlus size={40} className="text-ink-primary opacity-10" />
                                         </div>
-                                        <div className="text-sm font-black text-ink-primary uppercase tracking-widest">No Assets Detected</div>
-                                        <div className="text-xs font-bold text-ink-secondary uppercase opacity-30 mt-2">Infrastructure is currently depleted</div>
+                                        <div className="text-sm font-black text-ink-primary uppercase tracking-widest">No Products Found</div>
+                                        <div className="text-xs font-bold text-ink-secondary uppercase opacity-30 mt-2">Your inventory is empty</div>
                                     </td>
                                 </tr>
                             )}
@@ -217,8 +217,8 @@ const Inventory = () => {
                     <div className="glass-modal !max-w-[700px] !p-5 !py-5">
                         <div className="flex justify-between items-start mb-3">
                             <div>
-                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none">Initialize Asset.</h1>
-                                <p className="text-[11px] font-black text-ink-secondary uppercase tracking-[0.3em] mt-0.5 opacity-70">System configuration protocol alpha-v2</p>
+                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none">Add New Product.</h1>
+                                <p className="text-[11px] font-black text-ink-secondary uppercase tracking-[0.3em] mt-0.5 opacity-70">Enter product details</p>
                             </div>
                             <button className="w-8 h-8 rounded-pill bg-canvas flex items-center justify-center hover:scale-110 transition-all cursor-pointer text-ink-primary" onClick={() => setShowAddModal(false)}>
                                 <X size={16} />
@@ -227,17 +227,17 @@ const Inventory = () => {
 
                         <form onSubmit={handleAddSubmit} className="grid grid-cols-2 gap-2">
                             <div className="col-span-2">
-                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Strategic Designation</label>
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Product Name</label>
                                 <input required type="text" className="w-full bg-canvas border-none rounded-2xl p-3 font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all text-lg" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. HIGH-FIDELITY UNIT" />
                             </div>
 
                             <div>
-                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Authentication SKU</label>
-                                <input required type="text" className="w-full bg-canvas border-none rounded-2xl p-3 font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/10" value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value })} placeholder="SKU-XXXXX" />
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">SKU / Barcode</label>
+                                <input required type="text" className="w-full bg-canvas border-none rounded-2xl p-3 font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/10" value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value })} placeholder="Enter SKU" />
                             </div>
 
                             <div>
-                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Classification</label>
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Category</label>
                                 <select className="w-full bg-canvas border-none rounded-2xl p-3 font-black text-ink-primary outline-none appearance-none cursor-pointer focus:ring-4 focus:ring-accent-signature/10" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
                                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
@@ -249,12 +249,12 @@ const Inventory = () => {
                                         <Barcode value={formData.sku} height={32} displayValue={true} background="transparent" lineColor="var(--color-ink-primary)" font="Inter" fontSize={11} textMargin={4} width={1.8} />
                                     </div>
                                 ) : (
-                                    <span className="text-[10px] font-black text-ink-primary/10 uppercase tracking-widest italic">Awaiting identification sequence...</span>
+                                    <span className="text-[10px] font-black text-ink-primary/10 uppercase tracking-widest italic">Awaiting SKU...</span>
                                 )}
                             </div>
 
                             <div className="col-span-1 p-3 rounded-bento bg-canvas border border-black/5">
-                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Unit Acquisition Cost</label>
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Cost Price</label>
     <div className="flex items-center gap-2">
         <span className="text-2x font-black text-ink-primary opacity-40">$</span>
         <input required type="number" step="0.01" className="bg-transparent border-none w-full p-0 text-xl font-black text-ink-primary outline-none" value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value })} />
@@ -262,7 +262,7 @@ const Inventory = () => {
 </div>
 
                             <div className="col-span-1 p-3 rounded-bento bg-ink-primary shadow-premium">
-                                <label className="text-[10px] font-black text-surface uppercase tracking-widest mb-1 block opacity-90">Target Market Valuation</label>
+                                <label className="text-[10px] font-black text-surface uppercase tracking-widest mb-1 block opacity-90">Selling Price</label>
                                 <div className="flex items-center gap-2">
                                     <span className="text-2x font-black text-surface opacity-90">$</span>
                                     <input required type="number" step="0.01" className="bg-transparent border-none w-full p-0 text-xl font-black text-accent-signature outline-none" value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value })} />
@@ -270,21 +270,21 @@ const Inventory = () => {
                             </div>
 
                             <div className="col-span-1">
-                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Standard Measurement</label>
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Unit</label>
                                 <select className="w-full bg-canvas border-none rounded-2xl p-3 font-black text-ink-primary outline-none appearance-none cursor-pointer focus:ring-4 focus:ring-accent-signature/10" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
                                     {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                                 </select>
                             </div>
 
                             <div className="col-span-1">
-                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Operational Inventory</label>
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Initial Stock</label>
                                 <input type="number" className="w-full bg-canvas border-none rounded-2xl p-3 font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/10" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} />
                             </div>
 
                             <div className="col-span-2 grid grid-cols-2 gap-4 mt-4">
-                                <button type="button" className="px-6 py-3 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowAddModal(false)}>Abort sequence</button>
+                                <button type="button" className="px-6 py-3 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowAddModal(false)}>Cancel</button>
                                 <button type="submit" className="btn-signature !h-12 !text-sm flex items-center justify-center px-4 !rounded-pill">
-                                    {editingProduct ? 'Commit Configuration' : 'Initialize Asset'}
+                                    {editingProduct ? 'Save Changes' : 'Add Product'}
                                     <div className="icon-nest !w-8 !h-8 ml-3">
                                         <CheckCircle2 size={20} />
                                     </div>
@@ -301,8 +301,8 @@ const Inventory = () => {
                     <div className="glass-modal !p-0 !max-w-[1200px] flex flex-col !rounded-bento overflow-hidden">
                         <div className="p-6 border-b border-black/5 flex justify-between items-center bg-canvas">
                             <div>
-                                <h2 className="text-5xl font-black text-ink-primary uppercase tracking-tighter">Strategic Audit Log.</h2>
-                                <p className="text-[11px] font-black text-ink-secondary uppercase tracking-[0.3em] mt-3 opacity-60">Multi-vector Asset movement verification</p>
+                                <h2 className="text-5xl font-black text-ink-primary uppercase tracking-tighter">Stock History.</h2>
+                                <p className="text-[10px] font-medium text-ink-secondary tracking-tight uppercase opacity-50">Stock Management & Asset Distribution</p>
                             </div>
                             <button className="w-12 h-12 rounded-pill border border-black/10 flex items-center justify-center hover:bg-ink-primary hover:text-surface transition-all cursor-pointer text-ink-primary" onClick={() => setShowHistoryModal(false)}>
                                 <X size={24} />
@@ -313,11 +313,11 @@ const Inventory = () => {
                             <table className="w-full text-left border-collapse">
                                 <thead className="sticky top-0 z-10 bg-surface">
                                     <tr className="border-b-4 border-black/5">
-                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80">Chronological Index</th>
-                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80">Infrastructure Unit</th>
-                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80 text-center">Operation</th>
-                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80 text-center">Net Volume</th>
-                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80 text-right">Strategic Context</th>
+                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80">Date</th>
+                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80">Product</th>
+                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80 text-center">Type</th>
+                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80 text-center">Quantity</th>
+                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80 text-right">Reason</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-black/5">
@@ -330,7 +330,7 @@ const Inventory = () => {
                                             </td>
                                             <td className="py-3 text-center">
                                                 <span className={`px-4 py-1.5 rounded-pill text-[10px] font-black uppercase tracking-[0.2em] ${log.type === 'IN' ? 'bg-accent-signature/20 text-ink-primary border border-accent-signature/30' : 'bg-red-500 text-white shadow-premium'}`}>
-                                                    {log.type === 'IN' ? 'Absorption' : 'Discharge'}
+                                                    {log.type === 'IN' ? 'Stock In' : 'Stock Out'}
                                                 </span>
                                             </td>
                                             <td className={`py-3 text-center font-black text-2xl tracking-tighter ${log.type === 'IN' ? 'text-emerald-500' : 'text-red-500'}`}>
@@ -342,7 +342,7 @@ const Inventory = () => {
                                         </tr>
                                     ))}
                                     {(movementLog || []).length === 0 && (
-                                        <tr><td colSpan="5" className="p-40 text-center text-ink-secondary uppercase font-black text-xs tracking-[0.5em] opacity-10">Historical data zeroed</td></tr>
+                                        <tr><td colSpan="5" className="p-40 text-center text-ink-secondary uppercase font-black text-xs tracking-[0.5em] opacity-10">No history found</td></tr>
                                     )}
                                 </tbody>
                             </table>

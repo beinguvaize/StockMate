@@ -169,11 +169,11 @@ const Reports = () => {
                     <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-3">
                             <div className="w-1.5 h-10 bg-accent-signature rounded-full"></div>
-                            <h1 className="text-7xl font-black tracking-tighter text-ink-primary uppercase leading-tight">Intelligence.</h1>
+                            <h1 className="text-5xl font-black tracking-tighter text-ink-primary uppercase leading-tight">Reports.</h1>
                         </div>
-                        <p className="text-sm font-black text-[#747576] tracking-tight uppercase opacity-60 ml-4 flex items-center gap-2">
+                        <p className="text-[10px] font-black text-[#747576] tracking-tight uppercase opacity-60 ml-4 flex items-center gap-2">
                             <Activity size={14} className="text-accent-signature" />
-                            Strategic Data Analytics & Performance Audit Matrix
+                            Business Overview & Analytics
                         </p>
                     </div>
                     <div className="flex items-center gap-4 bg-canvas/30 p-2 rounded-2xl border border-black/5 shadow-inner">
@@ -181,7 +181,7 @@ const Reports = () => {
                             <span className="text-[9px] font-black text-[#747576] uppercase tracking-widest opacity-40">System Status</span>
                             <span className="text-xs font-black text-green-500 uppercase tracking-tighter flex items-center gap-1">
                                 <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></span>
-                                Live Sync Active
+                                System Online
                             </span>
                         </div>
                         <div className="flex -space-x-3 px-4">
@@ -202,8 +202,8 @@ const Reports = () => {
                             <TrendingUp size={20} />
                         </div>
                         <div className="flex flex-col">
-                            <div className="text-[10px] font-black uppercase tracking-widest text-[#747576] opacity-40">Active Node</div>
-                            <div className="text-sm font-black text-ink-primary tracking-tighter leading-none">Operational Matrix</div>
+                            <div className="text-[10px] font-black uppercase tracking-widest text-[#747576] opacity-40">Summary</div>
+                            <div className="text-sm font-black text-ink-primary tracking-tighter leading-none">Business Overview</div>
                         </div>
                     </div>
                 </div>
@@ -216,10 +216,10 @@ const Reports = () => {
                         value={dateRange} 
                         onChange={e => setDateRange(e.target.value)}
                     >
-                        <option value="TODAY">IMMEDIATE OCTANT (24H)</option>
-                        <option value="WEEK">7-DAY VECTOR (W)</option>
-                        <option value="MONTH">30-DAY CYCLE (M)</option>
-                        <option value="ALL">HISTORICAL ARCHIVE (∞)</option>
+                        <option value="TODAY">TODAY</option>
+                        <option value="WEEK">LAST 7 DAYS</option>
+                        <option value="MONTH">LAST 30 DAYS</option>
+                        <option value="ALL">ALL TIME</option>
                     </select>
                     <div className="w-8 h-8 rounded-full bg-canvas flex items-center justify-center text-[#747576] opacity-40">
                         <ArrowDownRight size={14} />
@@ -228,7 +228,7 @@ const Reports = () => {
 
                 {hasPermission('EXPORT_REPORTS') && (
                     <button className="btn-signature !h-14 !py-0 !text-[11px] !font-black !tracking-[0.2em] !rounded-pill group" onClick={handlePrint}>
-                        PRINT AUDIT
+                        PRINT
                         <div className="icon-nest ml-4 !w-10 !h-10 group-hover:bg-ink-primary group-hover:text-accent-signature transition-all">
                             <Printer size={18} />
                         </div>
@@ -239,7 +239,7 @@ const Reports = () => {
             {/* Print Header */}
             <div className="print-only hidden mb-10 text-center">
                 <h2 className="text-3xl font-black uppercase tracking-tighter">{businessProfile.name}</h2>
-                <div className="text-[10px] font-bold uppercase tracking-widest opacity-40 mt-2">Strategic Performance Audit | Generated: {new Date().toLocaleDateString()}</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest opacity-40 mt-2">Business Performance Report | Generated: {new Date().toLocaleDateString()}</div>
             </div>
 
             {/* Top Level KPI Cards */}
@@ -250,7 +250,7 @@ const Reports = () => {
                     
                     <div className="flex justify-between items-start relative z-10 w-full mb-auto">
                         <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#747576] opacity-40">Realized Cash</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#747576] opacity-40">Cash Collected</span>
                             <div className="text-4xl font-black text-green-500 tracking-tighter tabular-nums">
                                 {businessProfile?.currencySymbol || '₹'}{Math.round(metrics.recovered).toLocaleString()}
                             </div>
@@ -262,7 +262,7 @@ const Reports = () => {
 
                     <div className="mt-auto relative z-10 space-y-4">
                         <div className="flex justify-between items-baseline">
-                            <span className="text-[10px] font-black text-[#747576] uppercase tracking-widest opacity-40">Projected Turn</span>
+                             <span className="text-[10px] font-black text-[#747576] uppercase tracking-widest opacity-40">Total Sales</span>
                             <span className="text-sm font-black text-ink-primary font-mono tabular-nums">{businessProfile?.currencySymbol || '₹'}{Math.round(metrics.sales).toLocaleString()}</span>
                         </div>
                         <div className="h-1 w-full bg-black/5 rounded-full overflow-hidden">
@@ -280,7 +280,7 @@ const Reports = () => {
                     
                     <div className="flex justify-between items-start relative z-10 w-full mb-auto">
                         <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#747576] opacity-40">Debt Exposure</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-[#747576] opacity-40">Pending Payments</span>
                             <div className="text-4xl font-black text-red-500 tracking-tighter tabular-nums">
                                 {businessProfile?.currencySymbol || '₹'}{Math.round(metrics.pending).toLocaleString()}
                             </div>
@@ -310,7 +310,7 @@ const Reports = () => {
                     
                     <div className="flex justify-between items-start relative z-10 w-full mb-auto">
                         <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-surface opacity-30">Operational Burn</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-surface opacity-30">Total Spent</span>
                             <div className="text-4xl font-black text-surface tracking-tighter tabular-nums">
                                 {businessProfile?.currencySymbol || '₹'}{Math.round(metrics.expenses + metrics.payroll).toLocaleString()}
                             </div>
@@ -330,7 +330,7 @@ const Reports = () => {
                         </div>
                         <div className="flex items-center gap-2 text-[10px] font-black text-surface/40 uppercase tracking-[0.2em]">
                             <div className="w-1.5 h-1.5 rounded-full bg-accent-signature shadow-[0_0_8px_#C8F135]"></div>
-                            Authorized Disbursements
+                            Tracked Expenses
                         </div>
                     </div>
                 </div>
@@ -359,7 +359,7 @@ const Reports = () => {
                             </div>
                         </div>
                         <div className="flex items-center gap-2 text-[10px] font-bold text-[#747576] opacity-40 uppercase tracking-widest bg-canvas px-3 py-1 rounded-full border border-black/5 w-fit">
-                            Realized Value Audit
+                            Final Balance Check
                         </div>
                     </div>
                 </div>
@@ -374,8 +374,8 @@ const Reports = () => {
                                 <Users size={24} />
                             </div>
                             <div>
-                                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-ink-primary">Personnel Yield Audit.</h3>
-                                <p className="text-[10px] font-black text-[#747576] uppercase tracking-widest opacity-40 mt-1">Revenue Attribution per Agent</p>
+                                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-ink-primary">Staff Performance.</h3>
+                                <p className="text-[10px] font-black text-[#747576] uppercase tracking-widest opacity-40 mt-1">Sales by Staff Member</p>
                             </div>
                         </div>
                         <div className="w-10 h-10 rounded-full bg-canvas flex items-center justify-center text-ink-primary/20">
@@ -402,14 +402,14 @@ const Reports = () => {
                                     </div>
                                     <div className="text-right">
                                         <div className="text-lg font-black text-ink-primary group-hover:text-accent-signature transition-colors tabular-nums">{businessProfile.currencySymbol}{amount.toLocaleString()}</div>
-                                        <div className="text-[8px] font-black text-[#747576] uppercase tracking-[0.2em] group-hover:text-surface/30">Yield Score</div>
+                                        <div className="text-[8px] font-black text-[#747576] uppercase tracking-[0.2em] group-hover:text-surface/30">Performance Score</div>
                                     </div>
                                 </div>
                             ))
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center py-16 text-center opacity-10 grayscale group-hover:grayscale-0 transition-all">
                                 <Activity size={64} strokeWidth={1} className="mb-6" />
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] max-w-[200px] leading-relaxed">System Synchronizing: No Yield Metadata Recorded</span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.3em] max-w-[200px] leading-relaxed">No sales data recorded yet</span>
                             </div>
                         )}
                     </div>
@@ -424,8 +424,8 @@ const Reports = () => {
                                 <Truck size={24} />
                             </div>
                             <div>
-                                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-surface">Infrastructure Yield.</h3>
-                                <p className="text-[10px] font-black text-surface/30 uppercase tracking-widest mt-1">Fleet & Route Matrix Audit</p>
+                                <h3 className="text-sm font-black uppercase tracking-[0.2em] text-surface">Fleet Performance.</h3>
+                                <p className="text-[10px] font-black text-surface/30 uppercase tracking-widest mt-1">Vehicle & Route Summary</p>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 px-4 py-2 bg-accent-signature/10 rounded-full border border-accent-signature/20">
@@ -461,13 +461,13 @@ const Reports = () => {
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center py-16 text-center opacity-10">
                                 <Layers size={64} strokeWidth={1} className="mb-6" />
-                                <span className="text-[10px] font-black uppercase tracking-[0.3em] max-w-[200px] leading-relaxed">Logistic Nodes Idle: Waiting for Distribution Matrix</span>
+                                <span className="text-[10px] font-black uppercase tracking-[0.3em] max-w-[200px] leading-relaxed">No trip data available</span>
                                 {hasPermission('GLOBAL_ADMIN') && (
                                     <button 
                                         className="mt-8 px-10 py-4 bg-accent-signature text-ink-primary rounded-full text-[10px] font-black uppercase tracking-[0.3em] hover:scale-105 transition-all shadow-xl active:scale-95"
                                         onClick={() => useAppContext().resetAndSeedLocal()}
                                     >
-                                        RE-SEED INFRASTRUCTURE
+                                        RESET DATA
                                     </button>
                                 )}
                             </div>
@@ -484,35 +484,35 @@ const Reports = () => {
                         className={`px-8 py-3 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-500 flex items-center gap-2 ${activeTab === 'SALES' ? 'bg-ink-primary text-surface shadow-2xl scale-105 -translate-y-0.5' : 'text-[#747576] hover:text-ink-primary'}`}
                     >
                         <DollarSign size={14} className={activeTab === 'SALES' ? 'text-accent-signature' : 'opacity-40'} />
-                        Capital Ledger
+                        Sales History
                     </button>
                     <button
                         onClick={() => setActiveTab('MOVEMENTS')}
                         className={`px-8 py-3 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-500 flex items-center gap-2 ${activeTab === 'MOVEMENTS' ? 'bg-ink-primary text-surface shadow-2xl scale-105 -translate-y-0.5' : 'text-[#747576] hover:text-ink-primary'}`}
                     >
                         <Truck size={14} className={activeTab === 'MOVEMENTS' ? 'text-accent-signature' : 'opacity-40'} />
-                        Asset Logistics
+                        Movement History
                     </button>
                     <button
                         onClick={() => setActiveTab('EXPENSES')}
                         className={`px-8 py-3 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-500 flex items-center gap-2 ${activeTab === 'EXPENSES' ? 'bg-ink-primary text-surface shadow-2xl scale-105 -translate-y-0.5' : 'text-[#747576] hover:text-ink-primary'}`}
                     >
                         <Receipt size={14} className={activeTab === 'EXPENSES' ? 'text-accent-signature' : 'opacity-40'} />
-                        Operating Costs
+                        Expense History
                     </button>
                     <button
                         onClick={() => setActiveTab('ADVANCED')}
                         className={`px-8 py-3 rounded-[2rem] text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-500 flex items-center gap-2 ${activeTab === 'ADVANCED' ? 'bg-ink-primary text-surface shadow-2xl scale-105 -translate-y-0.5' : 'text-[#747576] hover:text-ink-primary'}`}
                     >
                         <Activity size={14} className={activeTab === 'ADVANCED' ? 'text-accent-signature' : 'opacity-40'} />
-                        Advanced
+                        System
                     </button>
                 </div>
 
                 <div className="flex items-center gap-3">
                     <div className="text-[10px] font-black text-[#747576] uppercase tracking-[0.2em] opacity-40 mr-2 flex items-center gap-2">
                         <Activity size={12} className="text-accent-signature" />
-                        Export Protocol
+                        Export
                     </div>
                     <button className="w-12 h-12 rounded-2xl bg-white border border-black/5 flex items-center justify-center text-ink-primary hover:bg-ink-primary hover:text-accent-signature transition-all shadow-sm hover:scale-110 active:scale-95" onClick={exportToCSV}>
                         <Download size={18} />
@@ -530,10 +530,10 @@ const Reports = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-canvas/30 border-b border-black/5">
-                                    <th className="py-4 pl-12 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Transmission Index</th>
-                                    <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Protocol</th>
+                                    <th className="py-4 pl-12 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Order ID</th>
+                                    <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Payment Method</th>
                                     <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60 text-center">Status</th>
-                                    <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60 text-right">Net Yield</th>
+                                    <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60 text-right">Amount</th>
                                     <th className="no-print py-4 pr-12 text-right text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Action</th>
                                 </tr>
                             </thead>
@@ -580,10 +580,10 @@ const Reports = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-canvas/50 border-b border-black/5">
-                                    <th className="py-4 pl-12 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Chronological Index</th>
-                                    <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Asset Unit</th>
-                                    <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60 text-center">Delta</th>
-                                    <th className="py-4 pr-12 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60 text-right">Audit Context</th>
+                                    <th className="py-4 pl-12 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Date</th>
+                                    <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Product</th>
+                                    <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60 text-center">Change</th>
+                                    <th className="py-4 pr-12 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60 text-right">Reason</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-black/5 bg-white">
@@ -619,10 +619,10 @@ const Reports = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-canvas/50 border-b border-black/5">
-                                    <th className="py-4 pl-12 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Disbursement</th>
-                                    <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Classification</th>
-                                    <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Purpose</th>
-                                    <th className="py-4 pr-12 text-right text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Value</th>
+                                    <th className="py-4 pl-12 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Date</th>
+                                    <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Category</th>
+                                    <th className="py-4 text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Title</th>
+                                    <th className="py-4 pr-12 text-right text-xs font-black uppercase tracking-[0.2em] text-[#747576] opacity-60">Amount</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-black/5 bg-white">
@@ -660,16 +660,16 @@ const Reports = () => {
                     {activeTab === 'ADVANCED' && (
                         <div className="p-12 space-y-12 bg-white">
                             <div className="max-w-2xl">
-                                <h3 className="text-2xl font-black text-ink-primary uppercase tracking-tight mb-2">Systems Maintenance</h3>
-                                <p className="text-sm font-medium text-ink-secondary mb-8">Authorised operations for data management and structural synchronization.</p>
+                                <h3 className="text-2xl font-black text-ink-primary uppercase tracking-tight mb-2">System</h3>
+                                <p className="text-sm font-medium text-ink-secondary mb-8">Administrative tools for data management.</p>
                                 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="p-8 rounded-[2rem] border border-black/5 bg-canvas/30 space-y-4">
                                         <div className="flex items-center gap-4 mb-2">
                                             <Activity size={20} className="text-accent-signature" />
-                                            <h4 className="text-sm font-black uppercase tracking-widest">Infrastructure Seeder</h4>
+                                            <h4 className="text-sm font-black uppercase tracking-widest">Demo Data</h4>
                                         </div>
-                                        <p className="text-[10px] font-bold text-ink-secondary leading-relaxed uppercase opacity-60">Generate 1200+ simulated entries for stress testing and load auditing.</p>
+                                        <p className="text-[10px] font-bold text-ink-secondary leading-relaxed uppercase opacity-60">Generate sample transactions for testing.</p>
                                         <button 
                                             className="w-full py-3 bg-ink-primary text-accent-signature rounded-pill text-[10px] font-black uppercase tracking-[0.2em] shadow-xl hover:scale-105 transition-all"
                                             onClick={() => useAppContext().resetAndSeedLocal()}
@@ -681,14 +681,14 @@ const Reports = () => {
                                     <div className="p-8 rounded-[2rem] border border-black/5 bg-canvas/30 space-y-4">
                                         <div className="flex items-center gap-4 mb-2">
                                             <Layers size={20} className="text-red-500" />
-                                            <h4 className="text-sm font-black uppercase tracking-widest">Wipe Protocol</h4>
+                                            <h4 className="text-sm font-black uppercase tracking-widest">Clear Data</h4>
                                         </div>
-                                        <p className="text-[10px] font-bold text-ink-secondary leading-relaxed uppercase opacity-60">Irreversible deletion of all local storage metrics and transaction history.</p>
+                                        <p className="text-[10px] font-bold text-ink-secondary leading-relaxed uppercase opacity-60">Irreversible deletion of all local data and history.</p>
                                         <button 
                                             className="w-full py-3 border border-red-200 text-red-500 rounded-pill text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-50 transition-all"
                                             onClick={() => { if(confirm("ABSOLUTE DATA WIPE?")) localStorage.clear(); window.location.reload(); }}
                                         >
-                                            ABORT & ERASE
+                                            DELETE ALL
                                         </button>
                                     </div>
                                 </div>
@@ -714,10 +714,10 @@ const Reports = () => {
                         <div id="invoice-print-area" className="flex-1">
                             <div className="flex justify-between items-start mb-12 border-b-2 border-ink-primary pb-8">
                                 <div>
-                                    <h2 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-4">VOUCHER.</h2>
+                                    <h2 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-4">INVOICE.</h2>
                                     <div className="flex items-center gap-3">
                                         <div className="w-10 h-1.5 bg-accent-signature rounded-full"></div>
-                                        <p className="text-[10px] font-black text-[#747576] uppercase tracking-[0.4em] opacity-60">Settlement Protocol</p>
+                                        <p className="text-[10px] font-black text-[#747576] uppercase tracking-[0.4em] opacity-60">Payment Details</p>
                                     </div>
                                 </div>
                                 <div className="text-right">
@@ -726,7 +726,7 @@ const Reports = () => {
                                         {new Date(invoiceOrder.date).toLocaleDateString(undefined, { day: '2-digit', month: 'long', year: 'numeric' })}
                                     </div>
                                     <div className="mt-6 px-6 py-2 bg-ink-primary text-accent-signature inline-block rounded-xl font-black tracking-widest text-[10px] shadow-xl">
-                                        REF-{invoiceOrder.id.slice(-8).toUpperCase()}
+                                        INV-{invoiceOrder.id.slice(-8).toUpperCase()}
                                     </div>
                                 </div>
                             </div>
@@ -735,7 +735,7 @@ const Reports = () => {
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-accent-signature/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
                                 <div className="grid grid-cols-2 gap-12 relative z-10">
                                     <div>
-                                        <div className="text-[9px] font-black text-[#747576] uppercase tracking-[0.4em] mb-4 opacity-40">Counterparty</div>
+                                        <div className="text-[9px] font-black text-[#747576] uppercase tracking-[0.4em] mb-4 opacity-40">Customer</div>
                                         <div className="text-3xl font-black text-ink-primary uppercase tracking-tighter leading-tight mb-3">
                                             {invoiceOrder.customerInfo?.name || 'GENERIC CLIENT'}
                                         </div>
@@ -759,9 +759,9 @@ const Reports = () => {
                             <table className="w-full text-left mb-12">
                                 <thead>
                                     <tr className="border-b border-black/10">
-                                        <th className="py-4 text-[10px] font-black text-[#747576] uppercase tracking-[0.4em] opacity-40">Asset Designation</th>
-                                        <th className="py-4 text-[10px] font-black text-[#747576] uppercase tracking-[0.4em] opacity-40 text-center">Volume</th>
-                                        <th className="py-4 text-right text-[10px] font-black text-ink-primary uppercase tracking-[0.4em]">Net Value</th>
+                                        <th className="py-4 text-[10px] font-black text-[#747576] uppercase tracking-[0.4em] opacity-40">Item</th>
+                                        <th className="py-4 text-[10px] font-black text-[#747576] uppercase tracking-[0.4em] opacity-40 text-center">Quantity</th>
+                                        <th className="py-4 text-right text-[10px] font-black text-ink-primary uppercase tracking-[0.4em]">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-black/5">
@@ -791,8 +791,8 @@ const Reports = () => {
                             <div className="max-w-[340px] ml-auto">
                                 <div className="p-10 bg-ink-primary rounded-[2.5rem] shadow-2xl flex justify-between items-center group hover:scale-105 transition-transform duration-500">
                                     <div className="flex flex-col">
-                                        <span className="text-[10px] font-black text-surface/40 uppercase tracking-[0.3em] mb-1">Final Settlement</span>
-                                        <span className="text-[9px] font-black text-accent-signature uppercase tracking-widest">Calculated Net</span>
+                                        <span className="text-[10px] font-black text-surface/40 uppercase tracking-[0.3em] mb-1">Total Amount</span>
+                                        <span className="text-[9px] font-black text-accent-signature uppercase tracking-widest">Net Total</span>
                                     </div>
                                     <span className="text-4xl font-black text-accent-signature tracking-tighter font-mono">{businessProfile.currencySymbol}{invoiceOrder.totalAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                                 </div>
@@ -800,9 +800,9 @@ const Reports = () => {
                         </div>
 
                         <div className="mt-10 no-print flex gap-4">
-                            <button className="flex-1 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-[10px] uppercase tracking-widest hover:bg-black/5 transition-all shadow-sm bg-surface" onClick={() => setInvoiceOrder(null)}>Return</button>
+                            <button className="flex-1 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-[10px] uppercase tracking-widest hover:bg-black/5 transition-all shadow-sm bg-surface" onClick={() => setInvoiceOrder(null)}>Back</button>
                             <button className="flex-[2] btn-signature group !py-4 !rounded-pill !text-xs" onClick={handlePrintInvoice}>
-                                EXECUTE PRINT
+                                PRINT
                                 <div className="icon-nest !w-10 !h-10 ml-4">
                                     <Printer size={20} />
                                 </div>

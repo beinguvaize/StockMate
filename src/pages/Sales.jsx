@@ -212,7 +212,7 @@ const Sales = () => {
                         </div>
                     </div>
                     <div className="p-6 bg-canvas rounded-bento border border-black/5 mb-6 text-center">
-                        <div className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary mb-2 opacity-70">Total Capital Processed</div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary mb-2 opacity-70">Total Amount</div>
                         <div className="text-6xl font-black text-ink-primary tracking-tighter">
                             ${lastOrderTotal.toLocaleString()}
                         </div>
@@ -246,13 +246,13 @@ const Sales = () => {
             {/* Customer Section */}
             <div className="p-4 border-b border-black/5 bg-canvas/30">
                 <div className="mb-2">
-                    <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-90 mb-1.5">Target Personnel</label>
+                    <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-90 mb-1.5">Customer</label>
                     <div className="relative">
                         <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
                         <input 
                             type="text" 
                             className="input-field !pl-12 !rounded-xl !py-2.5 !bg-surface !text-xs" 
-                            placeholder="Select Customer Unit..." 
+                            placeholder="Search customers..." 
                             value={customerSearch || (selectedShopId === 'WALKIN' ? 'Default Walking Customer' : customerInfo.name)}
                             onFocus={() => {
                                 setShowCustomerDropdown(true);
@@ -276,7 +276,7 @@ const Sales = () => {
                                             setShowCustomerDropdown(false);
                                         }}
                                     >
-                                        DEFAULT UNIT (WALKING)
+                                        WALK-IN CUSTOMER
                                     </div>
                                     {filteredCustomers.map(s => (
                                         <div 
@@ -332,7 +332,7 @@ const Sales = () => {
                         <div className="flex justify-center mb-4">
                             <CartIcon size={60} strokeWidth={1} />
                         </div>
-                        <p className="text-xs font-black uppercase tracking-[0.5em]">Inventory queue: Empty</p>
+                        <p className="text-xs font-black uppercase tracking-[0.5em]">Your cart is empty</p>
                     </div>
                 ) : (
                     cartCalc.lines.map(item => (
@@ -398,17 +398,17 @@ const Sales = () => {
             <div className="p-4 border-t border-black/5 bg-surface/50 backdrop-blur-3xl shadow-2xl">
                 <div className="space-y-2 mb-4">
                     <div className="flex justify-between text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-90">
-                        <span>Gross Aggregate ({cartCalc.totalItems} units)</span>
+                        <span>Subtotal ({cartCalc.totalItems} items)</span>
                         <span>${cartCalc.subtotal.toLocaleString()}</span>
                     </div>
                     {cartCalc.totalDiscount > 0 && (
                         <div className="flex justify-between text-[9px] font-black uppercase tracking-[0.3em] text-red-500">
-                            <span>Transactional Rebate</span>
+                            <span>Discount</span>
                             <span>-${cartCalc.totalDiscount.toLocaleString()}</span>
                         </div>
                     )}
                     <div className="flex justify-between items-end pt-3 border-t border-black/5">
-                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-primary">Net Capital</span>
+                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-primary">Total</span>
                         <span className="text-3xl font-black text-ink-primary tracking-tighter">
                             ${cartCalc.finalTotal.toLocaleString()}
                         </span>
@@ -444,13 +444,13 @@ const Sales = () => {
                 {/* Header Section */}
                 <div className="flex justify-between items-end pb-2 border-b border-black/5">
                     <div>
-                        <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">Store.</h1>
-                        <p className="text-[10px] font-medium text-ink-secondary tracking-tight uppercase opacity-80">Central Transaction Terminal</p>
+                        <h1 className="text-5xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">Sales.</h1>
+                        <p className="text-[10px] font-medium text-ink-secondary tracking-tight uppercase opacity-80">Point of Sale</p>
                     </div>
                     {!isMobile && (
                         <div className="text-right">
                             <div className="text-4xl font-black text-ink-primary tracking-tighter leading-none mb-1">{filteredProducts.length}</div>
-                            <div className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-70">Active SKU Assets</div>
+                            <div className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-70">Products in Stock</div>
                         </div>
                     )}
                 </div>
@@ -462,7 +462,7 @@ const Sales = () => {
                         <input 
                             type="text" 
                             className="input-field !pl-16 !py-3 !rounded-pill bg-surface border-black/5 shadow-premium !text-sm font-black" 
-                            placeholder="Identify inventory asset..." 
+                            placeholder="Search products..." 
                             value={searchTerm} 
                             onChange={e => setSearchTerm(e.target.value)} 
                         />
@@ -475,8 +475,8 @@ const Sales = () => {
                                 value={selectedRoute} 
                                 onChange={e => setSelectedRoute(e.target.value)}
                             >
-                                <option value="">MAIN INFRASTRUCTURE</option>
-                                {activeRoutes.map(r => <option key={r.id} value={r.id}>LOGISTICS UNIT: {getEmployeeName(r.driverId)}</option>)}
+                                <option value="">MAIN STORE</option>
+                                {activeRoutes.map(r => <option key={r.id} value={r.id}>VEHICLE: {getEmployeeName(r.driverId)}</option>)}
                             </select>
                         </div>
                     )}
@@ -552,7 +552,7 @@ const Sales = () => {
                                     
                                     {/* Economic Sector */}
                                     <div className="text-right pr-2">
-                                        <div className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-0.5 opacity-70">Unit Val</div>
+                                        <div className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-0.5 opacity-70">Unit Price</div>
                                         <div className="text-xl font-black text-ink-primary tracking-tighter leading-none">
                                             ${product.sellingPrice.toLocaleString()}
                                         </div>
@@ -587,12 +587,12 @@ const Sales = () => {
                             <CartIcon size={20} />
                         </div>
                         <div>
-                            <div className="text-xs font-black uppercase tracking-[0.2em] opacity-40">Queue Units</div>
+                            <div className="text-xs font-black uppercase tracking-[0.2em] opacity-40">Cart Items</div>
                             <div className="text-lg font-black tracking-tighter">{cartCalc.totalItems} Items</div>
                         </div>
                     </div>
                     <div className="text-right">
-                        <div className="text-xs font-black uppercase tracking-[0.2em] text-[#C8F135]">Aggregate</div>
+                        <div className="text-xs font-black uppercase tracking-[0.2em] text-[#C8F135]">Total</div>
                         <div className="text-2xl font-black tracking-tighter">{businessProfile?.currencySymbol || '$'}{cartCalc.finalTotal.toLocaleString()}</div>
                     </div>
                 </div>
@@ -614,8 +614,8 @@ const Sales = () => {
                         {/* Compact Header */}
                         <div className="py-2 px-6 border-b border-black/5 flex justify-between items-center bg-surface sticky top-0 z-20">
                             <div>
-                                <h3 className="text-xl font-black tracking-tighter text-ink-primary uppercase leading-tight">Final Settlement.</h3>
-                                <p className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.2em] opacity-40">Identify Payment Vector</p>
+                                <h3 className="text-xl font-black tracking-tighter text-ink-primary uppercase leading-tight">Confirm Payment.</h3>
+                                <p className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.2em] opacity-40">Choose Payment Method</p>
                             </div>
                             <button 
                                 onClick={() => setShowPaymentModal(false)}
@@ -628,15 +628,15 @@ const Sales = () => {
                         <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-3 space-y-4">
                             {/* Capital Summary */}
                             <div className="p-3 bg-ink-primary rounded-2xl text-center shadow-xl">
-                                <div className="text-[8px] font-black uppercase tracking-[0.4em] text-accent-signature mb-0.5 opacity-80">Capital Payable</div>
+                                <div className="text-[8px] font-black uppercase tracking-[0.4em] text-accent-signature mb-0.5 opacity-80">Total Amount</div>
                                 <div className="text-3xl font-black text-surface tracking-tighter">${cartCalc.finalTotal.toLocaleString()}</div>
                             </div>
 
                             {/* Itemized List (Compact) */}
                             <div className="space-y-2">
                                 <div className="text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-60 flex justify-between px-1">
-                                    <span>Asset Breakdown</span>
-                                    <span>Total Value</span>
+                                    <span>Item Summary</span>
+                                    <span>Total Price</span>
                                 </div>
                                 <div className="space-y-1 overflow-y-auto pr-1 custom-scrollbar">
                                     {cartCalc.lines.map(item => (
@@ -677,11 +677,11 @@ const Sales = () => {
                             {/* Field Notes (Salesman) */}
                             <div className="space-y-2">
                                 <label className="text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-60 px-1 flex items-center gap-2">
-                                    <FileText size={10} /> Salesman Operations Note
+                                    <FileText size={10} /> Order Notes
                                 </label>
                                 <textarea 
                                     className="w-full bg-canvas border border-black/5 rounded-xl p-2.5 text-[11px] font-medium text-ink-primary outline-none focus:ring-2 focus:ring-black/5 min-h-[50px] resize-none"
-                                    placeholder="Enter operational commentary or specific asset details..."
+                                    placeholder="Add a note about this order..."
                                     value={salesmanNote}
                                     onChange={(e) => setSalesmanNote(e.target.value)}
                                 />
@@ -692,7 +692,7 @@ const Sales = () => {
                         <div className="py-2 px-6 bg-canvas border-t border-black/5 flex gap-3">
                             <button className="flex-1 py-2.5 rounded-pill border border-black/10 font-black text-ink-primary hover:bg-black/5 transition-all uppercase text-[9px] tracking-widest" onClick={() => setShowPaymentModal(false)}>Cancel</button>
                             <button className="btn-signature flex-[1.5] !h-10 !text-[11px] flex items-center justify-center px-4 !rounded-pill" onClick={() => handleConfirmTransaction('COMPLETED')}>
-                                SETTLE ACCOUNT
+                                COMPLETE SALE
                                 <div className="icon-nest !w-8 !h-8 ml-3">
                                     <Check size={16} />
                                 </div>
@@ -714,12 +714,12 @@ const Sales = () => {
                         </button>
 
                         <div className="text-center mb-8">
-                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-2">Pre-Book Unit.</h3>
-                            <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-70">Set Fulfillment Chronology</p>
+                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-2">Pre-Book Order.</h3>
+                            <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-70">Set Pre-book Date</p>
                         </div>
                         
                         <div className="mb-8">
-                            <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary mb-4 text-center opacity-90">Logistics Target Date</label>
+                            <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary mb-4 text-center opacity-90">Planned Delivery Date</label>
                             <input 
                                 type="date" 
                                 className="w-full bg-canvas border border-black/5 rounded-bento p-6 font-black text-2xl text-center text-ink-primary outline-none focus:ring-8 focus:ring-accent-signature/20 transition-all" 
@@ -732,7 +732,7 @@ const Sales = () => {
                         <div className="flex gap-4">
                             <button className="flex-1 py-4 rounded-pill border border-black/10 font-black text-ink-primary hover:bg-black/5 transition-all text-[10px] tracking-[0.2em] uppercase" onClick={() => setShowBookingDateModal(false)}>CANCEL</button>
                             <button className="btn-signature flex-[2] !h-14 !text-sm flex items-center justify-center px-4 !rounded-pill" onClick={() => handleConfirmTransaction('PENDING')}>
-                                AUTHORIZE PRE-BOOK
+                                CONFIRM PRE-BOOK
                                 <div className="icon-nest !w-10 !h-10 ml-4">
                                     <Clock size={20} />
                                 </div>

@@ -95,7 +95,7 @@ const Users = () => {
                     </div>
                     <h2 className="text-4xl font-black tracking-tighter text-[#111] uppercase mb-4">Access Denied</h2>
                     <p className="text-sm font-bold text-[#747576] tracking-widest uppercase opacity-40 mb-10 leading-relaxed">
-                        Security Clearance Insufficient. Personnel records are restricted to Principal Administrators.
+                        Security Clearance Insufficient. Staff records are restricted to Administrators.
                     </p>
                     <button className="btn-signature w-full h-16" onClick={() => window.history.back()}>
                         SYSTEM ABORT
@@ -113,11 +113,11 @@ const Users = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-12 border-b border-black/5">
                 <div>
-                    <h1 className="text-7xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Personnel.</h1>
-                    <p className="text-sm font-medium text-ink-secondary tracking-tight uppercase opacity-50">Access Control & Security Matrix Management</p>
+                    <h1 className="text-5xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Staff.</h1>
+                    <p className="text-[10px] font-medium text-ink-secondary tracking-tight uppercase opacity-50">Access Control & Security Management</p>
                 </div>
                 <button className="btn-signature h-20 !text-base" onClick={openAdd}>
-                    ONBOARD PERSONNEL
+                    ADD STAFF MEMBER
                     <div className="icon-nest ml-6">
                         <UserPlus size={28} />
                     </div>
@@ -139,9 +139,9 @@ const Users = () => {
 
                         <div className="mb-16">
                             <h3 className="text-5xl font-black tracking-tighter text-ink-primary uppercase mb-3">
-                                {editingUser ? 'Access Redraw.' : 'New Personnel.'}
+                                {editingUser ? 'Edit Access.' : 'New Staff.'}
                             </h3>
-                            <p className="text-xs font-black text-ink-secondary uppercase tracking-[0.4em] opacity-40">Security Matrix Configuration</p>
+                            <p className="text-xs font-black text-ink-secondary uppercase tracking-[0.4em] opacity-40">Access Level Configuration</p>
                         </div>
 
                         <form onSubmit={handleSubmit} className="space-y-16">
@@ -171,7 +171,7 @@ const Users = () => {
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary mb-8 opacity-50">Role Clearance Spectrum</label>
+                                <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary mb-8 opacity-50">Role Access Levels</label>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     {AVAILABLE_ROLES.map(role => {
                                         const isSelected = formData.roles.includes(role.key);
@@ -205,7 +205,7 @@ const Users = () => {
                             <div className="flex gap-6 pt-10 border-t border-black/5">
                                 <button type="button" className="flex-1 py-7 rounded-pill border border-black/10 font-black text-ink-primary hover:bg-black/5 transition-all text-xs tracking-widest uppercase" onClick={() => { setIsAdding(false); setEditingUser(null); }}>Abort</button>
                                 <button type="submit" className="btn-signature flex-[2.5] !h-[84px] !text-lg">
-                                    {editingUser ? 'COMMIT UPDATE' : 'AUTHORIZE ONBOARDING'}
+                                    {editingUser ? 'SAVE CHANGES' : 'ADD STAFF MEMBER'}
                                     <div className="icon-nest ml-6">
                                         <Save size={28} />
                                     </div>
@@ -220,17 +220,17 @@ const Users = () => {
             <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
                 <div className="bg-ink-primary p-10 flex items-center gap-5">
                     <Fingerprint size={28} className="text-accent-signature" />
-                    <h2 className="text-sm font-black uppercase tracking-[0.5em] text-surface">Registry.</h2>
+                    <h2 className="text-sm font-black uppercase tracking-[0.5em] text-surface">Staff List.</h2>
                 </div>
                 
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-black/5 bg-canvas">
-                                <th className="p-10 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Authorized Personnel</th>
-                                <th className="p-10 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Clearance Spectrum</th>
-                                <th className="p-10 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Operational Status</th>
-                                <th className="p-10 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50 text-right">Unit Actions</th>
+                                <th className="p-10 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Staff Member</th>
+                                <th className="p-10 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Access Levels</th>
+                                <th className="p-10 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Status</th>
+                                <th className="p-10 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-black/5 bg-surface">
@@ -287,7 +287,7 @@ const Users = () => {
                                                 {user.id !== currentUser.id && (
                                                     <button 
                                                         className="w-12 h-12 rounded-2xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-red-500 hover:bg-red-50 transition-all"
-                                                        onClick={() => { if(window.confirm('Erase personnel record?')) handleDelete(user.id); }}
+                                                        onClick={() => { if(window.confirm('Remove staff record?')) handleDelete(user.id); }}
                                                     >
                                                         <Trash2 size={18} />
                                                     </button>
@@ -306,7 +306,7 @@ const Users = () => {
                         <div className="flex justify-center mb-10 opacity-10">
                             <Activity size={100} strokeWidth={1} />
                         </div>
-                        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-ink-secondary">System Initialization: Zero Personnel Identified</p>
+                        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-ink-secondary">No staff members found</p>
                     </div>
                 )}
             </div>
