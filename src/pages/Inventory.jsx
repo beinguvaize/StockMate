@@ -86,8 +86,8 @@ const Inventory = () => {
             
             <div className="flex justify-between items-end pb-6 border-b border-black/5 text-ink-primary mb-2">
                 <div>
-                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary mb-2 uppercase">INVENTORY.</h1>
-                    <p className="text-ink-secondary font-black uppercase tracking-widest text-[10px] opacity-40">STOCK MANAGEMENT & LOGISTICS</p>
+                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary mb-2 uppercase">Inventory.</h1>
+                    <p className="text-ink-secondary font-black uppercase tracking-widest text-[10px] opacity-40">Stock Management & Logistics</p>
                 </div>
                 <div className="flex gap-6">
                     <button className="px-8 py-4 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-xs uppercase cursor-pointer tracking-widest" onClick={() => setShowHistoryModal(true)}>

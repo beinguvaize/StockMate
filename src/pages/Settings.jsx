@@ -62,8 +62,8 @@ const Settings = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-8 border-b border-black/5">
                 <div>
-                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">SETTINGS.</h1>
-                    <p className="text-[10px] font-black text-ink-secondary tracking-widest uppercase opacity-40">SYSTEM CONFIGURATION & PREFERENCES</p>
+                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">Settings.</h1>
+                    <p className="text-[10px] font-black text-ink-secondary tracking-widest uppercase opacity-40">System Configuration & Preferences</p>
                 </div>
                 {savedStatus && (
                     <div className="bg-accent-signature/10 text-ink-primary px-8 py-4 rounded-pill text-[10px] font-black uppercase tracking-widest border border-accent-signature/20 flex items-center gap-3 animate-in slide-in-from-right-6 duration-500">

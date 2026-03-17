@@ -187,8 +187,8 @@ const Orders = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-8 border-b border-black/5">
                 <div>
-                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">ORDERS.</h1>
-                    <p className="text-[10px] font-black text-ink-secondary tracking-widest uppercase opacity-40">ORDER PIPELINE & HISTORY</p>
+                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">Orders.</h1>
+                    <p className="text-[10px] font-black text-ink-secondary tracking-widest uppercase opacity-40">Order Pipeline & History</p>
                 </div>
                 
                 <div className="glass-panel !p-1.5 !rounded-pill flex gap-1 bg-surface border border-black/5 shadow-premium">
