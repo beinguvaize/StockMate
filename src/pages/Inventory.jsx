@@ -86,8 +86,8 @@ const Inventory = () => {
             
             <div className="flex justify-between items-end pb-6 border-b border-black/5 text-ink-primary mb-2">
                 <div>
-                    <h1 className="text-5xl font-black tracking-tighter text-ink-primary mb-2 uppercase">Inventory.</h1>
-                    <p className="text-ink-secondary font-medium uppercase tracking-tight text-[10px] opacity-50">Stock Management & Asset Distribution</p>
+                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary mb-2 uppercase">INVENTORY.</h1>
+                    <p className="text-ink-secondary font-black uppercase tracking-widest text-[10px] opacity-40">STOCK MANAGEMENT & LOGISTICS</p>
                 </div>
                 <div className="flex gap-6">
                     <button className="px-8 py-4 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-xs uppercase cursor-pointer tracking-widest" onClick={() => setShowHistoryModal(true)}>
@@ -217,7 +217,7 @@ const Inventory = () => {
                     <div className="glass-modal !max-w-[700px] !p-5 !py-5">
                         <div className="flex justify-between items-start mb-3">
                             <div>
-                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none">Add New Product.</h1>
+                                <h1 className="text-6xl font-black text-ink-primary tracking-tighter uppercase leading-none">ADD NEW PRODUCT.</h1>
                                 <p className="text-[11px] font-black text-ink-secondary uppercase tracking-[0.3em] mt-0.5 opacity-70">Enter product details</p>
                             </div>
                             <button className="w-8 h-8 rounded-pill bg-canvas flex items-center justify-center hover:scale-110 transition-all cursor-pointer text-ink-primary" onClick={() => setShowAddModal(false)}>
@@ -301,8 +301,8 @@ const Inventory = () => {
                     <div className="glass-modal !p-0 !max-w-[1200px] flex flex-col !rounded-bento overflow-hidden">
                         <div className="p-6 border-b border-black/5 flex justify-between items-center bg-canvas">
                             <div>
-                                <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">INVENTORY.</h1>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">STOCK MANAGEMENT & LOGISTICS</p>
+                                <h1 className="text-6xl font-black tracking-tighter text-ink-primary mb-2 uppercase">INVENTORY.</h1>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">STOCK MANAGEMENT & LOGISTICS</p>
                             </div>
                             <button className="w-12 h-12 rounded-pill border border-black/10 flex items-center justify-center hover:bg-ink-primary hover:text-surface transition-all cursor-pointer text-ink-primary" onClick={() => setShowHistoryModal(false)}>
                                 <X size={24} />
