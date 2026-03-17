@@ -153,7 +153,7 @@ const Dashboard = () => {
                         {/* Reference-Style Hero Section */}
             <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-black/5 flex flex-col lg:flex-row items-center justify-between gap-8">
                 <div className="flex-1 space-y-6">
-                    <h1 className="text-6xl font-black text-ink-primary leading-tight tracking-tight uppercase">
+                    <h1 className="text-6xl font-black text-ink-primary leading-tight tracking-tight">
                         Manage your business <br className="hidden md:block" /> operations easily
                     </h1>
                     <p className="text-ink-secondary text-[10px] tracking-widest font-black opacity-40 max-w-xl">
