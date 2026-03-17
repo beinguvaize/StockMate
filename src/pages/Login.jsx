@@ -1,89 +1,132 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
-import { ShieldCheck, ShoppingCart, Package, Eye, Truck } from 'lucide-react';
-
-const ROLE_ICONS = { GLOBAL_ADMIN: ShieldCheck, ADMIN: ShieldCheck, SALES: ShoppingCart, INVENTORY: Package, FLEET: Truck, VIEW_ONLY: Eye };
-const ROLE_COLORS = {
-    GLOBAL_ADMIN: { bg: 'rgba(79, 70, 229, 0.15)', color: '#4338ca' },
-    ADMIN: { bg: 'rgba(79, 70, 229, 0.1)', color: 'var(--primary)' },
-    SALES: { bg: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)' },
-    INVENTORY: { bg: 'rgba(245, 158, 11, 0.1)', color: 'var(--warning)' },
-    FLEET: { bg: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' },
-    VIEW_ONLY: { bg: 'rgba(148, 163, 184, 0.1)', color: 'var(--text-muted)' },
-};
+import { useAppContext as useAuth } from '../context/AppContext';
 
 const Login = () => {
-    const { login, users } = useAppContext();
+    const [credentials, setCredentials] = useState({ email: '', password: '' });
+    const [error, setError] = useState('');
+    const [btnClicked, setBtnClicked] = useState(false);
+    const [markSpin, setMarkSpin] = useState(false);
+    const { login, loading } = useAuth();
     const navigate = useNavigate();
 
-    const handleLogin = (user) => {
-        login(user.id);
-        const roles = user.roles || [user.role || 'SALES'];
-        if (roles.includes('ADMIN') || roles.includes('GLOBAL_ADMIN')) navigate('/dashboard');
-        else if (roles.includes('SALES')) navigate('/sales');
-        else navigate('/dashboard');
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        
+        // Trigger button animation with React "reflow" trick
+        setBtnClicked(false);
+        setMarkSpin(false);
+        setTimeout(() => {
+            setBtnClicked(true);
+            setMarkSpin(true);
+        }, 0);
+        setTimeout(() => {
+            setBtnClicked(false);
+            setMarkSpin(false);
+        }, 500);
+
+        setError('');
+        const result = await login(credentials.email, credentials.password);
+        if (result.success) {
+            navigate('/');
+        } else {
+            setError(result.error || 'Invalid email or password');
+        }
     };
 
-    const activeUsers = users.filter(u => u.status === 'ACTIVE');
-
     return (
-        <div className="page-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', padding: '1rem' }}>
-            <div className="glass-panel animate-fade-in" style={{ width: '100%', maxWidth: '900px', display: 'flex', overflow: 'hidden', borderRadius: '24px', padding: 0 }}>
+        <div className="flex w-full h-screen overflow-hidden bg-[#141c1a] font-inter select-none">
+            {/* Left Panel: Branding */}
+            <div className="hidden lg:flex w-1/2 bg-white flex-col items-center justify-center gap-4">
+                <img 
+                    className="w-[420px] max-w-[88%] block" 
+                    src="/logo.png" 
+                    alt="Ledgr Pro Logo" 
+                />
+                <p className="text-[13px] text-[#747576] font-medium tracking-[2.5px] uppercase">
+                    Digital Asset Management. Reimagined.
+                </p>
+            </div>
 
-                {/* Left Branding Side */}
-                <div style={{ flex: 1, backgroundColor: 'var(--primary)', padding: '3rem', color: 'white', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: 700, marginBottom: '1rem' }}>Cashbook</h1>
-                    <p style={{ fontSize: '1.1rem', opacity: 0.9, lineHeight: 1.6 }}>
-                        The integrated operational platform for manufacturing, inventory, and sales order tracking.
-                    </p>
+            {/* Right Panel: Login Form */}
+            <div className="w-full lg:w-1/2 bg-[#1a2320] flex items-center justify-center relative overflow-hidden">
+                {/* Decorative Gradients */}
+                <div className="absolute top-0 left-0 w-[160px] h-full bg-gradient-to-r from-white/28 via-white/12 to-transparent pointer-events-none z-0" />
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] h-[460px] bg-[radial-gradient(ellipse_at_center,rgba(56,224,160,0.16)_0%,rgba(56,224,160,0.08)_28%,rgba(56,224,160,0.03)_55%,transparent_75%)] pointer-events-none z-0" />
+                <div className="absolute -top-[80px] left-1/2 -translate-x-1/2 w-[400px] h-[300px] bg-[radial-gradient(ellipse_at_top,rgba(56,224,160,0.07)_0%,transparent_65%)] pointer-events-none z-0" />
+
+                <div className="relative z-1 w-[370px] form-card">
+                    <h1 className="font-space font-bold text-[26px] text-white text-center tracking-[1px] uppercase mb-[34px]">
+                        WELCOME BACK
+                    </h1>
+
+                    <form onSubmit={handleSubmit}>
+                        <div className="mb-[18px]">
+                            <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">Email Address</label>
+                            <div className="flex items-center bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] transition-colors focus-within:border-[#38e0a0]/45">
+                                <span className="pl-[13px] pr-[13px] text-[#747576] flex items-center shrink-0">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="2" y="4" width="20" height="16" rx="2"/>
+                                        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+                                    </svg>
+                                </span>
+                                <input 
+                                    type="email" 
+                                    placeholder="Email Address" 
+                                    autoComplete="off"
+                                    required
+                                    className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-ink-secondary/30"
+                                    value={credentials.email}
+                                    onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="mb-[18px]">
+                            <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">Password</label>
+                            <div className="flex items-center bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] transition-colors focus-within:border-[#38e0a0]/45">
+                                <span className="pl-[13px] pr-[13px] text-[#747576] flex items-center shrink-0">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                    </svg>
+                                </span>
+                                <input 
+                                    type="password" 
+                                    placeholder="Password" 
+                                    autoComplete="off"
+                                    required
+                                    className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-ink-secondary/30"
+                                    value={credentials.password}
+                                    onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                                />
+                            </div>
+                            <span className="block text-right text-[#747576] text-[12.5px] underline underline-offset-[3px] mt-[9px] cursor-pointer opacity-85">
+                                Forgot Password?
+                            </span>
+                        </div>
+
+                        {error && (
+                            <div className="text-red-500 text-xs text-center mb-4">{error}</div>
+                        )}
+
+                        <button 
+                            type="submit"
+                            disabled={loading}
+                            className={`btn-login w-full mt-[26px] bg-white border-none rounded-[6px] cursor-pointer h-[54px] flex items-center justify-center hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] active:scale-[0.98] ${btnClicked ? 'clicked' : ''}`}
+                        >
+                            <img 
+                                className={`btn-mark ${markSpin ? 'spin' : ''}`}
+                                src="/mark.png" 
+                                alt="" 
+                            />
+                            <span className="font-arial font-bold text-[15px] tracking-[1px] uppercase text-[#111] relative z-1">LOG IN</span>
+                        </button>
+                    </form>
                 </div>
 
-                {/* Right Login Action Side */}
-                <div style={{ flex: 1, padding: '3rem', display: 'flex', flexDirection: 'column', justifyContent: 'center', backgroundColor: 'var(--surface)' }}>
-                    <h2 style={{ fontSize: '1.75rem', marginBottom: '0.5rem', fontWeight: 700 }}>Welcome Back</h2>
-                    <p style={{ color: 'var(--text-muted)', marginBottom: '2rem' }}>Select your role to access the platform.</p>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {activeUsers.length === 0 ? (
-                            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No active users found.</div>
-                        ) : (
-                            activeUsers.map(user => {
-                                const roles = user.roles || [user.role || 'SALES'];
-                                const primaryRole = roles[0];
-                                const rc = ROLE_COLORS[primaryRole] || ROLE_COLORS.SALES;
-                                const PrimaryIcon = ROLE_ICONS[primaryRole] || ShoppingCart;
-                                return (
-                                    <button
-                                        key={user.id}
-                                        className="btn"
-                                        style={{ padding: '1.25rem', justifyContent: 'flex-start', border: '1px solid var(--border-color)', backgroundColor: 'transparent', color: 'var(--text-main)' }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.backgroundColor = 'rgba(79, 70, 229, 0.05)'; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.backgroundColor = 'transparent'; }}
-                                        onClick={() => handleLogin(user)}
-                                    >
-                                        <div style={{ backgroundColor: rc.bg, padding: '0.5rem', borderRadius: '8px', color: rc.color }}>
-                                            <PrimaryIcon size={24} />
-                                        </div>
-                                        <div style={{ textAlign: 'left', marginLeft: '1rem' }}>
-                                            <div style={{ fontWeight: 600 }}>{user.name}</div>
-                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginTop: '0.15rem' }}>
-                                                {roles.map(r => (
-                                                    <span key={r} style={{
-                                                        fontSize: '0.7rem', fontWeight: 600,
-                                                        padding: '0.1rem 0.4rem', borderRadius: '4px',
-                                                        backgroundColor: (ROLE_COLORS[r] || ROLE_COLORS.SALES).bg,
-                                                        color: (ROLE_COLORS[r] || ROLE_COLORS.SALES).color
-                                                    }}>{r}</span>
-                                                ))}
-                                                <span style={{ color: 'var(--text-muted)', marginLeft: '0.25rem' }}>• {user.email}</span>
-                                            </div>
-                                        </div>
-                                    </button>
-                                );
-                            })
-                        )}
-                    </div>
+                <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2 text-[#747576] text-[11px] font-normal tracking-[0.5px] whitespace-nowrap z-1">
+                    © 2026 LEDGR PRO. ALL RIGHTS RESERVED.
                 </div>
             </div>
         </div>

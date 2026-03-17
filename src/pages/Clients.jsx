@@ -1,13 +1,19 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { UserCircle, Plus, DollarSign, Building, Phone, MapPin, Edit3, Trash2, X, Check, Save } from 'lucide-react';
+import { 
+    UserCircle, Plus, DollarSign, Building, Phone, MapPin, 
+    Edit3, Trash2, X, Check, Save, UserCheck, CreditCard, 
+    ChevronRight, ExternalLink, ShieldCheck, Mail, Search,
+    TrendingUp, AlertCircle, Users
+} from 'lucide-react';
 
 const Clients = () => {
-    const { shops, addShop, updateShop, deleteShop, orders, businessProfile, isViewOnly } = useAppContext();
+    const { shops, addShop, updateShop, deleteShop, orders, settleOrder, businessProfile, isViewOnly, hasPermission } = useAppContext();
     const [isAdding, setIsAdding] = useState(false);
     const [editingClient, setEditingClient] = useState(null);
     const [formData, setFormData] = useState({ name: '', contact: '', phone: '', address: '' });
     const [deleteConfirm, setDeleteConfirm] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const clientStats = useMemo(() => {
         const stats = {};
@@ -17,13 +23,41 @@ const Clients = () => {
             if (stats[order.shopId]) {
                 stats[order.shopId].totalSales += order.totalAmount;
                 stats[order.shopId].orderCount += 1;
-                if (order.paymentMethod === 'CREDIT') {
-                    stats[order.shopId].outstandingDebt += order.totalAmount;
+                if (order.paymentMethod === 'CREDIT' && order.paymentStatus !== 'PAID') {
+                    const balance = order.totalAmount - (order.paidAmount || 0);
+                    stats[order.shopId].outstandingDebt += balance;
                 }
             }
         });
         return stats;
     }, [orders, shops]);
+
+    const topMetrics = useMemo(() => {
+        let topDebtor = { name: 'None', amount: 0 };
+        let topPerformer = { name: 'None', amount: 0 };
+
+        shops.forEach(shop => {
+            const stats = clientStats[shop.id];
+            if (stats) {
+                if (stats.outstandingDebt > topDebtor.amount) {
+                    topDebtor = { name: shop.name, amount: stats.outstandingDebt };
+                }
+                if (stats.totalSales > topPerformer.amount) {
+                    topPerformer = { name: shop.name, amount: stats.totalSales };
+                }
+            }
+        });
+
+        return { topDebtor, topPerformer };
+    }, [shops, clientStats]);
+
+    const filteredShops = useMemo(() => {
+        return shops.filter(shop => 
+            shop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            shop.contact?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            shop.id.toLowerCase().includes(searchTerm.toLowerCase())
+        );
+    }, [shops, searchTerm]);
 
     const openAdd = () => {
         setEditingClient(null);
@@ -54,137 +88,291 @@ const Clients = () => {
         setDeleteConfirm(null);
     };
 
-    const viewOnly = isViewOnly();
-
     return (
-        <div className="page-container animate-fade-in" style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
-                <div>
-                    <h1 className="page-title">Client Management</h1>
-                    <p style={{ color: 'var(--text-muted)' }}>Manage your customer accounts and track outstanding credit.</p>
+        <>
+            <div className="animate-fade-in flex flex-col gap-4 pb-12">
+                {/* Header Section */}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-4 border-b border-black/5">
+                    <div>
+                        <h1 className="text-7xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Network.</h1>
+                        <p className="text-sm font-medium text-ink-secondary tracking-tight uppercase opacity-50">CRM & Capital Vulnerability Tracking</p>
+                    </div>
                 </div>
-                {!viewOnly && (
-                    <button className="btn btn-primary" onClick={openAdd}>
-                        <Plus size={18} /> Add Client
-                    </button>
-                )}
-            </div>
 
-            {isAdding && (
-                <div className="glass-panel" style={{ marginBottom: '2rem', padding: '1.5rem', borderLeft: `4px solid ${editingClient ? 'var(--warning)' : 'var(--primary)'}` }}>
-                    <h3 style={{ marginBottom: '1rem', fontSize: '1.1rem', fontWeight: 600 }}>
-                        {editingClient ? 'Edit Client Account' : 'Create New Client Account'}
-                    </h3>
-                    <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                        <div>
-                            <label style={{ fontSize: '0.8rem', marginBottom: '0.3rem', display: 'block' }}>Business / Client Name</label>
-                            <input required type="text" className="input-field" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="ABC Store" />
+                {/* Quick Stats & Controls - h-16 Sync */}
+                <div className="flex items-center bg-surface/80 backdrop-blur-xl border border-black/5 rounded-pill shadow-premium p-1 h-14 w-full">
+                    {/* Metric Section: Active Accounts */}
+                    <div className="flex items-center gap-3 px-5 border-r border-black/5 h-full">
+                        <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center border border-accent-signature/20">
+                            <Users size={14} className="text-accent-signature" />
                         </div>
-                        <div>
-                            <label style={{ fontSize: '0.8rem', marginBottom: '0.3rem', display: 'block' }}>Contact Person</label>
-                            <input required type="text" className="input-field" value={formData.contact} onChange={e => setFormData({ ...formData, contact: e.target.value })} placeholder="John Doe" />
+                        <div className="flex flex-col -space-y-1">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Active Nodes</div>
+                            <div className="text-3xl font-black text-ink-primary tracking-tight flex items-baseline gap-2">
+                                {filteredShops.length} <span className="text-lg font-black opacity-90">Accounts</span>
+                            </div>
                         </div>
-                        <div>
-                            <label style={{ fontSize: '0.8rem', marginBottom: '0.3rem', display: 'block' }}>Phone Number</label>
-                            <input required type="text" className="input-field" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} placeholder="555-0199" />
-                        </div>
-                        <div>
-                            <label style={{ fontSize: '0.8rem', marginBottom: '0.3rem', display: 'block' }}>Address</label>
-                            <input required type="text" className="input-field" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} placeholder="123 Main St" />
-                        </div>
-                        <div style={{ gridColumn: '1 / -1', display: 'flex', gap: '1rem', marginTop: '0.5rem' }}>
-                            <button type="submit" className="btn btn-primary" style={{ padding: '0.75rem 2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <Save size={16} /> {editingClient ? 'Update Client' : 'Save Client'}
-                            </button>
-                            <button type="button" className="btn btn-secondary" onClick={() => { setIsAdding(false); setEditingClient(null); }}>Cancel</button>
-                        </div>
-                    </form>
-                </div>
-            )}
+                    </div>
 
-            <div className="grid-cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))' }}>
-                {shops.map(client => {
-                    const stats = clientStats[client.id];
-                    return (
-                        <div key={client.id} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', transition: 'transform 0.2s, box-shadow 0.2s' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                <div>
-                                    <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <Building size={16} className="text-primary" /> {client.name}
-                                    </h3>
-                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{client.id}</div>
+                    {/* Metric Section: Debt Ranking */}
+                    <div className="flex items-center gap-3 px-5 border-r border-black/5 h-full">
+                        <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center border border-red-100">
+                            <AlertCircle size={14} className="text-red-500" />
+                        </div>
+                        <div className="flex flex-col -space-y-1">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Capital Debt Ranking</div>
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-[11px] font-black text-red-600 uppercase tracking-tight">{topMetrics.topDebtor.name}</span>
+                                <span className="text-2xl font-black tabular-nums opacity-90">{businessProfile?.currencySymbol || '₹'}{Math.round(topMetrics.topDebtor.amount).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Metric Section: Performance */}
+                    <div className="flex items-center gap-3 px-5 border-r border-black/5 h-full">
+                        <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center border border-accent-signature/20">
+                            <TrendingUp size={14} className="text-accent-signature" />
+                        </div>
+                        <div className="flex flex-col -space-y-1">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Economic Performance</div>
+                            <div className="flex items-baseline gap-2">
+                                <span className="text-[11px] font-black text-ink-primary uppercase tracking-tight">{topMetrics.topPerformer.name}</span>
+                                <span className="text-2xl font-black tabular-nums opacity-90">{businessProfile?.currencySymbol || '₹'}{Math.round(topMetrics.topPerformer.amount).toLocaleString()}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Interactive Section: Search & Actions */}
+                    <div className="flex-1 flex items-center justify-end h-full pr-1">
+                        <div className="relative group mr-4 w-64 h-full flex items-center">
+                            <Search size={14} className="absolute left-4 text-ink-primary opacity-20 group-focus-within:opacity-100 transition-opacity z-10" />
+                            <input 
+                                type="text" 
+                                placeholder="Scan ledger metadata..." 
+                                className="input-field !pl-10 !h-full !py-0 !rounded-pill bg-canvas border border-black/5 shadow-inner text-xs font-bold placeholder:text-ink-secondary/20"
+                                value={searchTerm}
+                                onChange={e => setSearchTerm(e.target.value)}
+                            />
+                        </div>
+                        
+                        {hasPermission('ADD_CLIENT') && (
+                            <button className="btn-signature h-full !rounded-pill !px-6 flex items-center justify-between gap-6 group transition-all duration-500 hover:shadow-[0_0_20px_rgba(200,241,53,0.3)] shrink-0" onClick={openAdd}>
+                                <span className="text-[11px] font-black uppercase tracking-widest px-1">NEW ACCOUNT</span>
+                                <div className="icon-nest !w-9 !h-9 bg-black shadow-lg">
+                                    <Plus size={18} className="text-accent-signature" />
                                 </div>
-                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                                    {!viewOnly && (
-                                        <>
-                                            <button
-                                                className="btn"
-                                                style={{ padding: '0.3rem', backgroundColor: 'var(--primary-transparent)', borderRadius: '6px', border: '1px solid var(--border-light)' }}
-                                                onClick={() => openEdit(client)}
-                                                title="Edit client"
-                                            >
-                                                <Edit3 size={14} className="text-primary" />
-                                            </button>
-                                            {deleteConfirm === client.id ? (
-                                                <div style={{ display: 'flex', gap: '0.25rem' }}>
-                                                    <button className="btn" style={{ padding: '0.3rem', backgroundColor: 'var(--danger-transparent)', borderRadius: '6px' }} onClick={() => handleDelete(client.id)} title="Confirm delete">
-                                                        <Check size={14} style={{ color: 'var(--danger)' }} />
-                                                    </button>
-                                                    <button className="btn" style={{ padding: '0.3rem', backgroundColor: 'var(--surface-hover)', borderRadius: '6px' }} onClick={() => setDeleteConfirm(null)} title="Cancel">
-                                                        <X size={14} />
-                                                    </button>
-                                                </div>
-                                            ) : (
-                                                <button
-                                                    className="btn"
-                                                    style={{ padding: '0.3rem', backgroundColor: 'var(--danger-transparent)', borderRadius: '6px', border: '1px solid var(--border-light)' }}
-                                                    onClick={() => setDeleteConfirm(client.id)}
-                                                    title="Delete client"
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Client Ledger - Premium Grid Feed */}
+                <div className="flex flex-col gap-4 min-h-[400px]">
+                    {filteredShops.length === 0 ? (
+                        <div className="glass-panel !py-32 !rounded-[3rem] text-center border-none shadow-premium">
+                            <div className="flex justify-center mb-8 opacity-10">
+                                <UserCircle size={80} strokeWidth={1} />
+                            </div>
+                            <h3 className="text-xl font-black text-ink-primary uppercase tracking-tighter mb-2">Null Sector</h3>
+                            <p className="text-sm font-bold text-ink-secondary uppercase tracking-[0.3em] opacity-40">No matching logistical records identified</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                        {filteredShops.map(client => {
+                            const stats = clientStats[client.id];
+                            
+                            return (
+                                <div key={client.id} className="glass-panel !p-0 !rounded-bento border border-black/10 hover:shadow-premium transition-all group flex flex-col h-full bg-white/50">
+                                    {/* Header Section: Institutional Metadata */}
+                                    <div className="p-3 pb-0.5 flex justify-between items-start">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="px-2 py-0.5 rounded-pill text-[8px] font-black uppercase tracking-widest border bg-canvas text-ink-primary border-black/20">
+                                                Node
+                                            </span>
+                                            <span className="px-2 py-0.5 rounded-pill text-[8px] font-black uppercase tracking-widest border bg-accent-signature/20 text-ink-primary border-accent-signature/40">
+                                                {stats?.orderCount || 0} DEALS
+                                            </span>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-0.5">
+                                            <div className="text-[8px] font-black uppercase tracking-widest text-ink-primary opacity-70">Network ID</div>
+                                            <div className="text-[10px] font-black text-ink-primary opacity-60 uppercase leading-none">#{client.id.split('-')[0]}</div>
+                                            {hasPermission('EDIT_CLIENT') && (
+                                                <button 
+                                                    onClick={() => openEdit(client)}
+                                                    className="mt-1 p-1 rounded-full border border-black/10 text-ink-primary hover:bg-black/5 transition-all"
+                                                    title="Edit Profile"
                                                 >
-                                                    <Trash2 size={14} style={{ color: 'var(--danger)' }} />
+                                                    <Edit3 size={10} />
                                                 </button>
                                             )}
-                                        </>
-                                    )}
-                                </div>
-                            </div>
+                                        </div>
+                                    </div>
 
-                            <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><UserCircle size={14} className="text-muted" /> {client.contact}</div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><Phone size={14} className="text-muted" /> {client.phone}</div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}><MapPin size={14} className="text-muted" /> {client.address}</div>
-                            </div>
+                                    {/* Main Content: Identity & Logistical Base */}
+                                    <div className="p-3 pt-0.5 flex-1 flex flex-col">
+                                        <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase leading-tight mb-0.5 group-hover:text-accent-signature transition-colors">
+                                            {client.name}
+                                        </h3>
+                                        <div className="flex items-center gap-1 text-[10px] font-bold text-ink-primary opacity-60 uppercase tracking-widest mb-3 line-clamp-1">
+                                            <MapPin size={9} className="shrink-0" /> {client.address}
+                                        </div>
 
-                            <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-color)', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
-                                <div>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Orders</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--primary)' }}>
-                                        {stats?.orderCount || 0}
+                                        <div className="space-y-1.5 mt-auto pt-3 border-t border-dashed border-black/10">
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-ink-primary opacity-70">
+                                                    <UserCircle size={10} /> CONSIGNEE
+                                                </div>
+                                                <div className="text-[10px] font-black text-ink-primary uppercase truncate max-w-[140px]">{client.contact}</div>
+                                            </div>
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-1 text-[8px] font-black uppercase tracking-widest text-ink-primary opacity-70">
+                                                    <Phone size={10} /> TELE-LINK
+                                                </div>
+                                                <div className="text-[10px] font-black text-ink-primary tabular-nums">{client.phone}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Footer Section: Financials */}
+                                    <div className="p-3 bg-canvas/60 backdrop-blur-sm border-t border-black/10">
+                                        <div className="flex justify-between items-end mb-2">
+                                            <div>
+                                                <div className="text-[8px] font-black uppercase tracking-widest text-ink-primary opacity-70 mb-1">ECONOMIC TURNOVER</div>
+                                                <div className="text-2xl font-black text-ink-primary tracking-tighter tabular-nums leading-none">
+                                                    {businessProfile?.currencySymbol || '₹'}{Math.round(stats?.totalSales || 0).toLocaleString()}
+                                                </div>
+                                            </div>
+                                            <div className="text-right">
+                                                <div className="text-[8px] font-black uppercase tracking-widest text-ink-primary opacity-70 mb-1">DEBT</div>
+                                                <div className={`text-2xl font-black font-mono tracking-tighter tabular-nums leading-none ${stats?.outstandingDebt > 0 ? 'text-red-600' : 'text-ink-primary opacity-30'}`}>
+                                                    {businessProfile?.currencySymbol || '₹'}{Math.round(stats?.outstandingDebt || 0).toLocaleString()}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <div className="flex-1 h-1 bg-black/10 rounded-full overflow-hidden">
+                                                <div 
+                                                    className="h-full bg-accent-signature transition-all duration-500" 
+                                                    style={{ width: `${Math.min(100, (stats?.totalSales > 0 ? (stats.totalSales - stats.outstandingDebt) / stats.totalSales * 100 : 100))}%` }}
+                                                ></div>
+                                            </div>
+                                            {hasPermission('DELETE_CLIENT') && (
+                                                <button 
+                                                    onClick={() => { if(window.confirm('Terminate client relationship record?')) handleDelete(client.id); }}
+                                                    className="w-6 h-6 rounded-full border border-red-200 bg-red-50 text-red-600 flex items-center justify-center hover:bg-red-100 transition-all shrink-0"
+                                                >
+                                                    <Trash2 size={9} />
+                                                </button>
+                                            )}
+                                        </div>
+                                        {stats?.outstandingDebt > 0 && (
+                                            <button 
+                                                className="w-full mt-3 py-2 bg-ink-primary text-accent-signature rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all"
+                                                onClick={() => {
+                                                    const pendingOrder = orders.find(o => o.shopId === client.id && o.paymentMethod === 'CREDIT' && o.paymentStatus !== 'PAID');
+                                                    if (pendingOrder) {
+                                                        settleOrder(pendingOrder.id, pendingOrder.totalAmount);
+                                                    }
+                                                }}
+                                            >
+                                                Settle Balanced Dues
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
-                                <div>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Lifetime</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--success)' }}>
-                                        {businessProfile.currencySymbol}{stats?.totalSales.toFixed(2)}
-                                    </div>
-                                </div>
-                                <div style={{ textAlign: 'right' }}>
-                                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 600 }}>Credit Due</div>
-                                    <div style={{ fontSize: '1.1rem', fontWeight: 700, color: stats?.outstandingDebt > 0 ? 'var(--danger)' : 'var(--text-muted)' }}>
-                                        {businessProfile.currencySymbol}{stats?.outstandingDebt.toFixed(2)}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    );
-                })}
-                {shops.length === 0 && (
-                    <div style={{ gridColumn: '1 / -1', padding: '3rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '12px' }}>
-                        No clients yet. Add your first client to start tracking.
+                            );
+                        })}
                     </div>
-                )}
+                    )}
+                </div>
             </div>
-        </div>
+
+            {/* Registration Overlay / Form */}
+            {isAdding && (
+                <div className="modal-overlay">
+                    <div className="glass-modal !max-w-[600px] !p-8 md:!p-12 !overflow-y-auto">
+                        <button
+                            onClick={() => { setIsAdding(false); setEditingClient(null); }}
+                            className="absolute top-6 right-6 w-10 h-10 rounded-pill bg-canvas flex items-center justify-center text-ink-primary hover:scale-110 transition-transform z-20"
+                        >
+                            <X size={18} />
+                        </button>
+
+                        <div className="absolute top-0 left-0 w-2 h-full bg-accent-signature"></div>
+
+                        <div className="mb-6">
+                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">
+                                {editingClient ? 'Edit Profile' : 'Onboarding'}
+                            </h3>
+                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Client Infrastructure Update</p>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Institutional Identity</label>
+                                    <input 
+                                        required 
+                                        type="text" 
+                                        placeholder="Business / Institution Name..."
+                                        className="input-field !rounded-xl !py-2.5 font-black text-lg bg-canvas/30" 
+                                        value={formData.name} 
+                                        onChange={e => setFormData({...formData, name: e.target.value})} 
+                                    />
+                                </div>
+                                
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Primary Contact</label>
+                                    <input 
+                                        required 
+                                        type="text" 
+                                        className="input-field !rounded-xl !py-2.5 font-bold bg-canvas/30 text-xs" 
+                                        placeholder="Full Name..."
+                                        value={formData.contact} 
+                                        onChange={e => setFormData({...formData, contact: e.target.value})} 
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Tele-Communication</label>
+                                    <input 
+                                        required 
+                                        type="text" 
+                                        className="input-field !rounded-xl !py-2.5 font-bold bg-canvas/30 text-xs" 
+                                        placeholder="+1 (000) 000-0000"
+                                        value={formData.phone} 
+                                        onChange={e => setFormData({...formData, phone: e.target.value})} 
+                                    />
+                                </div>
+
+                                <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Geographic Coordinate (Address)</label>
+                                    <input 
+                                        required 
+                                        type="text" 
+                                        className="input-field !rounded-xl !py-2.5 font-medium bg-canvas/30 text-xs" 
+                                        placeholder="Full Physical Location..."
+                                        value={formData.address} 
+                                        onChange={e => setFormData({...formData, address: e.target.value})} 
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="flex gap-4 pt-6">
+                                <button type="button" className="flex-1 py-3 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-xs tracking-widest uppercase" onClick={() => { setIsAdding(false); setEditingClient(null); }}>Abort</button>
+                                <button type="submit" className="btn-signature flex-[2] !py-3 !rounded-pill">
+                                    {editingClient ? 'AUTHORIZE UPDATE' : 'AUTHORIZE ACCOUNT'}
+                                    <div className="icon-nest">
+                                        <Save size={20} />
+                                    </div>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </>
     );
 };
 

@@ -1,9 +1,20 @@
 import React, { useState } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Settings as SettingsIcon, Building, Shield, Bell, Save, CheckCircle2 } from 'lucide-react';
+import { 
+    Settings as SettingsIcon, Building, Shield, Bell, Save, 
+    CheckCircle2, Lock, Globe, Coins, ShieldCheck, 
+    Database, RotateCcw, ChevronRight, Zap, Tag, Plus, Edit2, Trash2, X
+} from 'lucide-react';
 
 const Settings = () => {
-    const { businessProfile, updateBusinessProfile, currentUser } = useAppContext();
+    const { 
+        businessProfile, updateBusinessProfile, currentUser, hasPermission, resetAndSeedLocal,
+        expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory 
+    } = useAppContext();
+
+    const [newCategory, setNewCategory] = useState('');
+    const [editingCategory, setEditingCategory] = useState(null);
+    const [editValue, setEditValue] = useState('');
 
     const [profileData, setProfileData] = useState({
         name: businessProfile.name || '',
@@ -22,145 +33,280 @@ const Settings = () => {
         setTimeout(() => setSavedStatus(false), 3000);
     };
 
-    const { hasRole } = useAppContext();
-    if (!hasRole('GLOBAL_ADMIN')) {
+    if (!hasPermission('MANAGE_SETTINGS')) {
         return (
-            <div className="page-container animate-fade-in" style={{ textAlign: 'center', marginTop: '10vh' }}>
-                <Shield size={48} color="var(--danger)" style={{ marginBottom: '1rem' }} />
-                <h1 className="page-title">Access Restricted</h1>
-                <p style={{ color: 'var(--text-muted)' }}>Only Global Administrators can access system settings.</p>
+            <div className="animate-fade-in flex flex-col items-center justify-center min-h-[60vh] p-8">
+                <div className="glass-panel max-w-[500px] w-full text-center p-12 border-none">
+                    <div className="flex justify-center mb-8">
+                        <div className="bg-red-50 p-8 rounded-full text-red-500">
+                            <Lock size={64} strokeWidth={2.5} />
+                        </div>
+                    </div>
+                    <h2 className="text-4xl font-black tracking-tighter text-[#111] uppercase mb-4">Access Denied</h2>
+                    <p className="text-sm font-bold text-[#747576] tracking-widest uppercase opacity-40 mb-10 leading-relaxed">
+                        Security Clearance Insufficient. Infrastructure parameters are restricted to Global Owners.
+                    </p>
+                    <button className="btn-signature w-full h-16" onClick={() => window.history.back()}>
+                        SYSTEM ABORT
+                        <div className="icon-nest">
+                            <ShieldCheck size={20} />
+                        </div>
+                    </button>
+                </div>
             </div>
         );
     }
 
     return (
-        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', height: '100%', maxWidth: '800px', margin: '0 auto' }}>
-
-            <div>
-                <h1 className="page-title" style={{ marginBottom: '0.25rem' }}>Business Settings</h1>
-                <p style={{ color: 'var(--text-muted)' }}>Configure your company profile and application preferences.</p>
+        <div className="animate-fade-in flex flex-col gap-8 pb-12">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-8 border-b border-black/5">
+                <div>
+                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Settings.</h1>
+                    <p className="text-sm font-medium text-ink-secondary tracking-tight uppercase opacity-50">Global Parameters & Configuration Matrix</p>
+                </div>
+                {savedStatus && (
+                    <div className="bg-accent-signature/10 text-ink-primary px-8 py-4 rounded-pill text-[10px] font-black uppercase tracking-widest border border-accent-signature/20 flex items-center gap-3 animate-in slide-in-from-right-6 duration-500">
+                        <CheckCircle2 size={18} className="text-accent-signature" /> SYNC COMPLETED
+                    </div>
+                )}
             </div>
 
-            <div className="glass-panel" style={{ overflow: 'hidden' }}>
-                <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', gap: '0.75rem', backgroundColor: 'rgba(248, 250, 252, 0.5)' }}>
-                    <Building size={20} className="text-primary" />
-                    <h2 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Company Profile</h2>
-                </div>
-
-                <div style={{ padding: '2rem' }}>
-                    <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-                        <div>
-                            <label>Business Name</label>
-                            <input
-                                required
-                                type="text"
-                                className="input-field"
-                                value={profileData.name}
-                                onChange={e => setProfileData({ ...profileData, name: e.target.value })}
-                                placeholder="e.g. StockMate Retail"
-                            />
+            {/* Main Config Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                {/* Left Panel: Primary Identity */}
+                <div className="md:col-span-2 flex flex-col gap-8">
+                    <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium">
+                        <div className="bg-ink-primary p-6 flex items-center gap-4">
+                            <Building size={20} className="text-accent-signature" />
+                            <h2 className="text-xs font-black uppercase tracking-[0.3em] text-surface">Institutional Identity</h2>
                         </div>
+                        
+                        <div className="p-6 bg-surface">
+                            <form onSubmit={handleSaveProfile} className="space-y-10">
+                                <div>
+                                    <label className="block text-sm font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 mb-4">Business Legal Title</label>
+                                    <input
+                                        required
+                                        type="text"
+                                        className="input-field !rounded-2xl !py-5 font-black text-2xl !bg-canvas border border-black/5"
+                                        value={profileData.name}
+                                        onChange={e => setProfileData({ ...profileData, name: e.target.value })}
+                                        placeholder="Institutional Name..."
+                                    />
+                                </div>
 
-                        <div>
-                            <label>Country</label>
-                            <select className="input-field" value={profileData.country} onChange={e => {
-                                const country = e.target.value;
-                                let currency = profileData.currency;
-                                let currencySymbol = profileData.currencySymbol;
-                                
-                                if (country === 'India') {
-                                    currency = 'INR';
-                                    currencySymbol = '₹';
-                                } else if (country === 'United Arab Emirates') {
-                                    currency = 'AED';
-                                    currencySymbol = 'AED';
-                                } else if (country === 'United States') {
-                                    currency = 'USD';
-                                    currencySymbol = '$';
-                                } else if (country === 'United Kingdom') {
-                                    currency = 'GBP';
-                                    currencySymbol = '£';
-                                }
-                                
-                                setProfileData({ ...profileData, country, currency, currencySymbol });
-                            }}>
-                                <option value="United Arab Emirates">🇦🇪 United Arab Emirates</option>
-                                <option value="United States">🇺🇸 United States</option>
-                                <option value="United Kingdom">🇬🇧 United Kingdom</option>
-                                <option value="Canada">🇨🇦 Canada</option>
-                                <option value="Australia">🇦🇺 Australia</option>
-                                <option value="India">🇮🇳 India</option>
-                            </select>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div>
+                                        <label className="block text-sm font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 mb-4">Fiscal Territory</label>
+                                        <div className="relative">
+                                            <Globe size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
+                                            <select className="input-field !pl-16 !rounded-2xl !py-4 font-black text-lg appearance-none !bg-canvas border border-black/5" value={profileData.country} onChange={e => {
+                                                const country = e.target.value;
+                                                let currency = profileData.currency;
+                                                let currencySymbol = profileData.currencySymbol;
+                                                if (country === 'India') { currency = 'INR'; currencySymbol = '₹'; }
+                                                else if (country === 'United Arab Emirates') { currency = 'AED'; currencySymbol = 'AED'; }
+                                                else if (country === 'United States') { currency = 'USD'; currencySymbol = '$'; }
+                                                else if (country === 'United Kingdom') { currency = 'GBP'; currencySymbol = '£'; }
+                                                setProfileData({ ...profileData, country, currency, currencySymbol });
+                                            }}>
+                                                <option value="United Arab Emirates">UNITED ARAB EMIRATES</option>
+                                                <option value="United States">UNITED STATES</option>
+                                                <option value="United Kingdom">UNITED KINGDOM</option>
+                                                <option value="Canada">CANADA</option>
+                                                <option value="Australia">AUSTRALIA</option>
+                                                <option value="India">INDIA</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-sm font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 mb-4">Currency Baseline</label>
+                                        <div className="relative">
+                                            <Coins size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
+                                            <select className="input-field !pl-16 !rounded-2xl !py-4 font-black text-lg appearance-none !bg-canvas border border-black/5" value={profileData.currency} onChange={e => setProfileData({ ...profileData, currency: e.target.value })}>
+                                                <option value="INR">INR - INDIAN RUPEE</option>
+                                                <option value="AED">AED - UAE DIRHAM</option>
+                                                <option value="USD">USD - US DOLLAR</option>
+                                                <option value="EUR">EUR - EURO</option>
+                                                <option value="GBP">GBP - BRITISH POUND</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-4 pt-8 border-t border-black/5">
+                                    <button type="submit" className="btn-signature w-full !rounded-2xl !py-6 !text-base">
+                                        UPDATE PARAMETERS
+                                        <div className="icon-nest">
+                                            <Save size={24} />
+                                        </div>
+                                    </button>
+                                </div>
+                            </form>
                         </div>
+                    </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                            <div>
-                                <label>Currency Code</label>
-                                <select className="input-field" value={profileData.currency} onChange={e => setProfileData({ ...profileData, currency: e.target.value })}>
-                                    <option value="INR">INR - Indian Rupee</option>
-                                    <option value="AED">AED - UAE Dirham</option>
-                                    <option value="USD">USD - US Dollar</option>
-                                    <option value="EUR">EUR - Euro</option>
-                                    <option value="GBP">GBP - British Pound</option>
-                                    <option value="CAD">CAD - Canadian Dollar</option>
-                                    <option value="AUD">AUD - Australian Dollar</option>
-                                </select>
+                    {/* Expense Categories Management */}
+                    <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+                        <div className="bg-ink-primary p-6 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <Tag size={20} className="text-accent-signature" />
+                                <h2 className="text-xs font-black uppercase tracking-[0.3em] text-surface">Fiscal Classifications</h2>
                             </div>
-
-                            <div>
-                                <label>Currency Symbol</label>
+                            <div className="text-[9px] font-black uppercase tracking-widest text-accent-signature opacity-70">Expense Categories</div>
+                        </div>
+                        
+                        <div className="p-6 space-y-8">
+                            {/* Add Category */}
+                            <div className="flex gap-3">
                                 <input
-                                    required
                                     type="text"
-                                    className="input-field"
-                                    value={profileData.currencySymbol}
-                                    onChange={e => setProfileData({ ...profileData, currencySymbol: e.target.value })}
-                                    placeholder="$"
+                                    placeholder="Enter new sector label..."
+                                    className="input-field !rounded-xl !py-4 font-bold text-sm bg-canvas border border-black/5 flex-1"
+                                    value={newCategory}
+                                    onChange={e => setNewCategory(e.target.value)}
+                                    onKeyPress={e => {
+                                        if (e.key === 'Enter') {
+                                            addExpenseCategory(newCategory);
+                                            setNewCategory('');
+                                        }
+                                    }}
                                 />
+                                <button 
+                                    className="btn-signature !px-6 !rounded-xl transition-all hover:shadow-lg"
+                                    onClick={() => {
+                                        addExpenseCategory(newCategory);
+                                        setNewCategory('');
+                                    }}
+                                >
+                                    <Plus size={20} />
+                                </button>
+                            </div>
+
+                            {/* Category List */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                {expenseCategories.map(cat => (
+                                    <div key={cat} className="group flex items-center justify-between p-4 rounded-xl bg-canvas border border-black/5 hover:border-accent-signature/30 transition-all">
+                                        {editingCategory === cat ? (
+                                            <div className="flex items-center gap-2 w-full">
+                                                <input
+                                                    autoFocus
+                                                    type="text"
+                                                    className="bg-transparent border-none outline-none font-black text-sm text-ink-primary uppercase tracking-tight flex-1"
+                                                    value={editValue}
+                                                    onChange={e => setEditValue(e.target.value)}
+                                                    onBlur={() => {
+                                                        updateExpenseCategory(cat, editValue);
+                                                        setEditingCategory(null);
+                                                    }}
+                                                    onKeyPress={e => {
+                                                        if (e.key === 'Enter') {
+                                                            updateExpenseCategory(cat, editValue);
+                                                            setEditingCategory(null);
+                                                        }
+                                                    }}
+                                                />
+                                                <button onClick={() => setEditingCategory(null)} className="text-ink-secondary hover:text-ink-primary">
+                                                    <X size={14} />
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <span className="text-sm font-black text-ink-primary uppercase tracking-tighter">{cat}</span>
+                                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button 
+                                                        className="p-2 rounded-lg hover:bg-black/5 text-ink-secondary hover:text-ink-primary transition-colors"
+                                                        onClick={() => {
+                                                            setEditingCategory(cat);
+                                                            setEditValue(cat);
+                                                        }}
+                                                    >
+                                                        <Edit2 size={14} />
+                                                    </button>
+                                                    <button 
+                                                        className="p-2 rounded-lg hover:bg-red-50 text-ink-secondary hover:text-red-500 transition-colors"
+                                                        onClick={() => {
+                                                            if (window.confirm(`Delete category "${cat}"?`)) {
+                                                                deleteExpenseCategory(cat);
+                                                            }
+                                                        }}
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                ))}
                             </div>
                         </div>
+                    </div>
 
-                        <div style={{ borderTop: '1px solid var(--border-color)', margin: '1rem 0', paddingTop: '1.5rem' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                                <Bell size={18} className="text-primary" />
-                                <h3 style={{ fontSize: '1rem', fontWeight: 600 }}>Alert Preferences</h3>
-                            </div>
-
-                            <div>
-                                <label>Global Low Stock Threshold</label>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '0.5rem' }}>Alerts trigger when an item's quantity reaches or drops below this number.</p>
+                    {/* Threat Intelligence / Stock Alerts */}
+                    <div className="glass-panel !rounded-bento p-6 border border-black/5 flex flex-col md:flex-row items-center gap-6 bg-surface shadow-premium">
+                        <div className="w-24 h-24 rounded-pill bg-orange-50 text-orange-500 flex items-center justify-center shrink-0 shadow-sm">
+                            <Zap size={36} />
+                        </div>
+                        <div className="flex-1">
+                            <div className="text-sm font-black uppercase tracking-[0.4em] text-ink-secondary opacity-40 mb-3">Operational Alerts</div>
+                            <h3 className="text-2xl font-black text-ink-primary uppercase tracking-tighter mb-4">Low-Stock Sensitivity</h3>
+                            <div className="flex items-center gap-6">
                                 <input
-                                    required
                                     type="number"
-                                    min="0"
-                                    className="input-field"
-                                    style={{ maxWidth: '200px' }}
+                                    className="input-field !max-w-[140px] !rounded-2xl !py-4 !text-center !font-black !text-2xl bg-canvas border border-black/5"
                                     value={profileData.lowStockThreshold}
                                     onChange={e => setProfileData({ ...profileData, lowStockThreshold: parseInt(e.target.value) || 0 })}
                                 />
+                                <span className="text-xs font-black text-ink-secondary uppercase tracking-widest opacity-40 leading-tight">Minimum Unit<br/>Retention Baseline</span>
                             </div>
                         </div>
+                    </div>
+                </div>
 
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '1rem' }}>
-                            <button type="submit" className="btn btn-primary" style={{ padding: '0.75rem 2rem' }}>
-                                {savedStatus ? <><CheckCircle2 size={18} /> Saved!</> : <><Save size={18} /> Save Settings</>}
-                            </button>
+                {/* Right Side: Security & Maintenance */}
+                <div className="flex flex-col gap-8">
+                    <div className="glass-panel !rounded-bento p-12 bg-ink-primary text-surface overflow-hidden relative shadow-2xl border-none">
+                        <div className="absolute top-0 right-0 p-16 opacity-5 scale-200 pointer-events-none">
+                            <ShieldCheck size={140} />
                         </div>
-                    </form>
+                        <h3 className="text-xl font-black uppercase tracking-tighter mb-3">Cloud Security</h3>
+                        <div className="text-[10px] font-black uppercase tracking-[0.3em] text-accent-signature mb-10">Status: Decentralized Mock</div>
+                        <p className="text-sm font-medium text-surface/50 leading-relaxed mb-12 relative z-10">
+                            You are currently operating within the local simulation environment. Cloud synchronization and production database locks will activate upon enterprise deployment.
+                        </p>
+                        <div className="w-full h-1.5 bg-surface/10 rounded-pill overflow-hidden mb-5">
+                            <div className="w-[85%] h-full bg-accent-signature"></div>
+                        </div>
+                        <div className="flex justify-between items-center relative z-10">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-surface/30">Local Integrity</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-accent-signature">85% Verified</span>
+                        </div>
+                    </div>
+
+                    <div className="glass-panel !rounded-bento p-12 bg-red-50/10 border border-red-500/10 flex flex-col gap-10">
+                        <div>
+                            <div className="flex items-center gap-4 text-red-500 mb-6">
+                                <Database size={28} />
+                                <h3 className="text-base font-black uppercase tracking-[0.2em] leading-none">Factory Reset</h3>
+                            </div>
+                            <p className="text-[11px] font-black text-red-900/60 uppercase tracking-widest leading-relaxed">
+                                Irreversibly wipe local storage and re-seed the environment with fresh transactional assets.
+                            </p>
+                        </div>
+                        {currentUser?.roles?.includes('GLOBAL_ADMIN') && (
+                            <button 
+                                className="w-full py-6 rounded-pill bg-red-500 text-white font-black text-xs tracking-widest uppercase hover:bg-black transition-all flex items-center justify-center gap-3 group shadow-lg"
+                                onClick={resetAndSeedLocal}
+                            >
+                                <RotateCcw size={18} className="group-hover:rotate-180 transition-transform duration-700" />
+                                EXECUTE FULL RESET
+                            </button>
+                        )}
+                    </div>
                 </div>
             </div>
-
-            <div className="glass-panel" style={{ padding: '2rem', display: 'flex', gap: '1.5rem', alignItems: 'center', backgroundColor: 'rgba(239, 68, 68, 0.05)' }}>
-                <Shield size={32} color="var(--danger)" />
-                <div>
-                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '0.25rem' }}>User Profiles & Role Management</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                        You are currently using the mock local login system. Real user email invitations, password resets, and granular permission editing will become available once the app is connected to a production database (e.g. Supabase, Firebase).
-                    </p>
-                </div>
-            </div>
-
         </div>
     );
 };

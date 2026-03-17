@@ -1,39 +1,43 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Truck, Map, Settings, Plus, Play, Flag, FileText, AlertTriangle, X } from 'lucide-react';
+import { 
+    Truck, Map, Settings as SettingsIcon, Plus, Play, Flag, 
+    FileText, AlertTriangle, X, ShoppingCart, ChevronRight,
+    MapPin, Navigation, Gauge, Calendar, ShieldCheck, 
+    Save, Hash, History, CheckCircle2
+} from 'lucide-react';
 
 const Vehicles = () => {
-    const { vehicles, addVehicle, routes, dispatchRoute, reconcileRoute, products, orders, businessProfile } = useAppContext();
+    const { 
+        vehicles, addVehicle, routes, dispatchRoute, reconcileRoute, 
+        products, orders, businessProfile, employees, getEmployeeName, hasPermission 
+    } = useAppContext();
 
-    const [activeTab, setActiveTab] = useState('ROUTES'); // 'ROUTES' or 'FLEET'
-
-    // Modals
+    const [activeTab, setActiveTab] = useState('ROUTES'); 
     const [showVehicleModal, setShowVehicleModal] = useState(false);
     const [showDispatchModal, setShowDispatchModal] = useState(false);
-    const [showReconcileModal, setShowReconcileModal] = useState(null); // holds route object
+    const [showReconcileModal, setShowReconcileModal] = useState(null); 
 
-    // Forms
     const [vehicleForm, setVehicleForm] = useState({ name: '', plate: '' });
 
     const [dispatchForm, setDispatchForm] = useState({
         vehicleId: vehicles[0]?.id || '',
         driverId: '',
         initialOdometer: '',
-        assignedOrders: [], // Array of assigned 'PENDING' order IDs
-        loadedStock: {} // { productId: quantity }
+        assignedOrders: [], 
+        loadedStock: {}, 
+        dispatchDate: new Date().toISOString().split('T')[0]
     });
 
     const [reconcileForm, setReconcileForm] = useState({
         finalOdometer: '',
         actualCash: '',
-        returnedStock: {} // { productId: quantity }
+        returnedStock: {} 
     });
 
-    // --- Helpers ---
     const activeRoutes = routes.filter(r => r.status === 'ACTIVE');
-    const pastRoutes = routes.filter(r => r.status === 'COMPLETED').slice(0, 10);
+    const pastRoutes = routes.filter(r => r.status === 'COMPLETED').sort((a,b) => new Date(b.reconciledAt) - new Date(a.reconciledAt)).slice(0, 10);
 
-    // Calculate expected leftovers for a route
     const getExpectedLeftovers = (route) => {
         const routeSales = orders.filter(o => o.routeId === route.id);
         const soldMap = {};
@@ -56,32 +60,29 @@ const Vehicles = () => {
         return expected;
     };
 
-    const getRouteTotalCashSales = (route) => {
-        const routeSales = orders.filter(o => o.routeId === route.id && o.paymentMethod === 'CASH');
-        return routeSales.reduce((sum, o) => sum + o.totalAmount, 0);
+    const getLastOdometer = (vId) => {
+        if (!vId) return '';
+        const vehicleRoutes = routes.filter(r => r.vehicleId === vId && r.status === 'COMPLETED');
+        if (vehicleRoutes.length === 0) return '';
+        const lastRoute = vehicleRoutes.sort((a,b) => new Date(b.reconciledAt) - new Date(a.reconciledAt))[0];
+        return lastRoute.finalOdometer.toString();
     };
 
-    // --- Handlers ---
     const handleAddVehicle = (e) => {
         e.preventDefault();
-        if (vehicleForm.name && vehicleForm.plate) {
-            addVehicle(vehicleForm);
-            setVehicleForm({ name: '', plate: '' });
-            setShowVehicleModal(false);
-        }
+        addVehicle(vehicleForm);
+        setVehicleForm({ name: '', plate: '' });
+        setShowVehicleModal(false);
     };
 
     const handleDispatch = (e) => {
         e.preventDefault();
-        if (!dispatchForm.vehicleId || !dispatchForm.driverId || !dispatchForm.initialOdometer) return;
-
-        // Format loadedStock into array
         const stockArray = Object.keys(dispatchForm.loadedStock)
             .map(id => ({ productId: id, quantity: parseInt(dispatchForm.loadedStock[id]) || 0 }))
             .filter(item => item.quantity > 0);
 
         if (stockArray.length === 0) {
-            alert("You must load at least one product to dispatch.");
+            alert("Mandatory: Load minimum 1 Asset Unit for Dispatch.");
             return;
         }
 
@@ -94,7 +95,28 @@ const Vehicles = () => {
         });
 
         setShowDispatchModal(false);
-        setDispatchForm({ vehicleId: vehicles[0]?.id || '', driverId: '', initialOdometer: '', assignedOrders: [], loadedStock: {} });
+        const defaultVid = vehicles[0]?.id || '';
+        setDispatchForm({ 
+            vehicleId: defaultVid, 
+            driverId: '', 
+            initialOdometer: getLastOdometer(defaultVid), 
+            assignedOrders: [], 
+            loadedStock: {}, 
+            dispatchDate: new Date().toISOString().split('T')[0] 
+        });
+    };
+
+    const openDispatch = () => {
+        const defaultVid = vehicles[0]?.id || '';
+        setDispatchForm({
+            vehicleId: defaultVid,
+            driverId: '',
+            initialOdometer: getLastOdometer(defaultVid),
+            assignedOrders: [],
+            loadedStock: {},
+            dispatchDate: new Date().toISOString().split('T')[0]
+        });
+        setShowDispatchModal(true);
     };
 
     const handleAssignOrder = (orderId, isChecked) => {
@@ -103,18 +125,14 @@ const Vehicles = () => {
                 ? [...prev.assignedOrders, orderId]
                 : prev.assignedOrders.filter(id => id !== orderId);
 
-            // Auto-calculate requested stock from assigned orders
             const newLoadedStock = { ...prev.loadedStock };
             const order = orders.find(o => o.id === orderId);
 
             if (order) {
                 order.items.forEach(item => {
                     const currentVal = parseInt(newLoadedStock[item.productId]) || 0;
-                    if (isChecked) {
-                        newLoadedStock[item.productId] = currentVal + item.quantity;
-                    } else {
-                        newLoadedStock[item.productId] = Math.max(0, currentVal - item.quantity);
-                    }
+                    if (isChecked) newLoadedStock[item.productId] = currentVal + item.quantity;
+                    else newLoadedStock[item.productId] = Math.max(0, currentVal - item.quantity);
                 });
             }
 
@@ -126,7 +144,7 @@ const Vehicles = () => {
         const expected = getExpectedLeftovers(route);
         const initialReturned = {};
         Object.keys(expected).forEach(id => {
-            initialReturned[id] = expected[id].leftover; // default to perfectly matching expected
+            initialReturned[id] = expected[id].leftover;
         });
 
         setReconcileForm({
@@ -139,8 +157,6 @@ const Vehicles = () => {
 
     const handleReconcile = (e) => {
         e.preventDefault();
-        if (!reconcileForm.finalOdometer) return;
-
         const returnedArray = Object.keys(reconcileForm.returnedStock)
             .map(id => ({ productId: id, quantity: parseInt(reconcileForm.returnedStock[id]) || 0 }));
 
@@ -156,133 +172,182 @@ const Vehicles = () => {
 
     return (
         <>
-        <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem', height: '100%', maxWidth: '1400px', margin: '0 auto' }}>
-
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '1rem' }}>
+            <div className="animate-fade-in flex flex-col gap-6 pb-12">
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-black/5">
                 <div>
-                    <h1 className="page-title" style={{ marginBottom: '0.25rem' }}>Fleet & Routes</h1>
-                    <p style={{ color: 'var(--text-muted)' }}>Manage vehicles, dispatch inventory, and reconcile end-of-day routes.</p>
-                </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <button className={`btn ${activeTab === 'ROUTES' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('ROUTES')} style={{ borderRadius: '12px' }}>
-                        <Map size={18} /> Active Routes
-                    </button>
-                    <button className={`btn ${activeTab === 'FLEET' ? 'btn-primary' : 'btn-secondary'}`} onClick={() => setActiveTab('FLEET')} style={{ borderRadius: '12px' }}>
-                        <Truck size={18} /> Vehicle Fleet
-                    </button>
+                    <h1 className="text-7xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-4">Traffic.</h1>
+                    <p className="text-sm font-medium text-ink-secondary tracking-tight uppercase opacity-50">Fleet Optimization & Multi-Vector Fulfillment</p>
                 </div>
             </div>
 
-            {activeTab === 'FLEET' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                        <button className="btn btn-primary" onClick={() => setShowVehicleModal(true)}>
-                            <Plus size={18} /> Add Vehicle
-                        </button>
-                    </div>
-
-                    <div className="grid-cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-                        {vehicles.map(v => (
-                            <div key={v.id} className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                {v.image && (
-                                    <div style={{ width: '100%', height: '160px', borderRadius: '8px', overflow: 'hidden', marginBottom: '0.5rem', border: '1px solid var(--border-color)' }}>
-                                        <img src={v.image} alt={v.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                                    </div>
-                                )}
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <h3 style={{ fontSize: '1.2rem', fontWeight: 700 }}>{v.name}</h3>
-                                    <Truck className="text-primary" />
-                                </div>
-                                <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                                    License Plate: <span style={{ fontWeight: 600, color: 'var(--text-main)', background: 'rgba(0,0,0,0.05)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>{v.plate}</span>
-                                </div>
-                            </div>
-                        ))}
-                        {vehicles.length === 0 && <p>No vehicles in fleet. Add one to get started.</p>}
+            {/* Quick Stats & Controls - h-12 Sync */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="glass-panel !p-1 bg-white border border-black/5 flex items-center justify-between rounded-pill shadow-sm !h-12 overflow-hidden">
+                    <div className="flex items-center gap-3 pl-4">
+                        <div className="w-8 h-8 rounded-xl bg-accent-signature text-ink-primary flex items-center justify-center shrink-0 shadow-lg">
+                            <Navigation size={18} />
+                        </div>
+                        <div className="flex flex-col -space-y-1">
+                            <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40">Active Pipeline</div>
+                            <div className="text-2xl font-black text-ink-primary tracking-tighter leading-none">{activeRoutes.length} Vectors</div>
+                        </div>
                     </div>
                 </div>
-            )}
+
+                <div className="md:col-span-1 flex h-12 gap-1 bg-surface p-1 rounded-pill border border-black/5 shadow-premium">
+                    {[
+                        { id: 'ROUTES', label: 'Dispatches', icon: Navigation },
+                        { id: 'FLEET', label: 'Fleet', icon: Truck }
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex-1 h-full rounded-pill text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                                activeTab === tab.id 
+                                ? 'bg-ink-primary text-surface shadow-lg' 
+                                : 'bg-transparent text-ink-secondary hover:bg-canvas'
+                            }`}
+                        >
+                            <tab.icon size={14} />
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="md:col-span-1 flex !h-12">
+                    {activeTab === 'ROUTES' ? (
+                        <button className="btn-signature w-full !h-full !py-0 !rounded-pill !text-sm" onClick={openDispatch}>
+                            INITIATE DISPATCH
+                            <div className="icon-nest ml-4">
+                                <Play size={20} />
+                            </div>
+                        </button>
+                    ) : (
+                        hasPermission('MANAGE_FLEET') && (
+                            <button className="btn-signature w-full !h-full !py-0 !rounded-pill !text-sm" onClick={() => setShowVehicleModal(true)}>
+                                REGISTER UNIT
+                                <div className="icon-nest ml-4">
+                                    <Plus size={20} />
+                                </div>
+                            </button>
+                        )
+                    )}
+                </div>
+            </div>
 
             {activeTab === 'ROUTES' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                    {/* Active Routes */}
-                    <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <h2 style={{ fontSize: '1.2rem', fontWeight: 600 }}>Active Dispatches</h2>
-                            <button className="btn btn-primary" onClick={() => setShowDispatchModal(true)}>
-                                <Play size={18} /> Dispatch New Route
-                            </button>
-                        </div>
-
-                        <div className="grid-cards" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))' }}>
-                            {activeRoutes.map(route => {
-                                const vehicle = vehicles.find(v => v.id === route.vehicleId);
-                                const itemsLoaded = route.loadedStock.reduce((s, i) => s + i.quantity, 0);
-
-                                return (
-                                    <div key={route.id} className="glass-panel" style={{ padding: '1.5rem', borderLeft: '4px solid var(--warning)' }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                                            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--warning)', background: 'var(--warning-light)', padding: '0.2rem 0.6rem', borderRadius: '12px' }}>ON ROUTE</span>
-                                            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{new Date(route.date).toLocaleTimeString()}</span>
-                                        </div>
-
-                                        <h3 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '0.25rem' }}>{vehicle?.name || 'Unknown Vehicle'}</h3>
-                                        <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '1rem' }}>Driver: {route.driverId}</p>
-
-                                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: 'var(--bg-color)', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
-                                            <div>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Start Odometer</div>
-                                                <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{route.initialOdometer} km</div>
-                                            </div>
-                                            <div>
-                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Stock Loaded</div>
-                                                <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{itemsLoaded} Units</div>
-                                            </div>
-                                        </div>
-
-                                        <button className="btn btn-secondary" style={{ width: '100%' }} onClick={() => openReconcile(route)}>
-                                            <Flag size={18} /> End Route & Reconcile
-                                        </button>
-                                    </div>
-                                );
-                            })}
-                            {activeRoutes.length === 0 && (
-                                <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', border: '1px dashed var(--border-color)', borderRadius: '16px' }}>
-                                    No vehicles currently on route. Click "Dispatch New Route" to load inventory.
-                                </div>
-                            )}
-                        </div>
+                <div className="space-y-8">
+                    {/* Active Mission Control - Extreme Density */}
+                    <div className="flex items-center gap-3">
+                        <div className="w-2 h-6 bg-accent-signature rounded-pill"></div>
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-60">Active Mission Control</h2>
                     </div>
 
-                    {/* Past Routes (Simple view) */}
-                    <div style={{ marginTop: '2rem' }}>
-                        <h2 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-main)' }}>Recently Completed</h2>
-                        <div className="glass-panel" style={{ overflowX: 'auto', padding: 0 }}>
-                            <table className="data-table" style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0, textAlign: 'left' }}>
-                                <thead>
+                    <div className="glass-panel !p-0 overflow-hidden border border-black/5 bg-surface shadow-premium !rounded-bento">
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="bg-canvas border-b border-black/5">
                                     <tr>
-                                        <th>Date</th>
-                                        <th>Vehicle & Driver</th>
-                                        <th>Distance</th>
-                                        <th>Status</th>
+                                        <th className="p-1.5 pl-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40">Vector / Unit</th>
+                                        <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40">Command Agent</th>
+                                        <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 text-center">Loadout</th>
+                                        <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 text-right">Telemetry</th>
+                                        <th className="p-1.5 text-right text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40">Mission Status</th>
                                     </tr>
                                 </thead>
-                                <tbody>
-                                    {pastRoutes.map(route => {
+                                <tbody className="divide-y divide-black/5">
+                                    {activeRoutes.map(route => {
                                         const vehicle = vehicles.find(v => v.id === route.vehicleId);
+                                        const itemsLoaded = route.loadedStock.reduce((s, i) => s + i.quantity, 0);
                                         return (
-                                            <tr key={route.id}>
-                                                <td>{new Date(route.reconciledAt).toLocaleString()}</td>
-                                                <td style={{ fontWeight: 600, color: 'var(--text-main)' }}>{vehicle?.name} ({route.driverId})</td>
-                                                <td>{route.finalOdometer - route.initialOdometer} km</td>
-                                                <td>
-                                                    <span className="badge badge-success">RECONCILED</span>
+                                            <tr key={route.id} className="group hover:bg-canvas/50 transition-colors">
+                                                <td className="p-1.5 pl-8">
+                                                    <div className="flex items-center gap-3">
+                                                         <div className="w-8 h-8 rounded-xl bg-ink-primary text-accent-signature flex items-center justify-center shrink-0">
+                                                            <Truck size={14} />
+                                                        </div>
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-black text-ink-primary uppercase tracking-tight leading-none mb-0.5">{vehicle?.name || 'GENERIC UNIT'}</span>
+                                                            <span className="text-[10px] font-bold text-ink-secondary opacity-30 uppercase tracking-widest">{vehicle?.plate}</span>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td className="p-1.5">
+                                                    <span className="text-xs font-black text-ink-primary uppercase tracking-tighter">{getEmployeeName(route.driverId)}</span>
+                                                </td>
+                                                <td className="p-1.5 text-center">
+                                                    <span className="px-2 py-0.5 rounded-pill bg-accent-signature/10 text-[10px] font-black text-ink-primary border border-accent-signature/20">
+                                                        {itemsLoaded} UNITS
+                                                    </span>
+                                                </td>
+                                                <td className="p-1.5 text-right">
+                                                    <div className="text-sm font-black text-ink-primary font-mono tabular-nums">
+                                                        {route.initialOdometer.toLocaleString()} <span className="text-[10px] opacity-20 ml-1 uppercase">KM</span>
+                                                    </div>
+                                                </td>
+                                                <td className="p-1.5 text-right">
+                                                    <button 
+                                                        className="px-4 py-1.5 rounded-pill bg-ink-primary text-accent-signature font-black text-[10px] tracking-widest uppercase hover:shadow-lg transition-all"
+                                                        onClick={() => openReconcile(route)}
+                                                    >
+                                                        TERMINATE
+                                                    </button>
                                                 </td>
                                             </tr>
                                         );
                                     })}
-                                    {pastRoutes.length === 0 && <tr><td colSpan="4" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>No completed routes yet.</td></tr>}
+                                    {activeRoutes.length === 0 && (
+                                        <tr>
+                                            <td colSpan="5" className="py-20 text-center text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-20">
+                                                Zero active vectors in mission zone
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    {/* Historical Archive */}
+                    <div className="pt-20">
+                        <div className="flex items-center gap-5 mb-8">
+                            <History size={20} className="text-ink-primary opacity-20" />
+                            <h2 className="text-sm font-black uppercase tracking-[0.5em] text-ink-secondary opacity-60">Fulfillment Archive</h2>
+                        </div>
+                        <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+                            <table className="w-full text-left">
+                                <thead>
+                                    <tr className="bg-canvas border-b border-black/5 text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">
+                                        <th className="p-1.5 pl-8">Temporal Log</th>
+                                        <th className="p-1.5">Unit & Vector Agent</th>
+                                        <th className="p-1.5 text-right">Distance</th>
+                                        <th className="p-1.5 text-right">Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-black/5 bg-surface">
+                                    {pastRoutes.map(route => {
+                                        const vehicle = vehicles.find(v => v.id === route.vehicleId);
+                                        return (
+                                            <tr key={route.id} className="hover:bg-canvas transition-colors">
+                                                <td className="p-1.5 pl-8 text-[10px] font-black text-ink-secondary uppercase tracking-tight opacity-60">
+                                                    {new Date(route.reconciledAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                </td>
+                                                <td className="p-1.5">
+                                                    <div className="text-xs font-black text-ink-primary uppercase tracking-tight leading-none mb-1">{vehicle?.name}</div>
+                                                    <div className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">{getEmployeeName(route.driverId)}</div>
+                                                </td>
+                                                <td className="p-1.5 text-right text-sm font-black text-ink-primary uppercase whitespace-nowrap tracking-tighter font-mono tabular-nums">
+                                                    {route.finalOdometer - route.initialOdometer} <span className="text-[10px] opacity-30 ml-1">NET KM</span>
+                                                </td>
+                                                <td className="p-1.5 text-right">
+                                                    <span className="px-3 py-1 rounded-pill bg-canvas text-ink-primary text-[9px] font-black uppercase tracking-widest border border-black/5 shadow-sm">
+                                                        ARCHIVED
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
                                 </tbody>
                             </table>
                         </div>
@@ -290,193 +355,277 @@ const Vehicles = () => {
                 </div>
             )}
 
-        </div>
-
-            {/* --- ADD VEHICLE MODAL --- */}
-            {showVehicleModal && (
-                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(12px)' }}>
-                    <div className="glass-panel animate-scale-up" style={{ padding: '2rem', width: '100%', maxWidth: '400px', background: '#ffffff', borderRadius: '24px', position: 'relative' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h2 style={{ fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Add New Vehicle</h2>
-                            <button className="btn btn-secondary" style={{ padding: '0.5rem', borderRadius: '12px', minWidth: '40px' }} onClick={() => setShowVehicleModal(false)}>
-                                <X size={20} />
-                            </button>
+            {activeTab === 'FLEET' && (
+                <div className="space-y-12">
+                    <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-5">
+                            <div className="w-2 h-8 bg-accent-signature rounded-pill shadow-lg shadow-accent-signature/20"></div>
+                            <h2 className="text-xs font-black uppercase tracking-[0.5em] text-ink-primary">Infrastructure Inventory</h2>
                         </div>
-                        <form onSubmit={handleAddVehicle} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <div>
-                                <label>Vehicle Name / Model</label>
-                                <input required type="text" className="input-field" value={vehicleForm.name} onChange={e => setVehicleForm({ ...vehicleForm, name: e.target.value })} placeholder="e.g. Ford Transit" />
-                            </div>
-                            <div>
-                                <label>License Plate</label>
-                                <input required type="text" className="input-field" value={vehicleForm.plate} onChange={e => setVehicleForm({ ...vehicleForm, plate: e.target.value })} placeholder="XYZ-1234" />
-                            </div>
-                            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowVehicleModal(false)}>Cancel</button>
-                                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Save</button>
-                            </div>
-                        </form>
                     </div>
-                </div>
-            )}
 
-            {/* --- DISPATCH MODAL --- */}
-            {showDispatchModal && (
-                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(12px)' }}>
-                    <div className="glass-panel animate-scale-up" style={{ padding: '2.5rem', width: '100%', maxWidth: '640px', maxHeight: '90vh', overflowY: 'auto', background: '#ffffff', borderRadius: '24px', position: 'relative' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h2 style={{ fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Dispatch New Route</h2>
-                            <button className="btn btn-secondary" style={{ padding: '0.5rem', borderRadius: '12px', minWidth: '40px' }} onClick={() => setShowDispatchModal(false)}>
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        {vehicles.length === 0 ? (
-                            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--danger)', background: 'var(--danger-light)', borderRadius: '12px' }}>
-                                You must add a vehicle to the fleet before dispatching!
-                                <button className="btn btn-secondary mt-4" onClick={() => setShowDispatchModal(false)}>Close</button>
-                            </div>
-                        ) : (
-                            <form onSubmit={handleDispatch} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                    <div>
-                                        <label>Select Vehicle</label>
-                                        <select className="input-field" value={dispatchForm.vehicleId} onChange={e => setDispatchForm({ ...dispatchForm, vehicleId: e.target.value })}>
-                                            {vehicles.map(v => <option key={v.id} value={v.id}>{v.name} ({v.plate})</option>)}
-                                        </select>
-                                    </div>
-                                    <div>
-                                        <label>Driver Name</label>
-                                        <input required type="text" className="input-field" value={dispatchForm.driverId} onChange={e => setDispatchForm({ ...dispatchForm, driverId: e.target.value })} placeholder="John Doe" />
-                                    </div>
-                                    <div style={{ gridColumn: '1 / -1' }}>
-                                        <label>Starting Odometer (km/miles)</label>
-                                        <input required type="number" className="input-field" value={dispatchForm.initialOdometer} onChange={e => setDispatchForm({ ...dispatchForm, initialOdometer: e.target.value })} placeholder="125000" />
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {vehicles.map(v => (
+                            <div key={v.id} className="glass-panel !p-0 !rounded-2xl overflow-hidden border border-black/5 hover:shadow-premium transition-all flex flex-col group bg-surface">
+                                <div className="aspect-[2/1] bg-ink-primary relative overflow-hidden">
+                                    {v.image ? (
+                                        <img src={v.image} className="w-full h-full object-cover opacity-80 transition-transform group-hover:scale-110 duration-700" alt={v.name} />
+                                    ) : (
+                                        <div className="w-full h-full flex items-center justify-center text-accent-signature opacity-20">
+                                            <Truck size={32} strokeWidth={1} />
+                                        </div>
+                                    )}
+                                    <div className="absolute top-2 right-2 px-2 py-0.5 bg-surface/10 backdrop-blur-md rounded-pill border border-surface/20 text-surface text-[7px] font-black uppercase tracking-widest">
+                                        ACTIVE UNIT
                                     </div>
                                 </div>
-
-                                <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem' }}>
-                                    <label style={{ fontSize: '1rem', marginBottom: '1rem' }}>Select Inventory to Load</label>
-                                    <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Specify how many units of each product are physically loaded onto the truck. This immediately deducts from the Main Store stock.</p>
-
-                                    <div style={{ flex: 1, overflowY: 'auto', paddingRight: '0.5rem' }}>
-                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-                                            <Map size={16} /> Load Inventory to Vehicle
-                                        </label>
-                                        <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Select products and quantities to load onto this truck for the day.</p>
-
-                                        <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '0.5rem', background: 'white' }}>
-                                            {products.filter(p => p.stock > 0).map(p => (
-                                                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', borderBottom: '1px solid var(--border-color)', transition: 'background-color 0.2s' }}>
-                                                    <div>
-                                                        <div style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.9rem' }}>{p.name}</div>
-                                                        <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '0.125rem' }}>Main Stock: <span style={{ fontWeight: 600 }}>{p.stock} {p.unit}</span></div>
-                                                    </div>
-                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                        <input
-                                                            type="number"
-                                                            min="0"
-                                                            max={p.stock}
-                                                            className="input-field"
-                                                            style={{ width: '90px', padding: '0.5rem', textAlign: 'center' }}
-                                                            placeholder="0"
-                                                            value={dispatchForm.loadedStock[p.id] || ''}
-                                                            onChange={(e) => setDispatchForm({
-                                                                ...dispatchForm,
-                                                                loadedStock: { ...dispatchForm.loadedStock, [p.id]: e.target.value }
-                                                            })}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            {products.filter(p => p.stock > 0).length === 0 && <p style={{ padding: '1rem' }}>No products available in main inventory.</p>}
+                                <div className="p-4">
+                                    <h3 className="text-sm font-black text-ink-primary uppercase tracking-tighter mb-3 leading-none">{v.name}</h3>
+                                    <div className="flex justify-between items-end mt-auto border-t border-black/5 pt-3">
+                                        <div>
+                                            <div className="text-[8px] font-black uppercase tracking-[0.1em] text-ink-secondary opacity-50 mb-1">Clearance Plate</div>
+                                            <div className="text-xs font-black text-ink-primary uppercase tracking-widest leading-none">{v.plate}</div>
+                                        </div>
+                                        <div className="w-8 h-8 rounded-lg bg-canvas flex items-center justify-center text-ink-primary border border-black/5 shadow-sm">
+                                            <ShieldCheck size={14} />
                                         </div>
                                     </div>
-
-                                    <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                                        <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowDispatchModal(false)}>Cancel</button>
-                                        <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Confirm Dispatch</button>
-                                    </div>
                                 </div>
-                            </form>
-                        )}
+                            </div>
+                        ))}
                     </div>
                 </div>
             )}
 
-            {/* --- RECONCILE MODAL --- */}
-            {showReconcileModal && (
-                <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(15, 23, 42, 0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem', backdropFilter: 'blur(12px)' }}>
-                    <div className="glass-panel animate-scale-up" style={{ padding: '2.5rem', width: '100%', maxWidth: '700px', maxHeight: '90vh', overflowY: 'auto', background: '#ffffff', borderRadius: '24px', position: 'relative' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h2 style={{ fontWeight: 700, color: 'var(--text-main)', margin: 0 }}>Reconcile Route</h2>
-                            <button className="btn btn-secondary" style={{ padding: '0.5rem', borderRadius: '12px', minWidth: '40px' }} onClick={() => setShowReconcileModal(null)}>
-                                <X size={20} />
-                            </button>
+            </div>
+
+            {/* REGISTER VEHICLE MODAL */}
+            {showVehicleModal && (
+                <div className="modal-overlay">
+                    <div className="glass-modal !max-w-[600px] !p-8 md:!p-12 relative !rounded-[2.5rem]">
+                        <button 
+                            onClick={() => setShowVehicleModal(false)}
+                            className="absolute top-6 right-6 w-10 h-10 rounded-pill bg-canvas flex items-center justify-center text-ink-primary hover:scale-110 transition-transform z-20 shadow-premium"
+                        >
+                            <X size={18} />
+                        </button>
+
+                        <div className="absolute top-0 left-0 w-2 h-full bg-accent-signature"></div>
+
+                        <div className="mb-6">
+                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">Unit Registry</h3>
+                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Inbound Asset Integration Protocol</p>
                         </div>
-                        <form onSubmit={handleReconcile} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+                        <form onSubmit={handleAddVehicle} className="space-y-6">
                             <div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                                    <FileText size={18} className="text-primary" />
-                                    <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Stock Verification</h3>
-                                </div>
-                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                                    We've calculated the expected leftover based on today's POS sales for this route. Adjust the "Actual Returned" if there are discrepancies (lost/damaged).
-                                </p>
-
-                                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.9rem' }}>
-                                    <thead style={{ borderBottom: '2px solid var(--border-color)' }}>
-                                        <tr>
-                                            <th style={{ padding: '0.5rem' }}>Product</th>
-                                            <th style={{ padding: '0.5rem', textAlign: 'center' }}>Loaded</th>
-                                            <th style={{ padding: '0.5rem', textAlign: 'center' }}>Sold</th>
-                                            <th style={{ padding: '0.5rem', textAlign: 'center' }}>Expected Left</th>
-                                            <th style={{ padding: '0.5rem', textAlign: 'right' }}>Actual Returned</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {Object.keys(getExpectedLeftovers(showReconcileModal)).map(productId => {
-                                            const data = getExpectedLeftovers(showReconcileModal)[productId];
-                                            const actual = parseInt(reconcileForm.returnedStock[productId]) || 0;
-                                            const hasDiscrepancy = actual !== data.leftover;
-
-                                            return (
-                                                <tr key={productId} style={{ borderBottom: '1px solid var(--border-color)', backgroundColor: hasDiscrepancy ? 'var(--warning-light)' : 'transparent' }}>
-                                                    <td style={{ padding: '0.75rem 0.5rem', fontWeight: 500 }}>{data.name}</td>
-                                                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>{data.loaded}</td>
-                                                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center', color: 'var(--primary)', fontWeight: 600 }}>{data.sold}</td>
-                                                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'center', fontWeight: 700 }}>{data.leftover}</td>
-                                                    <td style={{ padding: '0.75rem 0.5rem', textAlign: 'right' }}>
-                                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.4rem' }}>
-                                                            {hasDiscrepancy && <AlertTriangle size={14} className="text-warning" />}
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                className="input-field"
-                                                                style={{ width: '70px', padding: '0.3rem', textAlign: 'center', borderColor: hasDiscrepancy ? 'var(--warning)' : 'var(--border-color)' }}
-                                                                value={reconcileForm.returnedStock[productId] || ''}
-                                                                onChange={(e) => setReconcileForm({
-                                                                    ...reconcileForm,
-                                                                    returnedStock: { ...reconcileForm.returnedStock, [productId]: e.target.value }
-                                                                })}
-                                                            />
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
+                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Unit Nomenclature</label>
+                                <input 
+                                    required 
+                                    type="text" 
+                                    className="input-field !rounded-xl !py-2.5 font-black text-lg bg-canvas/30" 
+                                    placeholder="TRANSIT-V4-NORTH..."
+                                    value={vehicleForm.name} 
+                                    onChange={e => setVehicleForm({ ...vehicleForm, name: e.target.value })} 
+                                />
                             </div>
-
-                            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-                                <button type="button" className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setShowReconcileModal(null)}>Cancel</button>
-                                <button type="submit" className="btn btn-primary" style={{ flex: 1 }}>Complete & Return Stock</button>
+                            <div>
+                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Identifier (License Plate)</label>
+                                <input 
+                                    required 
+                                    type="text" 
+                                    className="input-field !rounded-xl !py-2.5 font-bold bg-canvas/30 text-xs" 
+                                    placeholder="XYZ-0000"
+                                    value={vehicleForm.plate} 
+                                    onChange={e => setVehicleForm({ ...vehicleForm, plate: e.target.value })} 
+                                />
+                            </div>
+                            <div className="flex gap-4 pt-6">
+                                <button type="button" className="flex-1 py-3 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-[10px] tracking-widest uppercase" onClick={() => setShowVehicleModal(false)}>Abort</button>
+                                <button type="submit" className="btn-signature flex-[2] !py-3 !rounded-pill">
+                                    AUTHORIZE REGISTRY
+                                    <div className="icon-nest">
+                                        <Plus size={20} />
+                                    </div>
+                                </button>
                             </div>
                         </form>
-                    </div >
-                </div >
+                    </div>
+                </div>
             )}
+
+            {/* DISPATCH MODAL */}
+            {showDispatchModal && (
+                <div className="modal-overlay">
+                    <div className="glass-modal !max-w-[800px] !p-8 md:!p-12 relative !rounded-[2.5rem]">
+                        <button 
+                            onClick={() => setShowDispatchModal(false)}
+                            className="absolute top-6 right-6 w-10 h-10 rounded-pill bg-canvas flex items-center justify-center text-ink-primary hover:scale-110 transition-transform z-20 shadow-premium"
+                        >
+                            <X size={18} />
+                        </button>
+
+                        <div className="absolute top-0 left-0 w-2 h-full bg-accent-signature"></div>
+
+                        <div className="mb-6">
+                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">Command Dispatch</h3>
+                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Asset Deployment Matrix</p>
+                        </div>
+
+                        <form onSubmit={handleDispatch} className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-6">
+                                <div className="p-6 bg-canvas/30 rounded-2xl border border-black/5">
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-4">Vector Assignment</label>
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label className="text-[8px] font-black text-ink-secondary uppercase opacity-50 block mb-1 px-1">Selected Unit</label>
+                                            <select 
+                                                className="input-field !rounded-xl !py-2 !h-10 font-black text-xs uppercase appearance-none cursor-pointer" 
+                                                value={dispatchForm.vehicleId} 
+                                                onChange={e => {
+                                                    const vId = e.target.value;
+                                                    setDispatchForm({ 
+                                                        ...dispatchForm, 
+                                                        vehicleId: vId,
+                                                        initialOdometer: getLastOdometer(vId)
+                                                    });
+                                                }}
+                                            >
+                                                {vehicles.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[8px] font-black text-ink-secondary uppercase opacity-50 block mb-1 px-1">Clearance Agent</label>
+                                            <select required className="input-field !rounded-xl !py-2 !h-10 font-black text-xs uppercase appearance-none cursor-pointer" value={dispatchForm.driverId} onChange={e => setDispatchForm({ ...dispatchForm, driverId: e.target.value })}>
+                                                <option value="">SELECT AGENT...</option>
+                                                {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-6 bg-canvas/30 rounded-2xl border border-black/5">
+                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-4">Telemetry Baseline</label>
+                                    <input required type="number" className="input-field !rounded-xl !py-2.5 font-black text-lg" placeholder="Odometer Index..." value={dispatchForm.initialOdometer} onChange={e => setDispatchForm({ ...dispatchForm, initialOdometer: e.target.value })} />
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col">
+                                <div className="flex-1 p-6 bg-ink-primary rounded-2xl flex flex-col mb-6">
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-surface/30 mb-4 flex items-center gap-2">
+                                        <ShoppingCart size={12} className="text-accent-signature" /> Fulfillment Pipeline
+                                    </label>
+                                    <div className="flex-1 overflow-y-auto max-h-[200px] space-y-2 custom-scrollbar pr-2">
+                                        {products.filter(p => p.stock > 0).map(p => (
+                                            <div key={p.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
+                                                <div className="min-w-0">
+                                                    <div className="text-[10px] font-black text-surface uppercase truncate">{p.name}</div>
+                                                    <div className="text-[8px] font-bold text-surface/20 uppercase tracking-widest">{p.stock} units</div>
+                                                </div>
+                                                <input 
+                                                    type="number" 
+                                                    className="w-16 bg-white/10 border-none rounded-lg p-2 text-center text-xs font-black text-accent-signature outline-none"
+                                                    placeholder="0"
+                                                    value={dispatchForm.loadedStock[p.id] || ''}
+                                                    onChange={(e) => setDispatchForm({
+                                                        ...dispatchForm,
+                                                        loadedStock: { ...dispatchForm.loadedStock, [p.id]: e.target.value }
+                                                    })}
+                                                />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <button type="submit" className="btn-signature !h-14 w-full">
+                                    AUTHORIZE DISPATCH
+                                    <div className="icon-nest">
+                                        <CheckCircle2 size={24} />
+                                    </div>
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* RECONCILE MODAL */}
+            {showReconcileModal && (
+                <div className="modal-overlay">
+                    <div className="glass-modal !max-w-[600px] !p-8 md:!p-12 relative !rounded-[2.5rem]">
+                        <button 
+                            onClick={() => setShowReconcileModal(null)}
+                            className="absolute top-6 right-6 w-10 h-10 rounded-pill bg-canvas flex items-center justify-center text-ink-primary hover:scale-110 transition-transform z-20 shadow-premium"
+                        >
+                            <X size={18} />
+                        </button>
+
+                        <div className="absolute top-0 left-0 w-2 h-full bg-accent-signature"></div>
+
+                        <div className="mb-6">
+                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">Mission Debrief</h3>
+                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Operational Reconciliation protocol</p>
+                        </div>
+
+                        <form onSubmit={handleReconcile} className="space-y-6">
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="p-4 bg-canvas/30 rounded-2xl border border-black/5">
+                                    <label className="block text-[8px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Final Telemetry</label>
+                                    <input required type="number" className="bg-transparent border-none w-full p-0 text-xl font-black text-ink-primary outline-none" placeholder="Index..." value={reconcileForm.finalOdometer} onChange={e => setReconcileForm({ ...reconcileForm, finalOdometer: e.target.value })} />
+                                </div>
+                                <div className="p-4 bg-canvas/30 rounded-2xl border border-black/5">
+                                    <label className="block text-[8px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Capital Recovery</label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-lg font-black text-ink-primary opacity-20">{businessProfile.currencySymbol}</span>
+                                        <input required type="number" step="0.01" className="bg-transparent border-none w-full p-0 text-xl font-black text-emerald-500 outline-none" placeholder="0.00" value={reconcileForm.actualCash} onChange={e => setReconcileForm({ ...reconcileForm, actualCash: e.target.value })} />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="space-y-3">
+                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50">Asset Audit</label>
+                                <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+                                    {Object.keys(getExpectedLeftovers(showReconcileModal)).map(productId => {
+                                        const data = getExpectedLeftovers(showReconcileModal)[productId];
+                                        const actual = parseInt(reconcileForm.returnedStock[productId]) || 0;
+                                        const hasDiscrepancy = actual !== data.leftover;
+                                        return (
+                                            <div key={productId} className={`p-4 rounded-xl border transition-all flex items-center justify-between ${hasDiscrepancy ? 'bg-red-50 border-red-100' : 'bg-canvas/30 border-black/5'}`}>
+                                                <div className="min-w-0">
+                                                    <div className="text-[10px] font-black text-ink-primary uppercase truncate">{data.name}</div>
+                                                    <div className="text-[8px] font-bold text-ink-secondary/50 uppercase">Expected: {data.leftover}</div>
+                                                </div>
+                                                <div className="flex items-center gap-4">
+                                                    {hasDiscrepancy && <AlertTriangle size={14} className="text-red-500" />}
+                                                    <input 
+                                                        type="number" 
+                                                        className="w-16 bg-white border border-black/5 rounded-lg p-2 text-center text-xs font-black outline-none"
+                                                        value={reconcileForm.returnedStock[productId] || ''}
+                                                        onChange={(e) => setReconcileForm({ ...reconcileForm, returnedStock: { ...reconcileForm.returnedStock, [productId]: e.target.value } })}
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <button type="submit" className="btn-signature !h-14 w-full">
+                                EXECUTE RECONCILIATION
+                                <div className="icon-nest">
+                                    <ShieldCheck size={24} />
+                                </div>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+            <style dangerouslySetInnerHTML={{ __html: `
+                .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.05); border-radius: 10px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.1); }
+            ` }} />
         </>
     );
 };

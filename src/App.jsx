@@ -20,10 +20,10 @@ function App() {
     <AppProvider>
       <Router>
         <Routes>
-          <Route path="/login" element={<Login />} />
-
+          {/* Default to dashboard for UI development */}
           <Route path="/" element={<AppLayout />}>
             <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="login" element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="vehicles" element={<Vehicles />} />
