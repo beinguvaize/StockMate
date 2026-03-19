@@ -238,7 +238,7 @@ const DataTools = ({ isOpen, onClose }) => {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="glass-modal !max-w-[900px] !p-0 !rounded-bento overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="glass-modal !max-w-[800px] !p-0 !rounded-bento overflow-hidden" onClick={e => e.stopPropagation()}>
                 {/* Header */}
                 <div className="bg-ink-primary p-8 flex justify-between items-start">
                     <div>

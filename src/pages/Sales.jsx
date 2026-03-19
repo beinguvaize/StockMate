@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { 
     ShoppingCart as CartIcon, Search, Plus, Minus, FileText, User, 
@@ -31,6 +31,14 @@ const Sales = () => {
     const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
     const [scheduledDate, setScheduledDate] = useState(new Date(Date.now() + 86400000).toISOString().split('T')[0]); 
     const [showBookingDateModal, setShowBookingDateModal] = useState(false);
+    const cartEndRef = useRef(null);
+
+    // Auto-scroll cart to bottom
+    useEffect(() => {
+        if (cart.length > 0) {
+            cartEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [cart]);
 
     useEffect(() => {
         const handler = () => setIsMobile(window.innerWidth < 768);
@@ -392,6 +400,7 @@ const Sales = () => {
                         </div>
                     ))
                 )}
+                <div ref={cartEndRef} />
             </div>
 
             {/* Summary & Checkout Actions */}
@@ -610,11 +619,11 @@ const Sales = () => {
             {/* Payment Modal */}
             {showPaymentModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[500px] !p-10">
+                    <div className="glass-modal">
                         {/* Compact Header */}
                         <div className="flex justify-between items-start mb-8">
                             <div>
-                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">PAYMENT.</h1>
+                                <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">PAYMENT.</h1>
                                 <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">SELECT TRANSACTION RECEPTION METHOD</p>
                             </div>
                             <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowPaymentModal(false)}>
@@ -702,10 +711,10 @@ const Sales = () => {
             {/* Booking Date Modal */}
             {showBookingDateModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[500px] !p-10">
+                    <div className="glass-modal">
                         <div className="flex justify-between items-start mb-8">
                             <div>
-                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">PRE-BOOK.</h1>
+                                <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">PRE-BOOK.</h1>
                                 <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">SET FUTURE DELIVERY SCHEDULE</p>
                             </div>
                             <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowBookingDateModal(false)}>

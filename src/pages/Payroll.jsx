@@ -382,19 +382,17 @@ const Payroll = () => {
                 </div>
             </div>
 
-            {/* Personnel Onboarding Modal */}
-            {showForm && (
+            {/* Payout Form Modal */}
+            {showModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[650px] !p-12">
-                        <div className="flex justify-between items-start mb-10">
+                    <div className="glass-modal">
+                        <div className="flex justify-between items-start mb-8">
                             <div>
-                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">
-                                    {editingEmployee ? 'STAFF PROFILE.' : 'PERSONNEL ONBOARDING.'}
-                                </h1>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">HUMAN RESOURCES & COMPENSATION</p>
+                                <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">DISBURSEMENT.</h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">INSTITUTIONAL PAYROLL SETTLEMENT</p>
                             </div>
                             <button 
-                                onClick={() => setShowForm(false)}
+                                onClick={() => setShowModal(false)}
                                 className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary"
                             >
                                 <X size={18} />

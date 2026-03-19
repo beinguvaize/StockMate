@@ -21,6 +21,7 @@ const Reports = () => {
     const [editedProducts, setEditedProducts] = useState([]);
     const [bulkSearch, setBulkSearch] = useState('');
     const [isSaving, setIsSaving] = useState(false);
+    const [isConfiguring, setIsConfiguring] = useState(false);
 
     // Sync edited products when tab switches to ADVANCED
     useEffect(() => {
@@ -539,6 +540,16 @@ const Reports = () => {
                             <span className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.4em] opacity-70">SALES & EXPENSE TRENDS</span>
                         </div>
                         <h3 className="text-4xl font-black text-ink-primary tracking-tighter uppercase leading-none">Performance Overview.</h3>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <button 
+                            className="px-6 py-3 rounded-pill border border-black/10 font-black text-ink-primary text-[10px] uppercase tracking-[0.2em] hover:bg-black/5 transition-all flex items-center gap-2"
+                            onClick={() => setIsConfiguring(true)}
+                        >
+                            <Activity size={14} className="text-accent-signature" />
+                            CONFIG
+                        </button>
                     </div>
                     
                     <div className="flex items-center gap-6 bg-canvas/50 p-3 rounded-[2rem] border border-black/5">

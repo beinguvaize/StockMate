@@ -321,16 +321,18 @@ const Expenses = () => {
                 </div>
             </div>
 
-            {/* Log Outflow Modal */}
+            {/* Expense Form Modal */}
             {isAdding && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[600px] !p-12">
-                        <div className="flex justify-between items-start mb-10">
+                    <div className="glass-modal">
+                        <div className="flex justify-between items-start mb-8">
                             <div>
-                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">
-                                    {editingExpense ? 'MODIFICATION.' : 'LOG OUTFLOW.'}
-                                </h1>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">OPERATING COSTS & EXPENDITURE</p>
+                                <h2 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">
+                                    {editingExpense ? 'EDIT EXPENSE.' : 'NEW EXPENSE.'}
+                                </h2>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">
+                                    LOG BUSINESS EXPENDITURE DETAILS
+                                </p>
                             </div>
                             <button 
                                 onClick={handleCloseModal}

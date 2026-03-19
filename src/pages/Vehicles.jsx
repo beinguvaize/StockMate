@@ -546,10 +546,10 @@ const Vehicles = () => {
             {/* REGISTER VEHICLE MODAL */}
             {showVehicleModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[500px] !p-10">
+                    <div className="glass-modal">
                         <div className="flex justify-between items-start mb-8">
                             <div>
-                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">FLEET.</h1>
+                                <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">FLEET.</h1>
                                 <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">REGISTER NEW LOGISTICS UNIT</p>
                             </div>
                             <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowVehicleModal(false)}>
@@ -597,10 +597,10 @@ const Vehicles = () => {
             {/* DISPATCH MODAL */}
             {showDispatchModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[800px] !p-12">
+                    <div className="glass-modal">
                         <div className="flex justify-between items-start mb-8">
                             <div>
-                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">DISPATCH.</h1>
+                                <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">DISPATCH.</h1>
                                 <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">ASSIGN VEHICLE AND DRIVER UNIT</p>
                             </div>
                             <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowDispatchModal(false)}>
@@ -699,10 +699,10 @@ const Vehicles = () => {
             {/* RECONCILE MODAL */}
             {showReconcileModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[700px] !p-12">
+                    <div className="glass-modal">
                         <div className="flex justify-between items-start mb-8">
                             <div>
-                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">RECONCILE.</h1>
+                                <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">RECONCILE.</h1>
                                 <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">TRIP SETTLEMENT & RECOVERY REVIEW</p>
                             </div>
                             <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowReconcileModal(null)}>

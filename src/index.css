@@ -226,9 +226,9 @@ body {
 .glass-modal {
   background: var(--surface);
   border-radius: var(--radius-xl);
-  padding: 3.5rem;
+  padding: 1.5rem;
   width: 100%;
-  max-width: 800px;
+  max-width: 500px;
   max-height: 90vh;
   overflow-y: auto;
   position: relative;

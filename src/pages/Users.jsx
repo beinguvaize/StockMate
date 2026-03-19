@@ -127,7 +127,7 @@ const Users = () => {
             {/* Personnel Form Modal */}
             {isAdding && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[600px] !p-8">
+                    <div className="glass-modal">
                         <div className="flex justify-between items-start mb-6">
                             <div>
                                 <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">

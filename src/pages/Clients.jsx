@@ -288,16 +288,18 @@ const Clients = () => {
                 </div>
             </div>
 
-            {/* Registration Overlay / Form */}
-            {isAdding && (
+            {/* Client Form Modal */}
+            {showModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[650px] !p-12">
-                        <div className="flex justify-between items-start mb-10">
+                    <div className="glass-modal">
+                        <div className="flex justify-between items-start mb-8">
                             <div>
-                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">
-                                    {editingClient ? 'CLIENT PROFILE.' : 'NEW CLIENT.'}
-                                </h1>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">INSTITUTIONAL METADATA & ACCOUNTS</p>
+                                <h2 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">
+                                    {editingShop ? 'EDIT CLIENT.' : 'NEW CLIENT.'}
+                                </h2>
+                                <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.3em] opacity-80">
+                                    REGISTER BUSINESS OUTLET DETAILS
+                                </p>
                             </div>
                             <button
                                 onClick={() => { setIsAdding(false); setEditingClient(null); }}

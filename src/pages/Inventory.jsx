@@ -280,14 +280,17 @@ const Inventory = () => {
         </div>
 
         {/* Add/Edit Product Modal */}
-            {/* Add/Edit Product Modal */}
             {showAddModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[800px] !p-10">
-                        <div className="flex justify-between items-start mb-8">
+                    <div className="glass-modal">
+                        <div className="flex justify-between items-start mb-6">
                             <div>
-                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">ADD NEW PRODUCT.</h1>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">ENTER PRODUCT LOGISTICS & DETAILS</p>
+                                <h2 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-1">
+                                    {editingProduct ? 'EDIT PRODUCT.' : 'NEW PRODUCT.'}
+                                </h2>
+                                <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.3em] opacity-80">
+                                    CONFIGURE INVENTORY ASSET DETAILS
+                                </p>
                             </div>
                             <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowAddModal(false)}>
                                 <X size={18} />
