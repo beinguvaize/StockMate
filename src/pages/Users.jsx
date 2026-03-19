@@ -111,15 +111,15 @@ const Users = () => {
     return (
         <div className="animate-fade-in flex flex-col gap-10 pb-20">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-12 border-b border-black/5">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-black/5">
                 <div>
-                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">STAFF.</h1>
+                    <h1 className="text-4xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">STAFF.</h1>
                     <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">PERSONNEL & ACCESS CONTROL</p>
                 </div>
-                <button className="btn-signature h-20 !text-base" onClick={openAdd}>
+                <button className="btn-signature h-14 !text-sm" onClick={openAdd}>
                     ADD STAFF MEMBER
-                    <div className="icon-nest ml-6">
-                        <UserPlus size={28} />
+                    <div className="icon-nest ml-4">
+                        <UserPlus size={20} />
                     </div>
                 </button>
             </div>
@@ -127,42 +127,41 @@ const Users = () => {
             {/* Personnel Form Modal */}
             {isAdding && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[750px] !overflow-hidden !p-16">
-                        <button 
-                            onClick={() => { setIsAdding(false); setEditingUser(null); }}
-                            className="absolute top-10 right-10 w-16 h-16 rounded-pill bg-canvas flex items-center justify-center text-ink-primary hover:scale-110 transition-transform z-10 shadow-premium"
-                        >
-                            <X size={28} />
-                        </button>
-
-                        <div className="absolute top-0 left-0 w-3 h-full bg-accent-signature shadow-2xl"></div>
-
-                        <div className="mb-16">
-                            <h3 className="text-5xl font-black tracking-tighter text-ink-primary uppercase mb-3">
-                                {editingUser ? 'Edit Access.' : 'New Staff.'}
-                            </h3>
-                            <p className="text-xs font-black text-ink-secondary uppercase tracking-[0.4em] opacity-40">Access Level Configuration</p>
+                    <div className="glass-modal !max-w-[600px] !p-8">
+                        <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">
+                                    {editingUser ? 'PERMISSIONS.' : 'NEW STAFF.'}
+                                </h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">CONFIGURE ACCESS LEVEL & IDENTITYCLE</p>
+                            </div>
+                            <button 
+                                onClick={() => { setIsAdding(false); setEditingUser(null); }}
+                                className="w-8 h-8 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary"
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-16">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                        <form onSubmit={handleSubmit} className="space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary mb-4 opacity-50">Legal Identity</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-2 opacity-50">Legal Identity</label>
                                     <input 
                                         required 
                                         type="text" 
-                                        className="input-field !rounded-2xl !py-6 font-black !bg-canvas border border-black/5 shadow-sm text-xl" 
-                                        placeholder="Full Name..."
+                                        className="w-full bg-canvas border-none rounded-2xl p-4 font-black text-base text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase" 
+                                        placeholder="FULL NAME..."
                                         value={formData.name} 
                                         onChange={e => setFormData({...formData, name: e.target.value})} 
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary mb-4 opacity-50">Access Credential (Email)</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-2 opacity-50">Access Credential</label>
                                     <input 
                                         required 
                                         type="email" 
-                                        className="input-field !rounded-2xl !py-6 font-black !bg-canvas border border-black/5 shadow-sm text-xl" 
+                                        className="w-full bg-canvas border-none rounded-2xl p-4 font-black text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
                                         placeholder="institutional@domain.com"
                                         value={formData.email} 
                                         onChange={e => setFormData({...formData, email: e.target.value})} 
@@ -171,8 +170,8 @@ const Users = () => {
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary mb-8 opacity-50">Role Access Levels</label>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-4 opacity-50">Role Access Levels</label>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {AVAILABLE_ROLES.map(role => {
                                         const isSelected = formData.roles.includes(role.key);
                                         const RoleIcon = ROLE_ICONS[role.key] || User;
@@ -180,34 +179,34 @@ const Users = () => {
                                             <div
                                                 key={role.key}
                                                 onClick={() => toggleRole(role.key)}
-                                                className={`p-10 rounded-bento border-4 cursor-pointer transition-all flex items-center gap-8 group ${
+                                                className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 group ${
                                                     isSelected 
-                                                    ? 'bg-ink-primary border-ink-primary text-surface shadow-2xl scale-105' 
-                                                    : 'bg-surface border-black/5 hover:border-black/20 text-ink-primary hover:scale-[1.02]'
+                                                    ? 'bg-ink-primary border-ink-primary text-surface shadow-premium scale-[1.02]' 
+                                                    : 'bg-surface border-black/5 hover:border-black/10 text-ink-primary'
                                                 }`}
                                             >
-                                                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 transition-all ${
-                                                    isSelected ? 'bg-accent-signature text-ink-primary shadow-lg' : 'bg-canvas'
+                                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
+                                                    isSelected ? 'bg-accent-signature text-ink-primary' : 'bg-canvas'
                                                 }`}>
-                                                    <RoleIcon size={28} />
+                                                    <RoleIcon size={18} />
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <div className="text-base font-black uppercase tracking-tight leading-none mb-2">{role.label}</div>
-                                                    <div className={`text-[10px] font-black uppercase tracking-[0.2em] opacity-40 truncate ${isSelected ? 'text-surface' : 'text-ink-secondary'}`}>{role.description}</div>
+                                                    <div className="text-xs font-black uppercase tracking-tight leading-none mb-1">{role.label}</div>
+                                                    <div className={`text-[8px] font-black uppercase tracking-widest opacity-40 truncate ${isSelected ? 'text-surface/60' : 'text-ink-secondary'}`}>{role.description}</div>
                                                 </div>
-                                                {isSelected && <Check size={24} className="ml-auto text-accent-signature" />}
+                                                {isSelected && <Check size={16} className="ml-auto text-accent-signature" />}
                                             </div>
                                         );
                                     })}
                                 </div>
                             </div>
 
-                            <div className="flex gap-6 pt-10 border-t border-black/5">
-                                <button type="button" className="flex-1 py-7 rounded-pill border border-black/10 font-black text-ink-primary hover:bg-black/5 transition-all text-xs tracking-widest uppercase" onClick={() => { setIsAdding(false); setEditingUser(null); }}>Abort</button>
-                                <button type="submit" className="btn-signature flex-[2.5] !h-[84px] !text-lg">
-                                    {editingUser ? 'SAVE CHANGES' : 'ADD STAFF MEMBER'}
-                                    <div className="icon-nest ml-6">
-                                        <Save size={28} />
+                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/5">
+                                <button type="button" className="px-6 py-3 rounded-pill border border-black/10 font-black text-ink-primary text-[10px] uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => { setIsAdding(false); setEditingUser(null); }}>Cancel</button>
+                                <button type="submit" className="btn-signature !h-12 !text-xs flex items-center justify-center px-6 !rounded-pill">
+                                    {editingUser ? 'SAVE CHANGES' : 'ADD STAFF'}
+                                    <div className="icon-nest !w-8 !h-8 ml-4">
+                                        <Save size={18} />
                                     </div>
                                 </button>
                             </div>
@@ -218,19 +217,19 @@ const Users = () => {
 
             {/* Personnel Ledger */}
             <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
-                <div className="bg-ink-primary p-10 flex items-center gap-5">
-                    <Fingerprint size={28} className="text-accent-signature" />
-                    <h2 className="text-sm font-black uppercase tracking-[0.5em] text-surface">Staff List.</h2>
+                <div className="bg-ink-primary p-6 flex items-center gap-4">
+                    <Fingerprint size={24} className="text-accent-signature" />
+                    <h2 className="text-xs font-black uppercase tracking-[0.4em] text-surface">Staff List.</h2>
                 </div>
                 
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-black/5 bg-canvas">
-                                <th className="p-10 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Staff Member</th>
-                                <th className="p-10 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Access Levels</th>
-                                <th className="p-10 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50">Status</th>
-                                <th className="p-10 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50 text-right">Actions</th>
+                                <th className="px-8 py-5 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50">Staff Member</th>
+                                <th className="px-8 py-5 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50">Access Levels</th>
+                                <th className="px-8 py-5 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50">Status</th>
+                                <th className="px-8 py-5 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-black/5 bg-surface">
@@ -239,57 +238,57 @@ const Users = () => {
                                 const primaryRole = userRoles[0];
                                 return (
                                     <tr key={user.id} className={`group hover:bg-canvas transition-colors ${user.status !== 'ACTIVE' ? 'opacity-40 grayscale' : ''}`}>
-                                        <td className="p-10">
-                                            <div className="flex items-center gap-6">
-                                                <div className="w-16 h-16 rounded-2xl bg-canvas border border-black/5 shadow-sm flex items-center justify-center text-ink-primary group-hover:bg-ink-primary group-hover:text-accent-signature transition-all duration-500">
-                                                    {(() => { const Icon = ROLE_ICONS[primaryRole] || User; return <Icon size={24} />; })()}
+                                        <td className="px-8 py-5">
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-10 h-10 rounded-xl bg-canvas border border-black/5 shadow-sm flex items-center justify-center text-ink-primary group-hover:bg-ink-primary group-hover:text-accent-signature transition-all duration-500">
+                                                    {(() => { const Icon = ROLE_ICONS[primaryRole] || User; return <Icon size={18} />; })()}
                                                 </div>
                                                 <div>
-                                                    <div className="text-base font-black text-ink-primary uppercase tracking-tight leading-none mb-2">{user.name}</div>
-                                                    <div className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] opacity-40">{user.email}</div>
+                                                    <div className="text-sm font-black text-ink-primary uppercase tracking-tight leading-none mb-1.5">{user.name}</div>
+                                                    <div className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.1em] opacity-40">{user.email}</div>
                                                 </div>
                                             </div>
                                         </td>
-                                        <td className="p-10">
-                                            <div className="flex gap-2 flex-wrap">
+                                        <td className="px-8 py-5">
+                                            <div className="flex gap-1.5 flex-wrap">
                                                 {userRoles.map(r => (
-                                                    <span key={r} className="px-5 py-2 rounded-pill bg-canvas text-ink-primary text-[10px] font-black uppercase tracking-widest border border-black/5 shadow-sm">
+                                                    <span key={r} className="px-3 py-1 rounded-pill bg-canvas text-ink-primary text-[8px] font-black uppercase tracking-widest border border-black/5 shadow-sm">
                                                         {r}
                                                     </span>
                                                 ))}
                                             </div>
                                         </td>
-                                        <td className="p-10">
-                                            <div className="flex items-center gap-3">
-                                                <div className={`w-3 h-3 rounded-full shadow-lg ${user.status === 'ACTIVE' ? 'bg-accent-signature shadow-accent-signature/40' : 'bg-red-500 shadow-red-500/40'}`} />
-                                                <span className="text-[11px] font-black uppercase tracking-widest text-ink-primary opacity-60">
+                                        <td className="px-8 py-5">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className={`w-2.5 h-2.5 rounded-full shadow-lg ${user.status === 'ACTIVE' ? 'bg-accent-signature shadow-accent-signature/40' : 'bg-red-500 shadow-red-500/40'}`} />
+                                                <span className="text-[10px] font-black uppercase tracking-widest text-ink-primary opacity-60">
                                                     {user.status}
                                                 </span>
                                             </div>
                                         </td>
-                                        <td className="p-10 text-right">
-                                            <div className="flex gap-3 justify-end opacity-0 group-hover:opacity-100 transition-all duration-500 translate-x-4 group-hover:translate-x-0">
+                                        <td className="px-8 py-5 text-right">
+                                            <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-all duration-500 translate-x-2 group-hover:translate-x-0">
                                                 <button 
-                                                    className="w-12 h-12 rounded-2xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-ink-primary hover:bg-accent-signature transition-all"
+                                                    className="w-9 h-9 rounded-xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-ink-primary hover:bg-accent-signature transition-all"
                                                     onClick={() => openEdit(user)}
                                                     title="Edit Permissions"
                                                 >
-                                                    <Edit3 size={18} />
+                                                    <Edit3 size={16} />
                                                 </button>
                                                 <button 
-                                                    className={`w-12 h-12 rounded-2xl bg-surface border border-black/5 shadow-premium flex items-center justify-center transition-all ${user.status === 'ACTIVE' ? 'text-red-500 hover:bg-red-50' : 'text-green-500 hover:bg-green-50'}`}
+                                                    className={`w-9 h-9 rounded-xl bg-surface border border-black/5 shadow-premium flex items-center justify-center transition-all ${user.status === 'ACTIVE' ? 'text-red-500 hover:bg-red-50' : 'text-green-500 hover:bg-green-50'}`}
                                                     onClick={() => toggleStatus(user)}
                                                     disabled={user.id === currentUser.id}
                                                     title={user.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
                                                 >
-                                                    <Activity size={18} />
+                                                    <Activity size={16} />
                                                 </button>
                                                 {user.id !== currentUser.id && (
                                                     <button 
-                                                        className="w-12 h-12 rounded-2xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-red-500 hover:bg-red-50 transition-all"
+                                                        className="w-9 h-9 rounded-xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-red-500 hover:bg-red-50 transition-all"
                                                         onClick={() => { if(window.confirm('Remove staff record?')) handleDelete(user.id); }}
                                                     >
-                                                        <Trash2 size={18} />
+                                                        <Trash2 size={16} />
                                                     </button>
                                                 )}
                                             </div>

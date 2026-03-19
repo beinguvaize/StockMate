@@ -90,7 +90,7 @@ const Navbar = () => {
                             {isUserMenuOpen && (
                                 <div className="absolute top-full right-0 mt-3 w-64 bg-surface rounded-[2rem] border border-black/5 shadow-2xl p-4 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 z-[100]">
                                     <div className="mb-4 pb-4 border-b border-black/5">
-                                        <p className="text-[10px] font-bold text-ink-secondary uppercase tracking-widest mb-3 px-2 opacity-40">Administration</p>
+                                        <p className="text-[10px] font-bold text-ink-secondary uppercase tracking-widest mb-3 px-2 opacity-80">Administration</p>
                                         <div className="space-y-1">
                                             {adminItems.filter(i => !i.hidden).map(item => (
                                                 <NavLink

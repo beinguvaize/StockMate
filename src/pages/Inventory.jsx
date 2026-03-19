@@ -1,10 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAppContext } from '../context/AppContext';
-import { Plus, PackagePlus, AlertCircle, History, Tag as TagIcon, Barcode as BarcodeIcon, X, CheckCircle2, Pencil, Trash2 } from 'lucide-react';
+import { uploadProductImage } from '../lib/supabase';
+import { Plus, PackagePlus, AlertCircle, History, Tag as TagIcon, Barcode as BarcodeIcon, X, CheckCircle2, Pencil, Trash2, ImagePlus, Upload, Percent } from 'lucide-react';
 import Barcode from 'react-barcode';
 
 const CATEGORIES = ['Electronics', 'Accessories', 'Furniture', 'Clothing', 'Other'];
 const UNITS = ['pcs', 'kg', 'ltr', 'box', 'set'];
+
+const TAX_SLABS = [
+    { label: 'Exempt', rate: 0, description: 'Tax-free' },
+    { label: 'VAT 5%', rate: 5, description: 'UAE Standard VAT' },
+    { label: 'GST 12%', rate: 12, description: 'India GST Slab' },
+    { label: 'GST 18%', rate: 18, description: 'India GST Slab' },
+    { label: 'GST 28%', rate: 28, description: 'India GST Slab' },
+    { label: 'Custom', rate: null, description: 'Custom rate' },
+];
 
 const Inventory = () => {
     const { products, addProduct, updateProduct, deleteProduct, adjustStock, movementLog, businessProfile, hasPermission } = useAppContext();
@@ -15,15 +25,21 @@ const Inventory = () => {
     const [adjustAmounts, setAdjustAmounts] = useState({});
     const [adjustReasons, setAdjustReasons] = useState({});
     const [adjustSources, setAdjustSources] = useState({});
+    const [imageFile, setImageFile] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef(null);
 
     const [formData, setFormData] = useState({
         name: '', sku: '', category: CATEGORIES[0], unit: UNITS[0],
-        costPrice: '', sellingPrice: '', stock: '', taxRate: '', tags: ''
+        costPrice: '', sellingPrice: '', stock: '', taxRate: '', taxSlab: 'Exempt', tags: '', image: ''
     });
 
     const openAddModal = () => {
         setEditingProduct(null);
-        setFormData({ name: '', sku: '', category: CATEGORIES[0], unit: UNITS[0], costPrice: '', sellingPrice: '', stock: '', taxRate: '', tags: '' });
+        setFormData({ name: '', sku: '', category: CATEGORIES[0], unit: UNITS[0], costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '' });
+        setImageFile(null);
+        setImagePreview(null);
         setShowAddModal(true);
     };
 
@@ -32,17 +48,61 @@ const Inventory = () => {
         setFormData({
             ...p,
             taxRate: p.taxRate || 0,
-            tags: p.tags ? p.tags.join(', ') : ''
+            taxSlab: p.taxSlab || (TAX_SLABS.find(s => s.rate === (p.taxRate || 0))?.label) || 'Custom',
+            tags: p.tags ? p.tags.join(', ') : '',
+            image: p.image || ''
         });
+        setImageFile(null);
+        setImagePreview(p.image || null);
         setShowAddModal(true);
     };
 
-    const handleAddSubmit = (e) => {
+    const handleImageSelect = (file) => {
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image must be under 5MB');
+            return;
+        }
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+        setImageFile(file);
+        const reader = new FileReader();
+        reader.onload = (e) => setImagePreview(e.target.result);
+        reader.readAsDataURL(file);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const file = e.dataTransfer.files?.[0];
+        if (file) handleImageSelect(file);
+    };
+
+    const handleAddSubmit = async (e) => {
         e.preventDefault();
         if (!formData.name || !formData.sellingPrice || !formData.costPrice || !formData.sku) return;
 
+        setUploading(true);
+
+        let imageUrl = formData.image || '';
+
+        // Upload new image if one was selected
+        if (imageFile) {
+            const { url, error } = await uploadProductImage(imageFile);
+            if (error) {
+                console.error("Image upload failed:", error);
+                // Non-blocking: alert the user but continue saving the product
+                alert(`Image upload failed: ${error}. The product will be saved without an image.`);
+            } else {
+                imageUrl = url;
+            }
+        }
+
         const parsedData = {
             ...formData,
+            image: imageUrl,
             costPrice: parseFloat(formData.costPrice) || 0,
             sellingPrice: parseFloat(formData.sellingPrice) || 0,
             stock: parseInt(formData.stock) || 0,
@@ -56,6 +116,7 @@ const Inventory = () => {
             addProduct(parsedData);
         }
 
+        setUploading(false);
         setShowAddModal(false);
     };
 
@@ -134,7 +195,15 @@ const Inventory = () => {
                                                 </div>
                                                 <div>
                                                     <div className="text-sm font-black text-ink-primary uppercase leading-tight mb-1">{product.name}</div>
-                                                    <div className="text-[10px] font-bold text-ink-secondary uppercase tracking-widest opacity-40">{product.sku}</div>
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="text-[10px] font-bold text-ink-secondary uppercase tracking-widest opacity-40">{product.sku}</span>
+                                                        {(product.taxSlab && product.taxSlab !== 'Exempt' || product.taxRate > 0) && (
+                                                            <span className="px-2 py-0.5 bg-amber-50 rounded-pill text-[7px] font-black uppercase tracking-widest text-amber-700 border border-amber-200 flex items-center gap-1">
+                                                                <Percent size={8} />
+                                                                {product.taxSlab || `${product.taxRate}%`}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </td>
@@ -214,38 +283,91 @@ const Inventory = () => {
             {/* Add/Edit Product Modal */}
             {showAddModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[700px] !p-5 !py-5">
-                        <div className="flex justify-between items-start mb-3">
+                    <div className="glass-modal !max-w-[800px] !p-10">
+                        <div className="flex justify-between items-start mb-8">
                             <div>
-                                <h1 className="text-6xl font-black text-ink-primary tracking-tighter uppercase leading-none">ADD NEW PRODUCT.</h1>
-                                <p className="text-[11px] font-black text-ink-secondary uppercase tracking-[0.3em] mt-0.5 opacity-70">Enter product details</p>
+                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">ADD NEW PRODUCT.</h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">ENTER PRODUCT LOGISTICS & DETAILS</p>
                             </div>
-                            <button className="w-8 h-8 rounded-pill bg-canvas flex items-center justify-center hover:scale-110 transition-all cursor-pointer text-ink-primary" onClick={() => setShowAddModal(false)}>
-                                <X size={16} />
+                            <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowAddModal(false)}>
+                                <X size={18} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleAddSubmit} className="grid grid-cols-2 gap-2">
-                            <div className="col-span-2">
-                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Product Name</label>
-                                <input required type="text" className="w-full bg-canvas border-none rounded-2xl p-3 font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all text-lg" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. HIGH-FIDELITY UNIT" />
+                        <form onSubmit={handleAddSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                            <div className="md:col-span-2">
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1.5 block opacity-60">Product Name</label>
+                                <input required type="text" className="w-full bg-canvas border-none rounded-2xl p-4 font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all text-lg" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="e.g. HIGH-FIDELITY UNIT" />
                             </div>
 
                             <div>
-                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">SKU / Barcode</label>
-                                <input required type="text" className="w-full bg-canvas border-none rounded-2xl p-3 font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/10" value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value })} placeholder="Enter SKU" />
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1.5 block opacity-60">SKU / Barcode</label>
+                                <input required type="text" className="w-full bg-canvas border-none rounded-2xl p-4 font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/10 transition-all" value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value })} placeholder="Enter SKU" />
                             </div>
 
                             <div>
-                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Category</label>
-                                <select className="w-full bg-canvas border-none rounded-2xl p-3 font-black text-ink-primary outline-none appearance-none cursor-pointer focus:ring-4 focus:ring-accent-signature/10" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1.5 block opacity-60">Category</label>
+                                <select className="w-full bg-canvas border-none rounded-2xl p-4 font-black text-ink-primary outline-none appearance-none cursor-pointer focus:ring-4 focus:ring-accent-signature/10 transition-all" value={formData.category} onChange={e => setFormData({ ...formData, category: e.target.value })}>
                                     {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
                             </div>
 
-                            <div className="col-span-2 bg-canvas p-3 rounded-bento border-2 border-dashed border-black/5 flex flex-col items-center justify-center gap-2">
+                            {/* Product Image Upload */}
+                            <div className="md:col-span-2">
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1.5 block opacity-60">Product Image</label>
+                                <div
+                                    className="bg-canvas p-4 rounded-bento border-2 border-dashed border-black/10 hover:border-accent-signature/40 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[140px] relative group"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    onDrop={handleDrop}
+                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                >
+                                    <input
+                                        ref={fileInputRef}
+                                        type="file"
+                                        accept="image/*"
+                                        className="hidden"
+                                        onChange={(e) => handleImageSelect(e.target.files?.[0])}
+                                    />
+                                    {imagePreview ? (
+                                        <div className="flex items-center gap-6">
+                                            <div className="w-24 h-24 rounded-2xl overflow-hidden border border-black/10 shadow-premium shrink-0">
+                                                <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
+                                            </div>
+                                            <div className="flex flex-col items-start gap-2">
+                                                <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Image Selected</span>
+                                                <span className="text-[9px] font-bold text-ink-secondary uppercase tracking-widest opacity-50">
+                                                    {imageFile ? `${(imageFile.size / 1024).toFixed(0)} KB — ${imageFile.name}` : 'Current image'}
+                                                </span>
+                                                <button
+                                                    type="button"
+                                                    className="text-[9px] font-black uppercase tracking-widest text-red-500 hover:text-red-700 transition-colors"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setImageFile(null);
+                                                        setImagePreview(null);
+                                                        setFormData({...formData, image: ''});
+                                                    }}
+                                                >
+                                                    Remove Image
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <div className="w-14 h-14 rounded-2xl bg-surface border border-black/5 flex items-center justify-center text-ink-primary/20 group-hover:text-accent-signature/60 transition-colors">
+                                                <ImagePlus size={28} />
+                                            </div>
+                                            <span className="text-[10px] font-black text-ink-primary/30 uppercase tracking-widest group-hover:text-ink-primary/60 transition-colors">Click or drag to upload image</span>
+                                            <span className="text-[8px] font-bold text-ink-secondary/20 uppercase tracking-widest">PNG, JPG, WebP — Max 5MB</span>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Barcode Preview */}
+                            <div className="md:col-span-2 bg-canvas p-4 rounded-bento border-2 border-dashed border-black/5 flex flex-col items-center justify-center gap-2">
                                 {formData.sku ? (
-                                    <div className="bg-surface p-2 rounded-2xl shadow-xl">
+                                    <div className="bg-surface p-3 rounded-2xl shadow-premium">
                                         <Barcode value={formData.sku} height={32} displayValue={true} background="transparent" lineColor="var(--color-ink-primary)" font="Inter" fontSize={11} textMargin={4} width={1.8} />
                                     </div>
                                 ) : (
@@ -253,40 +375,81 @@ const Inventory = () => {
                                 )}
                             </div>
 
-                            <div className="col-span-1 p-3 rounded-bento bg-canvas border border-black/5">
-                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Cost Price</label>
-    <div className="flex items-center gap-2">
-        <span className="text-2x font-black text-ink-primary opacity-40">$</span>
-        <input required type="number" step="0.01" className="bg-transparent border-none w-full p-0 text-xl font-black text-ink-primary outline-none" value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value })} />
+                            <div className="col-span-1 p-4 rounded-bento bg-canvas border border-black/5">
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1.5 block opacity-60">Cost Price</label>
+    <div className="flex items-center gap-3">
+        <span className="text-xl font-black text-ink-primary opacity-40">$</span>
+        <input required type="number" step="0.01" className="bg-transparent border-none w-full p-0 text-2xl font-black text-ink-primary outline-none" value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value })} />
     </div>
 </div>
 
-                            <div className="col-span-1 p-3 rounded-bento bg-ink-primary shadow-premium">
-                                <label className="text-[10px] font-black text-surface uppercase tracking-widest mb-1 block opacity-90">Selling Price</label>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-2x font-black text-surface opacity-90">$</span>
-                                    <input required type="number" step="0.01" className="bg-transparent border-none w-full p-0 text-xl font-black text-accent-signature outline-none" value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value })} />
+                            <div className="col-span-1 p-4 rounded-bento bg-accent-signature/10 border border-accent-signature/20">
+                                <label className="text-[10px] font-black text-ink-primary uppercase tracking-widest mb-1.5 block opacity-60">Selling Price</label>
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xl font-black text-ink-primary opacity-40">$</span>
+                                    <input required type="number" step="0.01" className="bg-transparent border-none w-full p-0 text-2xl font-black text-ink-primary outline-none" value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value })} />
                                 </div>
                             </div>
 
-                            <div className="col-span-1">
-                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Unit</label>
-                                <select className="w-full bg-canvas border-none rounded-2xl p-3 font-black text-ink-primary outline-none appearance-none cursor-pointer focus:ring-4 focus:ring-accent-signature/10" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
+                            <div>
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1.5 block opacity-60">Unit</label>
+                                <select className="w-full bg-canvas border-none rounded-2xl p-4 font-black text-ink-primary outline-none appearance-none cursor-pointer focus:ring-4 focus:ring-accent-signature/10 transition-all" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value })}>
                                     {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                                 </select>
                             </div>
 
-                            <div className="col-span-1">
-                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1 block opacity-90">Initial Stock</label>
-                                <input type="number" className="w-full bg-canvas border-none rounded-2xl p-3 font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/10" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} />
+                            <div>
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1.5 block opacity-60">Initial Stock</label>
+                                <input type="number" className="w-full bg-canvas border-none rounded-2xl p-4 font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/10 transition-all" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} />
                             </div>
 
-                            <div className="col-span-2 grid grid-cols-2 gap-4 mt-4">
-                                <button type="button" className="px-6 py-3 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowAddModal(false)}>Cancel</button>
-                                <button type="submit" className="btn-signature !h-12 !text-sm flex items-center justify-center px-4 !rounded-pill">
-                                    {editingProduct ? 'Save Changes' : 'Add Product'}
-                                    <div className="icon-nest !w-8 !h-8 ml-3">
-                                        <CheckCircle2 size={20} />
+                            {/* Tax Slab Selector */}
+                            <div className="md:col-span-2">
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-2 block opacity-60">Tax Slab</label>
+                                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                                    {TAX_SLABS.map(slab => (
+                                        <button
+                                            key={slab.label}
+                                            type="button"
+                                            className={`py-3 px-3 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border flex flex-col items-center gap-1 ${
+                                                formData.taxSlab === slab.label
+                                                    ? 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/20'
+                                                    : 'bg-canvas text-ink-primary border-black/5 hover:border-amber-300'
+                                            }`}
+                                            onClick={() => {
+                                                const rate = slab.rate !== null ? slab.rate : formData.taxRate;
+                                                setFormData({ ...formData, taxSlab: slab.label, taxRate: rate });
+                                            }}
+                                        >
+                                            <span className="text-sm font-black leading-none">{slab.rate !== null ? `${slab.rate}%` : '?%'}</span>
+                                            <span className="opacity-70 leading-none">{slab.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                                {formData.taxSlab === 'Custom' && (
+                                    <div className="mt-3 flex items-center gap-3">
+                                        <Percent size={16} className="text-amber-500 shrink-0" />
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            max="100"
+                                            placeholder="Enter custom rate..."
+                                            className="flex-1 bg-canvas border border-amber-200 rounded-xl p-3 font-black text-ink-primary text-sm outline-none focus:ring-4 focus:ring-amber-500/20 transition-all"
+                                            value={formData.taxRate}
+                                            onChange={e => setFormData({ ...formData, taxRate: e.target.value })}
+                                        />
+                                        <span className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">%</span>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="md:col-span-2 grid grid-cols-2 gap-4 mt-6">
+                                <button type="button" className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowAddModal(false)}>Cancel</button>
+                                <button type="submit" disabled={uploading} className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill disabled:opacity-50 disabled:cursor-not-allowed">
+                                    {uploading ? 'Uploading...' : (editingProduct ? 'Save Changes' : 'Add Product')}
+                                    <div className="icon-nest !w-10 !h-10 ml-4">
+                                        {uploading ? <Upload size={22} className="animate-pulse" /> : <CheckCircle2 size={22} />}
                                     </div>
                                 </button>
                             </div>
@@ -299,27 +462,28 @@ const Inventory = () => {
             {showHistoryModal && (
                 <div className="modal-overlay">
                     <div className="glass-modal !p-0 !max-w-[1200px] flex flex-col !rounded-bento overflow-hidden">
-                        <div className="p-6 border-b border-black/5 flex justify-between items-center bg-canvas">
+                        <div className="p-8 border-b border-black/5 flex justify-between items-center bg-canvas">
                             <div>
-                                <h1 className="text-6xl font-black tracking-tighter text-ink-primary mb-2 uppercase">INVENTORY.</h1>
-                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">STOCK MANAGEMENT & LOGISTICS</p>
+                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">MOVEMENT LOG.</h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">STOCK MANAGEMENT & LOGISTICS HISTORY</p>
                             </div>
                             <button className="w-12 h-12 rounded-pill border border-black/10 flex items-center justify-center hover:bg-ink-primary hover:text-surface transition-all cursor-pointer text-ink-primary" onClick={() => setShowHistoryModal(false)}>
                                 <X size={24} />
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-6">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="sticky top-0 z-10 bg-surface">
-                                    <tr className="border-b-4 border-black/5">
-                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80">Date</th>
-                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80">Product</th>
-                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80 text-center">Type</th>
-                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80 text-center">Quantity</th>
-                                        <th className="pb-3 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-80 text-right">Reason</th>
-                                    </tr>
-                                </thead>
+                        <div className="flex-1 overflow-y-auto p-8">
+                            <div className="overflow-x-auto no-scrollbar">
+                                <table className="w-full text-left border-collapse min-w-[800px]">
+                                    <thead className="sticky top-0 z-10 bg-surface">
+                                        <tr className="border-b-4 border-black/5">
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40">Date</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40">Product</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40 text-center">Type</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40 text-center">Quantity</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40 text-right">Reason</th>
+                                        </tr>
+                                    </thead>
                                 <tbody className="divide-y divide-black/5">
                                     {(movementLog || []).map(log => (
                                         <tr key={log.id} className="hover:bg-canvas transition-colors">
@@ -346,6 +510,7 @@ const Inventory = () => {
                                     )}
                                 </tbody>
                             </table>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -4,8 +4,24 @@ import {
     Truck, Map, Settings as SettingsIcon, Plus, Play, Flag, 
     FileText, AlertTriangle, X, ShoppingCart, ChevronRight,
     MapPin, Navigation, Gauge, Calendar, ShieldCheck, 
-    Save, Hash, History, CheckCircle2
+    Save, Hash, History, CheckCircle2, Crosshair, Radio
 } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Custom vehicle marker icon
+const vehicleIcon = new L.DivIcon({
+    className: 'custom-vehicle-marker',
+    html: `<div style="background:#c8ff00;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #1a1a1a;box-shadow:0 4px 16px rgba(0,0,0,0.3);"><svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='#1a1a1a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2'/><path d='M15 18H9'/><path d='M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14'/><circle cx='17' cy='18' r='2'/><circle cx='7' cy='18' r='2'/></svg></div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -20],
+});
+
+// Default map center (Dubai)
+const DEFAULT_CENTER = [25.2048, 55.2708];
+const DEFAULT_ZOOM = 11;
 
 const Vehicles = () => {
     const { 
@@ -201,6 +217,7 @@ const Vehicles = () => {
                 <div className="md:col-span-1 flex h-12 gap-1 bg-surface p-1 rounded-pill border border-black/5 shadow-premium">
                     {[
                         { id: 'ROUTES', label: 'Dispatches', icon: Navigation },
+                        { id: 'TRACKER', label: 'Tracker', icon: Crosshair },
                         { id: 'FLEET', label: 'Fleet', icon: Truck }
                     ].map(tab => (
                         <button
@@ -370,6 +387,118 @@ const Vehicles = () => {
                 </div>
             )}
 
+            {activeTab === 'TRACKER' && (
+                <div className="space-y-6">
+                    <div className="flex items-center gap-3">
+                        <div className="w-2 h-6 bg-accent-signature rounded-pill"></div>
+                        <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-60">Live Vehicle Tracker</h2>
+                        <div className="flex items-center gap-2 ml-auto">
+                            <Radio size={14} className="text-accent-signature animate-pulse" />
+                            <span className="text-[9px] font-black uppercase tracking-widest text-accent-signature">{activeRoutes.length} Active</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4" style={{height: '500px'}}>
+                        {/* Map */}
+                        <div className="lg:col-span-3 rounded-bento overflow-hidden border border-black/5 shadow-premium relative" style={{height: '500px'}}>
+                            <MapContainer
+                                center={DEFAULT_CENTER}
+                                zoom={DEFAULT_ZOOM}
+                                style={{ height: '100%', width: '100%', borderRadius: 'inherit' }}
+                                scrollWheelZoom={true}
+                            >
+                                <TileLayer
+                                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                                />
+                                {activeRoutes.map(route => {
+                                    const lat = route.lat || (DEFAULT_CENTER[0] + (Math.random() - 0.5) * 0.1);
+                                    const lng = route.lng || (DEFAULT_CENTER[1] + (Math.random() - 0.5) * 0.1);
+                                    const vehicle = vehicles.find(v => v.id === route.vehicleId);
+                                    const itemsLoaded = route.loadedStock.reduce((s, i) => s + i.quantity, 0);
+
+                                    return (
+                                        <Marker key={route.id} position={[lat, lng]} icon={vehicleIcon}>
+                                            <Popup>
+                                                <div style={{fontFamily: 'Inter, sans-serif', minWidth: '180px'}}>
+                                                    <div style={{fontWeight: 900, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '-0.02em', marginBottom: '4px'}}>
+                                                        {vehicle?.name || 'UNIT'}
+                                                    </div>
+                                                    <div style={{fontSize: '10px', fontWeight: 700, color: '#747576', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px'}}>
+                                                        {vehicle?.plate}
+                                                    </div>
+                                                    <div style={{display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px'}}>
+                                                        <span>🚗 Driver: <strong>{getEmployeeName(route.driverId)}</strong></span>
+                                                        <span>📍 Area: <strong>{route.location || 'Global'}</strong></span>
+                                                        <span>📦 Stock: <strong>{itemsLoaded} units</strong></span>
+                                                        <span>🔢 Odometer: <strong>{route.initialOdometer?.toLocaleString()} km</strong></span>
+                                                    </div>
+                                                </div>
+                                            </Popup>
+                                        </Marker>
+                                    );
+                                })}
+                            </MapContainer>
+
+                            {activeRoutes.length === 0 && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-surface/80 backdrop-blur-sm z-[1000]">
+                                    <div className="text-center">
+                                        <Crosshair size={48} className="text-ink-primary/10 mx-auto mb-4" />
+                                        <div className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">No Active Vehicles</div>
+                                        <div className="text-[9px] font-bold text-ink-secondary mt-1 opacity-30">Dispatch a vehicle to see it on the map</div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Sidebar */}
+                        <div className="lg:col-span-1 flex flex-col gap-2 overflow-y-auto" style={{maxHeight: '500px'}}>
+                            {activeRoutes.length > 0 ? (
+                                activeRoutes.map(route => {
+                                    const vehicle = vehicles.find(v => v.id === route.vehicleId);
+                                    const itemsLoaded = route.loadedStock.reduce((s, i) => s + i.quantity, 0);
+                                    return (
+                                        <div key={route.id} className="glass-panel !p-4 !rounded-2xl border border-black/5 bg-surface hover:shadow-premium transition-all">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="w-10 h-10 rounded-xl bg-ink-primary text-accent-signature flex items-center justify-center shrink-0">
+                                                    <Truck size={16} />
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="text-xs font-black text-ink-primary uppercase tracking-tight leading-none truncate">{vehicle?.name}</div>
+                                                    <div className="text-[8px] font-bold text-ink-secondary uppercase tracking-widest opacity-40 mt-0.5">{vehicle?.plate}</div>
+                                                </div>
+                                                <div className="ml-auto">
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse shadow-lg shadow-green-400/30"></div>
+                                                </div>
+                                            </div>
+                                            <div className="space-y-2 text-[9px] font-black text-ink-secondary uppercase tracking-widest">
+                                                <div className="flex justify-between">
+                                                    <span className="opacity-40">Driver</span>
+                                                    <span className="text-ink-primary">{getEmployeeName(route.driverId)}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="opacity-40">Area</span>
+                                                    <span className="text-ink-primary">{route.location || 'Global'}</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="opacity-40">Stock</span>
+                                                    <span className="text-accent-signature">{itemsLoaded} units</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="glass-panel !p-8 !rounded-2xl border border-black/5 bg-surface text-center">
+                                    <MapPin size={24} className="text-ink-primary/10 mx-auto mb-3" />
+                                    <div className="text-[9px] font-black text-ink-secondary uppercase tracking-widest opacity-30">No vehicles dispatched</div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {activeTab === 'FLEET' && (
                 <div className="space-y-12">
                     <div className="flex justify-between items-center">
@@ -417,50 +546,46 @@ const Vehicles = () => {
             {/* REGISTER VEHICLE MODAL */}
             {showVehicleModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[600px] !p-8 md:!p-12 relative !rounded-[2.5rem]">
-                        <button 
-                            onClick={() => setShowVehicleModal(false)}
-                            className="absolute top-6 right-6 w-10 h-10 rounded-pill bg-canvas flex items-center justify-center text-ink-primary hover:scale-110 transition-transform z-20 shadow-premium"
-                        >
-                            <X size={18} />
-                        </button>
-
-                        <div className="absolute top-0 left-0 w-2 h-full bg-accent-signature"></div>
-
-                        <div className="mb-6">
-                            <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">FLEET.</h1>
-                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">LOGISTICS & MISSION CONTROL</p>
+                    <div className="glass-modal !max-w-[500px] !p-10">
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">FLEET.</h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">REGISTER NEW LOGISTICS UNIT</p>
+                            </div>
+                            <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowVehicleModal(false)}>
+                                <X size={18} />
+                            </button>
                         </div>
 
                         <form onSubmit={handleAddVehicle} className="space-y-6">
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Vehicle Name</label>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Vehicle Name</label>
                                 <input 
                                     required 
                                     type="text" 
-                                    className="input-field !rounded-xl !py-2.5 font-black text-lg bg-canvas/30" 
+                                    className="w-full bg-canvas border border-black/5 rounded-2xl p-4 font-black text-lg text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase" 
                                     placeholder="TRANSIT-V4-NORTH..."
                                     value={vehicleForm.name} 
                                     onChange={e => setVehicleForm({ ...vehicleForm, name: e.target.value })} 
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Identifier (License Plate)</label>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Identifier (License Plate)</label>
                                 <input 
                                     required 
                                     type="text" 
-                                    className="input-field !rounded-xl !py-2.5 font-bold bg-canvas/30 text-xs" 
+                                    className="w-full bg-canvas border border-black/5 rounded-2xl p-4 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase tracking-widest" 
                                     placeholder="XYZ-0000"
                                     value={vehicleForm.plate} 
                                     onChange={e => setVehicleForm({ ...vehicleForm, plate: e.target.value })} 
                                 />
                             </div>
-                            <div className="flex gap-4 pt-6">
-                                <button type="button" className="flex-1 py-3 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-[10px] tracking-widest uppercase" onClick={() => setShowVehicleModal(false)}>Abort</button>
-                                <button type="submit" className="btn-signature flex-[2] !py-3 !rounded-pill">
+                            <div className="grid grid-cols-2 gap-4 pt-4">
+                                <button type="button" className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowVehicleModal(false)}>Cancel</button>
+                                <button type="submit" className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill">
                                     SAVE VEHICLE
-                                    <div className="icon-nest">
-                                        <Plus size={20} />
+                                    <div className="icon-nest !w-10 !h-10 ml-4">
+                                        <Plus size={22} />
                                     </div>
                                 </button>
                             </div>
@@ -472,85 +597,78 @@ const Vehicles = () => {
             {/* DISPATCH MODAL */}
             {showDispatchModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[800px] !p-8 md:!p-12 relative !rounded-[2.5rem]">
-                        <button 
-                            onClick={() => setShowDispatchModal(false)}
-                            className="absolute top-6 right-6 w-10 h-10 rounded-pill bg-canvas flex items-center justify-center text-ink-primary hover:scale-110 transition-transform z-20 shadow-premium"
-                        >
-                            <X size={18} />
-                        </button>
-
-                        <div className="absolute top-0 left-0 w-2 h-full bg-accent-signature"></div>
-
-                        <div className="mb-6">
-                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">New Dispatch</h3>
-                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Assign vehicle and driver</p>
+                    <div className="glass-modal !max-w-[800px] !p-12">
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">DISPATCH.</h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">ASSIGN VEHICLE AND DRIVER UNIT</p>
+                            </div>
+                            <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowDispatchModal(false)}>
+                                <X size={18} />
+                            </button>
                         </div>
 
                         <form onSubmit={handleDispatch} className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-6">
-                                <div className="p-6 bg-canvas/30 rounded-2xl border border-black/5">
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-4">Vehicle Assignment</label>
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="text-[8px] font-black text-ink-secondary uppercase opacity-50 block mb-1 px-1">Selected Unit</label>
-                                            <select 
-                                                className="input-field !rounded-xl !py-2 !h-10 font-black text-xs uppercase appearance-none cursor-pointer" 
-                                                value={dispatchForm.vehicleId} 
-                                                onChange={e => {
-                                                    const vId = e.target.value;
-                                                    setDispatchForm({ 
-                                                        ...dispatchForm, 
-                                                        vehicleId: vId,
-                                                        initialOdometer: getLastOdometer(vId)
-                                                    });
-                                                }}
-                                            >
-                                                {vehicles.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-[8px] font-black text-ink-secondary uppercase opacity-50 block mb-1 px-1">Driver</label>
-                                            <select required className="input-field !rounded-xl !py-2 !h-10 font-black text-xs uppercase appearance-none cursor-pointer" value={dispatchForm.driverId} onChange={e => setDispatchForm({ ...dispatchForm, driverId: e.target.value })}>
-                                                <option value="">SELECT DRIVER...</option>
-                                                {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
-                                            </select>
-                                        </div>
-                                        <div>
-                                            <label className="text-[8px] font-black text-ink-secondary uppercase opacity-50 block mb-1 px-1">Route / Area</label>
-                                            <input 
-                                                required 
-                                                type="text" 
-                                                className="input-field !rounded-xl !py-2 !h-10 font-black text-xs uppercase" 
-                                                placeholder="TARGET AREA..."
-                                                value={dispatchForm.location} 
-                                                onChange={e => setDispatchForm({ ...dispatchForm, location: e.target.value })} 
-                                            />
-                                        </div>
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="text-[10px] font-black text-ink-secondary uppercase opacity-50 block mb-2 px-1 tracking-widest">Selected Unit</label>
+                                        <select 
+                                            className="w-full bg-canvas border border-black/5 rounded-2xl p-4 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase appearance-none cursor-pointer" 
+                                            value={dispatchForm.vehicleId} 
+                                            onChange={e => {
+                                                const vId = e.target.value;
+                                                setDispatchForm({ 
+                                                    ...dispatchForm, 
+                                                    vehicleId: vId,
+                                                    initialOdometer: getLastOdometer(vId)
+                                                });
+                                            }}
+                                        >
+                                            {vehicles.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-ink-secondary uppercase opacity-50 block mb-2 px-1 tracking-widest">Driver Unit</label>
+                                        <select required className="w-full bg-canvas border border-black/5 rounded-2xl p-4 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase appearance-none cursor-pointer" value={dispatchForm.driverId} onChange={e => setDispatchForm({ ...dispatchForm, driverId: e.target.value })}>
+                                            <option value="">SELECT DRIVER...</option>
+                                            {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-black text-ink-secondary uppercase opacity-50 block mb-2 px-1 tracking-widest">Route / Area Vector</label>
+                                        <input 
+                                            required 
+                                            type="text" 
+                                            className="w-full bg-canvas border border-black/5 rounded-2xl p-4 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase" 
+                                            placeholder="TARGET AREA..."
+                                            value={dispatchForm.location} 
+                                            onChange={e => setDispatchForm({ ...dispatchForm, location: e.target.value })} 
+                                        />
                                     </div>
                                 </div>
 
-                                <div className="p-6 bg-canvas/30 rounded-2xl border border-black/5">
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-4">Starting Odometer</label>
-                                    <input required type="number" className="input-field !rounded-xl !py-2.5 font-black text-lg" placeholder="Odometer Index..." value={dispatchForm.initialOdometer} onChange={e => setDispatchForm({ ...dispatchForm, initialOdometer: e.target.value })} />
+                                <div className="space-y-2">
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-2 px-1">Starting Odometer Index</label>
+                                    <input required type="number" className="w-full bg-canvas border border-black/5 rounded-2xl p-4 font-black text-xl text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all font-mono" placeholder="000000" value={dispatchForm.initialOdometer} onChange={e => setDispatchForm({ ...dispatchForm, initialOdometer: e.target.value })} />
                                 </div>
                             </div>
 
                             <div className="flex flex-col">
-                                <div className="flex-1 p-6 bg-ink-primary rounded-2xl flex flex-col mb-6">
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-surface/30 mb-4 flex items-center gap-2">
-                                        <ShoppingCart size={12} className="text-accent-signature" /> Pending Orders
+                                <div className="flex-1 p-8 bg-ink-primary rounded-[2.5rem] flex flex-col mb-8 shadow-premium">
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-surface/40 mb-4 flex items-center gap-2">
+                                        <ShoppingCart size={12} className="text-accent-signature" /> ASSET LOADING MATRIX
                                     </label>
-                                    <div className="flex-1 overflow-y-auto max-h-[200px] space-y-2 custom-scrollbar pr-2">
-                                        {products.filter(p => p.stock > 0).map(p => (
-                                            <div key={p.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
-                                                <div className="min-w-0">
-                                                    <div className="text-[10px] font-black text-surface uppercase truncate">{p.name}</div>
-                                                    <div className="text-[8px] font-bold text-surface/20 uppercase tracking-widest">{p.stock} units</div>
+                                    <div className="flex-1 overflow-y-auto max-h-[350px] space-y-2 custom-scrollbar pr-2">
+                                        {products.filter(p => p.stock >= 0).map(p => (
+                                            <div key={p.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-all">
+                                                <div className="min-w-0 pr-4">
+                                                    <div className="text-[11px] font-black text-surface uppercase truncate tracking-tight">{p.name}</div>
+                                                    <div className="text-[9px] font-black text-surface/20 uppercase tracking-[0.2em] mt-0.5">{p.stock} AVAILABLE</div>
                                                 </div>
                                                 <input 
                                                     type="number" 
-                                                    className="w-16 bg-white/10 border-none rounded-lg p-2 text-center text-xs font-black text-accent-signature outline-none"
+                                                    className="w-20 bg-white/10 border-none rounded-xl p-3 text-center text-sm font-black text-accent-signature outline-none focus:bg-white/20 transition-all"
                                                     placeholder="0"
                                                     value={dispatchForm.loadedStock[p.id] || ''}
                                                     onChange={(e) => setDispatchForm({
@@ -563,12 +681,15 @@ const Vehicles = () => {
                                     </div>
                                 </div>
 
-                                <button type="submit" className="btn-signature !h-14 w-full">
-                                    CONFIRM DISPATCH
-                                    <div className="icon-nest">
-                                        <CheckCircle2 size={24} />
-                                    </div>
-                                </button>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <button type="button" className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowDispatchModal(false)}>Cancel</button>
+                                    <button type="submit" className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill">
+                                        START DISPATCH
+                                        <div className="icon-nest !w-10 !h-10 ml-4">
+                                            <CheckCircle2 size={24} />
+                                        </div>
+                                    </button>
+                                </div>
                             </div>
                         </form>
                     </div>
@@ -578,56 +699,49 @@ const Vehicles = () => {
             {/* RECONCILE MODAL */}
             {showReconcileModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[600px] !p-8 md:!p-12 relative !rounded-[2.5rem]">
-                        <button 
-                            onClick={() => setShowReconcileModal(null)}
-                            className="absolute top-6 right-6 w-10 h-10 rounded-pill bg-canvas flex items-center justify-center text-ink-primary hover:scale-110 transition-transform z-20 shadow-premium"
-                        >
-                            <X size={18} />
-                        </button>
-
-                        <div className="absolute top-0 left-0 w-2 h-full bg-accent-signature"></div>
-
-                        <div className="mb-6">
-                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">Trip Summary</h3>
-                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">
-                                Trip Completion & Review • {showReconcileModal.location || 'GLOBAL'}
-                            </p>
+                    <div className="glass-modal !max-w-[700px] !p-12">
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">RECONCILE.</h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">TRIP SETTLEMENT & RECOVERY REVIEW</p>
+                            </div>
+                            <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowReconcileModal(null)}>
+                                <X size={18} />
+                            </button>
                         </div>
-
+                        
                         <form onSubmit={handleReconcile} className="space-y-6">
-                            <div className="grid grid-cols-2 gap-6">
-                                <div className="p-4 bg-canvas/30 rounded-2xl border border-black/5">
-                                    <label className="block text-[8px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Ending Odometer</label>
-                                    <input required type="number" className="bg-transparent border-none w-full p-0 text-xl font-black text-ink-primary outline-none" placeholder="Index..." value={reconcileForm.finalOdometer} onChange={e => setReconcileForm({ ...reconcileForm, finalOdometer: e.target.value })} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="p-6 bg-canvas border border-black/5 rounded-3xl">
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Ending Odometer Index</label>
+                                    <input required type="number" className="bg-transparent border-none w-full p-0 text-3xl font-black text-ink-primary outline-none font-mono" placeholder="000000" value={reconcileForm.finalOdometer} onChange={e => setReconcileForm({ ...reconcileForm, finalOdometer: e.target.value })} />
                                 </div>
-                                <div className="p-4 bg-canvas/30 rounded-2xl border border-black/5">
-                                    <label className="block text-[8px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Cash Collected</label>
+                                <div className="p-6 bg-emerald-50 border border-emerald-100 rounded-3xl">
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-emerald-600/50 mb-3">Cash Liquidity Recovered</label>
                                     <div className="flex items-center gap-2">
-                                        <span className="text-lg font-black text-ink-primary opacity-20">{businessProfile.currencySymbol}</span>
-                                        <input required type="number" step="0.01" className="bg-transparent border-none w-full p-0 text-xl font-black text-emerald-500 outline-none" placeholder="0.00" value={reconcileForm.actualCash} onChange={e => setReconcileForm({ ...reconcileForm, actualCash: e.target.value })} />
+                                        <span className="text-2xl font-black text-emerald-500 opacity-30">{businessProfile.currencySymbol}</span>
+                                        <input required type="number" step="0.01" className="bg-transparent border-none w-full p-0 text-3xl font-black text-emerald-600 outline-none" placeholder="0.00" value={reconcileForm.actualCash} onChange={e => setReconcileForm({ ...reconcileForm, actualCash: e.target.value })} />
                                     </div>
                                 </div>
                             </div>
-
-                            <div className="space-y-3">
-                                <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50">Stock Check</label>
-                                <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-2">
+                            <div className="space-y-4">
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 px-1">ASSET RECOVERY VERIFICATION</label>
+                                <div className="space-y-2 max-h-[250px] overflow-y-auto custom-scrollbar pr-2">
                                     {Object.keys(getExpectedLeftovers(showReconcileModal)).map(productId => {
                                         const data = getExpectedLeftovers(showReconcileModal)[productId];
                                         const actual = parseInt(reconcileForm.returnedStock[productId]) || 0;
                                         const hasDiscrepancy = actual !== data.leftover;
                                         return (
-                                            <div key={productId} className={`p-4 rounded-xl border transition-all flex items-center justify-between ${hasDiscrepancy ? 'bg-red-50 border-red-100' : 'bg-canvas/30 border-black/5'}`}>
-                                                <div className="min-w-0">
-                                                    <div className="text-[10px] font-black text-ink-primary uppercase truncate">{data.name}</div>
-                                                    <div className="text-[8px] font-bold text-ink-secondary/50 uppercase">Expected: {data.leftover}</div>
+                                            <div key={productId} className={`p-4 rounded-2xl border-2 transition-all flex items-center justify-between ${hasDiscrepancy ? 'bg-red-50 border-red-200' : 'bg-canvas border-transparent'}`}>
+                                                <div className="min-w-0 pr-4">
+                                                    <div className="text-[11px] font-black text-ink-primary uppercase truncate tracking-tight">{data.name}</div>
+                                                    <div className="text-[9px] font-black text-ink-secondary/40 uppercase tracking-widest mt-1">Expected Recovery: {data.leftover} Units</div>
                                                 </div>
-                                                <div className="flex items-center gap-4">
-                                                    {hasDiscrepancy && <AlertTriangle size={14} className="text-red-500" />}
+                                                <div className="flex items-center gap-6">
+                                                    {hasDiscrepancy && <AlertTriangle size={18} className="text-red-500 animate-pulse" />}
                                                     <input 
                                                         type="number" 
-                                                        className="w-16 bg-white border border-black/5 rounded-lg p-2 text-center text-xs font-black outline-none"
+                                                        className="w-20 bg-white border border-black/5 rounded-xl p-3 text-center text-sm font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
                                                         value={reconcileForm.returnedStock[productId] || ''}
                                                         onChange={(e) => setReconcileForm({ ...reconcileForm, returnedStock: { ...reconcileForm.returnedStock, [productId]: e.target.value } })}
                                                     />
@@ -638,16 +752,20 @@ const Vehicles = () => {
                                 </div>
                             </div>
 
-                            <button type="submit" className="btn-signature !h-14 w-full">
-                                EXECUTE RECONCILIATION
-                                <div className="icon-nest">
-                                    <ShieldCheck size={24} />
-                                </div>
-                            </button>
+                            <div className="grid grid-cols-2 gap-4 pt-4">
+                                <button type="button" className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowReconcileModal(null)}>Cancel</button>
+                                <button type="submit" className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill">
+                                    EXECUTE RECONCILIATION
+                                    <div className="icon-nest !w-10 !h-10 ml-4">
+                                        <ShieldCheck size={24} />
+                                    </div>
+                                </button>
+                            </div>
                         </form>
                     </div>
                 </div>
             )}
+
             <style dangerouslySetInnerHTML={{ __html: `
                 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
                 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }

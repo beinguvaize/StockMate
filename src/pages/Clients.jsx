@@ -291,55 +291,54 @@ const Clients = () => {
             {/* Registration Overlay / Form */}
             {isAdding && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[600px] !p-8 md:!p-12 !overflow-y-auto">
-                        <button
-                            onClick={() => { setIsAdding(false); setEditingClient(null); }}
-                            className="absolute top-6 right-6 w-10 h-10 rounded-pill bg-canvas flex items-center justify-center text-ink-primary hover:scale-110 transition-transform z-20"
-                        >
-                            <X size={18} />
-                        </button>
-
-                        <div className="absolute top-0 left-0 w-2 h-full bg-accent-signature"></div>
-
-                        <div className="mb-6">
-                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-1">
-                                {editingClient ? 'Edit Client' : 'Add Client'}
-                            </h3>
-                            <p className="text-[10px] font-black text-ink-secondary/70 uppercase tracking-widest">Client Information</p>
+                    <div className="glass-modal !max-w-[650px] !p-12">
+                        <div className="flex justify-between items-start mb-10">
+                            <div>
+                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">
+                                    {editingClient ? 'CLIENT PROFILE.' : 'NEW CLIENT.'}
+                                </h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">INSTITUTIONAL METADATA & ACCOUNTS</p>
+                            </div>
+                            <button
+                                onClick={() => { setIsAdding(false); setEditingClient(null); }}
+                                className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary"
+                            >
+                                <X size={18} />
+                            </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form onSubmit={handleSubmit} className="space-y-8">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Business Name</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Business Name</label>
                                     <input 
                                         required 
                                         type="text" 
-                                        placeholder="Business Name..."
-                                        className="input-field !rounded-xl !py-2.5 font-black text-lg bg-canvas/30" 
+                                        placeholder="BUSINESS ENTITY NAME..."
+                                        className="w-full bg-canvas border-none rounded-2xl p-5 font-black text-lg text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase" 
                                         value={formData.name} 
                                         onChange={e => setFormData({...formData, name: e.target.value})} 
                                     />
                                 </div>
                                 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Primary Contact</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Primary Contact</label>
                                     <input 
                                         required 
                                         type="text" 
-                                        className="input-field !rounded-xl !py-2.5 font-bold bg-canvas/30 text-xs" 
-                                        placeholder="Full Name..."
+                                        className="w-full bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase" 
+                                        placeholder="PERSONNEL NAME..."
                                         value={formData.contact} 
                                         onChange={e => setFormData({...formData, contact: e.target.value})} 
                                     />
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Phone Number</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Phone Number</label>
                                     <input 
                                         required 
                                         type="text" 
-                                        className="input-field !rounded-xl !py-2.5 font-bold bg-canvas/30 text-xs" 
+                                        className="w-full bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums" 
                                         placeholder="+1 (000) 000-0000"
                                         value={formData.phone} 
                                         onChange={e => setFormData({...formData, phone: e.target.value})} 
@@ -347,24 +346,24 @@ const Clients = () => {
                                 </div>
 
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-50 mb-2">Address</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Logistical Base (Address)</label>
                                     <input 
                                         required 
                                         type="text" 
-                                        className="input-field !rounded-xl !py-2.5 font-medium bg-canvas/30 text-xs" 
-                                        placeholder="Full Physical Location..."
+                                        className="w-full bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase" 
+                                        placeholder="FULL PHYSICAL LOCATION..."
                                         value={formData.address} 
                                         onChange={e => setFormData({...formData, address: e.target.value})} 
                                     />
                                 </div>
                             </div>
 
-                            <div className="flex gap-4 pt-6">
-                                <button type="button" className="flex-1 py-3 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-xs tracking-widest uppercase" onClick={() => { setIsAdding(false); setEditingClient(null); }}>CANCEL</button>
-                                <button type="submit" className="btn-signature flex-[2] !py-3 !rounded-pill">
+                            <div className="grid grid-cols-2 gap-4 pt-4">
+                                <button type="button" className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => { setIsAdding(false); setEditingClient(null); }}>Cancel</button>
+                                <button type="submit" className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill">
                                     {editingClient ? 'SAVE CHANGES' : 'ADD CLIENT'}
-                                    <div className="icon-nest">
-                                        <Save size={20} />
+                                    <div className="icon-nest !w-10 !h-10 ml-4">
+                                        <Save size={22} />
                                     </div>
                                 </button>
                             </div>

@@ -206,7 +206,6 @@ body {
 }
 
 .glass-panel:hover {
-  transform: translateY(-4px);
   box-shadow: var(--shadow-hover);
 }
 
@@ -265,7 +264,7 @@ body {
 }
 
 .btn:active {
-  transform: scale(0.96);
+  background: rgba(0,0,0,0.05);
 }
 
 /* Signature CTA Button */
@@ -287,7 +286,6 @@ body {
 
 .btn-signature:hover {
   background: var(--color-accent-signature-hover);
-  transform: scale(1.02);
 }
 
 .btn-signature:active {
@@ -308,7 +306,7 @@ body {
 }
 
 .btn-signature:hover .icon-nest {
-  transform: rotate(-15deg) scale(1.1);
+  opacity: 1;
 }
 
 /* Pill Navigation */
@@ -636,7 +634,6 @@ body {
 }
 
 .kpi-card:hover {
-  transform: translateY(-4px);
   box-shadow: 0 12px 24px -10px rgba(0,0,0,0.1);
 }
 

@@ -249,59 +249,62 @@ const Orders = () => {
             {/* Receipt Modal */}
             {showReceipt && (
                 <div className="modal-overlay">
-                <div className="glass-modal !max-w-[450px] !p-8 overflow-hidden flex flex-col">
-                        <button 
-                            onClick={() => setShowReceipt(null)}
-                            className="absolute top-8 right-8 w-12 h-12 rounded-full bg-[#F5F5F0] flex items-center justify-center text-[#111] hover:scale-110 transition-transform z-10 no-print"
-                        >
-                            <X size={20} />
-                        </button>
+                    <div className="glass-modal !max-w-[500px] !p-10 flex flex-col">
+                        <div className="flex justify-between items-start mb-10">
+                            <div>
+                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">RECEIPT.</h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">OFFICIAL TRANSACTION RECORD</p>
+                            </div>
+                            <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary no-print" onClick={() => setShowReceipt(null)}>
+                                <X size={18} />
+                            </button>
+                        </div>
 
-                        <div className="flex-1 overflow-y-auto pr-4 custom-scrollbar">
+                        <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
                             <div className="text-center mb-10 pb-10 border-b border-dashed border-black/10">
-                                <div className="text-2xl font-black text-[#111] tracking-tighter uppercase mb-1">{businessProfile.name}</div>
-                                <div className="text-sm font-bold text-[#747576] uppercase tracking-[0.3em] opacity-40">Sales Receipt</div>
-                                <div className="text-sm font-black text-[#111] mt-4 opacity-100">{new Date(showReceipt.date).toLocaleString()}</div>
+                                <div className="text-3xl font-black text-ink-primary tracking-tighter uppercase mb-2">{businessProfile.name}</div>
+                                <div className="text-sm font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">SALES RECORD</div>
+                                <div className="text-sm font-black text-ink-primary mt-6">{new Date(showReceipt.date).toLocaleString()}</div>
                             </div>
 
-                            <div className="space-y-6 mb-10">
-                                <div className="grid grid-cols-2 gap-6">
+                            <div className="space-y-8 mb-10">
+                                <div className="grid grid-cols-2 gap-8">
                                     <div>
-                                        <div className="text-[9px] font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1 text-left">Order ID</div>
-                                        <div className="text-xs font-black text-[#111] uppercase text-left">{showReceipt.id.split('-').pop()}</div>
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-2 text-left">Order ID</div>
+                                        <div className="text-sm font-black text-ink-primary uppercase text-left tracking-tight">#{showReceipt.id.split('-').pop()}</div>
                                     </div>
                                     <div>
-                                        <div className="text-[9px] font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1 text-right">Customer</div>
-                                        <div className="text-xs font-black text-[#111] uppercase text-right">{getShopName(showReceipt.shopId)}</div>
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-2 text-right">Customer</div>
+                                        <div className="text-sm font-black text-ink-primary uppercase text-right tracking-tight">{getShopName(showReceipt.shopId)}</div>
                                     </div>
                                     <div>
-                                        <div className="text-[9px] font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1 text-left">Staff Member</div>
-                                        <div className="text-xs font-black text-[#111] uppercase text-left">{getUserName(showReceipt.bookedBy)}</div>
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-2 text-left">Staff</div>
+                                        <div className="text-sm font-black text-ink-primary uppercase text-left tracking-tight">{getUserName(showReceipt.bookedBy)}</div>
                                     </div>
                                     {showReceipt.deliveredBy && (
                                         <div>
-                                            <div className="text-[9px] font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1 text-right">Vehicle</div>
-                                            <div className="text-xs font-black text-[#111] uppercase text-right">{getVehicleName(showReceipt.deliveredBy)}</div>
+                                            <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-2 text-right">Vehicle</div>
+                                            <div className="text-sm font-black text-ink-primary uppercase text-right tracking-tight">{getVehicleName(showReceipt.deliveredBy)}</div>
                                         </div>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="border-t border-b border-black/5 py-8 space-y-4 mb-10">
+                            <div className="border-t border-b border-black/5 py-10 space-y-5 mb-10">
                                 {showReceipt.items.map((item, i) => (
-                                    <div key={i} className="flex justify-between items-center text-xs">
-                                        <div className="flex items-center gap-3">
-                                            <span className="font-black text-[#C8F135] text-lg leading-none">{item.quantity}</span>
-                                            <span className="font-bold text-[#111] uppercase tracking-tighter opacity-70">{item.name}</span>
+                                    <div key={i} className="flex justify-between items-center text-sm">
+                                        <div className="flex items-center gap-4">
+                                            <span className="font-black text-accent-signature text-xl leading-none bg-ink-primary px-3 py-1 rounded-lg">{item.quantity}</span>
+                                            <span className="font-black text-ink-primary uppercase tracking-tight">{item.name}</span>
                                         </div>
-                                        <span className="font-black text-[#111]">{businessProfile.currencySymbol}{(item.sellingPrice * item.quantity).toFixed(2)}</span>
+                                        <span className="font-black text-ink-primary tracking-tighter">{businessProfile.currencySymbol}{(item.sellingPrice * item.quantity).toFixed(2)}</span>
                                     </div>
                                 ))}
                             </div>
 
-                            <div className="flex justify-between items-end mb-10">
-                                <span className="text-xs font-black uppercase tracking-[0.2em] text-[#111]">Total Amount</span>
-                                <span className="text-4xl font-black text-[#111] tracking-tighter">
+                            <div className="flex justify-between items-end mb-12">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40">TOTAL SETTLEMENT</span>
+                                <span className="text-5xl font-black text-ink-primary tracking-tighter leading-none">
                                     {businessProfile.currencySymbol}{showReceipt.totalAmount.toLocaleString()}
                                 </span>
                             </div>
@@ -311,12 +314,12 @@ const Orders = () => {
                             </div>
                         </div>
 
-                        <div className="flex gap-4 mt-10 pt-10 border-t border-black/5 no-print">
-                            <button className="flex-1 py-5 rounded-full border border-black/10 font-bold text-[#111] hover:bg-black/5 transition-all text-sm tracking-widest uppercase" onClick={() => setShowReceipt(null)}>CLOSE</button>
-                            <button className="btn-signature flex-[2]" onClick={() => window.print()}>
+                        <div className="grid grid-cols-2 gap-4 mt-6 no-print">
+                            <button className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowReceipt(null)}>Close</button>
+                            <button className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill" onClick={() => window.print()}>
                                 PRINT RECEIPT
-                                <div className="icon-nest">
-                                    <Printer size={18} />
+                                <div className="icon-nest !w-10 !h-10 ml-4">
+                                    <Printer size={20} />
                                 </div>
                             </button>
                         </div>

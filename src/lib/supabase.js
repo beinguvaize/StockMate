@@ -24,6 +24,37 @@ const rawSupabase = createClient(supabaseUrl, supabaseAnonKey, {
  */
 const mutationMethods = ['insert', 'update', 'delete', 'upsert', 'rpc'];
 
+/**
+ * Upload a product image to Supabase Storage.
+ * Uses rawSupabase to bypass the write-guard proxy (storage != database mutation).
+ * @param {File} file - The image file to upload
+ * @returns {Promise<{url: string|null, error: string|null}>}
+ */
+export const uploadProductImage = async (file) => {
+    const BUCKET = 'product-images';
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+    const filePath = `products/${fileName}`;
+
+    const { data, error } = await rawSupabase.storage
+        .from(BUCKET)
+        .upload(filePath, file, {
+            cacheControl: '3600',
+            upsert: false,
+        });
+
+    if (error) {
+        console.error('Image upload error:', error);
+        return { url: null, error: error.message };
+    }
+
+    const { data: urlData } = rawSupabase.storage
+        .from(BUCKET)
+        .getPublicUrl(data.path);
+
+    return { url: urlData.publicUrl, error: null };
+};
+
 export const supabase = new Proxy(rawSupabase, {
     get(target, prop) {
         const value = Reflect.get(target, prop);

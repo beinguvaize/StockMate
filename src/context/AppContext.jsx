@@ -172,8 +172,13 @@ export const AppProvider = ({ children }) => {
     });
 
     const [currentUser, setCurrentUser] = useState(() => {
-        // Force authentication bypass for UI development
-        return INITIAL_USERS[0]; // Global Admin
+        try {
+            const saved = localStorage.getItem('sm_current_user');
+            return saved ? JSON.parse(saved) : null;
+        } catch (e) {
+            console.error("Failed to restore user session", e);
+            return null;
+        }
     });
 
     // Business Profile
@@ -306,7 +311,7 @@ export const AppProvider = ({ children }) => {
                     supabase.from('users').select('*'),
                     supabase.from('employees').select('*'),
                     supabase.from('vehicles').select('*'),
-                    supabase.from('business_profile').select('*').single(),
+                    supabase.from('business_profile').select('*').maybeSingle(),
                     supabase.from('settings').select('*')
                 ]);
 
@@ -314,7 +319,7 @@ export const AppProvider = ({ children }) => {
                 if (sbShops) setShops(sbShops);
                 if (sbOrders) setOrders(sbOrders);
                 if (sbExpenses) setExpenses(sbExpenses);
-                if (sbUsers) setUsers(sbUsers);
+                if (sbUsers && sbUsers.length > 0) setUsers(sbUsers); // This line already implements the condition
                 if (sbEmployees) setEmployees(sbEmployees);
                 if (sbVehicles) setVehicles(sbVehicles);
                 if (sbBusiness) setBusinessProfile(sbBusiness);
@@ -376,7 +381,7 @@ export const AppProvider = ({ children }) => {
         const { error } = await supabase.from('users').upsert(newUser);
         if (error) {
             console.error("Error adding user to Supabase:", error);
-            addNotification("Failed to save user to cloud", "error");
+            addNotification(`Cloud User Save Failed: ${error.message}`, "error");
             return;
         }
 
@@ -412,7 +417,7 @@ export const AppProvider = ({ children }) => {
         const { error } = await supabase.from('shops').upsert(newShop);
         if (error) {
             console.error("Error adding shop to Supabase:", error);
-            addNotification("Failed to save shop to cloud", "error");
+            addNotification(`Cloud Shop Save Failed: ${error.message}`, "error");
             return;
         }
 
@@ -450,7 +455,7 @@ export const AppProvider = ({ children }) => {
         const { error } = await supabase.from('expenses').upsert(newExpense);
         if (error) {
             console.error("Error adding expense to Supabase:", error);
-            addNotification("Failed to save expense to cloud", "error");
+            addNotification(`Cloud Expense Save Failed: ${error.message}`, "error");
             return;
         }
 
@@ -541,7 +546,7 @@ export const AppProvider = ({ children }) => {
         const { error } = await supabase.from('orders').upsert(newOrder);
         if (error) {
             console.error("Error saving order to Supabase:", error);
-            addNotification("Failed to save order to cloud", "error");
+            addNotification(`Cloud Order Failed: ${error.message}`, "error");
             return null;
         }
 
@@ -574,25 +579,49 @@ export const AppProvider = ({ children }) => {
                 logMovement(item.productId, item.name, 'OUT', item.quantity, `Fulfilled Order #${updatedOrder.id}`, currentUser?.id);
             }
             setProducts(updatedProducts);
+            
+            // Sync products to cloud
+            await Promise.all(updatedOrder.items.map(item => {
+                const p = updatedProducts.find(up => up.id === item.productId);
+                return supabase.from('products').update({ stock: p.stock }).eq('id', p.id);
+            }));
         }
+
+        const { error } = await supabase.from('orders').upsert(updatedOrder);
+        if (error) {
+            console.error("Error updating order in Supabase:", error);
+            addNotification("Failed to sync order update to cloud", "error");
+            return;
+        }
+
         setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
     };
 
     const settleOrder = async (orderId, amount, method = 'CASH') => {
+        let updatedOrder = null;
         setOrders(prev => prev.map(o => {
             if (o.id === orderId) {
                 const isFullPayment = amount >= o.totalAmount;
                 const newStatus = isFullPayment ? 'PAID' : 'PARTIAL';
                 addNotification(`Payment received for #${orderId.split('-').pop()}: ${businessProfile.currencySymbol}${amount}`, 'success');
-                return { 
+                updatedOrder = { 
                     ...o, 
                     paymentStatus: newStatus,
                     paidAmount: (o.paidAmount || 0) + amount,
                     lastPaymentDate: new Date().toISOString()
                 };
+                return updatedOrder;
             }
             return o;
         }));
+
+        if (updatedOrder) {
+            const { error } = await supabase.from('orders').upsert(updatedOrder);
+            if (error) {
+                console.error("Error settling order in Supabase:", error);
+                addNotification(`Cloud Payment Sync Failed: ${error.message}`, "error");
+            }
+        }
     };
 
     const addProduct = async (product) => {
@@ -606,7 +635,7 @@ export const AppProvider = ({ children }) => {
         const { error } = await supabase.from('products').upsert(newProduct);
         if (error) {
             console.error("Error adding product to Supabase:", error);
-            addNotification("Failed to save product to cloud", "error");
+            addNotification(`Cloud Save Failed: ${error.message}`, "error");
             return;
         }
 
@@ -620,7 +649,7 @@ export const AppProvider = ({ children }) => {
         const { error } = await supabase.from('products').upsert(updatedProduct);
         if (error) {
             console.error("Error updating product in Supabase:", error);
-            addNotification("Failed to update product in cloud", "error");
+            addNotification(`Cloud Update Failed: ${error.message}`, "error");
             return;
         }
         setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
@@ -630,7 +659,7 @@ export const AppProvider = ({ children }) => {
         const { error } = await supabase.from('products').delete().eq('id', id);
         if (error) {
             console.error("Error deleting product from Supabase:", error);
-            addNotification("Failed to delete product from cloud", "error");
+            addNotification(`Cloud Delete Failed: ${error.message}`, "error");
             return;
         }
         setProducts(prev => prev.filter(p => p.id !== id));
@@ -641,6 +670,14 @@ export const AppProvider = ({ children }) => {
         const product = products.find(p => p.id === productId);
         if (!product) return;
         const updatedProduct = { ...product, stock: Math.max(0, product.stock + amount) };
+        
+        const { error } = await supabase.from('products').update({ stock: updatedProduct.stock }).eq('id', productId);
+        if (error) {
+            console.error("Error adjusting stock in Supabase:", error);
+            addNotification(`Cloud Stock Sync Failed: ${error.message}`, "error");
+            return;
+        }
+
         setProducts(products.map(p => p.id === productId ? updatedProduct : p));
         const type = amount > 0 ? 'IN' : 'OUT';
         logMovement(productId, product.name, type, Math.abs(amount), reason, currentUser?.id);
@@ -749,6 +786,67 @@ export const AppProvider = ({ children }) => {
             employees: massEmployees,
             payroll: massPayroll
         };
+    };
+
+    /**
+     * resetAndSeedCloud: A high-fidelity cloud seeder for demonstrations.
+     * Clears existing cloud data and populates it with 30 days of realistic history.
+     */
+    const resetAndSeedCloud = async () => {
+        if (!confirm("🚨 CLOUD RESET & SEED: This will DELETE ALL DATA on your Supabase and replace it with demo data. Continue?")) return;
+        
+        setLoading(true);
+        addNotification("Preparing Demo Environment...", "info");
+
+        try {
+            // 1. Cleanup existing transaction data
+            const cleanupTargets = ['orders', 'expenses', 'movement_log', 'routes', 'employees', 'shops', 'products'];
+            for (const table of cleanupTargets) {
+                // We use .neq('id', '0') to bypass 'single record' delete protections if any
+                const { error } = await supabase.from(table).delete().neq('id', '_X_');
+                if (error) console.warn(`Cleanup warning for ${table}:`, error);
+            }
+
+            addNotification("Tables cleared. Seeding Master Data...", "info");
+
+            const data = generateMassMockData();
+
+            // 2. Seed Master Data (Products, Shops, Employees)
+            const { error: pErr } = await supabase.from('products').insert(data.products);
+            const { error: sErr } = await supabase.from('shops').insert(data.shops);
+            const { error: eErr } = await supabase.from('employees').insert(data.employees);
+
+            if (pErr || sErr || eErr) throw new Error("Master data seeding failed");
+
+            addNotification("Master data seeded. Generating history...", "info");
+
+            // 3. Seed Transactional Data (Orders & Expenses)
+            // We do this in chunks to avoid Supabase payload limits
+            const orders = data.orders;
+            const chunkSize = 50;
+            for (let i = 0; i < orders.length; i += chunkSize) {
+                const chunk = orders.slice(i, i + chunkSize);
+                const { error } = await supabase.from('orders').insert(chunk);
+                if (error) console.error(`Chunk ${i} failed:`, error);
+            }
+
+            const { error: exErr } = await supabase.from('expenses').insert(data.expenses);
+            const { error: payErr } = await supabase.from('payroll').insert(data.payroll);
+
+            if (exErr || payErr) console.warn("Some transactional data failed to seed");
+
+            addNotification("Seeding Complete!", "success");
+            
+            // Reload all data
+            await initializeApp();
+            
+            alert("✅ Cloud Seeding complete! All data updated.");
+        } catch (err) {
+            console.error("Cloud seeding failed:", err);
+            addNotification("Seeding failed: " + err.message, "error");
+        } finally {
+            setLoading(false);
+        }
     };
 
     /**
@@ -1044,10 +1142,11 @@ export const AppProvider = ({ children }) => {
         const { error } = await supabase.from('business_profile').upsert({ id: 'current', ...profile });
         if (error) {
             console.error("Error updating business profile in Supabase:", error);
-            addNotification("Failed to update business profile in cloud", "error");
+            addNotification(`Cloud Profile Sync Failed: ${error.message}`, "error");
             return;
         }
         setBusinessProfile(profile);
+        addNotification("Business profile saved to cloud", "success");
     };
 
     const addExpenseCategory = async (name) => {

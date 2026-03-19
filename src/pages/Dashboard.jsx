@@ -20,7 +20,7 @@ import {
 } from 'recharts';
 
 const Dashboard = () => {
-    const { orders, expenses, products, businessProfile, routes, movementLog, migrateLocalToSupabase } = useAppContext();
+    const { orders, expenses, products, businessProfile, routes, movementLog, shops } = useAppContext();
     const navigate = useNavigate();
 
     // Core Metrics Calculation
@@ -139,14 +139,63 @@ const Dashboard = () => {
         return Object.values(dataMap);
     }, [orders, expenses]);
 
-    // Earnings Data for Vertical Bar Chart
+    // Earnings Data for Weekly Performance (Last 7 Days)
     const earningsByDay = useMemo(() => {
-        const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-        return days.map(day => ({
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const dayMap = {};
+        days.forEach(d => dayMap[d] = 0);
+        
+        const now = new Date();
+        const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+        (orders || []).forEach(o => {
+            const oDate = new Date(o.date);
+            if (oDate >= last7Days && !isNaN(oDate.getTime())) {
+                const dayName = days[oDate.getDay()];
+                dayMap[dayName] += (o.totalAmount || 0);
+            }
+        });
+
+        const orderedWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+        return orderedWeek.map(day => ({
             name: day,
-            value: (orders || []).length > 0 ? (totalSales / 7) * (0.7 + Math.random() * 0.6) : 0
+            value: dayMap[day]
         }));
-    }, [orders, totalSales]);
+    }, [orders]);
+
+    // System Status Check
+    const isConnected = useMemo(() => products !== null && products !== undefined, [products]);
+
+    // Efficiency Metrics Calculation
+    const efficiencyStats = useMemo(() => {
+        const completedRoutes = (routes || []).filter(r => r.status === 'COMPLETED').length;
+        const totalRoutes = (routes || []).length || 1;
+        
+        const totalStock = (products || []).reduce((sum, p) => sum + (p.stock || 0), 0) || 1;
+        const totalMovedOut = (movementLog || []).filter(m => m.type === 'OUT').reduce((sum, m) => sum + (m.quantity || 0), 0);
+        
+        return [
+            { label: 'Vehicle Payload', value: activeRoutes.length > 0 ? 85 : 0, color: 'bg-accent-signature' },
+            { label: 'Route Coverage', value: Math.round((completedRoutes / totalRoutes) * 100), color: 'bg-blue-500' },
+            { label: 'Stock Turnover', value: Math.min(100, Math.round((totalMovedOut / totalStock) * 100)), color: 'bg-purple-500' }
+        ];
+    }, [routes, products, movementLog, activeRoutes]);
+
+    // Real Growth Calculation (This 7 days vs Previous 7 days)
+    const growthPercent = useMemo(() => {
+        const now = new Date();
+        const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+
+        const currentWeekSales = (orders || []).filter(o => new Date(o.date) >= sevenDaysAgo).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+        const previousWeekSales = (orders || []).filter(o => {
+            const d = new Date(o.date);
+            return d >= fourteenDaysAgo && d < sevenDaysAgo;
+        }).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+        if (previousWeekSales === 0) return currentWeekSales > 0 ? 100 : 0;
+        return ((currentWeekSales - previousWeekSales) / previousWeekSales) * 100;
+    }, [orders]);
 
     return (
         <div className="animate-fade-in flex flex-col gap-8">
@@ -207,8 +256,9 @@ const Dashboard = () => {
                             </div>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
-                            <span className="text-green-700 font-bold flex items-center gap-1 bg-green-100 px-2.5 py-1 rounded-full">
-                                <TrendingUp className="w-3 h-3" /> +8.2%
+                            <span className={`${growthPercent >= 0 ? 'text-green-700 bg-green-100' : 'text-red-700 bg-red-100'} font-bold flex items-center gap-1 px-2.5 py-1 rounded-full`}>
+                                {growthPercent >= 0 ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />} 
+                                {growthPercent >= 0 ? '+' : ''}{growthPercent.toFixed(1)}%
                             </span>
                         </div>
                     </div>
@@ -247,21 +297,51 @@ const Dashboard = () => {
                         </div>
                     </div>
 
-                    {/* Market Velocity / Growth */}
+                    {/* Real Growth */}
                     <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
                         <div className="flex justify-between items-start mb-4">
                             <div>
-                                <p className="text-ink-secondary text-sm font-medium">Growth</p>
-                                <h3 className="text-3xl font-bold mt-1 text-ink-primary">+12.5%</h3>
+                                <p className="text-ink-secondary text-sm font-medium">Weekly Growth</p>
+                                <h3 className="text-3xl font-bold mt-1 text-ink-primary">{growthPercent.toFixed(1)}%</h3>
                             </div>
                             <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
                                 <BarChart3 className="w-6 h-6" />
                             </div>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
-                            <span className="text-green-700 font-bold flex items-center gap-1 bg-green-100 px-2.5 py-1 rounded-full">
-                                <TrendingUp className="w-3 h-3" /> Projected
-                            </span>
+                            <span className="text-ink-secondary font-medium uppercase tracking-tighter">vs Previous 7 Days</span>
+                        </div>
+                    </div>
+
+                    {/* Total Orders */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">Total Orders</p>
+                                <h3 className="text-3xl font-bold mt-1 text-ink-primary">{(orders || []).length}</h3>
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-600">
+                                <ShoppingCart className="w-6 h-6" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-ink-secondary font-semibold">
+                            Total volume processed
+                        </div>
+                    </div>
+
+                    {/* Total Customers */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">Total Customers</p>
+                                <h3 className="text-3xl font-bold mt-1 text-ink-primary">{(shops || []).length}</h3>
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600">
+                                <ShieldCheck className="w-6 h-6" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-ink-secondary font-semibold">
+                            Active business base
                         </div>
                     </div>
                 </div>
@@ -333,8 +413,8 @@ const Dashboard = () => {
                             </div>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-ink-primary">
-                            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                            <span className="font-medium">All systems nominal</span>
+                            <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                            <span className="font-medium">{isConnected ? 'System Dynamic & Syncing' : 'Local Mode / Disconnected'}</span>
                         </div>
                     </div>
                 </div>
@@ -539,11 +619,7 @@ const Dashboard = () => {
                     </div>
                     
                     <div className="flex-1 flex flex-col justify-center gap-6">
-                        {[
-                            { label: 'Vehicle Payload', value: 84, color: 'bg-accent-signature' },
-                            { label: 'Route Coverage', value: 72, color: 'bg-blue-500' },
-                            { label: 'Stock Turnover', value: 91, color: 'bg-purple-500' }
-                        ].map((stat, i) => (
+                        {efficiencyStats.map((stat, i) => (
                             <div key={i} className="space-y-2">
                                 <div className="flex justify-between items-end">
                                     <span className="text-[10px] font-black text-ink-secondary uppercase tracking-widest">{stat.label}</span>

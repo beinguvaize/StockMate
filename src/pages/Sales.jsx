@@ -204,15 +204,15 @@ const Sales = () => {
 
     if (orderComplete) {
         return (
-            <div className="animate-fade-in flex flex-col items-center justify-center min-h-[70vh]">
+            <div className="flex flex-col items-center justify-center min-h-[70vh]">
                 <div className="glass-panel max-w-[500px] w-full text-center p-12 border-none">
                     <div className="flex justify-center mb-8">
-                        <div className="bg-[#C8F135]/20 p-6 rounded-full text-[#747576]">
+                        <div className="bg-[#C8F135]/20 p-6 rounded-full text-[#4b5563]">
                             <Check size={64} strokeWidth={3} />
                         </div>
                     </div>
                     <div className="p-6 bg-canvas rounded-bento border border-black/5 mb-6 text-center">
-                        <div className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary mb-2 opacity-70">Total Amount</div>
+                        <div className="text-[10px] font-black uppercase tracking-[0.4em] text-[#4b5563] mb-2 opacity-85">Total Amount</div>
                         <div className="text-6xl font-black text-ink-primary tracking-tighter">
                             ${lastOrderTotal.toLocaleString()}
                         </div>
@@ -240,15 +240,15 @@ const Sales = () => {
                     </div>
                     Cart.
                 </h2>
-                {isMobile && <button onClick={() => setMobileCartOpen(false)} className="text-ink-primary opacity-30 hover:opacity-100 transition-opacity"><X size={24} /></button>}
+                {isMobile && <button onClick={() => setMobileCartOpen(false)} className="text-ink-primary opacity-70 hover:opacity-100 transition-opacity"><X size={24} /></button>}
             </div>
 
             {/* Customer Section */}
             <div className="p-4 border-b border-black/5 bg-canvas/30">
                 <div className="mb-2">
-                    <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-90 mb-1.5">Customer</label>
+                    <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-[#4b5563] opacity-95 mb-1.5">Customer</label>
                     <div className="relative">
-                        <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
+                        <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary opacity-70" />
                         <input 
                             type="text" 
                             className="input-field !pl-12 !rounded-xl !py-2.5 !bg-surface !text-xs" 
@@ -265,10 +265,10 @@ const Sales = () => {
                         />
                         
                         {showCustomerDropdown && (
-                            <div className="absolute top-full left-0 right-0 bg-surface rounded-bento border border-black/5 shadow-2xl z-[100] mt-4 max-h-[300px] overflow-hidden flex flex-col animate-in fade-in slide-in-from-top-4 duration-500">
+                            <div className="absolute top-full left-0 right-0 bg-surface rounded-bento border border-black/5 shadow-2xl z-[100] mt-4 max-h-[300px] overflow-hidden flex flex-col duration-500">
                                 <div className="overflow-y-auto">
                                     <div 
-                                        className={`p-4 cursor-pointer border-b border-black/5 font-black text-[10px] tracking-widest uppercase hover:bg-canvas transition-colors ${selectedShopId === 'WALKIN' ? 'bg-accent-signature/20 text-ink-primary' : 'text-ink-secondary'}`}
+                                        className={`p-4 cursor-pointer border-b border-black/5 font-black text-[10px] tracking-widest uppercase hover:bg-canvas transition-colors ${selectedShopId === 'WALKIN' ? 'bg-accent-signature/20 text-ink-primary' : 'text-[#4b5563]'}`}
                                         onClick={() => {
                                             setSelectedShopId('WALKIN');
                                             setCustomerInfo({ name: 'Walk-in Customer', phone: '' });
@@ -290,11 +290,11 @@ const Sales = () => {
                                             }}
                                         >
                                             <div className="font-black text-ink-primary text-sm uppercase tracking-tight">{s.name}</div>
-                                            <div className="text-xs font-black text-ink-secondary uppercase opacity-40 mt-1 tracking-widest">{s.phone}</div>
+                                            <div className="text-xs font-black text-[#4b5563] uppercase opacity-70 mt-1 tracking-widest">{s.phone}</div>
                                         </div>
                                     ))}
                                     {filteredCustomers.length === 0 && (
-                                        <div className="p-10 text-center text-xs font-black uppercase tracking-widest text-ink-secondary opacity-30">No matches found</div>
+                                        <div className="p-10 text-center text-xs font-black uppercase tracking-widest text-[#4b5563] opacity-70">No matches found</div>
                                     )}
                                 </div>
                             </div>
@@ -319,7 +319,7 @@ const Sales = () => {
                         </div>
                         <div className="min-w-0">
                             <div className="text-sm font-black text-surface uppercase truncate tracking-tight">{customerInfo.name}</div>
-                            <div className="text-xs font-black text-surface/40 uppercase tracking-widest truncate">{customerInfo.phone}</div>
+                            <div className="text-xs font-black text-surface/70 uppercase tracking-widest truncate">{customerInfo.phone}</div>
                         </div>
                     </div>
                 )}
@@ -328,7 +328,7 @@ const Sales = () => {
             {/* Cart Items List */}
             <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar space-y-3">
                 {cart.length === 0 ? (
-                    <div className="text-center py-20 opacity-10">
+                    <div className="text-center py-20 opacity-90 text-[#4b5563]">
                         <div className="flex justify-center mb-4">
                             <CartIcon size={60} strokeWidth={1} />
                         </div>
@@ -340,7 +340,7 @@ const Sales = () => {
                             {/* Product Info (30% Sector) */}
                             <div className="w-[30%] min-w-0 pr-2">
                                 <div className="text-[11px] font-black text-ink-primary uppercase tracking-tight truncate leading-none mb-0.5">{item.name}</div>
-                                <div className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.2em] opacity-60">{item.sku}</div>
+                                <div className="text-[9px] font-black text-[#4b5563] uppercase tracking-[0.2em] opacity-85">{item.sku}</div>
                             </div>
                             
                             {/* Controls Cluster (70% Sector - Pushed Right) */}
@@ -348,7 +348,7 @@ const Sales = () => {
                                 {/* Rate (Editable Pill) */}
                                 <div className="w-20 shrink-0">
                                     <div className="relative">
-                                        <span className="text-[10px] font-black text-ink-primary opacity-60 absolute left-2.5 top-1/2 -translate-y-1/2">$</span>
+                                        <span className="text-[10px] font-black text-ink-primary opacity-85 absolute left-2.5 top-1/2 -translate-y-1/2">$</span>
                                         <input 
                                             type="number" 
                                             className="w-full bg-canvas border border-black/5 rounded-full py-1 pl-5 pr-2 text-center text-[10px] font-black text-ink-primary outline-none focus:border-black/20 transition-all font-mono" 
@@ -397,7 +397,7 @@ const Sales = () => {
             {/* Summary & Checkout Actions */}
             <div className="p-4 border-t border-black/5 bg-surface/50 backdrop-blur-3xl shadow-2xl">
                 <div className="space-y-2 mb-4">
-                    <div className="flex justify-between text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-90">
+                    <div className="flex justify-between text-[9px] font-black uppercase tracking-[0.3em] text-[#4b5563] opacity-95">
                         <span>Subtotal ({cartCalc.totalItems} items)</span>
                         <span>${cartCalc.subtotal.toLocaleString()}</span>
                     </div>
@@ -439,18 +439,18 @@ const Sales = () => {
     );
 
     return (
-        <div className="animate-fade-in flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-140px)]">
+        <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-140px)]">
             <div className="flex-1 flex flex-col gap-4 min-h-0">
                 {/* Header Section */}
                 <div className="flex justify-between items-end pb-2 border-b border-black/5">
                     <div>
                         <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">SALES.</h1>
-                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">POINT OF SALE & BILLING</p>
+                    <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest opacity-70">POINT OF SALE & BILLING</p>
                     </div>
                     {!isMobile && (
                         <div className="text-right">
                             <div className="text-4xl font-black text-ink-primary tracking-tighter leading-none mb-1">{filteredProducts.length}</div>
-                            <div className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-70">Products in Stock</div>
+                            <div className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.4em] opacity-85">Products in Stock</div>
                         </div>
                     )}
                 </div>
@@ -458,7 +458,7 @@ const Sales = () => {
                 {/* Controls Section */}
                 <div className="flex flex-col md:flex-row gap-4">
                     <div className="flex-1 relative group">
-                        <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20 group-focus-within:opacity-100 transition-opacity" />
+                        <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-70 group-focus-within:opacity-100 transition-opacity" />
                         <input 
                             type="text" 
                             className="input-field !pl-16 !py-3 !rounded-pill bg-surface border-black/5 shadow-premium !text-sm font-black" 
@@ -469,7 +469,7 @@ const Sales = () => {
                     </div>
                     {activeRoutes.length > 0 && (
                         <div className="relative group min-w-[300px]">
-                            <Truck size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
+                            <Truck size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-70" />
                             <select 
                                 className="input-field !pl-16 !py-3 !rounded-pill bg-surface border-black/5 shadow-premium appearance-none font-black text-[11px] tracking-widest uppercase cursor-pointer" 
                                 value={selectedRoute} 
@@ -492,10 +492,10 @@ const Sales = () => {
                                 className={`px-6 py-2.5 rounded-pill text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-3 ${
                                     selectedCategory === cat 
                                     ? 'bg-ink-primary text-surface shadow-lg' 
-                                    : 'text-ink-secondary/60 hover:text-ink-primary'
+                                    : 'text-[#4b5563]/80 hover:text-ink-primary'
                                 }`}
                             >
-                                <div className={`${selectedCategory === cat ? 'text-accent-signature' : 'opacity-40'}`}>
+                                <div className={`${selectedCategory === cat ? 'text-accent-signature' : 'opacity-70'}`}>
                                     {getCategoryIcon(cat)}
                                 </div>
                                 {cat}
@@ -516,26 +516,26 @@ const Sales = () => {
                                     onClick={() => addToCart(product)}
                                     className={`glass-panel !p-2 !rounded-xl relative group cursor-pointer transition-all border border-black/5 flex items-center gap-4 ${
                                         inCart 
-                                        ? 'bg-accent-signature/80 ring-4 ring-accent-signature/40 border-accent-signature/50 shadow-2xl scale-[1.01]' 
+                                        ? 'bg-accent-signature/80 ring-4 ring-accent-signature/40 border-accent-signature/50 shadow-2xl' 
                                         : 'bg-surface hover:border-black/20 hover:shadow-premium translate-z-0'
                                     }`}
                                 >
                                     
                                     {/* Compact Image Container */}
-                                    <div className="w-16 h-16 shrink-0 bg-canvas rounded-full flex items-center justify-center p-2.5 group-hover:scale-105 transition-transform duration-500 border border-black/5 overflow-hidden">
+                                    <div className="w-16 h-16 shrink-0 bg-canvas rounded-full flex items-center justify-center p-2.5 transition-transform duration-500 border border-black/5 overflow-hidden">
                                         {product.image ? (
                                             <img src={product.image} alt={product.name} className="w-full h-full object-contain rounded-full" />
                                         ) : (
-                                            <Package size={28} className="text-ink-primary opacity-5 stroke-[1]" />
+                                            <Package size={28} className="text-ink-primary opacity-30 stroke-[1]" />
                                         )}
                                     </div>
                                     
                                     {/* Central Info Sector */}
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.3em] mb-0.5 opacity-80">{product.sku}</div>
+                                        <div className="text-[9px] font-black text-[#4b5563] uppercase tracking-[0.3em] mb-0.5 opacity-95">{product.sku}</div>
                                         <h3 className="text-sm font-black text-ink-primary uppercase tracking-tight truncate leading-tight">{product.name}</h3>
                                         <div className={`mt-1.5 inline-flex px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                                            product.stock <= 10 ? 'bg-red-50 text-red-500' : 'bg-canvas text-ink-secondary opacity-50'
+                                            product.stock <= 10 ? 'bg-red-50 text-red-500' : 'bg-canvas text-[#4b5563] opacity-80'
                                         }`}>
                                             {product.stock} {product.unit || 'Units'}
                                         </div>
@@ -544,7 +544,7 @@ const Sales = () => {
                                     {/* Precise Badge Positioning (70% towards price) */}
                                     {inCart && (
                                         <div className="flex items-center -ml-1 mr-[-8px] z-10 scale-110">
-                                            <div className="w-8 h-8 rounded-full bg-accent-signature text-ink-primary flex items-center justify-center font-black text-xs shadow-2xl animate-scale-up ring-4 ring-white">
+                                            <div className="w-8 h-8 rounded-full bg-accent-signature text-ink-primary flex items-center justify-center font-black text-xs shadow-2xl ring-4 ring-white">
                                                 {inCart.quantity}
                                             </div>
                                         </div>
@@ -552,7 +552,7 @@ const Sales = () => {
                                     
                                     {/* Economic Sector */}
                                     <div className="text-right pr-2">
-                                        <div className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-0.5 opacity-70">Unit Price</div>
+                                        <div className="text-[9px] font-black text-[#4b5563] uppercase tracking-[0.2em] mb-0.5 opacity-85">Unit Price</div>
                                         <div className="text-xl font-black text-ink-primary tracking-tighter leading-none">
                                             ${product.sellingPrice.toLocaleString()}
                                         </div>
@@ -581,13 +581,13 @@ const Sales = () => {
 
             {/* Mobile Bottom Bar for Cart */}
             {isMobile && !mobileCartOpen && cart.length > 0 && (
-                <div onClick={() => setMobileCartOpen(true)} className="fixed bottom-6 left-6 right-6 bg-[#111] text-white p-6 rounded-[2.5rem] flex justify-between items-center z-[100] shadow-2xl active:scale-95 transition-transform">
+                <div onClick={() => setMobileCartOpen(true)} className="fixed bottom-6 left-6 right-6 bg-[#111] text-white p-6 rounded-[2.5rem] flex justify-between items-center z-[100] shadow-2xl transition-transform">
                     <div className="flex items-center gap-4">
                         <div className="w-12 h-12 rounded-full bg-[#C8F135] flex items-center justify-center text-black">
                             <CartIcon size={20} />
                         </div>
                         <div>
-                            <div className="text-xs font-black uppercase tracking-[0.2em] opacity-40">Cart Items</div>
+                            <div className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Cart Items</div>
                             <div className="text-lg font-black tracking-tighter">{cartCalc.totalItems} Items</div>
                         </div>
                     </div>
@@ -610,78 +610,75 @@ const Sales = () => {
             {/* Payment Modal */}
             {showPaymentModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[450px] !p-0 overflow-hidden flex flex-col max-h-[90vh]">
+                    <div className="glass-modal !max-w-[500px] !p-10">
                         {/* Compact Header */}
-                        <div className="py-2 px-6 border-b border-black/5 flex justify-between items-center bg-surface sticky top-0 z-20">
+                        <div className="flex justify-between items-start mb-8">
                             <div>
-                                <h3 className="text-xl font-black tracking-tighter text-ink-primary uppercase leading-tight">Confirm Payment.</h3>
-                                <p className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.2em] opacity-40">Choose Payment Method</p>
+                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">PAYMENT.</h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">SELECT TRANSACTION RECEPTION METHOD</p>
                             </div>
-                            <button 
-                                onClick={() => setShowPaymentModal(false)}
-                                className="w-8 h-8 rounded-full bg-canvas flex items-center justify-center text-ink-primary hover:bg-black/5 transition-all shadow-sm border border-black/5"
-                            >
-                                <X size={16} />
+                            <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowPaymentModal(false)}>
+                                <X size={18} />
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto custom-scrollbar px-6 py-3 space-y-4">
+                        <div className="space-y-6">
                             {/* Capital Summary */}
-                            <div className="p-3 bg-ink-primary rounded-2xl text-center shadow-xl">
-                                <div className="text-[8px] font-black uppercase tracking-[0.4em] text-accent-signature mb-0.5 opacity-80">Total Amount</div>
-                                <div className="text-3xl font-black text-surface tracking-tighter">${cartCalc.finalTotal.toLocaleString()}</div>
+                            <div className="p-6 bg-canvas rounded-bento border border-black/5 text-center">
+                                <div className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary mb-2 opacity-70">Total Amount Due</div>
+                                <div className="text-6xl font-black text-ink-primary tracking-tighter">${cartCalc.finalTotal.toLocaleString()}</div>
                             </div>
 
                             {/* Itemized List (Compact) */}
-                            <div className="space-y-2">
-                                <div className="text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-60 flex justify-between px-1">
-                                    <span>Item Summary</span>
-                                    <span>Total Price</span>
+                            <div className="space-y-3">
+                                <div className="text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-60 flex justify-between">
+                                    <span>ORDER SUMMARY</span>
+                                    <span>SUBTOTAL</span>
                                 </div>
-                                <div className="space-y-1 overflow-y-auto pr-1 custom-scrollbar">
+                                <div className="space-y-2 max-h-[150px] overflow-y-auto pr-2 custom-scrollbar">
                                     {cartCalc.lines.map(item => (
-                                        <div key={item.productId} className="flex justify-between items-center py-1 px-1 border-b border-black/5 last:border-0">
-                                            <div className="flex-1 min-w-0">
-                                                <span className="text-[10px] font-black text-ink-primary uppercase tracking-tight truncate inline-block w-40">{item.name}</span>
-                                                <span className="text-[9px] font-black text-ink-secondary opacity-40 uppercase tracking-widest ml-3">{item.quantity} {item.unit} × ${item.price}</span>
+                                        <div key={item.productId} className="flex justify-between items-center py-2 border-b border-black/5 last:border-0">
+                                            <div className="flex-1 min-w-0 pr-4">
+                                                <div className="text-[11px] font-black text-ink-primary uppercase tracking-tight truncate">{item.name}</div>
+                                                <div className="text-[9px] font-black text-ink-secondary opacity-40 uppercase tracking-widest">{item.quantity} {item.unit} × ${item.price}</div>
                                             </div>
-                                            <div className="text-[11px] font-black text-ink-primary tracking-tighter">${item.lineTotal.toLocaleString()}</div>
+                                            <div className="text-sm font-black text-ink-primary tracking-tighter">${item.lineTotal.toLocaleString()}</div>
                                         </div>
                                     ))}
                                 </div>
                             </div>
 
-                            {/* Payment Matrix (Compact Grid) */}
-                            <div className="grid grid-cols-2 gap-2">
+                            {/* Payment Matrix (Responsive Grid) */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {[
-                                    { id: 'CASH', label: 'Cash', icon: Banknote },
-                                    { id: 'CREDIT', label: 'Credit Sale', icon: CreditCard }
+                                    { id: 'CASH', label: 'CASH PAYMENT', icon: Banknote },
+                                    { id: 'CREDIT', label: 'CREDIT SALE', icon: CreditCard }
                                 ].map(method => (
                                     <button
                                         key={method.id}
                                         onClick={() => setPendingPaymentMethod(method.id)}
-                                        className={`p-2 rounded-xl border transition-all flex items-center gap-3 relative group ${
+                                        className={`p-4 rounded-2xl border-2 transition-all flex items-center gap-4 relative group ${
                                             pendingPaymentMethod === method.id 
-                                            ? 'border-ink-primary bg-ink-primary text-surface shadow-md' 
-                                            : 'border-black/5 bg-surface text-ink-primary hover:border-black/20'
+                                            ? 'border-accent-signature bg-accent-signature/5 shadow-premium' 
+                                            : 'border-black/5 bg-surface text-ink-primary hover:border-black/10'
                                         }`}
                                     >
-                                        <div className={`p-1.5 rounded-lg ${pendingPaymentMethod === method.id ? 'bg-accent-signature' : 'bg-canvas'}`}>
-                                            <method.icon size={12} className={pendingPaymentMethod === method.id ? 'text-ink-primary' : 'opacity-30'} />
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${pendingPaymentMethod === method.id ? 'bg-ink-primary text-surface' : 'bg-canvas text-ink-secondary'}`}>
+                                            <method.icon size={18} />
                                         </div>
-                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] leading-none text-left">{method.label}</span>
+                                        <span className="text-[10px] font-black uppercase tracking-widest leading-none text-left">{method.label}</span>
                                     </button>
                                 ))}
                             </div>
 
                             {/* Field Notes (Salesman) */}
                             <div className="space-y-2">
-                                <label className="text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-60 px-1 flex items-center gap-2">
-                                    <FileText size={10} /> Order Notes
+                                <label className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-60 flex items-center gap-2">
+                                    <FileText size={12} /> ORDER LOGISTICS NOTES
                                 </label>
                                 <textarea 
-                                    className="w-full bg-canvas border border-black/5 rounded-xl p-2.5 text-[11px] font-medium text-ink-primary outline-none focus:ring-2 focus:ring-black/5 min-h-[50px] resize-none"
-                                    placeholder="Add a note about this order..."
+                                    className="w-full bg-canvas border-none rounded-2xl p-4 font-medium text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all min-h-[80px] text-sm"
+                                    placeholder="ENTER NOTES REGARDING DELIVERY OR DISCOUNTS..."
                                     value={salesmanNote}
                                     onChange={(e) => setSalesmanNote(e.target.value)}
                                 />
@@ -689,12 +686,12 @@ const Sales = () => {
                         </div>
 
                         {/* Footer Actions */}
-                        <div className="py-2 px-6 bg-canvas border-t border-black/5 flex gap-3">
-                            <button className="flex-1 py-2.5 rounded-pill border border-black/10 font-black text-ink-primary hover:bg-black/5 transition-all uppercase text-[9px] tracking-widest" onClick={() => setShowPaymentModal(false)}>Cancel</button>
-                            <button className="btn-signature flex-[1.5] !h-10 !text-[11px] flex items-center justify-center px-4 !rounded-pill" onClick={() => handleConfirmTransaction('COMPLETED')}>
+                        <div className="mt-8 grid grid-cols-2 gap-4">
+                            <button className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowPaymentModal(false)}>Cancel</button>
+                            <button className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill" onClick={() => handleConfirmTransaction('COMPLETED')}>
                                 COMPLETE SALE
-                                <div className="icon-nest !w-8 !h-8 ml-3">
-                                    <Check size={16} />
+                                <div className="icon-nest !w-10 !h-10 ml-4">
+                                    <Check size={22} />
                                 </div>
                             </button>
                         </div>
@@ -705,33 +702,31 @@ const Sales = () => {
             {/* Booking Date Modal */}
             {showBookingDateModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal !max-w-[450px]">
-                        <button 
-                            onClick={() => setShowBookingDateModal(false)}
-                            className="absolute top-10 right-10 w-16 h-16 rounded-pill bg-canvas flex items-center justify-center text-ink-primary hover:scale-110 transition-transform shadow-premium"
-                        >
-                            <X size={24} />
-                        </button>
-
-                        <div className="text-center mb-8">
-                            <h3 className="text-3xl font-black tracking-tighter text-ink-primary uppercase mb-2">Pre-Book Order.</h3>
-                            <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.4em] opacity-70">Set Pre-book Date</p>
+                    <div className="glass-modal !max-w-[500px] !p-10">
+                        <div className="flex justify-between items-start mb-8">
+                            <div>
+                                <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">PRE-BOOK.</h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">SET FUTURE DELIVERY SCHEDULE</p>
+                            </div>
+                            <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowBookingDateModal(false)}>
+                                <X size={18} />
+                            </button>
                         </div>
                         
                         <div className="mb-8">
-                            <label className="block text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary mb-4 text-center opacity-90">Planned Delivery Date</label>
+                            <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-3 opacity-60">Planned Delivery Date</label>
                             <input 
                                 type="date" 
-                                className="w-full bg-canvas border border-black/5 rounded-bento p-6 font-black text-2xl text-center text-ink-primary outline-none focus:ring-8 focus:ring-accent-signature/20 transition-all" 
+                                className="w-full bg-canvas border-none rounded-2xl p-6 font-black text-3xl text-center text-ink-primary outline-none focus:ring-8 focus:ring-accent-signature/20 transition-all uppercase" 
                                 value={scheduledDate} 
                                 onChange={e => setScheduledDate(e.target.value)}
                                 min={new Date().toISOString().split('T')[0]}
                             />
                         </div>
 
-                        <div className="flex gap-4">
-                            <button className="flex-1 py-4 rounded-pill border border-black/10 font-black text-ink-primary hover:bg-black/5 transition-all text-[10px] tracking-[0.2em] uppercase" onClick={() => setShowBookingDateModal(false)}>CANCEL</button>
-                            <button className="btn-signature flex-[2] !h-14 !text-sm flex items-center justify-center px-4 !rounded-pill" onClick={() => handleConfirmTransaction('PENDING')}>
+                        <div className="grid grid-cols-2 gap-4">
+                            <button className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowBookingDateModal(false)}>Cancel</button>
+                            <button className="btn-signature flex-[2] !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill" onClick={() => handleConfirmTransaction('PENDING')}>
                                 CONFIRM PRE-BOOK
                                 <div className="icon-nest !w-10 !h-10 ml-4">
                                     <Clock size={20} />

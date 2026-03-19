@@ -3,18 +3,22 @@ import { useAppContext } from '../context/AppContext';
 import { 
     Settings as SettingsIcon, Building, Shield, Bell, Save, 
     CheckCircle2, Lock, Globe, Coins, ShieldCheck, 
-    Database, RotateCcw, ChevronRight, Zap, Tag, Plus, Edit2, Trash2, X
+    Database, RotateCcw, ChevronRight, Zap, Tag, Plus, Edit2, Trash2, X, FileUp, FileDown
 } from 'lucide-react';
+import DataTools from '../components/DataTools';
 
 const Settings = () => {
     const { 
-        businessProfile, updateBusinessProfile, currentUser, hasPermission, resetAndSeedLocal,
+        businessProfile, updateBusinessProfile, currentUser, hasPermission, 
+        resetAndSeedLocal,
+        resetAndSeedCloud,
         expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory 
     } = useAppContext();
 
     const [newCategory, setNewCategory] = useState('');
     const [editingCategory, setEditingCategory] = useState(null);
     const [editValue, setEditValue] = useState('');
+    const [showDataTools, setShowDataTools] = useState(false);
 
     const [profileData, setProfileData] = useState({
         name: businessProfile.name || '',
@@ -263,6 +267,32 @@ const Settings = () => {
                             </div>
                         </div>
                     </div>
+
+                    {/* Data Import / Export */}
+                    <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+                        <div className="bg-ink-primary p-6 flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <FileUp size={20} className="text-accent-signature" />
+                                <h2 className="text-xs font-black uppercase tracking-[0.3em] text-surface">Data Import / Export</h2>
+                            </div>
+                            <div className="text-[9px] font-black uppercase tracking-widest text-accent-signature opacity-70">CSV & JSON</div>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <p className="text-[11px] font-bold text-ink-secondary leading-relaxed">
+                                Import your existing business data or export a backup. Supports CSV and JSON formats for Products, Clients, Orders, Expenses, and Employees.
+                            </p>
+                            <button
+                                className="btn-signature w-full !rounded-xl !py-5 !text-xs flex items-center justify-center gap-3"
+                                onClick={() => setShowDataTools(true)}
+                            >
+                                <FileDown size={18} />
+                                OPEN DATA TOOLS
+                                <div className="icon-nest !w-9 !h-9 ml-4">
+                                    <FileUp size={18} />
+                                </div>
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Right Side: Security & Maintenance */}
@@ -289,24 +319,36 @@ const Settings = () => {
                         <div>
                             <div className="flex items-center gap-4 text-red-500 mb-6">
                                 <Database size={28} />
-                                <h3 className="text-base font-black uppercase tracking-[0.2em] leading-none">Factory Reset</h3>
+                                <h3 className="text-base font-black uppercase tracking-[0.2em] leading-none">System Tools</h3>
                             </div>
                             <p className="text-[11px] font-black text-red-900/60 uppercase tracking-widest leading-relaxed">
-                                Irreversibly wipe local storage and reset with sample data.
+                                Use these tools to manage your data environment. Seeding will wipe existing records.
                             </p>
                         </div>
                         {currentUser?.roles?.includes('GLOBAL_ADMIN') && (
-                            <button 
-                                className="w-full py-6 rounded-pill bg-red-500 text-white font-black text-xs tracking-widest uppercase hover:bg-black transition-all flex items-center justify-center gap-3 group shadow-lg"
-                                onClick={resetAndSeedLocal}
-                            >
-                                <RotateCcw size={18} className="group-hover:rotate-180 transition-transform duration-700" />
-                                RESET ALL DATA
-                            </button>
+                            <div className="flex flex-col gap-4">
+                                <button 
+                                    className="w-full py-6 rounded-pill bg-accent-signature text-ink-primary font-black text-xs tracking-widest uppercase hover:scale-[1.02] transition-all flex items-center justify-center gap-3 group shadow-lg"
+                                    onClick={resetAndSeedCloud}
+                                >
+                                    <Zap size={18} className="group-hover:animate-pulse" />
+                                    SEED CLOUD DEMO
+                                </button>
+                                <button 
+                                    className="w-full py-6 rounded-pill bg-red-500 text-white font-black text-xs tracking-widest uppercase hover:bg-black transition-all flex items-center justify-center gap-3 group shadow-lg"
+                                    onClick={resetAndSeedLocal}
+                                >
+                                    <RotateCcw size={18} className="group-hover:rotate-180 transition-transform duration-700" />
+                                    RESET ALL DATA
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
             </div>
+
+            {/* DataTools Modal */}
+            <DataTools isOpen={showDataTools} onClose={() => setShowDataTools(false)} />
         </div>
     );
 };
