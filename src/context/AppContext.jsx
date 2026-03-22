@@ -331,7 +331,9 @@ export const AppProvider = ({ children }) => {
                     { data: payrollData },
                     { data: businessData },
                     { data: dayBookData },
-                    { data: settingsData }
+                    { data: settingsData },
+                    { data: paymentsData },
+                    { data: usersData }
                 ] = await Promise.all([
                     supabase.from('products').select('*'),
                     supabase.from('clients').select('*'),
@@ -342,23 +344,21 @@ export const AppProvider = ({ children }) => {
                     supabase.from('business_profile').select('*').single(),
                     supabase.from('day_book').select('*').order('date', { ascending: false }),
                     supabase.from('settings').select('*'),
-                    supabase.from('client_payments').select('*').order('date', { ascending: false })
+                    supabase.from('client_payments').select('*').order('date', { ascending: false }),
+                    supabase.from('users').select('*')
                 ]);
-                const { data: sbProducts } = await supabase.from('products').select('*');
-                const { data: sbClients } = await supabase.from('clients').select('*');
-                const { data: sbSales } = await supabase.from('sales').select('*');
                 
-                if (sbProducts) setProducts(sbProducts || []);
-                if (sbClients) setClients(sbClients || []);
-                if (sbSales) setSales(sbSales || []);
-                if (sbExpenses) setExpenses(sbExpenses || []);
-                if (sbUsers && sbUsers.length > 0) setUsers(sbUsers);
-                if (sbDayBook) setDayBook(sbDayBook);
+                if (productsData) setProducts(productsData || []);
+                if (clientsData) setClients(clientsData || []);
+                if (salesData) setSales(salesData || []);
+                if (expensesData) setExpenses(expensesData || []);
+                if (usersData && usersData.length > 0) setUsers(usersData);
+                if (dayBookData) setDayBook(dayBookData);
                 if (paymentsData) setClientPayments(paymentsData);
                 
-                if (sbEmployees && sbEmployees.length > 0) {
+                if (employeesData && employeesData.length > 0) {
                     // Map DB 'salary' to frontend 'basePay' and 'role' to 'department'
-                    const mappedEmps = sbEmployees.map(emp => ({
+                    const mappedEmps = employeesData.map(emp => ({
                         ...emp,
                         basePay: emp.basePay ?? emp.salary ?? 0,
                         dailyRate: emp.daily_rate ?? 0,
@@ -371,9 +371,9 @@ export const AppProvider = ({ children }) => {
                     setEmployees(INITIAL_EMPLOYEES);
                 }
 
-                if (sbPayrollRecords) {
+                if (payrollData) {
                     // Group individual records by month/period to recreate "Pay Runs"
-                    const grouped = sbPayrollRecords.reduce((acc, rec) => {
+                    const grouped = payrollData.reduce((acc, rec) => {
                         const period = rec.month || 'Unknown';
                         if (!acc[period]) {
                             acc[period] = {
