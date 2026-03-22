@@ -258,6 +258,9 @@ export const AppProvider = ({ children }) => {
         return saved ? JSON.parse(saved) : INITIAL_EXPENSE_CATEGORIES;
     });
 
+    // Day Book
+    const [dayBook, setDayBook] = useState([]);
+
     const [notifications, setNotifications] = useState([]);
 
     const addNotification = (message, type = 'success') => {
@@ -283,6 +286,7 @@ export const AppProvider = ({ children }) => {
     useEffect(() => { localStorage.setItem('sm_employees', JSON.stringify(employees)); }, [employees]);
     useEffect(() => { localStorage.setItem('sm_payroll', JSON.stringify(payrollRecords)); }, [payrollRecords]);
     useEffect(() => { localStorage.setItem('sm_expense_categories', JSON.stringify(expenseCategories)); }, [expenseCategories]);
+    useEffect(() => { localStorage.setItem('sm_day_book', JSON.stringify(dayBook)); }, [dayBook]);
 
     const initializingRef = useRef(false);
 
@@ -318,7 +322,8 @@ export const AppProvider = ({ children }) => {
                     { data: sbBusiness },
                     { data: sbSettings }, 
                     { data: sbMovementLog },
-                    { data: sbPayrollRecords }
+                    { data: sbPayrollRecords },
+                    { data: sbDayBook }
                 ] = await Promise.all([
                     supabase.from('products').select('*'),
                     supabase.from('shops').select('*'),
@@ -330,7 +335,8 @@ export const AppProvider = ({ children }) => {
                     supabase.from('business_profile').select('*').maybeSingle(),
                     supabase.from('settings').select('*'), 
                     supabase.from('movement_log').select('*').order('date', { ascending: false }).limit(50),
-                    supabase.from('payroll').select('*').order('processed_at', { ascending: false })
+                    supabase.from('payroll').select('*').order('processed_at', { ascending: false }),
+                    supabase.from('day_book').select('*').order('date', { ascending: false })
                 ]);
 
                 if (sbProducts) setProducts(sbProducts || []);
@@ -338,12 +344,15 @@ export const AppProvider = ({ children }) => {
                 if (sbOrders) setOrders(sbOrders || []);
                 if (sbExpenses) setExpenses(sbExpenses || []);
                 if (sbUsers && sbUsers.length > 0) setUsers(sbUsers);
+                if (sbDayBook) setDayBook(sbDayBook);
                 
                 if (sbEmployees && sbEmployees.length > 0) {
                     // Map DB 'salary' to frontend 'basePay' and 'role' to 'department'
                     const mappedEmps = sbEmployees.map(emp => ({
                         ...emp,
                         basePay: emp.basePay ?? emp.salary ?? 0,
+                        dailyRate: emp.daily_rate ?? 0,
+                        daysWorked: emp.days_worked ?? 0,
                         department: emp.department ?? emp.role ?? 'Operations',
                         position: emp.position ?? emp.role ?? 'Standard Associate'
                     }));
@@ -481,7 +490,11 @@ export const AppProvider = ({ children }) => {
     };
 
     const addShop = async (shop) => {
-        const newShop = { ...shop, id: shop.id || `CLI-${Date.now()}-${Math.random().toString(36).substr(2, 5)}` };
+        const newShop = { 
+            ...shop, 
+            id: shop.id || `CLI-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            balance: shop.balance || 0
+        };
         
         const { error } = await supabase.from('shops').upsert(newShop);
         if (error) {
@@ -518,7 +531,8 @@ export const AppProvider = ({ children }) => {
             ...expense, 
             id: expense.id || `EXP-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, 
             date: expense.date || new Date().toISOString(),
-            route_id: expense.routeId 
+            route_id: expense.routeId,
+            split_type: expense.splitType || null
         };
         
         const { error } = await supabase.from('expenses').upsert(newExpense);
@@ -623,6 +637,15 @@ export const AppProvider = ({ children }) => {
             return null;
         }
 
+        // Update Client Balance if it's a CREDIT order
+        if (paymentMethod === 'CREDIT' && shopId !== 'POS-WALKIN') {
+            const shop = shops.find(s => s.id === shopId);
+            if (shop) {
+                const newBalance = (shop.balance || 0) + totalAmount;
+                await updateShop({ ...shop, balance: newBalance });
+            }
+        }
+
         if (status === 'COMPLETED' && !routeId) {
             setProducts(updatedProducts);
             // Also need to push updated stock to Supabase
@@ -693,6 +716,13 @@ export const AppProvider = ({ children }) => {
             if (error) {
                 console.error("Error settling order in Supabase:", error);
                 addNotification(`Cloud Payment Sync Failed: ${error.message}`, "error");
+            } else {
+                // Also update client persistent balance
+                const shop = shops.find(s => s.id === updatedOrder.shopId);
+                if (shop) {
+                    const newBalance = Math.max(0, (shop.balance || 0) - amount);
+                    await updateShop({ ...shop, balance: newBalance });
+                }
             }
         }
     };
@@ -1117,7 +1147,9 @@ export const AppProvider = ({ children }) => {
             status: 'ACTIVE',
             created_at: new Date().toISOString(),
             salary: emp.basePay, // Map field for DB
-            role: emp.department // Map field for DB
+            role: emp.department, // Map field for DB
+            daily_rate: emp.dailyRate || 0,
+            days_worked: emp.daysWorked || 0
         };
         const { error } = await supabase.from('employees').upsert(newEmp);
         if (error) {
@@ -1132,7 +1164,9 @@ export const AppProvider = ({ children }) => {
         const payload = {
             ...updated,
             salary: updated.basePay, // Map field for DB
-            role: updated.department // Map field for DB
+            role: updated.department, // Map field for DB
+            daily_rate: updated.dailyRate || 0,
+            days_worked: updated.daysWorked || 0
         };
         const { error } = await supabase.from('employees').upsert(payload);
         if (error) {
@@ -1177,6 +1211,33 @@ export const AppProvider = ({ children }) => {
             return;
         }
         setPayrollRecords(payrollRecords.filter(r => r.id !== recordId));
+    };
+
+    const updateDayBook = async (record) => {
+        const payload = {
+            ...record,
+            id: record.id || `DB-${Date.now()}`,
+            created_at: record.created_at || new Date().toISOString()
+        };
+        const { error } = await supabase.from('day_book').upsert(payload);
+        if (error) {
+            console.error("Error updating Day Book in Supabase:", error);
+            addNotification("Failed to sync Day Book to cloud", "error");
+            return null;
+        }
+        
+        setDayBook(prev => {
+            const exists = prev.find(db => db.date === payload.date);
+            if (exists) {
+                return prev.map(db => db.date === payload.date ? payload : db);
+            }
+            return [payload, ...prev];
+        });
+        return payload.id;
+    };
+
+    const getDayBookForDate = (date) => {
+        return dayBook.find(db => db.date === date);
     };
 
     const migrateLocalToSupabase = async () => {
@@ -1290,6 +1351,7 @@ export const AppProvider = ({ children }) => {
         getUserName, getVehicleName, getShopName, getEmployeeName,
         employees, addEmployee, updateEmployee, deleteEmployee,
         payrollRecords, processPayroll, deletePayrollRecord,
+        dayBook, updateDayBook, getDayBookForDate,
         notifications, addNotification,
         loading, initError, migrateLocalToSupabase, resetAndSeedLocal
     };

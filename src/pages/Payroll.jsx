@@ -20,10 +20,10 @@ const Payroll = () => {
     const [payRunMonth, setPayRunMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [payRunItems, setPayRunItems] = useState([]);
     const [expandedRecord, setExpandedRecord] = useState(null);
-
     const [empForm, setEmpForm] = useState({
         name: '', email: '', phone: '', department: DEPARTMENTS[0],
-        position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: ''
+        position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '',
+        dailyRate: '', daysWorked: ''
     });
 
     const viewOnly = isViewOnly();
@@ -31,7 +31,7 @@ const Payroll = () => {
     // ===== EMPLOYEE CRUD =====
     const openAdd = () => {
         setEditingEmployee(null);
-        setEmpForm({ name: '', email: '', phone: '', department: DEPARTMENTS[0], position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '' });
+        setEmpForm({ name: '', email: '', phone: '', department: DEPARTMENTS[0], position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '', dailyRate: '', daysWorked: '' });
         setShowForm(true);
     };
 
@@ -41,14 +41,24 @@ const Payroll = () => {
             name: emp.name, email: emp.email || '', phone: emp.phone || '',
             department: emp.department || DEPARTMENTS[0], position: emp.position || '',
             payType: emp.payType || 'MONTHLY', basePay: emp.basePay || '',
-            bankAccount: emp.bankAccount || '', notes: emp.notes || ''
+            bankAccount: emp.bankAccount || '', notes: emp.notes || '',
+            dailyRate: emp.dailyRate || '', daysWorked: emp.daysWorked || ''
         });
         setShowForm(true);
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        const data = { ...empForm, basePay: parseFloat(empForm.basePay) || 0 };
+        const dailyRate = parseFloat(empForm.dailyRate) || 0;
+        const daysWorked = parseFloat(empForm.daysWorked) || 0;
+        const basePay = (dailyRate > 0 && daysWorked > 0) ? (dailyRate * daysWorked) : (parseFloat(empForm.basePay) || 0);
+
+        const data = { 
+            ...empForm, 
+            basePay,
+            dailyRate,
+            daysWorked
+        };
         if (editingEmployee) {
             updateEmployee({ ...editingEmployee, ...data });
         } else {
@@ -262,7 +272,14 @@ const Payroll = () => {
                                                 <tr key={emp.id} className={`group hover:bg-canvas transition-all duration-300 ${emp.status !== 'ACTIVE' ? 'opacity-70 grayscale' : ''}`}>
                                                     <td className="p-1.5 pl-8">
                                                         <div className="text-sm font-black text-ink-primary uppercase tracking-tight leading-none mb-1">{emp.name}</div>
-                                                        <div className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] opacity-70">{emp.position || 'Standard Associate'}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] opacity-70">{emp.position || 'Standard Associate'}</div>
+                                                            {emp.dailyRate > 0 && (
+                                                                <span className="text-[8px] font-black text-accent-signature-hover bg-accent-signature/10 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
+                                                                    {businessProfile.currencySymbol}{emp.dailyRate}/day × {emp.daysWorked} days
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                     <td className="p-1.5">
                                                         <span className="px-3 py-1 rounded-pill bg-canvas text-[10px] font-black text-ink-primary uppercase tracking-widest border border-black/5 shadow-sm">{emp.department}</span>
@@ -459,6 +476,32 @@ const Payroll = () => {
                                             value={empForm.basePay} 
                                             onChange={e => setEmpForm({ ...empForm, basePay: e.target.value })} 
                                         />
+                                    </div>
+                                </div>
+
+                                <div> {/* Added this wrapping div */}
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-3">Daily Wage Counter (Optional)</label>
+                                    <div className="grid grid-cols-2 gap-2 bg-canvas p-3 rounded-2xl border border-black/5">
+                                        <div>
+                                            <label className="text-[8px] font-black opacity-50 uppercase mb-1 block">Daily Rate</label>
+                                            <input 
+                                                type="number" 
+                                                className="w-full bg-surface border-none rounded-xl p-3 font-black text-sm text-ink-primary outline-none" 
+                                                placeholder="0.00"
+                                                value={empForm.dailyRate} 
+                                                onChange={e => setEmpForm({ ...empForm, dailyRate: e.target.value })} 
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-[8px] font-black opacity-50 uppercase mb-1 block">Days Worked</label>
+                                            <input 
+                                                type="number" 
+                                                className="w-full bg-surface border-none rounded-xl p-3 font-black text-sm text-ink-primary outline-none" 
+                                                placeholder="0"
+                                                value={empForm.daysWorked} 
+                                                onChange={e => setEmpForm({ ...empForm, daysWorked: e.target.value })} 
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 

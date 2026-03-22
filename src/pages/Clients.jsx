@@ -243,9 +243,9 @@ const Clients = () => {
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-[8px] font-black uppercase tracking-widest text-ink-primary opacity-70 mb-1">DEBT</div>
-                                                <div className={`text-2xl font-black font-mono tracking-tighter tabular-nums leading-none ${stats?.outstandingDebt > 0 ? 'text-red-600' : 'text-ink-primary opacity-30'}`}>
-                                                    {businessProfile?.currencySymbol || '₹'}{Math.round(stats?.outstandingDebt || 0).toLocaleString()}
+                                                <div className="text-[8px] font-black uppercase tracking-widest text-ink-primary opacity-70 mb-1">BALANCE</div>
+                                                <div className={`text-2xl font-black font-mono tracking-tighter tabular-nums leading-none ${client.balance > 0 ? 'text-red-600' : 'text-ink-primary opacity-30'}`}>
+                                                    {businessProfile?.currencySymbol || '₹'}{Math.round(client.balance || 0).toLocaleString()}
                                                 </div>
                                             </div>
                                         </div>
@@ -254,7 +254,7 @@ const Clients = () => {
                                             <div className="flex-1 h-1 bg-black/10 rounded-full overflow-hidden">
                                                 <div 
                                                     className="h-full bg-accent-signature transition-all duration-500" 
-                                                    style={{ width: `${Math.min(100, (stats?.totalSales > 0 ? (stats.totalSales - stats.outstandingDebt) / stats.totalSales * 100 : 100))}%` }}
+                                                    style={{ width: `${Math.min(100, (stats?.totalSales > 0 ? (stats.totalSales - (client.balance || 0)) / stats.totalSales * 100 : 100))}%` }}
                                                 ></div>
                                             </div>
                                             {hasPermission('DELETE_CLIENT') && (

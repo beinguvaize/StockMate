@@ -23,7 +23,8 @@ const Expenses = () => {
         amount: '',
         category: expenseCategories?.[0] || 'General',
         date: new Date().toISOString().split('T')[0],
-        notes: ''
+        notes: '',
+        splitType: 'Company'
     });
 
     const uniqueTitles = useMemo(() => {
@@ -119,7 +120,8 @@ const Expenses = () => {
             amount: (expense.amount || 0).toString(),
             category: expense.category || 'General',
             date: expense.date ? expense.date.split('T')[0] : new Date().toISOString().split('T')[0],
-            notes: expense.notes || ''
+            notes: expense.notes || '',
+            splitType: expense.split_type || 'Company'
         });
         setIsAdding(true);
     };
@@ -252,6 +254,7 @@ const Expenses = () => {
                             <tr className="border-b border-black/5 bg-canvas">
                                 <th className="p-1.5 pl-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Expense Name</th>
                                 <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-center">Category</th>
+                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-center">Split</th>
                                 <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-center">Date</th>
                                 <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-right">Amount</th>
                                 <th className="p-1.5 pr-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-right">Actions</th>
@@ -269,6 +272,16 @@ const Expenses = () => {
                                     <td className="p-1.5 text-center">
                                         <span className="px-3 py-1 rounded-pill bg-canvas text-ink-primary text-[9px] font-black uppercase tracking-widest border border-black/5">
                                             {expense.category}
+                                        </span>
+                                    </td>
+                                    <td className="p-1.5 text-center">
+                                        <span className={`px-2 py-0.5 rounded-pill text-[8px] font-black uppercase tracking-widest border ${
+                                            expense.split_type === 'Akbar' ? 'bg-orange-50 text-orange-600 border-orange-200' :
+                                            expense.split_type === 'Nadar' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                                            expense.split_type === 'Narshik' ? 'bg-purple-50 text-purple-600 border-purple-200' :
+                                            'bg-canvas text-ink-primary border-black/5'
+                                        }`}>
+                                            {expense.split_type || 'Company'}
                                         </span>
                                     </td>
                                     <td className="p-1.5 text-center">
@@ -398,6 +411,20 @@ const Expenses = () => {
                                         value={formData.date} 
                                         onChange={e => setFormData({...formData, date: e.target.value})} 
                                     />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Partner Split (Optional)</label>
+                                    <select 
+                                        className="w-full bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase appearance-none cursor-pointer" 
+                                        value={formData.splitType} 
+                                        onChange={e => setFormData({...formData, splitType: e.target.value})}
+                                    >
+                                        <option value="Company">COMPANY (DEFAULT)</option>
+                                        <option value="Akbar">AKBAR</option>
+                                        <option value="Nadar">NADAR</option>
+                                        <option value="Narshik">NARSHIK</option>
+                                    </select>
                                 </div>
 
                                 <div className="md:col-span-2">

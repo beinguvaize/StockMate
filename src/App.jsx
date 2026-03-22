@@ -14,6 +14,7 @@ import Clients from './pages/Clients';
 import Reports from './pages/Reports';
 import Orders from './pages/Orders';
 import Payroll from './pages/Payroll';
+import DayBook from './pages/DayBook';
 
 /**
  * ProtectedRoute: Redirects to /login if the user is not authenticated.
@@ -84,6 +85,7 @@ function AppRoutes() {
         <Route path="reports" element={<Reports />} />
         <Route path="orders" element={<Orders />} />
         <Route path="payroll" element={<Payroll />} />
+        <Route path="daybook" element={<DayBook />} />
       </Route>
 
       {/* Catch-all: redirect to home (which will redirect based on auth) */}
