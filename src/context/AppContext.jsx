@@ -333,7 +333,12 @@ export const AppProvider = ({ children }) => {
                     { data: dayBookData },
                     { data: settingsData },
                     { data: paymentsData },
-                    { data: usersData }
+                    { data: usersData },
+                    { data: vehiclesData },
+                    { data: movementData },
+                    { data: routesData },
+                    { data: purchasesData },
+                    { data: mechanicData }
                 ] = await Promise.all([
                     supabase.from('products').select('*'),
                     supabase.from('clients').select('*'),
@@ -345,7 +350,12 @@ export const AppProvider = ({ children }) => {
                     supabase.from('day_book').select('*').order('date', { ascending: false }),
                     supabase.from('settings').select('*'),
                     supabase.from('client_payments').select('*').order('date', { ascending: false }),
-                    supabase.from('users').select('*')
+                    supabase.from('users').select('*'),
+                    supabase.from('vehicles').select('*'),
+                    supabase.from('movement_log').select('*').order('date', { ascending: false }),
+                    supabase.from('routes').select('*').order('date', { ascending: false }),
+                    supabase.from('purchases').select('*').order('date', { ascending: false }),
+                    supabase.from('mechanic_payments').select('*').order('work_date', { ascending: false })
                 ]);
                 
                 if (productsData) setProducts(productsData || []);
@@ -398,11 +408,14 @@ export const AppProvider = ({ children }) => {
                     setPayrollRecords(Object.values(grouped));
                 }
 
-                if (sbVehicles) setVehicles(sbVehicles || []);
-                if (sbBusiness) setBusinessProfile(sbBusiness);
+                if (vehiclesData) setVehicles(vehiclesData || []);
+                if (routesData) setRoutes(routesData || []);
+                if (purchasesData) setPurchases(purchasesData || []);
+                if (mechanicData) setMechanicPayments(mechanicData || []);
+                if (businessData) setBusinessProfile(businessData);
                 
-                if (sbMovementLog) {
-                    const mappedLog = sbMovementLog.map(log => ({
+                if (movementData) {
+                    const mappedLog = movementData.map(log => ({
                         ...log,
                         productId: log.product_id,
                         productName: log.product_name,
@@ -411,8 +424,8 @@ export const AppProvider = ({ children }) => {
                     setMovementLog(mappedLog);
                 }
                 
-                if (sbSettings) {
-                    const categories = sbSettings.find(s => s.key === 'expense_categories');
+                if (settingsData) {
+                    const categories = settingsData.find(s => s.key === 'expense_categories');
                     if (categories) setExpenseCategories(categories.value);
                 }
 
