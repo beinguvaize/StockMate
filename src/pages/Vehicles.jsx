@@ -26,7 +26,7 @@ const DEFAULT_ZOOM = 11;
 const Vehicles = () => {
     const { 
         vehicles, addVehicle, routes, dispatchRoute, reconcileRoute, 
-        products, orders, businessProfile, employees, getEmployeeName, hasPermission 
+        products, sales, businessProfile, employees, getEmployeeName, hasPermission 
     } = useAppContext();
 
     const [activeTab, setActiveTab] = useState('ROUTES'); 
@@ -55,10 +55,10 @@ const Vehicles = () => {
     const pastRoutes = routes.filter(r => r.status === 'COMPLETED').sort((a,b) => new Date(b.reconciledAt) - new Date(a.reconciledAt)).slice(0, 10);
 
     const getExpectedLeftovers = (route) => {
-        const routeSales = orders.filter(o => o.routeId === route.id);
+        const routeSales = (sales || []).filter(o => o.routeId === route.id);
         const soldMap = {};
         routeSales.forEach(order => {
-            order.items.forEach(item => {
+            (order.items || []).forEach(item => {
                 soldMap[item.productId] = (soldMap[item.productId] || 0) + item.quantity;
             });
         });

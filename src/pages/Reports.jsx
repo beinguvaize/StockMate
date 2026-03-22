@@ -12,8 +12,8 @@ import {
 
 const Reports = () => {
     const { 
-        orders, movementLog, expenses, businessProfile, shops, users, vehicles, routes,
-        employees, payrollRecords, products, updateProduct, getUserName, getVehicleName, getEmployeeName, hasPermission 
+        sales, movementLog, expenses, businessProfile, clients, users, vehicles, routes,
+        getShopName, getUserName, getVehicleName, getEmployeeName, employees, payrollRecords, products, updateProduct, hasPermission, isOwner
     } = useAppContext();
     const [dateRange, setDateRange] = useState('MONTH');
     const [activeTab, setActiveTab] = useState('SALES');
@@ -22,6 +22,27 @@ const Reports = () => {
     const [bulkSearch, setBulkSearch] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [isConfiguring, setIsConfiguring] = useState(false);
+
+    if (!isOwner) {
+        return (
+            <div className="animate-fade-in flex flex-col items-center justify-center min-h-[60vh] p-8">
+                <div className="glass-panel max-w-[500px] w-full text-center p-12 border-none">
+                    <div className="flex justify-center mb-8">
+                        <div className="bg-red-50 p-8 rounded-full text-red-500">
+                            <Lock size={64} strokeWidth={2.5} />
+                        </div>
+                    </div>
+                    <h2 className="text-4xl font-black tracking-tighter text-[#111] uppercase mb-4">Access Denied</h2>
+                    <p className="text-sm font-bold text-[#747576] tracking-widest uppercase opacity-40 mb-10 leading-relaxed">
+                        Reports are restricted to Administrators.
+                    </p>
+                    <button className="btn-signature w-full h-16" onClick={() => window.history.back()}>
+                        GO BACK
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     // Sync edited products when tab switches to ADVANCED
     useEffect(() => {
@@ -78,7 +99,7 @@ const Reports = () => {
 
         if (activeTab === 'SALES') {
             headers = ['Order ID', 'Customer', 'Method', 'Status', 'Total', 'COGS', 'Date'];
-            rows = filteredOrders.map(o => [
+            rows = filteredSales.map(o => [
                 o.id, 
                 o.customerInfo?.name || 'Walk-in', 
                 o.paymentMethod, 
@@ -124,15 +145,16 @@ const Reports = () => {
         return items.filter(item => new Date(item[dateKey]) >= past);
     };
 
-    const filteredOrders = useMemo(() => filterByDate(orders, 'date'), [orders, dateRange]);
+    const filteredSales = useMemo(() => filterByDate(sales, 'date'), [sales, dateRange]);
     const filteredMovements = useMemo(() => filterByDate(movementLog, 'date'), [movementLog, dateRange]);
     const filteredExpenses = useMemo(() => filterByDate(expenses, 'date'), [expenses, dateRange]);
     const filteredPayroll = useMemo(() => filterByDate(payrollRecords || [], 'processed_at'), [payrollRecords, dateRange]);
 
     const filteredData = {
-        sales: filteredOrders,
+        sales: filteredSales,
         expenses: filteredExpenses,
-        payroll: filteredPayroll
+        payroll: filteredPayroll,
+        movements: filteredMovements
     };
 
     // Sales Metrics
@@ -206,7 +228,7 @@ const Reports = () => {
     const totalExpenses = filteredExpenses.reduce((sum, e) => sum + e.amount, 0);
 
     // Sales Attribution Metrics
-    const attributionByRep = filteredOrders.reduce((acc, order) => {
+    const attributionByRep = filteredSales.reduce((acc, order) => {
         if (order.status !== 'CANCELLED') {
             // Primary attribution: Booking Agent
             if (order.bookedBy) {
@@ -223,7 +245,7 @@ const Reports = () => {
         return acc;
     }, {});
 
-    const attributionByFleet = filteredOrders.reduce((acc, order) => {
+    const attributionByFleet = filteredSales.reduce((acc, order) => {
         if (order.status === 'COMPLETED' && order.deliveredBy) {
             acc[order.deliveredBy] = (acc[order.deliveredBy] || 0) + order.totalAmount;
         }
@@ -242,7 +264,7 @@ const Reports = () => {
             dataMap[dateStr] = { date: dateStr, sales: 0, expenses: 0, profit: 0 };
         }
 
-        filteredOrders.forEach(o => {
+        filteredSales.forEach(o => {
             const ds = new Date(o.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             if (dataMap[ds]) {
                 dataMap[ds].sales += o.totalAmount;
@@ -308,11 +330,16 @@ const Reports = () => {
                             </span>
                         </div>
                         <div className="flex -space-x-4 px-4">
-                            {[1, 2, 3].map(i => (
-                                <div key={i} className="w-10 h-10 rounded-full border-4 border-white bg-canvas flex items-center justify-center text-[10px] font-black shadow-sm uppercase">
-                                    {String.fromCharCode(64 + i)}
+                            {(clients || []).slice(0, 5).map((client, i) => (
+                                <div key={client.id} className="w-10 h-10 rounded-full border-4 border-white bg-canvas flex items-center justify-center text-[10px] font-black shadow-sm uppercase overflow-hidden">
+                                     {client.name.substring(0, 2)}
                                 </div>
                             ))}
+                            {(clients || []).length > 5 && (
+                                <div className="w-10 h-10 rounded-full border-4 border-white bg-gray-100 flex items-center justify-center text-[10px] font-black shadow-sm uppercase text-gray-400">
+                                    +{(clients || []).length - 5}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -873,6 +900,45 @@ const Reports = () => {
                     )}
 
                     {activeTab === 'EXPENSES' && (
+                        <div className="flex flex-col gap-6">
+                            {/* Breakdown Cards */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 pb-0">
+                                <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium rounded-2xl">
+                                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 mb-4 flex items-center gap-2">
+                                        <PieChart size={12} className="text-accent-signature" /> By Category
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {Object.entries(filteredExpenses.reduce((acc, e) => {
+                                            const cat = e.category || 'Other';
+                                            acc[cat] = (acc[cat] || 0) + parseFloat(e.amount || 0);
+                                            return acc;
+                                        }, {})).sort((a,b) => b[1] - a[1]).map(([cat, amount]) => (
+                                            <div key={cat} className="flex justify-between items-center bg-canvas/30 px-3 py-2 rounded-lg border border-black/5">
+                                                <span className="text-[11px] font-black uppercase tracking-widest text-ink-primary">{cat}</span>
+                                                <span className="text-xs font-black font-mono tracking-tighter text-red-400">{businessProfile.currencySymbol}{amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium rounded-2xl">
+                                    <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 mb-4 flex items-center gap-2">
+                                        <Users size={12} className="text-ink-primary" /> By Partner Split
+                                    </h3>
+                                    <div className="space-y-3">
+                                        {Object.entries(filteredExpenses.reduce((acc, e) => {
+                                            const sp = e.split_type || e.splitType || 'Company';
+                                            acc[sp] = (acc[sp] || 0) + parseFloat(e.amount || 0);
+                                            return acc;
+                                        }, {})).sort((a,b) => b[1] - a[1]).map(([sp, amount]) => (
+                                            <div key={sp} className="flex justify-between items-center bg-canvas/30 px-3 py-2 rounded-lg border border-black/5">
+                                                <span className="text-[11px] font-black uppercase tracking-widest text-[#4b5563]">{sp}</span>
+                                                <span className="text-xs font-black font-mono tracking-tighter text-red-400">{businessProfile.currencySymbol}{amount.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="bg-canvas/50 border-b border-black/5">
@@ -918,6 +984,7 @@ const Reports = () => {
                                 ))}
                             </tbody>
                         </table>
+                        </div>
                     )}
 
                     {activeTab === 'ADVANCED' && (

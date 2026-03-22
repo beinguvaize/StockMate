@@ -7,8 +7,8 @@ import {
 
 const DayBook = () => {
     const { 
-        orders, expenses, dayBook, updateDayBook, getDayBookForDate,
-        businessProfile, hasPermission, loading 
+        sales, expenses, dayBook, updateDayBook, getDayBookForDate,
+        businessProfile, hasPermission, loading, isViewOnly
     } = useAppContext();
     
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -26,20 +26,18 @@ const DayBook = () => {
     // Current metrics for selected date
     const dailyMetrics = useMemo(() => {
         const dateStr = selectedDate;
-        
-        // Use local date part for comparison
         const getLocalDate = (d) => new Date(d).toISOString().split('T')[0];
 
-        const sales = orders
-            .filter(o => getLocalDate(o.date) === dateStr && o.status !== 'CANCELLED')
+        const cashSales = (sales || [])
+            .filter(o => getLocalDate(o.date) === dateStr && o.status !== 'CANCELLED' && o.payment_type === 'cash')
             .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
             
-        const cost = expenses
+        const cost = (expenses || [])
             .filter(e => getLocalDate(e.date) === dateStr)
-            .reduce((sum, e) => sum + (e.amount || 0), 0);
+            .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
             
-        return { sales, cost };
-    }, [orders, expenses, selectedDate]);
+        return { sales: cashSales, cost };
+    }, [sales, expenses, selectedDate]);
 
     // Check if we have an existing record for today
     const existingRecord = useMemo(() => {
@@ -57,19 +55,21 @@ const DayBook = () => {
         return openingBalance + dailyMetrics.sales - dailyMetrics.cost;
     }, [openingBalance, dailyMetrics]);
 
-    const handleSave = async () => {
+    const handleSave = async (lock = false) => {
         setIsSaving(true);
         const record = {
+            ...existingRecord,
             date: selectedDate,
             opening_balance: openingBalance,
             closing_balance: closingBalance,
             total_sales: dailyMetrics.sales,
-            total_expenses: dailyMetrics.cost
+            total_expenses: dailyMetrics.cost,
+            is_closed: lock || (existingRecord?.is_closed || false)
         };
         
         const result = await updateDayBook(record);
         if (result) {
-            setMessage({ type: 'success', text: 'Day Book synchronized successfully.' });
+            setMessage({ type: 'success', text: lock ? 'Day closed and locked.' : 'Day Book synchronized successfully.' });
             setTimeout(() => setMessage(null), 3000);
         } else {
             setMessage({ type: 'error', text: 'Failed to sync Day Book.' });
@@ -101,16 +101,31 @@ const DayBook = () => {
                             }}
                         />
                     </div>
-                    <button 
-                        onClick={handleSave}
-                        disabled={isSaving || !hasPermission('ADD_EXPENSE')}
-                        className={`btn-signature !h-10 !px-6 !rounded-pill !text-[10px] flex items-center gap-3 ${isSaving ? 'opacity-50 grayscale' : ''}`}
-                    >
-                        {isSaving ? 'SYNCING...' : 'SYNC LEDGER'}
-                        <div className="icon-nest !w-6 !h-6">
-                            <RefreshCcw size={12} className={isSaving ? 'animate-spin' : ''} />
+                    {existingRecord?.is_closed ? (
+                        <div className="flex items-center gap-3 px-6 py-2 bg-red-50 text-red-600 rounded-pill border border-red-100 font-black text-[10px] uppercase tracking-widest">
+                            <Clock size={14} /> Day Locked
                         </div>
-                    </button>
+                    ) : (
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => handleSave(false)}
+                                disabled={isSaving || isViewOnly()}
+                                className={`h-10 px-6 rounded-pill text-[10px] font-black uppercase tracking-widest border border-black/10 hover:bg-black/5 transition-all ${isSaving ? 'opacity-50' : ''}`}
+                            >
+                                SAVE DRAFT
+                            </button>
+                            <button 
+                                onClick={() => handleSave(true)}
+                                disabled={isSaving || isViewOnly()}
+                                className={`btn-signature !h-10 !px-6 !rounded-pill !text-[10px] flex items-center gap-3 ${isSaving ? 'opacity-50 grayscale' : ''}`}
+                            >
+                                {isSaving ? 'CLOSING...' : 'CLOSE DAY'}
+                                <div className="icon-nest !w-6 !h-6">
+                                    <Save size={12} className={isSaving ? 'animate-spin' : ''} />
+                                </div>
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -136,7 +151,7 @@ const DayBook = () => {
                                     <h2 className="text-sm font-black text-ink-primary uppercase tracking-[0.3em] mb-1">Opening Balance</h2>
                                     <p className="text-[10px] font-bold text-ink-secondary uppercase tracking-widest opacity-50">Cash in hand from previous session</p>
                                 </div>
-                                {!existingRecord && (
+                                {!existingRecord && !existingRecord?.is_closed && (
                                     <button 
                                         onClick={() => setManualOpeningBalance(openingBalance.toString())}
                                         className="text-[9px] font-black text-accent-signature-hover uppercase tracking-widest bg-accent-signature/10 px-3 py-1.5 rounded-pill border border-accent-signature/20 hover:bg-accent-signature/20 transition-all"

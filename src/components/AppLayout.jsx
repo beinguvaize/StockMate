@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users, Settings, BookOpen } from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users, Settings, BookOpen, ShoppingBag } from 'lucide-react';
 import NotificationStack from './NotificationStack';
 
 const Navbar = () => {
@@ -16,7 +16,8 @@ const Navbar = () => {
         { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
         { label: 'Inventory', path: '/inventory', icon: <Package size={20} /> },
         { label: 'Sales', path: '/sales', icon: <ShoppingCart size={20} /> },
-        { label: 'Orders', path: '/orders', icon: <ClipboardList size={20} /> },
+        { label: 'Purchases', path: '/purchases', icon: <ShoppingBag size={20} /> },
+        { label: 'Pipeline', path: '/orders', icon: <ClipboardList size={20} /> },
         { label: 'Expenses', path: '/expenses', icon: <Wallet size={20} /> },
         { label: 'Clients', path: '/clients', icon: <Users size={20} /> },
         { label: 'Payroll', path: '/payroll', icon: <Banknote size={20} />, hidden: !isOwner },

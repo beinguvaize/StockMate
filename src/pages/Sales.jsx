@@ -8,7 +8,10 @@ import {
 } from 'lucide-react';
 
 const Sales = () => {
-    const { products, businessProfile, placeOrder, routes, orders, shops, getEmployeeName, isViewOnly } = useAppContext();
+    const { 
+        products, sales, businessProfile, routes, dispatchRoute, 
+        hasPermission, currentUser, clients, getShopName, placeSale, getEmployeeName, isViewOnly 
+    } = useAppContext();
     const [selectedShopId, setSelectedShopId] = useState('WALKIN');
     const [customerInfo, setCustomerInfo] = useState({ name: 'Walk-in Customer', phone: '' });
     const [cart, setCart] = useState([]);
@@ -51,16 +54,24 @@ const Sales = () => {
     // Clear cart if route changes
     useEffect(() => { setCart([]); }, [selectedRoute]);
 
+    const activeSalesByRoute = useMemo(() => {
+        if (!selectedRoute) return [];
+        const route = routes.find(r => r.id === selectedRoute);
+        if (!route) return [];
+        const routeSales = (sales || []).filter(o => o.routeId === route.id);
+        return routeSales;
+    }, [products, routes, sales, selectedRoute]);
+
     const availableProducts = useMemo(() => {
         if (!selectedRoute) return (products || []).filter(p => p.stock > 0);
         
         const route = (routes || []).find(r => r.id === selectedRoute);
         if (!route) return [];
 
-        const routeSales = (orders || []).filter(o => o.routeId === route.id);
+        const routeSales = (sales || []).filter(o => o.routeId === route.id);
         const soldMap = {};
-        routeSales.forEach(order => {
-            (order.items || []).forEach(item => {
+        routeSales.forEach(sale => {
+            (sale.items || []).forEach(item => {
                 soldMap[item.productId] = (soldMap[item.productId] || 0) + item.quantity;
             });
         });
@@ -98,13 +109,13 @@ const Sales = () => {
     }, [availableProducts, searchTerm, selectedCategory]);
 
     const filteredCustomers = useMemo(() => {
-        if (!customerSearch) return shops;
+        if (!customerSearch) return clients;
         const lower = customerSearch.toLowerCase();
-        return (shops || []).filter(s => 
+        return (clients || []).filter(s => 
             s.name.toLowerCase().includes(lower) || 
             (s.phone && s.phone.includes(lower))
         );
-    }, [shops, customerSearch]);
+    }, [clients, customerSearch]);
 
     const getCategoryIcon = (cat) => {
         const lower = cat.toLowerCase();
@@ -185,7 +196,7 @@ const Sales = () => {
 
     const handleConfirmTransaction = (statusOverride) => {
         const status = statusOverride || 'COMPLETED';
-        const orderId = placeOrder(
+        const saleId = placeSale(
             selectedShopId === 'WALKIN' ? 'POS-WALKIN' : selectedShopId,
             cart,
             cartCalc.subtotal,
@@ -193,13 +204,13 @@ const Sales = () => {
             cartCalc.totalTax,
             cartCalc.finalTotal,
             customerInfo,
-            pendingPaymentMethod,
+            pendingPaymentMethod.toLowerCase(),
             selectedRoute || null,
             status,
             status === 'PENDING' ? scheduledDate : null,
             salesmanNote
         );
-        setLastOrderId(orderId);
+        setLastOrderId(saleId);
         setLastOrderTotal(cartCalc.finalTotal);
         setCart([]);
         setSelectedShopId('WALKIN');
@@ -222,7 +233,7 @@ const Sales = () => {
                     <div className="p-6 bg-canvas rounded-bento border border-black/5 mb-6 text-center">
                         <div className="text-[10px] font-black uppercase tracking-[0.4em] text-[#4b5563] mb-2 opacity-85">Total Amount</div>
                         <div className="text-6xl font-black text-ink-primary tracking-tighter">
-                            ${lastOrderTotal.toLocaleString()}
+                            ₹{lastOrderTotal.toLocaleString()}
                         </div>
                     </div>
 
@@ -356,7 +367,7 @@ const Sales = () => {
                                 {/* Rate (Editable Pill) */}
                                 <div className="w-20 shrink-0">
                                     <div className="relative">
-                                        <span className="text-[10px] font-black text-ink-primary opacity-85 absolute left-2.5 top-1/2 -translate-y-1/2">$</span>
+                                        <span className="text-[10px] font-black text-ink-primary opacity-85 absolute left-2.5 top-1/2 -translate-y-1/2">₹</span>
                                         <input 
                                             type="number" 
                                             className="w-full bg-canvas border border-black/5 rounded-full py-1 pl-5 pr-2 text-center text-[10px] font-black text-ink-primary outline-none focus:border-black/20 transition-all font-mono" 
@@ -385,7 +396,7 @@ const Sales = () => {
                                 
                                 <div className="w-20 shrink-0 text-right">
                                     <div className="text-lg font-black text-ink-primary tracking-tighter">
-                                        ${item.lineTotal.toLocaleString()}
+                                        ₹{item.lineTotal.toLocaleString()}
                                     </div>
                                 </div>
                                 
@@ -417,9 +428,9 @@ const Sales = () => {
                         </div>
                     )}
                     <div className="flex justify-between items-end pt-3 border-t border-black/5">
-                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-primary">Total</span>
+                        <span className="text-[10px] font-black uppercase tracking-dot-wider text-ink-primary">Total</span>
                         <span className="text-3xl font-black text-ink-primary tracking-tighter">
-                            ${cartCalc.finalTotal.toLocaleString()}
+                            ₹{cartCalc.finalTotal.toLocaleString()}
                         </span>
                     </div>
                 </div>
@@ -635,7 +646,7 @@ const Sales = () => {
                             {/* Capital Summary */}
                             <div className="p-4 bg-canvas rounded-bento border border-black/5 text-center">
                                 <div className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary mb-2 opacity-70">Total Amount Due</div>
-                                <div className="text-6xl font-black text-ink-primary tracking-tighter">${cartCalc.finalTotal.toLocaleString()}</div>
+                                <div className="text-6xl font-black text-ink-primary tracking-tighter">₹{cartCalc.finalTotal.toLocaleString()}</div>
                             </div>
 
                             {/* Itemized List (Compact) */}
@@ -649,9 +660,9 @@ const Sales = () => {
                                         <div key={item.productId} className="flex justify-between items-center py-2 border-b border-black/5 last:border-0">
                                             <div className="flex-1 min-w-0 pr-4">
                                                 <div className="text-[11px] font-black text-ink-primary uppercase tracking-tight truncate">{item.name}</div>
-                                                <div className="text-[9px] font-black text-ink-secondary opacity-70 uppercase tracking-widest">{item.quantity} {item.unit} × ${item.price}</div>
+                                                <div className="text-[9px] font-black text-ink-secondary opacity-70 uppercase tracking-widest">{item.quantity} {item.unit} × ₹{item.price}</div>
                                             </div>
-                                            <div className="text-sm font-black text-ink-primary tracking-tighter">${item.lineTotal.toLocaleString()}</div>
+                                            <div className="text-sm font-black text-ink-primary tracking-tighter">₹{item.lineTotal.toLocaleString()}</div>
                                         </div>
                                     ))}
                                 </div>

@@ -15,8 +15,9 @@ dist-ssr
 .env.local
 .env.staging
 .env.production
-.env.development
-
+.env.development.local
+*.sql.backup
+.supabase/
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

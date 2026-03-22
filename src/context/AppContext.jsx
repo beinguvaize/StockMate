@@ -1,5 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
+import { 
+    saleSchema, expenseSchema, purchaseSchema, 
+    employeeSchema, clientSchema, dayBookSchema 
+} from '../lib/validation';
 
 const AppContext = createContext();
 
@@ -141,10 +145,10 @@ const INITIAL_EMPLOYEES = [
 ];
 
 const INITIAL_BUSINESS = {
-    name: 'Ledger Demo Corp',
-    country: 'United Arab Emirates', // Default country
-    currency: 'AED',
-    currencySymbol: 'AED',
+    name: 'Future Dispo Industries',
+    country: 'India',
+    currency: 'INR',
+    currencySymbol: '₹',
     lowStockThreshold: 20
 };
 
@@ -203,18 +207,27 @@ export const AppProvider = ({ children }) => {
         }
     });
 
-    const [shops, setShops] = useState(() => {
+    const [clients, setClients] = useState(() => {
         try {
-            const saved = localStorage.getItem('sm_shops');
+            const saved = localStorage.getItem('sm_clients');
             return saved ? JSON.parse(saved) : INITIAL_SHOPS;
         } catch (e) {
             return INITIAL_SHOPS;
         }
     });
 
-    const [orders, setOrders] = useState(() => {
+    const [clientPayments, setClientPayments] = useState(() => {
         try {
-            const saved = localStorage.getItem('sm_orders');
+            const saved = localStorage.getItem('sm_client_payments');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    });
+
+    const [sales, setSales] = useState(() => {
+        try {
+            const saved = localStorage.getItem('sm_sales');
             return saved ? JSON.parse(saved) : [];
         } catch (e) {
             return [];
@@ -253,10 +266,7 @@ export const AppProvider = ({ children }) => {
         return saved ? JSON.parse(saved) : [];
     });
 
-    const [expenseCategories, setExpenseCategories] = useState(() => {
-        const saved = localStorage.getItem('sm_expense_categories');
-        return saved ? JSON.parse(saved) : INITIAL_EXPENSE_CATEGORIES;
-    });
+    const [expenseCategories, setExpenseCategories] = useState(['Petrol', 'Food', 'Salary', 'Rent', 'Electricity', 'Water', 'Maintenance', 'Stationery', 'Travel', 'Marketing', 'Tax', 'Others']);
 
     // Day Book
     const [dayBook, setDayBook] = useState([]);
@@ -276,8 +286,8 @@ export const AppProvider = ({ children }) => {
     // Persistence Effects (Legacy LocalStorage Fallback + Initial Sync)
     useEffect(() => { localStorage.setItem('sm_business', JSON.stringify(businessProfile)); }, [businessProfile]);
     useEffect(() => { localStorage.setItem('sm_products', JSON.stringify(products)); }, [products]);
-    useEffect(() => { localStorage.setItem('sm_shops', JSON.stringify(shops)); }, [shops]);
-    useEffect(() => { localStorage.setItem('sm_orders', JSON.stringify(orders)); }, [orders]);
+    useEffect(() => { localStorage.setItem('sm_clients', JSON.stringify(clients)); }, [clients]);
+    useEffect(() => { localStorage.setItem('sm_sales', JSON.stringify(sales)); }, [sales]);
     useEffect(() => { localStorage.setItem('sm_expenses', JSON.stringify(expenses)); }, [expenses]);
     useEffect(() => { localStorage.setItem('sm_movement_log', JSON.stringify(movementLog)); }, [movementLog]);
     useEffect(() => { localStorage.setItem('sm_vehicles', JSON.stringify(vehicles)); }, [vehicles]);
@@ -287,6 +297,7 @@ export const AppProvider = ({ children }) => {
     useEffect(() => { localStorage.setItem('sm_payroll', JSON.stringify(payrollRecords)); }, [payrollRecords]);
     useEffect(() => { localStorage.setItem('sm_expense_categories', JSON.stringify(expenseCategories)); }, [expenseCategories]);
     useEffect(() => { localStorage.setItem('sm_day_book', JSON.stringify(dayBook)); }, [dayBook]);
+    useEffect(() => { localStorage.setItem('sm_client_payments', JSON.stringify(clientPayments)); }, [clientPayments]);
 
     const initializingRef = useRef(false);
 
@@ -312,39 +323,38 @@ export const AppProvider = ({ children }) => {
                 
                 // Fetch initial data from Supabase
                 const [
-                    { data: sbProducts },
-                    { data: sbShops },
-                    { data: sbOrders },
-                    { data: sbExpenses },
-                    { data: sbUsers },
-                    { data: sbEmployees },
-                    { data: sbVehicles },
-                    { data: sbBusiness },
-                    { data: sbSettings }, 
-                    { data: sbMovementLog },
-                    { data: sbPayrollRecords },
-                    { data: sbDayBook }
+                    { data: productsData },
+                    { data: clientsData },
+                    { data: salesData },
+                    { data: expensesData },
+                    { data: employeesData },
+                    { data: payrollData },
+                    { data: businessData },
+                    { data: dayBookData },
+                    { data: settingsData }
                 ] = await Promise.all([
                     supabase.from('products').select('*'),
-                    supabase.from('shops').select('*'),
-                    supabase.from('orders').select('*').order('date', { ascending: false }),
+                    supabase.from('clients').select('*'),
+                    supabase.from('sales').select('*').order('date', { ascending: false }),
                     supabase.from('expenses').select('*').order('date', { ascending: false }),
-                    supabase.from('users').select('*'),
                     supabase.from('employees').select('*'),
-                    supabase.from('vehicles').select('*'),
-                    supabase.from('business_profile').select('*').maybeSingle(),
-                    supabase.from('settings').select('*'), 
-                    supabase.from('movement_log').select('*').order('date', { ascending: false }).limit(50),
                     supabase.from('payroll').select('*').order('processed_at', { ascending: false }),
-                    supabase.from('day_book').select('*').order('date', { ascending: false })
+                    supabase.from('business_profile').select('*').single(),
+                    supabase.from('day_book').select('*').order('date', { ascending: false }),
+                    supabase.from('settings').select('*'),
+                    supabase.from('client_payments').select('*').order('date', { ascending: false })
                 ]);
-
+                const { data: sbProducts } = await supabase.from('products').select('*');
+                const { data: sbClients } = await supabase.from('clients').select('*');
+                const { data: sbSales } = await supabase.from('sales').select('*');
+                
                 if (sbProducts) setProducts(sbProducts || []);
-                if (sbShops) setShops(sbShops || []);
-                if (sbOrders) setOrders(sbOrders || []);
+                if (sbClients) setClients(sbClients || []);
+                if (sbSales) setSales(sbSales || []);
                 if (sbExpenses) setExpenses(sbExpenses || []);
                 if (sbUsers && sbUsers.length > 0) setUsers(sbUsers);
                 if (sbDayBook) setDayBook(sbDayBook);
+                if (paymentsData) setClientPayments(paymentsData);
                 
                 if (sbEmployees && sbEmployees.length > 0) {
                     // Map DB 'salary' to frontend 'basePay' and 'role' to 'department'
@@ -489,44 +499,53 @@ export const AppProvider = ({ children }) => {
         setUsers(users.filter(u => u.id !== userId));
     };
 
-    const addShop = async (shop) => {
-        const newShop = { 
-            ...shop, 
-            id: shop.id || `CLI-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            balance: shop.balance || 0
+    const addClient = async (client) => {
+        const val = clientSchema.safeParse(client);
+        if (!val.success) {
+            addNotification("Validation failed: " + val.error.errors[0].message, "error");
+            return;
+        }
+        const newClient = { 
+            ...client, 
+            id: client.id || `CLI-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            outstanding_balance: client.outstanding_balance || 0
         };
         
-        const { error } = await supabase.from('shops').upsert(newShop);
+        const { error } = await supabase.from('clients').upsert(newClient);
         if (error) {
-            console.error("Error adding shop to Supabase:", error);
-            addNotification(`Cloud Shop Save Failed: ${error.message}`, "error");
+            console.error("Error adding client to Supabase:", error);
+            addNotification(`Cloud Client Save Failed: ${error.message}`, "error");
             return;
         }
-
-        setShops([newShop, ...shops]);
+        setClients([newClient, ...clients]);
     };
 
-    const updateShop = async (updatedShop) => {
-        const { error } = await supabase.from('shops').upsert(updatedShop);
+    const updateClient = async (updatedClient) => {
+        const { error } = await supabase.from('clients').upsert(updatedClient);
         if (error) {
-            console.error("Error updating shop in Supabase:", error);
-            addNotification("Failed to update shop in cloud", "error");
+            console.error("Error updating client in Supabase:", error);
+            addNotification("Failed to update client in cloud", "error");
             return;
         }
-        setShops(shops.map(s => s.id === updatedShop.id ? updatedShop : s));
+        setClients(clients.map(c => c.id === updatedClient.id ? updatedClient : c));
     };
 
-    const deleteShop = async (shopId) => {
-        const { error } = await supabase.from('shops').delete().eq('id', shopId);
+    const deleteClient = async (clientId) => {
+        const { error } = await supabase.from('clients').delete().eq('id', clientId);
         if (error) {
-            console.error("Error deleting shop from Supabase:", error);
-            addNotification("Failed to delete shop from cloud", "error");
+            console.error("Error deleting client from Supabase:", error);
+            addNotification("Failed to delete client from cloud", "error");
             return;
         }
-        setShops(shops.filter(s => s.id !== shopId));
+        setClients(clients.filter(c => c.id !== clientId));
     };
 
     const addExpense = async (expense) => {
+        const val = expenseSchema.safeParse(expense);
+        if (!val.success) {
+            addNotification("Validation failed: " + val.error.errors[0].message, "error");
+            return;
+        }
         const newExpense = { 
             ...expense, 
             id: expense.id || `EXP-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, 
@@ -593,7 +612,12 @@ export const AppProvider = ({ children }) => {
         setMovementLog(prev => [newLog, ...prev]);
     };
 
-    const placeOrder = async (shopId, cartItems, subtotal, discount, tax, totalAmount, customerInfo, paymentMethod = 'CASH', routeId = null, status = 'COMPLETED', scheduledDate = null, salesmanNote = '') => {
+    const placeSale = async (clientId, cartItems, subtotal, discount, tax, totalAmount, customerInfo, paymentType = 'cash', routeId = null, status = 'COMPLETED', scheduledDate = null, salesmanNote = '') => {
+        const val = saleSchema.safeParse({ clientId, items: cartItems, totalAmount, paymentMethod: paymentType });
+        if (!val.success) {
+            addNotification("Sale Validation failed: " + val.error.errors[0].message, "error");
+            return;
+        }
         let totalCogs = 0;
         const updatedProducts = [...products];
 
@@ -604,127 +628,177 @@ export const AppProvider = ({ children }) => {
                     updatedProducts[pIndex].stock -= item.quantity;
                 }
                 item.cogs = updatedProducts[pIndex].costPrice * item.quantity;
-                logMovement(item.productId, item.name, 'OUT', item.quantity, `Sale to Shop #${shopId}`, currentUser?.id);
+                totalCogs += item.cogs;
             }
         });
 
-        totalCogs = cartItems.reduce((sum, item) => sum + (item.cogs || 0), 0);
-
-        const newOrder = {
-            id: `ORD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            shopId,
-            customerInfo,
-            paymentMethod,
-            paymentStatus: paymentMethod === 'CASH' ? 'PAID' : 'PENDING',
-            routeId,
+        const newSale = {
+            id: `SAL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            date: new Date().toISOString(),
+            clientId,
             items: cartItems,
-            subtotal, discount, tax, 
+            subtotal,
+            discount,
+            tax,
             totalAmount,
             totalCogs,
-            date: new Date().toISOString(),
-            salesRepId: currentUser?.id || 'LOCAL',
-            bookedBy: currentUser?.id || 'LOCAL',
+            customerInfo,
+            paymentMethod: paymentType,
+            payment_type: paymentType,
+            paymentStatus: paymentType === 'cash' ? 'PAID' : 'PENDING',
             status,
-            scheduledDate: scheduledDate || new Date().toISOString().split('T')[0],
-            deliveredBy: routeId || null,
-            note: salesmanNote
+            routeId,
+            scheduledDate,
+            salesmanNote,
+            bookedBy: currentUser?.id
         };
 
-        const { error } = await supabase.from('orders').upsert(newOrder);
+        const { error } = await supabase.from('sales').insert(newSale);
         if (error) {
-            console.error("Error saving order to Supabase:", error);
-            addNotification(`Cloud Order Failed: ${error.message}`, "error");
-            return null;
+            console.error("Error placing sale in Supabase:", error);
+            addNotification(`Cloud Sale Save Failed: ${error.message}`, "error");
+            return;
         }
 
-        // Update Client Balance if it's a CREDIT order
-        if (paymentMethod === 'CREDIT' && shopId !== 'POS-WALKIN') {
-            const shop = shops.find(s => s.id === shopId);
-            if (shop) {
-                const newBalance = (shop.balance || 0) + totalAmount;
-                await updateShop({ ...shop, balance: newBalance });
+        setSales([newSale, ...sales]);
+        
+        // Update outstanding balance for credit sales
+        if (paymentType === 'credit') {
+            const client = clients.find(c => c.id === clientId);
+            if (client) {
+                const updatedClient = {
+                    ...client,
+                    outstanding_balance: (client.outstanding_balance || 0) + totalAmount
+                };
+                await updateClient(updatedClient);
+            }
+        }
+
+        // Update Day Book Cash if Cash
+        if (paymentType === 'cash') {
+            const today = new Date().toISOString().split('T')[0];
+            const dbRecord = await getDayBookForDate(today);
+            if (dbRecord) {
+                await updateDayBook({
+                    ...dbRecord,
+                    total_sales: (dbRecord.total_sales || 0) + totalAmount
+                });
             }
         }
 
         if (status === 'COMPLETED' && !routeId) {
             setProducts(updatedProducts);
-            // Also need to push updated stock to Supabase
-            await Promise.all(cartItems.map(item => {
-                const p = updatedProducts.find(up => up.id === item.productId);
-                return supabase.from('products').update({ stock: p.stock }).eq('id', p.id);
-            }));
+            await supabase.from('products').upsert(updatedProducts);
         }
 
-        setOrders([newOrder, ...orders]);
-        addNotification(`New Order: ${businessProfile?.currencySymbol || ''}${totalAmount.toFixed(2)}`, 'success');
-        return newOrder.id;
+        addNotification(`Sale Recorded: ${businessProfile?.currencySymbol || ''}${totalAmount}`, 'success');
+        return newSale.id;
     };
 
-    const updateOrder = async (updatedOrder) => {
-        const oldOrder = orders.find(o => o.id === updatedOrder.id);
-        if (oldOrder && oldOrder.status === 'PENDING' && updatedOrder.status === 'COMPLETED') {
+    const updateSale = async (updatedSale) => {
+        const oldSale = sales.find(s => s.id === updatedSale.id);
+        
+        // If transitioning to COMPLETED, handle stock reduction
+        if (oldSale && oldSale.status === 'PENDING' && updatedSale.status === 'COMPLETED') {
             const updatedProducts = [...products];
-            for (const item of updatedOrder.items) {
+            for (const item of updatedSale.items) {
                 const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
                 if (pIndex > -1) {
-                    updatedProducts[pIndex] = {
-                        ...updatedProducts[pIndex],
-                        stock: Math.max(0, updatedProducts[pIndex].stock - item.quantity)
-                    };
+                    const newStock = Math.max(0, updatedProducts[pIndex].stock - item.quantity);
+                    updatedProducts[pIndex] = { ...updatedProducts[pIndex], stock: newStock };
+                    // Sync to cloud
+                    await supabase.from('products').update({ stock: newStock }).eq('id', item.productId);
                 }
-                logMovement(item.productId, item.name, 'OUT', item.quantity, `Fulfilled Order #${updatedOrder.id}`, currentUser?.id);
+                logMovement(item.productId, item.name, 'OUT', item.quantity, `Fulfilled Sale #${updatedSale.id.split('-').pop()}`, currentUser?.id);
             }
             setProducts(updatedProducts);
-            
-            // Sync products to cloud
-            await Promise.all(updatedOrder.items.map(item => {
-                const p = updatedProducts.find(up => up.id === item.productId);
-                return supabase.from('products').update({ stock: p.stock }).eq('id', p.id);
-            }));
         }
 
-        const { error } = await supabase.from('orders').upsert(updatedOrder);
+        const { error } = await supabase.from('sales').upsert(updatedSale);
         if (error) {
-            console.error("Error updating order in Supabase:", error);
-            addNotification("Failed to sync order update to cloud", "error");
+            console.error("Error updating sale in Supabase:", error);
+            addNotification("Failed to update sale in cloud", "error");
+            return;
+        }
+        setSales(sales.map(s => s.id === updatedSale.id ? updatedSale : s));
+        addNotification(`Sale #${updatedSale.id.split('-').pop()} updated`, 'success');
+    };
+
+    const deleteSale = async (saleId) => {
+        const { error } = await supabase.from('sales').delete().eq('id', saleId);
+        if (error) {
+            console.error("Error deleting sale from Supabase:", error);
+            addNotification("Failed to delete sale from cloud", "error");
+            return;
+        }
+        setSales(sales.filter(s => s.id !== saleId));
+        addNotification("Sale deleted successfully", "success");
+    };
+
+    const settleSale = async (saleId, amount) => {
+        const sale = sales.find(s => s.id === saleId);
+        if (!sale) return;
+
+        const updatedSale = {
+            ...sale,
+            paidAmount: (sale.paidAmount || 0) + amount,
+            paymentStatus: ((sale.paidAmount || 0) + amount >= sale.totalAmount) ? 'PAID' : 'PARTIAL',
+            lastPaymentDate: new Date().toISOString()
+        };
+
+        const { error } = await supabase.from('sales').upsert(updatedSale);
+        if (error) {
+            console.error("Error settling sale in Supabase:", error);
+            addNotification("Failed to settle sale in cloud", "error");
             return;
         }
 
-        setOrders(orders.map(o => o.id === updatedOrder.id ? updatedOrder : o));
-    };
-
-    const settleOrder = async (orderId, amount, method = 'CASH') => {
-        let updatedOrder = null;
-        setOrders(prev => prev.map(o => {
-            if (o.id === orderId) {
-                const isFullPayment = amount >= o.totalAmount;
-                const newStatus = isFullPayment ? 'PAID' : 'PARTIAL';
-                addNotification(`Payment received for #${orderId.split('-').pop()}: ${businessProfile.currencySymbol}${amount}`, 'success');
-                updatedOrder = { 
-                    ...o, 
-                    paymentStatus: newStatus,
-                    paidAmount: (o.paidAmount || 0) + amount,
-                    lastPaymentDate: new Date().toISOString()
-                };
-                return updatedOrder;
-            }
-            return o;
-        }));
-
-        if (updatedOrder) {
-            const { error } = await supabase.from('orders').upsert(updatedOrder);
-            if (error) {
-                console.error("Error settling order in Supabase:", error);
-                addNotification(`Cloud Payment Sync Failed: ${error.message}`, "error");
-            } else {
-                // Also update client persistent balance
-                const shop = shops.find(s => s.id === updatedOrder.shopId);
-                if (shop) {
-                    const newBalance = Math.max(0, (shop.balance || 0) - amount);
-                    await updateShop({ ...shop, balance: newBalance });
-                }
+        // Also update client persistent balance if it was a credit sale
+        if (sale.paymentMethod === 'CREDIT' || sale.paymentMethod === 'credit') {
+            const client = clients.find(c => c.id === sale.clientId || c.id === sale.shopId);
+            if (client) {
+                const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
+                await updateClient({ ...client, outstanding_balance: newBalance });
             }
         }
+
+        setSales(sales.map(s => s.id === saleId ? updatedSale : s));
+        addNotification(`Payment of ${businessProfile?.currencySymbol || ''}${amount} received for Sale #${saleId.split('-').pop()}`, 'success');
+    };
+
+    // Task 4: Mark as Paid for Client
+    const recordClientPayment = async (clientId, amount, paymentDate, notes) => {
+        const client = clients.find(c => c.id === clientId);
+        if (!client) return { success: false, error: 'Client not found' };
+
+        if (amount > (client.outstanding_balance || 0)) {
+            return { success: false, error: 'Amount exceeds outstanding balance' };
+        }
+
+        const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
+        const updatedClient = { ...client, outstanding_balance: newBalance };
+
+        const { error } = await supabase.from('clients').upsert(updatedClient);
+        if (error) {
+            console.error("Error recording client payment:", error);
+            addNotification("Failed to record payment", "error");
+            return { success: false, error: error.message };
+        }
+
+        const paymentRecord = {
+            id: `CPAY-${Date.now()}`,
+            client_id: clientId,
+            amount: amount,
+            date: paymentDate || new Date().toISOString(),
+            notes: notes || ''
+        };
+        
+        await supabase.from('client_payments').insert(paymentRecord);
+
+        setClients(clients.map(c => c.id === clientId ? updatedClient : c));
+        setClientPayments(prev => [paymentRecord, ...prev]);
+        addNotification(`Recorded payment of ${businessProfile?.currencySymbol || ''}${amount} from ${client.name}`, "success");
+        return { success: true };
     };
 
     const addProduct = async (product) => {
@@ -814,19 +888,20 @@ export const AppProvider = ({ children }) => {
             };
         });
 
-        // 2. Shops (200)
-        const massShops = Array.from({ length: 200 }, (_, i) => ({
+        // 2. Clients (200)
+        const massClients = Array.from({ length: 200 }, (_, i) => ({
             id: `CLI-MASS-${i + 1}`,
             name: `${trivandrumAreas[i % trivandrumAreas.length]} ${shopNames[i % shopNames.length]} #${i + 1}`,
             contact: `Manager ${i + 1}`,
             phone: `+91 471 ${1000000 + i}`,
-            address: `${trivandrumAreas[i % trivandrumAreas.length]}, Trivandrum, Kerala`
+            address: `${trivandrumAreas[i % trivandrumAreas.length]}, Trivandrum, Kerala`,
+            outstanding_balance: 0
         }));
 
-        // 3. Orders (250)
-        const massOrders = Array.from({ length: 250 }, (_, i) => {
-            const shop = massShops[Math.floor(Math.random() * massShops.length)];
-            const orderItems = Array.from({ length: Math.floor(Math.random() * 5) + 1 }, () => {
+        // 3. Sales (250)
+        const massSales = Array.from({ length: 250 }, (_, i) => {
+            const client = massClients[Math.floor(Math.random() * massClients.length)];
+            const saleItems = Array.from({ length: Math.floor(Math.random() * 5) + 1 }, () => {
                 const prod = massProducts[Math.floor(Math.random() * massProducts.length)];
                 const qty = Math.floor(Math.random() * 10) + 1;
                 return {
@@ -839,19 +914,20 @@ export const AppProvider = ({ children }) => {
                 };
             });
 
-            const subtotal = orderItems.reduce((s, item) => s + item.total, 0);
+            const subtotal = saleItems.reduce((s, item) => s + item.total, 0);
             return {
-                id: `ORD-MASS-${i + 1}`,
-                shopId: shop.id,
-                items: orderItems,
+                id: `SAL-MASS-${i + 1}`,
+                clientId: client.id,
+                items: saleItems,
                 subtotal,
                 discount: 0,
                 tax: subtotal * 0.05,
                 totalAmount: subtotal * 1.05,
-                totalCogs: orderItems.reduce((s, item) => s + (item.cogs || 0), 0),
+                totalCogs: saleItems.reduce((s, item) => s + (item.cogs || 0), 0),
                 date: new Date(Date.now() - Math.floor(Math.random() * 14 * 24 * 60 * 60 * 1000)).toISOString(),
                 status: 'COMPLETED',
-                paymentMethod: i % 3 === 0 ? 'CREDIT' : 'CASH'
+                paymentMethod: i % 3 === 0 ? 'CREDIT' : 'CASH',
+                payment_type: i % 3 === 0 ? 'credit' : 'cash'
             };
         });
 
@@ -883,8 +959,8 @@ export const AppProvider = ({ children }) => {
 
         return {
             products: massProducts,
-            shops: massShops,
-            orders: massOrders,
+            clients: massClients,
+            sales: massSales,
             expenses: massExpenses,
             employees: massEmployees,
             payroll: massPayroll
@@ -903,9 +979,8 @@ export const AppProvider = ({ children }) => {
 
         try {
             // 1. Cleanup existing transaction data
-            const cleanupTargets = ['orders', 'expenses', 'movement_log', 'routes', 'employees', 'shops', 'products'];
+            const cleanupTargets = ['sales', 'expenses', 'movement_log', 'routes', 'employees', 'clients', 'products'];
             for (const table of cleanupTargets) {
-                // We use .neq('id', '0') to bypass 'single record' delete protections if any
                 const { error } = await supabase.from(table).delete().neq('id', '_X_');
                 if (error) console.warn(`Cleanup warning for ${table}:`, error);
             }
@@ -914,22 +989,21 @@ export const AppProvider = ({ children }) => {
 
             const data = generateMassMockData();
 
-            // 2. Seed Master Data (Products, Shops, Employees)
+            // 2. Seed Master Data (Products, Clients, Employees)
             const { error: pErr } = await supabase.from('products').insert(data.products);
-            const { error: sErr } = await supabase.from('shops').insert(data.shops);
+            const { error: sErr } = await supabase.from('clients').insert(data.clients);
             const { error: eErr } = await supabase.from('employees').insert(data.employees);
 
             if (pErr || sErr || eErr) throw new Error("Master data seeding failed");
 
             addNotification("Master data seeded. Generating history...", "info");
 
-            // 3. Seed Transactional Data (Orders & Expenses)
-            // We do this in chunks to avoid Supabase payload limits
-            const orders = data.orders;
+            // 3. Seed Transactional Data (Sales & Expenses)
+            const salesData = data.sales;
             const chunkSize = 50;
-            for (let i = 0; i < orders.length; i += chunkSize) {
-                const chunk = orders.slice(i, i + chunkSize);
-                const { error } = await supabase.from('orders').insert(chunk);
+            for (let i = 0; i < salesData.length; i += chunkSize) {
+                const chunk = salesData.slice(i, i + chunkSize);
+                const { error } = await supabase.from('sales').insert(chunk);
                 if (error) console.error(`Chunk ${i} failed:`, error);
             }
 
@@ -1025,10 +1099,10 @@ export const AppProvider = ({ children }) => {
         return vehicle ? vehicle.name : 'Unknown Vehicle';
     };
 
-    const getShopName = (shopId) => {
-        if (shopId === 'POS-WALKIN') return 'Walk-in Customer';
-        const shop = shops.find(s => s.id === shopId);
-        return shop ? shop.name : 'Unknown Shop';
+    const getClientName = (clientId) => {
+        if (clientId === 'POS-WALKIN' || clientId === 'WALKIN') return 'Walk-in Customer';
+        const client = clients.find(c => c.id === clientId);
+        return client ? client.name : (clientId || 'Unknown Client');
     };
 
     const getEmployeeName = (empId) => {
@@ -1141,15 +1215,21 @@ export const AppProvider = ({ children }) => {
 
     // ========== PAYROLL ==========
     const addEmployee = async (emp) => {
+        const val = employeeSchema.safeParse(emp);
+        if (!val.success) {
+            addNotification("Validation failed: " + val.error.errors[0].message, "error");
+            return;
+        }
         const newEmp = {
             ...emp,
             id: emp.id || `EMP-${Date.now()}`,
             status: 'ACTIVE',
             created_at: new Date().toISOString(),
-            salary: emp.basePay, // Map field for DB
-            role: emp.department, // Map field for DB
-            daily_rate: emp.dailyRate || 0,
-            days_worked: emp.daysWorked || 0
+            salary: emp.basePay, 
+            role: emp.department,
+            daily_rate: emp.dailyRate || 500, // Default Task 5
+            days_worked: emp.daysWorked || 0,
+            amount_paid: emp.amountPaid || 0 // Task 5
         };
         const { error } = await supabase.from('employees').upsert(newEmp);
         if (error) {
@@ -1163,10 +1243,11 @@ export const AppProvider = ({ children }) => {
     const updateEmployee = async (updated) => {
         const payload = {
             ...updated,
-            salary: updated.basePay, // Map field for DB
-            role: updated.department, // Map field for DB
-            daily_rate: updated.dailyRate || 0,
-            days_worked: updated.daysWorked || 0
+            salary: updated.basePay,
+            role: updated.department,
+            daily_rate: updated.dailyRate || 500,
+            days_worked: updated.daysWorked || 0,
+            amount_paid: updated.amountPaid || 0
         };
         const { error } = await supabase.from('employees').upsert(payload);
         if (error) {
@@ -1175,6 +1256,81 @@ export const AppProvider = ({ children }) => {
             return;
         }
         setEmployees(employees.map(e => e.id === updated.id ? updated : e));
+    };
+
+    // Task 5: Mechanic Tracker
+    const [mechanicPayments, setMechanicPayments] = useState([]);
+
+    const addMechanicPayment = async (payment) => {
+        const newPayment = {
+            ...payment,
+            id: `MECH-${Date.now()}`,
+            amount_paid: payment.amount_paid || 0,
+            work_date: payment.work_date || new Date().toISOString().split('T')[0],
+            created_at: new Date().toISOString()
+        };
+        const { error } = await supabase.from('mechanic_payments').insert(newPayment);
+        if (error) {
+            console.error("Error saving mechanic payment:", error);
+            addNotification("Failed to save mechanic payment in cloud", "error");
+            return;
+        }
+        setMechanicPayments(prev => [newPayment, ...prev]);
+        addNotification("Mechanic record added", "success");
+    };
+
+    const updateMechanicPayment = async (updatedPayment) => {
+        const { error } = await supabase.from('mechanic_payments').upsert(updatedPayment);
+        if (error) {
+            console.error("Error updating mechanic payment:", error);
+            addNotification("Failed to update mechanic payment in cloud", "error");
+            return;
+        }
+        setMechanicPayments(mechanicPayments.map(m => m.id === updatedPayment.id ? updatedPayment : m));
+        addNotification("Mechanic payment updated", "success");
+    };
+
+    // Task 6: Purchases & Stock Integration
+    const [purchases, setPurchases] = useState([]);
+
+    const addPurchase = async (purchase) => {
+        const val = purchaseSchema.safeParse(purchase);
+        if (!val.success) {
+            addNotification("Validation failed: " + val.error.errors[0].message, "error");
+            return false;
+        }
+        const newPurchase = {
+            ...purchase,
+            id: `PUR-${Date.now()}`,
+            linked_product_id: purchase.linked_product_id || null,
+            supplier_name: purchase.supplier_name || 'DIRECT MARKET',
+            payment_type: purchase.payment_type || 'cash',
+            notes: purchase.notes || '',
+            date: purchase.date || new Date().toISOString(),
+            created_at: new Date().toISOString()
+        };
+
+        const { error } = await supabase.from('purchases').insert(newPurchase);
+        if (error) {
+            console.error("Error saving purchase:", error);
+            addNotification("Failed to save purchase in cloud", "error");
+            return false;
+        }
+
+        // Auto-increment stock if linked to a product
+        if (newPurchase.linked_product_id) {
+            const product = products.find(p => p.id === newPurchase.linked_product_id);
+            if (product) {
+                const newStock = (product.stock || 0) + (Number(newPurchase.quantity) || 0);
+                await updateProduct({ ...product, stock: newStock });
+                addNotification(`Stock updated for ${product.name} — +${newPurchase.quantity} units added`, "success");
+            }
+        } else {
+            addNotification("Purchase recorded successfully", "success");
+        }
+
+        setPurchases(prev => [newPurchase, ...prev]);
+        return true;
     };
 
     const deleteEmployee = async (empId) => {
@@ -1213,7 +1369,13 @@ export const AppProvider = ({ children }) => {
         setPayrollRecords(payrollRecords.filter(r => r.id !== recordId));
     };
 
+
     const updateDayBook = async (record) => {
+        const val = dayBookSchema.safeParse(record);
+        if (!val.success) {
+            addNotification("Validation failed: " + val.error.errors[0].message, "error");
+            return null;
+        }
         const payload = {
             ...record,
             id: record.id || `DB-${Date.now()}`,
@@ -1335,12 +1497,18 @@ export const AppProvider = ({ children }) => {
         addNotification(`Category removed: ${name}`, 'success');
     };
 
+    const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.role?.toLowerCase() === 'owner';
+    const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.role?.toLowerCase() === 'staff';
+
     const value = {
-        currentUser, login, logout,
-        businessProfile, updateBusinessProfile,
+        currentUser, session: currentUser, isOwner, isStaff, login, logout,
+        businessProfile, updateBusinessProfile,        // Data
         products, addProduct, updateProduct, deleteProduct, adjustStock,
-        shops, addShop, updateShop, deleteShop,
-        orders, placeOrder, updateOrder, settleOrder,
+        clients, addClient, updateClient, deleteClient,
+        sales, placeSale, updateSale, deleteSale, settleSale,
+        // Aligned aliases for backward compatibility (optional but helpful)
+        addShop: addClient, updateShop: updateClient, deleteShop: deleteClient,
+        placeOrder: placeSale, updateOrder: updateSale, deleteOrder: deleteSale, settleOrder: settleSale,
         expenses, addExpense, updateExpense, deleteExpense,
         expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory,
         movementLog,
@@ -1348,12 +1516,15 @@ export const AppProvider = ({ children }) => {
         routes, dispatchRoute, reconcileRoute,
         users, addUser, updateUser, deleteUser,
         hasRole, hasPermission, isViewOnly,
-        getUserName, getVehicleName, getShopName, getEmployeeName,
+        getUserName, getVehicleName, getClientName, getShopName: getClientName, getEmployeeName,
         employees, addEmployee, updateEmployee, deleteEmployee,
         payrollRecords, processPayroll, deletePayrollRecord,
+        mechanicPayments, addMechanicPayment,
+        purchases, addPurchase,
         dayBook, updateDayBook, getDayBookForDate,
+        recordClientPayment, clientPayments,
         notifications, addNotification,
-        loading, initError, migrateLocalToSupabase, resetAndSeedLocal
+        loading, initError, migrateLocalToSupabase, resetAndSeedLocal, resetAndSeedCloud
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

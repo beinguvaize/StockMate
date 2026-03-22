@@ -15,33 +15,8 @@ import Reports from './pages/Reports';
 import Orders from './pages/Orders';
 import Payroll from './pages/Payroll';
 import DayBook from './pages/DayBook';
-
-/**
- * ProtectedRoute: Redirects to /login if the user is not authenticated.
- * Shows a loading spinner while the app initializes.
- */
-const ProtectedRoute = ({ children }) => {
-  const { currentUser, loading } = useAppContext();
-  const location = useLocation();
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-[#141c1a]">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-[#38e0a0]/30 border-t-[#38e0a0] rounded-full animate-spin" />
-          <span className="text-[#747576] text-xs font-bold uppercase tracking-widest">Loading...</span>
-        </div>
-      </div>
-    );
-  }
-
-  if (!currentUser) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return children;
-};
-
+import Purchases from './pages/Purchases';
+import { ProtectedRoute } from './components/ProtectedRoute';
 /**
  * GuestRoute: Redirects authenticated users away from the login page.
  */
@@ -68,24 +43,21 @@ function AppRoutes() {
       } />
 
       {/* Protected routes: All app pages */}
-      <Route path="/" element={
-        <ProtectedRoute>
-          <AppLayout />
-        </ProtectedRoute>
-      }>
+      <Route path="/" element={<AppLayout />}>
         <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="inventory" element={<Inventory />} />
-        <Route path="vehicles" element={<Vehicles />} />
-        <Route path="sales" element={<Sales />} />
-        <Route path="expenses" element={<Expenses />} />
-        <Route path="settings" element={<Settings />} />
-        <Route path="users" element={<Users />} />
-        <Route path="clients" element={<Clients />} />
-        <Route path="reports" element={<Reports />} />
-        <Route path="orders" element={<Orders />} />
-        <Route path="payroll" element={<Payroll />} />
-        <Route path="daybook" element={<DayBook />} />
+        <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
+        <Route path="vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
+        <Route path="sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
+        <Route path="expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
+        <Route path="settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
+        <Route path="clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
+        <Route path="reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+        <Route path="orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
+        <Route path="payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
+        <Route path="daybook" element={<ProtectedRoute><DayBook /></ProtectedRoute>} />
+        <Route path="purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
       </Route>
 
       {/* Catch-all: redirect to home (which will redirect based on auth) */}

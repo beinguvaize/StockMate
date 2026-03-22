@@ -16,35 +16,44 @@ import { useAppContext } from '../context/AppContext';
  * Follows the high-performance "Obsidian-glass" aesthetic.
  */
 const DailyRevenueTrendChart = () => {
-    const { orders, businessProfile } = useAppContext();
+    const { sales, businessProfile } = useAppContext();
     const currency = businessProfile?.currencySymbol || '₹';
 
+    const getEmployeeName = (empId) => {
+        // Note: 'employees' is not defined in this component's scope.
+        // This function might be intended for a different context or requires 'employees' to be passed/fetched.
+        const emp = employees.find(e => e.id === empId); 
+        return emp ? emp.name : 'Unknown Driver';
+    };
+    
     const data = useMemo(() => {
         const result = [];
         const now = new Date();
         
         // Generate list for the last 14 days
         for (let i = 13; i >= 0; i--) {
-            const date = new Date(now);
-            date.setDate(now.getDate() - i);
+            const d = new Date(now);
+            d.setDate(now.getDate() - i);
             
             // Format date for label (Mar 1, Mar 2...)
-            const label = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const label = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
             
-            // Get ISO date string (YYYY-MM-DD) for matching
-            const isoString = date.toISOString().split('T')[0];
+            // Get ISO date string (YYYY-MM-DD) for matching (though not used in new filter logic)
+            const isoString = d.toISOString().split('T')[0];
             
-            // Group orders for this specific date
-            const dayOrders = (orders || []).filter(o => {
-                if (!o.date) return false;
-                return o.date.split('T')[0] === isoString;
+            // Group sales for this specific date
+            const daySales = (sales || []).filter(o => {
+                const oDate = new Date(o.date);
+                return oDate.getFullYear() === d.getFullYear() &&
+                       oDate.getMonth() === d.getMonth() &&
+                       oDate.getDate() === d.getDate();
             });
-            
-            const cash = dayOrders
+
+            const cash = daySales
                 .filter(o => o.paymentMethod === 'CASH')
                 .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
             
-            const credit = dayOrders
+            const credit = daySales // Corrected from dayOrders to daySales
                 .filter(o => o.paymentMethod === 'CREDIT')
                 .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
             

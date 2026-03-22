@@ -9,6 +9,7 @@ const Payroll = () => {
     const {
         employees, addEmployee, updateEmployee, deleteEmployee,
         payrollRecords, processPayroll, deletePayrollRecord,
+        mechanic_payments, addMechanicPayment,
         businessProfile, isViewOnly, hasPermission
     } = useAppContext();
 
@@ -23,8 +24,18 @@ const Payroll = () => {
     const [empForm, setEmpForm] = useState({
         name: '', email: '', phone: '', department: DEPARTMENTS[0],
         position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '',
-        dailyRate: '', daysWorked: ''
+        dailyRate: 500, daysWorked: 0
     });
+    
+    // Task 5 Modals
+    const [showSalaryModal, setShowSalaryModal] = useState(false);
+    const [salaryPayment, setSalaryPayment] = useState({ empId: null, amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
+
+    const [showMechanicModal, setShowMechanicModal] = useState(false);
+    const [mechForm, setMechForm] = useState({ name: '', work_description: '', total_due: '', work_date: new Date().toISOString().split('T')[0] });
+    
+    const [showMechPaymentModal, setShowMechPaymentModal] = useState(false);
+    const [mechPayment, setMechPayment] = useState({ id: null, amount: '', date: new Date().toISOString().split('T')[0] });
 
     const viewOnly = isViewOnly();
 
@@ -75,6 +86,53 @@ const Payroll = () => {
 
     const toggleStatus = (emp) => {
         updateEmployee({ ...emp, status: emp.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE' });
+    };
+
+    const handleMonthlyReset = () => {
+        if (!hasRole('OWNER')) return;
+        if (confirm("Reset all days worked for new month?")) {
+            employees.forEach(emp => {
+                if (emp.status === 'ACTIVE') {
+                    updateEmployee({...emp, daysWorked: 0});
+                }
+            });
+        }
+    };
+
+    const handleMarkSalaryPaid = (e) => {
+        e.preventDefault();
+        const emp = employees.find(e => e.id === salaryPayment.empId);
+        if (emp) {
+            updateEmployee({
+                ...emp,
+                amountPaid: (emp.amountPaid || 0) + parseFloat(salaryPayment.amount)
+            });
+            setShowSalaryModal(false);
+        }
+    };
+
+    const handleAddMechanic = (e) => {
+        e.preventDefault();
+        addMechanicPayment({
+            name: mechForm.name,
+            work_description: mechForm.work_description,
+            total_due: parseFloat(mechForm.total_due) || 0,
+            amount_paid: 0,
+            work_date: mechForm.work_date
+        });
+        setShowMechanicModal(false);
+    };
+
+    const handleMechPayment = (e) => {
+        e.preventDefault();
+        const mech = mechanic_payments.find(m => m.id === mechPayment.id);
+        if (mech) {
+            updateMechanicPayment({
+                ...mech,
+                amount_paid: (mech.amount_paid || 0) + parseFloat(mechPayment.amount)
+            });
+            setShowMechPaymentModal(false);
+        }
     };
 
     // ===== PAY RUN =====
@@ -216,6 +274,11 @@ const Payroll = () => {
                 {/* Interactive Section: Actions */}
                 <div className="flex-1 flex items-center justify-end h-full pr-1">
                     <div className="flex h-full gap-2 items-center">
+                        {!viewOnly && hasRole('OWNER') && (
+                            <button className="px-6 py-0 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-[10px] uppercase cursor-pointer h-10 flex items-center justify-center gap-2" onClick={handleMonthlyReset}>
+                                <Calendar size={14} className="opacity-70" /> Monthly Reset
+                            </button>
+                        )}
                         {!viewOnly && (
                             <button className="px-6 py-0 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-[10px] uppercase cursor-pointer h-10 flex items-center justify-center gap-2" onClick={openPayRun} disabled={activeEmployeesCount === 0}>
                                 <Receipt size={14} className="opacity-70" /> Pay Run
@@ -248,65 +311,103 @@ const Payroll = () => {
                     >
                         Pay History
                     </button>
+                    <button
+                        onClick={() => setActiveTab('MECHANICS')}
+                        className={`px-10 py-4 rounded-pill text-[10px] font-black uppercase tracking-[0.2em] transition-all ${activeTab === 'MECHANICS' ? 'bg-ink-primary text-surface shadow-premium' : 'text-ink-secondary hover:text-ink-primary'}`}
+                    >
+                        Mechanic Tracker
+                    </button>
                 </div>
 
                 {activeTab === 'EMPLOYEES' && (
                     <div className="glass-panel !p-0 overflow-hidden border border-black/5 bg-surface shadow-premium !rounded-bento">
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
+                            <table className="w-full text-left border-collapse whitespace-nowrap">
                                 <thead>
                                     <tr className="bg-canvas border-b border-black/5">
                                         <th className="p-4 pl-8 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70">Employee</th>
-                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70">Department</th>
-                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70">Pay Type</th>
-                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70 text-right">Salary</th>
-                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70 text-center">Status</th>
-                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70 text-right">Actions</th>
+                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70">Daily Rate</th>
+                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70 text-center">Days Worked</th>
+                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70 text-right">Total Salary</th>
+                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70 text-right">Amount Paid</th>
+                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70 text-right">Pending</th>
+                                        <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70 text-center">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-black/5 bg-surface">
                                     {employees.length === 0 ? (
-                                            <tr><td colSpan="6" className="p-10 text-center text-ink-secondary uppercase font-black text-[10px] tracking-[0.5em] opacity-30 italic">No employees found</td></tr>
+                                            <tr><td colSpan="7" className="p-10 text-center text-ink-secondary uppercase font-black text-[10px] tracking-[0.5em] opacity-30 italic">No employees found</td></tr>
                                         ) : (
-                                            employees.map(emp => (
-                                                <tr key={emp.id} className={`group hover:bg-canvas transition-all duration-300 ${emp.status !== 'ACTIVE' ? 'opacity-70 grayscale' : ''}`}>
-                                                    <td className="p-1.5 pl-8">
-                                                        <div className="text-sm font-black text-ink-primary uppercase tracking-tight leading-none mb-1">{emp.name}</div>
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] opacity-70">{emp.position || 'Standard Associate'}</div>
-                                                            {emp.dailyRate > 0 && (
-                                                                <span className="text-[8px] font-black text-accent-signature-hover bg-accent-signature/10 px-1.5 py-0.5 rounded-full uppercase tracking-tighter">
-                                                                    {businessProfile.currencySymbol}{emp.dailyRate}/day × {emp.daysWorked} days
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-1.5">
-                                                        <span className="px-3 py-1 rounded-pill bg-canvas text-[10px] font-black text-ink-primary uppercase tracking-widest border border-black/5 shadow-sm">{emp.department}</span>
-                                                    </td>
-                                                    <td className="p-1.5 text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] opacity-60">
-                                                        {emp.payType}
-                                                    </td>
-                                                    <td className="p-1.5 text-right text-base font-black text-ink-primary font-mono tabular-nums">
-                                                        {businessProfile.currencySymbol}{(emp.basePay || 0).toLocaleString()}
-                                                    </td>
-                                                    <td className="p-1.5 text-center">
-                                                        <div className="flex items-center justify-center gap-2">
-                                                            <div className={`w-2 h-2 rounded-full shadow-lg ${emp.status === 'ACTIVE' ? 'bg-accent-signature shadow-accent-signature/40' : 'bg-red-500 shadow-red-500/40'}`} />
-                                                            <span className={`text-[9px] font-black uppercase tracking-widest ${emp.status === 'ACTIVE' ? 'text-ink-primary' : 'text-red-500'} opacity-60`}>
-                                                                {emp.status}
-                                                            </span>
-                                                        </div>
-                                                    </td>
-                                                    <td className="p-1.5 text-right">
-                                                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all duration-500">
-                                                            <button onClick={() => openEdit(emp)} className="w-8 h-8 rounded-xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-ink-primary hover:bg-ink-primary hover:text-accent-signature transition-all"><Edit3 size={14} /></button>
-                                                            <button onClick={() => toggleStatus(emp)} className="w-8 h-8 rounded-xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-ink-primary hover:bg-ink-primary hover:text-accent-signature transition-all"><Receipt size={14} /></button>
-                                                            <button onClick={() => setDeleteConfirm(emp.id)} className="w-8 h-8 rounded-xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-red-500 hover:bg-red-50 transition-all"><Trash2 size={14} /></button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))
+                                            employees.map(emp => {
+                                                const totalSalary = (emp.dailyRate || 500) * (emp.daysWorked || 0);
+                                                const amountPaid = emp.amountPaid || 0;
+                                                const pending = totalSalary - amountPaid;
+                                                
+                                                return (
+                                                    <tr key={emp.id} className={`group hover:bg-canvas transition-all duration-300 ${emp.status !== 'ACTIVE' ? 'opacity-70' : ''}`}>
+                                                        <td className="p-2 pl-8">
+                                                            <div className="text-sm font-black text-ink-primary uppercase tracking-tight leading-none mb-1">{emp.name}</div>
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="px-2 py-0.5 rounded bg-black/5 text-[9px] font-black text-ink-secondary uppercase tracking-[0.2em]">{emp.department}</span>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-2">
+                                                            <div className="flex items-center gap-1 w-24 border border-black/10 rounded-lg overflow-hidden bg-white">
+                                                                <span className="pl-2 text-xs font-black text-ink-secondary">{businessProfile.currencySymbol}</span>
+                                                                <input 
+                                                                    type="number" 
+                                                                    className="w-full bg-transparent border-none p-1.5 text-xs font-black text-ink-primary outline-none tabular-nums" 
+                                                                    defaultValue={emp.dailyRate || 500}
+                                                                    onBlur={(e) => updateEmployee({...emp, dailyRate: parseFloat(e.target.value)||0})}
+                                                                    disabled={viewOnly}
+                                                                />
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-2 align-middle">
+                                                            <div className="flex items-center justify-center gap-2">
+                                                                <button disabled={viewOnly} onClick={() => updateEmployee({...emp, daysWorked: Math.max(0, (emp.daysWorked||0) - 1)})} className="w-6 h-6 rounded border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-secondary font-black cursor-pointer">-</button>
+                                                                <span className="w-8 text-center text-sm font-black text-ink-primary tabular-nums">{emp.daysWorked || 0}</span>
+                                                                <button disabled={viewOnly} onClick={() => updateEmployee({...emp, daysWorked: (emp.daysWorked||0) + 1})} className="w-6 h-6 rounded border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-secondary font-black cursor-pointer">+</button>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-2 text-right">
+                                                            <div className="text-sm font-black text-ink-primary font-mono tabular-nums bg-black/5 px-2 py-1 rounded inline-block">
+                                                                {businessProfile.currencySymbol}{totalSalary.toLocaleString()}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-2">
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                <div className="flex items-center gap-1 w-24 border border-black/10 rounded-lg overflow-hidden bg-white">
+                                                                    <span className="pl-2 text-xs font-black text-ink-secondary">{businessProfile.currencySymbol}</span>
+                                                                    <input 
+                                                                        type="number" 
+                                                                        className="w-full bg-transparent border-none p-1.5 text-xs font-black text-ink-primary outline-none tabular-nums text-right pr-2" 
+                                                                        defaultValue={emp.amountPaid || 0}
+                                                                        onBlur={(e) => updateEmployee({...emp, amountPaid: parseFloat(e.target.value)||0})}
+                                                                        disabled={viewOnly}
+                                                                    />
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-2 text-right">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                <div className={`text-sm font-black font-mono tabular-nums ${pending > 0 ? 'text-red-500' : pending < 0 ? 'text-amber-500' : 'text-green-500'}`}>
+                                                                    {businessProfile.currencySymbol}{pending.toLocaleString()}
+                                                                </div>
+                                                                <div className={`w-2 h-2 rounded-full ${pending > 0 ? 'bg-red-500' : pending < 0 ? 'bg-amber-500' : 'bg-green-500'}`}></div>
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-2 text-center">
+                                                            <div className="flex justify-center gap-1">
+                                                                <button onClick={() => { setSalaryPayment({ empId: emp.id, amount: '', date: new Date().toISOString().split('T')[0], notes: '' }); setShowSalaryModal(true); }} className="px-3 py-1.5 rounded-lg bg-surface border border-black/10 text-[10px] font-black uppercase text-ink-primary hover:bg-ink-primary hover:text-accent-signature transition-all">Pay</button>
+                                                                <button onClick={() => openEdit(emp)} className="w-7 h-7 rounded-lg bg-surface border border-black/10 flex items-center justify-center text-ink-primary hover:bg-black/5 transition-all"><Edit3 size={12} /></button>
+                                                                <button onClick={() => toggleStatus(emp)} className="w-7 h-7 rounded-lg bg-surface border border-black/10 flex items-center justify-center text-ink-primary hover:bg-black/5 transition-all"><UserPlus size={12} /></button>
+                                                                <button onClick={() => setDeleteConfirm(emp.id)} className="w-7 h-7 rounded-lg bg-red-50 border border-red-100 flex items-center justify-center text-red-500 hover:bg-red-100 transition-all"><Trash2 size={12} /></button>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })
                                         )}
                                     </tbody>
                                 </table>
@@ -396,9 +497,196 @@ const Payroll = () => {
                             )}
                         </div>
                     )}
+
+                    {activeTab === 'MECHANICS' && (
+                        <div className="flex flex-col gap-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <div>
+                                    <h3 className="text-sm font-black text-ink-primary uppercase tracking-[0.3em]">Mechanic Payment History</h3>
+                                    <p className="text-[10px] font-bold text-ink-secondary uppercase opacity-60">TRACKING PAYMENTS FOR EXTERNAL MECHANICS & REPAIRS</p>
+                                </div>
+                                {!viewOnly && (
+                                    <button 
+                                        className="btn-signature !h-10 px-6 font-black text-[10px] uppercase tracking-widest flex items-center gap-2"
+                                        onClick={() => { setMechForm({ name: '', work_description: '', total_due: '', work_date: new Date().toISOString().split('T')[0] }); setShowMechanicModal(true); }}
+                                    >
+                                        <Plus size={14} /> Add Mechanic
+                                    </button>
+                                )}
+                            </div>
+
+                            <div className="glass-panel !p-0 overflow-hidden border border-black/5 bg-surface shadow-premium !rounded-bento">
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left border-collapse whitespace-nowrap">
+                                        <thead>
+                                            <tr className="bg-canvas border-b border-black/5">
+                                                <th className="p-4 pl-8 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70">Mechanic</th>
+                                                <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70">Work Description</th>
+                                                <th className="p-4 text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70">Date</th>
+                                                <th className="p-4 text-right text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70">Total Due</th>
+                                                <th className="p-4 text-right text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70">Paid</th>
+                                                <th className="p-4 text-right text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70">Pending</th>
+                                                <th className="p-4 text-center text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary opacity-70">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-black/5">
+                                            {(mechanic_payments || []).length === 0 ? (
+                                                <tr><td colSpan="7" className="p-10 text-center opacity-30 font-black uppercase text-[10px] tracking-widest">No mechanic records found</td></tr>
+                                            ) : (
+                                                mechanic_payments.map(payment => {
+                                                    const pending = (payment.total_due || 0) - (payment.amount_paid || 0);
+                                                    return (
+                                                        <tr key={payment.id} className="hover:bg-canvas">
+                                                            <td className="p-4 pl-8 font-black text-ink-primary uppercase tracking-tight">{payment.name || payment.mechanic_name}</td>
+                                                            <td className="p-4 text-[10px] font-bold text-ink-secondary uppercase tracking-widest opacity-70 max-w-[200px] truncate">{payment.work_description || payment.details}</td>
+                                                            <td className="p-4 text-[10px] font-black text-ink-secondary uppercase tracking-tighter opacity-70">
+                                                                {new Date(payment.work_date || payment.date).toLocaleDateString()}
+                                                            </td>
+                                                            <td className="p-4 text-right text-base font-black text-ink-primary font-mono tracking-tighter">
+                                                                {businessProfile.currencySymbol}{(payment.total_due || payment.amount || 0).toLocaleString()}
+                                                            </td>
+                                                            <td className="p-4 text-right text-base font-black text-ink-secondary font-mono tracking-tighter">
+                                                                {businessProfile.currencySymbol}{(payment.amount_paid || 0).toLocaleString()}
+                                                            </td>
+                                                            <td className="p-4 text-right">
+                                                                <div className="flex items-center justify-end gap-2">
+                                                                    <div className={`text-base font-black font-mono tracking-tighter ${pending > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                                                        {businessProfile.currencySymbol}{(pending > 0 ? pending : 0).toLocaleString()}
+                                                                    </div>
+                                                                    <div className={`text-[8px] px-2 py-0.5 rounded-full font-black uppercase tracking-widest ${pending > 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                                                                        {pending > 0 ? 'PENDING' : 'PAID'}
+                                                                    </div>
+                                                                </div>
+                                                            </td>
+                                                            <td className="p-4 text-center">
+                                                                {pending > 0 && !viewOnly && (
+                                                                    <button 
+                                                                        className="px-4 py-1.5 rounded-pill bg-black/5 hover:bg-black/10 text-[10px] font-black uppercase text-ink-primary transition-all"
+                                                                        onClick={() => { setMechPayment({ id: payment.id, amount: '', date: new Date().toISOString().split('T')[0] }); setShowMechPaymentModal(true); }}
+                                                                    >
+                                                                        Record Payment
+                                                                    </button>
+                                                                )}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
+            {/* Add Mechanic Form */}
+            {showMechanicModal && (
+                <div className="modal-overlay z-50">
+                    <div className="glass-modal !max-w-[400px]">
+                        <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h2 className="text-2xl font-black text-ink-primary uppercase tracking-tighter">Add Mechanic</h2>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-70">Record new repair/service</p>
+                            </div>
+                            <button onClick={() => setShowMechanicModal(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-primary">
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleAddMechanic} className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 block mb-2">Mechanic Name</label>
+                                <input type="text" required className="w-full bg-canvas px-4 py-3 rounded-xl border border-black/10 text-sm font-black text-ink-primary outline-none uppercase" value={mechForm.name} onChange={e => setMechForm({...mechForm, name: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 block mb-2">Work Description</label>
+                                <input type="text" required className="w-full bg-canvas px-4 py-3 rounded-xl border border-black/10 text-sm font-black text-ink-primary outline-none" value={mechForm.work_description} onChange={e => setMechForm({...mechForm, work_description: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 block mb-2">Total Due</label>
+                                <div className="flex items-center gap-2 bg-canvas px-4 py-3 rounded-xl border border-black/10">
+                                    <span className="text-sm font-black text-ink-secondary">{businessProfile.currencySymbol}</span>
+                                    <input type="number" step="0.01" required className="w-full bg-transparent border-none text-base font-black text-ink-primary outline-none" value={mechForm.total_due} onChange={e => setMechForm({...mechForm, total_due: e.target.value})} />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 block mb-2">Work Date</label>
+                                <input type="date" required className="w-full bg-canvas px-4 py-3 rounded-xl border border-black/10 text-sm font-black text-ink-primary outline-none" value={mechForm.work_date} onChange={e => setMechForm({...mechForm, work_date: e.target.value})} />
+                            </div>
+                            <button type="submit" className="w-full btn-signature py-4 rounded-xl mt-4 text-xs font-black">
+                                ADD MECHANIC RECORD
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Mechanic Record Payment Modal */}
+            {showMechPaymentModal && (
+                <div className="modal-overlay z-50">
+                    <div className="glass-modal !max-w-[400px]">
+                        <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h2 className="text-2xl font-black text-ink-primary uppercase tracking-tighter">Record Payment</h2>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-70">Mechanic Payment</p>
+                            </div>
+                            <button onClick={() => setShowMechPaymentModal(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-primary">
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleMechPayment} className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 block mb-2">Amount Paying</label>
+                                <div className="flex items-center gap-2 bg-canvas px-4 py-3 rounded-xl border border-black/10">
+                                    <span className="text-sm font-black text-ink-secondary">{businessProfile.currencySymbol}</span>
+                                    <input type="number" step="0.01" required className="w-full bg-transparent border-none text-base font-black text-ink-primary outline-none" value={mechPayment.amount} onChange={e => setMechPayment({...mechPayment, amount: e.target.value})} />
+                                </div>
+                            </div>
+                            <button type="submit" className="w-full btn-signature py-4 rounded-xl mt-4 text-xs font-black">
+                                RECORD COMPLETED
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Mark Salary Paid Modal */}
+            {showSalaryModal && (
+                <div className="modal-overlay z-50">
+                    <div className="glass-modal !max-w-[400px]">
+                        <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h2 className="text-2xl font-black text-ink-primary uppercase tracking-tighter">Record Payment</h2>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-70">Pay Employee Salary</p>
+                            </div>
+                            <button onClick={() => setShowSalaryModal(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-primary">
+                                <X size={16} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleMarkSalaryPaid} className="space-y-4">
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 block mb-2">Amount Paying</label>
+                                <div className="flex items-center gap-2 bg-canvas px-4 py-3 rounded-xl border border-black/10">
+                                    <span className="text-sm font-black text-ink-secondary">{businessProfile.currencySymbol}</span>
+                                    <input type="number" step="0.01" required className="w-full bg-transparent border-none text-base font-black text-ink-primary outline-none" value={salaryPayment.amount} onChange={e => setSalaryPayment({...salaryPayment, amount: e.target.value})} />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 block mb-2">Payment Date</label>
+                                <input type="date" required className="w-full bg-canvas px-4 py-3 rounded-xl border border-black/10 text-sm font-black text-ink-primary outline-none" value={salaryPayment.date} onChange={e => setSalaryPayment({...salaryPayment, date: e.target.value})} />
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 block mb-2">Notes (Optional)</label>
+                                <input type="text" className="w-full bg-canvas px-4 py-3 rounded-xl border border-black/10 text-sm font-black text-ink-primary outline-none" value={salaryPayment.notes} onChange={e => setSalaryPayment({...salaryPayment, notes: e.target.value})} />
+                            </div>
+                            <button type="submit" className="w-full btn-signature py-4 rounded-xl mt-4 text-xs font-black">
+                                RECORD SALARY PAYMENT
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
             {/* Payout Form Modal */}
             {showForm && (
                 <div className="modal-overlay">

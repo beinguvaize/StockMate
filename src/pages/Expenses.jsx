@@ -21,7 +21,7 @@ const Expenses = () => {
     const [formData, setFormData] = useState({
         title: '',
         amount: '',
-        category: expenseCategories?.[0] || 'General',
+        category: 'Other',
         date: new Date().toISOString().split('T')[0],
         notes: '',
         splitType: 'Company'
@@ -106,9 +106,10 @@ const Expenses = () => {
         setFormData({
             title: '',
             amount: '',
-            category: 'General',
+            category: 'Other',
             date: new Date().toISOString().split('T')[0],
-            notes: ''
+            notes: '',
+            splitType: 'Company'
         });
     };
 
@@ -118,10 +119,10 @@ const Expenses = () => {
         setFormData({
             title: expense.title || '',
             amount: (expense.amount || 0).toString(),
-            category: expense.category || 'General',
+            category: expense.category || 'Other',
             date: expense.date ? expense.date.split('T')[0] : new Date().toISOString().split('T')[0],
             notes: expense.notes || '',
-            splitType: expense.split_type || 'Company'
+            splitType: expense.split_type || expense.splitType || 'Company'
         });
         setIsAdding(true);
     };
@@ -132,9 +133,10 @@ const Expenses = () => {
         setFormData({
             title: '',
             amount: '',
-            category: 'General',
+            category: 'Other',
             date: new Date().toISOString().split('T')[0],
-            notes: ''
+            notes: '',
+            splitType: 'Company'
         });
     };
 
@@ -151,7 +153,7 @@ const Expenses = () => {
                     <div className="text-right mr-4">
                         <div className="text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-70 mb-1">{getFilterLabel()}</div>
                         <div className="text-2xl font-black text-ink-primary tracking-tighter">
-                            {businessProfile?.currencySymbol || '$'}{totalExpenses.toLocaleString()}
+                            {businessProfile?.currencySymbol || '₹'}{totalExpenses.toLocaleString()}
                         </div>
                     </div>
                     {hasPermission('ADD_EXPENSE') && (
@@ -180,7 +182,7 @@ const Expenses = () => {
                     <div className="flex flex-col items-end -space-y-1 pl-6 pr-6 border-l border-black/5">
                         <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 whitespace-nowrap">Monthly Avg.</div>
                         <div className="text-2xl font-black text-ink-primary tracking-tighter leading-none">
-                            {businessProfile?.currencySymbol || '$'}{dailyAvg.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                            {businessProfile?.currencySymbol || '₹'}{dailyAvg.toLocaleString(undefined, { maximumFractionDigits: 0 })}
                         </div>
                     </div>
                 </div>
@@ -254,7 +256,6 @@ const Expenses = () => {
                             <tr className="border-b border-black/5 bg-canvas">
                                 <th className="p-1.5 pl-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Expense Name</th>
                                 <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-center">Category</th>
-                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-center">Split</th>
                                 <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-center">Date</th>
                                 <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-right">Amount</th>
                                 <th className="p-1.5 pr-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-right">Actions</th>
@@ -265,23 +266,29 @@ const Expenses = () => {
                                 <tr key={expense.id} className="group hover:bg-canvas transition-colors">
                                     <td className="p-1.5 pl-8">
                                         <div className="flex flex-col">
-                                            <div className="text-xs font-black text-ink-primary uppercase tracking-tight">{expense.title}</div>
+                                            <div className="text-xs font-black text-ink-primary uppercase tracking-tight flex items-center gap-2">
+                                                {expense.title}
+                                                <span className="px-2 py-0.5 rounded-full bg-gray-100 text-[#747576] text-[8px] font-black uppercase tracking-widest border border-gray-200">
+                                                    {expense.splitType || expense.split_type || 'Company'}
+                                                </span>
+                                            </div>
                                             <div className="text-[10px] font-bold text-ink-primary uppercase tracking-widest opacity-70 mt-0.5">{expense.notes || 'N/A'}</div>
                                         </div>
                                     </td>
                                     <td className="p-1.5 text-center">
-                                        <span className="px-3 py-1 rounded-pill bg-canvas text-ink-primary text-[9px] font-black uppercase tracking-widest border border-black/5">
-                                            {expense.category}
-                                        </span>
-                                    </td>
-                                    <td className="p-1.5 text-center">
-                                        <span className={`px-2 py-0.5 rounded-pill text-[8px] font-black uppercase tracking-widest border ${
-                                            expense.split_type === 'Akbar' ? 'bg-orange-50 text-orange-600 border-orange-200' :
-                                            expense.split_type === 'Nadar' ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                                            expense.split_type === 'Narshik' ? 'bg-purple-50 text-purple-600 border-purple-200' :
-                                            'bg-canvas text-ink-primary border-black/5'
+                                        <span className={`px-3 py-1 rounded-pill text-[9px] font-black uppercase tracking-widest border ${
+                                            (expense.category || '').toLowerCase() === 'petrol' ? 'bg-orange-50 text-orange-600 border-orange-100' :
+                                            (expense.category || '').toLowerCase() === 'food' ? 'bg-red-50 text-red-600 border-red-100' :
+                                            (expense.category || '').toLowerCase() === 'salary' ? 'bg-green-50 text-green-600 border-green-100' :
+                                            (expense.category || '').toLowerCase() === 'rent' ? 'bg-blue-50 text-blue-600 border-blue-100' :
+                                            (expense.category || '').toLowerCase() === 'utility' ? 'bg-yellow-50 text-yellow-600 border-yellow-100' :
+                                            (expense.category || '').toLowerCase() === 'purchase' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+                                            (expense.category || '').toLowerCase() === 'maintenance' ? 'bg-teal-50 text-teal-600 border-teal-100' :
+                                            (expense.category || '').toLowerCase().includes('credit') ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-100' :
+                                            (expense.category || '').toLowerCase().includes('delivery') ? 'bg-sky-50 text-sky-600 border-sky-100' :
+                                            'bg-gray-100 text-[#747576] border-gray-200'
                                         }`}>
-                                            {expense.split_type || 'Company'}
+                                            {expense.category || 'Other'}
                                         </span>
                                     </td>
                                     <td className="p-1.5 text-center">
@@ -292,7 +299,7 @@ const Expenses = () => {
                                     </td>
                                     <td className="p-1.5 text-right">
                                         <div className="text-base font-black text-ink-primary tracking-tighter">
-                                            {businessProfile?.currencySymbol || '$'}{parseFloat(expense.amount).toLocaleString()}
+                                            {businessProfile?.currencySymbol || '₹'}{parseFloat(expense.amount).toLocaleString()}
                                         </div>
                                     </td>
                                     <td className="p-1.5 pr-8 text-right">
@@ -379,7 +386,7 @@ const Expenses = () => {
                                     <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Amount</label>
                                     <div className="relative">
                                         <div className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-ink-primary opacity-20">
-                                            {businessProfile?.currencySymbol || '$'}
+                                            {businessProfile?.currencySymbol || '₹'}
                                         </div>
                                         <input 
                                             required 
@@ -399,7 +406,16 @@ const Expenses = () => {
                                         value={formData.category} 
                                         onChange={e => setFormData({...formData, category: e.target.value})}
                                     >
-                                        {expenseCategories.map(c => <option key={c} value={c}>{c.toUpperCase()}</option>)}
+                                        <option value="Other">OTHER (DEFAULT)</option>
+                                        <option value="Petrol">PETROL</option>
+                                        <option value="Food">FOOD</option>
+                                        <option value="Salary">SALARY</option>
+                                        <option value="Rent">RENT</option>
+                                        <option value="Utility">UTILITY</option>
+                                        <option value="Purchase">PURCHASE</option>
+                                        <option value="Maintenance">MAINTENANCE</option>
+                                        <option value="Credit Card Payment">CREDIT CARD PAYMENT</option>
+                                        <option value="Delivery Charge">DELIVERY CHARGE</option>
                                     </select>
                                 </div>
 
@@ -414,7 +430,7 @@ const Expenses = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Partner Split (Optional)</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Split Type</label>
                                     <select 
                                         className="w-full bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase appearance-none cursor-pointer" 
                                         value={formData.splitType} 

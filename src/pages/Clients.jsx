@@ -8,56 +8,113 @@ import {
 } from 'lucide-react';
 
 const Clients = () => {
-    const { shops, addShop, updateShop, deleteShop, orders, settleOrder, businessProfile, isViewOnly, hasPermission } = useAppContext();
+    const { clients, addShop: addClient, updateShop: updateClient, deleteShop: deleteClient, sales, recordClientPayment, clientPayments, businessProfile, isViewOnly, hasPermission } = useAppContext();
     const [isAdding, setIsAdding] = useState(false);
     const [editingClient, setEditingClient] = useState(null);
     const [formData, setFormData] = useState({ name: '', contact: '', phone: '', address: '' });
     const [deleteConfirm, setDeleteConfirm] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    
+    // Payment Modal State
+    const [selectedClientForPayment, setSelectedClientForPayment] = useState(null);
+    const [paymentData, setPaymentData] = useState({ amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
+    const [paymentError, setPaymentError] = useState('');
+
+    // Statement Modal State
+    const [selectedClientForStatement, setSelectedClientForStatement] = useState(null);
+
+    const handleRecordPaymentSubmit = async (e) => {
+        e.preventDefault();
+        setPaymentError('');
+        const amount = parseFloat(paymentData.amount);
+        if (isNaN(amount) || amount <= 0) {
+            setPaymentError('Enter a valid amount');
+            return;
+        }
+        if (amount > selectedClientForPayment.outstanding_balance) {
+            setPaymentError('Amount exceeds outstanding balance');
+            return;
+        }
+        
+        const res = await recordClientPayment(selectedClientForPayment.id, amount, paymentData.date, paymentData.notes);
+        if (res?.success === false) {
+            setPaymentError(res.error);
+        } else {
+            setSelectedClientForPayment(null);
+            setPaymentData({ amount: '', date: new Date().toISOString().split('T')[0], notes: '' });
+        }
+    };
+
+    const getClientStatement = (clientId) => {
+        const clientSales = (sales || [])
+            .filter(s => s.clientId === clientId && (s.paymentMethod === 'credit' || s.paymentMethod === 'CREDIT'))
+            .map(s => ({
+                id: s.id,
+                date: s.date,
+                type: 'SALE',
+                description: `Credit Sale #${s.id.split('-').pop()}`,
+                debit: s.totalAmount, // Increases outstanding balance
+                credit: 0
+            }));
+            
+        const payments = (clientPayments || [])
+            .filter(p => p.client_id === clientId)
+            .map(p => ({
+                id: p.id,
+                date: p.date,
+                type: 'PAYMENT',
+                description: p.notes ? `Payment: ${p.notes}` : 'Payment Received',
+                debit: 0,
+                credit: p.amount // Decreases outstanding balance
+            }));
+
+        const combined = [...clientSales, ...payments].sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        let runningBalance = 0;
+        return combined.map(txn => {
+            runningBalance += txn.debit;
+            runningBalance -= txn.credit;
+            return { ...txn, balance: runningBalance };
+        });
+    };
 
     const clientStats = useMemo(() => {
         const stats = {};
-        shops.forEach(s => stats[s.id] = { totalSales: 0, outstandingDebt: 0, orderCount: 0 });
+        (clients || []).forEach(s => stats[s.id] = { totalSales: 0, orderCount: 0 });
 
-        orders.forEach(order => {
-            if (stats[order.shopId]) {
-                stats[order.shopId].totalSales += order.totalAmount;
-                stats[order.shopId].orderCount += 1;
-                if (order.paymentMethod === 'CREDIT' && order.paymentStatus !== 'PAID') {
-                    const balance = order.totalAmount - (order.paidAmount || 0);
-                    stats[order.shopId].outstandingDebt += balance;
-                }
+        (sales || []).forEach(sale => {
+            if (stats[sale.clientId]) {
+                stats[sale.clientId].totalSales += sale.totalAmount;
+                stats[sale.clientId].orderCount += 1;
             }
         });
         return stats;
-    }, [orders, shops]);
+    }, [sales, clients]);
 
     const topMetrics = useMemo(() => {
         let topDebtor = { name: 'None', amount: 0 };
         let topPerformer = { name: 'None', amount: 0 };
 
-        shops.forEach(shop => {
-            const stats = clientStats[shop.id];
-            if (stats) {
-                if (stats.outstandingDebt > topDebtor.amount) {
-                    topDebtor = { name: shop.name, amount: stats.outstandingDebt };
-                }
-                if (stats.totalSales > topPerformer.amount) {
-                    topPerformer = { name: shop.name, amount: stats.totalSales };
-                }
+        (clients || []).forEach(client => {
+            const stats = clientStats[client.id];
+            if (client.outstanding_balance > topDebtor.amount) {
+                topDebtor = { name: client.name, amount: client.outstanding_balance };
+            }
+            if (stats && stats.totalSales > topPerformer.amount) {
+                topPerformer = { name: client.name, amount: stats.totalSales };
             }
         });
 
         return { topDebtor, topPerformer };
-    }, [shops, clientStats]);
+    }, [clients, clientStats]);
 
-    const filteredShops = useMemo(() => {
-        return shops.filter(shop => 
-            shop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            shop.contact?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            shop.id.toLowerCase().includes(searchTerm.toLowerCase())
+    const filteredClients = useMemo(() => {
+        return (clients || []).filter(client => 
+            client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            client.contact?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            client.id.toLowerCase().includes(searchTerm.toLowerCase())
         );
-    }, [shops, searchTerm]);
+    }, [clients, searchTerm]);
 
     const openAdd = () => {
         setEditingClient(null);
@@ -74,17 +131,17 @@ const Clients = () => {
     const handleSubmit = (e) => {
         e.preventDefault();
         if (editingClient) {
-            updateShop({ ...editingClient, ...formData });
+            updateClient({ ...editingClient, ...formData });
         } else {
-            addShop(formData);
+            addClient(formData);
         }
         setIsAdding(false);
         setEditingClient(null);
         setFormData({ name: '', contact: '', phone: '', address: '' });
     };
 
-    const handleDelete = (shopId) => {
-        deleteShop(shopId);
+    const handleDelete = (clientId) => {
+        deleteClient(clientId);
         setDeleteConfirm(null);
     };
 
@@ -109,7 +166,7 @@ const Clients = () => {
                         <div className="flex flex-col -space-y-1">
                             <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Active Clients</div>
                             <div className="text-3xl font-black text-ink-primary tracking-tight flex items-baseline gap-2">
-                                {filteredShops.length} <span className="text-lg font-black opacity-90">Clients</span>
+                                {filteredClients.length} <span className="text-lg font-black opacity-90">Clients</span>
                             </div>
                         </div>
                     </div>
@@ -168,7 +225,7 @@ const Clients = () => {
 
                 {/* Client Ledger - Premium Grid Feed */}
                 <div className="flex flex-col gap-4 min-h-[400px]">
-                    {filteredShops.length === 0 ? (
+                    {filteredClients.length === 0 ? (
                         <div className="glass-panel !py-32 !rounded-[3rem] text-center border-none shadow-premium">
                             <div className="flex justify-center mb-8 opacity-10">
                                 <UserCircle size={80} strokeWidth={1} />
@@ -178,7 +235,7 @@ const Clients = () => {
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {filteredShops.map(client => {
+                        {filteredClients.map(client => {
                             const stats = clientStats[client.id];
                             
                             return (
@@ -210,8 +267,11 @@ const Clients = () => {
 
                                     {/* Main Content: Identity & Logistical Base */}
                                     <div className="p-3 pt-0.5 flex-1 flex flex-col">
-                                        <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase leading-tight mb-0.5 group-hover:text-accent-signature transition-colors">
-                                            {client.name}
+                                        <h3 
+                                            className="text-xl font-black text-ink-primary tracking-tighter uppercase leading-tight mb-0.5 hover:text-accent-signature transition-colors cursor-pointer flex items-center gap-2"
+                                            onClick={() => setSelectedClientForStatement(client)}
+                                        >
+                                            {client.name} <ExternalLink size={12} className="opacity-50" />
                                         </h3>
                                         <div className="flex items-center gap-1 text-[10px] font-bold text-ink-primary opacity-60 uppercase tracking-widest mb-3 line-clamp-1">
                                             <MapPin size={9} className="shrink-0" /> {client.address}
@@ -243,9 +303,16 @@ const Clients = () => {
                                                 </div>
                                             </div>
                                             <div className="text-right">
-                                                <div className="text-[8px] font-black uppercase tracking-widest text-ink-primary opacity-70 mb-1">BALANCE</div>
-                                                <div className={`text-2xl font-black font-mono tracking-tighter tabular-nums leading-none ${client.balance > 0 ? 'text-red-600' : 'text-ink-primary opacity-30'}`}>
-                                                    {businessProfile?.currencySymbol || '₹'}{Math.round(client.balance || 0).toLocaleString()}
+                                                <div className="text-[8px] font-black uppercase tracking-widest text-ink-primary opacity-70 mb-1">OUTSTANDING</div>
+                                                <div className={`text-2xl font-black font-mono tracking-tighter tabular-nums leading-none ${(client.outstanding_balance || 0) > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                                    {businessProfile?.currencySymbol || '₹'}{Math.round(client.outstanding_balance || 0).toLocaleString()}
+                                                </div>
+                                                <div className="text-[8px] font-black uppercase tracking-widest mt-1">
+                                                    {(client.outstanding_balance || 0) <= 0 ? (
+                                                        <span className="text-green-500 flex items-center justify-end gap-1"><Check size={10} /> Fully Paid</span>
+                                                    ) : (
+                                                        <span className="text-red-500 opacity-80 flex items-center justify-end gap-1"><AlertCircle size={10} /> Pending</span>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -254,7 +321,7 @@ const Clients = () => {
                                             <div className="flex-1 h-1 bg-black/10 rounded-full overflow-hidden">
                                                 <div 
                                                     className="h-full bg-accent-signature transition-all duration-500" 
-                                                    style={{ width: `${Math.min(100, (stats?.totalSales > 0 ? (stats.totalSales - (client.balance || 0)) / stats.totalSales * 100 : 100))}%` }}
+                                                    style={{ width: `${Math.min(100, (stats?.totalSales > 0 ? (stats.totalSales - (client.outstanding_balance || 0)) / stats.totalSales * 100 : 100))}%` }}
                                                 ></div>
                                             </div>
                                             {hasPermission('DELETE_CLIENT') && (
@@ -266,19 +333,16 @@ const Clients = () => {
                                                 </button>
                                             )}
                                         </div>
-                                        {stats?.outstandingDebt > 0 && (
-                                            <button 
-                                                className="w-full mt-3 py-2 bg-ink-primary text-accent-signature rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all"
-                                                onClick={() => {
-                                                    const pendingOrder = orders.find(o => o.shopId === client.id && o.paymentMethod === 'CREDIT' && o.paymentStatus !== 'PAID');
-                                                    if (pendingOrder) {
-                                                        settleOrder(pendingOrder.id, pendingOrder.totalAmount);
-                                                    }
-                                                }}
-                                            >
-                                                Settle Debt
-                                            </button>
-                                        )}
+                                        <button 
+                                            className="w-full mt-3 py-2 bg-ink-primary text-accent-signature rounded-full text-[9px] font-black uppercase tracking-widest hover:scale-[1.02] transition-all"
+                                            onClick={() => {
+                                                setSelectedClientForPayment(client);
+                                                setPaymentData({ amount: client.outstanding_balance || '', date: new Date().toISOString().split('T')[0], notes: '' });
+                                                setPaymentError('');
+                                            }}
+                                        >
+                                            Record Payment
+                                        </button>
                                     </div>
                                 </div>
                             );
@@ -370,6 +434,175 @@ const Clients = () => {
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Record Payment Modal */}
+            {selectedClientForPayment && (
+                <div className="modal-overlay z-50">
+                    <div className="glass-modal max-w-sm w-full mx-auto">
+                        <div className="flex justify-between items-start mb-5">
+                            <div>
+                                <h2 className="text-2xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-1">RECORD PAYMENT</h2>
+                                <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.3em] opacity-80">{selectedClientForPayment.name}</p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedClientForPayment(null)}
+                                className="w-8 h-8 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary"
+                            >
+                                <X size={14} />
+                            </button>
+                        </div>
+                        
+                        <form onSubmit={handleRecordPaymentSubmit} className="space-y-4">
+                            {paymentError && (
+                                <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-[10px] font-black uppercase tracking-widest rounded-lg flex items-center gap-2">
+                                    <AlertCircle size={14} /> {paymentError}
+                                </div>
+                            )}
+                            
+                            <div className="p-3 bg-canvas border border-black/5 rounded-xl flex justify-between items-center">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-[#4b5563]">Current Balance</span>
+                                <span className="text-lg font-black font-mono text-red-500 tabular-nums">{businessProfile?.currencySymbol || '₹'}{Math.round(selectedClientForPayment.outstanding_balance || 0).toLocaleString()}</span>
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Amount Received</label>
+                                <div className="relative">
+                                    <DollarSign size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary opacity-50" />
+                                    <input 
+                                        required 
+                                        type="number" 
+                                        step="0.01"
+                                        min="0.01"
+                                        max={selectedClientForPayment.outstanding_balance}
+                                        className="w-full bg-canvas border-none rounded-xl pl-10 pr-4 py-4 font-black text-xl text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all font-mono" 
+                                        placeholder="0.00"
+                                        value={paymentData.amount} 
+                                        onChange={e => setPaymentData({...paymentData, amount: e.target.value})} 
+                                    />
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Payment Date</label>
+                                <input 
+                                    required 
+                                    type="date" 
+                                    className="w-full bg-canvas border-none rounded-xl p-4 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase" 
+                                    value={paymentData.date} 
+                                    onChange={e => setPaymentData({...paymentData, date: e.target.value})} 
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Notes (Optional)</label>
+                                <textarea 
+                                    className="w-full bg-canvas border-none rounded-xl p-4 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase resize-none h-20" 
+                                    placeholder="CHEQUE NO, REF, ETC..."
+                                    value={paymentData.notes} 
+                                    onChange={e => setPaymentData({...paymentData, notes: e.target.value})} 
+                                />
+                            </div>
+
+                            <button type="submit" className="w-full mt-2 btn-signature !h-14 !text-xs flex items-center justify-center !rounded-xl">
+                                SAVE PAYMENT
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Client Statement Modal */}
+            {selectedClientForStatement && (
+                <div className="modal-overlay z-40">
+                    <div className="glass-modal max-w-2xl w-full mx-auto max-h-[85vh] flex flex-col">
+                        <div className="flex justify-between items-start mb-6 shrink-0">
+                            <div>
+                                <h2 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">CLIENT STATEMENT.</h2>
+                                <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.3em] opacity-80">{selectedClientForStatement.name}</p>
+                            </div>
+                            <button
+                                onClick={() => setSelectedClientForStatement(null)}
+                                className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary"
+                            >
+                                <X size={18} />
+                            </button>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 mb-6 shrink-0">
+                            <div className="p-4 bg-canvas border border-black/5 rounded-2xl flex flex-col">
+                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#4b5563] mb-1">Current Outstanding</span>
+                                <span className={`text-3xl font-black font-mono tracking-tighter tabular-nums leading-none ${(selectedClientForStatement.outstanding_balance || 0) > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                    {businessProfile?.currencySymbol || '₹'}{Math.round(selectedClientForStatement.outstanding_balance || 0).toLocaleString()}
+                                </span>
+                            </div>
+                            <div className="p-4 bg-canvas border border-black/5 rounded-2xl flex flex-col">
+                                <span className="text-[9px] font-black uppercase tracking-[0.2em] text-[#4b5563] mb-1">Total Lifetime Sales</span>
+                                <span className="text-3xl font-black font-mono tracking-tighter text-ink-primary tabular-nums leading-none flex items-baseline gap-2">
+                                    {businessProfile?.currencySymbol || '₹'}{Math.round(clientStats[selectedClientForStatement.id]?.totalSales || 0).toLocaleString()}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto min-h-[300px] border border-black/10 rounded-2xl bg-white">
+                            <table className="w-full text-left border-collapse">
+                                <thead className="sticky top-0 bg-canvas/90 backdrop-blur-sm z-10 border-b border-black/10">
+                                    <tr>
+                                        <th className="py-3 px-4 text-[9px] font-black uppercase tracking-[0.2em] text-[#4b5563]">Date</th>
+                                        <th className="py-3 px-4 text-[9px] font-black uppercase tracking-[0.2em] text-[#4b5563]">Description</th>
+                                        <th className="py-3 px-4 text-[9px] font-black uppercase tracking-[0.2em] text-[#4b5563] text-right">Debit (Sale)</th>
+                                        <th className="py-3 px-4 text-[9px] font-black uppercase tracking-[0.2em] text-[#4b5563] text-right">Credit (Pay)</th>
+                                        <th className="py-3 px-4 text-[9px] font-black uppercase tracking-[0.2em] text-[#4b5563] text-right">Balance</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-black/5">
+                                    {getClientStatement(selectedClientForStatement.id).length === 0 ? (
+                                        <tr>
+                                            <td colSpan="5" className="py-12 text-center text-[11px] font-black text-ink-secondary uppercase tracking-widest">No Transactions Found</td>
+                                        </tr>
+                                    ) : (
+                                        getClientStatement(selectedClientForStatement.id).map((txn, idx) => (
+                                            <tr key={`${txn.id}-${idx}`} className="hover:bg-canvas/50 transition-colors">
+                                                <td className="py-3 px-4">
+                                                    <span className="text-[10px] font-black uppercase tracking-widest text-ink-primary">
+                                                        {new Date(txn.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                    </span>
+                                                </td>
+                                                <td className="py-3 px-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className={`w-1.5 h-1.5 rounded-full ${txn.type === 'SALE' ? 'bg-red-500' : 'bg-green-500'}`}></span>
+                                                        <span className="text-[11px] font-black uppercase tracking-widest text-[#4b5563]">
+                                                            {txn.description}
+                                                        </span>
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 px-4 text-right">
+                                                    {txn.debit > 0 ? (
+                                                        <span className="text-[11px] font-black font-mono text-red-500 tabular-nums">
+                                                            {businessProfile?.currencySymbol || '₹'}{Math.round(txn.debit).toLocaleString()}
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td className="py-3 px-4 text-right">
+                                                    {txn.credit > 0 ? (
+                                                        <span className="text-[11px] font-black font-mono text-green-500 tabular-nums">
+                                                            {businessProfile?.currencySymbol || '₹'}{Math.round(txn.credit).toLocaleString()}
+                                                        </span>
+                                                    ) : '-'}
+                                                </td>
+                                                <td className="py-3 px-4 text-right">
+                                                    <span className={`text-[11px] font-black font-mono tabular-nums ${txn.balance > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                                        {businessProfile?.currencySymbol || '₹'}{Math.round(txn.balance).toLocaleString()}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}

@@ -8,40 +8,40 @@ import {
 
 const Orders = () => {
     const { 
-        orders, updateOrder, settleOrder, users, shops, vehicles, businessProfile,
+        sales, updateSale, settleSale, users, clients, vehicles, businessProfile,
         getUserName, getVehicleName, getShopName, hasPermission 
     } = useAppContext();
     const [activeTab, setActiveTab] = useState('PENDING');
     const [filterType, setFilterType] = useState('ALL'); 
     const [showReceipt, setShowReceipt] = useState(null); 
 
-    const filteredOrders = orders.filter(o => {
+    const filteredSales = (sales || []).filter(o => {
         if (o.status !== activeTab) return false;
-        if (filterType === 'WALKIN') return o.shopId === 'POS-WALKIN';
-        if (filterType === 'DELIVERY') return o.shopId !== 'POS-WALKIN';
+        if (filterType === 'WALKIN') return o.clientId === 'POS-WALKIN' || o.shopId === 'POS-WALKIN';
+        if (filterType === 'DELIVERY') return o.clientId !== 'POS-WALKIN' && o.shopId !== 'POS-WALKIN';
         return true;
     }).sort((a, b) => new Date(b.date) - new Date(a.date));
 
-    const pendingCount = orders.filter(o => o.status === 'PENDING').length;
-    const walkinPendingCount = orders.filter(o => o.status === 'PENDING' && o.shopId === 'POS-WALKIN').length;
-    const deliveryPendingCount = orders.filter(o => o.status === 'PENDING' && o.shopId !== 'POS-WALKIN').length;
+    const pendingCount = (sales || []).filter(o => o.status === 'PENDING').length;
+    const walkinPendingCount = (sales || []).filter(o => o.status === 'PENDING' && (o.clientId === 'POS-WALKIN' || o.shopId === 'POS-WALKIN')).length;
+    const deliveryPendingCount = (sales || []).filter(o => o.status === 'PENDING' && (o.clientId !== 'POS-WALKIN' && o.shopId !== 'POS-WALKIN')).length;
 
-    const handleMarkDelivered = (orderId) => {
-        const order = orders.find(o => o.id === orderId);
-        if (order) {
-            updateOrder({
-                ...order,
+    const handleMarkDelivered = (saleId) => {
+        const sale = sales.find(s => s.id === saleId);
+        if (sale) {
+            updateSale({
+                ...sale,
                 status: 'COMPLETED',
                 deliveryDate: new Date().toISOString()
             });
         }
     };
 
-    const handleCancelOrder = (orderId) => {
-        const order = orders.find(o => o.id === orderId);
-        if (order) {
-            if (window.confirm("Cancel this order?")) {
-                updateOrder({ ...order, status: 'CANCELLED' });
+    const handleCancelOrder = (saleId) => {
+        const sale = sales.find(s => s.id === saleId);
+        if (sale) {
+            if (window.confirm("Cancel this sale?")) {
+                updateSale({ ...sale, status: 'CANCELLED' });
             }
         }
     };
@@ -131,7 +131,12 @@ const Orders = () => {
                         <div className="flex items-center gap-3 text-sm font-black uppercase tracking-widest mt-2">
                             <CreditCard size={12} className="text-ink-primary opacity-30" />
                             <span className="text-ink-secondary opacity-60">Payment Method:</span>
-                            <span className={order.paymentMethod === 'CASH' ? 'text-green-600' : 'text-blue-600'}>{order.paymentMethod}</span>
+                            <span className={`px-3 py-1 rounded-full text-[10px] border ${
+                                order.paymentMethod?.toLowerCase() === 'credit' ? 'bg-orange-50 text-orange-700 border-orange-100' : 
+                                'bg-green-50 text-green-700 border-green-100'
+                            }`}>
+                                {order.paymentMethod?.toUpperCase() || 'CASH'}
+                            </span>
                             <div className="h-4 w-px bg-black/10 mx-1"></div>
                             <span className={`px-3 py-1 rounded-full text-[10px] border ${
                                 order.paymentStatus === 'PAID' ? 'bg-green-50 text-green-700 border-green-100' : 
@@ -233,16 +238,14 @@ const Orders = () => {
 
             {/* Order Feed */}
             <div className="min-h-[400px]">
-                {filteredOrders.length === 0 ? (
-                    <div className="glass-panel !py-32 !rounded-[3rem] text-center border-none shadow-premium">
-                        <div className="flex justify-center mb-8 opacity-10">
-                            <ShoppingCart size={80} strokeWidth={1} />
-                        </div>
-                        <h3 className="text-xl font-black text-[#111] uppercase tracking-tighter mb-2">No Orders</h3>
-                        <p className="text-sm font-bold text-[#747576] uppercase tracking-[0.3em] opacity-70">No orders found in this category</p>
+                {filteredSales.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-20 glass-panel rounded-[3rem] border-2 border-dashed border-black/5 opacity-40">
+                        <ShoppingCart size={48} className="text-ink-secondary mb-4" />
+                        <h3 className="text-xl font-black text-[#111] uppercase tracking-tighter mb-2">No Sales</h3>
+                        <p className="text-sm font-bold text-[#747576] uppercase tracking-[0.3em] opacity-70">No sales found in this category</p>
                     </div>
                 ) : (
-                    filteredOrders.map(order => <OrderCard key={order.id} order={order} isPending={order.status === 'PENDING'} />)
+                    filteredSales.map(order => <OrderCard key={order.id} order={order} isPending={order.status === 'PENDING'} />)
                 )}
             </div>
 

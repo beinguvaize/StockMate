@@ -17,7 +17,7 @@ const TAX_SLABS = [
 ];
 
 const Inventory = () => {
-    const { products, addProduct, updateProduct, deleteProduct, adjustStock, movementLog, businessProfile, hasPermission } = useAppContext();
+    const { products, purchases, addProduct, updateProduct, deleteProduct, adjustStock, movementLog, businessProfile, hasPermission } = useAppContext();
 
     const [showAddModal, setShowAddModal] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
@@ -173,6 +173,7 @@ const Inventory = () => {
                                 <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80">Product</th>
                                 <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 hidden md:table-cell">Category</th>
                                 <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 text-right whitespace-nowrap">Cost / Sell Price</th>
+                                <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 text-center hidden lg:table-cell whitespace-nowrap">Last Purchased</th>
                                 <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 text-center hidden sm:table-cell whitespace-nowrap">Stock</th>
                                 <th className="px-4 py-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-80 text-right">Actions</th>
                             </tr>
@@ -225,6 +226,21 @@ const Inventory = () => {
                                                 <span className="text-emerald-500">{businessProfile.currencySymbol}{product.sellingPrice.toFixed(2)}</span>
                                             </div>
                                         </td>
+                                        <td className="px-4 py-1.5 text-center hidden lg:table-cell whitespace-nowrap">
+                                            {(() => {
+                                                const lastPurchase = purchases
+                                                    ?.filter(p => p.linked_product_id === product.id)
+                                                    ?.sort((a,b) => new Date(b.date) - new Date(a.date))[0];
+                                                
+                                                if (!lastPurchase) return <span className="text-[10px] uppercase font-bold text-ink-secondary opacity-40 italic mt-1 block">Never</span>;
+                                                return (
+                                                    <div className="flex flex-col items-center">
+                                                        <span className="text-sm font-black text-ink-primary tracking-tighter">{lastPurchase.quantity} {product.unit}</span>
+                                                        <span className="text-[9px] font-bold text-ink-secondary uppercase tracking-widest opacity-70 mt-0.5">{new Date(lastPurchase.date).toLocaleDateString()}</span>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </td>
                                         <td className="px-4 py-1.5 text-center hidden sm:table-cell whitespace-nowrap">
                                             <div className={`text-xl font-black tracking-tighter ${isOut ? 'text-red-500' : isLow ? 'text-orange-400' : 'text-ink-primary'}`}>
                                                 {product.stock}
@@ -264,7 +280,7 @@ const Inventory = () => {
                             })}
                             {products.length === 0 && (
                                 <tr>
-                                    <td colSpan="5" className="p-20 text-center">
+                                    <td colSpan="6" className="p-20 text-center">
                                         <div className="w-24 h-24 rounded-pill bg-canvas flex items-center justify-center mx-auto mb-6">
                                             <PackagePlus size={40} className="text-ink-primary opacity-10" />
                                         </div>
