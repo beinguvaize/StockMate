@@ -143,7 +143,7 @@ const Expenses = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-4 border-b border-black/5">
                 <div>
                     <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">EXPENSES.</h1>
-                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">OPERATING COSTS & EXPENDITURE</p>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-70">OPERATING COSTS & EXPENDITURE</p>
                 </div>
                 <div className="flex items-center gap-6">
                     <div className="text-right mr-4">
@@ -214,7 +214,7 @@ const Expenses = () => {
                         Prev
                     </button>
                     <div className="relative group/date pr-2 flex items-center border-l border-black/10 ml-0.5 pl-2">
-                        <Calendar size={12} className={`mr-1.5 transition-colors ${filterType === 'custom' ? 'text-accent-signature' : 'text-ink-secondary opacity-40 group-hover/date:opacity-100'}`} />
+                        <Calendar size={12} className={`mr-1.5 transition-colors ${filterType === 'custom' ? 'text-accent-signature' : 'text-ink-secondary opacity-70 group-hover/date:opacity-100'}`} />
                         <input 
                             type="date" 
                             className="bg-transparent text-[9px] font-black uppercase tracking-widest text-ink-primary focus:outline-none w-20 cursor-pointer"
@@ -230,7 +230,7 @@ const Expenses = () => {
                                     setFilterDate('');
                                     setFilterType('all');
                                 }}
-                                className="ml-0.5 text-ink-secondary opacity-40 hover:opacity-100 transition-opacity"
+                                className="ml-0.5 text-ink-secondary opacity-70 hover:opacity-100 transition-opacity"
                             >
                                 <X size={10} />
                             </button>
@@ -250,11 +250,11 @@ const Expenses = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-black/5 bg-canvas">
-                                <th className="p-1.5 pl-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50">Expense Name</th>
-                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 text-center">Category</th>
-                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 text-center">Date</th>
-                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 text-right">Amount</th>
-                                <th className="p-1.5 pr-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 text-right">Actions</th>
+                                <th className="p-1.5 pl-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Expense Name</th>
+                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-center">Category</th>
+                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-center">Date</th>
+                                <th className="p-1.5 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-right">Amount</th>
+                                <th className="p-1.5 pr-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-black/5 bg-white font-inter">
@@ -263,7 +263,7 @@ const Expenses = () => {
                                     <td className="p-1.5 pl-8">
                                         <div className="flex flex-col">
                                             <div className="text-xs font-black text-ink-primary uppercase tracking-tight">{expense.title}</div>
-                                            <div className="text-[10px] font-bold text-ink-primary uppercase tracking-widest opacity-40 mt-0.5">{expense.notes || 'N/A'}</div>
+                                            <div className="text-[10px] font-bold text-ink-primary uppercase tracking-widest opacity-70 mt-0.5">{expense.notes || 'N/A'}</div>
                                         </div>
                                     </td>
                                     <td className="p-1.5 text-center">
@@ -325,12 +325,12 @@ const Expenses = () => {
             {isAdding && (
                 <div className="modal-overlay">
                     <div className="glass-modal">
-                        <div className="flex justify-between items-start mb-8">
+                        <div className="flex justify-between items-start mb-5">
                             <div>
                                 <h2 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">
                                     {editingExpense ? 'EDIT EXPENSE.' : 'NEW EXPENSE.'}
                                 </h2>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-70">
                                     LOG BUSINESS EXPENDITURE DETAILS
                                 </p>
                             </div>
@@ -342,10 +342,10 @@ const Expenses = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Expense Title</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Expense Title</label>
                                     <input 
                                         required 
                                         type="text" 
@@ -363,7 +363,7 @@ const Expenses = () => {
                                 </div>
                                 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Amount</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Amount</label>
                                     <div className="relative">
                                         <div className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-black text-ink-primary opacity-20">
                                             {businessProfile?.currencySymbol || '$'}
@@ -380,7 +380,7 @@ const Expenses = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Category</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Category</label>
                                     <select 
                                         className="w-full bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase appearance-none cursor-pointer" 
                                         value={formData.category} 
@@ -391,7 +391,7 @@ const Expenses = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Date</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Date</label>
                                     <input 
                                         type="date" 
                                         className="w-full bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase" 
@@ -401,7 +401,7 @@ const Expenses = () => {
                                 </div>
 
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Notes (Internal Record)</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Notes (Internal Record)</label>
                                     <textarea 
                                         className="w-full bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase min-h-[80px] resize-none" 
                                         placeholder="ADD DETAILS FOR THIS EXPENDITURE..."

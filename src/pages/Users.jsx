@@ -94,7 +94,7 @@ const Users = () => {
                         </div>
                     </div>
                     <h2 className="text-4xl font-black tracking-tighter text-[#111] uppercase mb-4">Access Denied</h2>
-                    <p className="text-sm font-bold text-[#747576] tracking-widest uppercase opacity-40 mb-10 leading-relaxed">
+                    <p className="text-sm font-bold text-[#747576] tracking-widest uppercase opacity-70 mb-10 leading-relaxed">
                         Security Clearance Insufficient. Staff records are restricted to Administrators.
                     </p>
                     <button className="btn-signature w-full h-16" onClick={() => window.history.back()}>
@@ -114,7 +114,7 @@ const Users = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-black/5">
                 <div>
                     <h1 className="text-4xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">STAFF.</h1>
-                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">PERSONNEL & ACCESS CONTROL</p>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-70">PERSONNEL & ACCESS CONTROL</p>
                 </div>
                 <button className="btn-signature h-14 !text-sm" onClick={openAdd}>
                     ADD STAFF MEMBER
@@ -128,12 +128,12 @@ const Users = () => {
             {isAdding && (
                 <div className="modal-overlay">
                     <div className="glass-modal">
-                        <div className="flex justify-between items-start mb-6">
+                        <div className="flex justify-between items-start mb-5">
                             <div>
                                 <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">
                                     {editingUser ? 'PERMISSIONS.' : 'NEW STAFF.'}
                                 </h1>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">CONFIGURE ACCESS LEVEL & IDENTITYCLE</p>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-70">CONFIGURE ACCESS LEVEL & IDENTITYCLE</p>
                             </div>
                             <button 
                                 onClick={() => { setIsAdding(false); setEditingUser(null); }}
@@ -143,10 +143,10 @@ const Users = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-6">
+                        <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-2 opacity-50">Legal Identity</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-1.5 opacity-70">Legal Identity</label>
                                     <input 
                                         required 
                                         type="text" 
@@ -157,7 +157,7 @@ const Users = () => {
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-2 opacity-50">Access Credential</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-1.5 opacity-70">Access Credential</label>
                                     <input 
                                         required 
                                         type="email" 
@@ -170,7 +170,7 @@ const Users = () => {
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-4 opacity-50">Role Access Levels</label>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-2 opacity-70">Role Access Levels</label>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                     {AVAILABLE_ROLES.map(role => {
                                         const isSelected = formData.roles.includes(role.key);
@@ -192,7 +192,7 @@ const Users = () => {
                                                 </div>
                                                 <div className="min-w-0">
                                                     <div className="text-xs font-black uppercase tracking-tight leading-none mb-1">{role.label}</div>
-                                                    <div className={`text-[8px] font-black uppercase tracking-widest opacity-40 truncate ${isSelected ? 'text-surface/60' : 'text-ink-secondary'}`}>{role.description}</div>
+                                                    <div className={`text-[8px] font-black uppercase tracking-widest opacity-70 truncate ${isSelected ? 'text-surface/60' : 'text-ink-secondary'}`}>{role.description}</div>
                                                 </div>
                                                 {isSelected && <Check size={16} className="ml-auto text-accent-signature" />}
                                             </div>
@@ -226,10 +226,10 @@ const Users = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="border-b border-black/5 bg-canvas">
-                                <th className="px-8 py-5 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50">Staff Member</th>
-                                <th className="px-8 py-5 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50">Access Levels</th>
-                                <th className="px-8 py-5 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50">Status</th>
-                                <th className="px-8 py-5 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 text-right">Actions</th>
+                                <th className="px-8 py-5 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70">Staff Member</th>
+                                <th className="px-8 py-5 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70">Access Levels</th>
+                                <th className="px-8 py-5 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70">Status</th>
+                                <th className="px-8 py-5 text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-black/5 bg-surface">
@@ -237,7 +237,7 @@ const Users = () => {
                                 const userRoles = user.roles || [user.role || 'SALES'];
                                 const primaryRole = userRoles[0];
                                 return (
-                                    <tr key={user.id} className={`group hover:bg-canvas transition-colors ${user.status !== 'ACTIVE' ? 'opacity-40 grayscale' : ''}`}>
+                                    <tr key={user.id} className={`group hover:bg-canvas transition-colors ${user.status !== 'ACTIVE' ? 'opacity-70 grayscale' : ''}`}>
                                         <td className="px-8 py-5">
                                             <div className="flex items-center gap-4">
                                                 <div className="w-10 h-10 rounded-xl bg-canvas border border-black/5 shadow-sm flex items-center justify-center text-ink-primary group-hover:bg-ink-primary group-hover:text-accent-signature transition-all duration-500">
@@ -245,7 +245,7 @@ const Users = () => {
                                                 </div>
                                                 <div>
                                                     <div className="text-sm font-black text-ink-primary uppercase tracking-tight leading-none mb-1.5">{user.name}</div>
-                                                    <div className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.1em] opacity-40">{user.email}</div>
+                                                    <div className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.1em] opacity-70">{user.email}</div>
                                                 </div>
                                             </div>
                                         </td>

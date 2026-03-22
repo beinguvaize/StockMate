@@ -93,12 +93,44 @@ function AppRoutes() {
 }
 
 function App() {
+  const { initError, loading } = useAppContext();
+
+  if (initError && !loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#141c1a] p-6 text-center">
+        <div className="max-w-md w-full glass-panel border-[#dc2626]/20">
+          <div className="w-16 h-16 bg-[#dc2626]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-[#dc2626]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-bold text-white mb-2">Configuration Required</h1>
+          <p className="text-[#747576] text-sm mb-8 leading-relaxed">
+            {initError}
+          </p>
+          <div className="space-y-3">
+             <div className="bg-[#1a2321] rounded-xl p-4 text-left border border-white/5">
+                <p className="text-[10px] uppercase tracking-widest text-[#38e0a0] font-bold mb-2">Common Fix:</p>
+                <p className="text-xs text-white/70 leading-relaxed">
+                  Go to your <strong>Vercel Dashboard</strong> → <strong>Settings</strong> → <strong>Environment Variables</strong> and ensure <code>VITE_SUPABASE_URL</code> and <code>VITE_SUPABASE_ANON_KEY</code> are correctly set.
+                </p>
+             </div>
+             <button 
+                onClick={() => window.location.reload()} 
+                className="w-full bg-[#38e0a0] text-[#141c1a] font-bold py-3 rounded-xl hover:bg-[#2fb883] transition-colors"
+             >
+                Try Again
+             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <AppProvider>
-      <Router>
-        <AppRoutes />
-      </Router>
-    </AppProvider>
+    <Router>
+      <AppRoutes />
+    </Router>
   );
 }
 

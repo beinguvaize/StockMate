@@ -148,11 +148,11 @@ const Inventory = () => {
             <div className="flex justify-between items-end pb-6 border-b border-black/5 text-ink-primary mb-2">
                 <div>
                     <h1 className="text-6xl font-black tracking-tighter text-ink-primary mb-2 uppercase">INVENTORY.</h1>
-                    <p className="text-ink-secondary font-black uppercase tracking-widest text-[10px] opacity-40">STOCK MANAGEMENT & LOGISTICS</p>
+                    <p className="text-ink-secondary font-black uppercase tracking-widest text-[10px] opacity-70">STOCK MANAGEMENT & LOGISTICS</p>
                 </div>
                 <div className="flex gap-6">
                     <button className="px-8 py-4 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-xs uppercase cursor-pointer tracking-widest" onClick={() => setShowHistoryModal(true)}>
-                        <History size={16} className="inline mr-3 opacity-40" /> History
+                        <History size={16} className="inline mr-3 opacity-70" /> History
                     </button>
                     {hasPermission('MANAGE_INVENTORY') && (
                         <button className="btn-signature group" onClick={openAddModal}>
@@ -196,7 +196,7 @@ const Inventory = () => {
                                                 <div>
                                                     <div className="text-sm font-black text-ink-primary uppercase leading-tight mb-1">{product.name}</div>
                                                     <div className="flex items-center gap-2 flex-wrap">
-                                                        <span className="text-[10px] font-bold text-ink-secondary uppercase tracking-widest opacity-40">{product.sku}</span>
+                                                        <span className="text-[10px] font-bold text-ink-secondary uppercase tracking-widest opacity-70">{product.sku}</span>
                                                         {(product.taxSlab && product.taxSlab !== 'Exempt' || product.taxRate > 0) && (
                                                             <span className="px-2 py-0.5 bg-amber-50 rounded-pill text-[7px] font-black uppercase tracking-widest text-amber-700 border border-amber-200 flex items-center gap-1">
                                                                 <Percent size={8} />
@@ -212,7 +212,7 @@ const Inventory = () => {
                                             <div className="flex flex-wrap gap-1">
                                                 {product.tags && product.tags.map(t => (
                                                     <span key={t} className="px-2 py-0.5 rounded-pill bg-canvas text-[9px] font-black text-ink-primary border border-black/5 uppercase tracking-tighter flex items-center gap-1">
-                                                        <TagIcon size={8} className="opacity-40" />
+                                                        <TagIcon size={8} className="opacity-70" />
                                                         {t}
                                                     </span>
                                                 ))}
@@ -228,7 +228,7 @@ const Inventory = () => {
                                         <td className="px-4 py-1.5 text-center hidden sm:table-cell whitespace-nowrap">
                                             <div className={`text-xl font-black tracking-tighter ${isOut ? 'text-red-500' : isLow ? 'text-orange-400' : 'text-ink-primary'}`}>
                                                 {product.stock}
-                                                <span className="text-sm font-bold text-ink-secondary lowercase opacity-40 ml-1">{product.unit}</span>
+                                                <span className="text-sm font-bold text-ink-secondary lowercase opacity-70 ml-1">{product.unit}</span>
                                             </div>
                                         </td>
                                         <td className="px-4 py-1.5 text-right">
@@ -283,7 +283,7 @@ const Inventory = () => {
             {showAddModal && (
                 <div className="modal-overlay">
                     <div className="glass-modal">
-                        <div className="flex justify-between items-start mb-6">
+                        <div className="flex justify-between items-start mb-4">
                             <div>
                                 <h2 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-1">
                                     {editingProduct ? 'EDIT PRODUCT.' : 'NEW PRODUCT.'}
@@ -338,7 +338,7 @@ const Inventory = () => {
                                             </div>
                                             <div className="flex flex-col items-start gap-2">
                                                 <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Image Selected</span>
-                                                <span className="text-[9px] font-bold text-ink-secondary uppercase tracking-widest opacity-50">
+                                                <span className="text-[9px] font-bold text-ink-secondary uppercase tracking-widest opacity-70">
                                                     {imageFile ? `${(imageFile.size / 1024).toFixed(0)} KB — ${imageFile.name}` : 'Current image'}
                                                 </span>
                                                 <button
@@ -381,7 +381,7 @@ const Inventory = () => {
                             <div className="col-span-1 p-4 rounded-bento bg-canvas border border-black/5">
                                 <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1.5 block opacity-60">Cost Price</label>
     <div className="flex items-center gap-3">
-        <span className="text-xl font-black text-ink-primary opacity-40">$</span>
+        <span className="text-xl font-black text-ink-primary opacity-70">$</span>
         <input required type="number" step="0.01" className="bg-transparent border-none w-full p-0 text-2xl font-black text-ink-primary outline-none" value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value })} />
     </div>
 </div>
@@ -389,7 +389,7 @@ const Inventory = () => {
                             <div className="col-span-1 p-4 rounded-bento bg-accent-signature/10 border border-accent-signature/20">
                                 <label className="text-[10px] font-black text-ink-primary uppercase tracking-widest mb-1.5 block opacity-60">Selling Price</label>
                                 <div className="flex items-center gap-3">
-                                    <span className="text-xl font-black text-ink-primary opacity-40">$</span>
+                                    <span className="text-xl font-black text-ink-primary opacity-70">$</span>
                                     <input required type="number" step="0.01" className="bg-transparent border-none w-full p-0 text-2xl font-black text-ink-primary outline-none" value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value })} />
                                 </div>
                             </div>
@@ -442,14 +442,14 @@ const Inventory = () => {
                                             value={formData.taxRate}
                                             onChange={e => setFormData({ ...formData, taxRate: e.target.value })}
                                         />
-                                        <span className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">%</span>
+                                        <span className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-70">%</span>
                                     </div>
                                 )}
                             </div>
 
-                            <div className="md:col-span-2 grid grid-cols-2 gap-4 mt-6">
+                            <div className="md:col-span-2 grid grid-cols-2 gap-4 mt-4">
                                 <button type="button" className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowAddModal(false)}>Cancel</button>
-                                <button type="submit" disabled={uploading} className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill disabled:opacity-50 disabled:cursor-not-allowed">
+                                <button type="submit" disabled={uploading} className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill disabled:opacity-70 disabled:cursor-not-allowed">
                                     {uploading ? 'Uploading...' : (editingProduct ? 'Save Changes' : 'Add Product')}
                                     <div className="icon-nest !w-10 !h-10 ml-4">
                                         {uploading ? <Upload size={22} className="animate-pulse" /> : <CheckCircle2 size={22} />}
@@ -465,26 +465,26 @@ const Inventory = () => {
             {showHistoryModal && (
                 <div className="modal-overlay">
                     <div className="glass-modal !p-0 !max-w-[1200px] flex flex-col !rounded-bento overflow-hidden">
-                        <div className="p-8 border-b border-black/5 flex justify-between items-center bg-canvas">
+                        <div className="p-5 border-b border-black/5 flex justify-between items-center bg-canvas">
                             <div>
                                 <h1 className="text-5xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">MOVEMENT LOG.</h1>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">STOCK MANAGEMENT & LOGISTICS HISTORY</p>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-70">STOCK MANAGEMENT & LOGISTICS HISTORY</p>
                             </div>
                             <button className="w-12 h-12 rounded-pill border border-black/10 flex items-center justify-center hover:bg-ink-primary hover:text-surface transition-all cursor-pointer text-ink-primary" onClick={() => setShowHistoryModal(false)}>
                                 <X size={24} />
                             </button>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-8">
+                        <div className="flex-1 overflow-y-auto p-5">
                             <div className="overflow-x-auto no-scrollbar">
                                 <table className="w-full text-left border-collapse min-w-[800px]">
                                     <thead className="sticky top-0 z-10 bg-surface">
                                         <tr className="border-b-4 border-black/5">
-                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40">Date</th>
-                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40">Product</th>
-                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40 text-center">Type</th>
-                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40 text-center">Quantity</th>
-                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40 text-right">Reason</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70">Date</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70">Product</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 text-center">Type</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 text-center">Quantity</th>
+                                            <th className="pb-4 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 text-right">Reason</th>
                                         </tr>
                                     </thead>
                                 <tbody className="divide-y divide-black/5">

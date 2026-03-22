@@ -160,6 +160,7 @@ export { AVAILABLE_ROLES };
 
 export const AppProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
+    const [initError, setInitError] = useState(null);
     // Users
     const [users, setUsers] = useState(() => {
         try {
@@ -289,6 +290,19 @@ export const AppProvider = ({ children }) => {
     useEffect(() => {
         const initializeApp = async () => {
             setLoading(true);
+            setInitError(null);
+            
+            // Check if Supabase is actually configured
+            const isConfigured = import.meta.env.VITE_SUPABASE_URL && 
+                               import.meta.env.VITE_SUPABASE_ANON_KEY && 
+                               !import.meta.env.VITE_SUPABASE_ANON_KEY.includes('REPLACE_WITH');
+            
+            if (!isConfigured) {
+                setInitError('Supabase configuration missing or invalid. Please check your Environment Variables.');
+                setLoading(false);
+                return;
+            }
+
             try {
                 console.log("🚀 Initializing App with Supabase...");
                 
@@ -302,7 +316,9 @@ export const AppProvider = ({ children }) => {
                     { data: sbEmployees },
                     { data: sbVehicles },
                     { data: sbBusiness },
-                    { data: sbSettings }
+                    { data: sbSettings }, 
+                    { data: sbMovementLog },
+                    { data: sbPayrollRecords }
                 ] = await Promise.all([
                     supabase.from('products').select('*'),
                     supabase.from('shops').select('*'),
@@ -312,17 +328,69 @@ export const AppProvider = ({ children }) => {
                     supabase.from('employees').select('*'),
                     supabase.from('vehicles').select('*'),
                     supabase.from('business_profile').select('*').maybeSingle(),
-                    supabase.from('settings').select('*')
+                    supabase.from('settings').select('*'), 
+                    supabase.from('movement_log').select('*').order('date', { ascending: false }).limit(50),
+                    supabase.from('payroll').select('*').order('processed_at', { ascending: false })
                 ]);
 
-                if (sbProducts) setProducts(sbProducts);
-                if (sbShops) setShops(sbShops);
-                if (sbOrders) setOrders(sbOrders);
-                if (sbExpenses) setExpenses(sbExpenses);
-                if (sbUsers && sbUsers.length > 0) setUsers(sbUsers); // This line already implements the condition
-                if (sbEmployees) setEmployees(sbEmployees);
-                if (sbVehicles) setVehicles(sbVehicles);
+                if (sbProducts) setProducts(sbProducts || []);
+                if (sbShops) setShops(sbShops || []);
+                if (sbOrders) setOrders(sbOrders || []);
+                if (sbExpenses) setExpenses(sbExpenses || []);
+                if (sbUsers && sbUsers.length > 0) setUsers(sbUsers);
+                
+                if (sbEmployees && sbEmployees.length > 0) {
+                    // Map DB 'salary' to frontend 'basePay' and 'role' to 'department'
+                    const mappedEmps = sbEmployees.map(emp => ({
+                        ...emp,
+                        basePay: emp.basePay ?? emp.salary ?? 0,
+                        department: emp.department ?? emp.role ?? 'Operations',
+                        position: emp.position ?? emp.role ?? 'Standard Associate'
+                    }));
+                    setEmployees(mappedEmps);
+                } else {
+                    setEmployees(INITIAL_EMPLOYEES);
+                }
+
+                if (sbPayrollRecords) {
+                    // Group individual records by month/period to recreate "Pay Runs"
+                    const grouped = sbPayrollRecords.reduce((acc, rec) => {
+                        const period = rec.month || 'Unknown';
+                        if (!acc[period]) {
+                            acc[period] = {
+                                id: `RUN-${period}`,
+                                period: period,
+                                processedAt: rec.processed_at,
+                                totalBase: 0, totalOvertime: 0, totalBonus: 0, totalDeductions: 0,
+                                totalNet: 0, totalEmployees: 0,
+                                items: []
+                            };
+                        }
+                        acc[period].items.push({
+                            employeeId: rec.employeeId,
+                            employeeName: getEmployeeName(rec.employeeId),
+                            netPay: rec.amount
+                        });
+                        acc[period].totalNet += rec.amount;
+                        acc[period].totalEmployees += 1;
+                        return acc;
+                    }, {});
+                    
+                    setPayrollRecords(Object.values(grouped));
+                }
+
+                if (sbVehicles) setVehicles(sbVehicles || []);
                 if (sbBusiness) setBusinessProfile(sbBusiness);
+                
+                if (sbMovementLog) {
+                    const mappedLog = sbMovementLog.map(log => ({
+                        ...log,
+                        productId: log.product_id,
+                        productName: log.product_name,
+                        userId: log.user_id
+                    }));
+                    setMovementLog(mappedLog);
+                }
                 
                 if (sbSettings) {
                     const categories = sbSettings.find(s => s.key === 'expense_categories');
@@ -338,6 +406,7 @@ export const AppProvider = ({ children }) => {
                 console.log("🏁 Initialization Complete.");
             } catch (err) {
                 console.error("Initialization error:", err);
+                setInitError(err.message || "An unexpected error occurred during initialization.");
             } finally {
                 setLoading(false);
             }
@@ -491,10 +560,14 @@ export const AppProvider = ({ children }) => {
             date: new Date().toISOString(),
             product_id: productId, 
             product_name: productName, 
+            // Also provide camelCase for the frontend state consistency
+            productId: productId,
+            productName: productName,
             type, 
             quantity, 
             reason, 
-            user_id: userId
+            user_id: userId,
+            userId: userId
         };
 
         const { error } = await supabase.from('movement_log').insert(newLog);
@@ -1042,7 +1115,9 @@ export const AppProvider = ({ children }) => {
             ...emp,
             id: emp.id || `EMP-${Date.now()}`,
             status: 'ACTIVE',
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            salary: emp.basePay, // Map field for DB
+            role: emp.department // Map field for DB
         };
         const { error } = await supabase.from('employees').upsert(newEmp);
         if (error) {
@@ -1054,7 +1129,12 @@ export const AppProvider = ({ children }) => {
     };
 
     const updateEmployee = async (updated) => {
-        const { error } = await supabase.from('employees').upsert(updated);
+        const payload = {
+            ...updated,
+            salary: updated.basePay, // Map field for DB
+            role: updated.department // Map field for DB
+        };
+        const { error } = await supabase.from('employees').upsert(payload);
         if (error) {
             console.error("Error updating employee in Supabase:", error);
             addNotification("Failed to update employee in cloud", "error");
@@ -1211,7 +1291,7 @@ export const AppProvider = ({ children }) => {
         employees, addEmployee, updateEmployee, deleteEmployee,
         payrollRecords, processPayroll, deletePayrollRecord,
         notifications, addNotification,
-        loading, migrateLocalToSupabase, resetAndSeedLocal
+        loading, initError, migrateLocalToSupabase, resetAndSeedLocal
     };
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

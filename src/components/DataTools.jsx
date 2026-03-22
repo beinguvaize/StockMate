@@ -238,11 +238,11 @@ const DataTools = ({ isOpen, onClose }) => {
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="glass-modal !max-w-[800px] !p-0 !rounded-bento overflow-hidden" onClick={e => e.stopPropagation()}>
+            <div className="glass-modal !max-w-[650px] !p-0 !rounded-bento overflow-hidden" onClick={e => e.stopPropagation()}>
                 {/* Header */}
-                <div className="bg-ink-primary p-8 flex justify-between items-start">
+                <div className="bg-ink-primary p-5 flex justify-between items-start">
                     <div>
-                        <h1 className="text-3xl font-black text-surface tracking-tighter uppercase leading-none mb-2">DATA TOOLS.</h1>
+                        <h1 className="text-3xl font-black text-surface tracking-tighter uppercase leading-none mb-1">DATA TOOLS.</h1>
                         <p className="text-[10px] font-black text-accent-signature uppercase tracking-[0.3em] opacity-70">IMPORT & EXPORT YOUR BUSINESS DATA</p>
                     </div>
                     <button 
@@ -270,10 +270,10 @@ const DataTools = ({ isOpen, onClose }) => {
                 </div>
 
                 {/* Content */}
-                <div className="p-8 space-y-6">
+                <div className="p-4 space-y-4">
                     {/* Module Selector */}
                     <div>
-                        <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-2 block opacity-50">Select Data Module</label>
+                        <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-2 block opacity-70">Select Data Module</label>
                         <div className="grid grid-cols-5 gap-2">
                             {MODULES.map(mod => (
                                 <button
@@ -296,7 +296,7 @@ const DataTools = ({ isOpen, onClose }) => {
                             {/* Export Stats */}
                             <div className="flex items-center gap-6 p-4 bg-canvas rounded-2xl border border-black/5">
                                 <div className="flex-1">
-                                    <div className="text-[9px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-1">Records Available</div>
+                                    <div className="text-[9px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1">Records Available</div>
                                     <div className="text-3xl font-black text-ink-primary tracking-tighter">{currentModuleData.length}</div>
                                 </div>
                                 <div className="flex gap-2">
@@ -340,7 +340,7 @@ const DataTools = ({ isOpen, onClose }) => {
                         <>
                             {/* File Upload */}
                             <div
-                                className="bg-canvas p-8 rounded-2xl border-2 border-dashed border-black/10 hover:border-accent-signature/40 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[140px] group"
+                                className="bg-canvas p-4 rounded-2xl border-2 border-dashed border-black/10 hover:border-accent-signature/40 transition-all cursor-pointer flex flex-col items-center justify-center gap-3 min-h-[120px] group"
                                 onClick={() => importRef.current?.click()}
                             >
                                 <input
@@ -373,7 +373,7 @@ const DataTools = ({ isOpen, onClose }) => {
                                             <thead>
                                                 <tr className="bg-canvas">
                                                     {Object.keys(importPreview[0]).slice(0, 6).map(key => (
-                                                        <th key={key} className="px-3 py-2 text-[8px] font-black uppercase tracking-widest text-ink-secondary opacity-50 border-b border-black/5">{key}</th>
+                                                        <th key={key} className="px-3 py-2 text-[8px] font-black uppercase tracking-widest text-ink-secondary opacity-70 border-b border-black/5">{key}</th>
                                                     ))}
                                                 </tr>
                                             </thead>

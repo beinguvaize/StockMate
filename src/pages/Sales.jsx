@@ -621,19 +621,19 @@ const Sales = () => {
                 <div className="modal-overlay">
                     <div className="glass-modal">
                         {/* Compact Header */}
-                        <div className="flex justify-between items-start mb-8">
+                        <div className="flex justify-between items-start mb-5">
                             <div>
                                 <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">PAYMENT.</h1>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">SELECT TRANSACTION RECEPTION METHOD</p>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-70">SELECT TRANSACTION RECEPTION METHOD</p>
                             </div>
                             <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowPaymentModal(false)}>
                                 <X size={18} />
                             </button>
                         </div>
 
-                        <div className="space-y-6">
+                        <div className="space-y-4">
                             {/* Capital Summary */}
-                            <div className="p-6 bg-canvas rounded-bento border border-black/5 text-center">
+                            <div className="p-4 bg-canvas rounded-bento border border-black/5 text-center">
                                 <div className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary mb-2 opacity-70">Total Amount Due</div>
                                 <div className="text-6xl font-black text-ink-primary tracking-tighter">${cartCalc.finalTotal.toLocaleString()}</div>
                             </div>
@@ -649,7 +649,7 @@ const Sales = () => {
                                         <div key={item.productId} className="flex justify-between items-center py-2 border-b border-black/5 last:border-0">
                                             <div className="flex-1 min-w-0 pr-4">
                                                 <div className="text-[11px] font-black text-ink-primary uppercase tracking-tight truncate">{item.name}</div>
-                                                <div className="text-[9px] font-black text-ink-secondary opacity-40 uppercase tracking-widest">{item.quantity} {item.unit} × ${item.price}</div>
+                                                <div className="text-[9px] font-black text-ink-secondary opacity-70 uppercase tracking-widest">{item.quantity} {item.unit} × ${item.price}</div>
                                             </div>
                                             <div className="text-sm font-black text-ink-primary tracking-tighter">${item.lineTotal.toLocaleString()}</div>
                                         </div>
@@ -695,7 +695,7 @@ const Sales = () => {
                         </div>
 
                         {/* Footer Actions */}
-                        <div className="mt-8 grid grid-cols-2 gap-4">
+                        <div className="mt-6 grid grid-cols-2 gap-4">
                             <button className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowPaymentModal(false)}>Cancel</button>
                             <button className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill" onClick={() => handleConfirmTransaction('COMPLETED')}>
                                 COMPLETE SALE
@@ -712,17 +712,17 @@ const Sales = () => {
             {showBookingDateModal && (
                 <div className="modal-overlay">
                     <div className="glass-modal">
-                        <div className="flex justify-between items-start mb-8">
+                        <div className="flex justify-between items-start mb-5">
                             <div>
                                 <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">PRE-BOOK.</h1>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">SET FUTURE DELIVERY SCHEDULE</p>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-70">SET FUTURE DELIVERY SCHEDULE</p>
                             </div>
                             <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowBookingDateModal(false)}>
                                 <X size={18} />
                             </button>
                         </div>
                         
-                        <div className="mb-8">
+                        <div className="mb-5">
                             <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-3 opacity-60">Planned Delivery Date</label>
                             <input 
                                 type="date" 

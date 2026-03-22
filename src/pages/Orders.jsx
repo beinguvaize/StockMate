@@ -71,7 +71,7 @@ const Orders = () => {
                             </h3>
                         </div>
                         <div className="text-right">
-                            <div className="text-sm font-black uppercase tracking-widest text-[#747576] opacity-40 mb-1">Date</div>
+                            <div className="text-sm font-black uppercase tracking-widest text-[#747576] opacity-70 mb-1">Date</div>
                             <div className="text-xs font-bold text-[#111] uppercase tracking-tight">
                                 {new Date(order.date).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                             </div>
@@ -80,7 +80,7 @@ const Orders = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                         <div>
-                            <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-3">
+                            <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-3">
                                 <MapPin size={10} /> Customer
                             </div>
                             <div className="text-base font-black text-ink-primary uppercase tracking-tight">{getShopName(order.shopId)}</div>
@@ -91,13 +91,13 @@ const Orders = () => {
                             )}
                         </div>
                         <div>
-                            <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-3">
+                            <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-3">
                                 <Calendar size={10} /> Scheduled Date
                             </div>
                             <div className="text-base font-black text-ink-primary uppercase tracking-tight">{order.scheduledDate || 'N/A: IMMEDIATE'}</div>
                         </div>
                         <div>
-                            <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-3">
+                            <div className="flex items-center gap-2 text-sm font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-3">
                                 <Truck size={10} /> Vehicle
                             </div>
                             <div className="text-base font-black text-ink-primary uppercase tracking-tight">
@@ -124,7 +124,7 @@ const Orders = () => {
                 {/* Right Action Section */}
                 <div className="lg:w-[320px] p-5 bg-canvas/30 backdrop-blur-sm flex flex-col justify-between">
                     <div>
-                        <div className="text-xs font-black uppercase tracking-[0.3em] text-ink-secondary opacity-40 mb-1">Total Amount</div>
+                        <div className="text-xs font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 mb-1">Total Amount</div>
                         <div className="text-4xl font-black text-ink-primary tracking-tighter mb-4">
                             {businessProfile.currencySymbol}{order.totalAmount.toLocaleString()}
                         </div>
@@ -188,7 +188,7 @@ const Orders = () => {
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-8 border-b border-black/5">
                 <div>
                     <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">ORDERS.</h1>
-                    <p className="text-[10px] font-black text-ink-secondary tracking-widest uppercase opacity-40">ORDER PIPELINE & HISTORY</p>
+                    <p className="text-[10px] font-black text-ink-secondary tracking-widest uppercase opacity-70">ORDER PIPELINE & HISTORY</p>
                 </div>
                 
                 <div className="glass-panel !p-1.5 !rounded-pill flex gap-1 bg-surface border border-black/5 shadow-premium">
@@ -239,7 +239,7 @@ const Orders = () => {
                             <ShoppingCart size={80} strokeWidth={1} />
                         </div>
                         <h3 className="text-xl font-black text-[#111] uppercase tracking-tighter mb-2">No Orders</h3>
-                        <p className="text-sm font-bold text-[#747576] uppercase tracking-[0.3em] opacity-40">No orders found in this category</p>
+                        <p className="text-sm font-bold text-[#747576] uppercase tracking-[0.3em] opacity-70">No orders found in this category</p>
                     </div>
                 ) : (
                     filteredOrders.map(order => <OrderCard key={order.id} order={order} isPending={order.status === 'PENDING'} />)
@@ -250,10 +250,10 @@ const Orders = () => {
             {showReceipt && (
                 <div className="modal-overlay">
                     <div className="glass-modal">
-                        <div className="flex justify-between items-start mb-8">
+                        <div className="flex justify-between items-start mb-5">
                             <div>
                                 <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">RECEIPT.</h1>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">OFFICIAL TRANSACTION RECORD</p>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-70">OFFICIAL TRANSACTION RECORD</p>
                             </div>
                             <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary no-print" onClick={() => setShowReceipt(null)}>
                                 <X size={18} />
@@ -261,36 +261,36 @@ const Orders = () => {
                         </div>
 
                         <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                            <div className="text-center mb-10 pb-10 border-b border-dashed border-black/10">
+                            <div className="text-center mb-6 pb-6 border-b border-dashed border-black/10">
                                 <div className="text-3xl font-black text-ink-primary tracking-tighter uppercase mb-2">{businessProfile.name}</div>
-                                <div className="text-sm font-black text-ink-secondary uppercase tracking-[0.3em] opacity-40">SALES RECORD</div>
+                                <div className="text-sm font-black text-ink-secondary uppercase tracking-[0.3em] opacity-70">SALES RECORD</div>
                                 <div className="text-sm font-black text-ink-primary mt-6">{new Date(showReceipt.date).toLocaleString()}</div>
                             </div>
 
-                            <div className="space-y-8 mb-10">
-                                <div className="grid grid-cols-2 gap-8">
+                            <div className="space-y-6 mb-6">
+                                <div className="grid grid-cols-2 gap-4">
                                     <div>
-                                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-2 text-left">Order ID</div>
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-2 text-left">Order ID</div>
                                         <div className="text-sm font-black text-ink-primary uppercase text-left tracking-tight">#{showReceipt.id.split('-').pop()}</div>
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-2 text-right">Customer</div>
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-2 text-right">Customer</div>
                                         <div className="text-sm font-black text-ink-primary uppercase text-right tracking-tight">{getShopName(showReceipt.shopId)}</div>
                                     </div>
                                     <div>
-                                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-2 text-left">Staff</div>
+                                        <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-2 text-left">Staff</div>
                                         <div className="text-sm font-black text-ink-primary uppercase text-left tracking-tight">{getUserName(showReceipt.bookedBy)}</div>
                                     </div>
                                     {showReceipt.deliveredBy && (
                                         <div>
-                                            <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40 mb-2 text-right">Vehicle</div>
+                                            <div className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-2 text-right">Vehicle</div>
                                             <div className="text-sm font-black text-ink-primary uppercase text-right tracking-tight">{getVehicleName(showReceipt.deliveredBy)}</div>
                                         </div>
                                     )}
                                 </div>
                             </div>
 
-                            <div className="border-t border-b border-black/5 py-10 space-y-5 mb-10">
+                            <div className="border-t border-b border-black/5 py-6 space-y-3 mb-6">
                                 {showReceipt.items.map((item, i) => (
                                     <div key={i} className="flex justify-between items-center text-sm">
                                         <div className="flex items-center gap-4">
@@ -302,8 +302,8 @@ const Orders = () => {
                                 ))}
                             </div>
 
-                            <div className="flex justify-between items-end mb-12">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-40">TOTAL SETTLEMENT</span>
+                            <div className="flex justify-between items-end mb-8">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">TOTAL SETTLEMENT</span>
                                 <span className="text-5xl font-black text-ink-primary tracking-tighter leading-none">
                                     {businessProfile.currencySymbol}{showReceipt.totalAmount.toLocaleString()}
                                 </span>

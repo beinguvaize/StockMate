@@ -113,7 +113,7 @@ body {
   --color-canvas: #F5F5F0;
   --color-surface: #FFFFFF;
   --color-ink-primary: #111111;
-  --color-ink-secondary: #747576;
+  --color-ink-secondary: #4a4a4a;
   --color-accent-signature: #C8F135;
   --color-accent-signature-hover: #b8e224;
 
@@ -131,7 +131,7 @@ body {
   --accent-lime: #C8F135;
   --accent-lime-hover: #b8e224;
   --text-main: #111111;
-  --text-muted: #747576;
+  --text-muted: #4a4a4a;
   --surface: #FFFFFF;
   --border-color: rgba(0, 0, 0, 0.05);
   
@@ -226,7 +226,7 @@ body {
 .glass-modal {
   background: var(--surface);
   border-radius: var(--radius-xl);
-  padding: 1.5rem;
+  padding: 1rem;
   width: 100%;
   max-width: 500px;
   max-height: 90vh;

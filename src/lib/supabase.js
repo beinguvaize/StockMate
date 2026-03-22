@@ -9,13 +9,18 @@ if (import.meta.env.DEV && supabaseUrl?.includes('production-ref-placeholder')) 
     throw new Error("🚨 SECURITY ALERT: You are attempting to connect to the PRODUCTION database in DEVELOPMENT mode. Please check your .env.development file.");
 }
 
-if (!supabaseUrl || !supabaseAnonKey) {
-    console.warn('Supabase credentials missing. Please check your .env file or environment variables.');
+const isConfigured = supabaseUrl && supabaseAnonKey && !supabaseAnonKey.includes('REPLACE_WITH');
+
+if (!isConfigured) {
+    console.warn('🚨 Supabase credentials missing or invalid. Please check your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
 }
 
-const rawSupabase = createClient(supabaseUrl, supabaseAnonKey, {
-    db: { schema: import.meta.env.VITE_SUPABASE_SCHEMA || 'public' }
-});
+// Only create the client if we have a valid-looking URL to avoid fatal "SupabaseUrl is required" error
+const rawSupabase = isConfigured 
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+        db: { schema: import.meta.env.VITE_SUPABASE_SCHEMA || 'public' }
+    })
+    : null;
 
 /**
  * Production Write Guard
@@ -55,8 +60,19 @@ export const uploadProductImage = async (file) => {
     return { url: urlData.publicUrl, error: null };
 };
 
-export const supabase = new Proxy(rawSupabase, {
+export const supabase = new Proxy(rawSupabase || {}, {
     get(target, prop) {
+        if (!rawSupabase) {
+            // If the client isn't initialized, any call to it should be safe but informative
+            if (mutationMethods.includes(prop) || prop === 'from' || prop === 'rpc') {
+                return () => {
+                    console.error(`🚨 Supabase not initialized. Cannot call '${prop}'. Check your VITE_SUPABASE_URL.`);
+                    return { data: null, error: { message: 'Supabase not initialized' } };
+                };
+            }
+            return undefined;
+        }
+
         const value = Reflect.get(target, prop);
 
         // If it's a mutation method, wrap it in a guard

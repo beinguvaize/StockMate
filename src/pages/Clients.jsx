@@ -95,7 +95,7 @@ const Clients = () => {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-4 border-b border-black/5">
                     <div>
                         <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">CLIENTS.</h1>
-                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">CUSTOMER NETWORK & ACCOUNTS</p>
+                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-70">CUSTOMER NETWORK & ACCOUNTS</p>
                     </div>
                 </div>
 
@@ -174,7 +174,7 @@ const Clients = () => {
                                 <UserCircle size={80} strokeWidth={1} />
                             </div>
                             <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">CLIENTS.</h1>
-                            <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-40">CUSTOMER NETWORK & ACCOUNTS</p>
+                            <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-70">CUSTOMER NETWORK & ACCOUNTS</p>
                         </div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -289,13 +289,13 @@ const Clients = () => {
             </div>
 
             {/* Client Form Modal */}
-            {showModal && (
+            {isAdding && (
                 <div className="modal-overlay">
                     <div className="glass-modal">
-                        <div className="flex justify-between items-start mb-8">
+                        <div className="flex justify-between items-start mb-5">
                             <div>
                                 <h2 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">
-                                    {editingShop ? 'EDIT CLIENT.' : 'NEW CLIENT.'}
+                                    {editingClient ? 'EDIT CLIENT.' : 'NEW CLIENT.'}
                                 </h2>
                                 <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.3em] opacity-80">
                                     REGISTER BUSINESS OUTLET DETAILS
@@ -309,10 +309,10 @@ const Clients = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} className="space-y-8">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <form onSubmit={handleSubmit} className="space-y-5">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Business Name</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Business Name</label>
                                     <input 
                                         required 
                                         type="text" 
@@ -324,7 +324,7 @@ const Clients = () => {
                                 </div>
                                 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Primary Contact</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Primary Contact</label>
                                     <input 
                                         required 
                                         type="text" 
@@ -336,7 +336,7 @@ const Clients = () => {
                                 </div>
 
                                 <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Phone Number</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Phone Number</label>
                                     <input 
                                         required 
                                         type="text" 
@@ -348,7 +348,7 @@ const Clients = () => {
                                 </div>
 
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-50 mb-3">Logistical Base (Address)</label>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Logistical Base (Address)</label>
                                     <input 
                                         required 
                                         type="text" 

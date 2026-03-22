@@ -80,7 +80,18 @@ const Dashboard = () => {
         const events = [];
         (orders || []).forEach(o => events.push({ id: `ord-${o.id}`, type: 'ORDER', title: `Order ${o?.id?.slice(-4) || '...' }`, desc: `${o.customerName || 'Walk-in Customer'} · ${businessProfile?.currencySymbol || ''}${o.totalAmount}`, date: o.date, icon: <ShoppingCart size={14} />, color: '#000' }));
         (routes || []).forEach(r => events.push({ id: `rt-${r.id}`, type: 'ROUTE', title: r.status === 'ACTIVE' ? 'Route Dispatched' : 'Route Reconciled', desc: `Driver ID: ${r.driverId}`, date: r.status === 'ACTIVE' ? r.date : r.reconciledAt, icon: <Package size={14} />, color: r.status === 'ACTIVE' ? '#404040' : '#000' }));
-        (movementLog || []).slice(0, 10).forEach(m => events.push({ id: `mv-${m.id}`, type: 'STOCK', title: `Stock ${m.type === 'IN' ? 'In' : 'Out'}`, desc: `${m.productName} (${m.quantity} ${m.type === 'IN' ? 'added' : 'removed'})`, date: m.date, icon: <TrendingUp size={14} />, color: '#737373' }));
+        (movementLog || []).slice(0, 10).forEach(m => {
+            const prodName = m.productName || products.find(p => p.id === m.productId)?.name || 'Unknown Product';
+            events.push({ 
+                id: `mv-${m.id}`, 
+                type: 'STOCK', 
+                title: `Stock ${m.type === 'IN' ? 'In' : 'Out'}`, 
+                desc: `${prodName} (${m.quantity} ${m.type === 'IN' ? 'added' : 'removed'})`, 
+                date: m.date, 
+                icon: <TrendingUp size={14} />, 
+                color: '#737373' 
+            });
+        });
         
         return events
             .filter(e => e.date && !isNaN(new Date(e.date).getTime()))

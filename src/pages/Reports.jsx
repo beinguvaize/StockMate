@@ -930,7 +930,7 @@ const Reports = () => {
                                 </div>
                                 <div className="flex gap-4">
                                     <div className="relative">
-                                        <Activity size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#4b5563] opacity-40" />
+                                        <Activity size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#4b5563] opacity-70" />
                                         <input 
                                             type="text" 
                                             placeholder="FILTER BY NAME / SKU..." 
@@ -948,7 +948,7 @@ const Reports = () => {
                                     <button 
                                         onClick={saveBulkChanges}
                                         disabled={isSaving}
-                                        className="px-8 py-2.5 bg-ink-primary text-accent-signature rounded-pill text-[10px] font-black uppercase tracking-widest shadow-xl disabled:opacity-50"
+                                        className="px-8 py-2.5 bg-ink-primary text-accent-signature rounded-pill text-[10px] font-black uppercase tracking-widest shadow-xl disabled:opacity-70"
                                     >
                                         {isSaving ? 'SAVING...' : 'COMMIT CHANGES'}
                                     </button>
@@ -970,10 +970,26 @@ const Reports = () => {
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-black/5">
-                                        {editedProducts.filter(p => 
-                                            p.name.toLowerCase().includes(bulkSearch.toLowerCase()) || 
-                                            p.sku.toLowerCase().includes(bulkSearch.toLowerCase())
-                                        ).map(product => (
+                                        {editedProducts.filter(p => {
+                                            const search = bulkSearch.toLowerCase();
+                                            if (!search) return true;
+                                            
+                                            if (search === '@client') {
+                                                return p.tags?.some(t => t.toLowerCase() === 'client');
+                                            }
+                                            if (search === '@payroll') {
+                                                return p.tags?.some(t => t.toLowerCase() === 'payroll');
+                                            }
+                                            if (search === '@staff') {
+                                                return p.tags?.some(t => t.toLowerCase() === 'staff');
+                                            }
+                                            if (search === '@lowstock') {
+                                                return p.stock <= (businessProfile?.lowStockThreshold || 10);
+                                            }
+                                            
+                                            return p.name.toLowerCase().includes(search) || 
+                                                   p.sku.toLowerCase().includes(search);
+                                        }).map(product => (
                                             <tr key={product.id} className="hover:bg-canvas/20 transition-colors">
                                                 <td className="p-2">
                                                     <input 
@@ -1062,7 +1078,7 @@ const Reports = () => {
                                     </div>
                                 </div>
                                 <div className="text-right flex flex-col justify-end">
-                                    <p className="text-[10px] font-bold text-[#4b5563] uppercase tracking-[0.2em] opacity-40">
+                                    <p className="text-[10px] font-bold text-[#4b5563] uppercase tracking-[0.2em] opacity-70">
                                         All modifications are staged locally before commit.<br/>
                                         Database integrity is maintained via transactional sync.
                                     </p>
@@ -1103,9 +1119,9 @@ const Reports = () => {
                                 </div>
                             </div>
 
-                            <div className="bg-canvas/50 border border-black/5 p-10 rounded-[2.5rem] mb-12 relative overflow-hidden">
+                            <div className="bg-canvas/50 border border-black/5 p-10 rounded-[2.5rem] mb-8 relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-32 h-32 bg-accent-signature/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-                                <div className="grid grid-cols-2 gap-12 relative z-10">
+                                <div className="grid grid-cols-2 gap-6 relative z-10">
                                     <div>
                                         <div className="text-[9px] font-black text-[#4b5563] uppercase tracking-[0.4em] mb-4 opacity-70">Customer</div>
                                         <div className="text-3xl font-black text-ink-primary uppercase tracking-tighter leading-tight mb-3">
@@ -1128,7 +1144,7 @@ const Reports = () => {
                                 </div>
                             </div>
 
-                            <table className="w-full text-left mb-12">
+                            <table className="w-full text-left mb-6">
                                 <thead>
                                     <tr className="border-b border-black/10">
                                         <th className="py-4 text-[10px] font-black text-[#4b5563] uppercase tracking-[0.4em] opacity-70">Item</th>
@@ -1171,7 +1187,7 @@ const Reports = () => {
                             </div>
                         </div>
 
-                        <div className="mt-12 no-print grid grid-cols-2 gap-4">
+                        <div className="mt-8 no-print grid grid-cols-2 gap-4">
                             <button className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setInvoiceOrder(null)}>Dismiss</button>
                             <button className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill" onClick={handlePrintInvoice}>
                                 PRINT DOCUMENT
