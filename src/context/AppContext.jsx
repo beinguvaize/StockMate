@@ -272,7 +272,10 @@ export const AppProvider = ({ children }) => {
     const [expenseCategories, setExpenseCategories] = useState(['Petrol', 'Food', 'Salary', 'Rent', 'Electricity', 'Water', 'Maintenance', 'Stationery', 'Travel', 'Marketing', 'Tax', 'Others']);
 
     // Day Book
-    const [dayBook, setDayBook] = useState([]);
+    const [dayBook, setDayBook] = useState(() => {
+        const saved = localStorage.getItem('sm_day_book');
+        return saved ? JSON.parse(saved) : [];
+    });
 
     const [notifications, setNotifications] = useState([]);
 
@@ -298,8 +301,8 @@ export const AppProvider = ({ children }) => {
     useEffect(() => { localStorage.setItem('sm_users', JSON.stringify(users)); }, [users]);
     useEffect(() => { localStorage.setItem('sm_employees', JSON.stringify(employees)); }, [employees]);
     useEffect(() => { localStorage.setItem('sm_payroll', JSON.stringify(payrollRecords)); }, [payrollRecords]);
-    useEffect(() => { localStorage.setItem('sm_expense_categories', JSON.stringify(expenseCategories)); }, [expenseCategories]);
     useEffect(() => { localStorage.setItem('sm_day_book', JSON.stringify(dayBook)); }, [dayBook]);
+    useEffect(() => { localStorage.setItem('sm_expense_categories', JSON.stringify(expenseCategories)); }, [expenseCategories]);
     useEffect(() => { localStorage.setItem('sm_client_payments', JSON.stringify(clientPayments)); }, [clientPayments]);
 
     const initializingRef = useRef(false);
@@ -494,8 +497,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('users').upsert(updatedUser);
             if (error) {
                 console.error("Error updating user in Supabase:", error);
-                addNotification("Failed to update user in cloud", "error");
-                return;
+                addNotification("Cloud Sync Delayed: Profile updated locally", "warning");
+                // Fall through
             }
         }
         setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
@@ -508,12 +511,13 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('users').delete().eq('id', userId);
             if (error) {
                 console.error("Error deleting user from Supabase:", error);
-                addNotification("Failed to delete user from cloud", "error");
-                return;
+                addNotification("Cloud Sync Delayed: Staff removed locally", "warning");
+                // Fall through
             }
         }
 
         setUsers(users.filter(u => u.id !== userId));
+        addNotification('Staff record removed from system', 'success');
     };
 
     const addClient = async (client) => {
@@ -532,8 +536,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('clients').upsert(newClient);
             if (error) {
                 console.error("Error adding client to Supabase:", error);
-                addNotification(`Cloud Client Save Failed: ${error.message}`, "error");
-                return;
+                addNotification(`Cloud Sync Delayed: Client saved locally`, "warning");
+                // Fall through
             }
         }
         setClients([newClient, ...clients]);
@@ -556,8 +560,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('clients').delete().eq('id', clientId);
             if (error) {
                 console.error("Error deleting client from Supabase:", error);
-                addNotification("Failed to delete client from cloud", "error");
-                return;
+                addNotification("Cloud Sync Delayed: Client removed locally", "warning");
+                // Fall through
             }
         }
         setClients(clients.filter(c => c.id !== clientId));
@@ -581,8 +585,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('expenses').upsert(newExpense);
             if (error) {
                 console.error("Error adding expense to Supabase:", error);
-                addNotification(`Cloud Expense Save Failed: ${error.message}`, "error");
-                return;
+                addNotification(`Cloud Sync Delayed: Expense saved locally`, "warning");
+                // Fall through
             }
         }
 
@@ -595,8 +599,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('expenses').upsert(updatedExpense);
             if (error) {
                 console.error("Error updating expense in Supabase:", error);
-                addNotification("Failed to update expense in cloud", "error");
-                return;
+                addNotification("Cloud Sync Delayed: Expense updated locally", "warning");
+                // Fall through
             }
         }
         setExpenses(expenses.map(e => e.id === updatedExpense.id ? updatedExpense : e));
@@ -608,8 +612,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
             if (error) {
                 console.error("Error deleting expense from Supabase:", error);
-                addNotification("Failed to delete expense from cloud", "error");
-                return;
+                addNotification("Cloud Sync Delayed: Expense removed locally", "warning");
+                // Fall through
             }
         }
         setExpenses(expenses.filter(e => e.id !== expenseId));
@@ -688,8 +692,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('sales').insert(newSale);
             if (error) {
                 console.error("Error placing sale in Supabase:", error);
-                addNotification(`Cloud Sale Save Failed: ${error.message}`, "error");
-                return;
+                addNotification(`Cloud Sync Delayed: Sale recorded locally`, "warning");
+                // Fall through
             }
         }
 
@@ -790,8 +794,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('sales').upsert(updatedSale);
             if (error) {
                 console.error("Error settling sale in Supabase:", error);
-                addNotification("Failed to settle sale in cloud", "error");
-                return;
+                addNotification("Cloud Sync Delayed: Payment recorded locally", "warning");
+                // Fall through
             }
         }
 
@@ -824,8 +828,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('clients').upsert(updatedClient);
             if (error) {
                 console.error("Error recording client payment:", error);
-                addNotification("Failed to record payment", "error");
-                return { success: false, error: error.message };
+                addNotification("Cloud Sync Delayed: Payment recorded locally", "warning");
+                // Fall through
             }
         }
 
@@ -869,14 +873,12 @@ export const AppProvider = ({ children }) => {
             logMovement(newProduct.id, newProduct.name, 'IN', newProduct.stock, 'Initial Stock', currentUser?.id);
         }
     };
-
     const updateProduct = async (updatedProduct) => {
         if (isSupabaseConfigured) {
             const { error } = await supabase.from('products').upsert(updatedProduct);
             if (error) {
                 console.error("Error updating product in Supabase:", error);
-                addNotification(`Cloud Update Failed: ${error.message}`, "error");
-                return;
+                addNotification(`Cloud Sync Delayed: ${error.message}. Local changes saved.`, "warning");
             }
         }
         setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
@@ -887,8 +889,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('products').delete().eq('id', id);
             if (error) {
                 console.error("Error deleting product from Supabase:", error);
-                addNotification(`Cloud Delete Failed: ${error.message}`, "error");
-                return;
+                addNotification(`Cloud Sync Delayed: Product removed locally`, "warning");
+                // Fall through
             }
         }
         setProducts(prev => prev.filter(p => p.id !== id));
@@ -1176,8 +1178,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('vehicles').upsert(newVehicle);
             if (error) {
                 console.error("Error adding vehicle to Supabase:", error);
-                addNotification("Failed to save vehicle to cloud", "error");
-                return;
+                addNotification("Cloud Sync Delayed: Vehicle saved locally", "warning");
+                // Fall through
             }
         }
         setVehicles([...vehicles, newVehicle]);
@@ -1188,11 +1190,24 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('vehicles').upsert(updated);
             if (error) {
                 console.error("Error updating vehicle in Supabase:", error);
-                addNotification("Failed to update vehicle in cloud", "error");
-                return;
+                addNotification("Cloud Sync Delayed: Changes saved locally", "warning");
+                // Fall through
             }
         }
         setVehicles(vehicles.map(v => v.id === updated.id ? updated : v));
+    };
+
+    const deleteVehicle = async (vehicleId) => {
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('vehicles').delete().eq('id', vehicleId);
+            if (error) {
+                console.error("Error deleting vehicle from Supabase:", error);
+                addNotification("Failed to delete vehicle from cloud", "error");
+                return;
+            }
+        }
+        setVehicles(vehicles.filter(v => v.id !== vehicleId));
+        addNotification('Vehicle clearance revoked', 'success');
     };
 
     const dispatchRoute = async (routeData) => {
@@ -1309,23 +1324,19 @@ export const AppProvider = ({ children }) => {
     };
 
     const updateEmployee = async (updated) => {
-        const payload = {
+        const fullEmployee = {
             ...updated,
             salary: updated.basePay,
-            role: updated.department,
-            daily_rate: updated.dailyRate || 500,
-            days_worked: updated.daysWorked || 0,
-            amount_paid: updated.amountPaid || 0
+            role: updated.department
         };
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('employees').upsert(payload);
+            const { error } = await supabase.from('employees').upsert(fullEmployee);
             if (error) {
                 console.error("Error updating employee in Supabase:", error);
-                addNotification("Failed to update employee in cloud", "error");
-                return;
+                addNotification(`Cloud Sync Delayed: ${error.message}`, "warning");
             }
         }
-        setEmployees(employees.map(e => e.id === updated.id ? updated : e));
+        setEmployees(employees.map(e => e.id === updated.id ? fullEmployee : e));
     };
 
     // Task 5: Mechanic Tracker
@@ -1444,8 +1455,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('payroll').delete().eq('id', recordId);
             if (error) {
                 console.error("Error deleting payroll record from Supabase:", error);
-                addNotification("Failed to delete payroll record from cloud", "error");
-                return;
+                addNotification("Cloud Sync Delayed: Record removed locally", "warning");
+                // Fall through
             }
         }
         setPayrollRecords(payrollRecords.filter(r => r.id !== recordId));
@@ -1493,8 +1504,8 @@ export const AppProvider = ({ children }) => {
             
             // 1. Fetch current local data
             const localProducts = JSON.parse(localStorage.getItem('sm_products') || '[]');
-            const localShops = JSON.parse(localStorage.getItem('sm_shops') || '[]');
-            const localOrders = JSON.parse(localStorage.getItem('sm_orders') || '[]');
+            const localClients = JSON.parse(localStorage.getItem('sm_clients') || '[]');
+            const localSales = JSON.parse(localStorage.getItem('sm_sales') || '[]');
             const localExpenses = JSON.parse(localStorage.getItem('sm_expenses') || '[]');
             const localUsers = JSON.parse(localStorage.getItem('sm_users') || '[]');
             const localEmployees = JSON.parse(localStorage.getItem('sm_employees') || '[]');
@@ -1503,8 +1514,8 @@ export const AppProvider = ({ children }) => {
             // 2. Upsert to Supabase
             const migrationTasks = [
                 localProducts.length > 0 && supabase.from('products').upsert(localProducts),
-                localShops.length > 0 && supabase.from('shops').upsert(localShops),
-                localOrders.length > 0 && supabase.from('orders').upsert(localOrders),
+                localClients.length > 0 && supabase.from('clients').upsert(localClients),
+                localSales.length > 0 && supabase.from('sales').upsert(localSales),
                 localExpenses.length > 0 && supabase.from('expenses').upsert(localExpenses),
                 localUsers.length > 0 && supabase.from('users').upsert(localUsers),
                 localEmployees.length > 0 && supabase.from('employees').upsert(localEmployees),
@@ -1546,8 +1557,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories });
             if (error) {
                 console.error("Error adding expense category to Supabase:", error);
-                addNotification("Failed to save category to cloud", "error");
-                return;
+                addNotification("Cloud Sync Delayed: Category added locally", "warning");
+                // Fall through
             }
         }
 
@@ -1563,8 +1574,8 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories });
             if (error) {
                 console.error("Error updating expense category in Supabase:", error);
-                addNotification("Failed to update category in cloud", "error");
-                return;
+                addNotification("Cloud Sync Delayed: Category updated locally", "warning");
+                // Fall through
             }
         }
 
@@ -1604,7 +1615,7 @@ export const AppProvider = ({ children }) => {
         expenses, addExpense, updateExpense, deleteExpense,
         expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory,
         movementLog,
-        vehicles, addVehicle, updateVehicle,
+        vehicles, addVehicle, updateVehicle, deleteVehicle,
         routes, dispatchRoute, reconcileRoute,
         users, addUser, updateUser, deleteUser,
         hasRole, hasPermission, isViewOnly,

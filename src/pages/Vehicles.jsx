@@ -4,7 +4,7 @@ import {
     Truck, Map, Settings as SettingsIcon, Plus, Play, Flag, 
     FileText, AlertTriangle, X, ShoppingCart, ChevronRight,
     MapPin, Navigation, Gauge, Calendar, ShieldCheck, 
-    Save, Hash, History, CheckCircle2, Crosshair, Radio
+    Save, Hash, History, CheckCircle2, Crosshair, Radio, Edit3, Trash2
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -25,7 +25,7 @@ const DEFAULT_ZOOM = 11;
 
 const Vehicles = () => {
     const { 
-        vehicles, addVehicle, routes, dispatchRoute, reconcileRoute, 
+        vehicles, addVehicle, updateVehicle, deleteVehicle, routes, dispatchRoute, reconcileRoute, 
         products, sales, orders, businessProfile, employees, getEmployeeName, hasPermission 
     } = useAppContext();
 
@@ -35,6 +35,7 @@ const Vehicles = () => {
     const [showReconcileModal, setShowReconcileModal] = useState(null); 
 
     const [vehicleForm, setVehicleForm] = useState({ name: '', plate: '' });
+    const [editingVehicle, setEditingVehicle] = useState(null);
 
     const [dispatchForm, setDispatchForm] = useState({
         vehicleId: vehicles[0]?.id || '',
@@ -127,11 +128,28 @@ const Vehicles = () => {
         return lastRoute.finalOdometer.toString();
     };
 
-    const handleAddVehicle = (e) => {
+    const handleVehicleSubmit = (e) => {
         e.preventDefault();
-        addVehicle(vehicleForm);
+        if (editingVehicle) {
+            updateVehicle({ ...editingVehicle, ...vehicleForm });
+        } else {
+            addVehicle(vehicleForm);
+        }
         setVehicleForm({ name: '', plate: '' });
+        setEditingVehicle(null);
         setShowVehicleModal(false);
+    };
+
+    const openEditVehicle = (v) => {
+        setEditingVehicle(v);
+        setVehicleForm({ name: v.name, plate: v.plate });
+        setShowVehicleModal(true);
+    };
+
+    const handleDeleteVehicle = (id) => {
+        if (window.confirm("Permanent Clearance Revocation: Delete this track unit?")) {
+            deleteVehicle(id);
+        }
     };
 
     const handleDispatch = (e) => {
@@ -573,8 +591,22 @@ const Vehicles = () => {
                                             <Truck size={32} strokeWidth={1} />
                                         </div>
                                     )}
-                                    <div className="absolute top-2 right-2 px-2 py-0.5 bg-surface/10 backdrop-blur-md rounded-pill border border-surface/20 text-surface text-[7px] font-black uppercase tracking-widest">
-                                        ACTIVE UNIT
+                                    <div className="absolute top-2 right-2 flex gap-1">
+                                        <div className="px-2 py-0.5 bg-surface/10 backdrop-blur-md rounded-pill border border-surface/20 text-surface text-[7px] font-black uppercase tracking-widest">
+                                            ACTIVE UNIT
+                                        </div>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); openEditVehicle(v); }}
+                                            className="w-5 h-5 rounded-pill bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-white hover:bg-white/20 transition-all opacity-0 group-hover:opacity-100"
+                                        >
+                                            <Edit3 size={10} />
+                                        </button>
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteVehicle(v.id); }}
+                                            className="w-5 h-5 rounded-pill bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center text-red-400 hover:bg-red-500/20 transition-all opacity-0 group-hover:opacity-100"
+                                        >
+                                            <Trash2 size={10} />
+                                        </button>
                                     </div>
                                 </div>
                                 <div className="p-4">
@@ -603,15 +635,19 @@ const Vehicles = () => {
                     <div className="glass-modal">
                         <div className="flex justify-between items-start mb-5">
                             <div>
-                                <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">FLEET.</h1>
-                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-70">REGISTER NEW LOGISTICS UNIT</p>
+                                <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">
+                                    {editingVehicle ? 'EDIT UNIT.' : 'FLEET.'}
+                                </h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-70">
+                                    {editingVehicle ? 'MODIFY TRACKING PARAMETERS' : 'REGISTER NEW LOGISTICS UNIT'}
+                                </p>
                             </div>
                             <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary" onClick={() => setShowVehicleModal(false)}>
                                 <X size={18} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleAddVehicle} className="space-y-4">
+                        <form onSubmit={handleVehicleSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Vehicle Name</label>
                                 <input 
@@ -637,9 +673,9 @@ const Vehicles = () => {
                             <div className="grid grid-cols-2 gap-4 pt-4">
                                 <button type="button" className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowVehicleModal(false)}>Cancel</button>
                                 <button type="submit" className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill">
-                                    SAVE VEHICLE
+                                    {editingVehicle ? 'SAVE CHANGES' : 'SAVE VEHICLE'}
                                     <div className="icon-nest !w-10 !h-10 ml-4">
-                                        <Plus size={22} />
+                                        {editingVehicle ? <Save size={22} /> : <Plus size={22} />}
                                     </div>
                                 </button>
                             </div>
