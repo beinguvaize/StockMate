@@ -35,5 +35,5 @@ export const clientSchema = z.object({
 export const dayBookSchema = z.object({
   date: z.string().min(1, 'Date is required'),
   opening_balance: z.number().min(0, 'Opening balance cannot be negative').optional(),
-  closed_balance: z.number().min(0, 'Closing balance cannot be negative').optional()
+  closing_balance: z.number().min(0, 'Closing balance cannot be negative').optional()
 });

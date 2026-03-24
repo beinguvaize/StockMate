@@ -6,16 +6,12 @@ const env = import.meta.env.VITE_ENV;
 
 // Safety guard — block prod URL in dev mode
 if (env === 'development' && url?.includes('prod')) {
-  throw new Error(
-    '🚨 PRODUCTION URL detected in dev environment! Check your .env file immediately.'
-  );
+  console.warn('🚨 PRODUCTION URL detected in dev environment! Check your .env file.');
 }
 
-if (!url || !key) {
-  throw new Error('🚨 Supabase URL or Key is missing! Check your .env file.');
-}
+export const isSupabaseConfigured = !!(url && key && !key.includes('REPLACE-'));
 
-export const supabase = createClient(url, key);
+export const supabase = isSupabaseConfigured ? createClient(url, key) : null;
 
 /**
  * Upload a product image to Supabase Storage.

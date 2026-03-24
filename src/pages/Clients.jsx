@@ -11,9 +11,10 @@ const Clients = () => {
     const { clients, addShop: addClient, updateShop: updateClient, deleteShop: deleteClient, sales, recordClientPayment, clientPayments, businessProfile, isViewOnly, hasPermission } = useAppContext();
     const [isAdding, setIsAdding] = useState(false);
     const [editingClient, setEditingClient] = useState(null);
-    const [formData, setFormData] = useState({ name: '', contact: '', phone: '', address: '' });
+    const [formData, setFormData] = useState({ name: '', contact: '', phone: '', address: '', status: 'ACTIVE' });
     const [deleteConfirm, setDeleteConfirm] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('ALL'); // ALL, ACTIVE, INACTIVE
     
     // Payment Modal State
     const [selectedClientForPayment, setSelectedClientForPayment] = useState(null);
@@ -109,35 +110,45 @@ const Clients = () => {
     }, [clients, clientStats]);
 
     const filteredClients = useMemo(() => {
-        return (clients || []).filter(client => 
-            client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            client.contact?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            client.id.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-    }, [clients, searchTerm]);
+        return (clients || []).filter(client => {
+            const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                client.contact?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                client.id.toLowerCase().includes(searchTerm.toLowerCase());
+            
+            const matchesStatus = statusFilter === 'ALL' || client.status === statusFilter;
+            
+            return matchesSearch && matchesStatus;
+        });
+    }, [clients, searchTerm, statusFilter]);
 
     const openAdd = () => {
         setEditingClient(null);
-        setFormData({ name: '', contact: '', phone: '', address: '' });
+        setFormData({ name: '', contact: '', phone: '', address: '', status: 'ACTIVE' });
         setIsAdding(true);
     };
 
     const openEdit = (client) => {
         setEditingClient(client);
-        setFormData({ name: client.name, contact: client.contact, phone: client.phone, address: client.address });
+        setFormData({ name: client.name, contact: client.contact, phone: client.phone, address: client.address, status: client.status || 'ACTIVE' });
         setIsAdding(true);
     };
 
     const handleSubmit = (e) => {
         e.preventDefault();
+        const data = { ...formData, status: formData.status || 'ACTIVE' };
         if (editingClient) {
-            updateClient({ ...editingClient, ...formData });
+            updateClient({ ...editingClient, ...data });
         } else {
-            addClient(formData);
+            addClient(data);
         }
         setIsAdding(false);
         setEditingClient(null);
-        setFormData({ name: '', contact: '', phone: '', address: '' });
+        setFormData({ name: '', contact: '', phone: '', address: '', status: 'ACTIVE' });
+    };
+
+    const toggleStatus = (client) => {
+        const newStatus = client.status === 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';
+        updateClient({ ...client, status: newStatus });
     };
 
     const handleDelete = (clientId) => {
@@ -201,12 +212,23 @@ const Clients = () => {
 
                     {/* Interactive Section: Search & Actions */}
                     <div className="flex-1 flex items-center justify-end h-full pr-1">
-                        <div className="relative group mr-4 w-64 h-full flex items-center">
+                        <div className="flex bg-canvas border border-black/5 rounded-pill p-1 mr-4">
+                            {['ALL', 'ACTIVE', 'INACTIVE'].map(f => (
+                                <button
+                                    key={f}
+                                    onClick={() => setStatusFilter(f)}
+                                    className={`px-4 py-1.5 rounded-pill text-[9px] font-black uppercase tracking-widest transition-all ${statusFilter === f ? 'bg-ink-primary text-accent-signature shadow-lg' : 'text-ink-secondary hover:bg-black/5'}`}
+                                >
+                                    {f}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="relative group mr-4 w-48 h-full flex items-center">
                             <Search size={14} className="absolute left-4 text-ink-primary opacity-20 group-focus-within:opacity-100 transition-opacity z-10" />
                             <input 
                                 type="text" 
-                                placeholder="Search clients..." 
-                                className="input-field !pl-10 !h-full !py-0 !rounded-pill bg-canvas border border-black/5 shadow-inner text-xs font-bold placeholder:text-ink-secondary/20"
+                                placeholder="Search..." 
+                                className="input-field !pl-10 !h-full !py-0 !rounded-pill bg-canvas border border-black/5 shadow-inner text-[10px] font-bold placeholder:text-ink-secondary/20"
                                 value={searchTerm}
                                 onChange={e => setSearchTerm(e.target.value)}
                             />
@@ -249,6 +271,12 @@ const Clients = () => {
                                             <span className="px-2 py-0.5 rounded-pill text-[8px] font-black uppercase tracking-widest border bg-accent-signature/20 text-ink-primary border-accent-signature/40">
                                                 {stats?.orderCount || 0} DEALS
                                             </span>
+                                            <button 
+                                                onClick={() => toggleStatus(client)}
+                                                className={`px-2 py-0.5 rounded-pill text-[8px] font-black uppercase tracking-widest border transition-all ${client.status === 'INACTIVE' ? 'bg-red-50 text-red-600 border-red-200' : 'bg-green-50 text-green-600 border-green-200'}`}
+                                            >
+                                                {client.status || 'ACTIVE'}
+                                            </button>
                                         </div>
                                         <div className="flex flex-col items-end gap-0.5">
                                             <div className="text-[8px] font-black uppercase tracking-widest text-ink-primary opacity-70">ID</div>
@@ -412,15 +440,15 @@ const Clients = () => {
                                 </div>
 
                                 <div className="md:col-span-2">
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Logistical Base (Address)</label>
-                                    <input 
-                                        required 
-                                        type="text" 
-                                        className="w-full bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase" 
-                                        placeholder="FULL PHYSICAL LOCATION..."
-                                        value={formData.address} 
-                                        onChange={e => setFormData({...formData, address: e.target.value})} 
-                                    />
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Account Status</label>
+                                    <select 
+                                        className="w-full bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase appearance-none cursor-pointer" 
+                                        value={formData.status} 
+                                        onChange={e => setFormData({ ...formData, status: e.target.value })}
+                                    >
+                                        <option value="ACTIVE">ACTIVE ACCOUNT</option>
+                                        <option value="INACTIVE">INACTIVE / ON HOLD</option>
+                                    </select>
                                 </div>
                             </div>
 

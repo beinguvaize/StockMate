@@ -9,8 +9,8 @@ const Payroll = () => {
     const {
         employees, addEmployee, updateEmployee, deleteEmployee,
         payrollRecords, processPayroll, deletePayrollRecord,
-        mechanic_payments, addMechanicPayment,
-        businessProfile, isViewOnly, hasPermission
+        mechanicPayments, addMechanicPayment, updateMechanicPayment,
+        businessProfile, isViewOnly, hasPermission, hasRole
     } = useAppContext();
 
     const [activeTab, setActiveTab] = useState('EMPLOYEES');
@@ -125,7 +125,7 @@ const Payroll = () => {
 
     const handleMechPayment = (e) => {
         e.preventDefault();
-        const mech = mechanic_payments.find(m => m.id === mechPayment.id);
+        const mech = mechanicPayments.find(m => m.id === mechPayment.id);
         if (mech) {
             updateMechanicPayment({
                 ...mech,
@@ -138,23 +138,40 @@ const Payroll = () => {
     // ===== PAY RUN =====
     const openPayRun = () => {
         const activeEmps = employees.filter(e => e.status === 'ACTIVE');
-        setPayRunItems(activeEmps.map(emp => ({
-            employeeId: emp.id,
-            employeeName: emp.name,
-            department: emp.department,
-            basePay: emp.basePay,
-            overtime: 0,
-            bonus: 0,
-            deductions: 0,
-            netPay: emp.basePay
-        })));
+        setPayRunItems(activeEmps.map(emp => {
+            const isHourly = emp.payType === 'HOURLY';
+            const rate = parseFloat(emp.dailyRate) || 0; // dailyRate is used as hourly rate if HOURLY
+            return {
+                employeeId: emp.id,
+                employeeName: emp.name,
+                department: emp.department,
+                payType: emp.payType,
+                rate: rate,
+                hoursWorked: isHourly ? 40 : 0, // Default 40 for hourly
+                basePay: isHourly ? (rate * 40) : (emp.basePay || 0),
+                overtime: 0,
+                bonus: 0,
+                deductions: 0,
+                netPay: isHourly ? (rate * 40) : (emp.basePay || 0)
+            };
+        }));
         setShowPayRunModal(true);
     };
 
     const updatePayRunItem = (empId, field, value) => {
         setPayRunItems(prev => prev.map(item => {
             if (item.employeeId !== empId) return item;
-            const updated = { ...item, [field]: parseFloat(value) || 0 };
+            
+            let updated = { ...item, [field]: parseFloat(value) || 0 };
+            
+            if (item.payType === 'HOURLY' && field === 'hoursWorked') {
+                const hours = updated.hoursWorked;
+                const regHours = Math.min(40, hours);
+                const otHours = Math.max(0, hours - 40);
+                updated.basePay = regHours * item.rate;
+                updated.overtime = otHours * (item.rate * 1.5);
+            }
+            
             updated.netPay = updated.basePay + updated.overtime + updated.bonus - updated.deductions;
             return updated;
         }));
@@ -530,10 +547,10 @@ const Payroll = () => {
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-black/5">
-                                            {(mechanic_payments || []).length === 0 ? (
+                                            {(mechanicPayments || []).length === 0 ? (
                                                 <tr><td colSpan="7" className="p-10 text-center opacity-30 font-black uppercase text-[10px] tracking-widest">No mechanic records found</td></tr>
                                             ) : (
-                                                mechanic_payments.map(payment => {
+                                                mechanicPayments.map(payment => {
                                                     const pending = (payment.total_due || 0) - (payment.amount_paid || 0);
                                                     return (
                                                         <tr key={payment.id} className="hover:bg-canvas">
@@ -849,11 +866,12 @@ const Payroll = () => {
                                 <thead className="sticky top-0 z-10 bg-surface/50 backdrop-blur-xl">
                                     <tr className="border-b-2 border-ink-primary">
                                         <th className="pb-6 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70">Personnel Node</th>
+                                        <th className="pb-6 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 text-right">Hours/Period</th>
                                         <th className="pb-6 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 text-right">Base Units</th>
-                                        <th className="pb-6 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 text-right">Overtime</th>
+                                        <th className="pb-6 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 text-right">Overtime (1.5x)</th>
                                         <th className="pb-6 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 text-right">Bonus</th>
                                         <th className="pb-6 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 text-right">Deductions</th>
-                                        <th className="pb-6 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 text-right">Net Liquidity</th>
+                                        <th className="pb-6 text-[10px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-70 text-right">Net Pay</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-black/5">
@@ -861,20 +879,35 @@ const Payroll = () => {
                                         <tr key={item.employeeId} className="hover:bg-canvas transition-all duration-300">
                                             <td className="py-6">
                                                 <div className="text-base font-black text-ink-primary uppercase tracking-tight leading-none mb-1">{item.employeeName}</div>
-                                                <div className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.2em] opacity-30">{item.department}</div>
-                                            </td>
-                                            <td className="py-6 text-right font-black text-xs text-ink-secondary opacity-60 tabular-nums">{businessProfile.currencySymbol}{item.basePay.toLocaleString()}</td>
-                                            <td className="py-6 text-right">
-                                                <input type="number" className="w-28 bg-canvas border-none rounded-xl p-3 text-right font-black text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.overtime} onChange={e => updatePayRunItem(item.employeeId, 'overtime', e.target.value)} />
+                                                <div className="text-[9px] font-black text-ink-secondary uppercase tracking-[0.2em] opacity-30">{item.department} | {item.payType}</div>
                                             </td>
                                             <td className="py-6 text-right">
-                                                <input type="number" className="w-28 bg-canvas border-none rounded-xl p-3 text-right font-black text-sm text-accent-signature-hover outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.bonus} onChange={e => updatePayRunItem(item.employeeId, 'bonus', e.target.value)} />
+                                                {item.payType === 'HOURLY' ? (
+                                                    <input type="number" className="w-20 bg-canvas border-none rounded-xl p-3 text-right font-black text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.hoursWorked} onChange={e => updatePayRunItem(item.employeeId, 'hoursWorked', e.target.value)} />
+                                                ) : (
+                                                    <span className="text-xs font-black opacity-30 italic">N/A</span>
+                                                )}
+                                            </td>
+                                            <td className="py-6 text-right font-black text-xs text-ink-secondary opacity-60 tabular-nums">
+                                                {businessProfile.currencySymbol}{Math.round(item.basePay).toLocaleString()}
                                             </td>
                                             <td className="py-6 text-right">
-                                                <input type="number" className="w-28 bg-canvas border-none rounded-xl p-3 text-right font-black text-sm text-red-500 outline-none focus:ring-4 focus:ring-red-500/10 shadow-sm" value={item.deductions} onChange={e => updatePayRunItem(item.employeeId, 'deductions', e.target.value)} />
+                                                {item.payType === 'HOURLY' ? (
+                                                    <div className="text-sm font-black text-accent-signature-hover tabular-nums">
+                                                        {businessProfile.currencySymbol}{Math.round(item.overtime).toLocaleString()}
+                                                    </div>
+                                                ) : (
+                                                    <input type="number" className="w-28 bg-canvas border-none rounded-xl p-3 text-right font-black text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.overtime} onChange={e => updatePayRunItem(item.employeeId, 'overtime', e.target.value)} />
+                                                )}
+                                            </td>
+                                            <td className="py-6 text-right">
+                                                <input type="number" className="w-24 bg-canvas border-none rounded-xl p-3 text-right font-black text-sm text-accent-signature-hover outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.bonus} onChange={e => updatePayRunItem(item.employeeId, 'bonus', e.target.value)} />
+                                            </td>
+                                            <td className="py-6 text-right">
+                                                <input type="number" className="w-24 bg-canvas border-none rounded-xl p-3 text-right font-black text-sm text-red-500 outline-none focus:ring-4 focus:ring-red-500/10 shadow-sm" value={item.deductions} onChange={e => updatePayRunItem(item.employeeId, 'deductions', e.target.value)} />
                                             </td>
                                             <td className="py-6 text-right font-black text-2xl text-ink-primary tracking-tighter tabular-nums">
-                                                {businessProfile.currencySymbol}{item.netPay.toLocaleString()}
+                                                {businessProfile.currencySymbol}{Math.round(item.netPay).toLocaleString()}
                                             </td>
                                         </tr>
                                     ))}

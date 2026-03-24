@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { 
     saleSchema, expenseSchema, purchaseSchema, 
     employeeSchema, clientSchema, dayBookSchema 
@@ -234,6 +234,9 @@ export const AppProvider = ({ children }) => {
         }
     });
 
+    const orders = sales;
+    const setOrders = setSales;
+
     const [expenses, setExpenses] = useState(() => {
         const saved = localStorage.getItem('sm_expenses');
         return saved ? JSON.parse(saved) : [];
@@ -307,13 +310,8 @@ export const AppProvider = ({ children }) => {
             setLoading(true);
             setInitError(null);
             
-            // Check if Supabase is actually configured
-            const isConfigured = import.meta.env.VITE_SUPABASE_URL && 
-                               import.meta.env.VITE_SUPABASE_ANON_KEY && 
-                               !import.meta.env.VITE_SUPABASE_ANON_KEY.includes('REPLACE_WITH');
-            
-            if (!isConfigured) {
-                setInitError('Supabase configuration missing or invalid. Please check your Environment Variables.');
+            if (!isSupabaseConfigured) {
+                console.log("⚠️ Supabase not configured. Using local/mock data mode.");
                 setLoading(false);
                 return;
             }
@@ -479,22 +477,26 @@ export const AppProvider = ({ children }) => {
             roles: userData.roles || [userData.role || 'STAFF']
         };
         
-        const { error } = await supabase.from('users').upsert(newUser);
-        if (error) {
-            console.error("Error adding user to Supabase:", error);
-            addNotification(`Cloud User Save Failed: ${error.message}`, "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('users').upsert(newUser);
+            if (error) {
+                console.error("Error adding user to Supabase:", error);
+                addNotification(`Cloud User Save Failed: ${error.message}`, "error");
+                return;
+            }
         }
 
         setUsers([...users, newUser]);
     };
 
     const updateUser = async (updatedUser) => {
-        const { error } = await supabase.from('users').upsert(updatedUser);
-        if (error) {
-            console.error("Error updating user in Supabase:", error);
-            addNotification("Failed to update user in cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('users').upsert(updatedUser);
+            if (error) {
+                console.error("Error updating user in Supabase:", error);
+                addNotification("Failed to update user in cloud", "error");
+                return;
+            }
         }
         setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
     };
@@ -502,11 +504,13 @@ export const AppProvider = ({ children }) => {
     const deleteUser = async (userId) => {
         if (userId === currentUser?.id) return;
         
-        const { error } = await supabase.from('users').delete().eq('id', userId);
-        if (error) {
-            console.error("Error deleting user from Supabase:", error);
-            addNotification("Failed to delete user from cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('users').delete().eq('id', userId);
+            if (error) {
+                console.error("Error deleting user from Supabase:", error);
+                addNotification("Failed to delete user from cloud", "error");
+                return;
+            }
         }
 
         setUsers(users.filter(u => u.id !== userId));
@@ -524,31 +528,37 @@ export const AppProvider = ({ children }) => {
             outstanding_balance: client.outstanding_balance || 0
         };
         
-        const { error } = await supabase.from('clients').upsert(newClient);
-        if (error) {
-            console.error("Error adding client to Supabase:", error);
-            addNotification(`Cloud Client Save Failed: ${error.message}`, "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('clients').upsert(newClient);
+            if (error) {
+                console.error("Error adding client to Supabase:", error);
+                addNotification(`Cloud Client Save Failed: ${error.message}`, "error");
+                return;
+            }
         }
         setClients([newClient, ...clients]);
     };
 
     const updateClient = async (updatedClient) => {
-        const { error } = await supabase.from('clients').upsert(updatedClient);
-        if (error) {
-            console.error("Error updating client in Supabase:", error);
-            addNotification("Failed to update client in cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('clients').upsert(updatedClient);
+            if (error) {
+                console.error("Error updating client in Supabase:", error);
+                addNotification("Failed to update client in cloud", "error");
+                return;
+            }
         }
         setClients(clients.map(c => c.id === updatedClient.id ? updatedClient : c));
     };
 
     const deleteClient = async (clientId) => {
-        const { error } = await supabase.from('clients').delete().eq('id', clientId);
-        if (error) {
-            console.error("Error deleting client from Supabase:", error);
-            addNotification("Failed to delete client from cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('clients').delete().eq('id', clientId);
+            if (error) {
+                console.error("Error deleting client from Supabase:", error);
+                addNotification("Failed to delete client from cloud", "error");
+                return;
+            }
         }
         setClients(clients.filter(c => c.id !== clientId));
     };
@@ -567,11 +577,13 @@ export const AppProvider = ({ children }) => {
             split_type: expense.splitType || null
         };
         
-        const { error } = await supabase.from('expenses').upsert(newExpense);
-        if (error) {
-            console.error("Error adding expense to Supabase:", error);
-            addNotification(`Cloud Expense Save Failed: ${error.message}`, "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('expenses').upsert(newExpense);
+            if (error) {
+                console.error("Error adding expense to Supabase:", error);
+                addNotification(`Cloud Expense Save Failed: ${error.message}`, "error");
+                return;
+            }
         }
 
         setExpenses([newExpense, ...expenses]);
@@ -579,22 +591,26 @@ export const AppProvider = ({ children }) => {
     };
 
     const updateExpense = async (updatedExpense) => {
-        const { error } = await supabase.from('expenses').upsert(updatedExpense);
-        if (error) {
-            console.error("Error updating expense in Supabase:", error);
-            addNotification("Failed to update expense in cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('expenses').upsert(updatedExpense);
+            if (error) {
+                console.error("Error updating expense in Supabase:", error);
+                addNotification("Failed to update expense in cloud", "error");
+                return;
+            }
         }
         setExpenses(expenses.map(e => e.id === updatedExpense.id ? updatedExpense : e));
         addNotification(`Expense updated: ${businessProfile?.currencySymbol || ''}${updatedExpense.amount}`, 'success');
     };
 
     const deleteExpense = async (expenseId) => {
-        const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
-        if (error) {
-            console.error("Error deleting expense from Supabase:", error);
-            addNotification("Failed to delete expense from cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
+            if (error) {
+                console.error("Error deleting expense from Supabase:", error);
+                addNotification("Failed to delete expense from cloud", "error");
+                return;
+            }
         }
         setExpenses(expenses.filter(e => e.id !== expenseId));
         addNotification('Expense record removed', 'success');
@@ -616,10 +632,12 @@ export const AppProvider = ({ children }) => {
             userId: userId
         };
 
-        const { error } = await supabase.from('movement_log').insert(newLog);
-        if (error) {
-            console.error("Error logging movement to Supabase:", error);
-            // Don't block the UI for logs, but notify if critical
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('movement_log').insert(newLog);
+            if (error) {
+                console.error("Error logging movement to Supabase:", error);
+                // Don't block the UI for logs, but notify if critical
+            }
         }
 
         setMovementLog(prev => [newLog, ...prev]);
@@ -666,11 +684,13 @@ export const AppProvider = ({ children }) => {
             bookedBy: currentUser?.id
         };
 
-        const { error } = await supabase.from('sales').insert(newSale);
-        if (error) {
-            console.error("Error placing sale in Supabase:", error);
-            addNotification(`Cloud Sale Save Failed: ${error.message}`, "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('sales').insert(newSale);
+            if (error) {
+                console.error("Error placing sale in Supabase:", error);
+                addNotification(`Cloud Sale Save Failed: ${error.message}`, "error");
+                return;
+            }
         }
 
         setSales([newSale, ...sales]);
@@ -701,7 +721,9 @@ export const AppProvider = ({ children }) => {
 
         if (status === 'COMPLETED' && !routeId) {
             setProducts(updatedProducts);
-            await supabase.from('products').upsert(updatedProducts);
+            if (isSupabaseConfigured) {
+                await supabase.from('products').upsert(updatedProducts);
+            }
         }
 
         addNotification(`Sale Recorded: ${businessProfile?.currencySymbol || ''}${totalAmount}`, 'success');
@@ -719,30 +741,35 @@ export const AppProvider = ({ children }) => {
                 if (pIndex > -1) {
                     const newStock = Math.max(0, updatedProducts[pIndex].stock - item.quantity);
                     updatedProducts[pIndex] = { ...updatedProducts[pIndex], stock: newStock };
-                    // Sync to cloud
-                    await supabase.from('products').update({ stock: newStock }).eq('id', item.productId);
+                    if (isSupabaseConfigured) {
+                        await supabase.from('products').update({ stock: newStock }).eq('id', item.productId);
+                    }
                 }
                 logMovement(item.productId, item.name, 'OUT', item.quantity, `Fulfilled Sale #${updatedSale.id.split('-').pop()}`, currentUser?.id);
             }
             setProducts(updatedProducts);
         }
 
-        const { error } = await supabase.from('sales').upsert(updatedSale);
-        if (error) {
-            console.error("Error updating sale in Supabase:", error);
-            addNotification("Failed to update sale in cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('sales').upsert(updatedSale);
+            if (error) {
+                console.error("Error updating sale in Supabase:", error);
+                addNotification("Failed to update sale in cloud", "error");
+                return;
+            }
         }
         setSales(sales.map(s => s.id === updatedSale.id ? updatedSale : s));
         addNotification(`Sale #${updatedSale.id.split('-').pop()} updated`, 'success');
     };
 
     const deleteSale = async (saleId) => {
-        const { error } = await supabase.from('sales').delete().eq('id', saleId);
-        if (error) {
-            console.error("Error deleting sale from Supabase:", error);
-            addNotification("Failed to delete sale from cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('sales').delete().eq('id', saleId);
+            if (error) {
+                console.error("Error deleting sale from Supabase:", error);
+                addNotification("Failed to delete sale from cloud", "error");
+                return;
+            }
         }
         setSales(sales.filter(s => s.id !== saleId));
         addNotification("Sale deleted successfully", "success");
@@ -759,11 +786,13 @@ export const AppProvider = ({ children }) => {
             lastPaymentDate: new Date().toISOString()
         };
 
-        const { error } = await supabase.from('sales').upsert(updatedSale);
-        if (error) {
-            console.error("Error settling sale in Supabase:", error);
-            addNotification("Failed to settle sale in cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('sales').upsert(updatedSale);
+            if (error) {
+                console.error("Error settling sale in Supabase:", error);
+                addNotification("Failed to settle sale in cloud", "error");
+                return;
+            }
         }
 
         // Also update client persistent balance if it was a credit sale
@@ -791,11 +820,13 @@ export const AppProvider = ({ children }) => {
         const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
         const updatedClient = { ...client, outstanding_balance: newBalance };
 
-        const { error } = await supabase.from('clients').upsert(updatedClient);
-        if (error) {
-            console.error("Error recording client payment:", error);
-            addNotification("Failed to record payment", "error");
-            return { success: false, error: error.message };
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('clients').upsert(updatedClient);
+            if (error) {
+                console.error("Error recording client payment:", error);
+                addNotification("Failed to record payment", "error");
+                return { success: false, error: error.message };
+            }
         }
 
         const paymentRecord = {
@@ -806,7 +837,9 @@ export const AppProvider = ({ children }) => {
             notes: notes || ''
         };
         
-        await supabase.from('client_payments').insert(paymentRecord);
+        if (isSupabaseConfigured) {
+            await supabase.from('client_payments').insert(paymentRecord);
+        }
 
         setClients(clients.map(c => c.id === clientId ? updatedClient : c));
         setClientPayments(prev => [paymentRecord, ...prev]);
@@ -822,11 +855,13 @@ export const AppProvider = ({ children }) => {
             taxRate: product.taxRate || 0 
         };
 
-        const { error } = await supabase.from('products').upsert(newProduct);
-        if (error) {
-            console.error("Error adding product to Supabase:", error);
-            addNotification(`Cloud Save Failed: ${error.message}`, "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('products').upsert(newProduct);
+            if (error) {
+                console.error("Error adding product to Supabase:", error);
+                addNotification(`Cloud Save Failed: ${error.message}`, "error");
+                return;
+            }
         }
 
         setProducts([...products, newProduct]);
@@ -836,21 +871,25 @@ export const AppProvider = ({ children }) => {
     };
 
     const updateProduct = async (updatedProduct) => {
-        const { error } = await supabase.from('products').upsert(updatedProduct);
-        if (error) {
-            console.error("Error updating product in Supabase:", error);
-            addNotification(`Cloud Update Failed: ${error.message}`, "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('products').upsert(updatedProduct);
+            if (error) {
+                console.error("Error updating product in Supabase:", error);
+                addNotification(`Cloud Update Failed: ${error.message}`, "error");
+                return;
+            }
         }
         setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
     };
 
     const deleteProduct = async (id) => {
-        const { error } = await supabase.from('products').delete().eq('id', id);
-        if (error) {
-            console.error("Error deleting product from Supabase:", error);
-            addNotification(`Cloud Delete Failed: ${error.message}`, "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('products').delete().eq('id', id);
+            if (error) {
+                console.error("Error deleting product from Supabase:", error);
+                addNotification(`Cloud Delete Failed: ${error.message}`, "error");
+                return;
+            }
         }
         setProducts(prev => prev.filter(p => p.id !== id));
         setMovementLog(prev => prev.filter(l => l.productId !== id));
@@ -861,11 +900,13 @@ export const AppProvider = ({ children }) => {
         if (!product) return;
         const updatedProduct = { ...product, stock: Math.max(0, product.stock + amount) };
         
-        const { error } = await supabase.from('products').update({ stock: updatedProduct.stock }).eq('id', productId);
-        if (error) {
-            console.error("Error adjusting stock in Supabase:", error);
-            addNotification(`Cloud Stock Sync Failed: ${error.message}`, "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('products').update({ stock: updatedProduct.stock }).eq('id', productId);
+            if (error) {
+                console.error("Error adjusting stock in Supabase:", error);
+                addNotification(`Cloud Stock Sync Failed: ${error.message}`, "error");
+                return;
+            }
         }
 
         setProducts(products.map(p => p.id === productId ? updatedProduct : p));
@@ -1131,21 +1172,25 @@ export const AppProvider = ({ children }) => {
 
     const addVehicle = async (vehicle) => {
         const newVehicle = { ...vehicle, id: vehicle.id || `VH-${Date.now()}` };
-        const { error } = await supabase.from('vehicles').upsert(newVehicle);
-        if (error) {
-            console.error("Error adding vehicle to Supabase:", error);
-            addNotification("Failed to save vehicle to cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('vehicles').upsert(newVehicle);
+            if (error) {
+                console.error("Error adding vehicle to Supabase:", error);
+                addNotification("Failed to save vehicle to cloud", "error");
+                return;
+            }
         }
         setVehicles([...vehicles, newVehicle]);
     };
 
     const updateVehicle = async (updated) => {
-        const { error } = await supabase.from('vehicles').upsert(updated);
-        if (error) {
-            console.error("Error updating vehicle in Supabase:", error);
-            addNotification("Failed to update vehicle in cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('vehicles').upsert(updated);
+            if (error) {
+                console.error("Error updating vehicle in Supabase:", error);
+                addNotification("Failed to update vehicle in cloud", "error");
+                return;
+            }
         }
         setVehicles(vehicles.map(v => v.id === updated.id ? updated : v));
     };
@@ -1158,11 +1203,13 @@ export const AppProvider = ({ children }) => {
             date: new Date().toISOString()
         };
 
-        const { error: routeError } = await supabase.from('routes').upsert(newRoute);
-        if (routeError) {
-            console.error("Error dispatching route to Supabase:", routeError);
-            addNotification("Failed to dispatch route to cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error: routeError } = await supabase.from('routes').upsert(newRoute);
+            if (routeError) {
+                console.error("Error dispatching route to Supabase:", routeError);
+                addNotification("Failed to dispatch route to cloud", "error");
+                return;
+            }
         }
 
         const updatedProducts = [...products];
@@ -1173,7 +1220,9 @@ export const AppProvider = ({ children }) => {
             if (pIndex > -1 && item.quantity > 0) {
                 updatedProducts[pIndex].stock -= item.quantity;
                 logMovement(item.productId, updatedProducts[pIndex].name, 'OUT', item.quantity, `Loaded onto Route ${newRoute.id}`, currentUser?.id);
-                stockUpdates.push(supabase.from('products').update({ stock: updatedProducts[pIndex].stock }).eq('id', item.productId));
+                if (isSupabaseConfigured) {
+                    stockUpdates.push(supabase.from('products').update({ stock: updatedProducts[pIndex].stock }).eq('id', item.productId));
+                }
             }
         }
 
@@ -1197,11 +1246,13 @@ export const AppProvider = ({ children }) => {
             reconciled_at: new Date().toISOString()
         };
 
-        const { error: routeError } = await supabase.from('routes').upsert(updatedRoute);
-        if (routeError) {
-            console.error("Error reconciling route in Supabase:", routeError);
-            addNotification("Failed to reconcile route in cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error: routeError } = await supabase.from('routes').upsert(updatedRoute);
+            if (routeError) {
+                console.error("Error reconciling route in Supabase:", routeError);
+                addNotification("Failed to reconcile route in cloud", "error");
+                return;
+            }
         }
 
         const updatedProducts = [...products];
@@ -1213,7 +1264,9 @@ export const AppProvider = ({ children }) => {
                 if (pIndex > -1) {
                     updatedProducts[pIndex].stock += item.quantity;
                     logMovement(item.productId, updatedProducts[pIndex].name, 'IN', item.quantity, `Returned from Route ${routeId}`, currentUser?.id);
-                    stockUpdates.push(supabase.from('products').update({ stock: updatedProducts[pIndex].stock }).eq('id', item.productId));
+                    if (isSupabaseConfigured) {
+                        stockUpdates.push(supabase.from('products').update({ stock: updatedProducts[pIndex].stock }).eq('id', item.productId));
+                    }
                 }
             }
         }
@@ -1244,11 +1297,13 @@ export const AppProvider = ({ children }) => {
             days_worked: emp.daysWorked || 0,
             amount_paid: emp.amountPaid || 0 // Task 5
         };
-        const { error } = await supabase.from('employees').upsert(newEmp);
-        if (error) {
-            console.error("Error adding employee to Supabase:", error);
-            addNotification("Failed to save employee to cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('employees').upsert(newEmp);
+            if (error) {
+                console.error("Error adding employee to Supabase:", error);
+                addNotification("Failed to save employee to cloud", "error");
+                return;
+            }
         }
         setEmployees(prev => [...prev, newEmp]);
     };
@@ -1262,11 +1317,13 @@ export const AppProvider = ({ children }) => {
             days_worked: updated.daysWorked || 0,
             amount_paid: updated.amountPaid || 0
         };
-        const { error } = await supabase.from('employees').upsert(payload);
-        if (error) {
-            console.error("Error updating employee in Supabase:", error);
-            addNotification("Failed to update employee in cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('employees').upsert(payload);
+            if (error) {
+                console.error("Error updating employee in Supabase:", error);
+                addNotification("Failed to update employee in cloud", "error");
+                return;
+            }
         }
         setEmployees(employees.map(e => e.id === updated.id ? updated : e));
     };
@@ -1282,22 +1339,26 @@ export const AppProvider = ({ children }) => {
             work_date: payment.work_date || new Date().toISOString().split('T')[0],
             created_at: new Date().toISOString()
         };
-        const { error } = await supabase.from('mechanic_payments').insert(newPayment);
-        if (error) {
-            console.error("Error saving mechanic payment:", error);
-            addNotification("Failed to save mechanic payment in cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('mechanic_payments').insert(newPayment);
+            if (error) {
+                console.error("Error saving mechanic payment:", error);
+                addNotification("Failed to save mechanic payment in cloud", "error");
+                return;
+            }
         }
         setMechanicPayments(prev => [newPayment, ...prev]);
         addNotification("Mechanic record added", "success");
     };
 
     const updateMechanicPayment = async (updatedPayment) => {
-        const { error } = await supabase.from('mechanic_payments').upsert(updatedPayment);
-        if (error) {
-            console.error("Error updating mechanic payment:", error);
-            addNotification("Failed to update mechanic payment in cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('mechanic_payments').upsert(updatedPayment);
+            if (error) {
+                console.error("Error updating mechanic payment:", error);
+                addNotification("Failed to update mechanic payment in cloud", "error");
+                return;
+            }
         }
         setMechanicPayments(mechanicPayments.map(m => m.id === updatedPayment.id ? updatedPayment : m));
         addNotification("Mechanic payment updated", "success");
@@ -1323,11 +1384,13 @@ export const AppProvider = ({ children }) => {
             created_at: new Date().toISOString()
         };
 
-        const { error } = await supabase.from('purchases').insert(newPurchase);
-        if (error) {
-            console.error("Error saving purchase:", error);
-            addNotification("Failed to save purchase in cloud", "error");
-            return false;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('purchases').insert(newPurchase);
+            if (error) {
+                console.error("Error saving purchase:", error);
+                addNotification("Failed to save purchase in cloud", "error");
+                return false;
+            }
         }
 
         // Auto-increment stock if linked to a product
@@ -1347,11 +1410,13 @@ export const AppProvider = ({ children }) => {
     };
 
     const deleteEmployee = async (empId) => {
-        const { error } = await supabase.from('employees').delete().eq('id', empId);
-        if (error) {
-            console.error("Error deleting employee from Supabase:", error);
-            addNotification("Failed to delete employee from cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('employees').delete().eq('id', empId);
+            if (error) {
+                console.error("Error deleting employee from Supabase:", error);
+                addNotification("Failed to delete employee from cloud", "error");
+                return;
+            }
         }
         setEmployees(employees.filter(e => e.id !== empId));
     };
@@ -1363,21 +1428,25 @@ export const AppProvider = ({ children }) => {
             processed_at: new Date().toISOString(),
             processed_by: currentUser?.id
         };
-        const { error } = await supabase.from('payroll').upsert(newRecord);
-        if (error) {
-            console.error("Error processing payroll in Supabase:", error);
-            addNotification("Failed to process payroll in cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('payroll').upsert(newRecord);
+            if (error) {
+                console.error("Error processing payroll in Supabase:", error);
+                addNotification("Failed to process payroll in cloud", "error");
+                return;
+            }
         }
         setPayrollRecords(prev => [newRecord, ...prev]);
     };
 
     const deletePayrollRecord = async (recordId) => {
-        const { error } = await supabase.from('payroll').delete().eq('id', recordId);
-        if (error) {
-            console.error("Error deleting payroll record from Supabase:", error);
-            addNotification("Failed to delete payroll record from cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('payroll').delete().eq('id', recordId);
+            if (error) {
+                console.error("Error deleting payroll record from Supabase:", error);
+                addNotification("Failed to delete payroll record from cloud", "error");
+                return;
+            }
         }
         setPayrollRecords(payrollRecords.filter(r => r.id !== recordId));
     };
@@ -1394,11 +1463,13 @@ export const AppProvider = ({ children }) => {
             id: record.id || `DB-${Date.now()}`,
             created_at: record.created_at || new Date().toISOString()
         };
-        const { error } = await supabase.from('day_book').upsert(payload);
-        if (error) {
-            console.error("Error updating Day Book in Supabase:", error);
-            addNotification("Failed to sync Day Book to cloud", "error");
-            return null;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('day_book').upsert(payload);
+            if (error) {
+                console.error("Error updating Day Book in Supabase:", error);
+                addNotification("Failed to sync Day Book to cloud", "error");
+                return null;
+            }
         }
         
         setDayBook(prev => {
@@ -1455,11 +1526,13 @@ export const AppProvider = ({ children }) => {
     };
 
     const updateBusinessProfile = async (profile) => {
-        const { error } = await supabase.from('business_profile').upsert({ id: 'current', ...profile });
-        if (error) {
-            console.error("Error updating business profile in Supabase:", error);
-            addNotification(`Cloud Profile Sync Failed: ${error.message}`, "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('business_profile').upsert({ id: 'current', ...profile });
+            if (error) {
+                console.error("Error updating business profile in Supabase:", error);
+                addNotification(`Cloud Profile Sync Failed: ${error.message}`, "error");
+                return;
+            }
         }
         setBusinessProfile(profile);
         addNotification("Business profile saved to cloud", "success");
@@ -1469,11 +1542,13 @@ export const AppProvider = ({ children }) => {
         if (!name || expenseCategories.includes(name)) return;
         const newCategories = [...expenseCategories, name];
         
-        const { error } = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories });
-        if (error) {
-            console.error("Error adding expense category to Supabase:", error);
-            addNotification("Failed to save category to cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories });
+            if (error) {
+                console.error("Error adding expense category to Supabase:", error);
+                addNotification("Failed to save category to cloud", "error");
+                return;
+            }
         }
 
         setExpenseCategories(newCategories);
@@ -1484,11 +1559,13 @@ export const AppProvider = ({ children }) => {
         if (!newName || expenseCategories.includes(newName)) return;
         const newCategories = expenseCategories.map(c => c === oldName ? newName : c);
         
-        const { error } = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories });
-        if (error) {
-            console.error("Error updating expense category in Supabase:", error);
-            addNotification("Failed to update category in cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories });
+            if (error) {
+                console.error("Error updating expense category in Supabase:", error);
+                addNotification("Failed to update category in cloud", "error");
+                return;
+            }
         }
 
         setExpenseCategories(newCategories);
@@ -1499,11 +1576,13 @@ export const AppProvider = ({ children }) => {
     const deleteExpenseCategory = async (name) => {
         const newCategories = expenseCategories.filter(c => c !== name);
         
-        const { error } = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories });
-        if (error) {
-            console.error("Error deleting expense category from Supabase:", error);
-            addNotification("Failed to delete category from cloud", "error");
-            return;
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories });
+            if (error) {
+                console.error("Error deleting expense category from Supabase:", error);
+                addNotification("Failed to delete category from cloud", "error");
+                return;
+            }
         }
 
         setExpenseCategories(newCategories);
@@ -1518,7 +1597,7 @@ export const AppProvider = ({ children }) => {
         businessProfile, updateBusinessProfile,        // Data
         products, addProduct, updateProduct, deleteProduct, adjustStock,
         clients, addClient, updateClient, deleteClient,
-        sales, placeSale, updateSale, deleteSale, settleSale,
+        sales, orders, setOrders, placeSale, updateSale, deleteSale, settleSale,
         // Aligned aliases for backward compatibility (optional but helpful)
         addShop: addClient, updateShop: updateClient, deleteShop: deleteClient,
         placeOrder: placeSale, updateOrder: updateSale, deleteOrder: deleteSale, settleOrder: settleSale,

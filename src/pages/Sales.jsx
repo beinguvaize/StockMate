@@ -9,7 +9,7 @@ import {
 
 const Sales = () => {
     const { 
-        products, sales, businessProfile, routes, dispatchRoute, 
+        products, sales, orders, businessProfile, routes, dispatchRoute, 
         hasPermission, currentUser, clients, getShopName, placeSale, getEmployeeName, isViewOnly 
     } = useAppContext();
     const [selectedShopId, setSelectedShopId] = useState('WALKIN');

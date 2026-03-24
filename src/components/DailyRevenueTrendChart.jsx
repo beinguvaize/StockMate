@@ -16,7 +16,7 @@ import { useAppContext } from '../context/AppContext';
  * Follows the high-performance "Obsidian-glass" aesthetic.
  */
 const DailyRevenueTrendChart = () => {
-    const { sales, businessProfile } = useAppContext();
+    const { sales, businessProfile, employees } = useAppContext();
     const currency = businessProfile?.currencySymbol || '₹';
 
     const getEmployeeName = (empId) => {
@@ -66,7 +66,7 @@ const DailyRevenueTrendChart = () => {
         }
         
         return result;
-    }, [orders]);
+    }, [sales]);
 
     const hasData = useMemo(() => {
         return data.some(d => d.total > 0);

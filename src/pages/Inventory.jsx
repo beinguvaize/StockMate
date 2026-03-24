@@ -32,12 +32,13 @@ const Inventory = () => {
 
     const [formData, setFormData] = useState({
         name: '', sku: '', category: CATEGORIES[0], unit: UNITS[0],
-        costPrice: '', sellingPrice: '', stock: '', taxRate: '', taxSlab: 'Exempt', tags: '', image: ''
+        costPrice: '', sellingPrice: '', stock: '', taxRate: '', taxSlab: 'Exempt', tags: '', image: '',
+        lowStockThreshold: 10
     });
 
     const openAddModal = () => {
         setEditingProduct(null);
-        setFormData({ name: '', sku: '', category: CATEGORIES[0], unit: UNITS[0], costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '' });
+        setFormData({ name: '', sku: '', category: CATEGORIES[0], unit: UNITS[0], costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '', lowStockThreshold: 10 });
         setImageFile(null);
         setImagePreview(null);
         setShowAddModal(true);
@@ -50,7 +51,8 @@ const Inventory = () => {
             taxRate: p.taxRate || 0,
             taxSlab: p.taxSlab || (TAX_SLABS.find(s => s.rate === (p.taxRate || 0))?.label) || 'Custom',
             tags: p.tags ? p.tags.join(', ') : '',
-            image: p.image || ''
+            image: p.image || '',
+            lowStockThreshold: p.lowStockThreshold || 10
         });
         setImageFile(null);
         setImagePreview(p.image || null);
@@ -106,6 +108,7 @@ const Inventory = () => {
             costPrice: parseFloat(formData.costPrice) || 0,
             sellingPrice: parseFloat(formData.sellingPrice) || 0,
             stock: parseInt(formData.stock) || 0,
+            lowStockThreshold: parseInt(formData.lowStockThreshold) || 10,
             taxRate: parseFloat(formData.taxRate) || 0,
             tags: formData.tags.split(',').map(t => t.trim()).filter(t => t)
         };
@@ -140,6 +143,7 @@ const Inventory = () => {
             }, 1500);
         }
     };
+    const lowStockCount = products.filter(p => p.stock > 0 && p.stock <= (p.lowStockThreshold || businessProfile.lowStockThreshold || 10)).length;
 
     return (
         <>
@@ -150,7 +154,13 @@ const Inventory = () => {
                     <h1 className="text-6xl font-black tracking-tighter text-ink-primary mb-2 uppercase">INVENTORY.</h1>
                     <p className="text-ink-secondary font-black uppercase tracking-widest text-[10px] opacity-70">STOCK MANAGEMENT & LOGISTICS</p>
                 </div>
-                <div className="flex gap-6">
+                <div className="flex gap-6 items-center">
+                    {lowStockCount > 0 && (
+                        <div className="flex items-center gap-2 px-4 py-2 bg-red-500 rounded-pill border border-red-400 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse">
+                            <AlertCircle size={14} className="text-white" />
+                            <span className="text-[10px] font-black text-white uppercase tracking-widest">{lowStockCount} LOW STOCK ALERTS</span>
+                        </div>
+                    )}
                     <button className="px-8 py-4 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-xs uppercase cursor-pointer tracking-widest" onClick={() => setShowHistoryModal(true)}>
                         <History size={16} className="inline mr-3 opacity-70" /> History
                     </button>
@@ -180,7 +190,8 @@ const Inventory = () => {
                         </thead>
                         <tbody className="divide-y divide-black/5">
                             {products.map((product, idx) => {
-                                const isLow = product.stock > 0 && product.stock <= (businessProfile.lowStockThreshold || 10);
+                                const threshold = product.lowStockThreshold || businessProfile.lowStockThreshold || 10;
+                                const isLow = product.stock > 0 && product.stock <= threshold;
                                 const isOut = product.stock <= 0;
 
                                 return (
@@ -420,6 +431,11 @@ const Inventory = () => {
                             <div>
                                 <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1.5 block opacity-60">Initial Stock</label>
                                 <input type="number" className="w-full bg-canvas border-none rounded-2xl p-4 font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/10 transition-all" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value })} />
+                            </div>
+
+                            <div>
+                                <label className="text-[10px] font-black text-ink-secondary uppercase tracking-widest mb-1.5 block opacity-60">Low Stock Alert Threshold</label>
+                                <input type="number" className="w-full bg-canvas border-none rounded-2xl p-4 font-black text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/10 transition-all" value={formData.lowStockThreshold} onChange={e => setFormData({ ...formData, lowStockThreshold: e.target.value })} />
                             </div>
 
                             {/* Tax Slab Selector */}

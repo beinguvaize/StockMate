@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { 
     Truck, Map, Settings as SettingsIcon, Plus, Play, Flag, 
@@ -26,7 +26,7 @@ const DEFAULT_ZOOM = 11;
 const Vehicles = () => {
     const { 
         vehicles, addVehicle, routes, dispatchRoute, reconcileRoute, 
-        products, sales, businessProfile, employees, getEmployeeName, hasPermission 
+        products, sales, orders, businessProfile, employees, getEmployeeName, hasPermission 
     } = useAppContext();
 
     const [activeTab, setActiveTab] = useState('ROUTES'); 
@@ -50,9 +50,52 @@ const Vehicles = () => {
         actualCash: '',
         returnedStock: {} 
     });
+    const [simulatedPositions, setSimulatedPositions] = useState({});
 
     const activeRoutes = routes.filter(r => r.status === 'ACTIVE');
     const pastRoutes = routes.filter(r => r.status === 'COMPLETED').sort((a,b) => new Date(b.reconciledAt) - new Date(a.reconciledAt)).slice(0, 10);
+
+    // Live Movement Simulation
+    useEffect(() => {
+        if (activeTab !== 'TRACKER' || activeRoutes.length === 0) return;
+
+        // Initialize positions if missing
+        const initial = { ...simulatedPositions };
+        let changed = false;
+        activeRoutes.forEach(route => {
+            if (!initial[route.id]) {
+                initial[route.id] = {
+                    lat: route.lat || (DEFAULT_CENTER[0] + (Math.random() - 0.5) * 0.05),
+                    lng: route.lng || (DEFAULT_CENTER[1] + (Math.random() - 0.5) * 0.05),
+                    status: 'Moving',
+                    lastPing: new Date().toISOString()
+                };
+                changed = true;
+            }
+        });
+        if (changed) setSimulatedPositions(initial);
+
+        const interval = setInterval(() => {
+            setSimulatedPositions(prev => {
+                const next = { ...prev };
+                activeRoutes.forEach(route => {
+                    if (next[route.id]) {
+                        // Small jitter ±0.0002
+                        next[route.id] = {
+                            ...next[route.id],
+                            lat: next[route.id].lat + (Math.random() - 0.5) * 0.0004,
+                            lng: next[route.id].lng + (Math.random() - 0.5) * 0.0004,
+                            status: Math.random() > 0.8 ? 'Delivering' : 'Moving',
+                            lastPing: new Date().toISOString()
+                        };
+                    }
+                });
+                return next;
+            });
+        }, 5000);
+
+        return () => clearInterval(interval);
+    }, [activeTab, activeRoutes.length]);
 
     const getExpectedLeftovers = (route) => {
         const routeSales = (sales || []).filter(o => o.routeId === route.id);
@@ -412,26 +455,35 @@ const Vehicles = () => {
                                     url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                                 />
                                 {activeRoutes.map(route => {
-                                    const lat = route.lat || (DEFAULT_CENTER[0] + (Math.random() - 0.5) * 0.1);
-                                    const lng = route.lng || (DEFAULT_CENTER[1] + (Math.random() - 0.5) * 0.1);
+                                    const sim = simulatedPositions[route.id] || {
+                                        lat: route.lat || (DEFAULT_CENTER[0] + (Math.random() - 0.5) * 0.1),
+                                        lng: route.lng || (DEFAULT_CENTER[1] + (Math.random() - 0.5) * 0.1),
+                                        status: 'Moving',
+                                        lastPing: new Date().toISOString()
+                                    };
                                     const vehicle = vehicles.find(v => v.id === route.vehicleId);
                                     const itemsLoaded = route.loadedStock.reduce((s, i) => s + i.quantity, 0);
 
                                     return (
-                                        <Marker key={route.id} position={[lat, lng]} icon={vehicleIcon}>
+                                        <Marker key={route.id} position={[sim.lat, sim.lng]} icon={vehicleIcon}>
                                             <Popup>
                                                 <div style={{fontFamily: 'Inter, sans-serif', minWidth: '180px'}}>
-                                                    <div style={{fontWeight: 900, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '-0.02em', marginBottom: '4px'}}>
-                                                        {vehicle?.name || 'UNIT'}
+                                                    <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px'}}>
+                                                        <div style={{fontWeight: 900, fontSize: '14px', textTransform: 'uppercase', letterSpacing: '-0.02em'}}>
+                                                            {vehicle?.name || 'UNIT'}
+                                                        </div>
+                                                        <div style={{fontSize: '8px', fontWeight: 900, padding: '2px 6px', background: sim.status === 'Moving' ? '#c8ff00' : '#3b82f6', color: '#1a1a1a', borderRadius: '10px'}}>
+                                                            {sim.status}
+                                                        </div>
                                                     </div>
                                                     <div style={{fontSize: '10px', fontWeight: 700, color: '#747576', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: '8px'}}>
                                                         {vehicle?.plate}
                                                     </div>
-                                                    <div style={{display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px'}}>
+                                                    <div style={{display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '8px'}}>
                                                         <span>🚗 Driver: <strong>{getEmployeeName(route.driverId)}</strong></span>
                                                         <span>📍 Area: <strong>{route.location || 'Global'}</strong></span>
                                                         <span>📦 Stock: <strong>{itemsLoaded} units</strong></span>
-                                                        <span>🔢 Odometer: <strong>{route.initialOdometer?.toLocaleString()} km</strong></span>
+                                                        <span style={{fontSize: '9px', marginTop: '4px', opacity: 0.5}}>Last Ping: {new Date(sim.lastPing).toLocaleTimeString()}</span>
                                                     </div>
                                                 </div>
                                             </Popup>
@@ -454,40 +506,42 @@ const Vehicles = () => {
                         {/* Sidebar */}
                         <div className="lg:col-span-1 flex flex-col gap-2 overflow-y-auto" style={{maxHeight: '500px'}}>
                             {activeRoutes.length > 0 ? (
-                                activeRoutes.map(route => {
-                                    const vehicle = vehicles.find(v => v.id === route.vehicleId);
-                                    const itemsLoaded = route.loadedStock.reduce((s, i) => s + i.quantity, 0);
-                                    return (
-                                        <div key={route.id} className="glass-panel !p-4 !rounded-2xl border border-black/5 bg-surface hover:shadow-premium transition-all">
-                                            <div className="flex items-center gap-3 mb-3">
-                                                <div className="w-10 h-10 rounded-xl bg-ink-primary text-accent-signature flex items-center justify-center shrink-0">
-                                                    <Truck size={16} />
+                                    activeRoutes.map(route => {
+                                        const vehicle = vehicles.find(v => v.id === route.vehicleId);
+                                        const itemsLoaded = route.loadedStock.reduce((s, i) => s + i.quantity, 0);
+                                        const sim = simulatedPositions[route.id] || { status: 'Moving' };
+                                        return (
+                                            <div key={route.id} className="glass-panel !p-4 !rounded-2xl border border-black/5 bg-surface hover:shadow-premium transition-all">
+                                                <div className="flex items-center gap-3 mb-3">
+                                                    <div className="w-10 h-10 rounded-xl bg-ink-primary text-accent-signature flex items-center justify-center shrink-0">
+                                                        <Truck size={16} />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <div className="text-xs font-black text-ink-primary uppercase tracking-tight leading-none truncate">{vehicle?.name}</div>
+                                                        <div className="text-[8px] font-bold text-ink-secondary uppercase tracking-widest opacity-70 mt-0.5">{vehicle?.plate}</div>
+                                                    </div>
+                                                    <div className="ml-auto flex items-center gap-2">
+                                                        <span className="text-[8px] font-black text-ink-secondary opacity-50 uppercase tracking-widest">{sim.status}</span>
+                                                        <div className={`w-2.5 h-2.5 rounded-full ${sim.status === 'Moving' ? 'bg-green-400 shadow-green-400/30' : 'bg-blue-400 shadow-blue-400/30'} animate-pulse shadow-lg`}></div>
+                                                    </div>
                                                 </div>
-                                                <div className="min-w-0">
-                                                    <div className="text-xs font-black text-ink-primary uppercase tracking-tight leading-none truncate">{vehicle?.name}</div>
-                                                    <div className="text-[8px] font-bold text-ink-secondary uppercase tracking-widest opacity-70 mt-0.5">{vehicle?.plate}</div>
-                                                </div>
-                                                <div className="ml-auto">
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-green-400 animate-pulse shadow-lg shadow-green-400/30"></div>
+                                                <div className="space-y-2 text-[9px] font-black text-ink-secondary uppercase tracking-widest">
+                                                    <div className="flex justify-between">
+                                                        <span className="opacity-70">Driver</span>
+                                                        <span className="text-ink-primary">{getEmployeeName(route.driverId)}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="opacity-70">Area</span>
+                                                        <span className="text-ink-primary">{route.location || 'Global'}</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="opacity-70">Stock</span>
+                                                        <span className="text-accent-signature">{itemsLoaded} units</span>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="space-y-2 text-[9px] font-black text-ink-secondary uppercase tracking-widest">
-                                                <div className="flex justify-between">
-                                                    <span className="opacity-70">Driver</span>
-                                                    <span className="text-ink-primary">{getEmployeeName(route.driverId)}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="opacity-70">Area</span>
-                                                    <span className="text-ink-primary">{route.location || 'Global'}</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="opacity-70">Stock</span>
-                                                    <span className="text-accent-signature">{itemsLoaded} units</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })
+                                        );
+                                    })
                             ) : (
                                 <div className="glass-panel !p-8 !rounded-2xl border border-black/5 bg-surface text-center">
                                     <MapPin size={24} className="text-ink-primary/10 mx-auto mb-3" />
@@ -557,7 +611,7 @@ const Vehicles = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleReconcile} className="space-y-4">
+                        <form onSubmit={handleAddVehicle} className="space-y-4">
                             <div>
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Vehicle Name</label>
                                 <input 
@@ -597,7 +651,7 @@ const Vehicles = () => {
             {/* DISPATCH MODAL */}
             {showDispatchModal && (
                 <div className="modal-overlay">
-                    <div className="glass-modal">
+                    <div className="glass-modal !max-w-4xl !p-8">
                         <div className="flex justify-between items-start mb-5">
                             <div>
                                 <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">DISPATCH.</h1>
@@ -608,7 +662,7 @@ const Vehicles = () => {
                             </button>
                         </div>
 
-                        <form onSubmit={handleDispatch} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <form onSubmit={handleDispatch} className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                             <div className="space-y-6">
                                 <div className="space-y-4">
                                     <div>
@@ -681,12 +735,21 @@ const Vehicles = () => {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
-                                    <button type="button" className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowDispatchModal(false)}>Cancel</button>
-                                    <button type="submit" className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill">
-                                        START DISPATCH
-                                        <div className="icon-nest !w-10 !h-10 ml-4">
-                                            <CheckCircle2 size={24} />
+                                <div className="flex items-center gap-4 pt-4 border-t border-black/5 mt-4">
+                                    <button 
+                                        type="button" 
+                                        className="flex-1 h-14 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" 
+                                        onClick={() => setShowDispatchModal(false)}
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button 
+                                        type="submit" 
+                                        className="btn-signature h-14 !text-xs flex items-center justify-between pl-8 pr-2 group flex-[1.5]"
+                                    >
+                                        <span className="font-black uppercase tracking-widest">START DISPATCH</span>
+                                        <div className="icon-nest !w-10 !h-10">
+                                            <CheckCircle2 size={20} />
                                         </div>
                                     </button>
                                 </div>

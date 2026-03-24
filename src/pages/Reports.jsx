@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { 
     Calendar, FileText, Download, Printer, TrendingUp, Package, Receipt, 
     ArrowUpRight, ArrowDownRight, X, Check, Users, Truck, 
-    DollarSign, Activity, PieChart, Layers, ArrowRight, TrendingDown
+    DollarSign, Activity, PieChart, Layers, ArrowRight, TrendingDown, Lock
 } from 'lucide-react';
 import { 
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, 
@@ -281,7 +281,7 @@ const Reports = () => {
         });
 
         return Object.values(dataMap);
-    }, [filteredOrders, filteredExpenses, dateRange]);
+    }, [filteredSales, filteredExpenses, dateRange]);
 
     const performanceData = useMemo(() => {
         return Object.entries(attributionByRep)
@@ -303,7 +303,7 @@ const Reports = () => {
 
     const getClientName = (shopId) => {
         if (shopId === 'POS-WALKIN') return 'Walk-in Customer';
-        const shop = shops.find(s => s.id === shopId);
+        const shop = clients.find(s => s.id === shopId);
         return shop ? shop.name : shopId;
     };
 
@@ -800,7 +800,7 @@ const Reports = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-black/5 bg-white">
-                                {filteredOrders.map(order => (
+                                {filteredSales.map(order => (
                                     <tr key={order.id} className="hover:bg-canvas transition-all duration-300 group">
                                         <td className="py-2.5 pl-8">
                                             <div className="text-[11px] font-black text-ink-primary uppercase tracking-tight leading-none mb-1">#{order.id.slice(-6)}</div>

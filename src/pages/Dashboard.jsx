@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, LayoutDashboard, Activity, Users, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -227,12 +227,12 @@ const Dashboard = () => {
             .filter(e => e.date && !isNaN(new Date(e.date).getTime()))
             .sort((a, b) => new Date(b.date) - new Date(a.date))
             .slice(0, 10);
-    }, [orders, routes, movementLog, businessProfile]);
+    }, [sales, routes, movementLog, businessProfile]);
 
     // Best Selling Products Calculation
     const topProducts = useMemo(() => {
         const productSales = {};
-        (orders || []).forEach(order => {
+        (sales || []).forEach(order => {
             (order.items || []).forEach(item => {
                 if (!productSales[item.productId]) {
                     productSales[item.productId] = { name: item.name, quantity: 0, revenue: 0 };
@@ -245,7 +245,7 @@ const Dashboard = () => {
         return Object.values(productSales)
             .sort((a, b) => b.quantity - a.quantity)
             .slice(0, 5);
-    }, [orders]);
+    }, [sales]);
 
     // Chart Data Preparation (Group by Date)
     const chartData = useMemo(() => {
@@ -278,7 +278,7 @@ const Dashboard = () => {
         });
 
         return Object.values(dataMap);
-    }, [orders, expenses]);
+    }, [sales, expenses]);
 
     // Earnings Data for Weekly Performance (Last 7 Days)
     const earningsByDay = useMemo(() => {
@@ -289,7 +289,7 @@ const Dashboard = () => {
         const now = new Date();
         const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
-        (orders || []).forEach(o => {
+        (sales || []).forEach(o => {
             const oDate = new Date(o.date);
             if (oDate >= last7Days && !isNaN(oDate.getTime())) {
                 const dayName = days[oDate.getDay()];
@@ -302,7 +302,7 @@ const Dashboard = () => {
             name: day,
             value: dayMap[day]
         }));
-    }, [orders]);
+    }, [sales]);
 
     // System Status Check
     const isConnected = useMemo(() => products !== null && products !== undefined, [products]);
@@ -328,15 +328,15 @@ const Dashboard = () => {
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
-        const currentWeekSales = (orders || []).filter(o => new Date(o.date) >= sevenDaysAgo).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-        const previousWeekSales = (orders || []).filter(o => {
+        const currentWeekSales = (sales || []).filter(o => new Date(o.date) >= sevenDaysAgo).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+        const previousWeekSales = (sales || []).filter(o => {
             const d = new Date(o.date);
             return d >= fourteenDaysAgo && d < sevenDaysAgo;
         }).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
         if (previousWeekSales === 0) return currentWeekSales > 0 ? 100 : 0;
         return ((currentWeekSales - previousWeekSales) / previousWeekSales) * 100;
-    }, [orders]);
+    }, [sales]);
 
     return (
         <div className="animate-fade-in flex flex-col gap-8">

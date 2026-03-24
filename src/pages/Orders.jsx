@@ -3,7 +3,7 @@ import { useAppContext } from '../context/AppContext';
 import { 
     ShoppingCart, CheckCircle, Clock, Truck, User, 
     FileText, XCircle, ChevronRight, Printer, X,
-    Calendar, MapPin, Phone, Hash, CreditCard
+    Calendar, MapPin, Phone, Hash, CreditCard, DollarSign
 } from 'lucide-react';
 
 const Orders = () => {
