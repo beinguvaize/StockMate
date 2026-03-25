@@ -162,7 +162,17 @@ const AVAILABLE_ROLES = [
 ];
 export { AVAILABLE_ROLES };
 
-export const AppProvider = ({ children }) => {
+export const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+        return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+};
+
+const AppProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [initError, setInitError] = useState(null);
     // Users
@@ -1345,7 +1355,7 @@ export const AppProvider = ({ children }) => {
     const addMechanicPayment = async (payment) => {
         const newPayment = {
             ...payment,
-            id: `MECH-${Date.now()}`,
+            id: payment.id || generateUUID(),
             amount_paid: payment.amount_paid || 0,
             work_date: payment.work_date || new Date().toISOString().split('T')[0],
             created_at: new Date().toISOString()
@@ -1386,7 +1396,7 @@ export const AppProvider = ({ children }) => {
         }
         const newPurchase = {
             ...purchase,
-            id: `PUR-${Date.now()}`,
+            id: purchase.id || generateUUID(),
             linked_product_id: purchase.linked_product_id || null,
             supplier_name: purchase.supplier_name || 'DIRECT MARKET',
             payment_type: purchase.payment_type || 'cash',
@@ -1471,7 +1481,7 @@ export const AppProvider = ({ children }) => {
         }
         const payload = {
             ...record,
-            id: record.id || `DB-${Date.now()}`,
+            id: record.id || generateUUID(),
             created_at: record.created_at || new Date().toISOString()
         };
         if (isSupabaseConfigured) {
