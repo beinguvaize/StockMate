@@ -1600,7 +1600,7 @@ export const AppProvider = ({ children }) => {
         addNotification(`Category removed: ${name}`, 'success');
     };
 
-    const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.role?.toLowerCase() === 'owner';
+    const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN') || currentUser?.role?.toLowerCase() === 'owner';
     const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.role?.toLowerCase() === 'staff';
 
     const value = {
