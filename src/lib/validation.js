@@ -24,7 +24,13 @@ export const purchaseSchema = z.object({
 export const employeeSchema = z.object({
   name: z.string().min(2, 'Employee name must be at least 2 characters'),
   department: z.string().min(1, 'Department is required'),
-  basePay: z.number().min(0, 'Base pay cannot be negative').or(z.string().regex(/^\d+(\.\d+)?$/).transform(Number)).optional()
+  basePay: z.number().min(0, 'Base pay cannot be negative').or(z.string().regex(/^\d+(\.\d+)?$/).transform(Number)).optional(),
+  email: z.string().email('Invalid email address').optional().or(z.literal('')),
+  phone: z.string().optional(),
+  position: z.string().optional(),
+  payType: z.string().optional(),
+  bankAccount: z.string().optional(),
+  notes: z.string().optional()
 });
 
 export const clientSchema = z.object({
