@@ -179,10 +179,10 @@ export const AppProvider = ({ children }) => {
     const [users, setUsers] = useState(() => {
         try {
             const saved = localStorage.getItem('sm_users');
-            return saved ? JSON.parse(saved) : INITIAL_USERS;
+            return saved ? JSON.parse(saved) : [];
         } catch (e) {
             console.error("Failed to load users from localStorage", e);
-            return INITIAL_USERS;
+            return [];
         }
     });
 
@@ -200,10 +200,10 @@ export const AppProvider = ({ children }) => {
     const [businessProfile, setBusinessProfile] = useState(() => {
         try {
             const saved = localStorage.getItem('sm_business');
-            return saved ? JSON.parse(saved) : INITIAL_BUSINESS;
+            return saved ? JSON.parse(saved) : {};
         } catch (e) {
             console.error("Failed to load business profile", e);
-            return INITIAL_BUSINESS;
+            return {};
         }
     });
 
@@ -211,18 +211,18 @@ export const AppProvider = ({ children }) => {
     const [products, setProducts] = useState(() => {
         try {
             const saved = localStorage.getItem('sm_products');
-            return saved ? JSON.parse(saved) : INITIAL_PRODUCTS;
+            return saved ? JSON.parse(saved) : [];
         } catch (e) {
-            return INITIAL_PRODUCTS;
+            return [];
         }
     });
 
     const [clients, setClients] = useState(() => {
         try {
             const saved = localStorage.getItem('sm_clients');
-            return saved ? JSON.parse(saved) : INITIAL_SHOPS;
+            return saved ? JSON.parse(saved) : [];
         } catch (e) {
-            return INITIAL_SHOPS;
+            return [];
         }
     });
 
@@ -259,7 +259,7 @@ export const AppProvider = ({ children }) => {
 
     const [vehicles, setVehicles] = useState(() => {
         const saved = localStorage.getItem('sm_vehicles');
-        return saved ? JSON.parse(saved) : INITIAL_VEHICLES;
+        return saved ? JSON.parse(saved) : [];
     });
 
     const [routes, setRoutes] = useState(() => {
@@ -267,10 +267,9 @@ export const AppProvider = ({ children }) => {
         return saved ? JSON.parse(saved) : [];
     });
 
-    // Payroll: Employees
     const [employees, setEmployees] = useState(() => {
         const saved = localStorage.getItem('sm_employees');
-        return saved ? JSON.parse(saved) : INITIAL_EMPLOYEES;
+        return saved ? JSON.parse(saved) : [];
     });
 
     // Payroll: Pay Records
