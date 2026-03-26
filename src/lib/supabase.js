@@ -9,9 +9,6 @@ if (env === 'development' && url?.includes('prod')) {
   console.warn('🚨 PRODUCTION URL detected in dev environment! Check your .env file.');
 }
 
-console.log('🌐 Supabase URL:', url ? "Configured" : "MISSING");
-console.log('🔑 Supabase Key:', key ? "Configured" : "MISSING");
-
 export const isSupabaseConfigured = !!(url && key && !key.includes('REPLACE-'));
 
 export const supabase = isSupabaseConfigured ? createClient(url, key) : null;
