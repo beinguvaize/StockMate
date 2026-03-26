@@ -228,29 +228,59 @@ export const AppProvider = ({ children }) => {
             status: 'ACTIVE'
         };
 
+        if (isSupabaseConfigured && userData.password) {
+            // Call the Edge Function which uses SERVICE_ROLE to create auth + profile atomically
+            try {
+                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+                const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+                const session = await supabase.auth.getSession();
+                const token = session?.data?.session?.access_token || anonKey;
+
+                const res = await fetch(`${supabaseUrl}/functions/v1/create-staff-account`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`,
+                        'apikey': anonKey
+                    },
+                    body: JSON.stringify({
+                        email: userData.email,
+                        password: userData.password,
+                        name: userData.name,
+                        roles: userData.roles || ['STAFF']
+                    })
+                });
+
+                const result = await res.json();
+
+                if (!res.ok) {
+                    addNotification(`Staff creation failed: ${result.error}`, "error");
+                    return false;
+                }
+
+                const createdUser = { ...newUser, id: result.id };
+                setUsers(prev => [...prev, createdUser]);
+                addNotification(`${userData.name} added! They can now log in with their email & password.`, "success");
+                return true;
+
+            } catch (err) {
+                console.error("Edge function call failed:", err);
+                addNotification("Edge function unreachable — saving profile only.", "warning");
+                // Fall through to profile-only save below
+            }
+        }
+
+        // Fallback: save profile only (no auth account)
         if (isSupabaseConfigured) {
-            // Step 1: Save profile to public.users (blocking)
             const { error: profileError } = await supabase.from('users').upsert(newUser);
             if (profileError) {
-                console.error("Error saving staff profile:", profileError);
                 addNotification(`Failed to save staff profile: ${profileError.message}`, "error");
                 return false;
-            }
-
-            // Step 2: Fire invite email in background — do NOT await, so form closes immediately
-            if (userData.email) {
-                supabase.auth.resetPasswordForEmail(userData.email, {
-                    redirectTo: `${window.location.origin}/login`
-                }).then(({ error: inviteError }) => {
-                    if (inviteError) {
-                        console.warn("Could not send invite email:", inviteError.message);
-                    }
-                }).catch(e => console.warn("Invite email exception:", e));
             }
         }
 
         setUsers(prev => [...prev, newUser]);
-        addNotification(`${userData.name} added successfully!`, "success");
+        addNotification(`${userData.name} added! (Note: no login account created — add them in Supabase Auth to give login access.)`, "warning");
         return true;
     };
 
