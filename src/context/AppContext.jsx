@@ -256,10 +256,17 @@ export const AppProvider = ({ children }) => {
                 });
                 clearTimeout(timeoutId);
 
-                const result = await res.json();
+                let result;
+                try {
+                    result = await res.json();
+                } catch {
+                    result = {};
+                }
+                console.log("Edge function response:", res.status, result);
 
                 if (!res.ok) {
-                    addNotification(`Staff creation failed: ${result.error}`, "error");
+                    const errMsg = result?.error || result?.message || `HTTP ${res.status}`;
+                    addNotification(`Staff creation failed: ${errMsg}`, "error");
                     return false;
                 }
 
