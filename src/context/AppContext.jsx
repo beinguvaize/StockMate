@@ -1304,14 +1304,22 @@ export const AppProvider = ({ children }) => {
                 if (profile) {
                     setCurrentUser(profile);
                 } else {
+                    const isSuperUser = session.user.email === 'uvaize@hotmail.com' || session.user.email === 'gladmin@ledgrpro.ca';
                     const newUserProfile = {
                         id: session.user.id,
                         email: session.user.email,
                         name: session.user.email.split('@')[0],
-                        roles: ['STAFF'],
+                        roles: isSuperUser ? ['GLOBAL_ADMIN', 'OWNER'] : ['STAFF'],
                         status: 'ACTIVE'
                     };
                     setCurrentUser(newUserProfile);
+                    
+                    // Auto-persist superuser profile to public.users if missing
+                    if (isSuperUser) {
+                        supabase.from('users').upsert(newUserProfile).then(({ error }) => {
+                            if (error) console.error("Error auto-provisioning superuser:", error);
+                        });
+                    }
                 }
 
                 // Whenever we have a NEW user session, refresh data
@@ -1331,7 +1339,7 @@ export const AppProvider = ({ children }) => {
         initializeApp();
     }, []);
 
-    const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN') || currentUser?.role?.toLowerCase() === 'owner';
+    const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN') || currentUser?.role?.toLowerCase() === 'owner' || currentUser?.email === 'uvaize@hotmail.com';
     const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.role?.toLowerCase() === 'staff';
 
     const value = {
