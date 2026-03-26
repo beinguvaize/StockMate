@@ -140,7 +140,7 @@ const DayBook = () => {
                 {/* Main Ledger Card */}
                 <div className="lg:col-span-8 space-y-6">
                     <div className="glass-panel border-black/5 bg-white shadow-premium !p-10 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-10 opacity-[0.03] rotate-12">
+                        <div className="absolute top-0 right-0 p-10 opacity-[0.03] rotate-12 pointer-events-none">
                             <BookOpen size={200} />
                         </div>
 
