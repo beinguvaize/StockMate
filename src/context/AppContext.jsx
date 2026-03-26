@@ -316,6 +316,38 @@ export const AppProvider = ({ children }) => {
 
     const initializingRef = useRef(false);
 
+    // Supabase Auth Listener
+    useEffect(() => {
+        if (!isSupabaseConfigured) return;
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (session?.user) {
+                // Fetch user roles/profile from public.users
+                const { data: profile, error } = await supabase.from('users').select('*').eq('id', session.user.id).single();
+                
+                if (profile) {
+                    setCurrentUser(profile);
+                } else {
+                    // Fallback to basic auth info if no profile exists yet
+                    const newUserProfile = {
+                        id: session.user.id,
+                        email: session.user.email,
+                        name: session.user.email.split('@')[0],
+                        roles: ['STAFF'],
+                        status: 'ACTIVE'
+                    };
+                    setCurrentUser(newUserProfile);
+                    // Optionally auto-create profile record
+                    // await supabase.from('users').upsert(newUserProfile);
+                }
+            } else {
+                setCurrentUser(null);
+            }
+        });
+
+        return () => subscription.unsubscribe();
+    }, [isSupabaseConfigured]);
+
     // Supabase Sync & Init
     useEffect(() => {
         const initializeApp = async () => {
@@ -468,7 +500,12 @@ export const AppProvider = ({ children }) => {
 
     // Data Actions (LOCAL ONLY)
     const login = async (email, password) => {
-        // Simple local check against mock or saved users
+        if (isSupabaseConfigured) {
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) return { success: false, error: error.message };
+            return { success: true, user: data.user };
+        }
+        // Fallback for mock mode
         const user = users.find(u => u.email === email && (password === 'password' || password === 'admin123'));
         if (user) {
             setCurrentUser(user);
@@ -478,6 +515,9 @@ export const AppProvider = ({ children }) => {
     };
 
     const logout = async () => {
+        if (isSupabaseConfigured) {
+            await supabase.auth.signOut();
+        }
         setCurrentUser(null);
     };
 
