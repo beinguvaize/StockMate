@@ -500,9 +500,16 @@ export const AppProvider = ({ children }) => {
 
     // Data Actions (LOCAL ONLY)
     const login = async (email, password) => {
+        console.log('🔑 Login attempt for:', email);
+        console.log('📡 isSupabaseConfigured:', isSupabaseConfigured);
+
         if (isSupabaseConfigured) {
             const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-            if (error) return { success: false, error: error.message };
+            if (error) {
+                console.error('❌ Supabase Auth Error:', error.message);
+                return { success: false, error: error.message };
+            }
+            console.log('✅ Supabase Auth SUCCESS!');
             return { success: true, user: data.user };
         }
         // Fallback for mock mode
