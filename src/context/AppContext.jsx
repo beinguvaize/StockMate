@@ -204,23 +204,48 @@ export const AppProvider = ({ children }) => {
     };
 
     const addUser = async (userData) => {
-        const newUser = {
-            ...userData,
-            id: userData.id || `USR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            status: 'ACTIVE',
-            roles: userData.roles || [userData.role || 'STAFF']
-        };
-        
-        if (isSupabaseConfigured) {
-            const { error } = await supabase.from('users').upsert(newUser);
+        if (isSupabaseConfigured && userData.password) {
+            // Use secure RPC for nuclear provisioning (auth + public records)
+            const { data: newId, error } = await supabase.rpc('create_staff_account', {
+                new_email: userData.email,
+                new_password: userData.password,
+                new_roles: userData.roles || [userData.role || 'STAFF'],
+                new_name: userData.name
+            });
+
             if (error) {
-                console.error("Error adding user to Supabase:", error);
-                addNotification(`Cloud User Save Failed: ${error.message}`, "error");
+                console.error("Critical User Provisioning Failure:", error);
+                addNotification(`Staff Creation Failed: ${error.message}`, "error");
                 return;
             }
-        }
 
-        setUsers([...users, newUser]);
+            const newUser = {
+                ...userData,
+                id: newId,
+                status: 'ACTIVE',
+                roles: userData.roles || [userData.role || 'STAFF']
+            };
+            setUsers([...users, newUser]);
+            addNotification(`Staff account activated for ${userData.email}`, "success");
+        } else {
+            // Local fallback or missing password
+            const newUser = {
+                ...userData,
+                id: userData.id || `USR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                status: 'ACTIVE',
+                roles: userData.roles || [userData.role || 'STAFF']
+            };
+            
+            if (isSupabaseConfigured) {
+                const { error } = await supabase.from('users').upsert(newUser);
+                if (error) {
+                    console.error("Error adding user profile to Supabase:", error);
+                    addNotification(`Cloud User Save Failed: ${error.message}`, "error");
+                    return;
+                }
+            }
+            setUsers([...users, newUser]);
+        }
     };
 
     const updateUser = async (updatedUser) => {

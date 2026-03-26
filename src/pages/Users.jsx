@@ -169,6 +169,20 @@ const Users = () => {
                                 </div>
                             </div>
 
+                            {!editingUser && (
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-1.5 opacity-70">Security Password</label>
+                                    <input 
+                                        required 
+                                        type="password" 
+                                        className="w-full bg-canvas border-none rounded-2xl p-4 font-black text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
+                                        placeholder="MIN 6 CHARACTERS..."
+                                        value={formData.password || ''} 
+                                        onChange={e => setFormData({...formData, password: e.target.value})} 
+                                    />
+                                </div>
+                            )}
+
                             <div>
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-2 opacity-70">Role Access Levels</label>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
