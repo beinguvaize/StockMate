@@ -16,7 +16,10 @@ export const supabase = isSupabaseConfigured ? createClient(url, key, {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storageKey: 'sm-auth-token'
+    storageKey: 'sm-auth-token',
+    // Bypass browser-tabs-lock to prevent AbortError: Lock broken
+    // The correct signature is an async function (name, acquireTimeout, fn) => fn()
+    lock: async (_name, _acquireTimeout, fn) => fn()
   }
 }) : null;
 
