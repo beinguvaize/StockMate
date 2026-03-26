@@ -197,10 +197,26 @@ export const AppProvider = ({ children }) => {
     };
 
     const logout = async () => {
-        if (isSupabaseConfigured) {
-            await supabase.auth.signOut();
+        try {
+            if (isSupabaseConfigured) {
+                // Try clean signOut but don't block on it
+                supabase.auth.signOut().catch(e => console.warn("SignOut background error:", e));
+            }
+        } catch (e) {
+            console.error("Logout caught error:", e);
+        } finally {
+            // Definitively clear session
+            setCurrentUser(null);
+            
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('sm_current_user');
+                localStorage.removeItem('sm-auth-token');
+                localStorage.removeItem('supabase.auth.token');
+                
+                // Force a reload to clean app state and routes
+                window.location.href = '/login';
+            }
         }
-        setCurrentUser(null);
     };
 
     const addUser = async (userData) => {
