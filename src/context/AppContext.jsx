@@ -172,7 +172,7 @@ export const generateUUID = () => {
     });
 };
 
-const AppProvider = ({ children }) => {
+export const AppProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [initError, setInitError] = useState(null);
     // Users
@@ -1312,15 +1312,22 @@ const AppProvider = ({ children }) => {
             return;
         }
         const newEmp = {
-            ...emp,
             id: emp.id || `EMP-${Date.now()}`,
+            name: emp.name,
+            email: emp.email || null,
+            phone: emp.phone || null,
+            position: emp.position || null,
             status: 'ACTIVE',
             created_at: new Date().toISOString(),
-            salary: emp.basePay, 
+            salary: emp.basePay || 0,
             role: emp.department,
-            daily_rate: emp.dailyRate || 500, // Default Task 5
+            department: emp.department,
+            pay_type: emp.payType || 'MONTHLY',
+            bank_account: emp.bankAccount || null,
+            notes: emp.notes || null,
+            daily_rate: emp.dailyRate || 0,
             days_worked: emp.daysWorked || 0,
-            amount_paid: emp.amountPaid || 0 // Task 5
+            amount_paid: emp.amountPaid || 0
         };
         if (isSupabaseConfigured) {
             const { error } = await supabase.from('employees').upsert(newEmp);
@@ -1336,11 +1343,26 @@ const AppProvider = ({ children }) => {
     const updateEmployee = async (updated) => {
         const fullEmployee = {
             ...updated,
-            salary: updated.basePay,
-            role: updated.department
+            salary: updated.basePay !== undefined ? updated.basePay : updated.salary,
+            role: updated.department || updated.role,
+            pay_type: updated.payType || updated.pay_type,
+            bank_account: updated.bankAccount || updated.bank_account,
+            daily_rate: updated.dailyRate !== undefined ? updated.dailyRate : updated.daily_rate,
+            days_worked: updated.daysWorked !== undefined ? updated.daysWorked : updated.days_worked,
+            amount_paid: updated.amountPaid !== undefined ? updated.amountPaid : updated.amount_paid
         };
+        
+        // Clean up camelCase duplicates before sending to Supabase
+        const dbData = { ...fullEmployee };
+        delete dbData.basePay;
+        delete dbData.payType;
+        delete dbData.bankAccount;
+        delete dbData.dailyRate;
+        delete dbData.daysWorked;
+        delete dbData.amountPaid;
+
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('employees').upsert(fullEmployee);
+            const { error } = await supabase.from('employees').upsert(dbData);
             if (error) {
                 console.error("Error updating employee in Supabase:", error);
                 addNotification(`Cloud Sync Delayed: ${error.message}`, "warning");
