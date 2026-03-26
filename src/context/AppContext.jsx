@@ -220,74 +220,40 @@ export const AppProvider = ({ children }) => {
     };
 
     const addUser = async (userData) => {
-        if (isSupabaseConfigured && userData.password) {
-            let retryCount = 0;
-            const maxRetries = 2;
+        const newUser = {
+            id: userData.id || generateUUID(),
+            name: userData.name,
+            email: userData.email,
+            roles: userData.roles || [userData.role || 'STAFF'],
+            status: 'ACTIVE'
+        };
 
-            const attemptProvision = async () => {
-                try {
-                    const { data: newId, error } = await supabase.rpc('create_staff_account', {
-                        new_email: userData.email,
-                        new_password: userData.password,
-                        new_roles: userData.roles || [userData.role || 'STAFF'],
-                        new_name: userData.name
-                    });
+        if (isSupabaseConfigured) {
+            // Step 1: Save profile to public.users
+            const { error: profileError } = await supabase.from('users').upsert(newUser);
+            if (profileError) {
+                console.error("Error saving staff profile:", profileError);
+                addNotification(`Failed to save staff profile: ${profileError.message}`, "error");
+                return false;
+            }
 
-                    if (error) {
-                        // Handle "Lock broken" with a retry
-                        if (error.name === 'AbortError' || error.message?.includes('Lock broken')) {
-                            if (retryCount < maxRetries) {
-                                retryCount++;
-                                console.warn(`Retrying user provisioning (${retryCount}/${maxRetries})...`);
-                                await new Promise(resolve => setTimeout(resolve, 800 * retryCount));
-                                return attemptProvision();
-                            }
-                        }
-                        
-                        console.error("Critical User Provisioning Failure:", error);
-                        addNotification(`Staff Creation Failed: ${error.message}`, "error");
-                        return;
-                    }
-
-                    const newUser = {
-                        ...userData,
-                        id: newId,
-                        status: 'ACTIVE',
-                        roles: userData.roles || [userData.role || 'STAFF']
-                    };
-                    setUsers([...users, newUser]);
-                    addNotification(`Staff account activated for ${userData.email}`, "success");
-                } catch (err) {
-                    if (retryCount < maxRetries) {
-                        retryCount++;
-                        await new Promise(resolve => setTimeout(resolve, 800));
-                        return attemptProvision();
-                    }
-                    console.error("AddUser Exception:", err);
-                    addNotification("System error during staff creation", "error");
-                }
-            };
-
-            return attemptProvision();
-        } else {
-            // Local fallback or missing password
-            const newUser = {
-                ...userData,
-                id: userData.id || `USR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                status: 'ACTIVE',
-                roles: userData.roles || [userData.role || 'STAFF']
-            };
-            
-            if (isSupabaseConfigured) {
-                const { error } = await supabase.from('users').upsert(newUser);
-                if (error) {
-                    console.error("Error adding user profile to Supabase:", error);
-                    addNotification(`Cloud User Save Failed: ${error.message}`, "error");
-                    return;
+            // Step 2: Send a password invitation/reset email so they can set their login password
+            if (userData.email) {
+                const { error: inviteError } = await supabase.auth.resetPasswordForEmail(userData.email, {
+                    redirectTo: `${window.location.origin}/login`
+                });
+                if (inviteError) {
+                    // Non-critical: profile saved, just couldn't send invite email
+                    console.warn("Could not send invite email:", inviteError.message);
+                    addNotification(`${userData.name} added. Note: Could not send invite email — add them in Supabase Auth manually.`, "warning");
+                } else {
+                    addNotification(`${userData.name} added! An invitation email has been sent to ${userData.email}.`, "success");
                 }
             }
-            setUsers([...users, newUser]);
         }
+        
+        setUsers(prev => [...prev, newUser]);
+        return true;
     };
 
     const updateUser = async (updatedUser) => {

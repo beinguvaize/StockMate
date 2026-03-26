@@ -28,8 +28,7 @@ BEGIN
     created_at,
     updated_at,
     confirmation_token,
-    is_super_admin,
-    confirmed_at
+    is_super_admin
   )
   VALUES (
     '00000000-0000-0000-0000-000000000000',
@@ -44,8 +43,7 @@ BEGIN
     now(),
     now(),
     '',
-    false,
-    now()
+    false
   )
   RETURNING id INTO new_userId;
 
