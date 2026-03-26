@@ -311,10 +311,170 @@ export const AppProvider = ({ children }) => {
     useEffect(() => { localStorage.setItem('sm_employees', JSON.stringify(employees)); }, [employees]);
     useEffect(() => { localStorage.setItem('sm_payroll', JSON.stringify(payrollRecords)); }, [payrollRecords]);
     useEffect(() => { localStorage.setItem('sm_day_book', JSON.stringify(dayBook)); }, [dayBook]);
+    useEffect(() => { localStorage.setItem('sm_purchases', JSON.stringify(purchases)); }, [purchases]);
+    useEffect(() => { localStorage.setItem('sm_mechanic_payments', JSON.stringify(mechanicPayments)); }, [mechanicPayments]);
     useEffect(() => { localStorage.setItem('sm_expense_categories', JSON.stringify(expenseCategories)); }, [expenseCategories]);
     useEffect(() => { localStorage.setItem('sm_client_payments', JSON.stringify(clientPayments)); }, [clientPayments]);
 
     const initializingRef = useRef(false);
+    // Supabase Sync & Init (REUSABLE)
+    const initializeApp = async () => {
+        // Prevent multiple simultaneous initializations
+        if (initializingRef.current) return;
+        initializingRef.current = true;
+
+        setLoading(true);
+        setInitError(null);
+        
+        if (!isSupabaseConfigured) {
+            console.log("⚠️ Supabase not configured. Using local/mock data mode.");
+            setLoading(false);
+            initializingRef.current = false;
+            return;
+        }
+
+        // Safety timeout to prevent infinite loading
+        const timeoutId = setTimeout(() => {
+            if (loading) {
+                console.warn("⏳ Initialization timeout: Forcing loading state to false.");
+                setLoading(false);
+                initializingRef.current = false;
+            }
+        }, 15000); // 15s timeout
+
+        try {
+            console.log("🚀 Initializing App with Supabase...");
+            
+            // Helper to wrap supabase calls with error handling
+            const safeFetch = async (promise, description) => {
+                try {
+                    const result = await promise;
+                    if (result.error) {
+                        console.warn(`⚠️ Issue fetching ${description}:`, result.error.message);
+                        return { data: null, error: result.error };
+                    }
+                    return result;
+                } catch (e) {
+                    console.error(`❌ Exception fetching ${description}:`, e);
+                    return { data: null, error: e };
+                }
+            };
+
+            // Fetch initial data from Supabase
+            const [
+                { data: productsData },
+                { data: clientsData },
+                { data: salesData },
+                { data: expensesData },
+                { data: employeesData },
+                { data: payrollData },
+                { data: businessData },
+                { data: dayBookData },
+                { data: settingsData },
+                { data: paymentsData },
+                { data: usersData },
+                { data: vehiclesData },
+                { data: movementData },
+                { data: routesData },
+                { data: purchasesData },
+                { data: mechanicData }
+            ] = await Promise.all([
+                safeFetch(supabase.from('products').select('*'), 'products'),
+                safeFetch(supabase.from('clients').select('*'), 'clients'),
+                safeFetch(supabase.from('sales').select('*').order('date', { ascending: false }), 'sales'),
+                safeFetch(supabase.from('expenses').select('*').order('date', { ascending: false }), 'expenses'),
+                safeFetch(supabase.from('employees').select('*'), 'employees'),
+                safeFetch(supabase.from('payroll').select('*').order('processed_at', { ascending: false }), 'payroll'),
+                safeFetch(supabase.from('business_profile').select('*').maybeSingle(), 'business_profile'),
+                safeFetch(supabase.from('day_book').select('*').order('date', { ascending: false }), 'day_book'),
+                safeFetch(supabase.from('settings').select('*'), 'settings'),
+                safeFetch(supabase.from('client_payments').select('*').order('date', { ascending: false }), 'client_payments'),
+                safeFetch(supabase.from('users').select('*'), 'users'),
+                safeFetch(supabase.from('vehicles').select('*'), 'vehicles'),
+                safeFetch(supabase.from('movement_log').select('*').order('date', { ascending: false }), 'movement_log'),
+                safeFetch(supabase.from('routes').select('*').order('date', { ascending: false }), 'routes'),
+                safeFetch(supabase.from('purchases').select('*').order('date', { ascending: false }), 'purchases'),
+                safeFetch(supabase.from('mechanic_payments').select('*').order('work_date', { ascending: false }), 'mechanic_payments')
+            ]);
+            
+            if (productsData) setProducts(productsData);
+            if (clientsData) setClients(clientsData);
+            if (salesData) setSales(salesData);
+            if (expensesData) setExpenses(expensesData);
+            if (usersData) setUsers(usersData);
+            if (dayBookData) setDayBook(dayBookData);
+            if (paymentsData) setClientPayments(paymentsData);
+            
+            if (employeesData) {
+                const mappedEmps = employeesData.map(emp => ({
+                    ...emp,
+                    basePay: emp.basePay ?? emp.salary ?? 0,
+                    dailyRate: emp.daily_rate ?? 0,
+                    daysWorked: emp.days_worked ?? 0,
+                    department: emp.department ?? emp.role ?? 'Operations',
+                    position: emp.position ?? emp.role ?? 'Standard Associate'
+                }));
+                setEmployees(mappedEmps);
+            }
+
+            if (payrollData) {
+                // Group individual records by month/period to recreate "Pay Runs"
+                const grouped = payrollData.reduce((acc, rec) => {
+                    const period = rec.month || 'Unknown';
+                    if (!acc[period]) {
+                        acc[period] = {
+                            id: `RUN-${period}`,
+                            period: period,
+                            processedAt: rec.processed_at,
+                            totalBase: 0, totalOvertime: 0, totalBonus: 0, totalDeductions: 0,
+                            totalNet: 0, totalEmployees: 0,
+                            items: []
+                        };
+                    }
+                    acc[period].items.push({
+                        employeeId: rec.employeeId,
+                        employeeName: getEmployeeName(rec.employeeId),
+                        netPay: rec.amount
+                    });
+                    acc[period].totalNet += rec.amount;
+                    acc[period].totalEmployees += 1;
+                    return acc;
+                }, {});
+                setPayrollRecords(Object.values(grouped));
+            }
+
+            if (vehiclesData) setVehicles(vehiclesData);
+            if (routesData) setRoutes(routesData);
+            // Assuming setPurchases and setMechanicPayments are defined elsewhere or will be added
+            // if (purchasesData) setPurchases(purchasesData);
+            // if (mechanicData) setMechanicPayments(mechanicData);
+            if (businessData) setBusinessProfile(businessData);
+            
+            if (movementData) {
+                const mappedLog = movementData.map(log => ({
+                    ...log,
+                    productId: log.product_id,
+                    productName: log.product_name,
+                    userId: log.user_id
+                }));
+                setMovementLog(mappedLog);
+            }
+            
+            if (settingsData) {
+                const categories = settingsData.find(s => s.key === 'expense_categories');
+                if (categories) setExpenseCategories(categories.value);
+            }
+            
+            console.log("🏁 Initialization Complete.");
+        } catch (err) {
+            console.error("❌ Initialization error:", err);
+            setInitError(err.message || "An unexpected error occurred during initialization.");
+        } finally {
+            clearTimeout(timeoutId);
+            setLoading(false);
+            initializingRef.current = false;
+        }
+    };
 
     // Supabase Auth Listener
     useEffect(() => {
@@ -323,7 +483,7 @@ export const AppProvider = ({ children }) => {
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
             if (session?.user) {
                 // Fetch user roles/profile from public.users
-                const { data: profile, error } = await supabase.from('users').select('*').eq('id', session.user.id).single();
+                const { data: profile } = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
                 
                 if (profile) {
                     setCurrentUser(profile);
@@ -340,6 +500,11 @@ export const AppProvider = ({ children }) => {
                     // Optionally auto-create profile record
                     // await supabase.from('users').upsert(newUserProfile);
                 }
+
+                // Whenever we have a NEW user session, refresh data
+                if (event === 'SIGNED_IN') {
+                    initializeApp();
+                }
             } else {
                 setCurrentUser(null);
             }
@@ -348,144 +513,8 @@ export const AppProvider = ({ children }) => {
         return () => subscription.unsubscribe();
     }, [isSupabaseConfigured]);
 
-    // Supabase Sync & Init
+    // Initial load
     useEffect(() => {
-        const initializeApp = async () => {
-            setLoading(true);
-            setInitError(null);
-            
-            if (!isSupabaseConfigured) {
-                console.log("⚠️ Supabase not configured. Using local/mock data mode.");
-                setLoading(false);
-                return;
-            }
-
-            try {
-                console.log("🚀 Initializing App with Supabase...");
-                
-                // Fetch initial data from Supabase
-                const [
-                    { data: productsData },
-                    { data: clientsData },
-                    { data: salesData },
-                    { data: expensesData },
-                    { data: employeesData },
-                    { data: payrollData },
-                    { data: businessData },
-                    { data: dayBookData },
-                    { data: settingsData },
-                    { data: paymentsData },
-                    { data: usersData },
-                    { data: vehiclesData },
-                    { data: movementData },
-                    { data: routesData },
-                    { data: purchasesData },
-                    { data: mechanicData }
-                ] = await Promise.all([
-                    supabase.from('products').select('*'),
-                    supabase.from('clients').select('*'),
-                    supabase.from('sales').select('*').order('date', { ascending: false }),
-                    supabase.from('expenses').select('*').order('date', { ascending: false }),
-                    supabase.from('employees').select('*'),
-                    supabase.from('payroll').select('*').order('processed_at', { ascending: false }),
-                    supabase.from('business_profile').select('*').single(),
-                    supabase.from('day_book').select('*').order('date', { ascending: false }),
-                    supabase.from('settings').select('*'),
-                    supabase.from('client_payments').select('*').order('date', { ascending: false }),
-                    supabase.from('users').select('*'),
-                    supabase.from('vehicles').select('*'),
-                    supabase.from('movement_log').select('*').order('date', { ascending: false }),
-                    supabase.from('routes').select('*').order('date', { ascending: false }),
-                    supabase.from('purchases').select('*').order('date', { ascending: false }),
-                    supabase.from('mechanic_payments').select('*').order('work_date', { ascending: false })
-                ]);
-                
-                if (productsData) setProducts(productsData || []);
-                if (clientsData) setClients(clientsData || []);
-                if (salesData) setSales(salesData || []);
-                if (expensesData) setExpenses(expensesData || []);
-                if (usersData && usersData.length > 0) setUsers(usersData);
-                if (dayBookData) setDayBook(dayBookData);
-                if (paymentsData) setClientPayments(paymentsData);
-                
-                if (employeesData && employeesData.length > 0) {
-                    // Map DB 'salary' to frontend 'basePay' and 'role' to 'department'
-                    const mappedEmps = employeesData.map(emp => ({
-                        ...emp,
-                        basePay: emp.basePay ?? emp.salary ?? 0,
-                        dailyRate: emp.daily_rate ?? 0,
-                        daysWorked: emp.days_worked ?? 0,
-                        department: emp.department ?? emp.role ?? 'Operations',
-                        position: emp.position ?? emp.role ?? 'Standard Associate'
-                    }));
-                    setEmployees(mappedEmps);
-                } else {
-                    setEmployees(INITIAL_EMPLOYEES);
-                }
-
-                if (payrollData) {
-                    // Group individual records by month/period to recreate "Pay Runs"
-                    const grouped = payrollData.reduce((acc, rec) => {
-                        const period = rec.month || 'Unknown';
-                        if (!acc[period]) {
-                            acc[period] = {
-                                id: `RUN-${period}`,
-                                period: period,
-                                processedAt: rec.processed_at,
-                                totalBase: 0, totalOvertime: 0, totalBonus: 0, totalDeductions: 0,
-                                totalNet: 0, totalEmployees: 0,
-                                items: []
-                            };
-                        }
-                        acc[period].items.push({
-                            employeeId: rec.employeeId,
-                            employeeName: getEmployeeName(rec.employeeId),
-                            netPay: rec.amount
-                        });
-                        acc[period].totalNet += rec.amount;
-                        acc[period].totalEmployees += 1;
-                        return acc;
-                    }, {});
-                    
-                    setPayrollRecords(Object.values(grouped));
-                }
-
-                if (vehiclesData) setVehicles(vehiclesData || []);
-                if (routesData) setRoutes(routesData || []);
-                if (purchasesData) setPurchases(purchasesData || []);
-                if (mechanicData) setMechanicPayments(mechanicData || []);
-                if (businessData) setBusinessProfile(businessData);
-                
-                if (movementData) {
-                    const mappedLog = movementData.map(log => ({
-                        ...log,
-                        productId: log.product_id,
-                        productName: log.product_name,
-                        userId: log.user_id
-                    }));
-                    setMovementLog(mappedLog);
-                }
-                
-                if (settingsData) {
-                    const categories = settingsData.find(s => s.key === 'expense_categories');
-                    if (categories) setExpenseCategories(categories.value);
-                }
-
-                // Try to restore session from localStorage if available
-                const savedUser = localStorage.getItem('sm_current_user');
-                if (savedUser) {
-                    setCurrentUser(JSON.parse(savedUser));
-                }
-                
-                console.log("🏁 Initialization Complete.");
-            } catch (err) {
-                console.error("Initialization error:", err);
-                setInitError(err.message || "An unexpected error occurred during initialization.");
-            } finally {
-                setLoading(false);
-            }
-        };
-
         initializeApp();
     }, []);
 
@@ -1413,7 +1442,14 @@ export const AppProvider = ({ children }) => {
     };
 
     // Task 5: Mechanic Tracker
-    const [mechanicPayments, setMechanicPayments] = useState([]);
+    const [mechanicPayments, setMechanicPayments] = useState(() => {
+        try {
+            const saved = localStorage.getItem('sm_mechanic_payments');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    });
 
     const addMechanicPayment = async (payment) => {
         const newPayment = {
@@ -1449,7 +1485,14 @@ export const AppProvider = ({ children }) => {
     };
 
     // Task 6: Purchases & Stock Integration
-    const [purchases, setPurchases] = useState([]);
+    const [purchases, setPurchases] = useState(() => {
+        try {
+            const saved = localStorage.getItem('sm_purchases');
+            return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+            return [];
+        }
+    });
 
     const addPurchase = async (purchase) => {
         const val = purchaseSchema.safeParse(purchase);
