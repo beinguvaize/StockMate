@@ -229,7 +229,7 @@ export const AppProvider = ({ children }) => {
         };
 
         if (isSupabaseConfigured) {
-            // Step 1: Save profile to public.users
+            // Step 1: Save profile to public.users (blocking)
             const { error: profileError } = await supabase.from('users').upsert(newUser);
             if (profileError) {
                 console.error("Error saving staff profile:", profileError);
@@ -237,22 +237,20 @@ export const AppProvider = ({ children }) => {
                 return false;
             }
 
-            // Step 2: Send a password invitation/reset email so they can set their login password
+            // Step 2: Fire invite email in background — do NOT await, so form closes immediately
             if (userData.email) {
-                const { error: inviteError } = await supabase.auth.resetPasswordForEmail(userData.email, {
+                supabase.auth.resetPasswordForEmail(userData.email, {
                     redirectTo: `${window.location.origin}/login`
-                });
-                if (inviteError) {
-                    // Non-critical: profile saved, just couldn't send invite email
-                    console.warn("Could not send invite email:", inviteError.message);
-                    addNotification(`${userData.name} added. Note: Could not send invite email — add them in Supabase Auth manually.`, "warning");
-                } else {
-                    addNotification(`${userData.name} added! An invitation email has been sent to ${userData.email}.`, "success");
-                }
+                }).then(({ error: inviteError }) => {
+                    if (inviteError) {
+                        console.warn("Could not send invite email:", inviteError.message);
+                    }
+                }).catch(e => console.warn("Invite email exception:", e));
             }
         }
-        
+
         setUsers(prev => [...prev, newUser]);
+        addNotification(`${userData.name} added successfully!`, "success");
         return true;
     };
 
