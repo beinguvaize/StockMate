@@ -228,16 +228,20 @@ export const AppProvider = ({ children }) => {
             status: 'ACTIVE'
         };
 
-        if (isSupabaseConfigured && userData.password) {
-            // Call the Edge Function which uses SERVICE_ROLE to create auth + profile atomically
+        if (isSupabaseConfigured && userData.password) {            // Call the Edge Function which uses SERVICE_ROLE to create auth + profile atomically
             try {
                 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
                 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
                 const session = await supabase.auth.getSession();
                 const token = session?.data?.session?.access_token || anonKey;
 
+                // 10-second timeout so the form never hangs
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
+
                 const res = await fetch(`${supabaseUrl}/functions/v1/dynamic-service`, {
                     method: 'POST',
+                    signal: controller.signal,
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`,
@@ -250,6 +254,7 @@ export const AppProvider = ({ children }) => {
                         roles: userData.roles || ['STAFF']
                     })
                 });
+                clearTimeout(timeoutId);
 
                 const result = await res.json();
 
@@ -264,8 +269,14 @@ export const AppProvider = ({ children }) => {
                 return true;
 
             } catch (err) {
+                const isTimeout = err?.name === 'AbortError';
                 console.error("Edge function call failed:", err);
-                addNotification("Edge function unreachable — saving profile only.", "warning");
+                addNotification(
+                    isTimeout 
+                        ? "Staff creation timed out — saving profile only. Add them in Supabase Auth for login access."
+                        : "Edge function unreachable — saving profile only.",
+                    "warning"
+                );
                 // Fall through to profile-only save below
             }
         }
