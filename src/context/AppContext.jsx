@@ -236,7 +236,7 @@ export const AppProvider = ({ children }) => {
                 const session = await supabase.auth.getSession();
                 const token = session?.data?.session?.access_token || anonKey;
 
-                const res = await fetch(`${supabaseUrl}/functions/v1/create-staff-account`, {
+                const res = await fetch(`${supabaseUrl}/functions/v1/dynamic-service`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
