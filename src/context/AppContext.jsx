@@ -917,7 +917,7 @@ export const AppProvider = ({ children }) => {
         const val = employeeSchema.safeParse(emp);
         if (!val.success) {
             addNotification("Validation failed: " + val.error.errors[0].message, "error");
-            return;
+            return false;
         }
         const newEmp = {
             id: emp.id || `EMP-${Date.now()}`,
@@ -941,11 +941,13 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('employees').upsert(newEmp);
             if (error) {
                 console.error("Error adding employee to Supabase:", error);
-                addNotification("Failed to save employee to cloud", "error");
-                return;
+                addNotification("Failed to save employee to cloud: " + error.message, "error");
+                return false;
             }
         }
         setEmployees(prev => [...prev, newEmp]);
+        addNotification(`${emp.name} added successfully`, "success");
+        return true;
     };
 
     const updateEmployee = async (updated) => {
