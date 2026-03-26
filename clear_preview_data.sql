@@ -1,8 +1,8 @@
--- DATA CLEARANCE SCRIPT (PREVIEW RESET)
--- RUN THIS IN YOUR SUPABASE SQL EDITOR TO WIPE ALL TRANSACTIONAL DATA
+-- ULTIMATE DATA CLEARANCE SCRIPT (FULL RESET)
+-- WARNING: This will delete ALL data including users, profiles, and settings.
 
--- TRUNCATE all transactional tables with CASCADE to handle foreign keys
 TRUNCATE TABLE 
+    public.profiles,
     public.products, 
     public.clients, 
     public.sales, 
@@ -13,11 +13,11 @@ TRUNCATE TABLE
     public.users, 
     public.employees, 
     public.payroll, 
+    public.business_profile, 
+    public.settings, 
     public.day_book, 
     public.mechanic_payments, 
-    public.purchases CASCADE;
+    public.purchases,
+    public.client_payments CASCADE;
 
--- Optional: If you want to clear the custom expense categories as well:
--- DELETE FROM public.settings WHERE key = 'expense_categories';
-
--- NOTE: This does NOT delete your Auth profiles or Business Profile settings.
+-- Run this in both Dev and Prod projects to ensure a completely clean start.

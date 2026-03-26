@@ -11,28 +11,29 @@ const MinimalistLogin = () => {
 
     const activeUsers = users.filter(u => u.status === 'ACTIVE');
 
-    const handleLogin = (e) => {
+    const [error, setError] = useState('');
+
+    const handleLogin = async (e) => {
         e.preventDefault();
-        const user = users.find(u => u.email === email && u.status === 'ACTIVE');
-        if (user) {
-            login(user.id);
-            const roles = user.roles || [user.role || 'SALES'];
-            if (roles.includes('ADMIN') || roles.includes('GLOBAL_ADMIN')) navigate('/dashboard');
-            else if (roles.includes('SALES')) navigate('/sales');
-            else navigate('/');
+        setError('');
+        const result = await login(email, password);
+        if (result.success) {
+            navigate('/');
+        } else {
+            setError(result.error || 'Invalid credentials');
         }
     };
 
-    const handleQuickLogin = (user) => {
+    const handleQuickLogin = async (user) => {
         setEmail(user.email);
         setPassword('password');
-        setTimeout(() => {
-            login(user.id);
-            const roles = user.roles || [user.role || 'SALES'];
-            if (roles.includes('ADMIN') || roles.includes('GLOBAL_ADMIN')) navigate('/dashboard');
-            else if (roles.includes('SALES')) navigate('/sales');
-            else navigate('/');
-        }, 100);
+        setError('');
+        const result = await login(user.email, 'password');
+        if (result.success) {
+            navigate('/');
+        } else {
+            setError(result.error || 'Quick login failed');
+        }
     };
 
     return (
@@ -49,8 +50,12 @@ const MinimalistLogin = () => {
                     <p className="text-[#747576] font-medium">Professional financial management for enterprise.</p>
                 </div>
 
-                {/* Login Form Card */}
                 <div className="bg-white p-10 rounded-[32px] shadow-[0_32px_64px_-12px_rgba(0,0,0,0.04)] border border-slate-100 mb-8">
+                    {error && (
+                        <div className="mb-6 p-4 rounded-xl bg-red-50 border border-red-100 text-red-600 text-[13px] font-medium animate-in fade-in slide-in-from-top-2">
+                            {error}
+                        </div>
+                    )}
                     <form onSubmit={handleLogin} className="space-y-6">
                         <div className="space-y-2">
                             <label className="text-[13px] font-semibold text-[#747576] ml-1">Email address</label>

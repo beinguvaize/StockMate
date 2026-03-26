@@ -20,28 +20,29 @@ const SaaSLogin = () => {
         setMousePos({ x, y });
     };
 
-    const handleLogin = (e) => {
+    const [error, setError] = useState('');
+
+    const handleLogin = async (e) => {
         e.preventDefault();
-        const user = users.find(u => u.email === email && u.status === 'ACTIVE');
-        if (user) {
-            login(user.id);
-            const roles = user.roles || [user.role || 'SALES'];
-            if (roles.includes('ADMIN') || roles.includes('GLOBAL_ADMIN')) navigate('/dashboard');
-            else if (roles.includes('SALES')) navigate('/sales');
-            else navigate('/');
+        setError('');
+        const result = await login(email, password);
+        if (result.success) {
+            navigate('/');
+        } else {
+            setError(result.error || 'Invalid credentials');
         }
     };
 
-    const handleQuickLogin = (user) => {
+    const handleQuickLogin = async (user) => {
         setEmail(user.email);
         setPassword('password');
-        setTimeout(() => {
-            login(user.id);
-            const roles = user.roles || [user.role || 'SALES'];
-            if (roles.includes('ADMIN') || roles.includes('GLOBAL_ADMIN')) navigate('/dashboard');
-            else if (roles.includes('SALES')) navigate('/sales');
-            else navigate('/');
-        }, 100);
+        setError('');
+        const result = await login(user.email, 'password');
+        if (result.success) {
+            navigate('/');
+        } else {
+            setError(result.error || 'Quick login failed');
+        }
     };
 
     return (
@@ -111,6 +112,11 @@ const SaaSLogin = () => {
                             </div>
 
                             <form onSubmit={handleLogin} className="space-y-10">
+                                {error && (
+                                    <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-500 text-sm font-medium animate-in fade-in slide-in-from-top-2">
+                                        {error}
+                                    </div>
+                                )}
                                 <div className="space-y-4">
                                     <label className="block text-xs font-black uppercase tracking-[0.4em] text-ink-secondary opacity-50 ml-2">Identity Token (Email)</label>
                                     <input 
