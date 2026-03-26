@@ -11,7 +11,14 @@ if (env === 'development' && url?.includes('prod')) {
 
 export const isSupabaseConfigured = !!(url && key && !key.includes('REPLACE-'));
 
-export const supabase = isSupabaseConfigured ? createClient(url, key) : null;
+export const supabase = isSupabaseConfigured ? createClient(url, key, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storageKey: 'sm-auth-token' // Unique key to avoid lock conflicts
+  }
+}) : null;
 
 /**
  * Upload a product image to Supabase Storage.

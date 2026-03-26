@@ -1316,9 +1316,12 @@ export const AppProvider = ({ children }) => {
                     
                     // Auto-persist superuser profile to public.users if missing
                     if (isSuperUser) {
-                        supabase.from('users').upsert(newUserProfile).then(({ error }) => {
-                            if (error) console.error("Error auto-provisioning superuser:", error);
-                        });
+                        try {
+                            const { error } = await supabase.from('users').upsert(newUserProfile);
+                            if (error) console.error("Error auto-provisioning superuser:", error.message);
+                        } catch (e) {
+                            console.error("Auto-provisioning exception:", e.message);
+                        }
                     }
                 }
 
