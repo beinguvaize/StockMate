@@ -46,8 +46,8 @@ const DayBook = () => {
 
     // Logic for opening balance
     const openingBalance = useMemo(() => {
-        if (existingRecord) return existingRecord.opening_balance;
         if (manualOpeningBalance !== '') return parseFloat(manualOpeningBalance) || 0;
+        if (existingRecord) return existingRecord.opening_balance;
         return previousDayRecord ? (previousDayRecord.closing_balance || 0) : 0;
     }, [existingRecord, manualOpeningBalance, previousDayRecord]);
 
@@ -140,7 +140,7 @@ const DayBook = () => {
                 {/* Main Ledger Card */}
                 <div className="lg:col-span-8 space-y-6">
                     <div className="glass-panel border-black/5 bg-white shadow-premium !p-10 relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-10 opacity-[0.03] rotate-12">
+                        <div className="absolute top-0 right-0 p-10 opacity-[0.03] rotate-12 pointer-events-none">
                             <BookOpen size={200} />
                         </div>
 
@@ -151,7 +151,7 @@ const DayBook = () => {
                                     <h2 className="text-sm font-black text-ink-primary uppercase tracking-[0.3em] mb-1">Opening Balance</h2>
                                     <p className="text-[10px] font-bold text-ink-secondary uppercase tracking-widest opacity-50">Cash in hand from previous session</p>
                                 </div>
-                                {!existingRecord && !existingRecord?.is_closed && (
+                                 {!existingRecord?.is_closed && (
                                     <button 
                                         onClick={() => setManualOpeningBalance(openingBalance.toString())}
                                         className="text-[9px] font-black text-accent-signature-hover uppercase tracking-widest bg-accent-signature/10 px-3 py-1.5 rounded-pill border border-accent-signature/20 hover:bg-accent-signature/20 transition-all"
@@ -164,7 +164,7 @@ const DayBook = () => {
                             <div className="flex items-center gap-6">
                                 <div className="text-6xl font-black text-ink-primary tracking-tighter tabular-nums flex items-center">
                                     <span className="text-3xl opacity-20 mr-2">{businessProfile?.currencySymbol || '₹'}</span>
-                                    {manualOpeningBalance !== '' && !existingRecord ? (
+                                    {manualOpeningBalance !== '' ? (
                                         <input 
                                             type="number"
                                             className="bg-canvas rounded-2xl px-6 py-2 w-64 outline-none focus:ring-4 focus:ring-accent-signature/20"
