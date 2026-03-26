@@ -204,23 +204,48 @@ export const AppProvider = ({ children }) => {
     };
 
     const addUser = async (userData) => {
-        const newUser = {
-            ...userData,
-            id: userData.id || `USR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-            status: 'ACTIVE',
-            roles: userData.roles || [userData.role || 'STAFF']
-        };
-        
-        if (isSupabaseConfigured) {
-            const { error } = await supabase.from('users').upsert(newUser);
+        if (isSupabaseConfigured && userData.password) {
+            // Use secure RPC for nuclear provisioning (auth + public records)
+            const { data: newId, error } = await supabase.rpc('create_staff_account', {
+                new_email: userData.email,
+                new_password: userData.password,
+                new_roles: userData.roles || [userData.role || 'STAFF'],
+                new_name: userData.name
+            });
+
             if (error) {
-                console.error("Error adding user to Supabase:", error);
-                addNotification(`Cloud User Save Failed: ${error.message}`, "error");
+                console.error("Critical User Provisioning Failure:", error);
+                addNotification(`Staff Creation Failed: ${error.message}`, "error");
                 return;
             }
-        }
 
-        setUsers([...users, newUser]);
+            const newUser = {
+                ...userData,
+                id: newId,
+                status: 'ACTIVE',
+                roles: userData.roles || [userData.role || 'STAFF']
+            };
+            setUsers([...users, newUser]);
+            addNotification(`Staff account activated for ${userData.email}`, "success");
+        } else {
+            // Local fallback or missing password
+            const newUser = {
+                ...userData,
+                id: userData.id || `USR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+                status: 'ACTIVE',
+                roles: userData.roles || [userData.role || 'STAFF']
+            };
+            
+            if (isSupabaseConfigured) {
+                const { error } = await supabase.from('users').upsert(newUser);
+                if (error) {
+                    console.error("Error adding user profile to Supabase:", error);
+                    addNotification(`Cloud User Save Failed: ${error.message}`, "error");
+                    return;
+                }
+            }
+            setUsers([...users, newUser]);
+        }
     };
 
     const updateUser = async (updatedUser) => {
@@ -1304,14 +1329,25 @@ export const AppProvider = ({ children }) => {
                 if (profile) {
                     setCurrentUser(profile);
                 } else {
+                    const isSuperUser = session.user.email === 'uvaize@hotmail.com' || session.user.email === 'gladmin@ledgrpro.ca';
                     const newUserProfile = {
                         id: session.user.id,
                         email: session.user.email,
                         name: session.user.email.split('@')[0],
-                        roles: ['STAFF'],
+                        roles: isSuperUser ? ['GLOBAL_ADMIN', 'OWNER'] : ['STAFF'],
                         status: 'ACTIVE'
                     };
                     setCurrentUser(newUserProfile);
+                    
+                    // Auto-persist superuser profile to public.users if missing
+                    if (isSuperUser) {
+                        try {
+                            const { error } = await supabase.from('users').upsert(newUserProfile);
+                            if (error) console.error("Error auto-provisioning superuser:", error.message);
+                        } catch (e) {
+                            console.error("Auto-provisioning exception:", e.message);
+                        }
+                    }
                 }
 
                 // Whenever we have a NEW user session, refresh data
@@ -1331,7 +1367,7 @@ export const AppProvider = ({ children }) => {
         initializeApp();
     }, []);
 
-    const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN') || currentUser?.role?.toLowerCase() === 'owner';
+    const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN') || currentUser?.role?.toLowerCase() === 'owner' || currentUser?.email === 'uvaize@hotmail.com';
     const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.role?.toLowerCase() === 'staff';
 
     const value = {

@@ -27,6 +27,7 @@ const Users = () => {
     const [isAdding, setIsAdding] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
     const [formData, setFormData] = useState({ name: '', email: '', roles: ['SALES'] });
+    const [isSaving, setIsSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
 
     const openAdd = () => {
@@ -63,16 +64,25 @@ const Users = () => {
         });
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        if (editingUser) {
-            updateUser({ ...editingUser, ...formData });
-        } else {
-            addUser(formData);
+        if (isSaving) return;
+        
+        setIsSaving(true);
+        try {
+            if (editingUser) {
+                await updateUser({ ...editingUser, ...formData });
+            } else {
+                await addUser(formData);
+            }
+            setIsAdding(false);
+            setEditingUser(null);
+            setFormData({ name: '', email: '', roles: ['SALES'] });
+        } catch (err) {
+            console.error("Form submission error:", err);
+        } finally {
+            setIsSaving(false);
         }
-        setIsAdding(false);
-        setEditingUser(null);
-        setFormData({ name: '', email: '', roles: ['SALES'] });
     };
 
     const toggleStatus = (user) => {
@@ -169,6 +179,20 @@ const Users = () => {
                                 </div>
                             </div>
 
+                            {!editingUser && (
+                                <div>
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-1.5 opacity-70">Security Password</label>
+                                    <input 
+                                        required 
+                                        type="password" 
+                                        className="w-full bg-canvas border-none rounded-2xl p-4 font-black text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
+                                        placeholder="MIN 6 CHARACTERS..."
+                                        value={formData.password || ''} 
+                                        onChange={e => setFormData({...formData, password: e.target.value})} 
+                                    />
+                                </div>
+                            )}
+
                             <div>
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-2 opacity-70">Role Access Levels</label>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -203,10 +227,14 @@ const Users = () => {
 
                             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-black/5">
                                 <button type="button" className="px-6 py-3 rounded-pill border border-black/10 font-black text-ink-primary text-[10px] uppercase tracking-[0.2em] hover:bg-black/5 transition-all cursor-pointer" onClick={() => { setIsAdding(false); setEditingUser(null); }}>Cancel</button>
-                                <button type="submit" className="btn-signature !h-12 !text-xs flex items-center justify-center px-6 !rounded-pill">
-                                    {editingUser ? 'SAVE CHANGES' : 'ADD STAFF'}
+                                <button 
+                                    type="submit" 
+                                    disabled={isSaving}
+                                    className={`btn-signature !h-12 !text-xs flex items-center justify-center px-6 !rounded-pill ${isSaving ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
+                                    {isSaving ? 'PROCESSING...' : (editingUser ? 'SAVE CHANGES' : 'ADD STAFF')}
                                     <div className="icon-nest !w-8 !h-8 ml-4">
-                                        <Save size={18} />
+                                        <Save size={18} className={isSaving ? 'animate-spin' : ''} />
                                     </div>
                                 </button>
                             </div>
