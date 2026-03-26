@@ -205,28 +205,54 @@ export const AppProvider = ({ children }) => {
 
     const addUser = async (userData) => {
         if (isSupabaseConfigured && userData.password) {
-            // Use secure RPC for nuclear provisioning (auth + public records)
-            const { data: newId, error } = await supabase.rpc('create_staff_account', {
-                new_email: userData.email,
-                new_password: userData.password,
-                new_roles: userData.roles || [userData.role || 'STAFF'],
-                new_name: userData.name
-            });
+            let retryCount = 0;
+            const maxRetries = 2;
 
-            if (error) {
-                console.error("Critical User Provisioning Failure:", error);
-                addNotification(`Staff Creation Failed: ${error.message}`, "error");
-                return;
-            }
+            const attemptProvision = async () => {
+                try {
+                    const { data: newId, error } = await supabase.rpc('create_staff_account', {
+                        new_email: userData.email,
+                        new_password: userData.password,
+                        new_roles: userData.roles || [userData.role || 'STAFF'],
+                        new_name: userData.name
+                    });
 
-            const newUser = {
-                ...userData,
-                id: newId,
-                status: 'ACTIVE',
-                roles: userData.roles || [userData.role || 'STAFF']
+                    if (error) {
+                        // Handle "Lock broken" with a retry
+                        if (error.name === 'AbortError' || error.message?.includes('Lock broken')) {
+                            if (retryCount < maxRetries) {
+                                retryCount++;
+                                console.warn(`Retrying user provisioning (${retryCount}/${maxRetries})...`);
+                                await new Promise(resolve => setTimeout(resolve, 800 * retryCount));
+                                return attemptProvision();
+                            }
+                        }
+                        
+                        console.error("Critical User Provisioning Failure:", error);
+                        addNotification(`Staff Creation Failed: ${error.message}`, "error");
+                        return;
+                    }
+
+                    const newUser = {
+                        ...userData,
+                        id: newId,
+                        status: 'ACTIVE',
+                        roles: userData.roles || [userData.role || 'STAFF']
+                    };
+                    setUsers([...users, newUser]);
+                    addNotification(`Staff account activated for ${userData.email}`, "success");
+                } catch (err) {
+                    if (retryCount < maxRetries) {
+                        retryCount++;
+                        await new Promise(resolve => setTimeout(resolve, 800));
+                        return attemptProvision();
+                    }
+                    console.error("AddUser Exception:", err);
+                    addNotification("System error during staff creation", "error");
+                }
             };
-            setUsers([...users, newUser]);
-            addNotification(`Staff account activated for ${userData.email}`, "success");
+
+            return attemptProvision();
         } else {
             // Local fallback or missing password
             const newUser = {

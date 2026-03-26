@@ -11,20 +11,12 @@ if (env === 'development' && url?.includes('prod')) {
 
 export const isSupabaseConfigured = !!(url && key && !key.includes('REPLACE-'));
 
-// Define a no-op lock to prevent "AbortError: Lock broken" in concurrent environments
-const noOpLock = {
-  acquire: () => Promise.resolve(),
-  release: () => Promise.resolve(),
-};
-
 export const supabase = isSupabaseConfigured ? createClient(url, key, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storageKey: 'sm-auth-token',
-    storage: typeof window !== 'undefined' ? window.localStorage : null,
-    lock: noOpLock // This stops the "steal" option errors
+    storageKey: 'sm-auth-token'
   }
 }) : null;
 
