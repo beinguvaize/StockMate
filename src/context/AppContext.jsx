@@ -197,55 +197,63 @@ export const AppProvider = ({ children }) => {
     };
 
     const logout = async () => {
-        if (isSupabaseConfigured) {
-            await supabase.auth.signOut();
+        try {
+            if (isSupabaseConfigured) {
+                // Try clean signOut but don't block on it
+                supabase.auth.signOut().catch(e => console.warn("SignOut background error:", e));
+            }
+        } catch (e) {
+            console.error("Logout caught error:", e);
+        } finally {
+            // Definitively clear session
+            setCurrentUser(null);
+            
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('sm_current_user');
+                localStorage.removeItem('sm-auth-token');
+                localStorage.removeItem('supabase.auth.token');
+                
+                // Force a reload to clean app state and routes
+                window.location.href = '/login';
+            }
         }
-        setCurrentUser(null);
     };
 
     const addUser = async (userData) => {
-        if (isSupabaseConfigured && userData.password) {
-            // Use secure RPC for nuclear provisioning (auth + public records)
-            const { data: newId, error } = await supabase.rpc('create_staff_account', {
-                new_email: userData.email,
-                new_password: userData.password,
-                new_roles: userData.roles || [userData.role || 'STAFF'],
-                new_name: userData.name
-            });
+        const newUser = {
+            id: userData.id || generateUUID(),
+            name: userData.name,
+            email: userData.email,
+            roles: userData.roles || [userData.role || 'STAFF'],
+            status: 'ACTIVE'
+        };
 
-            if (error) {
-                console.error("Critical User Provisioning Failure:", error);
-                addNotification(`Staff Creation Failed: ${error.message}`, "error");
-                return;
+        if (isSupabaseConfigured) {
+            // Step 1: Save profile to public.users
+            const { error: profileError } = await supabase.from('users').upsert(newUser);
+            if (profileError) {
+                console.error("Error saving staff profile:", profileError);
+                addNotification(`Failed to save staff profile: ${profileError.message}`, "error");
+                return false;
             }
 
-            const newUser = {
-                ...userData,
-                id: newId,
-                status: 'ACTIVE',
-                roles: userData.roles || [userData.role || 'STAFF']
-            };
-            setUsers([...users, newUser]);
-            addNotification(`Staff account activated for ${userData.email}`, "success");
-        } else {
-            // Local fallback or missing password
-            const newUser = {
-                ...userData,
-                id: userData.id || `USR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                status: 'ACTIVE',
-                roles: userData.roles || [userData.role || 'STAFF']
-            };
-            
-            if (isSupabaseConfigured) {
-                const { error } = await supabase.from('users').upsert(newUser);
-                if (error) {
-                    console.error("Error adding user profile to Supabase:", error);
-                    addNotification(`Cloud User Save Failed: ${error.message}`, "error");
-                    return;
+            // Step 2: Send a password invitation/reset email so they can set their login password
+            if (userData.email) {
+                const { error: inviteError } = await supabase.auth.resetPasswordForEmail(userData.email, {
+                    redirectTo: `${window.location.origin}/login`
+                });
+                if (inviteError) {
+                    // Non-critical: profile saved, just couldn't send invite email
+                    console.warn("Could not send invite email:", inviteError.message);
+                    addNotification(`${userData.name} added. Note: Could not send invite email — add them in Supabase Auth manually.`, "warning");
+                } else {
+                    addNotification(`${userData.name} added! An invitation email has been sent to ${userData.email}.`, "success");
                 }
             }
-            setUsers([...users, newUser]);
         }
+        
+        setUsers(prev => [...prev, newUser]);
+        return true;
     };
 
     const updateUser = async (updatedUser) => {
@@ -875,7 +883,7 @@ export const AppProvider = ({ children }) => {
         const val = employeeSchema.safeParse(emp);
         if (!val.success) {
             addNotification("Validation failed: " + val.error.errors[0].message, "error");
-            return;
+            return false;
         }
         const newEmp = {
             id: emp.id || `EMP-${Date.now()}`,
@@ -899,11 +907,13 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('employees').upsert(newEmp);
             if (error) {
                 console.error("Error adding employee to Supabase:", error);
-                addNotification("Failed to save employee to cloud", "error");
-                return;
+                addNotification("Failed to save employee to cloud: " + error.message, "error");
+                return false;
             }
         }
         setEmployees(prev => [...prev, newEmp]);
+        addNotification(`${emp.name} added successfully`, "success");
+        return true;
     };
 
     const updateEmployee = async (updated) => {

@@ -15,6 +15,7 @@ const Payroll = () => {
 
     const [activeTab, setActiveTab] = useState('EMPLOYEES');
     const [showForm, setShowForm] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState(null);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
     const [showPayRunModal, setShowPayRunModal] = useState(false);
@@ -58,8 +59,9 @@ const Payroll = () => {
         setShowForm(true);
     };
 
-    const handleSubmit = (e) => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+        if (isSaving) return;
         const dailyRate = parseFloat(empForm.dailyRate) || 0;
         const daysWorked = parseFloat(empForm.daysWorked) || 0;
         const basePay = (dailyRate > 0 && daysWorked > 0) ? (dailyRate * daysWorked) : (parseFloat(empForm.basePay) || 0);
@@ -70,13 +72,24 @@ const Payroll = () => {
             dailyRate,
             daysWorked
         };
-        if (editingEmployee) {
-            updateEmployee({ ...editingEmployee, ...data });
-        } else {
-            addEmployee(data);
+        setIsSaving(true);
+        try {
+            let success;
+            if (editingEmployee) {
+                await updateEmployee({ ...editingEmployee, ...data });
+                success = true;
+            } else {
+                success = await addEmployee(data);
+            }
+            if (success !== false) {
+                setShowForm(false);
+                setEditingEmployee(null);
+            }
+        } catch(err) {
+            console.error('Employee form error:', err);
+        } finally {
+            setIsSaving(false);
         }
-        setShowForm(false);
-        setEditingEmployee(null);
     };
 
     const handleDelete = (empId) => {
