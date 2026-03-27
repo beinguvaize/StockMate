@@ -296,8 +296,10 @@ export const AppProvider = ({ children }) => {
             outstanding_balance: client.outstanding_balance || 0
         };
         
+        const { status, ...dbClient } = newClient;
+
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('clients').upsert(newClient);
+            const { error } = await supabase.from('clients').upsert(dbClient);
             if (error) {
                 console.error("Error adding client to Supabase:", error);
                 addNotification(`Cloud Sync Delayed: Client saved locally`, "warning");
@@ -308,8 +310,10 @@ export const AppProvider = ({ children }) => {
     };
 
     const updateClient = async (updatedClient) => {
+        const { status, ...dbClient } = updatedClient;
+
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('clients').upsert(updatedClient);
+            const { error } = await supabase.from('clients').upsert(dbClient);
             if (error) {
                 console.error("Error updating client in Supabase:", error);
                 addNotification("Failed to update client in cloud", "error");
@@ -337,12 +341,14 @@ export const AppProvider = ({ children }) => {
             addNotification("Validation failed: " + val.error.errors[0].message, "error");
             return;
         }
+        const { title, date, routeId, splitType, ...restExpense } = expense;
         const newExpense = { 
-            ...expense, 
+            ...restExpense, 
             id: expense.id || `EXP-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, 
-            date: expense.date || new Date().toISOString(),
-            route_id: expense.routeId,
-            split_type: expense.splitType || null
+            date: date || new Date().toISOString(),
+            route_id: routeId,
+            split_type: splitType || null,
+            note: title || ''
         };
         
         if (isSupabaseConfigured) {
@@ -443,7 +449,6 @@ export const AppProvider = ({ children }) => {
             totalCogs,
             customerInfo,
             paymentMethod: paymentType,
-            payment_type: paymentType,
             paymentStatus: paymentType === 'cash' ? 'PAID' : 'PENDING',
             status,
             routeId,
@@ -452,8 +457,29 @@ export const AppProvider = ({ children }) => {
             bookedBy: currentUser?.id
         };
 
+        const dbSale = {
+            id: newSale.id,
+            date: newSale.date,
+            shopId: clientId,
+            items: cartItems,
+            subtotal,
+            discount,
+            tax,
+            totalAmount,
+            totalCogs,
+            customerInfo,
+            paymentMethod: paymentType,
+            payment_type: paymentType,
+            paymentStatus: paymentType === 'cash' ? 'PAID' : 'PENDING',
+            status,
+            routeId,
+            scheduledDate,
+            note: salesmanNote,
+            bookedBy: currentUser?.id
+        };
+
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('sales').insert(newSale);
+            const { error } = await supabase.from('sales').insert(dbSale);
             if (error) {
                 console.error("Error placing sale in Supabase:", error);
                 addNotification(`Cloud Sync Delayed: Sale recorded locally`, "warning");
@@ -1001,8 +1027,21 @@ export const AppProvider = ({ children }) => {
             created_at: new Date().toISOString()
         };
 
+        const dbPurchase = {
+            id: newPurchase.id,
+            product_id: purchase.linked_product_id || null,
+            quantity: purchase.quantity,
+            total_amount: purchase.total_cost || 0,
+            date: newPurchase.date,
+            created_at: newPurchase.created_at,
+            linked_product_id: newPurchase.linked_product_id,
+            supplier_name: newPurchase.supplier_name,
+            payment_type: newPurchase.payment_type,
+            notes: newPurchase.notes
+        };
+
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('purchases').insert(newPurchase);
+            const { error } = await supabase.from('purchases').insert(dbPurchase);
             if (error) {
                 console.error("Error saving purchase:", error);
                 addNotification("Failed to save purchase in cloud", "error");
@@ -1045,12 +1084,22 @@ export const AppProvider = ({ children }) => {
             processed_at: new Date().toISOString(),
             processed_by: currentUser?.id
         };
+        
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('payroll').upsert(newRecord);
+            const payrollInserts = payRun.items.map(item => ({
+                id: `PRL-${Date.now()}-${item.employeeId}`,
+                employeeId: item.employeeId,
+                amount: item.netPay,
+                month: payRun.period,
+                processed_at: newRecord.processed_at,
+                processed_by: newRecord.processed_by
+            }));
+            
+            const { error } = await supabase.from('payroll').insert(payrollInserts);
             if (error) {
                 console.error("Error processing payroll in Supabase:", error);
                 addNotification("Failed to process payroll in cloud", "error");
-                return;
+                // Fall through to local state
             }
         }
         setPayrollRecords(prev => [newRecord, ...prev]);
