@@ -483,8 +483,8 @@ const Payroll = () => {
                                             </div>
                                         </div>
                                         {expandedRecord === record.id && (
-                                            <div className="p-12 pt-0 border-t border-black/5 bg-canvas/30 animate-fade-in">
-                                                <div className="grid grid-cols-4 gap-6 py-10">
+                                            <div className="p-4 md:p-12 pt-0 border-t border-black/5 bg-canvas/30 animate-fade-in">
+                                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 py-6 md:py-10">
                                                     <div className="p-8 rounded-bento bg-surface border border-black/5 shadow-sm">
                                                         <div className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] mb-3 opacity-70">Gross Base</div>
                                                         <div className="text-2xl font-black text-ink-primary tracking-tighter">{businessProfile.currencySymbol}{record.totalBase.toLocaleString()}</div>
