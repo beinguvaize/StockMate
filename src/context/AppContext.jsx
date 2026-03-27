@@ -9,28 +9,7 @@ const AppContext = createContext();
 
 export const useAppContext = () => useContext(AppContext);
 
-// Force clear old localStorage schema (Safe check)
-const clearOldData = () => {
-    try {
-        if (typeof localStorage !== 'undefined') {
-            localStorage.removeItem('sm_products');
-            localStorage.removeItem('sm_vehicles');
-            localStorage.removeItem('sm_clients');
-            localStorage.removeItem('sm_sales');
-            localStorage.removeItem('sm_expenses');
-            localStorage.removeItem('sm_movement_log');
-            localStorage.removeItem('sm_employees');
-            localStorage.removeItem('sm_payroll');
-            localStorage.removeItem('sm_day_book');
-            localStorage.removeItem('sm_purchases');
-            localStorage.removeItem('sm_mechanic_payments');
-            localStorage.removeItem('sm_orders');
-        }
-    } catch (e) {
-        console.warn("LocalStorage clear failed:", e);
-    }
-};
-// clearOldData(); // Disabled to prevent any accidental clearing of the session
+
 
 // Enhanced Initial Mock Data (FOR SEEDING ONLY)
 const INITIAL_PRODUCTS = [
@@ -119,16 +98,8 @@ export const AppProvider = ({ children }) => {
     const [loading, setLoading] = useState(true);
     const [initError, setInitError] = useState(null);
     
-    // Auth Session (Persistent)
-    const [currentUser, setCurrentUser] = useState(() => {
-        try {
-            const saved = localStorage.getItem('sm_current_user');
-            return saved ? JSON.parse(saved) : null;
-        } catch (e) {
-            console.error("Failed to restore user session", e);
-            return null;
-        }
-    });
+    // Auth Session — relies entirely on Supabase auth, no local persistence
+    const [currentUser, setCurrentUser] = useState(null);
 
     // Core Data States (100% Cloud - No Local Initializers)
     const [users, setUsers] = useState([]);
@@ -164,19 +135,10 @@ export const AppProvider = ({ children }) => {
         }, 5000);
     };
 
-    // Data Persistence (100% CLOUD - LocalStorage Sync Removed)
+    // Data Persistence (100% CLOUD — No Local Storage)
 
     const initializingRef = useRef(false);
-    // Supabase Sync & Init moved further down
 
-    // Helper: Local persistence for current user
-    useEffect(() => {
-        if (currentUser) {
-            localStorage.setItem('sm_current_user', JSON.stringify(currentUser));
-        } else {
-            localStorage.removeItem('sm_current_user');
-        }
-    }, [currentUser]);
 
     // Data Actions (LOCAL ONLY)
     const login = async (email, password) => {
@@ -199,21 +161,13 @@ export const AppProvider = ({ children }) => {
     const logout = async () => {
         try {
             if (isSupabaseConfigured) {
-                // Try clean signOut but don't block on it
                 supabase.auth.signOut().catch(e => console.warn("SignOut background error:", e));
             }
         } catch (e) {
             console.error("Logout caught error:", e);
         } finally {
-            // Definitively clear session
             setCurrentUser(null);
-            
             if (typeof window !== 'undefined') {
-                localStorage.removeItem('sm_current_user');
-                localStorage.removeItem('sm-auth-token');
-                localStorage.removeItem('supabase.auth.token');
-                
-                // Force a reload to clean app state and routes
                 window.location.href = '/login';
             }
         }

@@ -1136,7 +1136,7 @@ const Reports = () => {
                                             Seed Stress Data
                                         </button>
                                         <button 
-                                            onClick={() => { if(confirm("ABSOLUTE DATA WIPE?")) localStorage.clear(); window.location.reload(); }}
+                                            onClick={() => { if(confirm("ABSOLUTE DATA WIPE?")) window.location.reload(); }}
                                             className="px-6 py-3 bg-white border border-black/5 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-red-50 transition-colors flex items-center gap-3 shadow-sm"
                                         >
                                             <Layers size={14} className="text-red-500" />
