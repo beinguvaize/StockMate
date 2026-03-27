@@ -314,7 +314,7 @@ const Reports = () => {
                     <div className="flex flex-col gap-2">
                         <div className="flex items-center gap-3">
                             <div className="w-1.5 h-10 bg-accent-signature rounded-full"></div>
-                            <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none">REPORTS.</h1>
+                            <h1 className="text-3xl md:text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none">REPORTS.</h1>
                         </div>
                         <p className="text-[10px] font-black text-[#4b5563] tracking-[0.4em] uppercase opacity-85 flex items-center gap-3 mt-3">
                             <Activity size={12} className="text-accent-signature" />
@@ -403,7 +403,7 @@ const Reports = () => {
                         <div className="flex justify-between items-start mb-6">
                             <div>
                                 <span className="text-[9px] font-black uppercase tracking-[0.4em] text-[#4b5563] opacity-85 mb-1 block">TOTAL MONEY COLLECTED</span>
-                                <h3 className="text-6xl font-black text-ink-primary tracking-tighter leading-none tabular-nums">
+                                <h3 className="text-3xl md:text-6xl font-black text-ink-primary tracking-tighter leading-none tabular-nums">
                                     {businessProfile?.currencySymbol || '₹'}{Math.round(metrics.recovered).toLocaleString()}
                                 </h3>
                             </div>

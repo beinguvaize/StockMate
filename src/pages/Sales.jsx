@@ -232,7 +232,7 @@ const Sales = () => {
                     </div>
                     <div className="p-6 bg-canvas rounded-bento border border-black/5 mb-6 text-center">
                         <div className="text-[10px] font-black uppercase tracking-[0.4em] text-[#4b5563] mb-2 opacity-85">Total Amount</div>
-                        <div className="text-6xl font-black text-ink-primary tracking-tighter">
+                        <div className="text-3xl md:text-6xl font-black text-ink-primary tracking-tighter">
                             ₹{lastOrderTotal.toLocaleString()}
                         </div>
                     </div>
@@ -464,7 +464,7 @@ const Sales = () => {
                 {/* Header Section */}
                 <div className="flex justify-between items-end pb-2 border-b border-black/5">
                     <div>
-                        <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">SALES.</h1>
+                        <h1 className="text-3xl md:text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">SALES.</h1>
                     <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest opacity-70">POINT OF SALE & BILLING</p>
                     </div>
                     {!isMobile && (
@@ -646,7 +646,7 @@ const Sales = () => {
                             {/* Capital Summary */}
                             <div className="p-4 bg-canvas rounded-bento border border-black/5 text-center">
                                 <div className="text-[10px] font-black uppercase tracking-[0.4em] text-ink-secondary mb-2 opacity-70">Total Amount Due</div>
-                                <div className="text-6xl font-black text-ink-primary tracking-tighter">₹{cartCalc.finalTotal.toLocaleString()}</div>
+                                <div className="text-3xl md:text-6xl font-black text-ink-primary tracking-tighter">₹{cartCalc.finalTotal.toLocaleString()}</div>
                             </div>
 
                             {/* Itemized List (Compact) */}

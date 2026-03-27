@@ -66,7 +66,7 @@ const Settings = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-8 border-b border-black/5">
                 <div>
-                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">SETTINGS.</h1>
+                    <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">SETTINGS.</h1>
                     <p className="text-[10px] font-black text-ink-secondary tracking-widest uppercase opacity-40">SYSTEM CONFIGURATION & PREFERENCES</p>
                 </div>
                 {savedStatus && (

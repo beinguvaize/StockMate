@@ -256,7 +256,7 @@ const Vehicles = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-black/5">
                 <div>
-                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">FLEET.</h1>
+                    <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">FLEET.</h1>
                     <p className="text-[10px] font-black text-ink-secondary tracking-widest uppercase opacity-70">VEHICLE OPTIMIZATION & DELIVERY MANAGEMENT</p>
                 </div>
             </div>
