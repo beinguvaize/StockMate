@@ -2,13 +2,13 @@ import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { 
     Plus, Search, Calendar, Package, Trash2, Save, X, 
-    ArrowUpRight, ShoppingBag, Hash, CreditCard, User
+    ArrowUpRight, ShoppingBag, Hash, CreditCard, User, Building2
 } from 'lucide-react';
 
 const Purchases = () => {
     const { 
         purchases, addPurchase, products, businessProfile, 
-        isViewOnly, hasPermission 
+        suppliers, isViewOnly, hasPermission 
     } = useAppContext();
     
     const [searchTerm, setSearchTerm] = useState('');
@@ -18,17 +18,26 @@ const Purchases = () => {
         linked_product_id: '',
         quantity: '',
         unitCost: '',
+        supplier_id: '',
         supplier_name: '',
         payment_type: 'cash',
         date: new Date().toISOString().split('T')[0],
         notes: ''
     });
 
-    // Fetch unique suppliers for filter
-    const uniqueSuppliers = useMemo(() => {
-        const suppliers = purchases.map(p => p.supplier_name).filter(s => s && s.trim() !== '');
-        return [...new Set(suppliers)].sort((a,b) => a.localeCompare(b));
-    }, [purchases]);
+    // Fetch unique suppliers (Legacy & Formally Registered)
+    const availableSuppliers = useMemo(() => {
+        // Formally registered
+        const formal = suppliers.map(s => ({ id: s.id, name: s.name }));
+        
+        // Legacy (only if not already in formal)
+        const legacyNames = [...new Set(purchases.map(p => p.supplier_name).filter(n => n && n !== 'Unspecified'))];
+        const legacy = legacyNames
+            .filter(name => !suppliers.some(s => s.name === name))
+            .map(name => ({ id: name, name: name + ' (Legacy)' }));
+
+        return [...formal, ...legacy].sort((a,b) => a.name.localeCompare(b.name));
+    }, [suppliers, purchases]);
 
     const filteredPurchases = useMemo(() => {
         if (!Array.isArray(purchases)) return [];
@@ -37,47 +46,29 @@ const Purchases = () => {
                 const product = p.linked_product_id ? products.find(prod => prod.id === p.linked_product_id) : null;
                 const matchesSearch = (product?.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                     (p.supplier_name || '').toLowerCase().includes(searchTerm.toLowerCase());
-                const matchesSupplier = supplierFilter === '' || p.supplier_name === supplierFilter;
+                
+                const matchesSupplier = supplierFilter === '' || 
+                    p.supplier_id === supplierFilter || 
+                    p.supplier_name === supplierFilter;
+
                 return matchesSearch && matchesSupplier;
             })
             .sort((a, b) => new Date(b.date) - new Date(a.date));
     }, [purchases, searchTerm, supplierFilter, products]);
 
-    const now = new Date();
-    const isThisMonth = (dateStr) => {
-        const d = new Date(dateStr);
-        return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
-    };
-
-    const isThisWeek = (dateStr) => {
-        const d = new Date(dateStr);
-        const startOfWeek = new Date(now);
-        startOfWeek.setDate(now.getDate() - now.getDay());
-        startOfWeek.setHours(0,0,0,0);
-        return d >= startOfWeek && d <= now;
-    };
-
-    const statsMonth = useMemo(() => {
-        const monthPurchases = purchases.filter(p => isThisMonth(p.date));
-        return {
-            total: monthPurchases.reduce((sum, p) => sum + (p.total_cost || 0), 0),
-            count: monthPurchases.length
-        };
-    }, [purchases]);
-
-    const statsWeek = useMemo(() => {
-        return purchases.filter(p => isThisWeek(p.date)).reduce((sum, p) => sum + (p.total_cost || 0), 0);
-    }, [purchases]);
-
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        // Find selected supplier name for redundancy
+        const selectedSupplier = availableSuppliers.find(s => s.id === formData.supplier_id);
+
         const purchaseData = {
             ...formData,
-            linked_product_id: formData.linked_product_id || null, // null if left empty
+            linked_product_id: formData.linked_product_id || null,
             quantity: parseFloat(formData.quantity) || 0,
             unit_cost: parseFloat(formData.unitCost) || 0,
-            total_cost: (parseFloat(formData.quantity) || 0) * (parseFloat(formData.unitCost) || 0),
+            supplier_id: formData.supplier_id,
+            supplier_name: selectedSupplier?.name || formData.supplier_name || 'Unspecified'
         };
 
         const success = await addPurchase(purchaseData);
@@ -87,6 +78,7 @@ const Purchases = () => {
                 linked_product_id: '',
                 quantity: '',
                 unitCost: '',
+                supplier_id: '',
                 supplier_name: '',
                 payment_type: 'cash',
                 date: new Date().toISOString().split('T')[0],
@@ -105,21 +97,6 @@ const Purchases = () => {
                         <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-70">INVENTORY PROCUREMENT & STOCK IN</p>
                     </div>
                     <div className="flex items-center gap-6">
-                        <div className="flex gap-6 pr-6 border-r border-black/10">
-                            <div className="text-right">
-                                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-70 mb-1">Total This Month</div>
-                                <div className="text-xl font-black text-ink-primary tracking-tighter">
-                                    {businessProfile?.currencySymbol || '₹'}{statsMonth.total.toLocaleString()}
-                                </div>
-                                <div className="text-[9px] font-bold text-ink-secondary/60 tracking-widest uppercase mt-0.5">{statsMonth.count} Purchases</div>
-                            </div>
-                            <div className="text-right">
-                                <div className="text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-70 mb-1">Total This Week</div>
-                                <div className="text-xl font-black text-ink-primary tracking-tighter">
-                                    {businessProfile?.currencySymbol || '₹'}{statsWeek.toLocaleString()}
-                                </div>
-                            </div>
-                        </div>
                         {!isViewOnly() && (
                             <button className="btn-signature h-12 !px-5 !rounded-pill flex items-center justify-between gap-6 group transition-all" onClick={() => setIsAdding(true)}>
                                 <span className="text-xs font-black uppercase tracking-widest px-2">LOCAL STOCK IN</span>
@@ -144,22 +121,15 @@ const Purchases = () => {
                         />
                     </div>
                     <div className="w-full md:w-64 relative">
-                        <User size={14} className="absolute left-5 top-1/2 -translate-y-1/2 text-ink-primary opacity-30 z-10" />
+                        <Building2 size={14} className="absolute left-5 top-1/2 -translate-y-1/2 text-ink-primary opacity-30 z-10" />
                         <select
                             className="w-full h-12 bg-surface border border-black/5 rounded-pill pl-10 pr-5 font-black text-xs text-ink-primary uppercase tracking-widest outline-none shadow-premium cursor-pointer appearance-none"
                             value={supplierFilter}
                             onChange={(e) => setSupplierFilter(e.target.value)}
                         >
                             <option value="">ALL SUPPLIERS</option>
-                            {uniqueSuppliers.map(s => <option key={s} value={s}>{s}</option>)}
+                            {availableSuppliers.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
                         </select>
-                    </div>
-                    <div className="glass-panel !p-1 bg-white border border-black/5 flex items-center justify-between rounded-pill shadow-sm !h-12 overflow-hidden px-4 md:w-48 shrink-0">
-                        <div className="flex items-center gap-3">
-                            <ShoppingBag size={14} className="text-ink-secondary opacity-40" />
-                            <span className="text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Batches</span>
-                        </div>
-                        <span className="text-xl font-black text-ink-primary tracking-tighter">{filteredPurchases.length}</span>
                     </div>
                 </div>
 
@@ -174,7 +144,7 @@ const Purchases = () => {
                         <table className="w-full text-left border-collapse">
                             <thead>
                                 <tr className="border-b border-black/5 bg-canvas font-inter">
-                                    <th className="p-4 pl-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Supplier Name</th>
+                                    <th className="p-4 pl-8 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Supplier Partner</th>
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70">Linked Product</th>
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-center">Batch Size</th>
                                     <th className="p-4 text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 text-center">Payment</th>
@@ -184,11 +154,14 @@ const Purchases = () => {
                             <tbody className="divide-y divide-black/5 bg-white">
                                 {filteredPurchases.map(p => {
                                     const product = p.linked_product_id ? products.find(prod => prod.id === p.linked_product_id) : null;
+                                    const supplier = suppliers.find(s => s.id === p.supplier_id);
                                     return (
                                         <tr key={p.id} className="group hover:bg-canvas transition-colors">
                                             <td className="p-4 pl-8">
                                                 <div className="flex flex-col">
-                                                    <div className="text-[10px] font-black text-ink-primary uppercase tracking-widest">{p.supplier_name || 'UNSPECIFIED'}</div>
+                                                    <div className="text-[10px] font-black text-ink-primary uppercase tracking-widest">
+                                                        {supplier?.name || p.supplier_name || 'UNSPECIFIED'}
+                                                    </div>
                                                     {p.notes && <div className="text-[9px] font-bold text-ink-secondary lowercase tracking-widest opacity-50 mt-0.5 truncate max-w-[150px]">{p.notes}</div>}
                                                 </div>
                                             </td>
@@ -298,16 +271,28 @@ const Purchases = () => {
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Supplier Name</label>
-                                    <input 
-                                        type="text" 
-                                        required
-                                        className="w-full bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none" 
-                                        placeholder="JOHN, BANU..."
-                                        value={formData.supplier_name} 
-                                        onChange={e => setFormData({...formData, supplier_name: e.target.value})} 
-                                    />
+                                <div className="md:col-span-2">
+                                    <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Supplier Partner</label>
+                                    <div className="flex gap-2">
+                                        <select 
+                                            className="flex-1 bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none appearance-none cursor-pointer" 
+                                            value={formData.supplier_id} 
+                                            onChange={e => {
+                                                const s = availableSuppliers.find(x => x.id === e.target.value);
+                                                setFormData({...formData, supplier_id: e.target.value, supplier_name: s?.name || ''});
+                                            }}
+                                        >
+                                            <option value="">SELECT FORMAL PARTNER...</option>
+                                            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name.toUpperCase()}</option>)}
+                                        </select>
+                                        <input 
+                                            type="text" 
+                                            placeholder="OR ENTER AD-HOC NAME..."
+                                            className="flex-1 bg-canvas border-none rounded-2xl p-5 font-black text-xs text-ink-primary outline-none" 
+                                            value={formData.supplier_name} 
+                                            onChange={e => setFormData({...formData, supplier_name: e.target.value, supplier_id: ''})} 
+                                        />
+                                    </div>
                                 </div>
 
                                 <div>

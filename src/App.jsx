@@ -16,6 +16,7 @@ import Orders from './pages/Orders';
 import Payroll from './pages/Payroll';
 import DayBook from './pages/DayBook';
 import Purchases from './pages/Purchases';
+import Suppliers from './pages/Suppliers';
 import { ProtectedRoute } from './components/ProtectedRoute';
 /**
  * GuestRoute: Redirects authenticated users away from the login page.
@@ -58,6 +59,7 @@ function AppRoutes() {
         <Route path="payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
         <Route path="daybook" element={<ProtectedRoute><DayBook /></ProtectedRoute>} />
         <Route path="purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
+        <Route path="suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
       </Route>
 
       {/* Catch-all: redirect to home (which will redirect based on auth) */}

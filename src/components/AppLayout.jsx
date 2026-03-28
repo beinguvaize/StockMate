@@ -21,6 +21,7 @@ const Navbar = () => {
         { label: 'Pipeline', path: '/orders', icon: <ClipboardList size={20} /> },
         { label: 'Expenses', path: '/expenses', icon: <Wallet size={20} /> },
         { label: 'Clients', path: '/clients', icon: <Users size={20} /> },
+        { label: 'Suppliers', path: '/suppliers', icon: <Truck size={20} /> },
         { label: 'Payroll', path: '/payroll', icon: <Banknote size={20} />, hidden: !isOwner },
         { label: 'Day Book', path: '/daybook', icon: <BookOpen size={20} /> },
         { label: 'Vehicles', path: '/vehicles', icon: <Truck size={20} /> },

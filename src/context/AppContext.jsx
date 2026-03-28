@@ -115,6 +115,7 @@ export const AppProvider = ({ children }) => {
     const [employees, setEmployees] = useState([]);
     const [payrollRecords, setPayrollRecords] = useState([]);
     const [purchases, setPurchases] = useState([]);
+    const [suppliers, setSuppliers] = useState([]);
     const [mechanicPayments, setMechanicPayments] = useState([]);
     const [dayBook, setDayBook] = useState([]);
     const [expenseCategories, setExpenseCategories] = useState(['Petrol', 'Food', 'Salary', 'Rent', 'Electricity', 'Water', 'Maintenance', 'Stationery', 'Travel', 'Marketing', 'Tax', 'Others']);
@@ -509,7 +510,7 @@ export const AppProvider = ({ children }) => {
             totalAmount,
             totalCogs,
             customerInfo,
-            paymentMethod: paymentType,
+            paymentMethod: paymentType.charAt(0).toUpperCase() + paymentType.slice(1), // Normalize to 'Cash'/'Credit' for RPC
             paymentStatus: paymentType === 'cash' ? 'PAID' : 'PENDING',
             status,
             routeId,
@@ -518,70 +519,66 @@ export const AppProvider = ({ children }) => {
             bookedBy: currentUser?.id
         };
 
-        const dbSale = {
-            id: newSale.id,
-            date: newSale.date,
-            shopId: clientId,
-            items: cartItems,
-            subtotal,
-            discount,
-            tax,
-            totalAmount,
-            totalCogs,
-            customerInfo,
-            paymentMethod: paymentType,
-            payment_type: paymentType,
-            paymentStatus: paymentType === 'cash' ? 'PAID' : 'PENDING',
-            status,
-            routeId,
-            scheduledDate,
-            note: salesmanNote,
-            bookedBy: currentUser?.id
-        };
-
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('sales').insert(dbSale);
-            if (error) {
-                console.error("Error placing sale in Supabase:", error);
-                addNotification(`Cloud Sync Delayed: Sale recorded locally`, "warning");
-                // Fall through
-            }
-        }
+            // Priority 2: Atomic Transaction via RPC
+            const { error: rpcError } = await supabase.rpc('process_sale', {
+                p_id: newSale.id,
+                p_shop_id: clientId,
+                p_items: cartItems,
+                p_total_amount: totalAmount,
+                p_payment_method: newSale.paymentMethod, 
+                p_payment_status: newSale.paymentStatus,
+                p_date: newSale.date,
+                p_user_id: currentUser?.id
+            });
 
-        setSales([newSale, ...sales]);
-        
-        // Update outstanding balance for credit sales
-        if (paymentType === 'credit') {
-            const client = clients.find(c => c.id === clientId);
-            if (client) {
-                const updatedClient = {
-                    ...client,
-                    outstanding_balance: (client.outstanding_balance || 0) + totalAmount
-                };
-                await updateClient(updatedClient);
-            }
-        }
-
-        // Update Day Book Cash if Cash
-        if (paymentType === 'cash') {
-            const today = new Date().toISOString().split('T')[0];
-            const dbRecord = await getDayBookForDate(today);
-            if (dbRecord) {
-                await updateDayBook({
-                    ...dbRecord,
-                    total_sales: (dbRecord.total_sales || 0) + totalAmount
+            if (rpcError) {
+                console.error("❌ Atomic Sale Failed:", rpcError);
+                // Fallback to legacy insert if RPC fails (safeguard during migration)
+                const { error: insertError } = await supabase.from('sales').insert({
+                    ...newSale,
+                    shopId: clientId,
+                    note: salesmanNote
                 });
+                if (insertError) {
+                    addNotification(`Critical: Failed to save sale. Please check connection.`, "error");
+                    return null;
+                }
+                addNotification(`Warning: Atomic sync failed, used legacy fallback.`, "warning");
             }
         }
 
+        // OPTIMISTIC LOCAL UPDATES (Keep UI snappy)
+        setSales(prev => [newSale, ...prev]);
+        
+        // Update outstanding balance locally (for immediate UI reflect)
+        if (paymentType.toLowerCase() === 'credit') {
+            setClients(prev => prev.map(c => 
+                c.id === clientId 
+                    ? { ...c, outstanding_balance: (c.outstanding_balance || 0) + totalAmount }
+                    : c
+            ));
+        }
+
+        // Update Day Book Cash locally if Cash
+        if (paymentType.toLowerCase() === 'cash') {
+            const today = new Date().toISOString().split('T')[0];
+            setDayBook(prev => prev.map(db => 
+                db.date === today 
+                    ? { ...db, total_sales: (db.total_sales || 0) + totalAmount }
+                    : db
+            ));
+        }
+
+        // Update local products stock
         if (status === 'COMPLETED' && !routeId) {
-            setProducts(updatedProducts);
-            if (isSupabaseConfigured) {
-                await supabase.from('products').upsert(updatedProducts);
-            }
+            setProducts(prev => prev.map(p => {
+                const item = cartItems.find(item => item.id === p.id);
+                return item ? { ...p, stock: (p.stock || 0) - item.quantity } : p;
+            }));
         }
 
-        addNotification(`Sale Recorded: ${businessProfile?.currencySymbol || ''}${totalAmount}`, 'success');
+        addNotification(`Sale Processed: ${businessProfile?.currencySymbol || ''}${totalAmount}`, 'success');
         return newSale.id;
     };
 
@@ -1093,52 +1090,99 @@ export const AppProvider = ({ children }) => {
             addNotification("Validation failed: " + val.error.errors[0].message, "error");
             return false;
         }
+
         const newPurchase = {
-            ...purchase,
-            id: purchase.id || generateUUID(),
+            id: `PUR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            date: purchase.date || new Date().toISOString().split('T')[0],
             linked_product_id: purchase.linked_product_id || null,
-            supplier_name: purchase.supplier_name || 'DIRECT MARKET',
+            quantity: Number(purchase.quantity) || 0,
+            unit_cost: Number(purchase.unit_cost) || 0,
+            total_cost: (Number(purchase.quantity) || 0) * (Number(purchase.unit_cost) || 0),
+            supplier_id: purchase.supplier_id || null,
+            supplier_name: purchase.supplier_name || 'Unspecified',
             payment_type: purchase.payment_type || 'cash',
             notes: purchase.notes || '',
-            date: purchase.date || new Date().toISOString(),
             created_at: new Date().toISOString()
         };
 
-        const dbPurchase = {
-            id: newPurchase.id,
-            product_id: purchase.linked_product_id || null,
-            quantity: purchase.quantity,
-            total_amount: purchase.total_cost || 0,
-            date: newPurchase.date,
-            created_at: newPurchase.created_at,
-            linked_product_id: newPurchase.linked_product_id,
-            supplier_name: newPurchase.supplier_name,
-            payment_type: newPurchase.payment_type,
-            notes: newPurchase.notes
-        };
-
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('purchases').insert(dbPurchase);
+            // Priority 4: Atomic Purchase via RPC
+            const { error: rpcError } = await supabase.rpc('process_purchase', {
+                p_id: newPurchase.id,
+                p_product_id: newPurchase.linked_product_id,
+                p_quantity: newPurchase.quantity,
+                p_total_amount: newPurchase.total_cost,
+                p_supplier_id: newPurchase.supplier_id || newPurchase.supplier_name,
+                p_payment_type: newPurchase.payment_type,
+                p_date: newPurchase.date,
+                p_notes: newPurchase.notes,
+                p_user_id: currentUser?.id
+            });
+
+            if (rpcError) {
+                console.error("❌ Atomic Purchase Failed:", rpcError);
+                // Fallback to legacy insert
+                const { error: insertError } = await supabase.from('purchases').insert({
+                    id: newPurchase.id,
+                    product_id: newPurchase.linked_product_id,
+                    quantity: newPurchase.quantity,
+                    total_amount: newPurchase.total_cost,
+                    date: newPurchase.date,
+                    supplier_id: newPurchase.supplier_id,
+                    supplier_name: newPurchase.supplier_name,
+                    payment_type: newPurchase.payment_type,
+                    notes: newPurchase.notes
+                });
+                if (insertError) {
+                    addNotification("Failed to record purchase", "error");
+                    return false;
+                }
+            }
+        }
+
+        // OPTIMISTIC UPDATE
+        setPurchases(prev => [newPurchase, ...prev]);
+        
+        if (newPurchase.linked_product_id) {
+            setProducts(prev => prev.map(p => 
+                p.id === newPurchase.linked_product_id 
+                    ? { ...p, stock: (p.stock || 0) + newPurchase.quantity }
+                    : p
+            ));
+            addNotification(`Stock updated: +${newPurchase.quantity} units`, "success");
+        } else {
+            addNotification("Purchase recorded", "success");
+        }
+
+        return true;
+    };
+
+    const addSupplier = async (supplier) => {
+        const id = `SUP-${Date.now()}`;
+        const newSupplier = { ...supplier, id, created_at: new Date().toISOString() };
+        
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('suppliers').insert(newSupplier);
             if (error) {
-                console.error("Error saving purchase:", error);
-                addNotification("Failed to save purchase in cloud", "error");
+                console.error("Error adding supplier:", error);
+                addNotification("Failed to save supplier", "error");
                 return false;
             }
         }
+        setSuppliers(prev => [newSupplier, ...prev]);
+        return true;
+    };
 
-        // Auto-increment stock if linked to a product
-        if (newPurchase.linked_product_id) {
-            const product = products.find(p => p.id === newPurchase.linked_product_id);
-            if (product) {
-                const newStock = (product.stock || 0) + (Number(newPurchase.quantity) || 0);
-                await updateProduct({ ...product, stock: newStock });
-                addNotification(`Stock updated for ${product.name} — +${newPurchase.quantity} units added`, "success");
+    const deleteSupplier = async (supplierId) => {
+        if (isSupabaseConfigured) {
+            const { error } = await supabase.from('suppliers').delete().eq('id', supplierId);
+            if (error) {
+                console.error("Error deleting supplier:", error);
+                addNotification("Failed to delete supplier", "error");
+                return false;
             }
-        } else {
-            addNotification("Purchase recorded successfully", "success");
         }
-
-        setPurchases(prev => [newPurchase, ...prev]);
+        setSuppliers(prev => prev.filter(s => s.id !== supplierId));
         return true;
     };
 
@@ -1366,7 +1410,8 @@ export const AppProvider = ({ children }) => {
                 { data: movementData },
                 { data: routesData },
                 { data: purchasesData },
-                { data: mechanicData }
+                { data: mechanicData },
+                { data: suppliersData }
             ] = await Promise.all([
                 safeFetch(supabase.from('products').select('*'), 'products'),
                 safeFetch(supabase.from('clients').select('*'), 'clients'),
@@ -1383,7 +1428,8 @@ export const AppProvider = ({ children }) => {
                 safeFetch(supabase.from('movement_log').select('*').order('date', { ascending: false }).limit(200), 'movement_log'),
                 safeFetch(supabase.from('routes').select('*').order('date', { ascending: false }).limit(100), 'routes'),
                 safeFetch(supabase.from('purchases').select('*').order('date', { ascending: false }).limit(200), 'purchases'),
-                safeFetch(supabase.from('mechanic_payments').select('*').order('work_date', { ascending: false }).limit(100), 'mechanic_payments')
+                safeFetch(supabase.from('mechanic_payments').select('*').order('work_date', { ascending: false }).limit(100), 'mechanic_payments'),
+                safeFetch(supabase.from('suppliers').select('*').order('name', { ascending: true }), 'suppliers')
             ]);
             
             if (productsData) setProducts(productsData);
@@ -1393,6 +1439,7 @@ export const AppProvider = ({ children }) => {
             if (usersData) setUsers(usersData);
             if (dayBookData) setDayBook(dayBookData);
             if (paymentsData) setClientPayments(paymentsData);
+            if (suppliersData) setSuppliers(suppliersData);
             
             if (employeesData) {
                 const mappedEmps = employeesData.map(emp => ({
@@ -1550,6 +1597,7 @@ export const AppProvider = ({ children }) => {
         payrollRecords, processPayroll, deletePayrollRecord,
         mechanicPayments, addMechanicPayment,
         purchases, addPurchase,
+        suppliers, addSupplier, deleteSupplier,
         dayBook, updateDayBook, getDayBookForDate,
         recordClientPayment, clientPayments,
         notifications, addNotification,
