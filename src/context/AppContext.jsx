@@ -1293,7 +1293,7 @@ export const AppProvider = ({ children }) => {
     };
 
     // Supabase Sync & Init (REUSABLE)
-    const initializeApp = async () => {
+    const initializeApp = async (force = false) => {
         // Prevent multiple simultaneous initializations
         if (initializingRef.current) return;
         initializingRef.current = true;
@@ -1319,7 +1319,7 @@ export const AppProvider = ({ children }) => {
 
         const lastInitTime = window.lastInitTime || 0;
         const now = Date.now();
-        if (now - lastInitTime < 2000) {
+        if (!force && (now - lastInitTime < 2000)) {
             console.log("⏭️ Skipping redundant initialization (debounced).");
             setLoading(false);
             initializingRef.current = false;
@@ -1329,7 +1329,7 @@ export const AppProvider = ({ children }) => {
         window.lastInitTime = now;
 
         try {
-            console.log("🚀 Initializing App with Supabase (Optimized)...");
+            console.log(force ? "🚀 Force-Initializing App Data..." : "🚀 Initializing App with Supabase (Optimized)...");
             
             // Helper to wrap supabase calls with error handling
             const safeFetch = async (promise, description) => {
@@ -1461,12 +1461,17 @@ export const AppProvider = ({ children }) => {
         }
     };
 
+    const [authSession, setAuthSession] = useState(null);
+
     // Supabase Auth Listener
     useEffect(() => {
         if (!isSupabaseConfigured) return;
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            setAuthSession(session);
+            
             if (session?.user) {
+                setLoading(true);
                 // Fetch user roles/profile from public.users
                 const { data: profile } = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
                 
@@ -1495,11 +1500,15 @@ export const AppProvider = ({ children }) => {
                 }
 
                 // Whenever we have a NEW user session, refresh data
-                if (event === 'SIGNED_IN') {
-                    initializeApp();
+                if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+                    initializeApp(true); // Always force init on actual auth events
+                } else {
+                    setLoading(false);
                 }
             } else {
                 setCurrentUser(null);
+                setAuthSession(null);
+                setLoading(false);
             }
         });
 
@@ -1508,14 +1517,14 @@ export const AppProvider = ({ children }) => {
 
     // Initial load
     useEffect(() => {
-        initializeApp();
+        initializeApp(false);
     }, []);
 
     const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN') || currentUser?.role?.toLowerCase() === 'owner' || currentUser?.email === 'uvaize@hotmail.com';
     const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.role?.toLowerCase() === 'staff';
 
     const value = {
-        currentUser, session: currentUser, isOwner, isStaff, login, logout,
+        currentUser, session: authSession || currentUser, isOwner, isStaff, login, logout,
         businessProfile, updateBusinessProfile,        // Data
         products, addProduct, updateProduct, deleteProduct, adjustStock,
         clients, addClient, updateClient, deleteClient,
@@ -1543,3 +1552,4 @@ export const AppProvider = ({ children }) => {
 
     return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
+
