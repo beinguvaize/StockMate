@@ -1317,8 +1317,19 @@ export const AppProvider = ({ children }) => {
             }
         }, 15000); // 15s timeout
 
+        const lastInitTime = window.lastInitTime || 0;
+        const now = Date.now();
+        if (now - lastInitTime < 2000) {
+            console.log("⏭️ Skipping redundant initialization (debounced).");
+            setLoading(false);
+            initializingRef.current = false;
+            clearTimeout(timeoutId);
+            return;
+        }
+        window.lastInitTime = now;
+
         try {
-            console.log("🚀 Initializing App with Supabase...");
+            console.log("🚀 Initializing App with Supabase (Optimized)...");
             
             // Helper to wrap supabase calls with error handling
             const safeFetch = async (promise, description) => {
@@ -1335,7 +1346,7 @@ export const AppProvider = ({ children }) => {
                 }
             };
 
-            // Fetch initial data from Supabase
+            // Fetch initial data from Supabase - ADDED LIMITS FOR SCALABILITY
             const [
                 { data: productsData },
                 { data: clientsData },
@@ -1356,20 +1367,20 @@ export const AppProvider = ({ children }) => {
             ] = await Promise.all([
                 safeFetch(supabase.from('products').select('*'), 'products'),
                 safeFetch(supabase.from('clients').select('*'), 'clients'),
-                safeFetch(supabase.from('sales').select('*').order('date', { ascending: false }), 'sales'),
-                safeFetch(supabase.from('expenses').select('*').order('date', { ascending: false }), 'expenses'),
+                safeFetch(supabase.from('sales').select('*').order('date', { ascending: false }).limit(500), 'sales'),
+                safeFetch(supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500), 'expenses'),
                 safeFetch(supabase.from('employees').select('*'), 'employees'),
-                safeFetch(supabase.from('payroll').select('*').order('processed_at', { ascending: false }), 'payroll'),
+                safeFetch(supabase.from('payroll').select('*').order('processed_at', { ascending: false }).limit(100), 'payroll'),
                 safeFetch(supabase.from('business_profile').select('*').maybeSingle(), 'business_profile'),
-                safeFetch(supabase.from('day_book').select('*').order('date', { ascending: false }), 'day_book'),
+                safeFetch(supabase.from('day_book').select('*').order('date', { ascending: false }).limit(31), 'day_book'),
                 safeFetch(supabase.from('settings').select('*'), 'settings'),
-                safeFetch(supabase.from('client_payments').select('*').order('date', { ascending: false }), 'client_payments'),
+                safeFetch(supabase.from('client_payments').select('*').order('date', { ascending: false }).limit(500), 'client_payments'),
                 safeFetch(supabase.from('users').select('*'), 'users'),
                 safeFetch(supabase.from('vehicles').select('*'), 'vehicles'),
-                safeFetch(supabase.from('movement_log').select('*').order('date', { ascending: false }), 'movement_log'),
-                safeFetch(supabase.from('routes').select('*').order('date', { ascending: false }), 'routes'),
-                safeFetch(supabase.from('purchases').select('*').order('date', { ascending: false }), 'purchases'),
-                safeFetch(supabase.from('mechanic_payments').select('*').order('work_date', { ascending: false }), 'mechanic_payments')
+                safeFetch(supabase.from('movement_log').select('*').order('date', { ascending: false }).limit(200), 'movement_log'),
+                safeFetch(supabase.from('routes').select('*').order('date', { ascending: false }).limit(100), 'routes'),
+                safeFetch(supabase.from('purchases').select('*').order('date', { ascending: false }).limit(200), 'purchases'),
+                safeFetch(supabase.from('mechanic_payments').select('*').order('work_date', { ascending: false }).limit(100), 'mechanic_payments')
             ]);
             
             if (productsData) setProducts(productsData);
