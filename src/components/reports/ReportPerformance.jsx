@@ -43,9 +43,9 @@ const ReportPerformance = ({ sales, products, businessProfile }) => {
                     <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform">
                         <Zap size={48} className="text-accent-signature" />
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60 mb-2 block font-mono">30D Revenue</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 mb-2 block font-mono">30D Revenue</span>
                     <div className="text-5xl font-black tracking-tighter tabular-nums flex items-baseline gap-2 mb-4">
-                        <span className="text-xl opacity-40 ">{businessProfile?.currencySymbol || '₹'}</span>
+                        <span className="text-xl text-white/40">{businessProfile?.currencySymbol || '₹'}</span>
                         {Math.round(performanceData.totalRevenue).toLocaleString()}
                     </div>
                     <div className="flex items-center gap-2 text-accent-signature">
@@ -55,9 +55,9 @@ const ReportPerformance = ({ sales, products, businessProfile }) => {
                 </div>
 
                 <div className="glass-panel !p-8 rounded-[2.5rem] border border-black/5 flex flex-col justify-center">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-60 mb-2 block font-mono font-black">Velocity</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-ink-tertiary mb-2 block font-mono font-black">Velocity</span>
                     <div className="text-4xl font-black text-ink-primary tracking-tighter tabular-nums mb-4">
-                        {performanceData.transactionCount} <span className="text-lg font-black opacity-30">TXNS</span>
+                        {performanceData.transactionCount} <span className="text-lg font-black text-ink-tertiary/40">TXNS</span>
                     </div>
                     <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden">
                         <div className="bg-accent-signature h-full w-[65%]" />
@@ -65,11 +65,11 @@ const ReportPerformance = ({ sales, products, businessProfile }) => {
                 </div>
 
                 <div className="glass-panel !p-8 rounded-[2.5rem] border border-black/5 flex flex-col justify-center">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-ink-secondary opacity-60 mb-2 block font-mono font-black">Ticket Size</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-ink-tertiary mb-2 block font-mono font-black">Ticket Size</span>
                     <div className="text-4xl font-black text-ink-primary tracking-tighter tabular-nums mb-4">
                         {businessProfile?.currencySymbol || '₹'}{Math.round(performanceData.avgOrderValue).toLocaleString()}
                     </div>
-                    <div className="flex items-center gap-2 text-ink-secondary opacity-40">
+                    <div className="flex items-center gap-2 text-ink-tertiary">
                         <Target size={14} />
                         <span className="text-[9px] font-black uppercase tracking-widest">Efficiency Goal: {businessProfile?.currencySymbol || '₹'}5,000</span>
                     </div>
@@ -81,9 +81,9 @@ const ReportPerformance = ({ sales, products, businessProfile }) => {
                 <div className="flex justify-between items-center mb-10">
                     <div>
                         <h3 className="text-2xl font-black tracking-tighter uppercase leading-none mb-1">Top Yield Products</h3>
-                        <p className="text-[10px] font-black tracking-widest uppercase text-ink-secondary opacity-50">Revenue Contribution by item</p>
+                        <p className="text-[10px] font-black tracking-widest uppercase text-ink-secondary">Revenue Contribution by item</p>
                     </div>
-                    <Award size={32} className="text-accent-signature opacity-50" />
+                    <Award size={32} className="text-accent-signature text-opacity-50" />
                 </div>
 
                 <div className="space-y-6">
@@ -98,7 +98,7 @@ const ReportPerformance = ({ sales, products, businessProfile }) => {
                                     </div>
                                     <div className="text-right">
                                         <span className="text-xs font-black font-mono text-ink-primary">{businessProfile?.currencySymbol || '₹'}{Math.round(p.revenue).toLocaleString()}</span>
-                                        <span className="text-[10px] font-black opacity-30 ml-2 uppercase">{p.units} Units</span>
+                                        <span className="text-[10px] font-black text-ink-tertiary ml-2 uppercase">{p.units} Units</span>
                                     </div>
                                 </div>
                                 <div className="w-full bg-black/5 h-3 rounded-full overflow-hidden relative border border-white">
@@ -107,7 +107,7 @@ const ReportPerformance = ({ sales, products, businessProfile }) => {
                                         style={{ width: `${percent}%` }}
                                     />
                                     <div className="absolute inset-y-0 right-3 flex items-center">
-                                        <span className="text-[8px] font-black text-ink-primary opacity-40">{Math.round(percent)}%</span>
+                                        <span className="text-[8px] font-black text-ink-tertiary">{Math.round(percent)}%</span>
                                     </div>
                                 </div>
                             </div>
@@ -123,7 +123,7 @@ const ReportPerformance = ({ sales, products, businessProfile }) => {
                 </div>
                 <div className="flex-1">
                     <h4 className="text-lg font-black tracking-tighter uppercase mb-1">Organization Health Insight</h4>
-                    <p className="text-sm font-bold text-ink-primary leading-relaxed opacity-70">
+                    <p className="text-sm font-bold text-ink-primary leading-relaxed">
                         Your average order value has increased by 12% this month. Higher ticket sizes are driven by product bundles. Consider launching a loyalty program for your top 5 customers to maintain this momentum.
                     </p>
                 </div>

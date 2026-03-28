@@ -46,14 +46,14 @@ const HRReports = ({ employees, payroll, businessProfile }) => {
             {/* HR KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="glass-panel !p-8 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest mb-2 block opacity-70">Total Headcount</span>
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Total Headcount</span>
                     <div className="text-4xl font-black text-ink-primary tracking-tighter mb-2">
                         {employees.length}
                     </div>
                     <div className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Active Personnel</div>
                 </div>
                 <div className="glass-panel !p-8 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest mb-2 block opacity-70">Monthly Payroll Load</span>
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Monthly Payroll Load</span>
                     <div className="text-4xl font-black text-accent-signature-hover tracking-tighter mb-2">
                         {businessProfile.currencySymbol}{Math.round(employees.reduce((sum, e) => sum + (e.salary || 0), 0)).toLocaleString()}
                     </div>
@@ -72,7 +72,7 @@ const HRReports = ({ employees, payroll, businessProfile }) => {
                 {/* Payroll Flow Area Chart */}
                 <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
                     <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase mb-2">Expenditure Flow.</h3>
-                    <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.2em] opacity-70 mb-8">6-Month historical payroll trends</p>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-8">6-Month historical payroll trends</p>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={payrollTrends}>
@@ -105,7 +105,7 @@ const HRReports = ({ employees, payroll, businessProfile }) => {
                 {/* Department Distribution Pie */}
                 <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
                     <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase mb-2">Structural Density.</h3>
-                    <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.2em] opacity-70 mb-8">Salary allocation by functional unit</p>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-8">Salary allocation by functional unit</p>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
@@ -133,7 +133,7 @@ const HRReports = ({ employees, payroll, businessProfile }) => {
             {/* Department Performance Board */}
             <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
                 <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase mb-2">Workforce Integrity.</h3>
-                <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.3em] opacity-70 mb-10">Departmental cost and population metrics</p>
+                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] mb-10">Departmental cost and population metrics</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {departmentStats.map((dept, index) => (
@@ -149,13 +149,13 @@ const HRReports = ({ employees, payroll, businessProfile }) => {
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
-                                    <span className="text-[8px] font-black text-[#4b5563] uppercase tracking-widest opacity-40 block mb-1">Total Cost</span>
+                                    <span className="text-[8px] font-black text-ink-tertiary uppercase tracking-widest block mb-1">Total Cost</span>
                                     <div className="text-lg font-black text-ink-primary tracking-tighter">
                                         {businessProfile.currencySymbol}{Math.round(dept.cost).toLocaleString()}
                                     </div>
                                 </div>
                                 <div>
-                                    <span className="text-[8px] font-black text-[#4b5563] uppercase tracking-widest opacity-40 block mb-1">Personnel</span>
+                                    <span className="text-[8px] font-black text-ink-tertiary uppercase tracking-widest block mb-1">Personnel</span>
                                     <div className="text-lg font-black text-accent-signature-hover tracking-tighter">
                                         {dept.count} Units
                                     </div>
@@ -164,7 +164,7 @@ const HRReports = ({ employees, payroll, businessProfile }) => {
                         </div>
                     ))}
                     {departmentStats.length === 0 && (
-                        <div className="col-span-full py-20 text-center opacity-20 italic">
+                        <div className="col-span-full py-20 text-center text-ink-tertiary italic">
                             Awaiting personnel data...
                         </div>
                     )}

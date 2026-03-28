@@ -122,7 +122,7 @@ const Reports = () => {
                         <div className="w-1.5 h-10 bg-accent-signature rounded-full"></div>
                         <h1 className="text-3xl md:text-5xl font-black text-ink-primary uppercase tracking-tighter leading-none">REPORTS.</h1>
                     </div>
-                    <p className="text-[10px] font-black text-[#4b5563] tracking-[0.4em] uppercase opacity-85 flex items-center gap-3 mt-3">
+                    <p className="text-[10px] font-black text-ink-secondary tracking-[0.4em] uppercase flex items-center gap-3 mt-3">
                         <Activity size={12} className="text-accent-signature" />
                         Business Intelligence Terminal
                     </p>
@@ -160,7 +160,7 @@ const Reports = () => {
                         className={`flex items-center gap-3 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                             activeTab === tab.id 
                             ? 'bg-ink-primary text-white shadow-xl translate-y-[-2px]' 
-                            : 'text-[#4b5563] hover:bg-canvas'
+                            : 'text-ink-secondary hover:bg-canvas'
                         }`}
                     >
                         {tab.icon}
@@ -244,7 +244,7 @@ const Reports = () => {
                         <div className="flex justify-between items-center mb-8 pb-8 border-b border-black/5">
                             <div>
                                 <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">Bulk Catalog Manager.</h3>
-                                <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.3em] opacity-70">Direct Schema Editing Tool</p>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">Direct Schema Editing Tool</p>
                             </div>
                             <button 
                                 className={`btn-signature !h-12 !px-8 !text-[10px] ${isSaving ? 'opacity-50 cursor-wait' : ''}`}

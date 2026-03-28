@@ -68,7 +68,7 @@ const SalesReports = ({ sales, clients, products, businessProfile }) => {
             {/* Sales Metrics */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="glass-panel !p-8 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest mb-2 block opacity-70">Total Net Sales</span>
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Total Net Sales</span>
                     <div className="text-4xl font-black text-ink-primary tracking-tighter mb-2">
                         {businessProfile.currencySymbol}{Math.round(sales.reduce((sum, s) => sum + (s.total || 0), 0)).toLocaleString()}
                     </div>
@@ -77,7 +77,7 @@ const SalesReports = ({ sales, clients, products, businessProfile }) => {
                     </div>
                 </div>
                 <div className="glass-panel !p-8 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest mb-2 block opacity-70">Client Participation</span>
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Client Participation</span>
                     <div className="text-4xl font-black text-accent-signature-hover tracking-tighter mb-2">
                         {new Set(sales.map(s => s.clientId)).size}
                     </div>
@@ -96,7 +96,7 @@ const SalesReports = ({ sales, clients, products, businessProfile }) => {
                 {/* 30-Day Trend */}
                 <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
                     <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase mb-2">Revenue Velocity.</h3>
-                    <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.2em] opacity-70 mb-8">Daily sales performance (30D Overvview)</p>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-8">Daily sales performance (30D Overvview)</p>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={salesTrends}>
@@ -123,7 +123,7 @@ const SalesReports = ({ sales, clients, products, businessProfile }) => {
                 {/* Category Sales */}
                 <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
                     <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase mb-2">Category Dominance.</h3>
-                    <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.2em] opacity-70 mb-8">Revenue distribution by catalog grouping</p>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-8">Revenue distribution by catalog grouping</p>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
@@ -153,7 +153,7 @@ const SalesReports = ({ sales, clients, products, businessProfile }) => {
                 <div className="flex justify-between items-center mb-10">
                     <div>
                         <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">Premium Client Board.</h3>
-                        <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.3em] opacity-70">Top revenue generating partners</p>
+                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">Top revenue generating partners</p>
                     </div>
                     <Award size={32} className="text-accent-signature opacity-20" />
                 </div>
@@ -170,7 +170,7 @@ const SalesReports = ({ sales, clients, products, businessProfile }) => {
                         </div>
                     ))}
                     {topCustomers.length === 0 && (
-                        <div className="col-span-full py-20 text-center opacity-20 italic uppercase tracking-[0.3em] text-[10px]">
+                        <div className="col-span-full py-20 text-center text-ink-tertiary italic uppercase tracking-[0.3em] text-[10px]">
                             Awaiting transactional data...
                         </div>
                     )}

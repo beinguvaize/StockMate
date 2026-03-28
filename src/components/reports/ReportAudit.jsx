@@ -42,7 +42,7 @@ const ReportAudit = ({ movementLog, products, users }) => {
                     </div>
                     <div>
                         <h3 className="text-xl font-black tracking-tighter uppercase leading-none">Security Audit Trail</h3>
-                        <p className="text-[9px] font-black tracking-widest uppercase opacity-50 mt-1">Real-time Activity Log</p>
+                        <p className="text-[9px] font-black tracking-widest uppercase text-ink-tertiary mt-1">Real-time Activity Log</p>
                     </div>
                 </div>
                 
@@ -59,7 +59,7 @@ const ReportAudit = ({ movementLog, products, users }) => {
                         ))}
                     </div>
                     <div className="relative group w-full md:w-64">
-                        <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary opacity-20 group-focus-within:opacity-100 transition-opacity" />
+                        <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-tertiary group-focus-within:text-ink-primary transition-colors" />
                         <input 
                             type="text" 
                             placeholder="Filter activities..." 
@@ -89,7 +89,7 @@ const ReportAudit = ({ movementLog, products, users }) => {
                             {enrichedLogs.length === 0 ? (
                                 <tr>
                                     <td colSpan="6" className="py-24 text-center">
-                                        <div className="flex flex-col items-center opacity-20">
+                                        <div className="flex flex-col items-center text-ink-tertiary/40">
                                             <AlertTriangle size={48} className="mb-4" />
                                             <span className="text-sm font-black uppercase tracking-widest">No activities recorded in this period</span>
                                         </div>
@@ -100,7 +100,7 @@ const ReportAudit = ({ movementLog, products, users }) => {
                                     <tr key={log.id || idx} className="hover:bg-canvas/30 transition-colors group">
                                         <td className="py-4 px-6">
                                             <div className="flex items-center gap-2">
-                                                <Clock size={12} className="opacity-30" />
+                                                <Clock size={12} className="text-ink-tertiary" />
                                                 <span className="text-[10px] font-black uppercase text-ink-primary tabular-nums">
                                                     {new Date(log.createdAt).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                                 </span>
@@ -109,7 +109,7 @@ const ReportAudit = ({ movementLog, products, users }) => {
                                         <td className="py-4 px-6">
                                             <div className="flex items-center gap-2">
                                                 <div className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center border border-black/5">
-                                                    <User size={10} className="opacity-50" />
+                                                    <User size={10} className="text-ink-tertiary" />
                                                 </div>
                                                 <span className="text-[10px] font-black uppercase text-ink-primary truncate max-w-[120px]">
                                                     {log.userName}
@@ -143,7 +143,7 @@ const ReportAudit = ({ movementLog, products, users }) => {
                                             </span>
                                         </td>
                                         <td className="py-4 px-6">
-                                            <p className="text-[10px] font-bold text-ink-secondary opacity-60 italic truncate max-w-[200px]">
+                                            <p className="text-[10px] font-bold text-ink-tertiary italic truncate max-w-[200px]">
                                                 {log.notes || '—'}
                                             </p>
                                         </td>

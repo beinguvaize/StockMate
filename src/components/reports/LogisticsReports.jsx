@@ -42,14 +42,14 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
             {/* Logistics KPIs */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="glass-panel !p-8 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest mb-2 block opacity-70">Fleet Utilization</span>
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Fleet Utilization</span>
                     <div className="text-4xl font-black text-ink-primary tracking-tighter mb-2">
                         {new Set(sales.filter(s => s.vehicleId).map(s => s.vehicleId)).size} / {vehicles.length}
                     </div>
                     <div className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Active vs Total Vehicles</div>
                 </div>
                 <div className="glass-panel !p-8 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest mb-2 block opacity-70">Total Deliveries</span>
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Total Deliveries</span>
                     <div className="text-4xl font-black text-accent-signature-hover tracking-tighter mb-2">
                         {sales.filter(s => s.vehicleId).length}
                     </div>
@@ -68,7 +68,7 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
                 {/* Vehicle Performance Chart */}
                 <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
                     <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase mb-2">Fleet Productivity.</h3>
-                    <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.2em] opacity-70 mb-8">Revenue generation per vehicle unit</p>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-8">Revenue generation per vehicle unit</p>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={vehiclePerformance}>
@@ -89,7 +89,7 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
                 {/* Route Dominance */}
                 <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
                     <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase mb-2">Route Dominance.</h3>
-                    <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.2em] opacity-70 mb-8">Delivery volume distribution by region</p>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-8">Delivery volume distribution by region</p>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
@@ -117,7 +117,7 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
             {/* Comprehensive Fleet Ledger */}
             <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
                 <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase mb-2">Logistics Intelligence Board.</h3>
-                <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.3em] opacity-70 mb-10">Historical fleet efficiency metrics</p>
+                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] mb-10">Historical fleet efficiency metrics</p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {vehicles.map(v => {
@@ -130,18 +130,18 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
                                     </div>
                                     <div>
                                         <div className="text-[11px] font-black text-ink-primary uppercase truncate">{v.plateNumber}</div>
-                                        <div className="text-[8px] font-black text-[#4b5563] uppercase tracking-widest opacity-60">{v.model}</div>
+                                        <div className="text-[8px] font-black text-ink-tertiary uppercase tracking-widest">{v.model}</div>
                                     </div>
                                 </div>
                                 <div className="space-y-4">
                                     <div className="flex justify-between items-end">
-                                        <span className="text-[8px] font-black text-[#4b5563] uppercase tracking-widest opacity-40">Revenue generated</span>
+                                        <span className="text-[8px] font-black text-ink-tertiary uppercase tracking-widest">Revenue generated</span>
                                         <span className="text-sm font-black text-ink-primary tracking-tighter">
                                             {businessProfile.currencySymbol}{Math.round(stats.revenue).toLocaleString()}
                                         </span>
                                     </div>
                                     <div className="flex justify-between items-end">
-                                        <span className="text-[8px] font-black text-[#4b5563] uppercase tracking-widest opacity-40">Total drops</span>
+                                        <span className="text-[8px] font-black text-ink-tertiary uppercase tracking-widest">Total drops</span>
                                         <span className="text-sm font-black text-accent-signature-hover tracking-tighter">
                                             {stats.deliveries}
                                         </span>

@@ -66,14 +66,14 @@ const ClientReports = ({ clients, sales, businessProfile }) => {
             {/* KPI Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="glass-panel !p-8 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest mb-2 block opacity-70">Total Receivables</span>
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Total Receivables</span>
                     <div className="text-4xl font-black text-ink-primary tracking-tighter mb-2">
                         {businessProfile.currencySymbol}{Math.round(clients.reduce((sum, c) => sum + (c.balance || 0), 0)).toLocaleString()}
                     </div>
                     <div className="text-[10px] font-black text-red-500 uppercase tracking-widest">Outstanding Credit</div>
                 </div>
                 <div className="glass-panel !p-8 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest mb-2 block opacity-70">At Risk (60 Days+)</span>
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">At Risk (60 Days+)</span>
                     <div className="text-4xl font-black text-red-600 tracking-tighter mb-2">
                         {businessProfile.currencySymbol}{Math.round(agingData[2].value + agingData[3].value).toLocaleString()}
                     </div>
@@ -92,7 +92,7 @@ const ClientReports = ({ clients, sales, businessProfile }) => {
                 {/* Aging Chart */}
                 <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
                     <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase mb-2">Debt Aging Analysis.</h3>
-                    <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.2em] opacity-70 mb-8">Receivables age distribution</p>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-8">Receivables age distribution</p>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={agingData}>
@@ -117,7 +117,7 @@ const ClientReports = ({ clients, sales, businessProfile }) => {
                 {/* Top Debtors List */}
                 <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
                     <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase mb-2">Exposure Ranking.</h3>
-                    <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.2em] opacity-70 mb-8">Clients with highest outstanding balances</p>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-8">Clients with highest outstanding balances</p>
                     <div className="space-y-4 max-h-[300px] overflow-y-auto scrollbar-hide">
                         {topDebtors.map((c, i) => (
                             <div key={c.id} className="flex justify-between items-center p-4 bg-canvas/30 rounded-2xl border border-black/5">
@@ -127,14 +127,14 @@ const ClientReports = ({ clients, sales, businessProfile }) => {
                                     </div>
                                     <div>
                                         <div className="text-[11px] font-black text-ink-primary uppercase truncate max-w-[150px]">{c.name}</div>
-                                        <div className="text-[8px] font-black text-[#4b5563] uppercase tracking-widest opacity-60">{c.phone || 'No Phone'}</div>
+                                        <div className="text-[8px] font-black text-ink-tertiary uppercase tracking-widest">{c.phone || 'No Phone'}</div>
                                     </div>
                                 </div>
                                 <div className="text-right">
                                     <div className="text-sm font-black text-red-600 tracking-tighter">
                                         {businessProfile.currencySymbol}{Math.round(c.balance).toLocaleString()}
                                     </div>
-                                    <div className="text-[8px] font-black text-[#4b5563] uppercase tracking-widest opacity-40">Unpaid Balance</div>
+                                    <div className="text-[8px] font-black text-ink-tertiary uppercase tracking-widest">Unpaid Balance</div>
                                 </div>
                             </div>
                         ))}
@@ -147,7 +147,7 @@ const ClientReports = ({ clients, sales, businessProfile }) => {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-6">
                     <div>
                         <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">Statement Terminal.</h3>
-                        <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.3em] opacity-70">Direct ledger access & print support</p>
+                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">Direct ledger access & print support</p>
                     </div>
                     <div className="flex w-full md:w-96 items-center gap-3 bg-canvas px-6 py-3 rounded-full border border-black/5 shadow-inner">
                         <Search size={16} className="text-[#4b5563] opacity-40" />
@@ -173,12 +173,12 @@ const ClientReports = ({ clients, sales, businessProfile }) => {
                                 </button>
                             </div>
                             <h4 className="text-sm font-black text-ink-primary uppercase mb-1">{c.name}</h4>
-                            <p className="text-[9px] font-black text-[#4b5563] uppercase tracking-widest mb-6 opacity-60">
+                            <p className="text-[9px] font-black text-ink-tertiary uppercase tracking-widest mb-6">
                                 {c.phone || 'N/A'} • {c.location || 'Unknown'}
                             </p>
                             <div className="flex justify-between items-end">
                                 <div>
-                                    <span className="text-[8px] font-black text-[#4b5563] uppercase tracking-widest opacity-40 block mb-1">Current Balance</span>
+                                    <span className="text-[8px] font-black text-ink-tertiary uppercase tracking-widest block mb-1">Current Balance</span>
                                     <div className="text-xl font-black text-ink-primary tracking-tighter">
                                         {businessProfile.currencySymbol}{Math.round(c.balance || 0).toLocaleString()}
                                     </div>
@@ -190,12 +190,12 @@ const ClientReports = ({ clients, sales, businessProfile }) => {
                         </div>
                     ))}
                     {searchTerm && filteredClients.length === 0 && (
-                        <div className="col-span-full py-20 text-center opacity-20 italic">
+                        <div className="col-span-full py-20 text-center text-ink-tertiary italic">
                             No clients found matching "{searchTerm}"
                         </div>
                     )}
                     {!searchTerm && filteredClients.length === 0 && (
-                        <div className="col-span-full py-20 text-center opacity-20 italic">
+                        <div className="col-span-full py-20 text-center text-ink-tertiary italic">
                             Search for a client to view their statement details.
                         </div>
                     )}

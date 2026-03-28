@@ -72,7 +72,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile }) => {
 
     if (sales.length === 0 && expenses.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-20 opacity-20">
+            <div className="flex flex-col items-center justify-center py-20 text-ink-tertiary/40">
                 <DollarSign size={80} strokeWidth={1} />
                 <p className="text-xl font-black uppercase tracking-tighter mt-4">No Financial Data Available</p>
             </div>
@@ -86,7 +86,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile }) => {
                 <div className="flex justify-between items-center mb-10">
                     <div>
                         <h3 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">P&L Statement.</h3>
-                        <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.3em] opacity-70">Revenue vs Expenditure Performance</p>
+                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">Revenue vs Expenditure Performance</p>
                     </div>
                 </div>
 
@@ -178,7 +178,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile }) => {
                                 </div>
                                 <div className="text-right">
                                     <div className="text-sm font-black text-ink-primary tabular-nums">{businessProfile.currencySymbol}{Math.round(item.value).toLocaleString()}</div>
-                                    <div className="text-[9px] font-black text-[#4b5563] opacity-50 uppercase tracking-widest">{item.count} Trans. | Avg: {businessProfile.currencySymbol}{Math.round(item.value / item.count).toLocaleString()}</div>
+                                    <div className="text-[9px] font-black text-ink-tertiary uppercase tracking-widest">{item.count} Trans. | Avg: {businessProfile.currencySymbol}{Math.round(item.value / item.count).toLocaleString()}</div>
                                 </div>
                             </div>
                         ))}
@@ -189,7 +189,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile }) => {
                 <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem] flex flex-col justify-between">
                     <div>
                         <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase mb-2">Revenue Insights.</h3>
-                        <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.2em] opacity-70 mb-8">Key performance milestones</p>
+                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-8">Key performance milestones</p>
                     </div>
 
                     <div className="grid grid-cols-1 gap-6">
@@ -197,7 +197,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile }) => {
                             <div className="absolute -right-8 -bottom-8 opacity-5 group-hover:scale-110 transition-transform">
                                 <TrendingUp size={120} />
                             </div>
-                            <span className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest mb-2 block opacity-70">Best Month Overall</span>
+                            <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block font-mono">Best Month Overall</span>
                             <div className="text-4xl font-black text-ink-primary tracking-tighter mb-2">
                                 {plData.reduce((prev, current) => (prev.revenue > current.revenue) ? prev : current).month}
                             </div>

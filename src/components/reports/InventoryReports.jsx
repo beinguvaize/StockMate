@@ -66,14 +66,14 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile }) => 
             {/* Top Metrics Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="glass-panel !p-8 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest mb-2 block opacity-70">Inventory Valuation</span>
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Inventory Valuation</span>
                     <div className="text-4xl font-black text-ink-primary tracking-tighter mb-2">
                         {businessProfile.currencySymbol}{Math.round(valuationData.totalValue).toLocaleString()}
                     </div>
                     <div className="text-[10px] font-black text-green-500 uppercase tracking-widest">System Asset Value</div>
                 </div>
                 <div className="glass-panel !p-8 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest mb-2 block opacity-70">Potential Profit</span>
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Potential Profit</span>
                     <div className="text-4xl font-black text-accent-signature-hover tracking-tighter mb-2">
                         {businessProfile.currencySymbol}{Math.round(valuationData.potentialProfit).toLocaleString()}
                     </div>
@@ -95,7 +95,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile }) => 
                 {/* Category Valuation Chart */}
                 <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
                     <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase mb-2">Valuation by Category.</h3>
-                    <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.2em] opacity-70 mb-8">Asset distribution across catalog</p>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-8">Asset distribution across catalog</p>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
@@ -122,7 +122,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile }) => 
                 {/* Top Stock Movements */}
                 <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
                     <h3 className="text-xl font-black text-ink-primary tracking-tighter uppercase mb-2">High Velocity SKUs.</h3>
-                    <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.2em] opacity-70 mb-8">Most active products in last 100 logs</p>
+                    <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.2em] mb-8">Most active products in last 100 logs</p>
                     <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={movementTrends} layout="vertical">
@@ -144,7 +144,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile }) => 
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-6">
                     <div>
                         <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">Dead Stock Analysis.</h3>
-                        <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.3em] opacity-70">Identify underperforming capital</p>
+                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">Identify underperforming capital</p>
                     </div>
                     <div className="flex items-center gap-2 bg-canvas/50 p-2 rounded-full border border-black/5">
                         {[30, 60, 90].map(days => (
@@ -197,7 +197,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile }) => 
                             ))}
                             {deadStock.length === 0 && (
                                 <tr>
-                                    <td colSpan={5} className="py-20 text-center opacity-20 italic">
+                                    <td colSpan={5} className="py-20 text-center text-ink-tertiary italic">
                                         No dead stock found for the selected threshold.
                                     </td>
                                 </tr>
