@@ -107,7 +107,11 @@ export const MODULES_CONFIG = [
     { key: 'daybook', label: 'Day Book', icon: 'BookOpen' }
 ];
 
-export { AVAILABLE_ROLES };
+export const AVAILABLE_ROLES = [
+    { id: 'GLOBAL_ADMIN', label: 'Global Admin', color: 'bg-purple-100 text-purple-700' },
+    { id: 'OWNER', label: 'Owner/Manager', color: 'bg-blue-100 text-blue-700' },
+    { id: 'STAFF', label: 'Staff/Operator', color: 'bg-gray-100 text-gray-700' }
+];
 
 export const generateUUID = () => {
     if (typeof crypto !== 'undefined' && crypto.randomUUID) {
