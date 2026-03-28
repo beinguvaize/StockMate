@@ -151,6 +151,48 @@ export const AppProvider = ({ children }) => {
     const [dayBook, setDayBook] = useState([]);
     const [expenseCategories, setExpenseCategories] = useState(['Petrol', 'Food', 'Salary', 'Rent', 'Electricity', 'Water', 'Maintenance', 'Stationery', 'Travel', 'Marketing', 'Tax', 'Others']);
     
+    // --- Sync & Connectivity States ---
+    const [syncStatus, setSyncStatus] = useState('SYNCED'); // 'SYNCED', 'SYNCING', 'ERROR', 'OFFLINE'
+    const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+    const [lastSyncedAt, setLastSyncedAt] = useState(new Date().toISOString());
+
+    // Monitor Online/Offline status
+    useEffect(() => {
+        const handleOnline = () => {
+            setIsOnline(true);
+            setSyncStatus(prev => prev === 'OFFLINE' ? 'SYNCED' : prev);
+        };
+        const handleOffline = () => {
+            setIsOnline(false);
+            setSyncStatus('OFFLINE');
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    // Heartbeat check for Supabase connectivity
+    useEffect(() => {
+        if (!isSupabaseConfigured || !isOnline) return;
+
+        const interval = setInterval(async () => {
+            try {
+                const { error } = await supabase.from('settings').select('key').limit(1);
+                if (error) throw error;
+                setSyncStatus(prev => prev === 'ERROR' ? 'SYNCED' : prev);
+            } catch (err) {
+                console.warn("Supabase heartbeat failed:", err);
+                setSyncStatus('ERROR');
+            }
+        }, 30000); // Every 30 seconds
+
+        return () => clearInterval(interval);
+    }, [isOnline]);
+
     // Aliases
     const orders = sales;
     const setOrders = setSales;
@@ -279,11 +321,16 @@ export const AppProvider = ({ children }) => {
 
         // Fallback: save profile only (no auth account)
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error: profileError } = await supabase.from('users').upsert(newUser);
             if (profileError) {
+                console.error("Error adding user:", profileError);
+                setSyncStatus('ERROR');
                 addNotification(`Failed to save staff profile: ${profileError.message}`, "error");
                 return false;
             }
+            setSyncStatus('SYNCED');
+            setLastSyncedAt(new Date().toISOString());
         }
 
         setUsers(prev => [...prev, newUser]);
@@ -293,11 +340,16 @@ export const AppProvider = ({ children }) => {
 
     const updateUser = async (updatedUser) => {
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('users').upsert(updatedUser);
             if (error) {
                 console.error("Error updating user in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Cloud Sync Delayed: Profile updated locally", "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
@@ -307,11 +359,16 @@ export const AppProvider = ({ children }) => {
         if (userId === currentUser?.id) return;
         
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('users').delete().eq('id', userId);
             if (error) {
                 console.error("Error deleting user from Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Cloud Sync Delayed: Staff removed locally", "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
 
@@ -334,11 +391,16 @@ export const AppProvider = ({ children }) => {
         const { status, ...dbClient } = newClient;
 
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('clients').upsert(dbClient);
             if (error) {
                 console.error("Error adding client to Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification(`Cloud Sync Delayed: Client saved locally`, "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setClients([newClient, ...clients]);
@@ -348,11 +410,16 @@ export const AppProvider = ({ children }) => {
         const { status, ...dbClient } = updatedClient;
 
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('clients').upsert(dbClient);
             if (error) {
                 console.error("Error updating client in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Failed to update client in cloud", "error");
                 return;
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setClients(clients.map(c => c.id === updatedClient.id ? updatedClient : c));
@@ -360,11 +427,16 @@ export const AppProvider = ({ children }) => {
 
     const deleteClient = async (clientId) => {
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('clients').delete().eq('id', clientId);
             if (error) {
                 console.error("Error deleting client from Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Cloud Sync Delayed: Client removed locally", "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setClients(clients.filter(c => c.id !== clientId));
@@ -387,11 +459,16 @@ export const AppProvider = ({ children }) => {
         };
         
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('expenses').upsert(newExpense);
             if (error) {
                 console.error("Error adding expense to Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification(`Cloud Sync Delayed: Expense saved locally`, "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
 
@@ -401,11 +478,16 @@ export const AppProvider = ({ children }) => {
 
     const updateExpense = async (updatedExpense) => {
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('expenses').upsert(updatedExpense);
             if (error) {
                 console.error("Error updating expense in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Cloud Sync Delayed: Expense updated locally", "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setExpenses(expenses.map(e => e.id === updatedExpense.id ? updatedExpense : e));
@@ -414,11 +496,16 @@ export const AppProvider = ({ children }) => {
 
     const deleteExpense = async (expenseId) => {
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
             if (error) {
                 console.error("Error deleting expense from Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Cloud Sync Delayed: Expense removed locally", "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setExpenses(expenses.filter(e => e.id !== expenseId));
@@ -551,6 +638,7 @@ export const AppProvider = ({ children }) => {
         };
 
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             // Priority 2: Atomic Transaction via RPC
             const { error: rpcError } = await supabase.rpc('process_sale', {
                 p_id: newSale.id,
@@ -572,11 +660,14 @@ export const AppProvider = ({ children }) => {
                     note: salesmanNote
                 });
                 if (insertError) {
+                    setSyncStatus('ERROR');
                     addNotification(`Critical: Failed to save sale. Please check connection.`, "error");
                     return null;
                 }
                 addNotification(`Warning: Atomic sync failed, used legacy fallback.`, "warning");
             }
+            setSyncStatus('SYNCED');
+            setLastSyncedAt(new Date().toISOString());
         }
 
         // OPTIMISTIC LOCAL UPDATES (Keep UI snappy)
@@ -625,6 +716,7 @@ export const AppProvider = ({ children }) => {
         await reconcileSaleEffects(oldSale, updatedSale);
 
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { status: saleStatus, clientId, salesmanNote, ...rest } = updatedSale;
             const dbSale = { 
                 ...rest, 
@@ -640,8 +732,12 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('sales').upsert(dbSale);
             if (error) {
                 console.error("Error updating sale in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Failed to update sale in cloud", "error");
                 return;
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
@@ -755,11 +851,16 @@ export const AppProvider = ({ children }) => {
         };
 
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('products').upsert(newProduct);
             if (error) {
                 console.error("Error adding product to Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification(`Cloud Save Failed: ${error.message}`, "error");
                 return;
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
 
@@ -770,10 +871,15 @@ export const AppProvider = ({ children }) => {
     };
     const updateProduct = async (updatedProduct) => {
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('products').upsert(updatedProduct);
             if (error) {
                 console.error("Error updating product in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification(`Cloud Sync Delayed: ${error.message}. Local changes saved.`, "warning");
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
@@ -1629,6 +1735,7 @@ export const AppProvider = ({ children }) => {
 
     const value = {
         currentUser, session: authSession || currentUser, isOwner, isStaff, login, logout,
+        syncStatus, isOnline, lastSyncedAt,
         businessProfile, updateBusinessProfile,        // Data
         products, addProduct, updateProduct, deleteProduct, adjustStock,
         clients, addClient, updateClient, deleteClient,
