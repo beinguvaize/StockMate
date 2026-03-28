@@ -160,13 +160,16 @@ export const AppProvider = ({ children }) => {
 
     const logout = async () => {
         try {
+            setLoading(true);
             if (isSupabaseConfigured) {
-                supabase.auth.signOut().catch(e => console.warn("SignOut background error:", e));
+                await supabase.auth.signOut();
             }
         } catch (e) {
-            console.error("Logout caught error:", e);
+            console.error("Logout error:", e);
         } finally {
+            setAuthSession(null);
             setCurrentUser(null);
+            setLoading(false);
             if (typeof window !== 'undefined') {
                 window.location.href = '/login';
             }
@@ -1468,9 +1471,10 @@ export const AppProvider = ({ children }) => {
         if (!isSupabaseConfigured) return;
 
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            setAuthSession(session);
+            console.log("🔔 Auth Event:", event, session ? "Session Active" : "No Session");
             
             if (session?.user) {
+                setAuthSession(session);
                 setLoading(true);
                 // Fetch user roles/profile from public.users
                 const { data: profile } = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
@@ -1505,9 +1509,11 @@ export const AppProvider = ({ children }) => {
                 } else {
                     setLoading(false);
                 }
-            } else {
-                setCurrentUser(null);
+            } else if (event === 'SIGNED_OUT') {
                 setAuthSession(null);
+                setCurrentUser(null);
+                setLoading(false);
+            } else {
                 setLoading(false);
             }
         });
