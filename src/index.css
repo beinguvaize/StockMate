@@ -114,6 +114,7 @@ body {
   --color-surface: #FFFFFF;
   --color-ink-primary: #111111;
   --color-ink-secondary: #4a4a4a;
+  --color-ink-tertiary: #6B7280;
   --color-accent-signature: #C8F135;
   --color-accent-signature-hover: #b8e224;
 
@@ -188,21 +189,34 @@ body {
 }
 
 .page-title {
-  font-size: 2rem;
+  font-size: 1.5rem;
   font-weight: 700;
   margin-bottom: 0.5rem;
   color: var(--text-main);
   letter-spacing: -0.02em;
 }
 
+@media (min-width: 768px) {
+  .page-title {
+    font-size: 2rem;
+  }
+}
+
 /* Premium Bento Panels */
 .glass-panel {
   background: var(--color-surface);
   border: 1px solid rgba(0, 0, 0, 0.05);
-  border-radius: var(--radius-bento);
+  border-radius: 1.25rem;
   box-shadow: var(--shadow-premium);
-  padding: 2.5rem;
+  padding: 1.25rem;
   transition: var(--transition);
+}
+
+@media (min-width: 768px) {
+  .glass-panel {
+    border-radius: var(--radius-bento);
+    padding: 2.5rem;
+  }
 }
 
 .glass-panel:hover {
@@ -225,7 +239,7 @@ body {
 
 .glass-modal {
   background: var(--surface);
-  border-radius: var(--radius-xl);
+  border-radius: 1.5rem;
   padding: 1rem;
   width: 100%;
   max-width: 500px;
@@ -236,6 +250,12 @@ body {
   animation: modalScaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+@media (min-width: 768px) {
+  .glass-modal {
+    border-radius: var(--radius-xl);
+  }
+}
+
 @keyframes modalScaleUp {
   from { opacity: 0; transform: scale(0.95) translateY(20px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
@@ -243,8 +263,25 @@ body {
 
 .grid-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .grid-cards {
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5rem;
+  }
+}
+
+/* Mobile table scroll wrapper */
+.mobile-table-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.mobile-table-scroll table {
+  min-width: 600px;
 }
 
 /* Stunning Buttons */

@@ -256,7 +256,7 @@ const Vehicles = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-6 border-b border-black/5">
                 <div>
-                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">FLEET.</h1>
+                    <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">FLEET.</h1>
                     <p className="text-[10px] font-black text-ink-secondary tracking-widest uppercase opacity-70">VEHICLE OPTIMIZATION & DELIVERY MANAGEMENT</p>
                 </div>
             </div>
@@ -459,9 +459,9 @@ const Vehicles = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4" style={{height: '500px'}}>
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4" style={{minHeight: '300px'}}>
                         {/* Map */}
-                        <div className="lg:col-span-3 rounded-bento overflow-hidden border border-black/5 shadow-premium relative" style={{height: '500px'}}>
+                        <div className="lg:col-span-3 rounded-bento overflow-hidden border border-black/5 shadow-premium relative" style={{height: '350px', minHeight: '250px'}}>
                             <MapContainer
                                 center={DEFAULT_CENTER}
                                 zoom={DEFAULT_ZOOM}
@@ -580,7 +580,7 @@ const Vehicles = () => {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                         {vehicles.map(v => (
                             <div key={v.id} className="glass-panel !p-0 !rounded-2xl overflow-hidden border border-black/5 hover:shadow-premium transition-all flex flex-col group bg-surface">
                                 <div className="aspect-[2/1] bg-ink-primary relative overflow-hidden">

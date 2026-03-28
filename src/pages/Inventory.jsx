@@ -151,7 +151,7 @@ const Inventory = () => {
             
             <div className="flex justify-between items-end pb-6 border-b border-black/5 text-ink-primary mb-2">
                 <div>
-                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary mb-2 uppercase">INVENTORY.</h1>
+                    <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-ink-primary mb-2 uppercase">INVENTORY.</h1>
                     <p className="text-ink-secondary font-black uppercase tracking-widest text-[10px] opacity-70">STOCK MANAGEMENT & LOGISTICS</p>
                 </div>
                 <div className="flex gap-6 items-center">

@@ -3,17 +3,21 @@ import { useAppContext } from '../context/AppContext';
 import { 
     ShoppingCart, CheckCircle, Clock, Truck, User, 
     FileText, XCircle, ChevronRight, Printer, X,
-    Calendar, MapPin, Phone, Hash, CreditCard, DollarSign
+    Calendar, MapPin, Phone, Hash, CreditCard, DollarSign,
+    Edit3, Trash2, Plus, Minus, Search, Package
 } from 'lucide-react';
 
 const Orders = () => {
     const { 
-        sales, updateSale, settleSale, users, clients, vehicles, businessProfile,
+        sales, updateSale, deleteSale, settleSale, users, clients, vehicles, businessProfile,
         getUserName, getVehicleName, getShopName, hasPermission 
     } = useAppContext();
     const [activeTab, setActiveTab] = useState('PENDING');
     const [filterType, setFilterType] = useState('ALL'); 
     const [showReceipt, setShowReceipt] = useState(null); 
+    const [editingSale, setEditingSale] = useState(null);
+    const [editCart, setEditCart] = useState([]);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const filteredSales = (sales || []).filter(o => {
         if (o.status !== activeTab) return false;
@@ -44,6 +48,40 @@ const Orders = () => {
                 updateSale({ ...sale, status: 'CANCELLED' });
             }
         }
+    };
+
+    const startEditing = (sale) => {
+        setEditingSale(sale);
+        setEditCart([...sale.items]);
+    };
+
+    const updateEditCartItem = (productId, field, value) => {
+        setEditCart(prev => prev.map(item => {
+            if (item.productId !== productId) return item;
+            const updated = { ...item, [field]: value };
+            if (field === 'quantity') updated.quantity = Math.max(1, parseInt(value) || 1);
+            if (field === 'sellingPrice') updated.sellingPrice = Math.max(0, parseFloat(value) || 0);
+            return updated;
+        }));
+    };
+
+    const handleSaveEdit = () => {
+        if (!editingSale) return;
+        
+        const subtotal = editCart.reduce((sum, item) => sum + (item.sellingPrice * item.quantity), 0);
+        const discountAmount = subtotal * ((editingSale.discountPercent || 0) / 100);
+        const totalAmount = subtotal - discountAmount;
+
+        const updatedSale = {
+            ...editingSale,
+            items: editCart,
+            subtotal,
+            totalAmount,
+            // We keep the old totalCogs for now, AppContext will reconcile it
+        };
+
+        updateSale(updatedSale);
+        setEditingSale(null);
     };
 
     const OrderCard = ({ order, isPending }) => (
@@ -156,9 +194,14 @@ const Orders = () => {
                     {isPending ? (
                             <div className="flex gap-2">
                                 {hasPermission('MANAGE_ORDERS') && (
-                                    <button className="flex-1 py-3.5 rounded-pill border border-red-100 bg-red-50 text-red-500 font-bold hover:bg-red-100 transition-all text-[10px] tracking-widest uppercase" onClick={() => handleCancelOrder(order.id)}>
-                                        CANCEL
-                                    </button>
+                                    <>
+                                        <button className="flex-1 py-3.5 rounded-pill border border-red-100 bg-red-50 text-red-500 font-bold hover:bg-red-100 transition-all text-[10px] tracking-widest uppercase" onClick={() => handleCancelOrder(order.id)}>
+                                            CANCEL
+                                        </button>
+                                        <button className="flex-1 py-3.5 rounded-pill border border-black/10 text-ink-primary font-bold hover:bg-black/5 transition-all text-[10px] tracking-widest uppercase flex items-center justify-center gap-2" onClick={() => startEditing(order)}>
+                                            <Edit3 size={12} /> EDIT
+                                        </button>
+                                    </>
                                 )}
                                 <button className="flex-[2] btn-signature !py-3.5 !rounded-pill !text-xs shadow-xl shadow-accent-signature/20" onClick={() => handleMarkDelivered(order.id)}>
                                     COMPLETE ORDER
@@ -166,15 +209,25 @@ const Orders = () => {
                             </div>
                         ) : (
                             <div className="flex flex-col gap-2">
-                                {order.deliveryDate && (
-                                    <div className="flex items-center justify-center gap-2 py-4 rounded-full bg-[#C8F135]/10 text-[#111] text-sm font-black uppercase tracking-widest border border-[#C8F135]/20">
-                                        <CheckCircle size={16} /> COMPLETED {new Date(order.deliveryDate).toLocaleDateString()}
+                                {order.status === 'COMPLETED' && hasPermission('MANAGE_ORDERS') && (
+                                    <div className="flex gap-2">
+                                         <button className="flex-1 py-3.5 rounded-pill border border-black/10 text-ink-primary font-bold hover:bg-black/5 transition-all text-[10px] tracking-widest uppercase flex items-center justify-center gap-2" onClick={() => startEditing(order)}>
+                                            <Edit3 size={12} /> EDIT
+                                        </button>
+                                        <button className="flex-1 py-3.5 rounded-pill border border-red-100 bg-red-50 text-red-500 font-bold hover:bg-red-100 transition-all text-[10px] tracking-widest uppercase flex items-center justify-center gap-2" onClick={() => deleteSale(order.id)}>
+                                            <Trash2 size={12} /> DELETE
+                                        </button>
                                     </div>
                                 )}
-                                {order.paymentMethod === 'CREDIT' && order.paymentStatus !== 'PAID' && (
+                                {order.deliveryDate && (
+                                    <div className="flex items-center justify-center gap-2 py-4 rounded-full bg-[#C8F135]/10 text-[#111] text-sm font-black uppercase tracking-widest border border-[#C8F135]/20">
+                                        <CheckCircle size={16} /> {order.status === 'CANCELLED' ? 'CANCELLED' : `COMPLETED ${new Date(order.deliveryDate).toLocaleDateString()}`}
+                                    </div>
+                                )}
+                                {order.paymentMethod === 'CREDIT' && order.paymentStatus !== 'PAID' && order.status !== 'CANCELLED' && (
                                     <button 
                                         className="w-full py-4 rounded-full bg-ink-primary text-accent-signature font-black text-xs uppercase tracking-widest hover:scale-[1.02] transition-all flex items-center justify-center gap-3 shadow-xl"
-                                        onClick={() => settleOrder(order.id, order.totalAmount)}
+                                        onClick={() => settleSale(order.id, order.totalAmount)}
                                     >
                                         <DollarSign size={16} /> PAY NOW
                                     </button>
@@ -192,7 +245,7 @@ const Orders = () => {
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-8 border-b border-black/5">
                 <div>
-                    <h1 className="text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">ORDERS.</h1>
+                    <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-ink-primary uppercase leading-none mb-2">ORDERS.</h1>
                     <p className="text-[10px] font-black text-ink-secondary tracking-widest uppercase opacity-70">ORDER PIPELINE & HISTORY</p>
                 </div>
                 
@@ -323,6 +376,107 @@ const Orders = () => {
                                 PRINT RECEIPT
                                 <div className="icon-nest !w-10 !h-10 ml-4">
                                     <Printer size={20} />
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Edit Sale Modal */}
+            {editingSale && (
+                <div className="modal-overlay">
+                    <div className="glass-modal !max-w-[700px]">
+                        <div className="flex justify-between items-start mb-6">
+                            <div>
+                                <h1 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">EDIT SALE.</h1>
+                                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] opacity-70">MODIFY ORDER ITEMS & QUANTITIES</p>
+                            </div>
+                            <button className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary" onClick={() => setEditingSale(null)}>
+                                <X size={18} />
+                            </button>
+                        </div>
+
+                        <div className="space-y-6 flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                            <div className="bg-canvas/50 p-4 rounded-2xl border border-black/5">
+                                <div className="flex justify-between items-center mb-4">
+                                    <span className="text-xs font-black uppercase tracking-widest text-ink-secondary">Items in Order</span>
+                                    <span className="text-xs font-black text-ink-primary">#{editingSale.id.split('-').pop()}</span>
+                                </div>
+                                <div className="space-y-3">
+                                    {editCart.map(item => (
+                                        <div key={item.productId} className="flex items-center gap-4 bg-surface p-3 rounded-xl border border-black/5">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-black text-ink-primary uppercase truncate">{item.name}</div>
+                                                <div className="text-[10px] font-bold text-ink-secondary opacity-70">{item.sku}</div>
+                                            </div>
+                                            
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-[9px] font-black text-ink-secondary opacity-50 uppercase mb-1">Price</span>
+                                                    <div className="flex items-center relative">
+                                                        <span className="absolute left-2 text-[10px] font-black text-ink-secondary">₹</span>
+                                                        <input 
+                                                            type="number" 
+                                                            className="w-20 bg-canvas border border-black/5 rounded-lg py-1 pl-5 pr-2 text-center text-xs font-black text-ink-primary"
+                                                            value={item.sellingPrice}
+                                                            onChange={e => updateEditCartItem(item.productId, 'sellingPrice', e.target.value)}
+                                                        />
+                                                    </div>
+                                                </div>
+                                                
+                                                <div className="flex flex-col items-center">
+                                                    <span className="text-[9px] font-black text-ink-secondary opacity-50 uppercase mb-1">Qty</span>
+                                                    <div className="flex items-center bg-canvas rounded-lg border border-black/5 p-1">
+                                                        <button onClick={() => updateEditCartItem(item.productId, 'quantity', item.quantity - 1)} className="p-1 text-ink-primary"><Minus size={10} /></button>
+                                                        <input 
+                                                            type="number" 
+                                                            className="w-10 text-center text-xs font-black text-ink-primary bg-transparent outline-none"
+                                                            value={item.quantity}
+                                                            onChange={e => updateEditCartItem(item.productId, 'quantity', e.target.value)}
+                                                        />
+                                                        <button onClick={() => updateEditCartItem(item.productId, 'quantity', item.quantity + 1)} className="p-1 text-ink-primary"><Plus size={10} /></button>
+                                                    </div>
+                                                </div>
+
+                                                <button 
+                                                    onClick={() => setEditCart(editCart.filter(i => i.productId !== item.productId))}
+                                                    className="w-8 h-8 rounded-lg bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"
+                                                >
+                                                    <Trash2 size={14} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {editCart.length === 0 && (
+                                        <div className="text-center py-10 text-ink-secondary opacity-50 italic text-sm">No items in cart</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="p-6 bg-ink-primary rounded-2xl flex justify-between items-center text-surface shadow-xl">
+                                <div>
+                                    <div className="text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-1">New Total Amount</div>
+                                    <div className="text-4xl font-black tracking-tighter">
+                                        ₹{editCart.reduce((sum, item) => sum + (item.sellingPrice * item.quantity), 0).toLocaleString()}
+                                    </div>
+                                </div>
+                                <div className="text-right opacity-60">
+                                    <div className="text-[10px] font-black uppercase tracking-widest">Original Total</div>
+                                    <div className="text-lg font-black tracking-tighter line-through">₹{editingSale.totalAmount.toLocaleString()}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4 mt-8">
+                            <button className="px-8 py-4 rounded-pill border border-black/10 font-black text-ink-primary text-xs uppercase tracking-[0.2em] hover:bg-black/5 transition-all text-ink-primary" onClick={() => setEditingSale(null)}>Discard Changes</button>
+                            <button 
+                                className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill disabled:opacity-50" 
+                                onClick={handleSaveEdit}
+                                disabled={editCart.length === 0}
+                            >
+                                SAVE CHANGES & SYNC
+                                <div className="icon-nest !w-10 !h-10 ml-4">
+                                    <CheckCircle size={22} />
                                 </div>
                             </button>
                         </div>

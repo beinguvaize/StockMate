@@ -84,7 +84,7 @@ const DayBook = () => {
             {/* Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 pb-4 border-b border-black/5">
                 <div>
-                    <h1 className="text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">DAY BOOK.</h1>
+                    <h1 className="text-3xl md:text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">DAY BOOK.</h1>
                     <p className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-70">DAILY FINANCIAL BALANCE & LEDGER</p>
                 </div>
                 
@@ -162,7 +162,7 @@ const DayBook = () => {
                             </div>
 
                             <div className="flex items-center gap-6">
-                                <div className="text-6xl font-black text-ink-primary tracking-tighter tabular-nums flex items-center">
+                                <div className="text-3xl md:text-6xl font-black text-ink-primary tracking-tighter tabular-nums flex items-center">
                                     <span className="text-3xl opacity-20 mr-2">{businessProfile?.currencySymbol || '₹'}</span>
                                     {manualOpeningBalance !== '' ? (
                                         <input 
@@ -229,7 +229,7 @@ const DayBook = () => {
                             <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
                                 <div>
                                     <h2 className="text-[10px] font-black text-surface/40 uppercase tracking-[0.4em] mb-2 leading-none">Net Closing Balance</h2>
-                                    <div className="text-6xl font-black text-accent-signature tracking-tighter tabular-nums flex items-baseline">
+                                    <div className="text-3xl md:text-6xl font-black text-accent-signature tracking-tighter tabular-nums flex items-baseline">
                                         <span className="text-2xl mr-2 text-surface/20">{businessProfile?.currencySymbol || '₹'}</span>
                                         {closingBalance.toLocaleString()}
                                     </div>

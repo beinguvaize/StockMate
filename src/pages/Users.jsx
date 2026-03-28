@@ -1,10 +1,25 @@
 import React, { useState } from 'react';
-import { useAppContext, AVAILABLE_ROLES } from '../context/AppContext';
+import { useAppContext, AVAILABLE_ROLES, DEFAULT_PERMISSIONS, MODULES_CONFIG } from '../context/AppContext';
 import { 
     ShieldCheck, User, Plus, Trash2, Edit3, X, Check, 
     Eye, Save, Package, Truck, Lock, ShieldAlert,
-    UserPlus, Mail, Fingerprint, Activity
+    UserPlus, Mail, Fingerprint, Activity, ShoppingCart, ShoppingBag, Wallet, Users as UsersIcon, BarChart3, Banknote, Settings as SettingsIcon, BookOpen
 } from 'lucide-react';
+
+const MODULE_ICONS = {
+    inventory: Package,
+    sales: ShoppingCart,
+    purchases: ShoppingBag,
+    expenses: Wallet,
+    clients: UsersIcon,
+    suppliers: Truck,
+    vehicles: Truck,
+    reports: BarChart3,
+    payroll: Banknote,
+    users: UserPlus,
+    settings: SettingsIcon,
+    daybook: BookOpen
+};
 
 const ROLE_ICONS = {
     ADMIN: ShieldCheck,
@@ -26,13 +41,13 @@ const Users = () => {
     const { users, addUser, updateUser, deleteUser, currentUser, hasPermission } = useAppContext();
     const [isAdding, setIsAdding] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
-    const [formData, setFormData] = useState({ name: '', email: '', roles: ['SALES'] });
+    const [formData, setFormData] = useState({ name: '', email: '', roles: ['STAFF'], permissions: { ...DEFAULT_PERMISSIONS } });
     const [isSaving, setIsSaving] = useState(false);
     const [deleteConfirm, setDeleteConfirm] = useState(null);
 
     const openAdd = () => {
         setEditingUser(null);
-        setFormData({ name: '', email: '', roles: ['SALES'] });
+        setFormData({ name: '', email: '', roles: ['STAFF'], permissions: { ...DEFAULT_PERMISSIONS } });
         setIsAdding(true);
     };
 
@@ -41,26 +56,31 @@ const Users = () => {
         setFormData({
             name: user.name,
             email: user.email,
-            roles: user.roles || [user.role || 'SALES']
+            roles: user.roles || [user.role || 'STAFF'],
+            permissions: user.permissions || { ...DEFAULT_PERMISSIONS }
         });
         setIsAdding(true);
     };
 
-    const toggleRole = (roleKey) => {
+    const toggleModulePermission = (moduleKey, action) => {
         setFormData(prev => {
-            const hasRole = prev.roles.includes(roleKey);
-            let newRoles;
-            if (hasRole) {
-                newRoles = prev.roles.filter(r => r !== roleKey);
-                if (newRoles.length === 0) newRoles = ['VIEW_ONLY']; 
-            } else {
-                if (roleKey === 'VIEW_ONLY') {
-                    newRoles = ['VIEW_ONLY'];
-                } else {
-                    newRoles = [...prev.roles.filter(r => r !== 'VIEW_ONLY'), roleKey];
-                }
+            const currentPerms = prev.permissions || { ...DEFAULT_PERMISSIONS };
+            const modulePerms = currentPerms[moduleKey] || { view: false, edit: false };
+            
+            const newModulePerms = { ...modulePerms, [action]: !modulePerms[action] };
+            
+            // Logic: Cannot have Edit if View is false
+            if (action === 'view' && !newModulePerms.view) {
+                newModulePerms.edit = false;
             }
-            return { ...prev, roles: newRoles };
+            if (action === 'edit' && newModulePerms.edit) {
+                newModulePerms.view = true;
+            }
+
+            return {
+                ...prev,
+                permissions: { ...currentPerms, [moduleKey]: newModulePerms }
+            };
         });
     };
 
@@ -194,18 +214,66 @@ const Users = () => {
                             )}
 
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-2 opacity-70">Role Access Levels</label>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                    {AVAILABLE_ROLES.map(role => {
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-3 opacity-70">Module-Level Access Control (Granular RBAC)</label>
+                                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
+                                    <div className="grid grid-cols-12 gap-2 px-4 py-2 text-[8px] font-black uppercase tracking-widest text-ink-secondary opacity-50">
+                                        <div className="col-span-6">Module Segment</div>
+                                        <div className="col-span-3 text-center">View</div>
+                                        <div className="col-span-3 text-center">Edit</div>
+                                    </div>
+                                    {MODULES_CONFIG.map(mod => {
+                                        const perms = formData.permissions?.[mod.key] || { view: false, edit: false };
+                                        const Icon = MODULE_ICONS[mod.key] || Package;
+                                        return (
+                                            <div key={mod.key} className="grid grid-cols-12 items-center gap-2 p-3 bg-canvas rounded-2xl border border-black/5 group hover:border-accent-signature/30 transition-all">
+                                                <div className="col-span-6 flex items-center gap-3">
+                                                    <div className="w-8 h-8 rounded-lg bg-surface flex items-center justify-center text-ink-primary shadow-sm border border-black/5 group-hover:bg-ink-primary group-hover:text-accent-signature transition-all">
+                                                        <Icon size={14} />
+                                                    </div>
+                                                    <span className="text-[11px] font-black text-ink-primary uppercase truncate">{mod.label}</span>
+                                                </div>
+                                                <div className="col-span-3 flex justify-center">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => toggleModulePermission(mod.key, 'view')}
+                                                        className={`w-10 h-6 rounded-pill relative transition-all ${perms.view ? 'bg-accent-signature' : 'bg-black/10'}`}
+                                                    >
+                                                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${perms.view ? 'left-5' : 'left-1'}`} />
+                                                    </button>
+                                                </div>
+                                                <div className="col-span-3 flex justify-center">
+                                                    <button 
+                                                        type="button"
+                                                        onClick={() => toggleModulePermission(mod.key, 'edit')}
+                                                        className={`w-10 h-6 rounded-pill relative transition-all ${perms.edit ? 'bg-ink-primary' : 'bg-black/10'}`}
+                                                    >
+                                                        <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${perms.edit ? 'left-5' : 'left-1'}`} />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            <div className="pt-4">
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-3 opacity-70">Legacy Role Override</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    {AVAILABLE_ROLES.filter(r => r.key !== 'STAFF').map(role => {
                                         const isSelected = formData.roles.includes(role.key);
                                         const RoleIcon = ROLE_ICONS[role.key] || User;
                                         return (
                                             <div
                                                 key={role.key}
-                                                onClick={() => toggleRole(role.key)}
+                                                onClick={() => {
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        roles: isSelected ? ['STAFF'] : [role.key]
+                                                    }));
+                                                }}
                                                 className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 group ${
                                                     isSelected 
-                                                    ? 'bg-ink-primary border-ink-primary text-surface shadow-premium scale-[1.02]' 
+                                                    ? 'bg-ink-primary border-ink-primary text-surface shadow-premium' 
                                                     : 'bg-surface border-black/5 hover:border-black/10 text-ink-primary'
                                                 }`}
                                             >
@@ -218,7 +286,6 @@ const Users = () => {
                                                     <div className="text-xs font-black uppercase tracking-tight leading-none mb-1">{role.label}</div>
                                                     <div className={`text-[8px] font-black uppercase tracking-widest opacity-70 truncate ${isSelected ? 'text-surface/60' : 'text-ink-secondary'}`}>{role.description}</div>
                                                 </div>
-                                                {isSelected && <Check size={16} className="ml-auto text-accent-signature" />}
                                             </div>
                                         );
                                     })}
