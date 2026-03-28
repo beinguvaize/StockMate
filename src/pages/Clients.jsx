@@ -14,6 +14,12 @@ import ClientStatementViewer from '../components/clients/ClientStatementViewer';
 const Clients = () => {
     const { clients, addShop: addClient, updateShop: updateClient, deleteShop: deleteClient, sales, recordClientPayment, clientPayments, businessProfile, isViewOnly, hasPermission } = useAppContext();
     const [activeTab, setActiveTab] = useState('DIRECTORY'); // DIRECTORY, AGING, PAYMENTS, STATEMENTS
+    const [searchTerm, setSearchTerm] = useState('');
+    const [statusFilter, setStatusFilter] = useState('ALL');
+    const [isAdding, setIsAdding] = useState(false);
+    const [editingClient, setEditingClient] = useState(null);
+    const [formData, setFormData] = useState({ name: '', contact: '', phone: '', address: '', status: 'ACTIVE' });
+    const [deleteConfirm, setDeleteConfirm] = useState(null);
     
     // Payment Modal State
     const [selectedClientForPayment, setSelectedClientForPayment] = useState(null);
