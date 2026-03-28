@@ -10,10 +10,9 @@ import DataTools from '../components/DataTools';
 const Settings = () => {
     const { 
         businessProfile, updateBusinessProfile, currentUser, hasPermission, 
-        resetAndSeedLocal,
-        resetAndSeedCloud,
         expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory 
     } = useAppContext();
+
 
     const [newCategory, setNewCategory] = useState('');
     const [editingCategory, setEditingCategory] = useState(null);
@@ -315,35 +314,18 @@ const Settings = () => {
                         </div>
                     </div>
 
-                    <div className="glass-panel !rounded-bento p-12 bg-red-50/10 border border-red-500/10 flex flex-col gap-10">
+                    <div className="glass-panel !rounded-bento p-12 bg-indigo-50/10 border border-indigo-500/10 flex flex-col gap-10">
                         <div>
-                            <div className="flex items-center gap-4 text-red-500 mb-6">
-                                <Database size={28} />
-                                <h3 className="text-base font-black uppercase tracking-[0.2em] leading-none">System Tools</h3>
+                            <div className="flex items-center gap-4 text-indigo-500 mb-6">
+                                <ShieldCheck size={28} />
+                                <h3 className="text-base font-black uppercase tracking-[0.2em] leading-none">Enterprise Locks</h3>
                             </div>
-                            <p className="text-[11px] font-black text-red-900/60 uppercase tracking-widest leading-relaxed">
-                                Use these tools to manage your data environment. Seeding will wipe existing records.
+                            <p className="text-[11px] font-black text-indigo-900/60 uppercase tracking-widest leading-relaxed">
+                                Data reset and seeding tools are restricted to dev-only environments. Production persistence is currently locked for integrity.
                             </p>
                         </div>
-                        {currentUser?.roles?.includes('GLOBAL_ADMIN') && (
-                            <div className="flex flex-col gap-4">
-                                <button 
-                                    className="w-full py-6 rounded-pill bg-accent-signature text-ink-primary font-black text-xs tracking-widest uppercase hover:scale-[1.02] transition-all flex items-center justify-center gap-3 group shadow-lg"
-                                    onClick={resetAndSeedCloud}
-                                >
-                                    <Zap size={18} className="group-hover:animate-pulse" />
-                                    SEED CLOUD DEMO
-                                </button>
-                                <button 
-                                    className="w-full py-6 rounded-pill bg-red-500 text-white font-black text-xs tracking-widest uppercase hover:bg-black transition-all flex items-center justify-center gap-3 group shadow-lg"
-                                    onClick={resetAndSeedLocal}
-                                >
-                                    <RotateCcw size={18} className="group-hover:rotate-180 transition-transform duration-700" />
-                                    RESET ALL DATA
-                                </button>
-                            </div>
-                        )}
                     </div>
+
                 </div>
             </div>
 

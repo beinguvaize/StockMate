@@ -417,6 +417,64 @@ export const AppProvider = ({ children }) => {
         setMovementLog(prev => [newLog, ...prev]);
     };
 
+    const reconcileSaleEffects = async (oldSale, newSale) => {
+        const productDeltas = new Map();
+        
+        if (oldSale?.status === 'COMPLETED') {
+            oldSale.items.forEach(i => productDeltas.set(i.productId, (productDeltas.get(i.productId) || 0) + i.quantity));
+        }
+        if (newSale?.status === 'COMPLETED') {
+            newSale.items.forEach(i => {
+                productDeltas.set(i.productId, (productDeltas.get(i.productId) || 0) - i.quantity);
+                
+                // Recalculate COGS in the new sale using current product cost
+                const product = products.find(p => p.id === i.productId);
+                if (product) {
+                    i.cogs = (product.costPrice || 0) * i.quantity;
+                }
+            });
+            // Update totalCogs
+            newSale.totalCogs = newSale.items.reduce((sum, i) => sum + (i.cogs || 0), 0);
+        }
+
+        const clientDeltas = new Map();
+        if (oldSale?.paymentMethod?.toLowerCase() === 'credit') {
+            const id = oldSale.clientId || oldSale.shopId;
+            clientDeltas.set(id, (clientDeltas.get(id) || 0) - oldSale.totalAmount);
+        }
+        if (newSale?.paymentMethod?.toLowerCase() === 'credit') {
+            const id = newSale.clientId || newSale.shopId;
+            clientDeltas.set(id, (clientDeltas.get(id) || 0) + newSale.totalAmount);
+        }
+
+        // Apply Deltas to Local State
+        if (productDeltas.size > 0) {
+            setProducts(prev => prev.map(p => {
+                const delta = productDeltas.get(p.id);
+                return delta ? { ...p, stock: Math.max(0, p.stock + delta) } : p;
+            }));
+        }
+
+        if (clientDeltas.size > 0) {
+            setClients(prev => prev.map(c => {
+                const delta = clientDeltas.get(c.id);
+                return delta ? { ...c, outstanding_balance: Math.max(0, (c.outstanding_balance || 0) + delta) } : c;
+            }));
+        }
+
+        // Persistence (Using current snapshot for now, ideally SQL increments)
+        if (isSupabaseConfigured) {
+            for (const [id, delta] of productDeltas) {
+                const currentProduct = products.find(p => p.id === id);
+                if (currentProduct) await supabase.from('products').update({ stock: Math.max(0, currentProduct.stock + delta) }).eq('id', id);
+            }
+            for (const [id, delta] of clientDeltas) {
+                const currentClient = clients.find(c => c.id === id);
+                if (currentClient) await supabase.from('clients').update({ outstanding_balance: Math.max(0, (currentClient.outstanding_balance || 0) + delta) }).eq('id', id);
+            }
+        }
+    };
+
     const placeSale = async (clientId, cartItems, subtotal, discount, tax, totalAmount, customerInfo, paymentType = 'cash', routeId = null, status = 'COMPLETED', scheduledDate = null, salesmanNote = '') => {
         const val = saleSchema.safeParse({ clientId, items: cartItems, totalAmount, paymentMethod: paymentType });
         if (!val.success) {
@@ -525,48 +583,64 @@ export const AppProvider = ({ children }) => {
     };
 
     const updateSale = async (updatedSale) => {
-        const oldSale = sales.find(s => s.id === updatedSale.id);
-        
-        // If transitioning to COMPLETED, handle stock reduction
-        if (oldSale && oldSale.status === 'PENDING' && updatedSale.status === 'COMPLETED') {
-            const updatedProducts = [...products];
-            for (const item of updatedSale.items) {
-                const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
-                if (pIndex > -1) {
-                    const newStock = Math.max(0, updatedProducts[pIndex].stock - item.quantity);
-                    updatedProducts[pIndex] = { ...updatedProducts[pIndex], stock: newStock };
-                    if (isSupabaseConfigured) {
-                        await supabase.from('products').update({ stock: newStock }).eq('id', item.productId);
-                    }
-                }
-                logMovement(item.productId, item.name, 'OUT', item.quantity, `Fulfilled Sale #${updatedSale.id.split('-').pop()}`, currentUser?.id);
-            }
-            setProducts(updatedProducts);
-        }
+        // Use functional state to get the absolutely latest old sale version
+        let oldSale;
+        setSales(prev => {
+            oldSale = prev.find(s => s.id === updatedSale.id);
+            return prev;
+        });
+
+        // Reconcile based on the detected change
+        await reconcileSaleEffects(oldSale, updatedSale);
 
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('sales').upsert(updatedSale);
+            const { status: saleStatus, clientId, salesmanNote, ...rest } = updatedSale;
+            const dbSale = { 
+                ...rest, 
+                shopId: clientId || updatedSale.shopId, 
+                status: saleStatus,
+                note: salesmanNote || updatedSale.note
+            };
+            
+            // Cleanup fields that don't exist in the DB schema
+            delete dbSale.clientId; 
+            delete dbSale.salesmanNote;
+
+            const { error } = await supabase.from('sales').upsert(dbSale);
             if (error) {
                 console.error("Error updating sale in Supabase:", error);
                 addNotification("Failed to update sale in cloud", "error");
                 return;
             }
         }
-        setSales(sales.map(s => s.id === updatedSale.id ? updatedSale : s));
-        addNotification(`Sale #${updatedSale.id.split('-').pop()} updated`, 'success');
+        setSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
+        addNotification(`Sale #${updatedSale.id.split('-').pop()} synchronized`, 'success');
     };
 
     const deleteSale = async (saleId) => {
-        if (isSupabaseConfigured) {
-            const { error } = await supabase.from('sales').delete().eq('id', saleId);
-            if (error) {
-                console.error("Error deleting sale from Supabase:", error);
-                addNotification("Failed to delete sale from cloud", "error");
-                return;
+        // Get the latest version of the sale from current state
+        let sale;
+        setSales(prev => {
+            sale = prev.find(s => s.id === saleId);
+            return prev;
+        });
+
+        if (!sale) return;
+
+        if (window.confirm("Are you sure you want to PERMANENTLY delete this sale? Stock and balances will be reversed.")) {
+            await reconcileSaleEffects(sale, null);
+
+            if (isSupabaseConfigured) {
+                const { error } = await supabase.from('sales').delete().eq('id', saleId);
+                if (error) {
+                    console.error("Error deleting sale from Supabase:", error);
+                    addNotification("Failed to delete sale from cloud", "error");
+                    return;
+                }
             }
+            setSales(prev => prev.filter(s => s.id !== saleId));
+            addNotification("Sale deleted and stock reversed", "success");
         }
-        setSales(sales.filter(s => s.id !== saleId));
-        addNotification("Sale deleted successfully", "success");
     };
 
     const settleSale = async (saleId, amount) => {

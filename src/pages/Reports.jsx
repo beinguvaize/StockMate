@@ -251,6 +251,62 @@ const Reports = () => {
         }
         return acc;
     }, {});
+    
+    // --- New Business Intelligence Aggregations ---
+    const productAnalytics = useMemo(() => {
+        const stats = {};
+        filteredSales.forEach(order => {
+            if (order.status === 'CANCELLED') return;
+            order.items?.forEach(item => {
+                if (!stats[item.productId]) {
+                    stats[item.productId] = { 
+                        id: item.productId, 
+                        name: item.name, 
+                        sku: item.sku, 
+                        revenue: 0, 
+                        units: 0, 
+                        profit: 0,
+                        orders: 0
+                    };
+                }
+                const lineTotal = item.price * item.quantity;
+                const lineCogs = (item.costPrice || 0) * item.quantity;
+                stats[item.productId].revenue += lineTotal;
+                stats[item.productId].units += item.quantity;
+                stats[item.productId].profit += (lineTotal - lineCogs);
+                stats[item.productId].orders += 1;
+            });
+        });
+        return Object.values(stats).sort((a, b) => b.revenue - a.revenue);
+    }, [filteredSales]);
+
+    const customerAnalytics = useMemo(() => {
+        const stats = {};
+        filteredSales.forEach(order => {
+            if (order.status === 'CANCELLED') return;
+            const cid = order.shopId || 'WALKIN';
+            if (!stats[cid]) {
+                const client = clients.find(c => c.id === cid);
+                stats[cid] = {
+                    id: cid,
+                    name: client?.name || (cid === 'POS-WALKIN' ? 'Walk-in' : 'Unknown'),
+                    revenue: 0,
+                    orders: 0,
+                    paid: 0,
+                    pending: 0,
+                    lastOrder: order.date
+                };
+            }
+            stats[cid].revenue += order.totalAmount;
+            stats[cid].orders += 1;
+            stats[cid].paid += (order.paidAmount || 0);
+            stats[cid].pending += (order.totalAmount - (order.paidAmount || 0));
+            if (new Date(order.date) > new Date(stats[cid].lastOrder)) {
+                stats[cid].lastOrder = order.date;
+            }
+        });
+        return Object.values(stats).sort((a, b) => b.revenue - a.revenue);
+    }, [filteredSales, clients]);
 
     // --- Analytics Data Preparation ---
     const chartData = useMemo(() => {
@@ -743,13 +799,26 @@ const Reports = () => {
 
             {/* Tabs & Navigation */}
             <div className="no-print flex flex-col md:flex-row items-stretch md:items-center justify-between mt-12 gap-8">
-                <div className="p-2 bg-white rounded-[3rem] border border-black/5 shadow-premium flex items-center w-fit">
                     <button
                         onClick={() => setActiveTab('SALES')}
                         className={`px-10 py-4 rounded-[2.5rem] text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-500 flex items-center gap-3 ${activeTab === 'SALES' ? 'bg-ink-primary text-surface shadow-2xl' : 'text-[#4b5563] hover:text-ink-primary opacity-70 hover:opacity-100'}`}
                     >
                         <DollarSign size={14} className={activeTab === 'SALES' ? 'text-accent-signature' : ''} />
                         Sales
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('PRODUCTS')}
+                        className={`px-10 py-4 rounded-[2.5rem] text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-500 flex items-center gap-3 ${activeTab === 'PRODUCTS' ? 'bg-ink-primary text-surface shadow-2xl' : 'text-[#4b5563] hover:text-ink-primary opacity-70 hover:opacity-100'}`}
+                    >
+                        <Package size={14} className={activeTab === 'PRODUCTS' ? 'text-accent-signature' : ''} />
+                        Products
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('CUSTOMERS')}
+                        className={`px-10 py-4 rounded-[2.5rem] text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-500 flex items-center gap-3 ${activeTab === 'CUSTOMERS' ? 'bg-ink-primary text-surface shadow-2xl' : 'text-[#4b5563] hover:text-ink-primary opacity-70 hover:opacity-100'}`}
+                    >
+                        <Users size={14} className={activeTab === 'CUSTOMERS' ? 'text-accent-signature' : ''} />
+                        Customers
                     </button>
                     <button
                         onClick={() => setActiveTab('MOVEMENTS')}
@@ -770,9 +839,9 @@ const Reports = () => {
                         className={`px-10 py-4 rounded-[2.5rem] text-[10px] font-black uppercase tracking-[0.3em] transition-all duration-500 flex items-center gap-3 ${activeTab === 'ADVANCED' ? 'bg-ink-primary text-surface shadow-2xl' : 'text-[#4b5563] hover:text-ink-primary opacity-70 hover:opacity-100'}`}
                     >
                         <Activity size={14} className={activeTab === 'ADVANCED' ? 'text-accent-signature' : ''} />
-                        Advanced
+                        Utility
                     </button>
-                </div>
+
 
                 <div className="flex items-center gap-4">
                     <button className="h-14 px-8 rounded-pill bg-white border border-black/5 text-[10px] font-black uppercase tracking-[0.3em] text-ink-primary hover:bg-ink-primary hover:text-accent-signature transition-all shadow-sm flex items-center gap-4" onClick={exportToCSV}>
@@ -851,6 +920,89 @@ const Reports = () => {
                             </tbody>
                         </table>
                     )}
+
+                    {activeTab === 'PRODUCTS' && (
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-canvas/30 border-b border-black/5">
+                                    <th className="py-3 pl-8 text-[10px] font-black uppercase tracking-[0.2em] text-ink-primary opacity-80">Product Details</th>
+                                    <th className="py-3 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-ink-primary opacity-80 text-center">Units Sold</th>
+                                    <th className="py-3 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-ink-primary opacity-80 text-center">Orders</th>
+                                    <th className="py-3 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-ink-primary opacity-80 text-right">Revenue</th>
+                                    <th className="py-3 pr-8 text-right text-[10px] font-black uppercase tracking-[0.2em] text-ink-primary opacity-80">Gross Profit</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-black/5 bg-white">
+                                {productAnalytics.map(stat => (
+                                    <tr key={stat.id} className="hover:bg-canvas transition-all duration-300">
+                                        <td className="py-2.5 pl-8">
+                                            <div className="text-[11px] font-black text-ink-primary uppercase tracking-tight leading-none mb-1">{stat.name}</div>
+                                            <div className="text-[9px] font-black text-[#4b5563] uppercase opacity-85 tracking-widest">{stat.sku || 'NO-SKU'}</div>
+                                        </td>
+                                        <td className="py-2.5 px-4 text-center">
+                                            <div className="text-[11px] font-black text-ink-primary tabular-nums">{stat.units.toLocaleString()}</div>
+                                        </td>
+                                        <td className="py-2.5 px-4 text-center">
+                                            <div className="text-[11px] font-black text-ink-primary tabular-nums">{stat.orders}</div>
+                                        </td>
+                                        <td className="py-2.5 px-4 text-right">
+                                            <div className="text-sm font-black text-ink-primary font-mono tabular-nums leading-none">
+                                                {businessProfile.currencySymbol}{Math.round(stat.revenue).toLocaleString()}
+                                            </div>
+                                        </td>
+                                        <td className="py-2.5 pr-8 text-right">
+                                            <div className="text-sm font-black text-green-600 font-mono tabular-nums leading-none">
+                                                {businessProfile.currencySymbol}{Math.round(stat.profit).toLocaleString()}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+
+                    {activeTab === 'CUSTOMERS' && (
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="bg-canvas/30 border-b border-black/5">
+                                    <th className="py-3 pl-8 text-[10px] font-black uppercase tracking-[0.2em] text-ink-primary opacity-80">Customer Hub</th>
+                                    <th className="py-3 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-ink-primary opacity-80 text-center">Total Orders</th>
+                                    <th className="py-3 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-ink-primary opacity-80 text-right">Net Value</th>
+                                    <th className="py-3 px-4 text-[10px] font-black uppercase tracking-[0.2em] text-ink-primary opacity-80 text-right">Current Debt</th>
+                                    <th className="py-3 pr-8 text-right text-[10px] font-black uppercase tracking-[0.2em] text-ink-primary opacity-80">Last Engagement</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-black/5 bg-white">
+                                {customerAnalytics.map(stat => (
+                                    <tr key={stat.id} className="hover:bg-canvas transition-all duration-300">
+                                        <td className="py-2.5 pl-8">
+                                            <div className="text-[11px] font-black text-ink-primary uppercase tracking-tight leading-none mb-1">{stat.name}</div>
+                                            <div className="text-[9px] font-black text-[#4b5563] uppercase opacity-85 tracking-widest">CID-{stat.id.slice(-6).toUpperCase()}</div>
+                                        </td>
+                                        <td className="py-2.5 px-4 text-center">
+                                            <div className="text-[11px] font-black text-ink-primary tabular-nums">{stat.orders}</div>
+                                        </td>
+                                        <td className="py-2.5 px-4 text-right">
+                                            <div className="text-sm font-black text-ink-primary font-mono tabular-nums leading-none">
+                                                {businessProfile.currencySymbol}{Math.round(stat.revenue).toLocaleString()}
+                                            </div>
+                                        </td>
+                                        <td className="py-2.5 px-4 text-right">
+                                            <div className={`text-sm font-black font-mono tabular-nums leading-none ${stat.pending > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                                                {businessProfile.currencySymbol}{Math.round(stat.pending).toLocaleString()}
+                                            </div>
+                                        </td>
+                                        <td className="py-2.5 pr-8 text-right">
+                                            <div className="text-[11px] font-black text-[#4b5563] uppercase tracking-widest opacity-80">
+                                                {new Date(stat.lastOrder).toLocaleDateString()}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    )}
+
 
                     {activeTab === 'MOVEMENTS' && (
                         <table className="w-full text-left border-collapse">
@@ -1120,37 +1272,28 @@ const Reports = () => {
                                 </table>
                             </div>
 
-                            {/* Footer Actions - System Utilities */}
+                            {/* Footer Actions - Security Lock */}
                             <div className="p-8 border-t border-black/5 bg-canvas/30 grid grid-cols-1 md:grid-cols-2 gap-8">
                                 <div>
                                     <div className="flex items-center gap-3 mb-4">
-                                        <div className="w-1 h-4 bg-red-500 rounded-full"></div>
-                                        <h4 className="text-xs font-black text-ink-primary uppercase tracking-widest">System Infrastructure</h4>
+                                        <div className="w-1 h-4 bg-indigo-500 rounded-full"></div>
+                                        <h4 className="text-xs font-black text-ink-primary uppercase tracking-widest">Enterprise Infrastructure</h4>
                                     </div>
                                     <div className="flex gap-4">
-                                        <button 
-                                            onClick={() => useAppContext().resetAndSeedLocal()}
-                                            className="px-6 py-3 bg-white border border-black/5 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-canvas transition-colors flex items-center gap-3 shadow-sm"
-                                        >
-                                            <Activity size={14} className="text-accent-signature" />
-                                            Seed Stress Data
-                                        </button>
-                                        <button 
-                                            onClick={() => { if(confirm("ABSOLUTE DATA WIPE?")) window.location.reload(); }}
-                                            className="px-6 py-3 bg-white border border-black/5 rounded-2xl text-[9px] font-black uppercase tracking-widest hover:bg-red-50 transition-colors flex items-center gap-3 shadow-sm"
-                                        >
-                                            <Layers size={14} className="text-red-500" />
-                                            Factory Reset
-                                        </button>
+                                        <div className="px-6 py-4 bg-white border border-black/5 rounded-2xl flex items-center gap-4 shadow-sm opacity-60 grayscale">
+                                            <Lock size={16} className="text-[#4b5563]" />
+                                            <p className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Data Resets Restricted</p>
+                                        </div>
                                     </div>
                                 </div>
                                 <div className="text-right flex flex-col justify-end">
                                     <p className="text-[10px] font-bold text-[#4b5563] uppercase tracking-[0.2em] opacity-70">
-                                        All modifications are staged locally before commit.<br/>
-                                        Database integrity is maintained via transactional sync.
+                                        Cloud synchronization is managed via Ledger Enterprise Gateway.<br/>
+                                        Manual seeding is disabled for production environments.
                                     </p>
                                 </div>
                             </div>
+
                         </div>
                     )}
                 </div>
