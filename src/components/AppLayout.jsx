@@ -5,7 +5,7 @@ import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, Sho
 import NotificationStack from './NotificationStack';
 
 const Navbar = () => {
-    const { currentUser, logout, businessProfile } = useAppContext();
+    const { currentUser, logout, businessProfile, isMaintenance } = useAppContext();
     const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
     const dropdownRef = React.useRef(null);

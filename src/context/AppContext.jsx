@@ -109,6 +109,8 @@ export const AppProvider = ({ children }) => {
     const [clientPayments, setClientPayments] = useState([]);
     const [sales, setSales] = useState([]);
     const [expenses, setExpenses] = useState([]);
+    const [isMaintenance, setIsMaintenance] = useState(false);
+    const [maintenanceMessage, setMaintenanceMessage] = useState('');
     const [movementLog, setMovementLog] = useState([]);
     const [vehicles, setVehicles] = useState([]);
     const [routes, setRoutes] = useState([]);
@@ -1498,6 +1500,12 @@ export const AppProvider = ({ children }) => {
             if (settingsData) {
                 const categories = settingsData.find(s => s.key === 'expense_categories');
                 if (categories) setExpenseCategories(categories.value);
+
+                const maintenance = settingsData.find(s => s.key === 'maintenance_mode');
+                if (maintenance && maintenance.value) {
+                    setIsMaintenance(maintenance.value.enabled || false);
+                    setMaintenanceMessage(maintenance.value.message || 'System under maintenance.');
+                }
             }
             
             console.log("🏁 Initialization Complete.");
@@ -1600,6 +1608,7 @@ export const AppProvider = ({ children }) => {
         suppliers, addSupplier, deleteSupplier,
         dayBook, updateDayBook, getDayBookForDate,
         recordClientPayment, clientPayments,
+        isMaintenance, maintenanceMessage, setIsMaintenance,
         notifications, addNotification,
         loading, initError, migrateLocalToSupabase, resetAndSeedLocal, resetAndSeedCloud
     };

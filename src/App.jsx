@@ -17,7 +17,9 @@ import Payroll from './pages/Payroll';
 import DayBook from './pages/DayBook';
 import Purchases from './pages/Purchases';
 import Suppliers from './pages/Suppliers';
+import Maintenance from './pages/Maintenance';
 import { ProtectedRoute } from './components/ProtectedRoute';
+
 /**
  * GuestRoute: Redirects authenticated users away from the login page.
  */
@@ -34,6 +36,16 @@ const GuestRoute = ({ children }) => {
 };
 
 function AppRoutes() {
+  const { isMaintenance, isOwner, loading } = useAppContext();
+  const location = useLocation();
+
+  if (loading) return null;
+
+  // Global Maintenance Block: Allows owners to bypass, otherwise restricts all routes except login.
+  if (isMaintenance && !isOwner && location.pathname !== '/login') {
+    return <Maintenance />;
+  }
+
   return (
     <Routes>
       {/* Public route: Login */}
