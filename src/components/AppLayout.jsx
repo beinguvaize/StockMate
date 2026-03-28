@@ -1,19 +1,21 @@
 import React, { useState, useRef } from 'react';
 import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users, Settings, BookOpen, ShoppingBag, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown } from 'lucide-react';
 import NotificationStack from './NotificationStack';
 
 const Navbar = () => {
     const { currentUser, logout, businessProfile, isMaintenance, hasPermission } = useAppContext();
     const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
+    const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
     const dropdownRef = React.useRef(null);
+    const moreMenuRef = React.useRef(null);
 
     const roles = currentUser?.roles || (currentUser?.role ? [currentUser?.role] : ['STAFF']);
     const isOwner = roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN');
 
-    const navItems = [
+    const primaryNavItems = [
         { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
         { label: 'Inventory', path: '/inventory', icon: <Package size={20} />, hidden: !hasPermission('inventory', 'view') },
         { label: 'Sales', path: '/sales', icon: <ShoppingCart size={20} />, hidden: !hasPermission('sales', 'view') },
@@ -21,12 +23,18 @@ const Navbar = () => {
         { label: 'Pipeline', path: '/orders', icon: <ClipboardList size={20} />, hidden: !hasPermission('sales', 'view') },
         { label: 'Expenses', path: '/expenses', icon: <Wallet size={20} />, hidden: !hasPermission('expenses', 'view') },
         { label: 'Clients', path: '/clients', icon: <UsersIcon size={20} />, hidden: !hasPermission('clients', 'view') },
+    ];
+
+    const moreNavItems = [
         { label: 'Suppliers', path: '/suppliers', icon: <Truck size={20} />, hidden: !hasPermission('suppliers', 'view') },
         { label: 'Payroll', path: '/payroll', icon: <Banknote size={20} />, hidden: !hasPermission('payroll', 'view') },
         { label: 'Day Book', path: '/daybook', icon: <BookOpen size={20} />, hidden: !hasPermission('daybook', 'view') },
         { label: 'Vehicles', path: '/vehicles', icon: <Truck size={20} />, hidden: !hasPermission('vehicles', 'view') },
         { label: 'Reports', path: '/reports', icon: <BarChart3 size={20} />, hidden: !hasPermission('reports', 'view') },
     ];
+
+    const allNavItems = [...primaryNavItems, ...moreNavItems];
+    const activeInMore = moreNavItems.some(item => window.location.pathname.startsWith(item.path));
 
     const adminItems = [
         { label: 'User Management', path: '/users', icon: <UsersIcon size={18} />, hidden: !hasPermission('users', 'view') },
@@ -37,6 +45,9 @@ const Navbar = () => {
         const handleClickOutside = (event) => {
             if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
                 setIsUserMenuOpen(false);
+            }
+            if (moreMenuRef.current && !moreMenuRef.current.contains(event.target)) {
+                setIsMoreMenuOpen(false);
             }
         };
         document.addEventListener('mousedown', handleClickOutside);
@@ -67,7 +78,7 @@ const Navbar = () => {
 
                         {/* Pill Navigation — Desktop Only */}
                         <div className="hidden md:flex items-center space-x-1 bg-white p-1.5 rounded-full shadow-sm border border-black/5">
-                            {navItems.filter(i => !i.hidden).map((item) => (
+                            {primaryNavItems.filter(i => !i.hidden).map((item) => (
                                 <NavLink
                                     key={item.path}
                                     to={item.path}
@@ -85,6 +96,42 @@ const Navbar = () => {
                                     )}
                                 </NavLink>
                             ))}
+
+                            {/* More Dropdown */}
+                            <div className="relative" ref={moreMenuRef}>
+                                <button
+                                    onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
+                                        activeInMore 
+                                        ? 'bg-ink-primary text-white shadow-md' 
+                                        : 'text-ink-secondary hover:text-ink-primary hover:bg-gray-100'
+                                    }`}
+                                >
+                                    <span className={activeInMore ? 'text-white/60' : 'opacity-40'}><Menu size={18} /></span>
+                                    More
+                                    <ChevronDown size={14} className={`transition-transform duration-200 ${isMoreMenuOpen ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {isMoreMenuOpen && (
+                                    <div className="absolute top-full right-0 mt-3 w-56 bg-surface rounded-3xl border border-black/5 shadow-2xl p-2 animate-in fade-in slide-in-from-top-2 duration-200 z-[110]">
+                                        {moreNavItems.filter(i => !i.hidden).map((item) => (
+                                            <NavLink
+                                                key={item.path}
+                                                to={item.path}
+                                                onClick={() => setIsMoreMenuOpen(false)}
+                                                className={({ isActive }) => `flex items-center gap-3 px-4 py-3 rounded-2xl text-[13px] font-medium transition-all ${
+                                                    isActive 
+                                                    ? 'bg-canvas text-ink-primary font-bold shadow-sm' 
+                                                    : 'text-ink-secondary hover:bg-canvas/50 hover:text-ink-primary'
+                                                }`}
+                                            >
+                                                <span className="opacity-60">{item.icon}</span>
+                                                {item.label}
+                                            </NavLink>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         {/* User Profile */}
@@ -153,7 +200,7 @@ const Navbar = () => {
                         {/* Nav Items */}
                         <nav className="flex-1 overflow-y-auto py-3 px-3">
                             <p className="text-[9px] font-black uppercase tracking-[0.3em] text-ink-secondary opacity-50 px-3 mb-2">Navigation</p>
-                            {navItems.filter(i => !i.hidden).map(item => (
+                            {allNavItems.filter(i => !i.hidden).map(item => (
                                 <NavLink
                                     key={item.path}
                                     to={item.path}

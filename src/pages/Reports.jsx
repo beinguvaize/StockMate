@@ -4,7 +4,7 @@ import {
     Calendar, FileText, Download, Printer, TrendingUp, Package, Receipt, 
     ArrowUpRight, ArrowDownRight, X, Check, Users, Truck, 
     DollarSign, Activity, PieChart, Layers, ArrowRight, TrendingDown, Lock,
-    CreditCard, LayoutGrid, UserCircle, Briefcase
+    CreditCard, LayoutGrid, UserCircle, Briefcase, Shield
 } from 'lucide-react';
 
 // Import New Report Components

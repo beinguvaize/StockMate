@@ -376,14 +376,14 @@ export const AppProvider = ({ children }) => {
             addNotification("Validation failed: " + val.error.errors[0].message, "error");
             return;
         }
-        const { title, date, routeId, splitType, ...restExpense } = expense;
+        const { title, date, routeId, splitType, notes, ...restExpense } = expense;
         const newExpense = { 
             ...restExpense, 
             id: expense.id || `EXP-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, 
             date: date || new Date().toISOString(),
             route_id: routeId,
             split_type: splitType || null,
-            note: title || ''
+            note: title || notes || ''
         };
         
         if (isSupabaseConfigured) {
