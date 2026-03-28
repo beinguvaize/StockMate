@@ -5,7 +5,7 @@ import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, Sho
 import NotificationStack from './NotificationStack';
 
 const Navbar = () => {
-    const { currentUser, logout, businessProfile, isMaintenance } = useAppContext();
+    const { currentUser, logout, businessProfile, isMaintenance, hasPermission } = useAppContext();
     const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
     const dropdownRef = React.useRef(null);
@@ -15,22 +15,22 @@ const Navbar = () => {
 
     const navItems = [
         { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
-        { label: 'Inventory', path: '/inventory', icon: <Package size={20} /> },
-        { label: 'Sales', path: '/sales', icon: <ShoppingCart size={20} /> },
-        { label: 'Purchases', path: '/purchases', icon: <ShoppingBag size={20} /> },
-        { label: 'Pipeline', path: '/orders', icon: <ClipboardList size={20} /> },
-        { label: 'Expenses', path: '/expenses', icon: <Wallet size={20} /> },
-        { label: 'Clients', path: '/clients', icon: <Users size={20} /> },
-        { label: 'Suppliers', path: '/suppliers', icon: <Truck size={20} /> },
-        { label: 'Payroll', path: '/payroll', icon: <Banknote size={20} />, hidden: !isOwner },
-        { label: 'Day Book', path: '/daybook', icon: <BookOpen size={20} /> },
-        { label: 'Vehicles', path: '/vehicles', icon: <Truck size={20} /> },
-        { label: 'Reports', path: '/reports', icon: <BarChart3 size={20} />, hidden: !isOwner },
+        { label: 'Inventory', path: '/inventory', icon: <Package size={20} />, hidden: !hasPermission('inventory', 'view') },
+        { label: 'Sales', path: '/sales', icon: <ShoppingCart size={20} />, hidden: !hasPermission('sales', 'view') },
+        { label: 'Purchases', path: '/purchases', icon: <ShoppingBag size={20} />, hidden: !hasPermission('purchases', 'view') },
+        { label: 'Pipeline', path: '/orders', icon: <ClipboardList size={20} />, hidden: !hasPermission('sales', 'view') },
+        { label: 'Expenses', path: '/expenses', icon: <Wallet size={20} />, hidden: !hasPermission('expenses', 'view') },
+        { label: 'Clients', path: '/clients', icon: <UsersIcon size={20} />, hidden: !hasPermission('clients', 'view') },
+        { label: 'Suppliers', path: '/suppliers', icon: <Truck size={20} />, hidden: !hasPermission('suppliers', 'view') },
+        { label: 'Payroll', path: '/payroll', icon: <Banknote size={20} />, hidden: !hasPermission('payroll', 'view') },
+        { label: 'Day Book', path: '/daybook', icon: <BookOpen size={20} />, hidden: !hasPermission('daybook', 'view') },
+        { label: 'Vehicles', path: '/vehicles', icon: <Truck size={20} />, hidden: !hasPermission('vehicles', 'view') },
+        { label: 'Reports', path: '/reports', icon: <BarChart3 size={20} />, hidden: !hasPermission('reports', 'view') },
     ];
 
     const adminItems = [
-        { label: 'User Management', path: '/users', icon: <Users size={18} />, hidden: !isOwner },
-        { label: 'Settings', path: '/settings', icon: <Settings size={18} />, hidden: !isOwner },
+        { label: 'User Management', path: '/users', icon: <UsersIcon size={18} />, hidden: !hasPermission('users', 'view') },
+        { label: 'Settings', path: '/settings', icon: <SettingsIcon size={18} />, hidden: !hasPermission('settings', 'view') },
     ];
 
     React.useEffect(() => {

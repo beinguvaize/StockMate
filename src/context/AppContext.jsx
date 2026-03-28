@@ -77,11 +77,36 @@ const INITIAL_BUSINESS = {
 const INITIAL_EXPENSE_CATEGORIES = ['General', 'Inventory', 'Logistics', 'Payroll', 'Utilities', 'Marketing', 'Rent', 'Other'];
 
 // Available role definitions
-const AVAILABLE_ROLES = [
-    { key: 'GLOBAL_ADMIN', label: 'Global Admin', description: 'Superuser with unrestricted access to all segments.' },
-    { key: 'OWNER', label: 'Owner', description: 'Full access to all features, including payroll and user management' },
-    { key: 'STAFF', label: 'Staff', description: 'Can record sales and view inventory. Restricted from management tasks.' },
+export const DEFAULT_PERMISSIONS = {
+    inventory: { view: true, edit: false },
+    sales: { view: true, edit: true },
+    purchases: { view: true, edit: false },
+    expenses: { view: true, edit: false },
+    clients: { view: true, edit: true },
+    suppliers: { view: true, edit: false },
+    vehicles: { view: true, edit: false },
+    reports: { view: false, edit: false },
+    payroll: { view: false, edit: false },
+    users: { view: false, edit: false },
+    settings: { view: false, edit: false },
+    daybook: { view: true, edit: true }
+};
+
+export const MODULES_CONFIG = [
+    { key: 'inventory', label: 'Inventory Management', icon: 'Package' },
+    { key: 'sales', label: 'Sales & Invoicing', icon: 'ShoppingCart' },
+    { key: 'purchases', label: 'Purchases (Stock-In)', icon: 'ShoppingBag' },
+    { key: 'expenses', label: 'Expense Tracking', icon: 'Wallet' },
+    { key: 'clients', label: 'Client Directory', icon: 'Users' },
+    { key: 'suppliers', label: 'Supplier Network', icon: 'Truck' },
+    { key: 'vehicles', label: 'Fleet Management', icon: 'Truck' },
+    { key: 'reports', label: 'Business Intelligence', icon: 'BarChart3' },
+    { key: 'payroll', label: 'HR & Payroll', icon: 'Banknote' },
+    { key: 'users', label: 'Personnel & Permissions', icon: 'UserPlus' },
+    { key: 'settings', label: 'Global Settings', icon: 'Settings' },
+    { key: 'daybook', label: 'Day Book', icon: 'BookOpen' }
 ];
+
 export { AVAILABLE_ROLES };
 
 export const generateUUID = () => {
@@ -806,28 +831,42 @@ export const AppProvider = ({ children }) => {
     };
 
     /**
-     * RBAC Permission System
-     * Owners can do everything.
-     * Staff can only view and record sales/inventory.
-     * Staff CANNOT delete, process payroll, manage users, or export reports.
+     * RBAC Permission System (v12)
+     * Supports both legacy strings and granular module/action pairs.
      */
-    const hasPermission = (permission) => {
+    const hasPermission = (moduleOrLegacy, action = 'view') => {
         if (!currentUser) return false;
+        
         const roles = currentUser.roles || (currentUser.role ? [currentUser.role] : ['STAFF']);
         if (roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN')) return true;
 
-        const staffAllowed = [
-            'RECORD_SALE', 
-            'VIEW_STOCK', 
-            'VIEW_SALES', 
-            'VIEW_EXPENSES', 
-            'VIEW_FLEET',
-            'ADD_CLIENT',
-            'EDIT_CLIENT'
-        ];
-        if (roles.includes('STAFF')) {
-            return staffAllowed.includes(permission);
+        // Ensure we have a permissions object (fallback to defaults if missing)
+        const permissions = currentUser.permissions || DEFAULT_PERMISSIONS;
+
+        // Case 1: Granular module check (e.g., hasPermission('inventory', 'edit'))
+        const moduleKey = moduleOrLegacy.toLowerCase();
+        if (permissions[moduleKey]) {
+            return !!permissions[moduleKey][action.toLowerCase()];
         }
+
+        // Case 2: Legacy string check (e.g., hasPermission('MANAGE_USERS'))
+        const legacyMap = {
+            'MANAGE_USERS': permissions.users?.edit,
+            'VIEW_REPORTS': permissions.reports?.view,
+            'VIEW_EXPENSES': permissions.expenses?.view,
+            'RECORD_SALE': permissions.sales?.edit,
+            'VIEW_STOCK': permissions.inventory?.view,
+            'VIEW_FLEET': permissions.vehicles?.view,
+            'ADD_CLIENT': permissions.clients?.edit,
+            'EDIT_CLIENT': permissions.clients?.edit,
+            'PROCESS_PAYROLL': permissions.payroll?.edit,
+            'ACCESS_SETTINGS': permissions.settings?.view
+        };
+
+        if (legacyMap[moduleOrLegacy] !== undefined) {
+            return !!legacyMap[moduleOrLegacy];
+        }
+
         return false;
     };
 
@@ -1610,6 +1649,7 @@ export const AppProvider = ({ children }) => {
         recordClientPayment, clientPayments,
         isMaintenance, maintenanceMessage, setIsMaintenance,
         notifications, addNotification,
+        DEFAULT_PERMISSIONS, MODULES_CONFIG,
         loading, initError, migrateLocalToSupabase, resetAndSeedLocal, resetAndSeedCloud
     };
 

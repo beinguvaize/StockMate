@@ -14,6 +14,8 @@ import SalesReports from '../components/reports/SalesReports';
 import ClientReports from '../components/reports/ClientReports';
 import LogisticsReports from '../components/reports/LogisticsReports';
 import HRReports from '../components/reports/HRReports';
+import ReportAudit from '../components/reports/ReportAudit';
+import ReportPerformance from '../components/reports/ReportPerformance';
 
 const Reports = () => {
     const { 
@@ -31,14 +33,16 @@ const Reports = () => {
     const isFullAccess = userRole === 'GLOBAL_ADMIN' || userRole === 'OWNER';
 
     const TABS = [
-        { id: 'FINANCIAL', label: 'Financials', icon: <DollarSign size={18} />, restricted: true },
-        { id: 'INVENTORY', label: 'Inventory', icon: <Package size={18} />, restricted: false },
-        { id: 'SALES', label: 'Sales', icon: <TrendingUp size={18} />, restricted: false },
-        { id: 'CLIENTS', label: 'Clients', icon: <UserCircle size={18} />, restricted: true },
-        { id: 'LOGISTICS', label: 'Logistics', icon: <Truck size={18} />, restricted: true },
-        { id: 'HR', label: 'HR/Payroll', icon: <Briefcase size={18} />, restricted: true },
-        { id: 'ADVANCED', label: 'Bulk Edit', icon: <LayoutGrid size={18} />, restricted: true },
-    ].filter(tab => isFullAccess || !tab.restricted);
+        { id: 'FINANCIAL', label: 'Financials', icon: <DollarSign size={18} />, permission: 'expenses' },
+        { id: 'INVENTORY', label: 'Inventory', icon: <Package size={18} />, permission: 'inventory' },
+        { id: 'SALES', label: 'Sales', icon: <TrendingUp size={18} />, permission: 'sales' },
+        { id: 'CLIENTS', label: 'Clients', icon: <UserCircle size={18} />, permission: 'clients' },
+        { id: 'LOGISTICS', label: 'Logistics', icon: <Truck size={18} />, permission: 'inventory' },
+        { id: 'HR', label: 'HR/Payroll', icon: <Briefcase size={18} />, permission: 'reports' },
+        { id: 'PERFORMANCE', label: 'Performance', icon: <Activity size={18} />, permission: 'reports' },
+        { id: 'AUDIT', label: 'Audit Trail', icon: <Shield size={18} />, permission: 'reports' },
+        { id: 'ADVANCED', label: 'Bulk Edit', icon: <LayoutGrid size={18} />, permission: 'inventory' },
+    ].filter(tab => hasPermission(tab.permission, 'view'));
 
     useEffect(() => {
         if (activeTab === 'ADVANCED') {
@@ -216,6 +220,22 @@ const Reports = () => {
                         employees={employees} 
                         payroll={filteredPayroll} 
                         businessProfile={businessProfile}
+                    />
+                )}
+
+                {activeTab === 'PERFORMANCE' && (
+                    <ReportPerformance 
+                        sales={sales} 
+                        products={products} 
+                        businessProfile={businessProfile} 
+                    />
+                )}
+
+                {activeTab === 'AUDIT' && (
+                    <ReportAudit 
+                        movementLog={movementLog} 
+                        products={products} 
+                        users={users} 
                     />
                 )}
 
