@@ -1173,68 +1173,133 @@ export const AppProvider = ({ children }) => {
     };
 
     const updateEmployee = async (updated) => {
-        const fullEmployee = {
-            ...updated,
-            salary: updated.basePay !== undefined ? updated.basePay : updated.salary,
+        // Prepare database-ready object (snake_case)
+        const dbData = {
+            id: updated.id,
+            name: updated.name,
+            email: updated.email !== undefined ? updated.email : null,
+            phone: updated.phone !== undefined ? updated.phone : null,
+            position: updated.position !== undefined ? updated.position : null,
+            status: updated.status || 'ACTIVE',
+            salary: updated.basePay !== undefined ? updated.basePay : (updated.salary || 0),
+            department: updated.department || updated.role,
             role: updated.department || updated.role,
-            pay_type: updated.payType || updated.pay_type,
-            bank_account: updated.bankAccount || updated.bank_account,
-            daily_rate: updated.dailyRate !== undefined ? updated.dailyRate : updated.daily_rate,
-            days_worked: updated.daysWorked !== undefined ? updated.daysWorked : updated.days_worked,
-            amount_paid: updated.amountPaid !== undefined ? updated.amountPaid : updated.amount_paid
+            pay_type: updated.payType || updated.pay_type || 'MONTHLY',
+            bank_account: updated.bankAccount || updated.bank_account || null,
+            notes: updated.notes !== undefined ? updated.notes : null,
+            daily_rate: updated.dailyRate !== undefined ? updated.dailyRate : (updated.daily_rate || 0),
+            days_worked: updated.daysWorked !== undefined ? updated.daysWorked : (updated.days_worked || 0),
+            amount_paid: updated.amountPaid !== undefined ? updated.amountPaid : (updated.amount_paid || 0)
         };
-        
-        // Clean up camelCase duplicates before sending to Supabase
-        const dbData = { ...fullEmployee };
-        delete dbData.basePay;
-        delete dbData.payType;
-        delete dbData.bankAccount;
-        delete dbData.dailyRate;
-        delete dbData.daysWorked;
-        delete dbData.amountPaid;
 
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('employees').upsert(dbData);
             if (error) {
                 console.error("Error updating employee in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification(`Cloud Sync Delayed: ${error.message}`, "warning");
+            } else {
+                setSyncStatus('SYNCED');
             }
         }
-        setEmployees(employees.map(e => e.id === updated.id ? fullEmployee : e));
+        
+        // Update local state with the mapped object (keep both for compatibility)
+        const fullEmployee = {
+            ...dbData,
+            basePay: dbData.salary,
+            payType: dbData.pay_type,
+            bankAccount: dbData.bank_account,
+            dailyRate: dbData.daily_rate,
+            daysWorked: dbData.days_worked,
+            amountPaid: dbData.amount_paid
+        };
+        
+        setEmployees(prev => prev.map(e => e.id === updated.id ? fullEmployee : e));
+    };
+
+    const resetEmployeesDailyData = async () => {
+        if (!isSupabaseConfigured) {
+            setEmployees(prev => prev.map(emp => ({ ...emp, daysWorked: 0, days_worked: 0 })));
+            addNotification("Days worked reset locally", "success");
+            return true;
+        }
+
+        setSyncStatus('SYNCING');
+        const { error } = await supabase
+            .from('employees')
+            .update({ days_worked: 0 })
+            .eq('status', 'ACTIVE');
+
+        if (error) {
+            console.error("Error resetting employee data:", error);
+            setSyncStatus('ERROR');
+            addNotification("Failed to reset daily data in cloud", "error");
+            return false;
+        }
+
+        setEmployees(prev => prev.map(emp => emp.status === 'ACTIVE' ? { ...emp, daysWorked: 0, days_worked: 0 } : emp));
+        setSyncStatus('SYNCED');
+        addNotification("All active staff days worked reset", "success");
+        return true;
     };
 
     // Task 5: Mechanic Tracker (State moved to top)
 
     const addMechanicPayment = async (payment) => {
         const newPayment = {
-            ...payment,
             id: payment.id || generateUUID(),
-            amount_paid: payment.amount_paid || 0,
-            work_date: payment.work_date || new Date().toISOString().split('T')[0],
+            name: payment.name || payment.mechanic_name,
+            mechanic_name: payment.name || payment.mechanic_name,
+            work_description: payment.work_description || payment.details,
+            details: payment.work_description || payment.details,
+            total_due: parseFloat(payment.total_due || payment.amount || 0),
+            amount: parseFloat(payment.total_due || payment.amount || 0),
+            amount_paid: parseFloat(payment.amount_paid || 0),
+            work_date: payment.work_date || payment.date || new Date().toISOString().split('T')[0],
+            date: payment.work_date || payment.date || new Date().toISOString().split('T')[0],
             created_at: new Date().toISOString()
         };
+
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('mechanic_payments').insert(newPayment);
             if (error) {
                 console.error("Error saving mechanic payment:", error);
+                setSyncStatus('ERROR');
                 addNotification("Failed to save mechanic payment in cloud", "error");
                 return;
             }
+            setSyncStatus('SYNCED');
         }
         setMechanicPayments(prev => [newPayment, ...prev]);
         addNotification("Mechanic record added", "success");
     };
 
-    const updateMechanicPayment = async (updatedPayment) => {
+    const updateMechanicPayment = async (updated) => {
+        const fullPayment = {
+            ...updated,
+            name: updated.name || updated.mechanic_name,
+            mechanic_name: updated.name || updated.mechanic_name,
+            work_description: updated.work_description || updated.details,
+            details: updated.work_description || updated.details,
+            total_due: parseFloat(updated.total_due || updated.amount || 0),
+            amount: parseFloat(updated.total_due || updated.amount || 0),
+            amount_paid: parseFloat(updated.amount_paid || 0)
+        };
+
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('mechanic_payments').upsert(updatedPayment);
+            setSyncStatus('SYNCING');
+            const { error } = await supabase.from('mechanic_payments').upsert(fullPayment);
             if (error) {
                 console.error("Error updating mechanic payment:", error);
+                setSyncStatus('ERROR');
                 addNotification("Failed to update mechanic payment in cloud", "error");
                 return;
             }
+            setSyncStatus('SYNCED');
         }
-        setMechanicPayments(mechanicPayments.map(m => m.id === updatedPayment.id ? updatedPayment : m));
+        setMechanicPayments(prev => prev.map(m => m.id === updated.id ? fullPayment : m));
         addNotification("Mechanic payment updated", "success");
     };
 
@@ -1366,31 +1431,39 @@ export const AppProvider = ({ children }) => {
     };
 
     const processPayroll = async (payRun) => {
+        const timestamp = new Date().toISOString();
         const newRecord = {
             ...payRun,
             id: payRun.id || `PAY-${Date.now()}`,
-            processed_at: new Date().toISOString(),
+            processed_at: timestamp,
+            processedAt: timestamp,
             processed_by: currentUser?.id
         };
         
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const payrollInserts = payRun.items.map(item => ({
                 id: `PRL-${Date.now()}-${item.employeeId}`,
                 employeeId: item.employeeId,
                 amount: item.netPay,
                 month: payRun.period,
-                processed_at: newRecord.processed_at,
-                processed_by: newRecord.processed_by
+                processed_at: timestamp,
+                processed_by: currentUser?.id
             }));
             
             const { error } = await supabase.from('payroll').insert(payrollInserts);
             if (error) {
                 console.error("Error processing payroll in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Failed to process payroll in cloud", "error");
-                // Fall through to local state
+                return false;
             }
+            setSyncStatus('SYNCED');
         }
+        
         setPayrollRecords(prev => [newRecord, ...prev]);
+        addNotification(`Payroll for ${payRun.period} authorized`, "success");
+        return true;
     };
 
     const deletePayrollRecord = async (recordId) => {
@@ -1629,8 +1702,13 @@ export const AppProvider = ({ children }) => {
                             id: `RUN-${period}`,
                             period: period,
                             processedAt: rec.processed_at,
-                            totalBase: 0, totalOvertime: 0, totalBonus: 0, totalDeductions: 0,
-                            totalNet: 0, totalEmployees: 0,
+                            processed_at: rec.processed_at,
+                            totalBase: 0,
+                            totalOvertime: 0,
+                            totalBonus: 0,
+                            totalDeductions: 0,
+                            totalNet: 0,
+                            totalEmployees: 0,
                             items: []
                         };
                     }
@@ -1657,7 +1735,8 @@ export const AppProvider = ({ children }) => {
                     ...log,
                     productId: log.product_id,
                     productName: log.product_name,
-                    userId: log.user_id
+                    userId: log.user_id,
+                    createdAt: log.created_at || log.date
                 }));
                 setMovementLog(mappedLog);
             }

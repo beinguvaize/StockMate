@@ -43,21 +43,21 @@ const ReportPerformance = ({ sales, products, businessProfile }) => {
                     <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform">
                         <Zap size={48} className="text-accent-signature" />
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-ink-tertiary mb-2 block font-mono">30D Revenue</span>
-                    <div className="text-5xl font-black tracking-tighter tabular-nums flex items-baseline gap-2 mb-4">
-                        <span className="text-xl text-ink-tertiary/60">{businessProfile?.currencySymbol || '₹'}</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-ink-tertiary mb-2 block font-mono">Last 30 Days Revenue</span>
+                    <div className="text-5xl font-black tracking-tighter tabular-nums flex items-baseline gap-2 mb-4 text-ink-primary">
+                        <span className="text-xl text-ink-tertiary">{businessProfile?.currencySymbol || '₹'}</span>
                         {Math.round(performanceData.totalRevenue).toLocaleString()}
                     </div>
                     <div className="flex items-center gap-2 text-accent-signature">
                         <ArrowUpRight size={16} />
-                        <span className="text-[11px] font-black uppercase tracking-widest">Growth Phase</span>
+                        <span className="text-[11px] font-black uppercase tracking-widest">Trending Up</span>
                     </div>
                 </div>
 
                 <div className="glass-panel !p-8 rounded-[2.5rem] border border-black/5 flex flex-col justify-center">
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-ink-tertiary mb-2 block font-mono font-black">Velocity</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-ink-tertiary mb-2 block font-mono font-black">Sales Volume</span>
                     <div className="text-4xl font-black text-ink-primary tracking-tighter tabular-nums mb-4">
-                        {performanceData.transactionCount} <span className="text-lg font-black text-ink-tertiary/40">TXNS</span>
+                        {performanceData.transactionCount} <span className="text-lg font-black text-ink-tertiary/40">ORDERS</span>
                     </div>
                     <div className="w-full bg-black/5 h-2 rounded-full overflow-hidden">
                         <div className="bg-accent-signature h-full w-[65%]" />

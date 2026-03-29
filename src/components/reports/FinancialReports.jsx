@@ -3,7 +3,8 @@ import {
     ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, 
     Tooltip, BarChart, Bar, Cell, PieChart, Pie, Legend
 } from 'recharts';
-import { DollarSign, TrendingUp, CreditCard, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { DollarSign, TrendingUp, CreditCard, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight, Download } from 'lucide-react';
+import { exportToCSV } from '../../utils/exportUtils';
 
 const FinancialReports = ({ sales, expenses, payroll, businessProfile }) => {
     // 1a. P&L Statement Aggregation
@@ -88,6 +89,13 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile }) => {
                         <h3 className="text-3xl font-black text-ink-primary tracking-tighter uppercase leading-none mb-2">P&L Statement.</h3>
                         <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">Revenue vs Expenditure Performance</p>
                     </div>
+                    <button 
+                        onClick={() => exportToCSV(plData, 'profit_loss_statement')}
+                        className="flex items-center gap-2 px-6 py-3 bg-ink-primary text-accent-signature rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-premium"
+                    >
+                        <Download size={16} />
+                        Export P&L
+                    </button>
                 </div>
 
                 <div className="h-[350px] w-full mb-10">

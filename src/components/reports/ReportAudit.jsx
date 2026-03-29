@@ -3,6 +3,7 @@ import {
     Search, Shield, Clock, User, ArrowUpRight, ArrowDownLeft, 
     RefreshCcw, AlertTriangle, Filter, Download
 } from 'lucide-react';
+import { exportToCSV } from '../../utils/exportUtils';
 
 const ReportAudit = ({ movementLog, products, users }) => {
     const [searchTerm, setSearchTerm] = useState('');
@@ -11,12 +12,12 @@ const ReportAudit = ({ movementLog, products, users }) => {
     const enrichedLogs = useMemo(() => {
         return (movementLog || [])
             .map(log => {
-                const product = (products || []).find(p => p.id === log.productId);
-                const user = (users || []).find(u => u.id === log.userId);
+                const product = (products || []).find(p => p.id === (log.product_id || log.productId));
+                const user = (users || []).find(u => u.id === (log.user_id || log.userId));
                 return {
                     ...log,
-                    productName: product ? product.name : 'Unknown Product',
-                    userName: user ? (user.full_name || user.email) : 'System / Legacy'
+                    productName: product ? product.name : (log.product_name || 'Unknown Product'),
+                    userName: user ? (user.full_name || user.email) : (user?.email || 'System / Legacy')
                 };
             })
             .filter(log => {
@@ -68,6 +69,13 @@ const ReportAudit = ({ movementLog, products, users }) => {
                             onChange={e => setSearchTerm(e.target.value)}
                         />
                     </div>
+                    <button 
+                        onClick={() => exportToCSV(enrichedLogs, 'security_audit_trail')}
+                        className="flex items-center gap-2 px-6 h-12 bg-ink-primary text-accent-signature rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-premium shrink-0"
+                    >
+                        <Download size={16} />
+                        Download
+                    </button>
                 </div>
             </div>
 
@@ -79,9 +87,9 @@ const ReportAudit = ({ movementLog, products, users }) => {
                             <tr className="bg-canvas/50">
                                 <th className="py-4 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-ink-secondary">Timestamp</th>
                                 <th className="py-4 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-ink-secondary">Actor</th>
-                                <th className="py-4 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-ink-secondary">Event</th>
-                                <th className="py-4 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-ink-secondary">Entity</th>
-                                <th className="py-4 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-ink-secondary text-right">Delta</th>
+                                <th className="py-4 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-ink-secondary">Activity</th>
+                                <th className="py-4 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-ink-secondary">Product / Item</th>
+                                <th className="py-4 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-ink-secondary text-right">Quantity Change</th>
                                 <th className="py-4 px-6 text-[9px] font-black uppercase tracking-[0.2em] text-ink-secondary">Notes</th>
                             </tr>
                         </thead>
@@ -102,7 +110,7 @@ const ReportAudit = ({ movementLog, products, users }) => {
                                             <div className="flex items-center gap-2">
                                                 <Clock size={12} className="text-ink-tertiary" />
                                                 <span className="text-[10px] font-black uppercase text-ink-primary tabular-nums">
-                                                    {new Date(log.createdAt).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                    {new Date(log.created_at || log.date).toLocaleString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                                                 </span>
                                             </div>
                                         </td>
