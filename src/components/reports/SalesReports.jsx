@@ -104,7 +104,14 @@ const SalesReports = ({ sales, clients, products, businessProfile }) => {
                                 <XAxis dataKey="date" hide />
                                 <YAxis hide />
                                 <Tooltip 
-                                    contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '1rem', color: '#fff' }}
+                                    contentStyle={{ 
+                                        backgroundColor: '#000', 
+                                        border: 'none', 
+                                        borderRadius: '1rem', 
+                                        padding: '15px'
+                                    }}
+                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}
+                                    labelStyle={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', fontWeight: 900, marginBottom: '5px', textTransform: 'uppercase' }}
                                     formatter={(val) => [`${businessProfile.currencySymbol}${Math.round(val).toLocaleString()}`, 'Revenue']}
                                 />
                                 <Line 
@@ -140,7 +147,16 @@ const SalesReports = ({ sales, clients, products, businessProfile }) => {
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip formatter={(val) => `${businessProfile.currencySymbol}${Math.round(val).toLocaleString()}`} />
+                                <Tooltip 
+                                    contentStyle={{ 
+                                        backgroundColor: '#000', 
+                                        border: 'none', 
+                                        borderRadius: '1rem', 
+                                        padding: '15px'
+                                    }}
+                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}
+                                    formatter={(val) => `${businessProfile.currencySymbol}${Math.round(val).toLocaleString()}`} 
+                                />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>

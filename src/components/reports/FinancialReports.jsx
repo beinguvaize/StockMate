@@ -164,7 +164,15 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile }) => {
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip />
+                                <Tooltip 
+                                    contentStyle={{ 
+                                        backgroundColor: '#000', 
+                                        border: 'none', 
+                                        borderRadius: '1rem', 
+                                        padding: '15px'
+                                    }}
+                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}
+                                />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>

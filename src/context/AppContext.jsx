@@ -529,10 +529,20 @@ export const AppProvider = ({ children }) => {
         };
 
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('movement_log').insert(newLog);
+            // ENSURE WE ONLY SEND VALID DATABASE COLUMNS
+            const dbLog = {
+                id: newLog.id,
+                date: newLog.date,
+                product_id: productId, 
+                product_name: productName, 
+                type, 
+                quantity, 
+                reason, 
+                user_id: userId
+            };
+            const { error } = await supabase.from('movement_log').insert(dbLog);
             if (error) {
                 console.error("Error logging movement to Supabase:", error);
-                // Don't block the UI for logs, but notify if critical
             }
         }
 
@@ -653,12 +663,22 @@ export const AppProvider = ({ children }) => {
 
             if (rpcError) {
                 console.error("❌ Atomic Sale Failed:", rpcError);
-                // Fallback to legacy insert if RPC fails (safeguard during migration)
-                const { error: insertError } = await supabase.from('sales').insert({
-                    ...newSale,
-                    shopId: clientId,
-                    note: salesmanNote
-                });
+                // CLEAN DB OBJECT
+                const dbSale = {
+                    id: newSale.id,
+                    product_id: newSale.items?.[0]?.productId, 
+                    shop_id: clientId,
+                    total_amount: totalAmount,
+                    payment_method: newSale.paymentMethod,
+                    payment_status: newSale.paymentStatus,
+                    status: newSale.status,
+                    note: salesmanNote,
+                    booked_by: currentUser?.id,
+                    route_id: routeId,
+                    scheduled_date: scheduledDate
+                };
+
+                const { error: insertError } = await supabase.from('sales').insert(dbSale);
                 if (insertError) {
                     setSyncStatus('ERROR');
                     addNotification(`Critical: Failed to save sale. Please check connection.`, "error");
@@ -935,6 +955,10 @@ export const AppProvider = ({ children }) => {
     // Helper: check if current user has a specific role
     const hasRole = (role) => {
         if (!currentUser) return false;
+        
+        // Superuser Override
+        if (currentUser.email === 'uvaize@hotmail.com' || currentUser.email === 'gladmin@ledgrpro.ca') return true;
+        
         const roles = currentUser.roles || (currentUser.role ? [currentUser.role] : ['STAFF']);
         if (roles.includes('GLOBAL_ADMIN')) return true;
         return roles.includes(role);
@@ -946,6 +970,9 @@ export const AppProvider = ({ children }) => {
      */
     const hasPermission = (moduleOrLegacy, action = 'view') => {
         if (!currentUser) return false;
+        
+        // GLOBAL OVERRIDE: uvaize@hotmail.com and specialized admins have all every access
+        if (currentUser.email === 'uvaize@hotmail.com' || currentUser.email === 'gladmin@ledgrpro.ca') return true;
         
         const roles = currentUser.roles || (currentUser.role ? [currentUser.role] : ['STAFF']);
         if (roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN')) return true;
@@ -991,9 +1018,17 @@ export const AppProvider = ({ children }) => {
     };
 
     const getClientName = (clientId) => {
+        if (!clientId) return 'Anonymous';
         if (clientId === 'POS-WALKIN' || clientId === 'WALKIN') return 'Walk-in Customer';
-        const client = clients.find(c => c.id === clientId);
-        return client ? client.name : (clientId || 'Unknown Client');
+        
+        // Search by both string and numeric types if necessary
+        const client = clients.find(c => String(c.id) === String(clientId));
+        if (client) return client.name;
+        
+        // Check if it's already a name (legacy data)
+        if (typeof clientId === 'string' && clientId.length > 5 && isNaN(clientId)) return clientId;
+        
+        return 'Unknown Client';
     };
 
     const getEmployeeName = (empId) => {
@@ -1313,10 +1348,21 @@ export const AppProvider = ({ children }) => {
         const newSupplier = { ...supplier, id, created_at: new Date().toISOString() };
         
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('suppliers').insert(newSupplier);
+            // CLEAN DB OBJECT
+            const dbSupplier = {
+                id,
+                name: supplier.name,
+                contact_person: supplier.contact_person,
+                phone: supplier.phone,
+                email: supplier.email,
+                address: supplier.address,
+                notes: supplier.notes || '',
+                created_at: new Date().toISOString()
+            };
+            const { error } = await supabase.from('suppliers').insert(dbSupplier);
             if (error) {
                 console.error("Error adding supplier:", error);
-                addNotification("Failed to save supplier", "error");
+                addNotification("Failed to save supplier to cloud", "error");
                 return false;
             }
         }

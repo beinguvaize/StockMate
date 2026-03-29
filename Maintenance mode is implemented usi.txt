@@ -1,0 +1,19 @@
+Maintenance mode is implemented using a global flag in your database.
+
+To ENABLED maintenance mode (blocking all non-admin users), run this SQL in your Supabase SQL Editor:
+
+sql
+UPDATE public.settings 
+SET value = '{"enabled": true, "message": "The system is currently undergoing scheduled maintenance. Please check back later."}'::jsonb
+WHERE key = 'maintenance_mode';
+To DISABLE it and restore full access:
+
+sql
+UPDATE public.settings 
+SET value = '{"enabled": false, "message": ""}'::jsonb
+WHERE key = 'maintenance_mode';
+How it works:
+
+When enabled, users with STAFF or ADMIN roles will see a full-page maintenance screen.
+OWNER and GLOBAL_ADMIN users (like your uvaize@hotmail.com account) will bypass the block to perform updates.
+The check happens instantly on every page refresh via the AppContext.

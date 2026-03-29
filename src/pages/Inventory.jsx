@@ -522,7 +522,7 @@ const Inventory = () => {
                                 <tbody className="divide-y divide-black/5">
                                     {(movementLog || []).map(log => (
                                         <tr key={log.id} className="hover:bg-canvas transition-colors">
-                                            <td className="py-3 text-[10px] font-black text-ink-primary uppercase opacity-60">{new Date(log.date).toLocaleString()}</td>
+                                            <td className="py-3 text-[10px] font-black text-ink-primary uppercase opacity-60">{log.date ? new Date(log.date).toLocaleString() : 'N/A'}</td>
                                             <td className="py-3">
                                                 <div className="text-base font-black text-ink-primary uppercase tracking-tight">{log.productName}</div>
                                                 <div className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-60 mt-1">Source: {log.source || 'INTERNAL'}</div>

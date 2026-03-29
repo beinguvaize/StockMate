@@ -112,7 +112,16 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile }) => 
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip formatter={(val) => `${businessProfile.currencySymbol}${val.toLocaleString()}`} />
+                                <Tooltip 
+                                    contentStyle={{ 
+                                        backgroundColor: '#000', 
+                                        border: 'none', 
+                                        borderRadius: '1rem', 
+                                        padding: '15px'
+                                    }}
+                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}
+                                    formatter={(val) => `${businessProfile.currencySymbol}${val.toLocaleString()}`} 
+                                />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>
@@ -129,7 +138,17 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile }) => 
                                 <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="rgba(0,0,0,0.03)" />
                                 <XAxis type="number" hide />
                                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: '#4b5563' }} width={100} />
-                                <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '1rem', color: '#fff' }} />
+                                <Tooltip 
+                                    cursor={{ fill: 'transparent' }} 
+                                    contentStyle={{ 
+                                        backgroundColor: '#000', 
+                                        border: 'none', 
+                                        borderRadius: '1rem', 
+                                        padding: '15px'
+                                    }}
+                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}
+                                    labelStyle={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', fontWeight: 900, marginBottom: '5px', textTransform: 'uppercase' }}
+                                />
                                 <Legend />
                                 <Bar name="Stock In" dataKey="in" fill="#22c55e" radius={[0, 4, 4, 0]} barSize={20} />
                                 <Bar name="Stock Out" dataKey="out" fill="#ef4444" radius={[0, 4, 4, 0]} barSize={20} />
