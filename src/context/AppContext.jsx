@@ -11,68 +11,21 @@ export const useAppContext = () => useContext(AppContext);
 
 
 
-// Enhanced Initial Mock Data (FOR SEEDING ONLY)
-const INITIAL_PRODUCTS = [
-    { id: '1', sku: 'PCUP-210', name: 'Paper cup 210 ml', category: 'Cups', unit: 'pcs', costPrice: 0.50, sellingPrice: 1.00, stock: 1000, taxRate: 0, tags: ['paper'], image: '/assets/products/paper_cup.png' },
-    { id: '2', sku: 'PCUP-150', name: 'Paper cup 150 ml', category: 'Cups', unit: 'pcs', costPrice: 0.40, sellingPrice: 0.80, stock: 1000, taxRate: 0, tags: ['paper'], image: '/assets/products/paper_cup.png' },
-    { id: '3', sku: 'BPCUP-210', name: 'Paper cup bio 210 ml', category: 'Cups', unit: 'pcs', costPrice: 0.60, sellingPrice: 1.20, stock: 1000, taxRate: 0, tags: ['bio'], image: '/assets/products/paper_cup.png' },
-    { id: '4', sku: 'BPCUP-150', name: 'Paper cup bio 150 ml', category: 'Cups', unit: 'pcs', costPrice: 0.50, sellingPrice: 1.00, stock: 1000, taxRate: 0, tags: ['bio'], image: '/assets/products/paper_cup.png' },
-    { id: '5', sku: 'PLT-12', name: 'Plate 12 inch', category: 'Plates', unit: 'pcs', costPrice: 1.00, sellingPrice: 2.00, stock: 500, taxRate: 0, tags: [], image: '/assets/products/paper_plate.png' },
-    { id: '6', sku: 'APCV-1013', name: 'Apple cover 10*13', category: 'Covers', unit: 'pcs', costPrice: 0.10, sellingPrice: 0.25, stock: 2000, taxRate: 0, tags: ['apple'], image: '/assets/products/plastic_cover.png' },
-    { id: '7', sku: 'APCV-1316', name: 'Apple cover 13*16', category: 'Covers', unit: 'pcs', costPrice: 0.15, sellingPrice: 0.30, stock: 2000, taxRate: 0, tags: ['apple'], image: '/assets/products/plastic_cover.png' },
-    { id: '8', sku: 'APCV-1620', name: 'Apple cover 16*20', category: 'Covers', unit: 'pcs', costPrice: 0.20, sellingPrice: 0.40, stock: 2000, taxRate: 0, tags: ['apple'], image: '/assets/products/plastic_cover.png' },
-    { id: '9', sku: 'VJCV-1620', name: 'Virjin cover 16*20', category: 'Covers', unit: 'pcs', costPrice: 0.25, sellingPrice: 0.50, stock: 1000, taxRate: 0, tags: ['virjin'], image: '/assets/products/plastic_cover.png' },
-    { id: '10', sku: 'WHCV-1723', name: 'White cover 17*23', category: 'Covers', unit: 'pcs', costPrice: 0.30, sellingPrice: 0.60, stock: 1000, taxRate: 0, tags: ['white'], image: '/assets/products/plastic_cover.png' },
-    { id: '11', sku: 'PKCV-1316', name: 'Packet cover 13*16', category: 'Covers', unit: 'pcs', costPrice: 0.10, sellingPrice: 0.20, stock: 2000, taxRate: 0, tags: ['packet'], image: '/assets/products/packet_cover.png' },
-    { id: '12', sku: 'PKCV-1620', name: 'Packet cover 16*20', category: 'Covers', unit: 'pcs', costPrice: 0.15, sellingPrice: 0.30, stock: 2000, taxRate: 0, tags: ['packet'], image: '/assets/products/packet_cover.png' },
-    { id: '13', sku: 'LDCV-ALL', name: 'Ld cover all size', category: 'Covers', unit: 'kg', costPrice: 2.00, sellingPrice: 4.00, stock: 500, taxRate: 0, tags: ['ld'], image: '/assets/products/plastic_cover.png' },
-    { id: '14', sku: 'HMCV-ALL', name: 'Hm cover all size', category: 'Covers', unit: 'kg', costPrice: 2.50, sellingPrice: 5.00, stock: 500, taxRate: 0, tags: ['hm'], image: '/assets/products/plastic_cover.png' },
-    { id: '15', sku: 'PPCV-ALL', name: 'Pp cover all size', category: 'Covers', unit: 'kg', costPrice: 3.00, sellingPrice: 6.00, stock: 500, taxRate: 0, tags: ['pp'], image: '/assets/products/plastic_cover.png' },
-    { id: '16', sku: 'PSTR-01', name: 'Paper straw', category: 'Cutlery', unit: 'pcs', costPrice: 0.05, sellingPrice: 0.10, stock: 5000, taxRate: 0, tags: [], image: '/assets/products/paper_straw.png' },
-    { id: '17', sku: 'PKS-1818', name: 'Packing sheets 18*18', category: 'Sheets', unit: 'kg', costPrice: 1.50, sellingPrice: 3.00, stock: 300, taxRate: 0, tags: [], image: '/assets/products/packing_sheet.png' },
-    { id: '18', sku: 'PKS-1212', name: 'Packing sheet 12*12', category: 'Sheets', unit: 'kg', costPrice: 1.00, sellingPrice: 2.00, stock: 300, taxRate: 0, tags: [], image: '/assets/products/packing_sheet.png' },
-    { id: '19', sku: 'JCUP-300', name: 'Juice cup 300 ml', category: 'Cups', unit: 'pcs', costPrice: 0.80, sellingPrice: 1.50, stock: 800, taxRate: 0, tags: ['juice'], image: '/assets/products/juice_cup.png' },
-];
- // mockdata ends
-
-// mockdata: Expanded users for testing
-const INITIAL_USERS = [
-    { id: 'u0', name: 'Global Admin', email: 'global@ledgr.com', roles: ['GLOBAL_ADMIN'], status: 'ACTIVE' },
-    { id: 'u1', name: 'Admin User', email: 'admin@ledgr.com', roles: ['OWNER'], status: 'ACTIVE' },
-    { id: 'u3', name: 'Arjun Nair', email: 'arjun@ledgr.com', roles: ['STAFF'], status: 'ACTIVE' },
-    { id: 'u4', name: 'Rahul V', email: 'rahul@ledgr.com', roles: ['STAFF'], status: 'ACTIVE' },
-]; // mockdata ends
-
-// mockdata: Expanded shops based in Trivandrum
-const INITIAL_SHOPS = [
-    { id: 's1', name: 'Lulu Hypermarket', contact: 'Store Manager', phone: '+91 471 234 5678', address: 'Lulu Mall, Akkulam, Trivandrum' },
-    { id: 's2', name: 'Kunnil Hypermarket', contact: 'Kunnil Admin', phone: '+91 471 272 1500', address: 'Kulathoor, Trivandrum' },
-    { id: 's3', name: 'Pothys Hypermarket', contact: 'Pothys Rep', phone: '+91 471 257 4444', address: 'Nikunjam, Trivandrum' },
-    { id: 's4', name: 'Reliance SMART Bazaar', contact: 'Bazaar Mgr', phone: '+91 471 233 4455', address: 'Pazhavangadi, Trivandrum' },
-    { id: 's5', name: 'More Supermarket', contact: 'More Staff', phone: '+91 471 244 5566', address: 'Sasthamangalam, Trivandrum' },
-    { id: 's6', name: 'Nilgiris Supermarket', contact: 'Nilgiris Admin', phone: '+91 471 255 6677', address: 'Vazhuthacaud, Trivandrum' },
-]; // mockdata ends
-
-// mockdata: Expanded vehicles with Kerala registrations
-const INITIAL_VEHICLES = [
-    { id: 'v1', name: 'TATA Ace', plate: 'KL-01-BK-1234', image: '/images/van.png' },
-    { id: 'v2', name: 'Mahindra Supro', plate: 'KL-01-BL-5678', image: '/images/van.png' },
-    { id: 'v3', name: 'Ashok Leyland Dost', plate: 'KL-21-CA-9012', image: '/images/van.png' },
-]; // mockdata ends
-
-const INITIAL_EMPLOYEES = [
-    { id: 'e1', name: 'Arjun Nair', role: 'SALES', status: 'ACTIVE', salary: 1800 },
-    { id: 'e2', name: 'Rahul V', role: 'SALES', status: 'ACTIVE', salary: 1750 },
-    { id: 'e3', name: 'Sijo Kurien', role: 'DRIVER', status: 'ACTIVE', salary: 1600 },
-    { id: 'e4', name: 'Deepu Singh', role: 'DRIVER', status: 'ACTIVE', salary: 1600 },
-];
+// INITIAL MOCK DATA (DISABLED FOR PRODUCTION - ZERO DATA START)
+const INITIAL_PRODUCTS = [];
+const INITIAL_USERS = [];
+const INITIAL_CLIENTS = [];
+const INITIAL_EXPENSES = [];
+const INITIAL_VEHICLES = [];
+const INITIAL_SHOPS = [];
+const INITIAL_EMPLOYEES = [];
 
 const INITIAL_BUSINESS = {
-    name: 'Future Dispo Industries',
+    name: 'Ledgr ERP',
     country: 'India',
     currency: 'INR',
     currencySymbol: '₹',
-    lowStockThreshold: 20
+    lowStockThreshold: 10
 };
 
 const INITIAL_EXPENSE_CATEGORIES = ['General', 'Inventory', 'Logistics', 'Payroll', 'Utilities', 'Marketing', 'Rent', 'Other'];
