@@ -3,9 +3,9 @@ import {
     Search, Shield, Clock, User, ArrowUpRight, ArrowDownLeft, 
     RefreshCcw, AlertTriangle, Filter, Download
 } from 'lucide-react';
-import { exportToCSV } from '../../utils/exportUtils';
+import { downloadCSV } from '../../utils/csvExport';
 
-const ReportAudit = ({ movementLog, products, users }) => {
+const ReportAudit = ({ movementLog, products, users, businessProfile }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [typeFilter, setTypeFilter] = useState('ALL');
 
@@ -70,7 +70,7 @@ const ReportAudit = ({ movementLog, products, users }) => {
                         />
                     </div>
                     <button 
-                        onClick={() => exportToCSV(enrichedLogs, 'security_audit_trail')}
+                        onClick={() => downloadCSV(enrichedLogs, 'security_audit_trail', businessProfile?.name)}
                         className="flex items-center gap-2 px-6 h-12 bg-ink-primary text-accent-signature rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-premium shrink-0"
                     >
                         <Download size={16} />

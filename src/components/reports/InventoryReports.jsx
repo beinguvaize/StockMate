@@ -4,7 +4,7 @@ import {
     Tooltip, Legend, PieChart, Pie, Cell, LineChart, Line
 } from 'recharts';
 import { Package, TrendingDown, ClipboardList, Database, AlertCircle, ArrowRight, Layers, Download } from 'lucide-react';
-import { exportToCSV } from '../../utils/exportUtils';
+import { exportInventoryCSV, downloadCSV } from '../../utils/csvExport';
 
 const InventoryReports = ({ products, sales, movementLog, businessProfile }) => {
     const [deadStockThreshold, setDeadStockThreshold] = useState(30);
@@ -167,7 +167,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile }) => 
                     </div>
                     <div className="flex items-center gap-4">
                         <button 
-                            onClick={() => exportToCSV(deadStock, 'dead_stock_report')}
+                            onClick={() => downloadCSV(deadStock, 'dead_stock_report', businessProfile.name)}
                             className="flex items-center gap-2 px-6 py-3 bg-ink-primary text-accent-signature rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-premium"
                         >
                             <Download size={16} />

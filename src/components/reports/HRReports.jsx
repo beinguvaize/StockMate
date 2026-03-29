@@ -3,7 +3,8 @@ import {
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
     Tooltip, Legend, Cell, PieChart, Pie, AreaChart, Area
 } from 'recharts';
-import { Users, Banknote, Briefcase, TrendingDown, Clock, Award } from 'lucide-react';
+import { Users, Banknote, Briefcase, TrendingDown, Clock, Award, Download } from 'lucide-react';
+import { downloadCSV } from '../../utils/csvExport';
 
 const HRReports = ({ employees, payroll, businessProfile }) => {
     
@@ -132,8 +133,19 @@ const HRReports = ({ employees, payroll, businessProfile }) => {
 
             {/* Department Performance Board */}
             <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase mb-2">Workforce Integrity.</h3>
-                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] mb-10">Departmental cost and population metrics</p>
+                <div className="flex justify-between items-center mb-10">
+                    <div>
+                        <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase mb-2">Workforce Integrity.</h3>
+                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">Departmental cost and population metrics</p>
+                    </div>
+                    <button 
+                        onClick={() => downloadCSV(employees, 'ledgr_hr_workforce', businessProfile.name)}
+                        className="flex items-center gap-2 px-6 py-3 bg-ink-primary text-accent-signature rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-premium"
+                    >
+                        <Download size={16} />
+                        Export Workforce
+                    </button>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {departmentStats.map((dept, index) => (

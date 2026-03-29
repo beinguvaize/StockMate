@@ -4,7 +4,7 @@ import {
     Tooltip, Legend, LineChart, Line, Cell, PieChart, Pie
 } from 'recharts';
 import { TrendingUp, Users, ShoppingBag, Calendar, ArrowUpRight, Target, Award, Download } from 'lucide-react';
-import { exportToCSV } from '../../utils/exportUtils';
+import { exportSalesCSV } from '../../utils/csvExport';
 
 const SalesReports = ({ sales, clients, products, businessProfile }) => {
     
@@ -173,7 +173,7 @@ const SalesReports = ({ sales, clients, products, businessProfile }) => {
                         <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">Top revenue generating partners</p>
                     </div>
                     <button 
-                        onClick={() => exportToCSV(sales, 'all_sales_records')}
+                        onClick={() => exportSalesCSV(sales, businessProfile.name, (id) => clients.find(c => c.id === id)?.name || id)}
                         className="flex items-center gap-2 px-6 py-3 bg-ink-primary text-accent-signature rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-premium"
                     >
                         <Download size={16} />

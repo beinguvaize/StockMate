@@ -17,6 +17,9 @@ import HRReports from '../components/reports/HRReports';
 import ReportAudit from '../components/reports/ReportAudit';
 import ReportPerformance from '../components/reports/ReportPerformance';
 
+// Import Export Utility
+import { downloadCSV, exportSalesCSV, exportInventoryCSV } from '../utils/csvExport';
+
 const Reports = () => {
     const { 
         sales, movementLog, expenses, businessProfile, clients, users, vehicles, routes,
@@ -113,6 +116,37 @@ const Reports = () => {
         }
     };
 
+    const handleGlobalExport = () => {
+        const bName = businessProfile?.name || 'Ledgr ERP';
+        
+        switch (activeTab) {
+            case 'FINANCIAL':
+                downloadCSV(filteredExpenses, 'ledgr_expenses', bName);
+                break;
+            case 'INVENTORY':
+                exportInventoryCSV(products, bName);
+                break;
+            case 'SALES':
+                exportSalesCSV(filteredSales, bName, getShopName);
+                break;
+            case 'CLIENTS':
+                downloadCSV(clients, 'ledgr_clients', bName);
+                break;
+            case 'LOGISTICS':
+                downloadCSV(routes, 'ledgr_routes', bName);
+                break;
+            case 'HR':
+                downloadCSV(filteredPayroll, 'ledgr_payroll', bName);
+                break;
+            case 'AUDIT':
+                downloadCSV(movementLog, 'ledgr_audit_trail', bName);
+                break;
+            default:
+                alert("This module does not support direct export.");
+                break;
+        }
+    };
+
     return (
         <div className="flex flex-col gap-8 pb-12">
             {/* Header Section */}
@@ -145,7 +179,7 @@ const Reports = () => {
                     <button className="bg-ink-primary text-white/90 p-3 rounded-full hover:scale-105 transition-all shadow-lg" onClick={() => window.print()}>
                         <Printer size={18} />
                     </button>
-                    <button className="bg-canvas text-ink-primary p-3 rounded-full hover:scale-105 transition-all border border-black/5" onClick={() => {/* Future CSV Export */}}>
+                    <button className="bg-canvas text-ink-primary p-3 rounded-full hover:scale-105 transition-all border border-black/5" onClick={handleGlobalExport}>
                         <Download size={18} />
                     </button>
                 </div>
@@ -236,6 +270,7 @@ const Reports = () => {
                         movementLog={movementLog} 
                         products={products} 
                         users={users} 
+                        businessProfile={businessProfile}
                     />
                 )}
 

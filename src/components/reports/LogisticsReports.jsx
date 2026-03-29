@@ -3,7 +3,8 @@ import {
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
     Tooltip, Legend, Cell, PieChart, Pie
 } from 'recharts';
-import { Truck, Navigation, Fuel, Timer, MapPin, Gauge } from 'lucide-react';
+import { Truck, Navigation, Fuel, Timer, MapPin, Gauge, Download } from 'lucide-react';
+import { downloadCSV } from '../../utils/csvExport';
 
 const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
     
@@ -133,8 +134,19 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
 
             {/* Comprehensive Fleet Ledger */}
             <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase mb-2">Logistics Intelligence Board.</h3>
-                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] mb-10">Historical fleet efficiency metrics</p>
+                <div className="flex justify-between items-center mb-10">
+                    <div>
+                        <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase mb-2">Logistics Intelligence Board.</h3>
+                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">Historical fleet efficiency metrics</p>
+                    </div>
+                    <button 
+                        onClick={() => downloadCSV(vehicles, 'ledgr_fleet_list', businessProfile.name)}
+                        className="flex items-center gap-2 px-6 py-3 bg-ink-primary text-accent-signature rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-premium"
+                    >
+                        <Download size={16} />
+                        Export Fleet
+                    </button>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {vehicles.map(v => {
