@@ -635,8 +635,8 @@ const Dashboard = () => {
                                 <p className="text-ink-secondary text-sm font-medium">Active Trips</p>
                                 <h3 className="text-3xl font-bold mt-1 text-ink-primary">{(routes || []).filter(r => r.status === 'ACTIVE').length}</h3>
                             </div>
-                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
-                                <Truck className="w-6 h-6" />
+                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center overflow-hidden border border-blue-100 shadow-sm">
+                                <img src="/assets/van.png" className="w-full h-full object-cover scale-150 transform hover:scale-175 transition-transform" alt="Van" />
                             </div>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-ink-secondary font-semibold">

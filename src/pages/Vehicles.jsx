@@ -13,9 +13,11 @@ import 'leaflet/dist/leaflet.css';
 // Custom vehicle marker icon
 const vehicleIcon = new L.DivIcon({
     className: 'custom-vehicle-marker',
-    html: `<div style="background:#c8ff00;width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #1a1a1a;box-shadow:0 4px 16px rgba(0,0,0,0.3);"><svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='#1a1a1a' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'><path d='M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2'/><path d='M15 18H9'/><path d='M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14'/><circle cx='17' cy='18' r='2'/><circle cx='7' cy='18' r='2'/></svg></div>`,
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
+    html: `<div style="background:#c8ff00;width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;border:3px solid #1a1a1a;box-shadow:0 8px 32px rgba(0,0,0,0.4);overflow:hidden;">
+        <img src="/assets/van.png" style="width:100%;height:100%;object-fit:cover;" />
+    </div>`,
+    iconSize: [40, 40],
+    iconAnchor: [20, 20],
     popupAnchor: [0, -20],
 });
 
@@ -584,8 +586,8 @@ const Vehicles = () => {
                         {vehicles.map(v => (
                             <div key={v.id} className="glass-panel !p-0 !rounded-2xl overflow-hidden border border-black/5 hover:shadow-premium transition-all flex flex-col group bg-surface">
                                 <div className="aspect-[2/1] bg-ink-primary relative overflow-hidden">
-                                    {v.image ? (
-                                        <img src={v.image} className="w-full h-full object-cover opacity-80 transition-transform group-hover:scale-110 duration-700" alt={v.name} />
+                                    {v.image || '/assets/van.png' ? (
+                                        <img src={v.image || '/assets/van.png'} className="w-full h-full object-cover opacity-90 transition-transform group-hover:scale-110 duration-700" alt={v.name} />
                                     ) : (
                                         <div className="w-full h-full flex items-center justify-center text-accent-signature opacity-20">
                                             <Truck size={32} strokeWidth={1} />
