@@ -3,6 +3,7 @@ import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown } from 'lucide-react';
 import NotificationStack from './NotificationStack';
+import GlobalLoading from './GlobalLoading';
 
 const CloudStatus = ({ status, lastSyncedAt, isOnline }) => {
     const config = {
@@ -324,14 +325,7 @@ const AppLayout = () => {
     const { currentUser, loading } = useAppContext();
 
     if (loading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-canvas">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-[6px] border-ink-primary/5 border-t-accent-signature rounded-pill animate-spin mb-6 mx-auto"></div>
-                    <p className="text-[10px] font-black tracking-[0.4em] uppercase opacity-30">Synchronizing Infrastructure</p>
-                </div>
-            </div>
-        );
+        return <GlobalLoading />;
     }
 
     return (
