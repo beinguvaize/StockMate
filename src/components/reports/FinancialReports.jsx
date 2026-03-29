@@ -97,9 +97,9 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile }) => {
                             <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#4b5563' }} />
                             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 900, fill: '#4b5563' }} />
                             <Tooltip 
-                                contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '1rem', padding: '15px' }}
-                                itemStyle={{ color: '#fff', fontSize: '10px' }}
-                                labelStyle={{ color: 'rgba(255,255,255,0.5)', marginBottom: '5px' }}
+                                contentStyle={{ backgroundColor: '#111', border: 'none', borderRadius: '1rem', padding: '15px' }}
+                                itemStyle={{ color: '#cbd5e1', fontSize: '10px' }}
+                                labelStyle={{ color: 'rgba(255,255,255,0.4)', marginBottom: '5px' }}
                             />
                             <Legend />
                             <Bar name="Revenue" dataKey="revenue" fill="#6366f1" radius={[6, 6, 0, 0]} />
@@ -166,12 +166,12 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile }) => {
                                 </Pie>
                                 <Tooltip 
                                     contentStyle={{ 
-                                        backgroundColor: '#000', 
+                                        backgroundColor: '#111', 
                                         border: 'none', 
                                         borderRadius: '1rem', 
                                         padding: '15px'
                                     }}
-                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}
+                                    itemStyle={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 900 }}
                                 />
                                 <Legend />
                             </PieChart>
@@ -215,12 +215,12 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile }) => {
                             </div>
                         </div>
 
-                        <div className="p-8 bg-ink-primary rounded-[2rem] text-white relative overflow-hidden group">
-                            <span className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-2 block">Current Net Worth</span>
+                        <div className="p-8 bg-ink-primary rounded-[2rem] text-slate-200 relative overflow-hidden group">
+                            <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Current Net Worth</span>
                             <div className="text-4xl font-black text-accent-signature tracking-tighter mb-2">
                                 {businessProfile.currencySymbol}{plData.reduce((sum, d) => sum + d.netProfit, 0).toLocaleString()}
                             </div>
-                            <p className="text-[9px] font-black text-white/40 uppercase tracking-[0.2em]">6-Month Rolling Profit</p>
+                            <p className="text-[9px] font-black text-ink-tertiary/70 uppercase tracking-[0.2em]">6-Month Rolling Profit</p>
                         </div>
                     </div>
 

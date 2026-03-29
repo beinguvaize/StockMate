@@ -55,12 +55,12 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
                     </div>
                     <div className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Logistics Events Optimized</div>
                 </div>
-                <div className="glass-panel !p-8 bg-ink-primary text-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-2 block">Top Route Revenue</span>
+                <div className="glass-panel !p-8 bg-ink-primary text-slate-200 border border-black/5 shadow-premium !rounded-[2.5rem]">
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Top Route Revenue</span>
                     <div className="text-4xl font-black text-accent-signature tracking-tighter mb-2">
                         {businessProfile.currencySymbol}{Math.round(routeStats[0]?.revenue || 0).toLocaleString()}
                     </div>
-                    <div className="text-[10px] font-black text-white/40 uppercase tracking-widest">{routeStats[0]?.name || 'N/A'}</div>
+                    <div className="text-[10px] font-black text-ink-tertiary/60 uppercase tracking-widest">{routeStats[0]?.name || 'N/A'}</div>
                 </div>
             </div>
 
@@ -78,14 +78,14 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
                                 <Tooltip 
                                     cursor={{ fill: 'rgba(0,0,0,0.02)' }}
                                     contentStyle={{ 
-                                        backgroundColor: '#000', 
+                                        backgroundColor: '#111', 
                                         border: 'none', 
                                         borderRadius: '1rem', 
                                         padding: '15px', 
                                         boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
                                     }}
-                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}
-                                    labelStyle={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', fontWeight: 900, marginBottom: '5px', textTransform: 'uppercase' }}
+                                    itemStyle={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 900 }}
+                                    labelStyle={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontWeight: 900, marginBottom: '5px', textTransform: 'uppercase' }}
                                     formatter={(val) => [`${businessProfile.currencySymbol}${Math.round(val).toLocaleString()}`, 'Revenue']}
                                 />
                                 <Bar dataKey="revenue" fill="#6366f1" radius={[10, 10, 0, 0]} barSize={40} />
@@ -116,12 +116,12 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
                                 </Pie>
                                 <Tooltip 
                                     contentStyle={{ 
-                                        backgroundColor: '#000', 
+                                        backgroundColor: '#111', 
                                         border: 'none', 
                                         borderRadius: '1rem', 
                                         padding: '15px'
                                     }}
-                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}
+                                    itemStyle={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 900 }}
                                     formatter={(val) => `${val} Deliveries`} 
                                 />
                                 <Legend />
@@ -142,7 +142,7 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
                         return (
                             <div key={v.id} className="p-6 bg-canvas/30 rounded-3xl border border-black/5 hover:bg-white hover:shadow-xl transition-all group">
                                 <div className="flex items-center gap-4 mb-6">
-                                    <div className="p-3 bg-white rounded-2xl group-hover:bg-ink-primary group-hover:text-white transition-all shadow-sm">
+                                    <div className="p-3 bg-white rounded-2xl group-hover:bg-ink-primary group-hover:text-slate-200 transition-all shadow-sm">
                                         <Truck size={20} />
                                     </div>
                                     <div>

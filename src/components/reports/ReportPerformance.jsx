@@ -39,13 +39,13 @@ const ReportPerformance = ({ sales, products, businessProfile }) => {
         <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {/* High Level KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="glass-panel !p-8 rounded-[2.5rem] bg-gradient-to-br from-ink-primary to-black text-surface relative overflow-hidden group">
+                <div className="glass-panel !p-8 rounded-[2.5rem] bg-gradient-to-br from-ink-primary to-black text-slate-200 relative overflow-hidden group">
                     <div className="absolute top-0 right-0 p-8 opacity-20 group-hover:scale-110 transition-transform">
                         <Zap size={48} className="text-accent-signature" />
                     </div>
-                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-white/60 mb-2 block font-mono">30D Revenue</span>
+                    <span className="text-[10px] font-black uppercase tracking-[0.2em] text-ink-tertiary mb-2 block font-mono">30D Revenue</span>
                     <div className="text-5xl font-black tracking-tighter tabular-nums flex items-baseline gap-2 mb-4">
-                        <span className="text-xl text-white/40">{businessProfile?.currencySymbol || '₹'}</span>
+                        <span className="text-xl text-ink-tertiary/60">{businessProfile?.currencySymbol || '₹'}</span>
                         {Math.round(performanceData.totalRevenue).toLocaleString()}
                     </div>
                     <div className="flex items-center gap-2 text-accent-signature">

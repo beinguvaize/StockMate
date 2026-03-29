@@ -83,12 +83,12 @@ const SalesReports = ({ sales, clients, products, businessProfile }) => {
                     </div>
                     <div className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Active Transacting Accounts</div>
                 </div>
-                <div className="glass-panel !p-8 bg-ink-primary text-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-2 block">Average Ticket Size</span>
+                <div className="glass-panel !p-8 bg-ink-primary text-slate-200 border border-black/5 shadow-premium !rounded-[2.5rem]">
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Average Ticket Size</span>
                     <div className="text-4xl font-black text-accent-signature tracking-tighter mb-2">
                         {businessProfile.currencySymbol}{Math.round(sales.length ? sales.reduce((sum, s) => sum + (s.total || 0), 0) / sales.length : 0).toLocaleString()}
                     </div>
-                    <div className="text-[10px] font-black text-white/40 uppercase tracking-widest">Value Per Transaction</div>
+                    <div className="text-[10px] font-black text-ink-tertiary/60 uppercase tracking-widest">Value Per Transaction</div>
                 </div>
             </div>
 
@@ -105,13 +105,13 @@ const SalesReports = ({ sales, clients, products, businessProfile }) => {
                                 <YAxis hide />
                                 <Tooltip 
                                     contentStyle={{ 
-                                        backgroundColor: '#000', 
+                                        backgroundColor: '#111', 
                                         border: 'none', 
                                         borderRadius: '1rem', 
                                         padding: '15px'
                                     }}
-                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}
-                                    labelStyle={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', fontWeight: 900, marginBottom: '5px', textTransform: 'uppercase' }}
+                                    itemStyle={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 900 }}
+                                    labelStyle={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontWeight: 900, marginBottom: '5px', textTransform: 'uppercase' }}
                                     formatter={(val) => [`${businessProfile.currencySymbol}${Math.round(val).toLocaleString()}`, 'Revenue']}
                                 />
                                 <Line 
@@ -149,12 +149,12 @@ const SalesReports = ({ sales, clients, products, businessProfile }) => {
                                 </Pie>
                                 <Tooltip 
                                     contentStyle={{ 
-                                        backgroundColor: '#000', 
+                                        backgroundColor: '#111', 
                                         border: 'none', 
                                         borderRadius: '1rem', 
                                         padding: '15px'
                                     }}
-                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}
+                                    itemStyle={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 900 }}
                                     formatter={(val) => `${businessProfile.currencySymbol}${Math.round(val).toLocaleString()}`} 
                                 />
                                 <Legend />

@@ -142,7 +142,7 @@ const Reports = () => {
                             <option value="ALL">ALL TIME</option>
                         </select>
                     </div>
-                    <button className="bg-ink-primary text-white p-3 rounded-full hover:scale-105 transition-all shadow-lg" onClick={() => window.print()}>
+                    <button className="bg-ink-primary text-white/90 p-3 rounded-full hover:scale-105 transition-all shadow-lg" onClick={() => window.print()}>
                         <Printer size={18} />
                     </button>
                     <button className="bg-canvas text-ink-primary p-3 rounded-full hover:scale-105 transition-all border border-black/5" onClick={() => {/* Future CSV Export */}}>
@@ -159,7 +159,7 @@ const Reports = () => {
                         onClick={() => setActiveTab(tab.id)}
                         className={`flex items-center gap-3 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                             activeTab === tab.id 
-                            ? 'bg-ink-primary text-white shadow-xl translate-y-[-2px]' 
+                            ? 'bg-ink-primary text-slate-200 shadow-xl translate-y-[-2px]' 
                             : 'text-ink-secondary hover:bg-canvas'
                         }`}
                     >

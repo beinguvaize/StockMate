@@ -79,15 +79,15 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile }) => 
                     </div>
                     <div className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Expected Margin</div>
                 </div>
-                <div className="glass-panel !p-8 bg-ink-primary text-white border border-black/5 shadow-premium !rounded-[2.5rem] relative overflow-hidden">
+                <div className="glass-panel !p-8 bg-ink-primary text-slate-200 border border-black/5 shadow-premium !rounded-[2.5rem] relative overflow-hidden">
                     <div className="absolute -right-4 -bottom-4 opacity-10">
                         <AlertCircle size={100} />
                     </div>
-                    <span className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-2 block">Dead Stock Items</span>
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Dead Stock Items</span>
                     <div className="text-4xl font-black text-accent-signature tracking-tighter mb-2">
                         {deadStock.length}
                     </div>
-                    <div className="text-[10px] font-black text-white/40 uppercase tracking-widest">{deadStockThreshold} Days Idle</div>
+                    <div className="text-[10px] font-black text-ink-tertiary/60 uppercase tracking-widest">{deadStockThreshold} Days Idle</div>
                 </div>
             </div>
 
@@ -114,12 +114,12 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile }) => 
                                 </Pie>
                                 <Tooltip 
                                     contentStyle={{ 
-                                        backgroundColor: '#000', 
+                                        backgroundColor: '#111', 
                                         border: 'none', 
                                         borderRadius: '1rem', 
                                         padding: '15px'
                                     }}
-                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}
+                                    itemStyle={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 900 }}
                                     formatter={(val) => `${businessProfile.currencySymbol}${val.toLocaleString()}`} 
                                 />
                                 <Legend />
@@ -141,13 +141,13 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile }) => 
                                 <Tooltip 
                                     cursor={{ fill: 'transparent' }} 
                                     contentStyle={{ 
-                                        backgroundColor: '#000', 
+                                        backgroundColor: '#111', 
                                         border: 'none', 
                                         borderRadius: '1rem', 
                                         padding: '15px'
                                     }}
-                                    itemStyle={{ color: '#fff', fontSize: '11px', fontWeight: 900 }}
-                                    labelStyle={{ color: 'rgba(255,255,255,0.5)', fontSize: '10px', fontWeight: 900, marginBottom: '5px', textTransform: 'uppercase' }}
+                                    itemStyle={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 900 }}
+                                    labelStyle={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontWeight: 900, marginBottom: '5px', textTransform: 'uppercase' }}
                                 />
                                 <Legend />
                                 <Bar name="Stock In" dataKey="in" fill="#22c55e" radius={[0, 4, 4, 0]} barSize={20} />
@@ -171,7 +171,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile }) => 
                                 key={days}
                                 onClick={() => setDeadStockThreshold(days)}
                                 className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${
-                                    deadStockThreshold === days ? 'bg-ink-primary text-white shadow-lg' : 'text-[#4b5563] hover:bg-canvas'
+                                    deadStockThreshold === days ? 'bg-ink-primary text-slate-200 shadow-lg' : 'text-[#4b5563] hover:bg-canvas'
                                 }`}
                             >
                                 {days}D
