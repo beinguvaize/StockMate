@@ -259,45 +259,21 @@ export const AppProvider = ({ children }) => {
             status: 'ACTIVE'
         };
 
-        if (isSupabaseConfigured && userData.password) {            // Call the Edge Function which uses SERVICE_ROLE to create auth + profile atomically
+        if (isSupabaseConfigured && userData.password) {
+            // Refactored to use official Supabase SDK for Edge Function invocation
             try {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-                const session = await supabase.auth.getSession();
-                const token = session?.data?.session?.access_token || anonKey;
-
-                // 10-second timeout so the form never hangs
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-                const res = await fetch(`${supabaseUrl}/functions/v1/dynamic-service`, {
-                    method: 'POST',
-                    signal: controller.signal,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                        'apikey': anonKey
-                    },
-                    body: JSON.stringify({
+                const { data: result, error: invokeError } = await supabase.functions.invoke('dynamic-service', {
+                    body: {
                         email: userData.email,
                         password: userData.password,
                         name: userData.name,
                         roles: userData.roles || ['STAFF']
-                    })
+                    }
                 });
-                clearTimeout(timeoutId);
 
-                let result;
-                try {
-                    result = await res.json();
-                } catch {
-                    result = {};
-                }
-                console.log("Edge function response:", res.status, result);
-
-                if (!res.ok) {
-                    const errMsg = result?.error || result?.message || `HTTP ${res.status}`;
-                    addNotification(`Staff creation failed: ${errMsg}`, "error");
+                if (invokeError) {
+                    console.error("❌ Staff Creation Failed:", invokeError);
+                    addNotification(`Staff creation failed: ${invokeError.message}`, "error");
                     return false;
                 }
 
@@ -307,14 +283,8 @@ export const AppProvider = ({ children }) => {
                 return true;
 
             } catch (err) {
-                const isTimeout = err?.name === 'AbortError';
-                console.error("Edge function call failed:", err);
-                addNotification(
-                    isTimeout 
-                        ? "Staff creation timed out — saving profile only. Add them in Supabase Auth for login access."
-                        : "Edge function unreachable — saving profile only.",
-                    "warning"
-                );
+                console.error("❌ Edge Function Unreachable:", err);
+                addNotification("Edge function unreachable — saving profile only. Add them in Supabase Auth manually for login access.", "warning");
                 // Fall through to profile-only save below
             }
         }
