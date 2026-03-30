@@ -254,26 +254,30 @@ body::before {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(24px);
-  z-index: 1000;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1.5rem;
-  animation: fadeIn 0.3s ease-out forwards;
+  flex-direction: column;
+  padding: 0.5rem; /* Ultra-low padding for viewport fit */
+  overflow-y: auto;
+  animation: fadeIn 0.2s ease-out forwards;
 }
 
 .glass-modal {
   background: var(--surface);
-  border-radius: 1.5rem;
-  padding: 1rem;
+  border-radius: 1rem; /* Compact radius */
+  padding: 1rem 1.25rem; /* Reduced vertical padding */
   width: 100%;
   max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
+  margin: auto;
+  min-height: min-content;
+  display: flex;
+  flex-direction: column;
   position: relative;
-  box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.3);
-  animation: modalScaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: 0 40px 100px -20px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  animation: modalScaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @media (min-width: 768px) {
@@ -445,13 +449,13 @@ body::before {
 /* Premium Inputs */
 .input-field {
   width: 100%;
-  padding: 0.75rem 1rem;
+  padding: 0.5rem 0.75rem; /* Compacted padding for high-density fit */
   background: white;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-sm);
   color: var(--text-main);
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 0.875rem; /* Smaller, sharper font */
   transition: var(--transition);
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { 
     Plus, Search, Calendar, Package, Trash2, Save, X, 
@@ -24,6 +24,15 @@ const Purchases = () => {
         date: new Date().toISOString().split('T')[0],
         notes: ''
     });
+
+    useEffect(() => {
+        if (isAdding) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [isAdding]);
 
     // Fetch unique suppliers (Legacy & Formally Registered)
     const availableSuppliers = useMemo(() => {

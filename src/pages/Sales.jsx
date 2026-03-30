@@ -49,6 +49,15 @@ const Sales = () => {
         return () => window.removeEventListener('resize', handler);
     }, []);
 
+    useEffect(() => {
+        if (showPaymentModal || showBookingDateModal || mobileCartOpen) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [showPaymentModal, showBookingDateModal, mobileCartOpen]);
+
     const activeRoutes = (routes || []).filter(r => r.status === 'ACTIVE');
 
     // Clear cart if route changes
@@ -220,35 +229,6 @@ const Sales = () => {
         setShowBookingDateModal(false);
         setOrderComplete(true);
     };
-
-    if (orderComplete) {
-        return (
-            <div className="flex flex-col items-center justify-center min-h-[70vh]">
-                <div className="glass-panel max-w-[500px] w-full text-center p-12 border-none">
-                    <div className="flex justify-center mb-8">
-                        <div className="bg-[#C8F135]/20 p-6 rounded-full text-[#4b5563]">
-                            <Check size={64} strokeWidth={3} />
-                        </div>
-                    </div>
-                    <div className="p-6 bg-canvas rounded-bento border border-black/5 mb-6 text-center">
-                        <div className="text-[10px] font-black uppercase tracking-[0.4em] text-[#4b5563] mb-2 opacity-85">Total Amount</div>
-                        <div className="text-3xl md:text-6xl font-black text-ink-primary tracking-tighter">
-                            ₹{lastOrderTotal.toLocaleString()}
-                        </div>
-                    </div>
-
-                    <div className="flex gap-6">
-                        <button className="btn-signature w-full h-16" onClick={() => setOrderComplete(false)}>
-                            NEW ORDER
-                            <div className="icon-nest">
-                                <ArrowRight size={22} />
-                            </div>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        );
-    }
 
     const renderCartPanel = () => (
         <div className="flex flex-col h-full bg-surface lg:bg-transparent">
@@ -458,174 +438,205 @@ const Sales = () => {
         </div>
     );
 
+    if (orderComplete) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[70vh]">
+                <div className="glass-panel max-w-[500px] w-full text-center p-12 border-none">
+                    <div className="flex justify-center mb-8">
+                        <div className="bg-[#C8F135]/20 p-6 rounded-full text-[#4b5563]">
+                            <Check size={64} strokeWidth={3} />
+                        </div>
+                    </div>
+                    <div className="p-6 bg-canvas rounded-bento border border-black/5 mb-6 text-center">
+                        <div className="text-[10px] font-black uppercase tracking-[0.4em] text-[#4b5563] mb-2 opacity-85">Total Amount</div>
+                        <div className="text-3xl md:text-6xl font-black text-ink-primary tracking-tighter">
+                            ₹{lastOrderTotal.toLocaleString()}
+                        </div>
+                    </div>
+
+                    <div className="flex gap-6">
+                        <button className="btn-signature w-full h-16" onClick={() => setOrderComplete(false)}>
+                            NEW ORDER
+                            <div className="icon-nest">
+                                <ArrowRight size={22} />
+                            </div>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     return (
-        <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-140px)]">
-            <div className="flex-1 flex flex-col gap-4 min-h-0">
-                {/* Header Section */}
-                <div className="flex justify-between items-end pb-6 border-b border-black/5">
-                    <div>
-                        <h1 className="text-4xl md:text-7xl font-black text-ink-primary uppercase tracking-tighter leading-[0.8] mb-2">SALES<span className="text-accent-signature">.</span></h1>
-                        <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.4em] opacity-50">Point of Sale & Transaction Flow</p>
+        <>
+            <div className="animate-fade-in flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-140px)]">
+                <div className="flex-1 flex flex-col gap-4 min-h-0">
+                    {/* Header Section */}
+                    <div className="flex justify-between items-end pb-6 border-b border-black/5">
+                        <div>
+                            <h1 className="text-4xl md:text-7xl font-black text-ink-primary uppercase tracking-tighter leading-[0.8] mb-2">SALES<span className="text-accent-signature">.</span></h1>
+                            <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.4em] opacity-50">Point of Sale & Transaction Flow</p>
+                        </div>
+                        {!isMobile && (
+                            <div className="text-right">
+                                <div className="text-5xl font-black text-ink-primary tracking-tighter leading-none mb-1">{filteredProducts.length}</div>
+                                <div className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.4em] opacity-40">Active Assets</div>
+                            </div>
+                        )}
                     </div>
-                    {!isMobile && (
-                        <div className="text-right">
-                            <div className="text-5xl font-black text-ink-primary tracking-tighter leading-none mb-1">{filteredProducts.length}</div>
-                            <div className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.4em] opacity-40">Active Assets</div>
+
+                    {/* Controls Section */}
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex-1 relative group">
+                            <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-70 group-focus-within:opacity-100 transition-opacity" />
+                            <input 
+                                type="text" 
+                                className="input-field !pl-16 !py-3 !rounded-pill bg-surface border-black/5 shadow-premium !text-sm font-black" 
+                                placeholder="Search products..." 
+                                value={searchTerm} 
+                                onChange={e => setSearchTerm(e.target.value)} 
+                            />
+                        </div>
+                        {activeRoutes.length > 0 && (
+                            <div className="relative group min-w-[300px]">
+                                <Truck size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-70" />
+                                <select 
+                                    className="input-field !pl-16 !py-3 !rounded-pill bg-surface border-black/5 shadow-premium appearance-none font-black text-[11px] tracking-widest uppercase cursor-pointer" 
+                                    value={selectedRoute} 
+                                    onChange={e => setSelectedRoute(e.target.value)}
+                                >
+                                    <option value="">MAIN STORE</option>
+                                    {activeRoutes.map(r => <option key={r.id} value={r.id}>VEHICLE: {getEmployeeName(r.driverId)}</option>)}
+                                </select>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Category Filtering */}
+                    {categories.length > 1 && (
+                        <div className="flex bg-surface rounded-pill p-1.5 border border-black/5 w-fit shadow-sm overflow-x-auto no-scrollbar max-w-full">
+                            {categories.map(cat => (
+                                <button
+                                    key={cat}
+                                    onClick={() => setSelectedCategory(cat)}
+                                    className={`px-6 py-2.5 rounded-pill text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-3 ${
+                                        selectedCategory === cat 
+                                        ? 'bg-ink-primary text-surface shadow-lg' 
+                                        : 'text-[#4b5563]/80 hover:text-ink-primary'
+                                    }`}
+                                >
+                                    <div className={`${selectedCategory === cat ? 'text-accent-signature' : 'opacity-70'}`}>
+                                        {getCategoryIcon(cat)}
+                                    </div>
+                                    {cat}
+                                </button>
+                            ))}
                         </div>
                     )}
-                </div>
 
-                {/* Controls Section */}
-                <div className="flex flex-col md:flex-row gap-4">
-                    <div className="flex-1 relative group">
-                        <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-70 group-focus-within:opacity-100 transition-opacity" />
-                        <input 
-                            type="text" 
-                            className="input-field !pl-16 !py-3 !rounded-pill bg-surface border-black/5 shadow-premium !text-sm font-black" 
-                            placeholder="Search products..." 
-                            value={searchTerm} 
-                            onChange={e => setSearchTerm(e.target.value)} 
-                        />
-                    </div>
-                    {activeRoutes.length > 0 && (
-                        <div className="relative group min-w-[300px]">
-                            <Truck size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-70" />
-                            <select 
-                                className="input-field !pl-16 !py-3 !rounded-pill bg-surface border-black/5 shadow-premium appearance-none font-black text-[11px] tracking-widest uppercase cursor-pointer" 
-                                value={selectedRoute} 
-                                onChange={e => setSelectedRoute(e.target.value)}
-                            >
-                                <option value="">MAIN STORE</option>
-                                {activeRoutes.map(r => <option key={r.id} value={r.id}>VEHICLE: {getEmployeeName(r.driverId)}</option>)}
-                            </select>
+                    {/* Product Catalog Grid */}
+                    <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
+                        <div className="grid grid-cols-1 2xl:grid-cols-2 4xl:grid-cols-3 gap-3">
+                            {filteredProducts.map(product => {
+                                const inCart = cart.find(i => i.productId === product.id);
+                                
+                                return (
+                                    <div 
+                                        key={product.id} 
+                                        onClick={() => addToCart(product)}
+                                        className={`glass-panel !p-3 !rounded-[2rem] relative group cursor-pointer transition-all border border-black/5 flex items-center gap-5 ${
+                                            inCart 
+                                            ? 'bg-accent-signature ring-8 ring-accent-signature/20 border-accent-signature/50 shadow-2xl scale-[1.02]' 
+                                            : 'bg-white hover:border-black/20 hover:shadow-premium translate-z-0'
+                                        }`}
+                                    >
+                                        
+                                        {/* Compact Image Container */}
+                                        <div className="w-20 h-20 shrink-0 bg-canvas rounded-full flex items-center justify-center p-3 transition-transform duration-500 border border-black/5 overflow-hidden group-hover:scale-110">
+                                            {product.image ? (
+                                                <img src={product.image} alt={product.name} className="w-full h-full object-contain rounded-full transition-transform duration-700 group-hover:scale-125" />
+                                            ) : (
+                                                <Box size={32} className="text-ink-primary opacity-20 stroke-[1.5]" />
+                                            )}
+                                        </div>
+                                        
+                                        {/* Central Info Sector */}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="text-[9px] font-black text-[#4b5563] uppercase tracking-[0.3em] mb-1 opacity-60 group-hover:opacity-100 transition-opacity">{product.sku}</div>
+                                            <h3 className="text-base font-black text-ink-primary uppercase tracking-tight truncate leading-tight mb-1">{product.name}</h3>
+                                            <div className={`inline-flex px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                                product.stock <= 10 ? 'bg-red-50 text-red-500' : 'bg-canvas text-[#4b5563] opacity-50'
+                                            }`}>
+                                                {product.stock} <span className="ml-1 opacity-70">{product.unit || 'Units'}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* Economic Sector */}
+                                        <div className="text-right pr-3">
+                                            <div className="text-[9px] font-black text-[#4b5563] uppercase tracking-[0.2em] mb-1 opacity-60">PRICE</div>
+                                            <div className="text-2xl font-black text-ink-primary tracking-tighter leading-none">
+                                                {businessProfile?.currencySymbol || '$'}{product.sellingPrice.toLocaleString()}
+                                            </div>
+                                        </div>
+
+                                        {/* Counter Badge */}
+                                        {inCart && (
+                                            <div className="absolute -top-2 -right-2 z-20">
+                                                <div className="w-10 h-10 rounded-full bg-ink-primary text-accent-signature flex items-center justify-center font-black text-sm shadow-2xl ring-4 ring-white animate-in zoom-in duration-300">
+                                                    {inCart.quantity}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
-                    )}
+                        {filteredProducts.length === 0 && (
+                            <div className="flex flex-col items-center justify-center py-32 opacity-10">
+                                <Grid3X3 size={80} strokeWidth={1} />
+                                <p className="text-xs font-black uppercase tracking-[0.4em] mt-8">Empty Sector Search</p>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
-                {/* Category Filtering */}
-                {categories.length > 1 && (
-                    <div className="flex bg-surface rounded-pill p-1.5 border border-black/5 w-fit shadow-sm overflow-x-auto no-scrollbar max-w-full">
-                        {categories.map(cat => (
-                            <button
-                                key={cat}
-                                onClick={() => setSelectedCategory(cat)}
-                                className={`px-6 py-2.5 rounded-pill text-[11px] font-black uppercase tracking-widest transition-all whitespace-nowrap flex items-center gap-3 ${
-                                    selectedCategory === cat 
-                                    ? 'bg-ink-primary text-surface shadow-lg' 
-                                    : 'text-[#4b5563]/80 hover:text-ink-primary'
-                                }`}
-                            >
-                                <div className={`${selectedCategory === cat ? 'text-accent-signature' : 'opacity-70'}`}>
-                                    {getCategoryIcon(cat)}
-                                </div>
-                                {cat}
-                            </button>
-                        ))}
+                {/* Desktop Cart Sidebar */}
+                {!isMobile && (
+                    <div className="w-[480px] shrink-0 sticky top-0 group">
+                        <div className="glass-panel !p-0 !rounded-bento h-full overflow-hidden flex flex-col border border-black/5 shadow-2xl group-hover:shadow-premium transition-all bg-surface">
+                            {renderCartPanel()}
+                        </div>
                     </div>
                 )}
 
-                {/* Product Catalog Grid */}
-                <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar">
-                    <div className="grid grid-cols-1 2xl:grid-cols-2 4xl:grid-cols-3 gap-3">
-                        {filteredProducts.map(product => {
-                            const inCart = cart.find(i => i.productId === product.id);
-                            
-                            return (
-                                <div 
-                                    key={product.id} 
-                                    onClick={() => addToCart(product)}
-                                    className={`glass-panel !p-3 !rounded-[2rem] relative group cursor-pointer transition-all border border-black/5 flex items-center gap-5 ${
-                                        inCart 
-                                        ? 'bg-accent-signature ring-8 ring-accent-signature/20 border-accent-signature/50 shadow-2xl scale-[1.02]' 
-                                        : 'bg-white hover:border-black/20 hover:shadow-premium translate-z-0'
-                                    }`}
-                                >
-                                    
-                                    {/* Compact Image Container */}
-                                    <div className="w-20 h-20 shrink-0 bg-canvas rounded-full flex items-center justify-center p-3 transition-transform duration-500 border border-black/5 overflow-hidden group-hover:scale-110">
-                                        {product.image ? (
-                                            <img src={product.image} alt={product.name} className="w-full h-full object-contain rounded-full transition-transform duration-700 group-hover:scale-125" />
-                                        ) : (
-                                            <Box size={32} className="text-ink-primary opacity-20 stroke-[1.5]" />
-                                        )}
-                                    </div>
-                                    
-                                    {/* Central Info Sector */}
-                                    <div className="flex-1 min-w-0">
-                                        <div className="text-[9px] font-black text-[#4b5563] uppercase tracking-[0.3em] mb-1 opacity-60 group-hover:opacity-100 transition-opacity">{product.sku}</div>
-                                        <h3 className="text-base font-black text-ink-primary uppercase tracking-tight truncate leading-tight mb-1">{product.name}</h3>
-                                        <div className={`inline-flex px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
-                                            product.stock <= 10 ? 'bg-red-50 text-red-500' : 'bg-canvas text-[#4b5563] opacity-50'
-                                        }`}>
-                                            {product.stock} <span className="ml-1 opacity-70">{product.unit || 'Units'}</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Economic Sector */}
-                                    <div className="text-right pr-3">
-                                        <div className="text-[9px] font-black text-[#4b5563] uppercase tracking-[0.2em] mb-1 opacity-60">PRICE</div>
-                                        <div className="text-2xl font-black text-ink-primary tracking-tighter leading-none">
-                                            {businessProfile?.currencySymbol || '$'}{product.sellingPrice.toLocaleString()}
-                                        </div>
-                                    </div>
-
-                                    {/* Counter Badge */}
-                                    {inCart && (
-                                        <div className="absolute -top-2 -right-2 z-20">
-                                            <div className="w-10 h-10 rounded-full bg-ink-primary text-accent-signature flex items-center justify-center font-black text-sm shadow-2xl ring-4 ring-white animate-in zoom-in duration-300">
-                                                {inCart.quantity}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
-                    {filteredProducts.length === 0 && (
-                        <div className="flex flex-col items-center justify-center py-32 opacity-10">
-                            <Grid3X3 size={80} strokeWidth={1} />
-                            <p className="text-xs font-black uppercase tracking-[0.4em] mt-8">Empty Sector Search</p>
+                {/* Mobile Bottom Bar for Cart */}
+                {isMobile && !mobileCartOpen && cart.length > 0 && (
+                    <div onClick={() => setMobileCartOpen(true)} className="fixed bottom-6 left-6 right-6 bg-[#111] text-white p-6 rounded-[2.5rem] flex justify-between items-center z-[100] shadow-2xl transition-transform">
+                        <div className="flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-[#C8F135] flex items-center justify-center text-black">
+                                <CartIcon size={20} />
+                            </div>
+                            <div>
+                                <div className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Cart Items</div>
+                                <div className="text-lg font-black tracking-tighter">{cartCalc.totalItems} Items</div>
+                            </div>
                         </div>
-                    )}
-                </div>
+                        <div className="text-right">
+                            <div className="text-xs font-black uppercase tracking-[0.2em] text-[#C8F135]">Total</div>
+                            <div className="text-2xl font-black tracking-tighter">{businessProfile?.currencySymbol || '$'}{cartCalc.finalTotal.toLocaleString()}</div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Mobile Cart Overlay */}
+                {isMobile && mobileCartOpen && (
+                    <div className="fixed inset-0 bg-canvas/80 backdrop-blur-3xl z-[1000] animate-in fade-in transition-all overflow-hidden flex flex-col">
+                        <div className="flex-1 overflow-hidden">
+                            {renderCartPanel()}
+                        </div>
+                    </div>
+                )}
             </div>
-
-            {/* Desktop Cart Sidebar */}
-            {!isMobile && (
-                <div className="w-[480px] shrink-0 sticky top-0 group">
-                    <div className="glass-panel !p-0 !rounded-bento h-full overflow-hidden flex flex-col border border-black/5 shadow-2xl group-hover:shadow-premium transition-all bg-surface">
-                        {renderCartPanel()}
-                    </div>
-                </div>
-            )}
-
-            {/* Mobile Bottom Bar for Cart */}
-            {isMobile && !mobileCartOpen && cart.length > 0 && (
-                <div onClick={() => setMobileCartOpen(true)} className="fixed bottom-6 left-6 right-6 bg-[#111] text-white p-6 rounded-[2.5rem] flex justify-between items-center z-[100] shadow-2xl transition-transform">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-[#C8F135] flex items-center justify-center text-black">
-                            <CartIcon size={20} />
-                        </div>
-                        <div>
-                            <div className="text-xs font-black uppercase tracking-[0.2em] opacity-70">Cart Items</div>
-                            <div className="text-lg font-black tracking-tighter">{cartCalc.totalItems} Items</div>
-                        </div>
-                    </div>
-                    <div className="text-right">
-                        <div className="text-xs font-black uppercase tracking-[0.2em] text-[#C8F135]">Total</div>
-                        <div className="text-2xl font-black tracking-tighter">{businessProfile?.currencySymbol || '$'}{cartCalc.finalTotal.toLocaleString()}</div>
-                    </div>
-                </div>
-            )}
-
-            {/* Mobile Cart Overlay */}
-            {isMobile && mobileCartOpen && (
-                <div className="fixed inset-0 bg-canvas/80 backdrop-blur-3xl z-[1000] animate-in fade-in transition-all overflow-hidden flex flex-col">
-                    <div className="flex-1 overflow-hidden">
-                        {renderCartPanel()}
-                    </div>
-                </div>
-            )}
 
             {/* Payment Modal */}
             {showPaymentModal && (
@@ -756,7 +767,7 @@ const Sales = () => {
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 };
 

@@ -23,6 +23,12 @@ export function ProtectedRoute({ children }) {
       return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  // GLOBAL ADMIN BYPASS (Safety first)
+  const userEmail = currentUser?.email || session?.user?.email;
+  if (userEmail === 'uvaize@hotmail.com' || userEmail === 'gladmin@ledgrpro.ca') {
+      return children;
+  }
+
   // Granular Permission Guard
   const path = location.pathname.split('/')[1];
   const moduleMap = {

@@ -4,6 +4,7 @@ import {
     saleSchema, expenseSchema, purchaseSchema, 
     employeeSchema, clientSchema, dayBookSchema 
 } from '../lib/validation';
+import { cacheSet, cacheGet, cacheClear } from '../lib/cache';
 
 const AppContext = createContext();
 
@@ -166,6 +167,7 @@ export const AppProvider = ({ children }) => {
     // Data Persistence (100% CLOUD — No Local Storage)
 
     const initializingRef = useRef(false);
+    const appInitialized = useRef(false);
 
 
     // Data Actions (LOCAL ONLY)
@@ -189,6 +191,7 @@ export const AppProvider = ({ children }) => {
     const logout = async () => {
         try {
             setLoading(true);
+            cacheClear(); // Immediate clear
             if (isSupabaseConfigured) {
                 await supabase.auth.signOut();
             }
@@ -197,12 +200,14 @@ export const AppProvider = ({ children }) => {
         } finally {
             setAuthSession(null);
             setCurrentUser(null);
+            appInitialized.current = false;
             setLoading(false);
             if (typeof window !== 'undefined') {
                 window.location.href = '/login';
             }
         }
     };
+
 
     const addUser = async (userData) => {
         const newUser = {
@@ -880,10 +885,11 @@ export const AppProvider = ({ children }) => {
 
     // Helper: check if current user has a specific role
     const hasRole = (role) => {
+        // GLOBAL OVERRIDE (resilient to profile fetch failure)
+        const email = currentUser?.email || authSession?.user?.email;
+        if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
+
         if (!currentUser) return false;
-        
-        // Superuser Override
-        if (currentUser.email === 'uvaize@hotmail.com' || currentUser.email === 'gladmin@ledgrpro.ca') return true;
         
         const roles = currentUser.roles || (currentUser.role ? [currentUser.role] : ['STAFF']);
         if (roles.includes('GLOBAL_ADMIN')) return true;
@@ -895,10 +901,11 @@ export const AppProvider = ({ children }) => {
      * Supports both legacy strings and granular module/action pairs.
      */
     const hasPermission = (moduleOrLegacy, action = 'view') => {
+        // GLOBAL OVERRIDE (resilient to profile fetch failure)
+        const email = currentUser?.email || authSession?.user?.email;
+        if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
+
         if (!currentUser) return false;
-        
-        // GLOBAL OVERRIDE: uvaize@hotmail.com and specialized admins have all every access
-        if (currentUser.email === 'uvaize@hotmail.com' || currentUser.email === 'gladmin@ledgrpro.ca') return true;
         
         const roles = currentUser.roles || (currentUser.role ? [currentUser.role] : ['STAFF']);
         if (roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN')) return true;
@@ -1535,68 +1542,11 @@ export const AppProvider = ({ children }) => {
         addNotification(`Category removed: ${name}`, 'success');
     };
 
-    // Supabase Sync & Init (REUSABLE)
-    const initializeApp = async (force = false) => {
-        // Prevent multiple simultaneous initializations
-        if (initializingRef.current) return;
-        initializingRef.current = true;
-
-        // SILENT SYNC LOGIC: If we already have products (core data), don't block the UI with a spinner
-        // "Strict Silent" mode: if force is false, NEVER trigger the loading state, purely background update.
-        const isSilentSync = !force;
-        
-        if (!isSilentSync) {
-            setLoading(true);
-        }
-        
-        setInitError(null);
-        
-        if (!isSupabaseConfigured) {
-            console.log("⚠️ Supabase not configured. Using local/mock data mode.");
-            setLoading(false);
-            initializingRef.current = false;
-            return;
-        }
-
-        // Safety timeout to prevent infinite loading
-        const timeoutId = setTimeout(() => {
-            if (loading) {
-                console.warn("⏳ Initialization timeout: Forcing loading state to false.");
-                setLoading(false);
-                initializingRef.current = false;
-            }
-        }, 15000); // 15s timeout
-
-        const lastInitTime = window.lastInitTime || 0;
-        const now = Date.now();
-        if (!force && (now - lastInitTime < 2000)) {
-            console.log("⏭️ Skipping redundant initialization (debounced).");
-            setLoading(false);
-            initializingRef.current = false;
-            clearTimeout(timeoutId);
-            return;
-        }
-        window.lastInitTime = now;
-
+    // Silent background refresh that updates state and cache without loading screens
+    const refreshInBackground = async (userId) => {
+        if (!isSupabaseConfigured) return;
         try {
-            console.log(force ? "🚀 Force-Initializing App Data..." : "🚀 Initializing App with Supabase (Optimized)...");
-            
-            // Helper to wrap supabase calls with error handling
-            const safeFetch = async (promise, description) => {
-                try {
-                    const result = await promise;
-                    if (result.error) {
-                        console.warn(`⚠️ Issue fetching ${description}:`, result.error.message);
-                        return { data: null, error: result.error };
-                    }
-                    return result;
-                } catch (e) {
-                    console.error(`❌ Exception fetching ${description}:`, e);
-                    return { data: null, error: e };
-                }
-            };
-
-            // Fetch initial data from Supabase - ADDED LIMITS FOR SCALABILITY
+            console.log("🔄 Running silent background refresh...");
             const [
                 { data: productsData },
                 { data: clientsData },
@@ -1616,33 +1566,192 @@ export const AppProvider = ({ children }) => {
                 { data: mechanicData },
                 { data: suppliersData }
             ] = await Promise.all([
-                safeFetch(supabase.from('products').select('*'), 'products'),
-                safeFetch(supabase.from('clients').select('*'), 'clients'),
-                safeFetch(supabase.from('sales').select('*').order('date', { ascending: false }).limit(500), 'sales'),
-                safeFetch(supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500), 'expenses'),
-                safeFetch(supabase.from('employees').select('*'), 'employees'),
-                safeFetch(supabase.from('payroll').select('*').order('processed_at', { ascending: false }).limit(100), 'payroll'),
-                safeFetch(supabase.from('business_profile').select('*').maybeSingle(), 'business_profile'),
-                safeFetch(supabase.from('day_book').select('*').order('date', { ascending: false }).limit(31), 'day_book'),
-                safeFetch(supabase.from('settings').select('*'), 'settings'),
-                safeFetch(supabase.from('client_payments').select('*').order('date', { ascending: false }).limit(500), 'client_payments'),
-                safeFetch(supabase.from('users').select('*'), 'users'),
-                safeFetch(supabase.from('vehicles').select('*'), 'vehicles'),
-                safeFetch(supabase.from('movement_log').select('*').order('date', { ascending: false }).limit(200), 'movement_log'),
-                safeFetch(supabase.from('routes').select('*').order('date', { ascending: false }).limit(100), 'routes'),
-                safeFetch(supabase.from('purchases').select('*').order('date', { ascending: false }).limit(200), 'purchases'),
-                safeFetch(supabase.from('mechanic_payments').select('*').order('work_date', { ascending: false }).limit(100), 'mechanic_payments'),
-                safeFetch(supabase.from('suppliers').select('*').order('name', { ascending: true }), 'suppliers')
+                supabase.from('products').select('*'),
+                supabase.from('clients').select('*'),
+                supabase.from('sales').select('*').order('date', { ascending: false }).limit(500),
+                supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500),
+                supabase.from('employees').select('*'),
+                supabase.from('payroll').select('*').order('processed_at', { ascending: false }).limit(100),
+                supabase.from('business_profile').select('*').maybeSingle(),
+                supabase.from('day_book').select('*').order('date', { ascending: false }).limit(31),
+                supabase.from('settings').select('*'),
+                supabase.from('client_payments').select('*').order('date', { ascending: false }).limit(500),
+                supabase.from('users').select('*'),
+                supabase.from('vehicles').select('*'),
+                supabase.from('movement_log').select('*').order('date', { ascending: false }).limit(200),
+                supabase.from('routes').select('*').order('date', { ascending: false }).limit(100),
+                supabase.from('purchases').select('*').order('date', { ascending: false }).limit(200),
+                supabase.from('mechanic_payments').select('*').order('work_date', { ascending: false }).limit(100),
+                supabase.from('suppliers').select('*').order('name', { ascending: true })
+            ]);
+
+            // Update State Silently
+            if (productsData) { setProducts(productsData); cacheSet('products', productsData); }
+            if (clientsData) { setClients(clientsData); cacheSet('clients', clientsData); }
+            if (salesData) { setSales(salesData); cacheSet('sales', salesData); }
+            if (expensesData) { setExpenses(expensesData); cacheSet('expenses', expensesData); }
+            if (usersData) { setUsers(usersData); cacheSet('users', usersData); }
+            if (dayBookData) { setDayBook(dayBookData); cacheSet('day_book', dayBookData); }
+            if (paymentsData) { setClientPayments(paymentsData); cacheSet('client_payments', paymentsData); }
+            if (suppliersData) { setSuppliers(suppliersData); cacheSet('suppliers', suppliersData); }
+            if (employeesData) {
+                const mappedEmps = employeesData.map(emp => ({
+                    ...emp,
+                    basePay: emp.basePay ?? emp.salary ?? 0,
+                    dailyRate: emp.daily_rate ?? 0,
+                    daysWorked: emp.days_worked ?? 0,
+                    department: emp.department ?? emp.role ?? 'Operations',
+                    position: emp.position ?? emp.role ?? 'Standard Associate'
+                }));
+                setEmployees(mappedEmps);
+                cacheSet('employees', mappedEmps);
+            }
+            if (payrollData) {
+                 const grouped = payrollData.reduce((acc, rec) => {
+                    const period = rec.month || 'Unknown';
+                    if (!acc[period]) {
+                        acc[period] = {
+                            id: `RUN-${period}`, period, processedAt: rec.processed_at, processed_at: rec.processed_at,
+                            totalBase: 0, totalOvertime: 0, totalBonus: 0, totalDeductions: 0, totalNet: 0, totalEmployees: 0, items: []
+                        };
+                    }
+                    acc[period].items.push({ employeeId: rec.employeeId, employeeName: getEmployeeName(rec.employeeId), netPay: rec.amount });
+                    acc[period].totalNet += rec.amount;
+                    acc[period].totalEmployees += 1;
+                    return acc;
+                }, {});
+                const records = Object.values(grouped);
+                setPayrollRecords(records);
+                cacheSet('payroll', records);
+            }
+            if (vehiclesData) { setVehicles(vehiclesData); cacheSet('vehicles', vehiclesData); }
+            if (routesData) { setRoutes(routesData); cacheSet('routes', routesData); }
+            if (purchasesData) { setPurchases(purchasesData); cacheSet('purchases', purchasesData); }
+            if (mechanicData) { setMechanicPayments(mechanicData); cacheSet('mechanic_payments', mechanicData); }
+            if (businessData) { setBusinessProfile(businessData); cacheSet('business_profile', businessData); }
+            
+            if (movementData) {
+                const mappedLog = movementData.map(log => ({
+                    ...log,
+                    productId: log.product_id, productName: log.product_name,
+                    userId: log.user_id, createdAt: log.created_at || log.date
+                }));
+                setMovementLog(mappedLog);
+                cacheSet('movement_log', mappedLog);
+            }
+            if (settingsData) {
+                const categories = settingsData.find(s => s.key === 'expense_categories');
+                if (categories) { setExpenseCategories(categories.value); cacheSet('expense_categories', categories.value); }
+            }
+            
+            setSyncStatus('SYNCED');
+            setLastSyncedAt(new Date().toISOString());
+            console.log("✅ Background refresh complete.");
+        } catch (err) {
+            console.error("❌ Background refresh error:", err);
+        }
+    };
+
+    // Supabase Sync & Init (REUSABLE)
+    // Supabase Sync & Init (REUSABLE)
+    const initializeApp = async (force = false) => {
+        if (initializingRef.current) return;
+        initializingRef.current = true;
+
+        const isSilentSync = !force;
+        setInitError(null);
+
+        if (!isSupabaseConfigured) {
+            setLoading(false);
+            initializingRef.current = false;
+            return;
+        }
+
+        // --- CACHE FIRST LOAD ---
+        const cachedProducts = cacheGet('products');
+        if (cachedProducts && !force) {
+            console.log("📦 Restoring from Cache...");
+            
+            // Restore all major states from cache if products exist (proxy for app data)
+            setProducts(cachedProducts);
+            const cClients = cacheGet('clients'); if (cClients) setClients(cClients);
+            const cSales = cacheGet('sales'); if (cSales) setSales(cSales);
+            const cExpenses = cacheGet('expenses'); if (cExpenses) setExpenses(cExpenses);
+            const cUsers = cacheGet('users'); if (cUsers) setUsers(cUsers);
+            const cEmployees = cacheGet('employees'); if (cEmployees) setEmployees(cEmployees);
+            const cPayroll = cacheGet('payroll'); if (cPayroll) setPayrollRecords(cPayroll);
+            const cBusiness = cacheGet('business_profile'); if (cBusiness) setBusinessProfile(cBusiness);
+            const cDayBook = cacheGet('day_book'); if (cDayBook) setDayBook(cDayBook);
+            const cPayments = cacheGet('client_payments'); if (cPayments) setClientPayments(cPayments);
+            const cVehicles = cacheGet('vehicles'); if (cVehicles) setVehicles(cVehicles);
+            const cRoutes = cacheGet('routes'); if (cRoutes) setRoutes(cRoutes);
+            const cPurchases = cacheGet('purchases'); if (cPurchases) setPurchases(cPurchases);
+            const cMechanic = cacheGet('mechanic_payments'); if (cMechanic) setMechanicPayments(cMechanic);
+            const cSuppliers = cacheGet('suppliers'); if (cSuppliers) setSuppliers(cSuppliers);
+            const cMovement = cacheGet('movement_log'); if (cMovement) setMovementLog(cMovement);
+            const cCategories = cacheGet('expense_categories'); if (cCategories) setExpenseCategories(cCategories);
+
+            setLoading(false);
+            appInitialized.current = true;
+            initializingRef.current = false;
+            
+            // Trigger silent background refresh
+            refreshInBackground();
+            return;
+        }
+
+        // --- FULL FETCH (Cache Miss or Forced) ---
+        if (!isSilentSync) setLoading(true);
+        
+        try {
+            console.log(force ? "🚀 Force-Initializing App Data..." : "🚀 Initializing App (Full Fetch)...");
+            
+            const [
+                { data: productsData },
+                { data: clientsData },
+                { data: salesData },
+                { data: expensesData },
+                { data: employeesData },
+                { data: payrollData },
+                { data: businessData },
+                { data: dayBookData },
+                { data: settingsData },
+                { data: paymentsData },
+                { data: usersData },
+                { data: vehiclesData },
+                { data: movementData },
+                { data: routesData },
+                { data: purchasesData },
+                { data: mechanicData },
+                { data: suppliersData }
+            ] = await Promise.all([
+                supabase.from('products').select('*'),
+                supabase.from('clients').select('*'),
+                supabase.from('sales').select('*').order('date', { ascending: false }).limit(500),
+                supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500),
+                supabase.from('employees').select('*'),
+                supabase.from('payroll').select('*').order('processed_at', { ascending: false }).limit(100),
+                supabase.from('business_profile').select('*').maybeSingle(),
+                supabase.from('day_book').select('*').order('date', { ascending: false }).limit(31),
+                supabase.from('settings').select('*'),
+                supabase.from('client_payments').select('*').order('date', { ascending: false }).limit(500),
+                supabase.from('users').select('*'),
+                supabase.from('vehicles').select('*'),
+                supabase.from('movement_log').select('*').order('date', { ascending: false }).limit(200),
+                supabase.from('routes').select('*').order('date', { ascending: false }).limit(100),
+                supabase.from('purchases').select('*').order('date', { ascending: false }).limit(200),
+                supabase.from('mechanic_payments').select('*').order('work_date', { ascending: false }).limit(100),
+                supabase.from('suppliers').select('*').order('name', { ascending: true })
             ]);
             
-            if (productsData) setProducts(productsData);
-            if (clientsData) setClients(clientsData);
-            if (salesData) setSales(salesData);
-            if (expensesData) setExpenses(expensesData);
-            if (usersData) setUsers(usersData);
-            if (dayBookData) setDayBook(dayBookData);
-            if (paymentsData) setClientPayments(paymentsData);
-            if (suppliersData) setSuppliers(suppliersData);
+            if (productsData) { setProducts(productsData); cacheSet('products', productsData); }
+            if (clientsData) { setClients(clientsData); cacheSet('clients', clientsData); }
+            if (salesData) { setSales(salesData); cacheSet('sales', salesData); }
+            if (expensesData) { setExpenses(expensesData); cacheSet('expenses', expensesData); }
+            if (usersData) { setUsers(usersData); cacheSet('users', usersData); }
+            if (dayBookData) { setDayBook(dayBookData); cacheSet('day_book', dayBookData); }
+            if (paymentsData) { setClientPayments(paymentsData); cacheSet('client_payments', paymentsData); }
+            if (suppliersData) { setSuppliers(suppliersData); cacheSet('suppliers', suppliersData); }
             
             if (employeesData) {
                 const mappedEmps = employeesData.map(emp => ({
@@ -1654,59 +1763,47 @@ export const AppProvider = ({ children }) => {
                     position: emp.position ?? emp.role ?? 'Standard Associate'
                 }));
                 setEmployees(mappedEmps);
+                cacheSet('employees', mappedEmps);
             }
 
             if (payrollData) {
-                // Group individual records by month/period to recreate "Pay Runs"
                 const grouped = payrollData.reduce((acc, rec) => {
                     const period = rec.month || 'Unknown';
                     if (!acc[period]) {
                         acc[period] = {
-                            id: `RUN-${period}`,
-                            period: period,
-                            processedAt: rec.processed_at,
-                            processed_at: rec.processed_at,
-                            totalBase: 0,
-                            totalOvertime: 0,
-                            totalBonus: 0,
-                            totalDeductions: 0,
-                            totalNet: 0,
-                            totalEmployees: 0,
-                            items: []
+                            id: `RUN-${period}`, period, processedAt: rec.processed_at, processed_at: rec.processed_at,
+                            totalBase: 0, totalOvertime: 0, totalBonus: 0, totalDeductions: 0, totalNet: 0, totalEmployees: 0, items: []
                         };
                     }
-                    acc[period].items.push({
-                        employeeId: rec.employeeId,
-                        employeeName: getEmployeeName(rec.employeeId),
-                        netPay: rec.amount
-                    });
+                    acc[period].items.push({ employeeId: rec.employeeId, employeeName: getEmployeeName(rec.employeeId), netPay: rec.amount });
                     acc[period].totalNet += rec.amount;
                     acc[period].totalEmployees += 1;
                     return acc;
                 }, {});
-                setPayrollRecords(Object.values(grouped));
+                const records = Object.values(grouped);
+                setPayrollRecords(records);
+                cacheSet('payroll', records);
             }
 
-            if (vehiclesData) setVehicles(vehiclesData);
-            if (routesData) setRoutes(routesData);
-            if (purchasesData) setPurchases(purchasesData);
-            if (mechanicData) setMechanicPayments(mechanicData);
-            if (businessData) setBusinessProfile(businessData);
+            if (vehiclesData) { setVehicles(vehiclesData); cacheSet('vehicles', vehiclesData); }
+            if (routesData) { setRoutes(routesData); cacheSet('routes', routesData); }
+            if (purchasesData) { setPurchases(purchasesData); cacheSet('purchases', purchasesData); }
+            if (mechanicData) { setMechanicPayments(mechanicData); cacheSet('mechanic_payments', mechanicData); }
+            if (businessData) { setBusinessProfile(businessData); cacheSet('business_profile', businessData); }
             
             if (movementData) {
                 const mappedLog = movementData.map(log => ({
                     ...log,
-                    productId: log.product_id,
-                    productName: log.product_name,
-                    userId: log.user_id,
-                    createdAt: log.created_at || log.date
+                    productId: log.product_id, productName: log.product_name,
+                    userId: log.user_id, createdAt: log.created_at || log.date
                 }));
                 setMovementLog(mappedLog);
+                cacheSet('movement_log', mappedLog);
             }
             
             if (settingsData) {
                 const categories = settingsData.find(s => s.key === 'expense_categories');
-                if (categories) setExpenseCategories(categories.value);
+                if (categories) { setExpenseCategories(categories.value); cacheSet('expense_categories', categories.value); }
 
                 const maintenance = settingsData.find(s => s.key === 'maintenance_mode');
                 if (maintenance && maintenance.value) {
@@ -1716,44 +1813,65 @@ export const AppProvider = ({ children }) => {
             }
             
             console.log("🏁 Initialization Complete.");
+            appInitialized.current = true;
         } catch (err) {
             console.error("❌ Initialization error:", err);
             setInitError(err.message || "An unexpected error occurred during initialization.");
         } finally {
-            clearTimeout(timeoutId);
             setLoading(false);
             initializingRef.current = false;
         }
     };
 
+
     const [authSession, setAuthSession] = useState(null);
 
-    // Supabase Auth Listener
+    // Initial Session Resolver & Visibility Handler
     useEffect(() => {
         if (!isSupabaseConfigured) return;
 
+        // 1. Resolve session immediately on mount
+        const initSession = async () => {
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+                setAuthSession(session);
+                const { data: profile } = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
+                if (profile) setCurrentUser(profile);
+                initializeApp(); // Cache-first init
+            } else {
+                setLoading(false);
+            }
+        };
+        initSession();
+
+        // 2. Handle Document Visibility (Silent Sync)
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible' && appInitialized.current) {
+                // If cache for products is expired, refresh silently
+                const cached = cacheGet('products');
+                if (!cached) {
+                    refreshInBackground();
+                }
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+
+        // 3. Listen for Auth Changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-            console.log("🔔 Auth Event:", event, session ? "Session Active" : "No Session");
+            console.log("🔔 Auth Event:", event);
             
             if (session?.user) {
                 setAuthSession(session);
                 
-                // OPTIMIZATION: Only block the UI with a spinner if it's the very first session 
-                // and we don't have a user yet. Subsquent refreshes or focus-triggered sessions
-                // should not disrupt the user.
-                const needsBlockingLoad = !currentUser && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN');
-                
-                if (needsBlockingLoad) {
-                    setLoading(true);
-                }
-
-                // If user profile is not in state, fetch it
+                // ONLY FETCH PROFILE IF WE DON'T HAVE IT
                 if (!currentUser) {
                     const { data: profile } = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
                     
                     if (profile) {
                         setCurrentUser(profile);
                     } else {
+                        // AUTO-PROVISION SUPERUSER if first time login for owner
                         const isSuperUser = session.user.email === 'uvaize@hotmail.com' || session.user.email === 'gladmin@ledgrpro.ca';
                         const newUserProfile = {
                             id: session.user.id,
@@ -1764,10 +1882,10 @@ export const AppProvider = ({ children }) => {
                         };
                         setCurrentUser(newUserProfile);
                         
+                        // Optionally persist to DB if superuser
                         if (isSuperUser) {
                             try {
-                                const { error } = await supabase.from('users').upsert(newUserProfile);
-                                if (error) console.error("Error auto-provisioning superuser:", error.message);
+                                await supabase.from('users').upsert(newUserProfile);
                             } catch (e) {
                                 console.error("Auto-provisioning exception:", e.message);
                             }
@@ -1775,34 +1893,34 @@ export const AppProvider = ({ children }) => {
                     }
                 }
 
-                // Whenever we have a NEW user session or explicit sign-in, refresh data
-                // SIGNED_IN is always blocking if force=true, but INITIAL_SESSION on Alt+Tab 
-                // is common, so we skip blocking if currentUser exists.
-                if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && !currentUser)) {
-                    initializeApp(true); 
-                } else if (event === 'TOKEN_REFRESHED' || (event === 'INITIAL_SESSION' && currentUser)) {
-                    // This is likely an Alt+Tab trigger or background refresh
-                    // Run a silent update without blocking the user interface
-                    initializeApp(false);
-                } else {
-                    setLoading(false);
+                if (event === 'SIGNED_IN') {
+                    if (!appInitialized.current) {
+                        initializeApp();
+                    }
+                } else if (event === 'TOKEN_REFRESHED') {
+                    // SILENT: Only update the session/user object, do not re-fetch data
+                    console.log("🔐 Token refreshed silently");
                 }
             } else if (event === 'SIGNED_OUT') {
+                cacheClear();
                 setAuthSession(null);
                 setCurrentUser(null);
+                appInitialized.current = false;
                 setLoading(false);
-            } else {
-                setLoading(false);
+                if (typeof window !== 'undefined') {
+                    window.location.href = '/login';
+                }
             }
         });
 
-        return () => subscription.unsubscribe();
-    }, [isSupabaseConfigured]);
-
-    // Initial load
-    useEffect(() => {
-        initializeApp(false);
+        return () => {
+            subscription.unsubscribe();
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+        };
     }, []);
+
+    // Initial load removed (handled in auth useEffect above)
+
 
     const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN') || currentUser?.role?.toLowerCase() === 'owner' || currentUser?.email === 'uvaize@hotmail.com';
     const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.role?.toLowerCase() === 'staff';

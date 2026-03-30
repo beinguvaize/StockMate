@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../context/AppContext';
 import { 
     UserCircle, Plus, DollarSign, Building, Phone, MapPin, 
@@ -28,6 +28,15 @@ const Clients = () => {
 
     // Statement State
     const [selectedClientForStatement, setSelectedClientForStatement] = useState(null);
+
+    useEffect(() => {
+        if (isAdding || selectedClientForPayment || selectedClientForStatement) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = 'unset';
+        }
+        return () => { document.body.style.overflow = 'unset'; };
+    }, [isAdding, selectedClientForPayment, selectedClientForStatement]);
 
     const handleRecordPaymentSubmit = async (e) => {
         e.preventDefault();
@@ -383,7 +392,7 @@ const Clients = () => {
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Amount Received</label>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-60 mb-1">Amount Received</label>
                                 <div className="relative">
                                     <DollarSign size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary opacity-50" />
                                     <input 
@@ -401,7 +410,7 @@ const Clients = () => {
                             </div>
                             
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Payment Date</label>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-60 mb-1">Payment Date</label>
                                 <input 
                                     required 
                                     type="date" 
@@ -412,7 +421,7 @@ const Clients = () => {
                             </div>
 
                             <div>
-                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-70 mb-1.5">Notes (Optional)</label>
+                                <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary opacity-60 mb-1">Notes (Optional)</label>
                                 <textarea 
                                     className="w-full bg-canvas border-none rounded-xl p-4 font-black text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase resize-none h-20" 
                                     placeholder="CHEQUE NO, REF, ETC..."
