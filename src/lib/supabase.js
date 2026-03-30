@@ -16,11 +16,12 @@ const PROD_CONFIG = {
 };
 
 // Determine configuration based on hostname
-let activeConfig = STAGING_CONFIG; // Default to Staging
+let activeConfig = STAGING_CONFIG; // Default to Staging/Develop
 
-if (HOSTNAME === 'ledgr-beinguvaizes-projects.vercel.app') {
+if (HOSTNAME === 'ledgrpro-prod.vercel.app' || HOSTNAME === 'ledgr-beinguvaizes-projects.vercel.app') {
   activeConfig = PROD_CONFIG;
-} else if (HOSTNAME === 'ledgr-navy.vercel.app' || HOSTNAME === 'localhost' || HOSTNAME === '127.0.0.1' || HOSTNAME.includes('5174')) {
+} else {
+  // Catch-all for ledgrpro-dev.vercel.app, localhost, and other dev environments
   activeConfig = STAGING_CONFIG;
 }
 
