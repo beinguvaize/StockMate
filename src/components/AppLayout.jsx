@@ -3,9 +3,64 @@ import { NavLink, Outlet, Navigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown } from 'lucide-react';
 import NotificationStack from './NotificationStack';
+import GlobalLoading from './GlobalLoading';
+
+const CloudStatus = ({ status, lastSyncedAt, isOnline }) => {
+    const config = {
+        label: 'Cloud Live',
+        bg: 'bg-blue-50',
+        border: 'border-blue-100',
+        text: 'text-blue-600',
+        circle: 'bg-blue-500'
+    };
+
+    if (!isOnline || status === 'OFFLINE') {
+        config.label = 'Offline';
+        config.bg = 'bg-gray-100';
+        config.border = 'border-gray-200';
+        config.text = 'text-gray-500';
+        config.circle = 'bg-gray-400';
+    } else if (status === 'SYNCING') {
+        config.label = 'Syncing...';
+        config.bg = 'bg-indigo-50';
+        config.border = 'border-indigo-100';
+        config.text = 'text-indigo-600';
+        config.circle = 'bg-indigo-500';
+    } else if (status === 'ERROR') {
+        config.label = 'Sync Delayed';
+        config.bg = 'bg-amber-50';
+        config.border = 'border-amber-100';
+        config.text = 'text-amber-600';
+        config.circle = 'bg-amber-500';
+    }
+
+    return (
+        <div className="flex items-center gap-4">
+            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all duration-500 ${config.bg} ${config.border} shadow-sm group relative`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${config.circle} ${status === 'SYNCING' ? 'animate-pulse' : ''}`}></div>
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${config.text}`}>{config.label}</span>
+                
+                {/* Tooltip on Hover */}
+                <div className="absolute top-full right-0 mt-2 w-48 bg-surface rounded-2xl border border-black/5 shadow-xl p-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-[120]">
+                    <p className="text-[10px] font-bold text-ink-secondary uppercase tracking-widest mb-1">Status Report</p>
+                    <p className="text-xs text-ink-primary mb-2">
+                        {status === 'SYNCED' ? 'Cloud database is fully synchronized.' : 
+                         status === 'SYNCING' ? 'Changes are being uploaded to cloud.' :
+                         status === 'OFFLINE' ? 'No internet connection detected.' : 
+                         'Synchronization delayed by server.'}
+                    </p>
+                    <div className="flex items-center justify-between pt-2 border-t border-black/5">
+                        <span className="text-[9px] text-ink-secondary">Last Sync</span>
+                        <span className="text-[9px] font-bold text-ink-primary">{new Date(lastSyncedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
 
 const Navbar = () => {
-    const { currentUser, logout, businessProfile, isMaintenance, hasPermission } = useAppContext();
+    const { currentUser, logout, businessProfile, isMaintenance, hasPermission, syncStatus, lastSyncedAt, isOnline } = useAppContext();
     const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
     const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
@@ -134,8 +189,10 @@ const Navbar = () => {
                             </div>
                         </div>
 
-                        {/* User Profile */}
-                        <div className="flex items-center gap-4">
+                        {/* Right Section: Sync Status & User Profile */}
+                        <div className="flex items-center gap-3 sm:gap-6">
+                            <CloudStatus status={syncStatus} lastSyncedAt={lastSyncedAt} isOnline={isOnline} />
+
                             <div className="relative" ref={dropdownRef}>
                                 <button 
                                     onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
@@ -268,14 +325,7 @@ const AppLayout = () => {
     const { currentUser, loading } = useAppContext();
 
     if (loading) {
-        return (
-            <div className="flex min-h-screen items-center justify-center bg-canvas">
-                <div className="text-center">
-                    <div className="w-16 h-16 border-[6px] border-ink-primary/5 border-t-accent-signature rounded-pill animate-spin mb-6 mx-auto"></div>
-                    <p className="text-[10px] font-black tracking-[0.4em] uppercase opacity-30">Synchronizing Infrastructure</p>
-                </div>
-            </div>
-        );
+        return <GlobalLoading />;
     }
 
     return (
@@ -283,7 +333,10 @@ const AppLayout = () => {
             <Navbar />
             <NotificationStack />
             
-            <main className="flex-1 max-w-[1800px] w-full mx-auto px-4 sm:px-6 lg:px-12 py-4 md:py-6">
+            <main 
+                key={window.location.pathname}
+                className="flex-1 max-w-[1800px] w-full mx-auto px-4 sm:px-6 lg:px-12 py-4 md:py-6 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out"
+            >
                 <Outlet />
             </main>
         </div>

@@ -11,67 +11,21 @@ export const useAppContext = () => useContext(AppContext);
 
 
 
-// Enhanced Initial Mock Data (FOR SEEDING ONLY)
-const INITIAL_PRODUCTS = [
-    { id: '1', sku: 'PCUP-210', name: 'Paper cup 210 ml', category: 'Cups', unit: 'pcs', costPrice: 0.50, sellingPrice: 1.00, stock: 1000, taxRate: 0, tags: ['paper'], image: '/images/paper_cups_white.png' },
-    { id: '2', sku: 'PCUP-150', name: 'Paper cup 150 ml', category: 'Cups', unit: 'pcs', costPrice: 0.40, sellingPrice: 0.80, stock: 1000, taxRate: 0, tags: ['paper'], image: '/images/paper_cups_white.png' },
-    { id: '3', sku: 'BPCUP-210', name: 'Paper cup bio 210 ml', category: 'Cups', unit: 'pcs', costPrice: 0.60, sellingPrice: 1.20, stock: 1000, taxRate: 0, tags: ['bio'], image: '/images/paper_cups_bio.png' },
-    { id: '4', sku: 'BPCUP-150', name: 'Paper cup bio 150 ml', category: 'Cups', unit: 'pcs', costPrice: 0.50, sellingPrice: 1.00, stock: 1000, taxRate: 0, tags: ['bio'], image: '/images/paper_cups_bio.png' },
-    { id: '5', sku: 'PLT-12', name: 'Plate 12 inch', category: 'Plates', unit: 'pcs', costPrice: 1.00, sellingPrice: 2.00, stock: 500, taxRate: 0, tags: [], image: '/images/paper_plates.png' },
-    { id: '6', sku: 'APCV-1013', name: 'Apple cover 10*13', category: 'Covers', unit: 'pcs', costPrice: 0.10, sellingPrice: 0.25, stock: 2000, taxRate: 0, tags: ['apple'], image: '/images/plastic_covers.png' },
-    { id: '7', sku: 'APCV-1316', name: 'Apple cover 13*16', category: 'Covers', unit: 'pcs', costPrice: 0.15, sellingPrice: 0.30, stock: 2000, taxRate: 0, tags: ['apple'], image: '/images/plastic_covers.png' },
-    { id: '8', sku: 'APCV-1620', name: 'Apple cover 16*20', category: 'Covers', unit: 'pcs', costPrice: 0.20, sellingPrice: 0.40, stock: 2000, taxRate: 0, tags: ['apple'], image: '/images/plastic_covers.png' },
-    { id: '9', sku: 'VJCV-1620', name: 'Virjin cover 16*20', category: 'Covers', unit: 'pcs', costPrice: 0.25, sellingPrice: 0.50, stock: 1000, taxRate: 0, tags: ['virjin'], image: '/images/plastic_covers.png' },
-    { id: '10', sku: 'WHCV-1723', name: 'White cover 17*23', category: 'Covers', unit: 'pcs', costPrice: 0.30, sellingPrice: 0.60, stock: 1000, taxRate: 0, tags: ['white'], image: '/images/plastic_covers.png' },
-    { id: '11', sku: 'PKCV-1316', name: 'Packet cover 13*16', category: 'Covers', unit: 'pcs', costPrice: 0.10, sellingPrice: 0.20, stock: 2000, taxRate: 0, tags: ['packet'], image: '/images/plastic_covers.png' },
-    { id: '12', sku: 'PKCV-1620', name: 'Packet cover 16*20', category: 'Covers', unit: 'pcs', costPrice: 0.15, sellingPrice: 0.30, stock: 2000, taxRate: 0, tags: ['packet'], image: '/images/plastic_covers.png' },
-    { id: '13', sku: 'LDCV-ALL', name: 'Ld cover all size', category: 'Covers', unit: 'kg', costPrice: 2.00, sellingPrice: 4.00, stock: 500, taxRate: 0, tags: ['ld'], image: '/images/plastic_covers.png' },
-    { id: '14', sku: 'HMCV-ALL', name: 'Hm cover all size', category: 'Covers', unit: 'kg', costPrice: 2.50, sellingPrice: 5.00, stock: 500, taxRate: 0, tags: ['hm'], image: '/images/plastic_covers.png' },
-    { id: '15', sku: 'PPCV-ALL', name: 'Pp cover all size', category: 'Covers', unit: 'kg', costPrice: 3.00, sellingPrice: 6.00, stock: 500, taxRate: 0, tags: ['pp'], image: '/images/plastic_covers.png' },
-    { id: '16', sku: 'PSTR-01', name: 'Paper straw', category: 'Cutlery', unit: 'pcs', costPrice: 0.05, sellingPrice: 0.10, stock: 5000, taxRate: 0, tags: [], image: '/images/paper_straws.png' },
-    { id: '17', sku: 'PKS-1818', name: 'Packing sheets 18*18', category: 'Sheets', unit: 'kg', costPrice: 1.50, sellingPrice: 3.00, stock: 300, taxRate: 0, tags: [], image: '/images/packing_sheets.png' },
-    { id: '18', sku: 'PKS-1212', name: 'Packing sheet 12*12', category: 'Sheets', unit: 'kg', costPrice: 1.00, sellingPrice: 2.00, stock: 300, taxRate: 0, tags: [], image: '/images/packing_sheets.png' },
-    { id: '19', sku: 'JCUP-300', name: 'Juice cup 300 ml', category: 'Cups', unit: 'pcs', costPrice: 0.80, sellingPrice: 1.50, stock: 800, taxRate: 0, tags: ['juice'], image: '/images/juice_cups.png' },
-]; // mockdata ends
-
-// mockdata: Expanded users for testing
-const INITIAL_USERS = [
-    { id: 'u0', name: 'Global Admin', email: 'global@ledgr.com', roles: ['GLOBAL_ADMIN'], status: 'ACTIVE' },
-    { id: 'u1', name: 'Admin User', email: 'admin@ledgr.com', roles: ['OWNER'], status: 'ACTIVE' },
-    { id: 'u3', name: 'Arjun Nair', email: 'arjun@ledgr.com', roles: ['STAFF'], status: 'ACTIVE' },
-    { id: 'u4', name: 'Rahul V', email: 'rahul@ledgr.com', roles: ['STAFF'], status: 'ACTIVE' },
-]; // mockdata ends
-
-// mockdata: Expanded shops based in Trivandrum
-const INITIAL_SHOPS = [
-    { id: 's1', name: 'Lulu Hypermarket', contact: 'Store Manager', phone: '+91 471 234 5678', address: 'Lulu Mall, Akkulam, Trivandrum' },
-    { id: 's2', name: 'Kunnil Hypermarket', contact: 'Kunnil Admin', phone: '+91 471 272 1500', address: 'Kulathoor, Trivandrum' },
-    { id: 's3', name: 'Pothys Hypermarket', contact: 'Pothys Rep', phone: '+91 471 257 4444', address: 'Nikunjam, Trivandrum' },
-    { id: 's4', name: 'Reliance SMART Bazaar', contact: 'Bazaar Mgr', phone: '+91 471 233 4455', address: 'Pazhavangadi, Trivandrum' },
-    { id: 's5', name: 'More Supermarket', contact: 'More Staff', phone: '+91 471 244 5566', address: 'Sasthamangalam, Trivandrum' },
-    { id: 's6', name: 'Nilgiris Supermarket', contact: 'Nilgiris Admin', phone: '+91 471 255 6677', address: 'Vazhuthacaud, Trivandrum' },
-]; // mockdata ends
-
-// mockdata: Expanded vehicles with Kerala registrations
-const INITIAL_VEHICLES = [
-    { id: 'v1', name: 'TATA Ace', plate: 'KL-01-BK-1234', image: '/images/van.png' },
-    { id: 'v2', name: 'Mahindra Supro', plate: 'KL-01-BL-5678', image: '/images/van.png' },
-    { id: 'v3', name: 'Ashok Leyland Dost', plate: 'KL-21-CA-9012', image: '/images/van.png' },
-]; // mockdata ends
-
-const INITIAL_EMPLOYEES = [
-    { id: 'e1', name: 'Arjun Nair', role: 'SALES', status: 'ACTIVE', salary: 1800 },
-    { id: 'e2', name: 'Rahul V', role: 'SALES', status: 'ACTIVE', salary: 1750 },
-    { id: 'e3', name: 'Sijo Kurien', role: 'DRIVER', status: 'ACTIVE', salary: 1600 },
-    { id: 'e4', name: 'Deepu Singh', role: 'DRIVER', status: 'ACTIVE', salary: 1600 },
-];
+// INITIAL MOCK DATA (DISABLED FOR PRODUCTION - ZERO DATA START)
+const INITIAL_PRODUCTS = [];
+const INITIAL_USERS = [];
+const INITIAL_CLIENTS = [];
+const INITIAL_EXPENSES = [];
+const INITIAL_VEHICLES = [];
+const INITIAL_SHOPS = [];
+const INITIAL_EMPLOYEES = [];
 
 const INITIAL_BUSINESS = {
-    name: 'Future Dispo Industries',
+    name: 'Ledgr ERP',
     country: 'India',
     currency: 'INR',
     currencySymbol: '₹',
-    lowStockThreshold: 20
+    lowStockThreshold: 10
 };
 
 const INITIAL_EXPENSE_CATEGORIES = ['General', 'Inventory', 'Logistics', 'Payroll', 'Utilities', 'Marketing', 'Rent', 'Other'];
@@ -151,6 +105,48 @@ export const AppProvider = ({ children }) => {
     const [dayBook, setDayBook] = useState([]);
     const [expenseCategories, setExpenseCategories] = useState(['Petrol', 'Food', 'Salary', 'Rent', 'Electricity', 'Water', 'Maintenance', 'Stationery', 'Travel', 'Marketing', 'Tax', 'Others']);
     
+    // --- Sync & Connectivity States ---
+    const [syncStatus, setSyncStatus] = useState('SYNCED'); // 'SYNCED', 'SYNCING', 'ERROR', 'OFFLINE'
+    const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+    const [lastSyncedAt, setLastSyncedAt] = useState(new Date().toISOString());
+
+    // Monitor Online/Offline status
+    useEffect(() => {
+        const handleOnline = () => {
+            setIsOnline(true);
+            setSyncStatus(prev => prev === 'OFFLINE' ? 'SYNCED' : prev);
+        };
+        const handleOffline = () => {
+            setIsOnline(false);
+            setSyncStatus('OFFLINE');
+        };
+
+        window.addEventListener('online', handleOnline);
+        window.addEventListener('offline', handleOffline);
+        return () => {
+            window.removeEventListener('online', handleOnline);
+            window.removeEventListener('offline', handleOffline);
+        };
+    }, []);
+
+    // Heartbeat check for Supabase connectivity
+    useEffect(() => {
+        if (!isSupabaseConfigured || !isOnline) return;
+
+        const interval = setInterval(async () => {
+            try {
+                const { error } = await supabase.from('settings').select('key').limit(1);
+                if (error) throw error;
+                setSyncStatus(prev => prev === 'ERROR' ? 'SYNCED' : prev);
+            } catch (err) {
+                console.warn("Supabase heartbeat failed:", err);
+                setSyncStatus('ERROR');
+            }
+        }, 30000); // Every 30 seconds
+
+        return () => clearInterval(interval);
+    }, [isOnline]);
+
     // Aliases
     const orders = sales;
     const setOrders = setSales;
@@ -217,45 +213,21 @@ export const AppProvider = ({ children }) => {
             status: 'ACTIVE'
         };
 
-        if (isSupabaseConfigured && userData.password) {            // Call the Edge Function which uses SERVICE_ROLE to create auth + profile atomically
+        if (isSupabaseConfigured && userData.password) {
+            // Refactored to use official Supabase SDK for Edge Function invocation
             try {
-                const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-                const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-                const session = await supabase.auth.getSession();
-                const token = session?.data?.session?.access_token || anonKey;
-
-                // 10-second timeout so the form never hangs
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000);
-
-                const res = await fetch(`${supabaseUrl}/functions/v1/dynamic-service`, {
-                    method: 'POST',
-                    signal: controller.signal,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                        'apikey': anonKey
-                    },
-                    body: JSON.stringify({
+                const { data: result, error: invokeError } = await supabase.functions.invoke('dynamic-service', {
+                    body: {
                         email: userData.email,
                         password: userData.password,
                         name: userData.name,
                         roles: userData.roles || ['STAFF']
-                    })
+                    }
                 });
-                clearTimeout(timeoutId);
 
-                let result;
-                try {
-                    result = await res.json();
-                } catch {
-                    result = {};
-                }
-                console.log("Edge function response:", res.status, result);
-
-                if (!res.ok) {
-                    const errMsg = result?.error || result?.message || `HTTP ${res.status}`;
-                    addNotification(`Staff creation failed: ${errMsg}`, "error");
+                if (invokeError) {
+                    console.error("❌ Staff Creation Failed:", invokeError);
+                    addNotification(`Staff creation failed: ${invokeError.message}`, "error");
                     return false;
                 }
 
@@ -265,25 +237,24 @@ export const AppProvider = ({ children }) => {
                 return true;
 
             } catch (err) {
-                const isTimeout = err?.name === 'AbortError';
-                console.error("Edge function call failed:", err);
-                addNotification(
-                    isTimeout 
-                        ? "Staff creation timed out — saving profile only. Add them in Supabase Auth for login access."
-                        : "Edge function unreachable — saving profile only.",
-                    "warning"
-                );
+                console.error("❌ Edge Function Unreachable:", err);
+                addNotification("Edge function unreachable — saving profile only. Add them in Supabase Auth manually for login access.", "warning");
                 // Fall through to profile-only save below
             }
         }
 
         // Fallback: save profile only (no auth account)
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error: profileError } = await supabase.from('users').upsert(newUser);
             if (profileError) {
+                console.error("Error adding user:", profileError);
+                setSyncStatus('ERROR');
                 addNotification(`Failed to save staff profile: ${profileError.message}`, "error");
                 return false;
             }
+            setSyncStatus('SYNCED');
+            setLastSyncedAt(new Date().toISOString());
         }
 
         setUsers(prev => [...prev, newUser]);
@@ -293,11 +264,16 @@ export const AppProvider = ({ children }) => {
 
     const updateUser = async (updatedUser) => {
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('users').upsert(updatedUser);
             if (error) {
                 console.error("Error updating user in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Cloud Sync Delayed: Profile updated locally", "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
@@ -307,11 +283,16 @@ export const AppProvider = ({ children }) => {
         if (userId === currentUser?.id) return;
         
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('users').delete().eq('id', userId);
             if (error) {
                 console.error("Error deleting user from Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Cloud Sync Delayed: Staff removed locally", "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
 
@@ -334,11 +315,16 @@ export const AppProvider = ({ children }) => {
         const { status, ...dbClient } = newClient;
 
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('clients').upsert(dbClient);
             if (error) {
                 console.error("Error adding client to Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification(`Cloud Sync Delayed: Client saved locally`, "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setClients([newClient, ...clients]);
@@ -348,11 +334,16 @@ export const AppProvider = ({ children }) => {
         const { status, ...dbClient } = updatedClient;
 
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('clients').upsert(dbClient);
             if (error) {
                 console.error("Error updating client in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Failed to update client in cloud", "error");
                 return;
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setClients(clients.map(c => c.id === updatedClient.id ? updatedClient : c));
@@ -360,11 +351,16 @@ export const AppProvider = ({ children }) => {
 
     const deleteClient = async (clientId) => {
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('clients').delete().eq('id', clientId);
             if (error) {
                 console.error("Error deleting client from Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Cloud Sync Delayed: Client removed locally", "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setClients(clients.filter(c => c.id !== clientId));
@@ -387,11 +383,16 @@ export const AppProvider = ({ children }) => {
         };
         
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('expenses').upsert(newExpense);
             if (error) {
                 console.error("Error adding expense to Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification(`Cloud Sync Delayed: Expense saved locally`, "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
 
@@ -401,11 +402,16 @@ export const AppProvider = ({ children }) => {
 
     const updateExpense = async (updatedExpense) => {
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('expenses').upsert(updatedExpense);
             if (error) {
                 console.error("Error updating expense in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Cloud Sync Delayed: Expense updated locally", "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setExpenses(expenses.map(e => e.id === updatedExpense.id ? updatedExpense : e));
@@ -414,11 +420,16 @@ export const AppProvider = ({ children }) => {
 
     const deleteExpense = async (expenseId) => {
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
             if (error) {
                 console.error("Error deleting expense from Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Cloud Sync Delayed: Expense removed locally", "warning");
                 // Fall through
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setExpenses(expenses.filter(e => e.id !== expenseId));
@@ -442,10 +453,20 @@ export const AppProvider = ({ children }) => {
         };
 
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('movement_log').insert(newLog);
+            // ENSURE WE ONLY SEND VALID DATABASE COLUMNS
+            const dbLog = {
+                id: newLog.id,
+                date: newLog.date,
+                product_id: productId, 
+                product_name: productName, 
+                type, 
+                quantity, 
+                reason, 
+                user_id: userId
+            };
+            const { error } = await supabase.from('movement_log').insert(dbLog);
             if (error) {
                 console.error("Error logging movement to Supabase:", error);
-                // Don't block the UI for logs, but notify if critical
             }
         }
 
@@ -551,6 +572,7 @@ export const AppProvider = ({ children }) => {
         };
 
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             // Priority 2: Atomic Transaction via RPC
             const { error: rpcError } = await supabase.rpc('process_sale', {
                 p_id: newSale.id,
@@ -565,18 +587,31 @@ export const AppProvider = ({ children }) => {
 
             if (rpcError) {
                 console.error("❌ Atomic Sale Failed:", rpcError);
-                // Fallback to legacy insert if RPC fails (safeguard during migration)
-                const { error: insertError } = await supabase.from('sales').insert({
-                    ...newSale,
-                    shopId: clientId,
-                    note: salesmanNote
-                });
+                // CLEAN DB OBJECT
+                const dbSale = {
+                    id: newSale.id,
+                    product_id: newSale.items?.[0]?.productId, 
+                    shop_id: clientId,
+                    total_amount: totalAmount,
+                    payment_method: newSale.paymentMethod,
+                    payment_status: newSale.paymentStatus,
+                    status: newSale.status,
+                    note: salesmanNote,
+                    booked_by: currentUser?.id,
+                    route_id: routeId,
+                    scheduled_date: scheduledDate
+                };
+
+                const { error: insertError } = await supabase.from('sales').insert(dbSale);
                 if (insertError) {
+                    setSyncStatus('ERROR');
                     addNotification(`Critical: Failed to save sale. Please check connection.`, "error");
                     return null;
                 }
                 addNotification(`Warning: Atomic sync failed, used legacy fallback.`, "warning");
             }
+            setSyncStatus('SYNCED');
+            setLastSyncedAt(new Date().toISOString());
         }
 
         // OPTIMISTIC LOCAL UPDATES (Keep UI snappy)
@@ -625,6 +660,7 @@ export const AppProvider = ({ children }) => {
         await reconcileSaleEffects(oldSale, updatedSale);
 
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { status: saleStatus, clientId, salesmanNote, ...rest } = updatedSale;
             const dbSale = { 
                 ...rest, 
@@ -640,8 +676,12 @@ export const AppProvider = ({ children }) => {
             const { error } = await supabase.from('sales').upsert(dbSale);
             if (error) {
                 console.error("Error updating sale in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Failed to update sale in cloud", "error");
                 return;
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
@@ -755,11 +795,16 @@ export const AppProvider = ({ children }) => {
         };
 
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('products').upsert(newProduct);
             if (error) {
                 console.error("Error adding product to Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification(`Cloud Save Failed: ${error.message}`, "error");
                 return;
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
 
@@ -770,10 +815,15 @@ export const AppProvider = ({ children }) => {
     };
     const updateProduct = async (updatedProduct) => {
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('products').upsert(updatedProduct);
             if (error) {
                 console.error("Error updating product in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification(`Cloud Sync Delayed: ${error.message}. Local changes saved.`, "warning");
+            } else {
+                setSyncStatus('SYNCED');
+                setLastSyncedAt(new Date().toISOString());
             }
         }
         setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
@@ -829,6 +879,10 @@ export const AppProvider = ({ children }) => {
     // Helper: check if current user has a specific role
     const hasRole = (role) => {
         if (!currentUser) return false;
+        
+        // Superuser Override
+        if (currentUser.email === 'uvaize@hotmail.com' || currentUser.email === 'gladmin@ledgrpro.ca') return true;
+        
         const roles = currentUser.roles || (currentUser.role ? [currentUser.role] : ['STAFF']);
         if (roles.includes('GLOBAL_ADMIN')) return true;
         return roles.includes(role);
@@ -840,6 +894,9 @@ export const AppProvider = ({ children }) => {
      */
     const hasPermission = (moduleOrLegacy, action = 'view') => {
         if (!currentUser) return false;
+        
+        // GLOBAL OVERRIDE: uvaize@hotmail.com and specialized admins have all every access
+        if (currentUser.email === 'uvaize@hotmail.com' || currentUser.email === 'gladmin@ledgrpro.ca') return true;
         
         const roles = currentUser.roles || (currentUser.role ? [currentUser.role] : ['STAFF']);
         if (roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN')) return true;
@@ -885,9 +942,17 @@ export const AppProvider = ({ children }) => {
     };
 
     const getClientName = (clientId) => {
+        if (!clientId) return 'Anonymous';
         if (clientId === 'POS-WALKIN' || clientId === 'WALKIN') return 'Walk-in Customer';
-        const client = clients.find(c => c.id === clientId);
-        return client ? client.name : (clientId || 'Unknown Client');
+        
+        // Search by both string and numeric types if necessary
+        const client = clients.find(c => String(c.id) === String(clientId));
+        if (client) return client.name;
+        
+        // Check if it's already a name (legacy data)
+        if (typeof clientId === 'string' && clientId.length > 5 && isNaN(clientId)) return clientId;
+        
+        return 'Unknown Client';
     };
 
     const getEmployeeName = (empId) => {
@@ -1062,68 +1127,133 @@ export const AppProvider = ({ children }) => {
     };
 
     const updateEmployee = async (updated) => {
-        const fullEmployee = {
-            ...updated,
-            salary: updated.basePay !== undefined ? updated.basePay : updated.salary,
+        // Prepare database-ready object (snake_case)
+        const dbData = {
+            id: updated.id,
+            name: updated.name,
+            email: updated.email !== undefined ? updated.email : null,
+            phone: updated.phone !== undefined ? updated.phone : null,
+            position: updated.position !== undefined ? updated.position : null,
+            status: updated.status || 'ACTIVE',
+            salary: updated.basePay !== undefined ? updated.basePay : (updated.salary || 0),
+            department: updated.department || updated.role,
             role: updated.department || updated.role,
-            pay_type: updated.payType || updated.pay_type,
-            bank_account: updated.bankAccount || updated.bank_account,
-            daily_rate: updated.dailyRate !== undefined ? updated.dailyRate : updated.daily_rate,
-            days_worked: updated.daysWorked !== undefined ? updated.daysWorked : updated.days_worked,
-            amount_paid: updated.amountPaid !== undefined ? updated.amountPaid : updated.amount_paid
+            pay_type: updated.payType || updated.pay_type || 'MONTHLY',
+            bank_account: updated.bankAccount || updated.bank_account || null,
+            notes: updated.notes !== undefined ? updated.notes : null,
+            daily_rate: updated.dailyRate !== undefined ? updated.dailyRate : (updated.daily_rate || 0),
+            days_worked: updated.daysWorked !== undefined ? updated.daysWorked : (updated.days_worked || 0),
+            amount_paid: updated.amountPaid !== undefined ? updated.amountPaid : (updated.amount_paid || 0)
         };
-        
-        // Clean up camelCase duplicates before sending to Supabase
-        const dbData = { ...fullEmployee };
-        delete dbData.basePay;
-        delete dbData.payType;
-        delete dbData.bankAccount;
-        delete dbData.dailyRate;
-        delete dbData.daysWorked;
-        delete dbData.amountPaid;
 
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('employees').upsert(dbData);
             if (error) {
                 console.error("Error updating employee in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification(`Cloud Sync Delayed: ${error.message}`, "warning");
+            } else {
+                setSyncStatus('SYNCED');
             }
         }
-        setEmployees(employees.map(e => e.id === updated.id ? fullEmployee : e));
+        
+        // Update local state with the mapped object (keep both for compatibility)
+        const fullEmployee = {
+            ...dbData,
+            basePay: dbData.salary,
+            payType: dbData.pay_type,
+            bankAccount: dbData.bank_account,
+            dailyRate: dbData.daily_rate,
+            daysWorked: dbData.days_worked,
+            amountPaid: dbData.amount_paid
+        };
+        
+        setEmployees(prev => prev.map(e => e.id === updated.id ? fullEmployee : e));
+    };
+
+    const resetEmployeesDailyData = async () => {
+        if (!isSupabaseConfigured) {
+            setEmployees(prev => prev.map(emp => ({ ...emp, daysWorked: 0, days_worked: 0 })));
+            addNotification("Days worked reset locally", "success");
+            return true;
+        }
+
+        setSyncStatus('SYNCING');
+        const { error } = await supabase
+            .from('employees')
+            .update({ days_worked: 0 })
+            .eq('status', 'ACTIVE');
+
+        if (error) {
+            console.error("Error resetting employee data:", error);
+            setSyncStatus('ERROR');
+            addNotification("Failed to reset daily data in cloud", "error");
+            return false;
+        }
+
+        setEmployees(prev => prev.map(emp => emp.status === 'ACTIVE' ? { ...emp, daysWorked: 0, days_worked: 0 } : emp));
+        setSyncStatus('SYNCED');
+        addNotification("All active staff days worked reset", "success");
+        return true;
     };
 
     // Task 5: Mechanic Tracker (State moved to top)
 
     const addMechanicPayment = async (payment) => {
         const newPayment = {
-            ...payment,
             id: payment.id || generateUUID(),
-            amount_paid: payment.amount_paid || 0,
-            work_date: payment.work_date || new Date().toISOString().split('T')[0],
+            name: payment.name || payment.mechanic_name,
+            mechanic_name: payment.name || payment.mechanic_name,
+            work_description: payment.work_description || payment.details,
+            details: payment.work_description || payment.details,
+            total_due: parseFloat(payment.total_due || payment.amount || 0),
+            amount: parseFloat(payment.total_due || payment.amount || 0),
+            amount_paid: parseFloat(payment.amount_paid || 0),
+            work_date: payment.work_date || payment.date || new Date().toISOString().split('T')[0],
+            date: payment.work_date || payment.date || new Date().toISOString().split('T')[0],
             created_at: new Date().toISOString()
         };
+
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const { error } = await supabase.from('mechanic_payments').insert(newPayment);
             if (error) {
                 console.error("Error saving mechanic payment:", error);
+                setSyncStatus('ERROR');
                 addNotification("Failed to save mechanic payment in cloud", "error");
                 return;
             }
+            setSyncStatus('SYNCED');
         }
         setMechanicPayments(prev => [newPayment, ...prev]);
         addNotification("Mechanic record added", "success");
     };
 
-    const updateMechanicPayment = async (updatedPayment) => {
+    const updateMechanicPayment = async (updated) => {
+        const fullPayment = {
+            ...updated,
+            name: updated.name || updated.mechanic_name,
+            mechanic_name: updated.name || updated.mechanic_name,
+            work_description: updated.work_description || updated.details,
+            details: updated.work_description || updated.details,
+            total_due: parseFloat(updated.total_due || updated.amount || 0),
+            amount: parseFloat(updated.total_due || updated.amount || 0),
+            amount_paid: parseFloat(updated.amount_paid || 0)
+        };
+
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('mechanic_payments').upsert(updatedPayment);
+            setSyncStatus('SYNCING');
+            const { error } = await supabase.from('mechanic_payments').upsert(fullPayment);
             if (error) {
                 console.error("Error updating mechanic payment:", error);
+                setSyncStatus('ERROR');
                 addNotification("Failed to update mechanic payment in cloud", "error");
                 return;
             }
+            setSyncStatus('SYNCED');
         }
-        setMechanicPayments(mechanicPayments.map(m => m.id === updatedPayment.id ? updatedPayment : m));
+        setMechanicPayments(prev => prev.map(m => m.id === updated.id ? fullPayment : m));
         addNotification("Mechanic payment updated", "success");
     };
 
@@ -1207,10 +1337,21 @@ export const AppProvider = ({ children }) => {
         const newSupplier = { ...supplier, id, created_at: new Date().toISOString() };
         
         if (isSupabaseConfigured) {
-            const { error } = await supabase.from('suppliers').insert(newSupplier);
+            // CLEAN DB OBJECT
+            const dbSupplier = {
+                id,
+                name: supplier.name,
+                contact_person: supplier.contact_person,
+                phone: supplier.phone,
+                email: supplier.email,
+                address: supplier.address,
+                notes: supplier.notes || '',
+                created_at: new Date().toISOString()
+            };
+            const { error } = await supabase.from('suppliers').insert(dbSupplier);
             if (error) {
                 console.error("Error adding supplier:", error);
-                addNotification("Failed to save supplier", "error");
+                addNotification("Failed to save supplier to cloud", "error");
                 return false;
             }
         }
@@ -1244,31 +1385,39 @@ export const AppProvider = ({ children }) => {
     };
 
     const processPayroll = async (payRun) => {
+        const timestamp = new Date().toISOString();
         const newRecord = {
             ...payRun,
             id: payRun.id || `PAY-${Date.now()}`,
-            processed_at: new Date().toISOString(),
+            processed_at: timestamp,
+            processedAt: timestamp,
             processed_by: currentUser?.id
         };
         
         if (isSupabaseConfigured) {
+            setSyncStatus('SYNCING');
             const payrollInserts = payRun.items.map(item => ({
                 id: `PRL-${Date.now()}-${item.employeeId}`,
                 employeeId: item.employeeId,
                 amount: item.netPay,
                 month: payRun.period,
-                processed_at: newRecord.processed_at,
-                processed_by: newRecord.processed_by
+                processed_at: timestamp,
+                processed_by: currentUser?.id
             }));
             
             const { error } = await supabase.from('payroll').insert(payrollInserts);
             if (error) {
                 console.error("Error processing payroll in Supabase:", error);
+                setSyncStatus('ERROR');
                 addNotification("Failed to process payroll in cloud", "error");
-                // Fall through to local state
+                return false;
             }
+            setSyncStatus('SYNCED');
         }
+        
         setPayrollRecords(prev => [newRecord, ...prev]);
+        addNotification(`Payroll for ${payRun.period} authorized`, "success");
+        return true;
     };
 
     const deletePayrollRecord = async (recordId) => {
@@ -1390,7 +1539,13 @@ export const AppProvider = ({ children }) => {
         if (initializingRef.current) return;
         initializingRef.current = true;
 
-        setLoading(true);
+        // SILENT SYNC LOGIC: If we already have products (core data), don't block the UI with a spinner
+        const isSilentSync = !force && products.length > 0;
+        
+        if (!isSilentSync) {
+            setLoading(true);
+        }
+        
         setInitError(null);
         
         if (!isSupabaseConfigured) {
@@ -1507,8 +1662,13 @@ export const AppProvider = ({ children }) => {
                             id: `RUN-${period}`,
                             period: period,
                             processedAt: rec.processed_at,
-                            totalBase: 0, totalOvertime: 0, totalBonus: 0, totalDeductions: 0,
-                            totalNet: 0, totalEmployees: 0,
+                            processed_at: rec.processed_at,
+                            totalBase: 0,
+                            totalOvertime: 0,
+                            totalBonus: 0,
+                            totalDeductions: 0,
+                            totalNet: 0,
+                            totalEmployees: 0,
                             items: []
                         };
                     }
@@ -1535,7 +1695,8 @@ export const AppProvider = ({ children }) => {
                     ...log,
                     productId: log.product_id,
                     productName: log.product_name,
-                    userId: log.user_id
+                    userId: log.user_id,
+                    createdAt: log.created_at || log.date
                 }));
                 setMovementLog(mappedLog);
             }
@@ -1573,8 +1734,8 @@ export const AppProvider = ({ children }) => {
             
             if (session?.user) {
                 setAuthSession(session);
-                setLoading(true);
-                // Fetch user roles/profile from public.users
+                // Only block UI for INITIAL load, not background updates
+                if (!currentUser) setLoading(true);
                 const { data: profile } = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
                 
                 if (profile) {
@@ -1629,6 +1790,7 @@ export const AppProvider = ({ children }) => {
 
     const value = {
         currentUser, session: authSession || currentUser, isOwner, isStaff, login, logout,
+        syncStatus, isOnline, lastSyncedAt,
         businessProfile, updateBusinessProfile,        // Data
         products, addProduct, updateProduct, deleteProduct, adjustStock,
         clients, addClient, updateClient, deleteClient,

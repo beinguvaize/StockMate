@@ -259,23 +259,23 @@ const Users = () => {
                             <div className="pt-4">
                                 <label className="block text-[10px] font-black uppercase tracking-widest text-ink-secondary mb-3 opacity-70">Legacy Role Override</label>
                                 <div className="grid grid-cols-2 gap-3">
-                                    {AVAILABLE_ROLES.filter(r => r.key !== 'STAFF').map(role => {
-                                        const isSelected = formData.roles.includes(role.key);
-                                        const RoleIcon = ROLE_ICONS[role.key] || User;
+                                    {AVAILABLE_ROLES.filter(r => r.id !== 'STAFF').map(role => {
+                                        const isSelected = formData.roles.includes(role.id);
+                                        const RoleIcon = ROLE_ICONS[role.id] || User;
                                         return (
                                             <div
-                                                key={role.key}
+                                                key={role.id}
                                                 onClick={() => {
                                                     setFormData(prev => ({
                                                         ...prev,
-                                                        roles: isSelected ? ['STAFF'] : [role.key]
+                                                        roles: isSelected ? ['STAFF'] : [role.id]
                                                     }));
                                                 }}
                                                 className={`p-4 rounded-2xl border-2 cursor-pointer transition-all flex items-center gap-4 group ${
                                                     isSelected 
                                                     ? 'bg-ink-primary border-ink-primary text-surface shadow-premium' 
                                                     : 'bg-surface border-black/5 hover:border-black/10 text-ink-primary'
-                                                }`}
+                                                 }`}
                                             >
                                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-all ${
                                                     isSelected ? 'bg-accent-signature text-ink-primary' : 'bg-canvas'

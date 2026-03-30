@@ -3,7 +3,8 @@ import {
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
     Tooltip, Legend, Cell, PieChart, Pie, AreaChart, Area
 } from 'recharts';
-import { Users, Banknote, Briefcase, TrendingDown, Clock, Award } from 'lucide-react';
+import { Users, Banknote, Briefcase, TrendingDown, Clock, Award, Download } from 'lucide-react';
+import { downloadCSV } from '../../utils/csvExport';
 
 const HRReports = ({ employees, payroll, businessProfile }) => {
     
@@ -59,12 +60,12 @@ const HRReports = ({ employees, payroll, businessProfile }) => {
                     </div>
                     <div className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Est. Monthly Liability</div>
                 </div>
-                <div className="glass-panel !p-8 bg-ink-primary text-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-2 block">Departments</span>
+                <div className="glass-panel !p-8 bg-ink-primary text-slate-200 border border-black/5 shadow-premium !rounded-[2.5rem]">
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Departments</span>
                     <div className="text-4xl font-black text-accent-signature tracking-tighter mb-2">
                         {departmentStats.length}
                     </div>
-                    <div className="text-[10px] font-black text-white/40 uppercase tracking-widest">Functional Units</div>
+                    <div className="text-[10px] font-black text-ink-tertiary/60 uppercase tracking-widest">Functional Units</div>
                 </div>
             </div>
 
@@ -86,7 +87,7 @@ const HRReports = ({ employees, payroll, businessProfile }) => {
                                 <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: '#4b5563' }} />
                                 <YAxis hide />
                                 <Tooltip 
-                                    contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '1rem', color: '#fff' }}
+                                    contentStyle={{ backgroundColor: '#111', border: 'none', borderRadius: '1rem', color: '#cbd5e1' }}
                                     formatter={(val) => [`${businessProfile.currencySymbol}${Math.round(val).toLocaleString()}`, 'Processed']}
                                 />
                                 <Area 
@@ -132,8 +133,19 @@ const HRReports = ({ employees, payroll, businessProfile }) => {
 
             {/* Department Performance Board */}
             <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase mb-2">Workforce Integrity.</h3>
-                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] mb-10">Departmental cost and population metrics</p>
+                <div className="flex justify-between items-center mb-10">
+                    <div>
+                        <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase mb-2">Workforce Integrity.</h3>
+                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">Departmental cost and population metrics</p>
+                    </div>
+                    <button 
+                        onClick={() => downloadCSV(employees, 'ledgr_hr_workforce', businessProfile.name)}
+                        className="flex items-center gap-2 px-6 py-3 bg-ink-primary text-accent-signature rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-premium"
+                    >
+                        <Download size={16} />
+                        Export Workforce
+                    </button>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {departmentStats.map((dept, index) => (
@@ -142,7 +154,7 @@ const HRReports = ({ employees, payroll, businessProfile }) => {
                                 {index + 1}
                             </div>
                             <div className="flex items-center gap-4 mb-8">
-                                <div className="p-4 bg-white rounded-2xl shadow-sm group-hover:bg-ink-primary group-hover:text-white transition-all">
+                                <div className="p-4 bg-white rounded-2xl shadow-sm group-hover:bg-ink-primary group-hover:text-slate-200 transition-all">
                                     <Briefcase size={20} />
                                 </div>
                                 <h4 className="text-sm font-black text-ink-primary uppercase">{dept.name}</h4>

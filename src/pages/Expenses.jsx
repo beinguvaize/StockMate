@@ -272,7 +272,7 @@ const Expenses = () => {
                                                     {expense.splitType || expense.split_type || 'Company'}
                                                 </span>
                                             </div>
-                                            <div className="text-[10px] font-bold text-ink-primary uppercase tracking-widest opacity-70 mt-0.5">{expense.notes || 'N/A'}</div>
+                                            <div className="text-[10px] font-bold text-ink-primary uppercase tracking-widest opacity-70 mt-0.5">{expense.notes}</div>
                                         </div>
                                     </td>
                                     <td className="p-1.5 text-center">

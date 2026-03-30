@@ -340,47 +340,51 @@ const Dashboard = () => {
 
     return (
         <div className="animate-fade-in flex flex-col gap-8">
-                        {/* Reference-Style Hero Section */}
-            <div className="bg-white p-6 md:p-8 rounded-[2rem] shadow-sm border border-black/5 flex flex-col lg:flex-row items-center justify-between gap-8">
-                <div className="flex-1 space-y-6">
-                    <h1 className="text-3xl md:text-6xl font-black text-ink-primary leading-tight tracking-tight">
-                        Manage your business <br className="hidden md:block" /> operations easily
-                    </h1>
-                    <p className="text-ink-secondary text-lg max-w-xl opacity-70">
-                        Streamline your inventory, payroll, and fleet operations from a single, powerful dashboard designed for modern retail.
-                    </p>
+            {/* Reference-Style Hero Section */}
+            <div className="bg-white p-8 md:p-12 rounded-[2.5rem] shadow-premium border border-black/5 flex flex-col lg:flex-row items-center justify-between gap-12 relative overflow-hidden group">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-accent-signature/10 rounded-full blur-3xl -mr-32 -mt-32 transition-all group-hover:bg-accent-signature/20" />
+                <div className="flex-1 space-y-8 relative z-10">
+                    <div>
+                        <h1 className="text-4xl md:text-8xl font-black text-ink-primary leading-[0.85] tracking-tighter mb-4 uppercase">
+                            COMMAND <br className="hidden md:block" /> CENTER<span className="text-accent-signature">.</span>
+                        </h1>
+                        <p className="text-ink-secondary text-xl max-w-xl opacity-60 font-medium leading-relaxed">
+                            Operational intelligence and real-time asset synchronization across your entire retail ecosystem.
+                        </p>
+                    </div>
                     <div className="flex flex-wrap items-center gap-6">
                         <button 
-                            className="flex items-center gap-2 bg-accent-signature text-ink-primary pl-6 pr-2 py-2 rounded-full font-semibold hover:bg-opacity-90 transition-colors shadow-sm"
+                            onClick={() => navigate('/inventory')}
+                            className="btn-signature pl-8 pr-3 py-3 rounded-full shadow-lg hover:shadow-accent-signature/20"
                         >
-                            <span>Go to Inventory</span>
-                            <div className="w-10 h-10 bg-ink-primary rounded-full flex items-center justify-center text-white">
-                                <ArrowRight className="w-5 h-5" />
+                            <span>DEPLOY INVENTORY</span>
+                            <div className="icon-nest !w-12 !h-12 ml-4">
+                                <ArrowRight className="w-6 h-6" />
                             </div>
                         </button>
                         <button 
-                            className="px-6 py-3 rounded-full font-semibold text-ink-primary bg-gray-100 hover:bg-gray-200 transition-colors"
+                            onClick={() => navigate('/reports')}
+                            className="px-8 py-4 rounded-full font-black text-ink-primary bg-canvas border border-black/5 hover:bg-white hover:shadow-premium transition-all text-xs tracking-widest uppercase"
                         >
-                            View Reports
+                            ANALYTICS BROWSER
                         </button>
                     </div>
-                    <div className="pt-4 flex items-center gap-6">
-                        <div className="flex -space-x-3">
-                            <div className="w-10 h-10 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center font-bold text-xs text-ink-primary uppercase tracking-tighter">JD</div>
-                            <div className="w-10 h-10 rounded-full bg-gray-300 border-2 border-white flex items-center justify-center font-bold text-xs text-ink-primary uppercase tracking-tighter">AS</div>
-                            <div className="w-10 h-10 rounded-full bg-accent-signature border-2 border-white flex items-center justify-center font-bold text-xs text-ink-primary shadow-sm">+</div>
+                </div>
+                <div className="hidden lg:flex w-1/3 aspect-square max-h-[400px] bg-canvas rounded-[3rem] border border-black/5 items-center justify-center relative overflow-hidden shadow-inner group-hover:scale-105 transition-transform duration-700">
+                    <div className="absolute inset-0 bg-gradient-to-br from-accent-signature/30 to-transparent opacity-50" />
+                    <Activity className="w-48 h-48 text-ink-primary/5 relative z-10 animate-pulse" />
+                    <div className="absolute bottom-8 left-8 right-8 p-6 bg-white/80 backdrop-blur-md rounded-2xl border border-black/5 shadow-xl">
+                        <div className="flex items-center gap-3 mb-2">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-ping" />
+                            <span className="text-[10px] font-black text-ink-primary uppercase tracking-[0.2em]">Live Telemetry</span>
                         </div>
-                        <div>
-                            <p className="font-bold text-ink-primary text-lg">3,400+</p>
-                            <p className="text-sm text-ink-secondary font-medium">Products Managed</p>
+                        <div className="h-1 w-full bg-canvas rounded-full overflow-hidden">
+                            <div className="h-full bg-ink-primary w-[70%] animate-in slide-in-from-left duration-1000" />
                         </div>
                     </div>
                 </div>
-                <div className="hidden lg:flex w-1/3 aspect-square max-h-[300px] bg-gray-50 rounded-[2rem] border border-black/5 items-center justify-center relative overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-accent-signature/20 to-transparent" />
-                    <Package className="w-32 h-32 text-ink-primary/10 relative z-10" />
-                </div>
-            </div>            {/* Financial Overview & Date Range Selector */}
+            </div>
+            {/* Financial Overview & Date Range Selector */}
             <div>
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
                     <h2 className="text-xl font-bold text-ink-primary">Financial Overview</h2>
@@ -635,8 +639,8 @@ const Dashboard = () => {
                                 <p className="text-ink-secondary text-sm font-medium">Active Trips</p>
                                 <h3 className="text-3xl font-bold mt-1 text-ink-primary">{(routes || []).filter(r => r.status === 'ACTIVE').length}</h3>
                             </div>
-                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600">
-                                <Truck className="w-6 h-6" />
+                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center overflow-hidden border border-blue-100 shadow-sm">
+                                <img src="/assets/van.png" className="w-full h-full object-cover scale-150 transform hover:scale-175 transition-transform" alt="Van" />
                             </div>
                         </div>
                         <div className="flex items-center gap-2 text-sm text-ink-secondary font-semibold">

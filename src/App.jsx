@@ -19,6 +19,8 @@ import Purchases from './pages/Purchases';
 import Suppliers from './pages/Suppliers';
 import Maintenance from './pages/Maintenance';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import ErrorBoundary from './components/ErrorBoundary';
+import GlobalLoading from './components/GlobalLoading';
 
 /**
  * GuestRoute: Redirects authenticated users away from the login page.
@@ -26,7 +28,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 const GuestRoute = ({ children }) => {
   const { currentUser, loading } = useAppContext();
 
-  if (loading) return null;
+  if (loading) return <GlobalLoading />;
 
   if (currentUser) {
     return <Navigate to="/dashboard" replace />;
@@ -39,7 +41,7 @@ function AppRoutes() {
   const { isMaintenance, isOwner, loading } = useAppContext();
   const location = useLocation();
 
-  if (loading) return null;
+  if (loading) return <GlobalLoading />;
 
   // Global Maintenance Block: Allows owners to bypass, otherwise restricts all routes except login.
   if (isMaintenance && !isOwner && location.pathname !== '/login') {
@@ -117,7 +119,9 @@ function App() {
 
   return (
     <Router>
-      <AppRoutes />
+      <ErrorBoundary>
+        <AppRoutes />
+      </ErrorBoundary>
     </Router>
   );
 }

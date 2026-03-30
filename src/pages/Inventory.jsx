@@ -151,14 +151,14 @@ const Inventory = () => {
             
             <div className="flex justify-between items-end pb-6 border-b border-black/5 text-ink-primary mb-2">
                 <div>
-                    <h1 className="text-3xl md:text-6xl font-black tracking-tighter text-ink-primary mb-2 uppercase">INVENTORY.</h1>
-                    <p className="text-ink-secondary font-black uppercase tracking-widest text-[10px] opacity-70">STOCK MANAGEMENT & LOGISTICS</p>
+                    <h1 className="text-4xl md:text-7xl font-black tracking-tighter text-ink-primary mb-2 uppercase leading-[0.8]">INVENTORY<span className="text-accent-signature">.</span></h1>
+                    <p className="text-ink-secondary font-black uppercase tracking-[0.4em] text-[10px] opacity-50">Stock Intelligence & Asset Logistics</p>
                 </div>
                 <div className="flex gap-6 items-center">
                     {lowStockCount > 0 && (
-                        <div className="flex items-center gap-2 px-4 py-2 bg-red-500 rounded-pill border border-red-400 shadow-[0_0_15px_rgba(239,68,68,0.3)] animate-pulse">
-                            <AlertCircle size={14} className="text-white" />
-                            <span className="text-[10px] font-black text-white uppercase tracking-widest">{lowStockCount} LOW STOCK ALERTS</span>
+                        <div className="flex items-center gap-3 px-6 py-3 bg-red-500 rounded-full border border-red-400 shadow-[0_0_30px_rgba(239,68,68,0.25)] animate-pulse">
+                            <AlertCircle size={16} className="text-white" />
+                            <span className="text-[10px] font-black text-white uppercase tracking-[0.2em]">{lowStockCount} LOW STOCK ALERTS</span>
                         </div>
                     )}
                     <button className="px-8 py-4 rounded-pill border border-black/10 font-bold text-ink-primary hover:bg-black/5 transition-all text-xs uppercase cursor-pointer tracking-widest" onClick={() => setShowHistoryModal(true)}>
@@ -198,11 +198,11 @@ const Inventory = () => {
                                     <tr key={product.id} className="hover:bg-canvas transition-colors group">
                                         <td className="px-4 py-1.5">
                                             <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-2xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-ink-primary shrink-0 overflow-hidden group-hover:bg-accent-signature group-hover:border-transparent transition-all">
+                                                <div className="w-14 h-14 rounded-2xl bg-white border border-black/5 shadow-premium flex items-center justify-center text-ink-primary shrink-0 overflow-hidden group-hover:bg-accent-signature group-hover:border-transparent group-hover:scale-110 transition-all duration-500">
                                                     {product.image ? (
-                                                        <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                                                        <img src={product.image} alt={product.name} className="w-full h-full object-cover transition-transform group-hover:scale-125" />
                                                     ) : (
-                                                        <PackagePlus size={24} />
+                                                        <PackagePlus size={28} className="opacity-20 group-hover:opacity-100" />
                                                     )}
                                                 </div>
                                                 <div>
@@ -522,7 +522,7 @@ const Inventory = () => {
                                 <tbody className="divide-y divide-black/5">
                                     {(movementLog || []).map(log => (
                                         <tr key={log.id} className="hover:bg-canvas transition-colors">
-                                            <td className="py-3 text-[10px] font-black text-ink-primary uppercase opacity-60">{new Date(log.date).toLocaleString()}</td>
+                                            <td className="py-3 text-[10px] font-black text-ink-primary uppercase opacity-60">{log.date ? new Date(log.date).toLocaleString() : 'N/A'}</td>
                                             <td className="py-3">
                                                 <div className="text-base font-black text-ink-primary uppercase tracking-tight">{log.productName}</div>
                                                 <div className="text-[10px] font-black text-ink-secondary uppercase tracking-widest opacity-60 mt-1">Source: {log.source || 'INTERNAL'}</div>

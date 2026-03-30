@@ -462,15 +462,15 @@ const Sales = () => {
         <div className="flex flex-col lg:flex-row gap-4 lg:h-[calc(100vh-140px)]">
             <div className="flex-1 flex flex-col gap-4 min-h-0">
                 {/* Header Section */}
-                <div className="flex justify-between items-end pb-2 border-b border-black/5">
+                <div className="flex justify-between items-end pb-6 border-b border-black/5">
                     <div>
-                        <h1 className="text-3xl md:text-6xl font-black text-ink-primary uppercase tracking-tighter leading-none mb-2">SALES.</h1>
-                    <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-widest opacity-70">POINT OF SALE & BILLING</p>
+                        <h1 className="text-4xl md:text-7xl font-black text-ink-primary uppercase tracking-tighter leading-[0.8] mb-2">SALES<span className="text-accent-signature">.</span></h1>
+                        <p className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.4em] opacity-50">Point of Sale & Transaction Flow</p>
                     </div>
                     {!isMobile && (
                         <div className="text-right">
-                            <div className="text-4xl font-black text-ink-primary tracking-tighter leading-none mb-1">{filteredProducts.length}</div>
-                            <div className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.4em] opacity-85">Products in Stock</div>
+                            <div className="text-5xl font-black text-ink-primary tracking-tighter leading-none mb-1">{filteredProducts.length}</div>
+                            <div className="text-[10px] font-black text-[#4b5563] uppercase tracking-[0.4em] opacity-40">Active Assets</div>
                         </div>
                     )}
                 </div>
@@ -534,49 +534,49 @@ const Sales = () => {
                                 <div 
                                     key={product.id} 
                                     onClick={() => addToCart(product)}
-                                    className={`glass-panel !p-2 !rounded-xl relative group cursor-pointer transition-all border border-black/5 flex items-center gap-4 ${
+                                    className={`glass-panel !p-3 !rounded-[2rem] relative group cursor-pointer transition-all border border-black/5 flex items-center gap-5 ${
                                         inCart 
-                                        ? 'bg-accent-signature/80 ring-4 ring-accent-signature/40 border-accent-signature/50 shadow-2xl' 
-                                        : 'bg-surface hover:border-black/20 hover:shadow-premium translate-z-0'
+                                        ? 'bg-accent-signature ring-8 ring-accent-signature/20 border-accent-signature/50 shadow-2xl scale-[1.02]' 
+                                        : 'bg-white hover:border-black/20 hover:shadow-premium translate-z-0'
                                     }`}
                                 >
                                     
                                     {/* Compact Image Container */}
-                                    <div className="w-16 h-16 shrink-0 bg-canvas rounded-full flex items-center justify-center p-2.5 transition-transform duration-500 border border-black/5 overflow-hidden">
+                                    <div className="w-20 h-20 shrink-0 bg-canvas rounded-full flex items-center justify-center p-3 transition-transform duration-500 border border-black/5 overflow-hidden group-hover:scale-110">
                                         {product.image ? (
-                                            <img src={product.image} alt={product.name} className="w-full h-full object-contain rounded-full" />
+                                            <img src={product.image} alt={product.name} className="w-full h-full object-contain rounded-full transition-transform duration-700 group-hover:scale-125" />
                                         ) : (
-                                            <Package size={28} className="text-ink-primary opacity-30 stroke-[1]" />
+                                            <Box size={32} className="text-ink-primary opacity-20 stroke-[1.5]" />
                                         )}
                                     </div>
                                     
                                     {/* Central Info Sector */}
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-[9px] font-black text-[#4b5563] uppercase tracking-[0.3em] mb-0.5 opacity-95">{product.sku}</div>
-                                        <h3 className="text-sm font-black text-ink-primary uppercase tracking-tight truncate leading-tight">{product.name}</h3>
-                                        <div className={`mt-1.5 inline-flex px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${
-                                            product.stock <= 10 ? 'bg-red-50 text-red-500' : 'bg-canvas text-[#4b5563] opacity-80'
+                                        <div className="text-[9px] font-black text-[#4b5563] uppercase tracking-[0.3em] mb-1 opacity-60 group-hover:opacity-100 transition-opacity">{product.sku}</div>
+                                        <h3 className="text-base font-black text-ink-primary uppercase tracking-tight truncate leading-tight mb-1">{product.name}</h3>
+                                        <div className={`inline-flex px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest ${
+                                            product.stock <= 10 ? 'bg-red-50 text-red-500' : 'bg-canvas text-[#4b5563] opacity-50'
                                         }`}>
-                                            {product.stock} {product.unit || 'Units'}
+                                            {product.stock} <span className="ml-1 opacity-70">{product.unit || 'Units'}</span>
                                         </div>
                                     </div>
 
-                                    {/* Precise Badge Positioning (70% towards price) */}
+                                    {/* Economic Sector */}
+                                    <div className="text-right pr-3">
+                                        <div className="text-[9px] font-black text-[#4b5563] uppercase tracking-[0.2em] mb-1 opacity-60">PRICE</div>
+                                        <div className="text-2xl font-black text-ink-primary tracking-tighter leading-none">
+                                            {businessProfile?.currencySymbol || '$'}{product.sellingPrice.toLocaleString()}
+                                        </div>
+                                    </div>
+
+                                    {/* Counter Badge */}
                                     {inCart && (
-                                        <div className="flex items-center -ml-1 mr-[-8px] z-10 scale-110">
-                                            <div className="w-8 h-8 rounded-full bg-accent-signature text-ink-primary flex items-center justify-center font-black text-xs shadow-2xl ring-4 ring-white">
+                                        <div className="absolute -top-2 -right-2 z-20">
+                                            <div className="w-10 h-10 rounded-full bg-ink-primary text-accent-signature flex items-center justify-center font-black text-sm shadow-2xl ring-4 ring-white animate-in zoom-in duration-300">
                                                 {inCart.quantity}
                                             </div>
                                         </div>
                                     )}
-                                    
-                                    {/* Economic Sector */}
-                                    <div className="text-right pr-2">
-                                        <div className="text-[9px] font-black text-[#4b5563] uppercase tracking-[0.2em] mb-0.5 opacity-85">Unit Price</div>
-                                        <div className="text-xl font-black text-ink-primary tracking-tighter leading-none">
-                                            ${product.sellingPrice.toLocaleString()}
-                                        </div>
-                                    </div>
                                 </div>
                             );
                         })}

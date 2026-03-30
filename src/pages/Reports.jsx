@@ -17,6 +17,9 @@ import HRReports from '../components/reports/HRReports';
 import ReportAudit from '../components/reports/ReportAudit';
 import ReportPerformance from '../components/reports/ReportPerformance';
 
+// Import Export Utility
+import { downloadCSV, exportSalesCSV, exportInventoryCSV } from '../utils/csvExport';
+
 const Reports = () => {
     const { 
         sales, movementLog, expenses, businessProfile, clients, users, vehicles, routes,
@@ -113,26 +116,56 @@ const Reports = () => {
         }
     };
 
+    const handleGlobalExport = () => {
+        const bName = businessProfile?.name || 'Ledgr ERP';
+        
+        switch (activeTab) {
+            case 'FINANCIAL':
+                downloadCSV(filteredExpenses, 'ledgr_expenses', bName);
+                break;
+            case 'INVENTORY':
+                exportInventoryCSV(products, bName);
+                break;
+            case 'SALES':
+                exportSalesCSV(filteredSales, bName, getShopName);
+                break;
+            case 'CLIENTS':
+                downloadCSV(clients, 'ledgr_clients', bName);
+                break;
+            case 'LOGISTICS':
+                downloadCSV(routes, 'ledgr_routes', bName);
+                break;
+            case 'HR':
+                downloadCSV(filteredPayroll, 'ledgr_payroll', bName);
+                break;
+            case 'AUDIT':
+                downloadCSV(movementLog, 'ledgr_audit_trail', bName);
+                break;
+            default:
+                alert("This module does not support direct export.");
+                break;
+        }
+    };
+
     return (
         <div className="flex flex-col gap-8 pb-12">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center no-print gap-6">
                 <div className="flex flex-col gap-2">
+                    <h1 className="text-4xl md:text-8xl font-black text-ink-primary uppercase tracking-tighter leading-[0.8] mb-4">REPORTS<span className="text-accent-signature">.</span></h1>
                     <div className="flex items-center gap-3">
-                        <div className="w-1.5 h-10 bg-accent-signature rounded-full"></div>
-                        <h1 className="text-3xl md:text-5xl font-black text-ink-primary uppercase tracking-tighter leading-none">REPORTS.</h1>
+                        <div className="w-1.5 h-4 bg-accent-signature rounded-full"></div>
+                        <p className="text-[10px] font-black text-[#4b5563] tracking-[0.4em] uppercase opacity-40">
+                            Business Intelligence & Audit Terminal
+                        </p>
                     </div>
-                    <p className="text-[10px] font-black text-ink-secondary tracking-[0.4em] uppercase flex items-center gap-3 mt-3">
-                        <Activity size={12} className="text-accent-signature" />
-                        Business Intelligence Terminal
-                    </p>
                 </div>
 
-                <div className="flex items-center gap-4 bg-white p-2 rounded-full border border-black/5 shadow-sm">
-                    <div className="flex h-12 p-1 bg-surface rounded-full items-center px-4">
-                        <Calendar size={14} className="text-[#4b5563] opacity-70" />
+                <div className="flex items-center gap-3 bg-white p-2 rounded-full border border-black/5 shadow-premium">
+                    <div className="flex h-12 p-1 bg-canvas rounded-full items-center px-4">
+                        <Calendar size={14} className="text-[#4b5563] opacity-30" />
                         <select 
-                            className="bg-transparent border-none font-black text-[10px] uppercase tracking-widest text-ink-primary outline-none px-4" 
+                            className="bg-transparent border-none font-black text-[10px] uppercase tracking-widest text-ink-primary outline-none px-4 cursor-pointer" 
                             value={dateRange} 
                             onChange={e => setDateRange(e.target.value)}
                         >
@@ -142,28 +175,28 @@ const Reports = () => {
                             <option value="ALL">ALL TIME</option>
                         </select>
                     </div>
-                    <button className="bg-ink-primary text-white p-3 rounded-full hover:scale-105 transition-all shadow-lg" onClick={() => window.print()}>
+                    <button className="icon-nest !w-12 !h-12 !bg-ink-primary !text-white hover:scale-105" onClick={() => window.print()}>
                         <Printer size={18} />
                     </button>
-                    <button className="bg-canvas text-ink-primary p-3 rounded-full hover:scale-105 transition-all border border-black/5" onClick={() => {/* Future CSV Export */}}>
+                    <button className="icon-nest !w-12 !h-12 !bg-canvas !text-ink-primary border border-black/5 hover:scale-105" onClick={handleGlobalExport}>
                         <Download size={18} />
                     </button>
                 </div>
             </div>
 
             {/* Tab Navigation */}
-            <div className="no-print flex items-center gap-1 p-1 bg-white border border-black/5 rounded-[2rem] shadow-sm overflow-x-auto scrollbar-hide">
+            <div className="no-print flex items-center gap-1 p-2 bg-white/60 backdrop-blur-xl border border-white/20 rounded-[2.5rem] shadow-glass overflow-x-auto scrollbar-hide sticky top-4 z-50">
                 {TABS.map(tab => (
                     <button
                         key={tab.id}
                         onClick={() => setActiveTab(tab.id)}
                         className={`flex items-center gap-3 px-8 py-4 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${
                             activeTab === tab.id 
-                            ? 'bg-ink-primary text-white shadow-xl translate-y-[-2px]' 
-                            : 'text-ink-secondary hover:bg-canvas'
+                            ? 'bg-ink-primary text-white shadow-2xl scale-[1.02]' 
+                            : 'text-ink-secondary hover:bg-white/40'
                         }`}
                     >
-                        {tab.icon}
+                        <span className={`${activeTab === tab.id ? 'opacity-100' : 'opacity-40'}`}>{tab.icon}</span>
                         {tab.label}
                     </button>
                 ))}
@@ -236,6 +269,7 @@ const Reports = () => {
                         movementLog={movementLog} 
                         products={products} 
                         users={users} 
+                        businessProfile={businessProfile}
                     />
                 )}
 

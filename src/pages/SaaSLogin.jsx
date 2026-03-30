@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { ArrowRight } from 'lucide-react';
 
 const SaaSLogin = () => {
     const { login, users } = useAppContext();
@@ -84,11 +85,12 @@ const SaaSLogin = () => {
                             <img src="/images/ledgr_metallic_logo.png" alt="Ledgr Logo" className="h-16 lg:h-20" />
                         </div>
                         <div>
-                            <h1 className="text-6xl lg:text-8xl font-black tracking-tighter mb-6 text-ink-primary">
-                                StockMate <br /> Infrastructure.
+                            <h1 className="text-6xl lg:text-[10rem] font-black tracking-[-0.08em] mb-6 text-ink-primary leading-[0.8] uppercase">
+                                LEDGR<span className="text-accent-signature">.</span> <br /> 
+                                <span className="text-4xl lg:text-5xl tracking-[-0.02em] opacity-40">INFRASTRUCTURE</span>
                             </h1>
-                            <p className="text-xl lg:text-2xl text-ink-secondary font-medium max-w-lg leading-relaxed">
-                                The unified operating system for high-growth commerce teams. Track, manage, and scale with precision.
+                            <p className="text-xl lg:text-2xl text-ink-secondary font-medium max-w-lg leading-relaxed opacity-60">
+                                The high-fidelity operating system for modern enterprise commerce. Precision engineered for scale.
                             </p>
                         </div>
                         <div className="flex items-center gap-6 mt-4">
@@ -105,10 +107,12 @@ const SaaSLogin = () => {
 
                     {/* Form Side */}
                     <div className="animate-in fade-in slide-in-from-right-12 duration-1000 delay-200">
-                        <div className="bg-surface border border-black/5 p-10 lg:p-16 rounded-bento shadow-premium">
-                            <div className="mb-14">
-                                <h2 className="text-4xl font-black mb-4 tracking-tight text-ink-primary">Access Control</h2>
-                                <p className="text-ink-secondary font-medium">Verify your organizational identity to continue.</p>
+                        <div className="glass-panel !p-10 lg:!p-16 !rounded-[3rem] border-white/20 shadow-glass relative overflow-hidden group/card">
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-white/10 pointer-events-none" />
+                            <div className="mb-14 relative z-10">
+                                <div className="text-[10px] font-black uppercase tracking-[0.4em] text-accent-signature mb-4">Verification Layer 01</div>
+                                <h2 className="text-4xl lg:text-5xl font-black mb-4 tracking-tighter text-ink-primary uppercase leading-none">Access Control<span className="text-accent-signature">.</span></h2>
+                                <p className="text-ink-secondary font-medium opacity-60">Authorize your organizational identity.</p>
                             </div>
 
                             <form onSubmit={handleLogin} className="space-y-10">
@@ -144,16 +148,14 @@ const SaaSLogin = () => {
                                     />
                                 </div>
 
-                                <div className="pt-6">
+                                <div className="pt-6 relative z-10">
                                     <button 
                                         type="submit"
-                                        className="btn-signature w-full !py-8 !rounded-2xl !justify-center !text-2xl shadow-xl shadow-accent-signature/10 group"
+                                        className="btn-signature w-full !py-8 !rounded-[2rem] !justify-center shadow-2xl hover:scale-[1.02] active:scale-[0.98] transition-all group"
                                     >
-                                        Authorize Access
-                                        <div className="icon-nest !w-14 !h-14">
-                                            <svg className="w-8 h-8 group-hover:translate-x-1 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                                            </svg>
+                                        <span className="text-xl font-black uppercase tracking-[0.1em]">Authorize System Access</span>
+                                        <div className="icon-nest !w-14 !h-14 ml-4">
+                                            <ArrowRight className="w-8 h-8 group-hover:translate-x-1 transition-transform duration-500" />
                                         </div>
                                     </button>
                                 </div>

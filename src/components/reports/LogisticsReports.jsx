@@ -3,7 +3,8 @@ import {
     ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
     Tooltip, Legend, Cell, PieChart, Pie
 } from 'recharts';
-import { Truck, Navigation, Fuel, Timer, MapPin, Gauge } from 'lucide-react';
+import { Truck, Navigation, Fuel, Timer, MapPin, Gauge, Download } from 'lucide-react';
+import { downloadCSV } from '../../utils/csvExport';
 
 const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
     
@@ -55,12 +56,12 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
                     </div>
                     <div className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Logistics Events Optimized</div>
                 </div>
-                <div className="glass-panel !p-8 bg-ink-primary text-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                    <span className="text-[10px] font-black text-white/50 uppercase tracking-widest mb-2 block">Top Route Revenue</span>
+                <div className="glass-panel !p-8 bg-ink-primary text-slate-200 border border-black/5 shadow-premium !rounded-[2.5rem]">
+                    <span className="text-[10px] font-black text-ink-tertiary uppercase tracking-widest mb-2 block">Top Route Revenue</span>
                     <div className="text-4xl font-black text-accent-signature tracking-tighter mb-2">
                         {businessProfile.currencySymbol}{Math.round(routeStats[0]?.revenue || 0).toLocaleString()}
                     </div>
-                    <div className="text-[10px] font-black text-white/40 uppercase tracking-widest">{routeStats[0]?.name || 'N/A'}</div>
+                    <div className="text-[10px] font-black text-ink-tertiary/60 uppercase tracking-widest">{routeStats[0]?.name || 'N/A'}</div>
                 </div>
             </div>
 
@@ -77,7 +78,15 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
                                 <YAxis hide />
                                 <Tooltip 
                                     cursor={{ fill: 'rgba(0,0,0,0.02)' }}
-                                    contentStyle={{ backgroundColor: '#000', border: 'none', borderRadius: '1rem', color: '#fff' }}
+                                    contentStyle={{ 
+                                        backgroundColor: '#111', 
+                                        border: 'none', 
+                                        borderRadius: '1rem', 
+                                        padding: '15px', 
+                                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)'
+                                    }}
+                                    itemStyle={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 900 }}
+                                    labelStyle={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontWeight: 900, marginBottom: '5px', textTransform: 'uppercase' }}
                                     formatter={(val) => [`${businessProfile.currencySymbol}${Math.round(val).toLocaleString()}`, 'Revenue']}
                                 />
                                 <Bar dataKey="revenue" fill="#6366f1" radius={[10, 10, 0, 0]} barSize={40} />
@@ -106,7 +115,16 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
-                                <Tooltip formatter={(val) => `${val} Deliveries`} />
+                                <Tooltip 
+                                    contentStyle={{ 
+                                        backgroundColor: '#111', 
+                                        border: 'none', 
+                                        borderRadius: '1rem', 
+                                        padding: '15px'
+                                    }}
+                                    itemStyle={{ color: '#cbd5e1', fontSize: '11px', fontWeight: 900 }}
+                                    formatter={(val) => `${val} Deliveries`} 
+                                />
                                 <Legend />
                             </PieChart>
                         </ResponsiveContainer>
@@ -116,8 +134,19 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
 
             {/* Comprehensive Fleet Ledger */}
             <div className="glass-panel !p-10 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
-                <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase mb-2">Logistics Intelligence Board.</h3>
-                <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em] mb-10">Historical fleet efficiency metrics</p>
+                <div className="flex justify-between items-center mb-10">
+                    <div>
+                        <h3 className="text-2xl font-black text-ink-primary tracking-tighter uppercase mb-2">Logistics Intelligence Board.</h3>
+                        <p className="text-[10px] font-black text-ink-secondary uppercase tracking-[0.3em]">Historical fleet efficiency metrics</p>
+                    </div>
+                    <button 
+                        onClick={() => downloadCSV(vehicles, 'ledgr_fleet_list', businessProfile.name)}
+                        className="flex items-center gap-2 px-6 py-3 bg-ink-primary text-accent-signature rounded-full text-[10px] font-black uppercase tracking-widest hover:bg-black transition-all shadow-premium"
+                    >
+                        <Download size={16} />
+                        Export Fleet
+                    </button>
+                </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     {vehicles.map(v => {
@@ -125,8 +154,8 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile }) => {
                         return (
                             <div key={v.id} className="p-6 bg-canvas/30 rounded-3xl border border-black/5 hover:bg-white hover:shadow-xl transition-all group">
                                 <div className="flex items-center gap-4 mb-6">
-                                    <div className="p-3 bg-white rounded-2xl group-hover:bg-ink-primary group-hover:text-white transition-all shadow-sm">
-                                        <Truck size={20} />
+                                    <div className="w-12 h-12 rounded-2xl bg-white group-hover:bg-ink-primary transition-all shadow-sm overflow-hidden flex items-center justify-center">
+                                        <img src="/assets/van.png" className="w-full h-full object-cover" alt="Vehicle" />
                                     </div>
                                     <div>
                                         <div className="text-[11px] font-black text-ink-primary uppercase truncate">{v.plateNumber}</div>
