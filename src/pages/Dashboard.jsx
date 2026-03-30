@@ -416,51 +416,86 @@ const Dashboard = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {/* Selected Range Sales */}
-                    <div className="kpi-card kpi-revenue p-8 rounded-[2rem] group hover:scale-[1.02]">
-                        <div className="flex justify-between items-start relative z-10">
+                    {/* Today's Sales -> Selected Range Sales */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-green-500/5 to-transparent pointer-events-none" />
+                        <div className="flex justify-between items-start mb-4 relative">
                             <div>
-                                <p className="text-ink-secondary text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-2">{datePreset} REVENUE</p>
-                                <h3 className="kpi-value text-green-600">₹{Math.round(rangeSales).toLocaleString()}</h3>
-                                <div className="mt-4 inline-flex items-center gap-1.5 px-3 py-1 bg-green-500/10 rounded-full text-[10px] font-black text-green-700">
-                                    <TrendingUp size={12} />
-                                    <span>+{growthPercent.toFixed(1)}% OVER PREVIOUS</span>
-                                </div>
+                                <p className="text-ink-secondary text-sm font-medium">{datePreset} Sales</p>
+                                <h3 className="text-3xl font-bold mt-1 text-green-600">₹{Math.round(rangeSales).toLocaleString()}</h3>
                             </div>
-                            <div className="w-16 h-16 rounded-[1.5rem] bg-green-500/10 flex items-center justify-center text-green-600 shadow-inner group-hover:bg-green-600 group-hover:text-white transition-all duration-500">
-                                <Banknote className="w-8 h-8" />
+                            <div className="w-12 h-12 rounded-2xl bg-green-50 flex items-center justify-center text-green-600 shadow-sm group-hover:scale-110 transition-transform">
+                                <Banknote className="w-6 h-6" />
                             </div>
                         </div>
                     </div>
 
-                    {/* Selected Range Expenses */}
-                    <div className="kpi-card kpi-expense p-8 rounded-[2rem] group hover:scale-[1.02]">
-                        <div className="flex justify-between items-start relative z-10">
+                    {/* Today's Expenses -> Selected Range Expenses */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-red-500/5 to-transparent pointer-events-none" />
+                        <div className="flex justify-between items-start mb-4 relative">
                             <div>
-                                <p className="text-ink-secondary text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-2">{datePreset} OVERHEAD</p>
-                                <h3 className="kpi-value text-red-600">₹{Math.round(rangeExpenses).toLocaleString()}</h3>
-                                <p className="mt-4 text-[10px] font-black text-red-700 uppercase tracking-widest opacity-60">Capital Outflow Detected</p>
+                                <p className="text-ink-secondary text-sm font-medium">{datePreset} Expenses</p>
+                                <h3 className="text-3xl font-bold mt-1 text-red-600">₹{Math.round(rangeExpenses).toLocaleString()}</h3>
                             </div>
-                            <div className="w-16 h-16 rounded-[1.5rem] bg-red-500/10 flex items-center justify-center text-red-600 shadow-inner group-hover:bg-red-600 group-hover:text-white transition-all duration-500">
-                                <TrendingDown className="w-8 h-8" />
+                            <div className="w-12 h-12 rounded-2xl bg-red-50 flex items-center justify-center text-red-600 shadow-sm group-hover:scale-110 transition-transform">
+                                <TrendingDown className="w-6 h-6" />
                             </div>
                         </div>
                     </div>
 
                     {/* Current Cash Balance */}
-                    <div className="kpi-card p-8 rounded-[2rem] bg-white group hover:scale-[1.02]">
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 relative overflow-hidden group">
                         <div className="absolute inset-0 bg-gradient-to-br from-blue-500/5 to-transparent pointer-events-none" />
-                        <div className="flex justify-between items-start relative z-10">
+                        <div className="flex justify-between items-start mb-4 relative">
                             <div>
-                                <p className="text-ink-secondary text-[10px] font-black uppercase tracking-[0.3em] opacity-60 mb-2">SYSTEM LIQUIDITY</p>
-                                <h3 className="kpi-value text-blue-600">₹{Math.round(currentCashBalance).toLocaleString()}</h3>
-                                <div className="mt-4 flex items-center gap-2">
-                                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                                    <span className="text-[10px] font-black text-blue-700 uppercase tracking-widest">Live Registry Balance</span>
-                                </div>
+                                <p className="text-ink-secondary text-sm font-medium">Current Cash Balance</p>
+                                <h3 className="text-3xl font-bold mt-1 text-blue-600">₹{Math.round(currentCashBalance).toLocaleString()}</h3>
                             </div>
-                            <div className="w-16 h-16 rounded-[1.5rem] bg-blue-500/10 flex items-center justify-center text-blue-600 shadow-inner group-hover:bg-blue-600 group-hover:text-white transition-all duration-500">
-                                <DollarSign className="w-8 h-8" />
+                            <div className="w-12 h-12 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 shadow-sm group-hover:scale-110 transition-transform">
+                                <DollarSign className="w-6 h-6" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Outstanding Collections */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-orange-500/5 to-transparent pointer-events-none" />
+                        <div className="flex justify-between items-start mb-4 relative">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">Outstanding Collections</p>
+                                <h3 className="text-3xl font-bold mt-1 text-orange-600">₹{Math.round(totalOutstanding).toLocaleString()}</h3>
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center text-orange-600 shadow-sm group-hover:scale-110 transition-transform">
+                                <Activity className="w-6 h-6" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Total Purchases This Month -> Range Purchases */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 to-transparent pointer-events-none" />
+                        <div className="flex justify-between items-start mb-4 relative">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">{datePreset} Purchases</p>
+                                <h3 className="text-3xl font-bold mt-1 text-purple-600">₹{Math.round(rangePurchases).toLocaleString()}</h3>
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-purple-50 flex items-center justify-center text-purple-600 shadow-sm group-hover:scale-110 transition-transform">
+                                <ShoppingBag className="w-6 h-6" />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Salary Pending */}
+                    <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 relative overflow-hidden group">
+                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-500/5 to-transparent pointer-events-none" />
+                        <div className="flex justify-between items-start mb-4 relative">
+                            <div>
+                                <p className="text-ink-secondary text-sm font-medium">Salary Pending</p>
+                                <h3 className="text-3xl font-bold mt-1 text-yellow-600">₹{Math.round(salariesPending).toLocaleString()}</h3>
+                            </div>
+                            <div className="w-12 h-12 rounded-2xl bg-yellow-50 flex items-center justify-center text-yellow-600 shadow-sm group-hover:scale-110 transition-transform">
+                                <Users className="w-6 h-6" />
                             </div>
                         </div>
                     </div>
