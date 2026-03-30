@@ -1542,7 +1542,8 @@ export const AppProvider = ({ children }) => {
         initializingRef.current = true;
 
         // SILENT SYNC LOGIC: If we already have products (core data), don't block the UI with a spinner
-        const isSilentSync = !force && products.length > 0;
+        // "Strict Silent" mode: if force is false, NEVER trigger the loading state, purely background update.
+        const isSilentSync = !force;
         
         if (!isSilentSync) {
             setLoading(true);
@@ -1779,7 +1780,7 @@ export const AppProvider = ({ children }) => {
                 // is common, so we skip blocking if currentUser exists.
                 if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && !currentUser)) {
                     initializeApp(true); 
-                } else if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+                } else if (event === 'TOKEN_REFRESHED' || (event === 'INITIAL_SESSION' && currentUser)) {
                     // This is likely an Alt+Tab trigger or background refresh
                     // Run a silent update without blocking the user interface
                     initializeApp(false);
