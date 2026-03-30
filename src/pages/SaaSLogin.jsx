@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
+import { ArrowRight } from 'lucide-react';
 
 const SaaSLogin = () => {
     const { login, users } = useAppContext();
