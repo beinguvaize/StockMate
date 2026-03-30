@@ -1734,37 +1734,53 @@ export const AppProvider = ({ children }) => {
             
             if (session?.user) {
                 setAuthSession(session);
-                // Only block UI for INITIAL load, not background updates
-                if (!currentUser) setLoading(true);
-                const { data: profile } = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
                 
-                if (profile) {
-                    setCurrentUser(profile);
-                } else {
-                    const isSuperUser = session.user.email === 'uvaize@hotmail.com' || session.user.email === 'gladmin@ledgrpro.ca';
-                    const newUserProfile = {
-                        id: session.user.id,
-                        email: session.user.email,
-                        name: session.user.email.split('@')[0],
-                        roles: isSuperUser ? ['GLOBAL_ADMIN', 'OWNER'] : ['STAFF'],
-                        status: 'ACTIVE'
-                    };
-                    setCurrentUser(newUserProfile);
+                // OPTIMIZATION: Only block the UI with a spinner if it's the very first session 
+                // and we don't have a user yet. Subsquent refreshes or focus-triggered sessions
+                // should not disrupt the user.
+                const needsBlockingLoad = !currentUser && (event === 'INITIAL_SESSION' || event === 'SIGNED_IN');
+                
+                if (needsBlockingLoad) {
+                    setLoading(true);
+                }
+
+                // If user profile is not in state, fetch it
+                if (!currentUser) {
+                    const { data: profile } = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
                     
-                    // Auto-persist superuser profile to public.users if missing
-                    if (isSuperUser) {
-                        try {
-                            const { error } = await supabase.from('users').upsert(newUserProfile);
-                            if (error) console.error("Error auto-provisioning superuser:", error.message);
-                        } catch (e) {
-                            console.error("Auto-provisioning exception:", e.message);
+                    if (profile) {
+                        setCurrentUser(profile);
+                    } else {
+                        const isSuperUser = session.user.email === 'uvaize@hotmail.com' || session.user.email === 'gladmin@ledgrpro.ca';
+                        const newUserProfile = {
+                            id: session.user.id,
+                            email: session.user.email,
+                            name: session.user.email.split('@')[0],
+                            roles: isSuperUser ? ['GLOBAL_ADMIN', 'OWNER'] : ['STAFF'],
+                            status: 'ACTIVE'
+                        };
+                        setCurrentUser(newUserProfile);
+                        
+                        if (isSuperUser) {
+                            try {
+                                const { error } = await supabase.from('users').upsert(newUserProfile);
+                                if (error) console.error("Error auto-provisioning superuser:", error.message);
+                            } catch (e) {
+                                console.error("Auto-provisioning exception:", e.message);
+                            }
                         }
                     }
                 }
 
-                // Whenever we have a NEW user session, refresh data
-                if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
-                    initializeApp(true); // Always force init on actual auth events
+                // Whenever we have a NEW user session or explicit sign-in, refresh data
+                // SIGNED_IN is always blocking if force=true, but INITIAL_SESSION on Alt+Tab 
+                // is common, so we skip blocking if currentUser exists.
+                if (event === 'SIGNED_IN' || (event === 'INITIAL_SESSION' && !currentUser)) {
+                    initializeApp(true); 
+                } else if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+                    // This is likely an Alt+Tab trigger or background refresh
+                    // Run a silent update without blocking the user interface
+                    initializeApp(false);
                 } else {
                     setLoading(false);
                 }
