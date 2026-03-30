@@ -333,7 +333,10 @@ const AppLayout = () => {
             <Navbar />
             <NotificationStack />
             
-            <main className="flex-1 max-w-[1800px] w-full mx-auto px-4 sm:px-6 lg:px-12 py-4 md:py-6">
+            <main 
+                key={window.location.pathname}
+                className="flex-1 max-w-[1800px] w-full mx-auto px-4 sm:px-6 lg:px-12 py-4 md:py-6 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out"
+            >
                 <Outlet />
             </main>
         </div>

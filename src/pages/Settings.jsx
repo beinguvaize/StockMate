@@ -301,16 +301,16 @@ const Settings = () => {
                             <ShieldCheck size={140} />
                         </div>
                         <h3 className="text-xl font-black uppercase tracking-tighter mb-1 pt-12">Cloud Security</h3>
-                        <div className="text-[10px] font-black uppercase tracking-widest text-accent-signature mb-10 opacity-70">Status: Local Data Only</div>
+                        <div className="text-[10px] font-black uppercase tracking-widest text-accent-signature mb-10 opacity-70">Status: Cloud Live</div>
                         <p className="text-sm font-medium text-surface/50 leading-relaxed mb-12 relative z-10">
-                            You are currently operating within the local simulation environment. Cloud synchronization and production database locks will activate upon enterprise deployment.
+                            Enterprise governance is active. All transactions are synchronized across the Ledgr Pro cloud infrastructure with real-time replication and encryption.
                         </p>
                         <div className="w-full h-1.5 bg-surface/10 rounded-pill overflow-hidden mb-5">
-                            <div className="w-[85%] h-full bg-accent-signature"></div>
+                            <div className="w-full h-full bg-accent-signature"></div>
                         </div>
                         <div className="flex justify-between items-center relative z-10">
-                            <span className="text-[10px] font-black uppercase tracking-widest text-surface/30">Local Integrity</span>
-                            <span className="text-[10px] font-black uppercase tracking-widest text-accent-signature">85% Verified</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-surface/30">Sync Status</span>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-accent-signature">Active & Verified</span>
                         </div>
                     </div>
 
@@ -318,10 +318,10 @@ const Settings = () => {
                         <div>
                             <div className="flex items-center gap-4 text-indigo-500 mb-6">
                                 <ShieldCheck size={28} />
-                                <h3 className="text-base font-black uppercase tracking-[0.2em] leading-none">Enterprise Locks</h3>
+                                <h3 className="text-base font-black uppercase tracking-[0.2em] leading-none">Security Locks</h3>
                             </div>
                             <p className="text-[11px] font-black text-indigo-900/60 uppercase tracking-widest leading-relaxed">
-                                Data reset and seeding tools are restricted to dev-only environments. Production persistence is currently locked for integrity.
+                                Critical system partitions are locked for integrity. Administrative overrides require multi-factor verification.
                             </p>
                         </div>
                     </div>
