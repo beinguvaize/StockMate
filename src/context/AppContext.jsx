@@ -210,7 +210,8 @@ export const AppProvider = ({ children }) => {
             name: userData.name,
             email: userData.email,
             roles: userData.roles || [userData.role || 'STAFF'],
-            status: 'ACTIVE'
+            status: 'ACTIVE',
+            permissions: userData.permissions || { ...DEFAULT_PERMISSIONS }
         };
 
         if (isSupabaseConfigured && userData.password) {
@@ -221,7 +222,8 @@ export const AppProvider = ({ children }) => {
                         email: userData.email,
                         password: userData.password,
                         name: userData.name,
-                        roles: userData.roles || ['STAFF']
+                        roles: userData.roles || ['STAFF'],
+                        permissions: userData.permissions || { ...DEFAULT_PERMISSIONS }
                     }
                 });
 

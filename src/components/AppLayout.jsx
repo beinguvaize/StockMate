@@ -74,6 +74,7 @@ const Navbar = () => {
         { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} /> },
         { label: 'Inventory', path: '/inventory', icon: <Package size={20} />, hidden: !hasPermission('inventory', 'view') },
         { label: 'Sales', path: '/sales', icon: <ShoppingCart size={20} />, hidden: !hasPermission('sales', 'view') },
+        { label: 'Reports', path: '/reports', icon: <BarChart3 size={20} />, hidden: !hasPermission('reports', 'view') || !isOwner },
         { label: 'Purchases', path: '/purchases', icon: <ShoppingBag size={20} />, hidden: !hasPermission('purchases', 'view') },
         { label: 'Pipeline', path: '/orders', icon: <ClipboardList size={20} />, hidden: !hasPermission('sales', 'view') },
         { label: 'Expenses', path: '/expenses', icon: <Wallet size={20} />, hidden: !hasPermission('expenses', 'view') },
@@ -85,7 +86,7 @@ const Navbar = () => {
         { label: 'Payroll', path: '/payroll', icon: <Banknote size={20} />, hidden: !hasPermission('payroll', 'view') },
         { label: 'Day Book', path: '/daybook', icon: <BookOpen size={20} />, hidden: !hasPermission('daybook', 'view') },
         { label: 'Vehicles', path: '/vehicles', icon: <Truck size={20} />, hidden: !hasPermission('vehicles', 'view') },
-        { label: 'Reports', path: '/reports', icon: <BarChart3 size={20} />, hidden: !hasPermission('reports', 'view') },
+        { label: 'Reports', path: '/reports', icon: <BarChart3 size={20} />, hidden: !hasPermission('reports', 'view') || isOwner },
     ];
 
     const allNavItems = [...primaryNavItems, ...moreNavItems];
