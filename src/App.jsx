@@ -2,7 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useAppContext } from './context/AppContext';
 import AppLayout from './components/AppLayout';
-import Login from './pages/SaaSLogin';
+import Login from './pages/Login';
 import Inventory from './pages/Inventory';
 import Sales from './pages/Sales';
 import Expenses from './pages/Expenses';
