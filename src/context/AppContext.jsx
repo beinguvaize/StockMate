@@ -112,7 +112,6 @@ export const AppProvider = ({ children}) => {
  const [payrollRecords, setPayrollRecords] = useState([]);
  const [purchases, setPurchases] = useState([]);
  const [suppliers, setSuppliers] = useState([]);
- const [mechanicPayments, setMechanicPayments] = useState([]);
  const [dayBook, setDayBook] = useState([]);
  const [expenseCategories, setExpenseCategories] = useState(['Petrol', 'Food', 'Salary', 'Rent', 'Electricity', 'Water', 'Maintenance', 'Stationery', 'Travel', 'Marketing', 'Tax', 'Others']);
  
@@ -1217,65 +1216,6 @@ export const AppProvider = ({ children}) => {
  return true;
 };
 
- // Task 5: Mechanic Tracker (State moved to top)
-
- const addMechanicPayment = async (payment) => {
- const newPayment = {
- id: payment.id || generateUUID(),
- name: payment.name || payment.mechanic_name,
- mechanic_name: payment.name || payment.mechanic_name,
- work_description: payment.work_description || payment.details,
- details: payment.work_description || payment.details,
- total_due: parseFloat(payment.total_due || payment.amount || 0),
- amount: parseFloat(payment.total_due || payment.amount || 0),
- amount_paid: parseFloat(payment.amount_paid || 0),
- work_date: payment.work_date || payment.date || new Date().toISOString().split('T')[0],
- date: payment.work_date || payment.date || new Date().toISOString().split('T')[0],
- created_at: new Date().toISOString()
-};
-
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('mechanic_payments').insert(newPayment);
- if (error) {
- console.error("Error saving mechanic payment:", error);
- setSyncStatus('ERROR');
- addNotification("Failed to save mechanic payment in cloud","error");
- return;
-}
- setSyncStatus('SYNCED');
-}
- setMechanicPayments(prev => [newPayment, ...prev]);
- addNotification("Mechanic record added","success");
-};
-
- const updateMechanicPayment = async (updated) => {
- const fullPayment = {
- ...updated,
- name: updated.name || updated.mechanic_name,
- mechanic_name: updated.name || updated.mechanic_name,
- work_description: updated.work_description || updated.details,
- details: updated.work_description || updated.details,
- total_due: parseFloat(updated.total_due || updated.amount || 0),
- amount: parseFloat(updated.total_due || updated.amount || 0),
- amount_paid: parseFloat(updated.amount_paid || 0)
-};
-
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('mechanic_payments').upsert(fullPayment);
- if (error) {
- console.error("Error updating mechanic payment:", error);
- setSyncStatus('ERROR');
- addNotification("Failed to update mechanic payment in cloud","error");
- return;
-}
- setSyncStatus('SYNCED');
-}
- setMechanicPayments(prev => prev.map(m => m.id === updated.id ? fullPayment : m));
- addNotification("Mechanic payment updated","success");
-};
-
  // Task 6: Purchases & Stock Integration (State moved to top)
 
  const addPurchase = async (purchase) => {
@@ -1584,7 +1524,6 @@ export const AppProvider = ({ children}) => {
  { data: movementData},
  { data: routesData},
  { data: purchasesData},
- { data: mechanicData},
  { data: suppliersData}
  ] = await Promise.all([
  supabase.from('products').select('*'),
@@ -1602,7 +1541,6 @@ export const AppProvider = ({ children}) => {
  supabase.from('movement_log').select('*').order('date', { ascending: false}).limit(200),
  supabase.from('routes').select('*').order('date', { ascending: false}).limit(100),
  supabase.from('purchases').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('mechanic_payments').select('*').order('work_date', { ascending: false}).limit(100),
  supabase.from('suppliers').select('*').order('name', { ascending: true})
  ]);
 
@@ -1648,7 +1586,6 @@ export const AppProvider = ({ children}) => {
  if (vehiclesData) { setVehicles(vehiclesData); cacheSet('vehicles', vehiclesData);}
  if (routesData) { setRoutes(routesData); cacheSet('routes', routesData);}
  if (purchasesData) { setPurchases(purchasesData); cacheSet('purchases', purchasesData);}
- if (mechanicData) { setMechanicPayments(mechanicData); cacheSet('mechanic_payments', mechanicData);}
  if (businessData) { setBusinessProfile(businessData); cacheSet('business_profile', businessData);}
  
  if (movementData) {
@@ -1707,7 +1644,6 @@ export const AppProvider = ({ children}) => {
  const cVehicles = cacheGet('vehicles'); if (cVehicles) setVehicles(cVehicles);
  const cRoutes = cacheGet('routes'); if (cRoutes) setRoutes(cRoutes);
  const cPurchases = cacheGet('purchases'); if (cPurchases) setPurchases(cPurchases);
- const cMechanic = cacheGet('mechanic_payments'); if (cMechanic) setMechanicPayments(cMechanic);
  const cSuppliers = cacheGet('suppliers'); if (cSuppliers) setSuppliers(cSuppliers);
  const cMovement = cacheGet('movement_log'); if (cMovement) setMovementLog(cMovement);
  const cCategories = cacheGet('expense_categories'); if (cCategories) setExpenseCategories(cCategories);
@@ -1743,7 +1679,6 @@ export const AppProvider = ({ children}) => {
  { data: movementData},
  { data: routesData},
  { data: purchasesData},
- { data: mechanicData},
  { data: suppliersData}
  ] = await Promise.all([
  supabase.from('products').select('*'),
@@ -1761,7 +1696,6 @@ export const AppProvider = ({ children}) => {
  supabase.from('movement_log').select('*').order('date', { ascending: false}).limit(200),
  supabase.from('routes').select('*').order('date', { ascending: false}).limit(100),
  supabase.from('purchases').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('mechanic_payments').select('*').order('work_date', { ascending: false}).limit(100),
  supabase.from('suppliers').select('*').order('name', { ascending: true})
  ]);
  
@@ -1809,7 +1743,6 @@ export const AppProvider = ({ children}) => {
  if (vehiclesData) { setVehicles(vehiclesData); cacheSet('vehicles', vehiclesData);}
  if (routesData) { setRoutes(routesData); cacheSet('routes', routesData);}
  if (purchasesData) { setPurchases(purchasesData); cacheSet('purchases', purchasesData);}
- if (mechanicData) { setMechanicPayments(mechanicData); cacheSet('mechanic_payments', mechanicData);}
  if (businessData) { setBusinessProfile(businessData); cacheSet('business_profile', businessData);}
  
  if (movementData) {
@@ -1966,7 +1899,6 @@ export const AppProvider = ({ children}) => {
  getUserName, getVehicleName, getClientName, getShopName: getClientName, getEmployeeName,
  employees, addEmployee, updateEmployee, deleteEmployee,
  payrollRecords, processPayroll, deletePayrollRecord,
- mechanicPayments, addMechanicPayment,
  purchases, addPurchase,
  suppliers, addSupplier, deleteSupplier,
  dayBook, updateDayBook, getDayBookForDate,

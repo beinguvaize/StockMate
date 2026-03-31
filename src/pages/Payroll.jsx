@@ -6,7 +6,6 @@ import { DollarSign, Trash2, X, Check, CreditCard, UserPlus, Lock, Receipt} from
 import PayrollHeader from '../components/payroll/PayrollHeader';
 import EmployeeTable from '../components/payroll/EmployeeTable';
 import PayHistory from '../components/payroll/PayHistory';
-import MechanicTracker from '../components/payroll/MechanicTracker';
 
 const PAY_TYPES = ['MONTHLY', 'WEEKLY', 'DAILY', 'HOURLY'];
 const DEPARTMENTS = ['Operations', 'Sales', 'Warehouse', 'Delivery', 'Management', 'Admin'];
@@ -15,7 +14,6 @@ const Payroll = () => {
  const {
  employees, addEmployee, updateEmployee, deleteEmployee,
  payrollRecords, processPayroll, deletePayrollRecord,
- mechanicPayments, addMechanicPayment, updateMechanicPayment,
  businessProfile, isViewOnly, hasPermission, hasRole,
  resetEmployeesDailyData
 } = useAppContext();
@@ -38,12 +36,6 @@ const Payroll = () => {
  // Modals state
  const [showSalaryModal, setShowSalaryModal] = useState(false);
  const [salaryPayment, setSalaryPayment] = useState({ empId: null, amount: '', date: new Date().toISOString().split('T')[0], notes: ''});
-
- const [showMechanicModal, setShowMechanicModal] = useState(false);
- const [mechForm, setMechForm] = useState({ name: '', work_description: '', total_due: '', work_date: new Date().toISOString().split('T')[0]});
- 
- const [showMechPaymentModal, setShowMechPaymentModal] = useState(false);
- const [mechPayment, setMechPayment] = useState({ id: null, amount: '', date: new Date().toISOString().split('T')[0]});
 
  const viewOnly = isViewOnly();
 
@@ -127,30 +119,6 @@ const Payroll = () => {
 }
 };
 
- const handleAddMechanic = (e) => {
- e.preventDefault();
- addMechanicPayment({
- name: mechForm.name,
- work_description: mechForm.work_description,
- total_due: parseFloat(mechForm.total_due) || 0,
- amount_paid: 0,
- work_date: mechForm.work_date
-});
- setShowMechanicModal(false);
-};
-
- const handleMechPayment = (e) => {
- e.preventDefault();
- const mech = mechanicPayments.find(m => m.id === mechPayment.id);
- if (mech) {
- updateMechanicPayment({
- ...mech,
- amount_paid: (mech.amount_paid || 0) + parseFloat(mechPayment.amount)
-});
- setShowMechPaymentModal(false);
-}
-};
-
  // ===== PAYROLL RUN LOGIC =====
  const openPayRun = () => {
  const activeEmployees = employees.filter(e => e.status === 'ACTIVE');
@@ -231,13 +199,13 @@ const Payroll = () => {
  const lastPayRun = useMemo(() => payrollRecords.length > 0 ? payrollRecords[0] : null, [payrollRecords]);
 
  React.useEffect(() => {
- if (showForm || showPayRunModal || showSalaryModal || showMechanicModal || showMechPaymentModal || deleteConfirm) {
+ if (showForm || showPayRunModal || showSalaryModal || deleteConfirm) {
  document.body.style.overflow = 'hidden';
 } else {
  document.body.style.overflow = 'unset';
 }
  return () => { document.body.style.overflow = 'unset';};
-}, [showForm, showPayRunModal, showSalaryModal, showMechanicModal, showMechPaymentModal, deleteConfirm]);
+}, [showForm, showPayRunModal, showSalaryModal, deleteConfirm]);
 
  return (
  <>
@@ -268,12 +236,6 @@ const Payroll = () => {
  >
  Pay History
  </button>
- <button
- onClick={() => setActiveTab('MECHANICS')}
- className={`px-10 py-2 rounded-pill text-[10px] font-semibold transition-all ${activeTab === 'MECHANICS' ? 'bg-ink-primary text-surface shadow-premium' : 'text-gray-700 hover:text-ink-primary'}`}
- >
- Mechanic Tracker
- </button>
  </div>
 
  {activeTab === 'EMPLOYEES' && (
@@ -298,90 +260,8 @@ const Payroll = () => {
  deletePayrollRecord={deletePayrollRecord}
  />
  )}
-
- {activeTab === 'MECHANICS' && (
- <MechanicTracker 
- mechanicPayments={mechanicPayments}
- currencySymbol={businessProfile.currencySymbol}
- viewOnly={viewOnly}
- setMechForm={setMechForm}
- setShowMechanicModal={setShowMechanicModal}
- setMechPayment={setMechPayment}
- setShowMechPaymentModal={setShowMechPaymentModal}
- />
- )}
  </div>
  </div>
-
- {/* Add Mechanic Form */}
- {showMechanicModal && (
- <div className="modal-overlay z-50">
- <div className="glass-modal !max-w-[400px]">
- <div className="flex justify-between items-start mb-4">
- <div>
- <h2 className="text-xl font-semibold text-ink-primary">Add Mechanic</h2>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Record new repair/service</p>
- </div>
- <button onClick={() => setShowMechanicModal(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-primary">
- <X size={16} />
- </button>
- </div>
- <form onSubmit={handleAddMechanic} className="space-y-4">
- <div>
- <label className="text-[10px] font-semibold text-gray-700 opacity-60 block mb-1">Mechanic Name</label>
- <input type="text" required className="w-full bg-canvas px-4 py-3 rounded-xl border border-black/10 text-sm font-semibold text-ink-primary outline-none" value={mechForm.name} onChange={e => setMechForm({...mechForm, name: e.target.value})} />
- </div>
- <div>
- <label className="text-[10px] font-semibold text-gray-700 opacity-60 block mb-1">Work Description</label>
- <input type="text" required className="w-full bg-canvas px-4 py-3 rounded-xl border border-black/10 text-sm font-semibold text-ink-primary outline-none" value={mechForm.work_description} onChange={e => setMechForm({...mechForm, work_description: e.target.value})} />
- </div>
- <div>
- <label className="text-[10px] font-semibold text-gray-700 opacity-60 block mb-1">Total Due</label>
- <div className="flex items-center gap-2 bg-canvas px-4 py-3 rounded-xl border border-black/10">
- <span className="text-sm font-semibold text-gray-700">{businessProfile.currencySymbol}</span>
- <input type="number" step="0.01" required className="w-full bg-transparent border-none text-base font-semibold text-ink-primary outline-none" value={mechForm.total_due} onChange={e => setMechForm({...mechForm, total_due: e.target.value})} />
- </div>
- </div>
- <div>
- <label className="text-[10px] font-semibold text-gray-700 opacity-60 block mb-1">Work Date</label>
- <input type="date" required className="w-full bg-canvas px-4 py-3 rounded-xl border border-black/10 text-sm font-semibold text-ink-primary outline-none" value={mechForm.work_date} onChange={e => setMechForm({...mechForm, work_date: e.target.value})} />
- </div>
- <button type="submit" className="w-full btn-signature py-2 rounded-xl mt-4 text-xs font-semibold">
- ADD MECHANIC RECORD
- </button>
- </form>
- </div>
- </div>
- )}
-
- {/* Mechanic Record Payment Modal */}
- {showMechPaymentModal && (
- <div className="modal-overlay z-50">
- <div className="glass-modal !max-w-[400px]">
- <div className="flex justify-between items-start mb-4">
- <div>
- <h2 className="text-xl font-semibold text-ink-primary">Record Payment</h2>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Mechanic Payment</p>
- </div>
- <button onClick={() => setShowMechPaymentModal(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 text-ink-primary">
- <X size={16} />
- </button>
- </div>
- <form onSubmit={handleMechPayment} className="space-y-4">
- <div>
- <label className="text-[10px] font-semibold text-gray-700 opacity-70 block mb-2">Amount Paying</label>
- <div className="flex items-center gap-2 bg-canvas px-4 py-3 rounded-xl border border-black/10">
- <span className="text-sm font-semibold text-gray-700">{businessProfile.currencySymbol}</span>
- <input type="number" step="0.01" required className="w-full bg-transparent border-none text-base font-semibold text-ink-primary outline-none" value={mechPayment.amount} onChange={e => setMechPayment({...mechPayment, amount: e.target.value})} />
- </div>
- </div>
- <button type="submit" className="w-full btn-signature py-2 rounded-xl mt-4 text-xs font-semibold">
- RECORD COMPLETED
- </button>
- </form>
- </div>
- </div>
- )}
 
  {/* Mark Salary Paid Modal */}
  {showSalaryModal && (
