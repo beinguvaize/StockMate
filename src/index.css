@@ -1,3 +1,10 @@
+/* 
+ * ⚠️ STRICT DESIGN LOCK: THEME VERSION 1.0 (LOCKED)
+ * ------------------------------------------------
+ * This design system is FINAL. No adjustments to brand colors, 
+ * glassmorphism values, or layout tokens are permitted.
+ */
+
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@100..800&family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
@@ -122,6 +129,7 @@ body {
     }
 }
 
+/* LOCKET THEME: DO NOT MODIFY BRAND TOKENS */
 @theme {
   --color-canvas: #F5F5F0;
   --color-surface: #FFFFFF;

@@ -1,3 +1,9 @@
+/**
+ * ⚠️ STRICT VISUAL LOCK: GILDED GLASS ARCHITECTURE
+ * -----------------------------------------------
+ * This component's layout and glassmorphic styling are LOCKED.
+ * Do not modify the backdrop-blur, opacity, or border tokens.
+ */
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import ReportFilterBar from './ReportFilterBar';

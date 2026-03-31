@@ -1,3 +1,9 @@
+/**
+ * ⚠️ STRICT VISUAL LOCK: PREMIUM TABULAR CORE
+ * -------------------------------------------
+ * This component's high-density layout, typography, and sorting 
+ * interaction models are LOCKED. Preserving Strict Visual Integrity.
+ */
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   ChevronUp, ChevronDown, MoreVertical, Columns, Search, 
