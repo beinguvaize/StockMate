@@ -39,12 +39,14 @@ const Settings = () => {
 
  const [savedStatus, setSavedStatus] = useState(false);
 
- const handleSaveProfile = (e) => {
- e.preventDefault();
- updateBusinessProfile(profileData);
- setSavedStatus(true);
- setTimeout(() => setSavedStatus(false), 3000);
-};
+  const handleSaveProfile = async (e) => {
+    e.preventDefault();
+    const success = await updateBusinessProfile(profileData);
+    if (success) {
+      setSavedStatus(true);
+      setTimeout(() => setSavedStatus(false), 3000);
+    }
+  };
 
  if (!hasPermission('MANAGE_SETTINGS')) {
  return (

@@ -1489,17 +1489,28 @@ export const AppProvider = ({ children}) => {
  // Redundant migration removed
 
  const updateBusinessProfile = async (profile) => {
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('business_profile').upsert({ id: 'current', ...profile});
- if (error) {
- console.error("Error updating business profile in Supabase:", error);
- addNotification(`Cloud Profile Sync Failed: ${error.message}`,"error");
- return;
-}
-}
- setBusinessProfile(profile);
- addNotification("Business profile saved to cloud","success");
-};
+    if (!isSupabaseConfigured) return;
+    
+    try {
+      const payload = { ...profile, id: 'current' };
+      const { error } = await supabase.from('business_profile').upsert(payload);
+      
+      if (error) {
+        console.error("Error updating business profile in Supabase:", error);
+        addNotification(`Cloud Profile Sync Failed: ${error.message}`, "error");
+        return false;
+      }
+      
+      setBusinessProfile(profile);
+      cacheSet('business_profile', profile);
+      addNotification("Business profile saved to cloud", "success");
+      return true;
+    } catch (err) {
+      console.error("Exception in updateBusinessProfile:", err);
+      addNotification("System error updating profile", "error");
+      return false;
+    }
+  };
 
  const addExpenseCategory = async (name) => {
  if (!name || expenseCategories.includes(name)) return;
