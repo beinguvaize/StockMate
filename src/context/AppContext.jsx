@@ -99,6 +99,7 @@ export const AppProvider = ({ children}) => {
  const [users, setUsers] = useState([]);
  const [businessProfile, setBusinessProfile] = useState({});
  const [products, setProducts] = useState([]);
+ const [productCategories, setProductCategories] = useState([]);
  const [clients, setClients] = useState([]);
  const [clientPayments, setClientPayments] = useState([]);
  const [sales, setSales] = useState([]);
@@ -801,6 +802,54 @@ export const AppProvider = ({ children}) => {
  addNotification(`Recorded payment of ${businessProfile?.currencySymbol || ''}${amount} from ${client.name}`,"success");
  return { success: true};
 };
+
+  const addProductCategory = async (categoryName) => {
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+      const { data, error } = await supabase.from('product_categories').insert({ name: categoryName }).select();
+      if (error) {
+        console.error("Error adding category:", error);
+        setSyncStatus('ERROR');
+        addNotification("Failed to add category: " + error.message, "error");
+        return null;
+      }
+      setProductCategories(prev => [...prev, data[0]]);
+      setSyncStatus('SYNCED');
+      return data[0];
+    }
+    const newCat = { id: generateUUID(), name: categoryName };
+    setProductCategories(prev => [...prev, newCat]);
+    return newCat;
+  };
+
+  const updateProductCategory = async (updatedCategory) => {
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+      const { error } = await supabase.from('product_categories').update({ name: updatedCategory.name }).eq('id', updatedCategory.id);
+      if (error) {
+        setSyncStatus('ERROR');
+        addNotification("Failed to update category: " + error.message, "error");
+        return;
+      }
+      setSyncStatus('SYNCED');
+    }
+    setProductCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
+  };
+
+  const deleteProductCategory = async (categoryId) => {
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+      const { error } = await supabase.from('product_categories').delete().eq('id', categoryId);
+      if (error) {
+        setSyncStatus('ERROR');
+        addNotification("Failed to delete category: " + error.message, "error");
+        return false;
+      }
+      setSyncStatus('SYNCED');
+    }
+    setProductCategories(prev => prev.filter(c => c.id !== categoryId));
+    return true;
+  };
 
  const addProduct = async (product) => {
  const newProduct = { 
@@ -1524,7 +1573,8 @@ export const AppProvider = ({ children}) => {
  { data: movementData},
  { data: routesData},
  { data: purchasesData},
- { data: suppliersData}
+ { data: suppliersData},
+ { data: categoriesData}
  ] = await Promise.all([
  supabase.from('products').select('*'),
  supabase.from('clients').select('*'),
@@ -1541,11 +1591,13 @@ export const AppProvider = ({ children}) => {
  supabase.from('movement_log').select('*').order('date', { ascending: false}).limit(200),
  supabase.from('routes').select('*').order('date', { ascending: false}).limit(100),
  supabase.from('purchases').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('suppliers').select('*').order('name', { ascending: true})
+ supabase.from('suppliers').select('*').order('name', { ascending: true}),
+ supabase.from('product_categories').select('*').order('name')
  ]);
 
  // Update State Silently
  if (productsData) { setProducts(productsData); cacheSet('products', productsData);}
+ if (categoriesData) { setProductCategories(categoriesData); cacheSet('product_categories', categoriesData);}
  if (clientsData) { setClients(clientsData); cacheSet('clients', clientsData);}
  if (salesData) { setSales(salesData); cacheSet('sales', salesData);}
  if (expensesData) { setExpenses(expensesData); cacheSet('expenses', expensesData);}
@@ -1632,6 +1684,7 @@ export const AppProvider = ({ children}) => {
  
  // Restore all major states from cache if products exist (proxy for app data)
  setProducts(cachedProducts);
+ const cCategories = cacheGet('product_categories'); if (cCategories) setProductCategories(cCategories);
  const cClients = cacheGet('clients'); if (cClients) setClients(cClients);
  const cSales = cacheGet('sales'); if (cSales) setSales(cSales);
  const cExpenses = cacheGet('expenses'); if (cExpenses) setExpenses(cExpenses);
@@ -1646,7 +1699,7 @@ export const AppProvider = ({ children}) => {
  const cPurchases = cacheGet('purchases'); if (cPurchases) setPurchases(cPurchases);
  const cSuppliers = cacheGet('suppliers'); if (cSuppliers) setSuppliers(cSuppliers);
  const cMovement = cacheGet('movement_log'); if (cMovement) setMovementLog(cMovement);
- const cCategories = cacheGet('expense_categories'); if (cCategories) setExpenseCategories(cCategories);
+ const cExpCategories = cacheGet('expense_categories'); if (cExpCategories) setExpenseCategories(cExpCategories);
 
  setLoading(false);
  appInitialized.current = true;
@@ -1665,6 +1718,7 @@ export const AppProvider = ({ children}) => {
  
  const [
  { data: productsData},
+ { data: categoriesData},
  { data: clientsData},
  { data: salesData},
  { data: expensesData},
@@ -1682,6 +1736,7 @@ export const AppProvider = ({ children}) => {
  { data: suppliersData}
  ] = await Promise.all([
  supabase.from('products').select('*'),
+ supabase.from('product_categories').select('*').order('name'),
  supabase.from('clients').select('*'),
  supabase.from('sales').select('*').order('date', { ascending: false}).limit(500),
  supabase.from('expenses').select('*').order('date', { ascending: false}).limit(500),
@@ -1700,6 +1755,7 @@ export const AppProvider = ({ children}) => {
  ]);
  
  if (productsData) { setProducts(productsData); cacheSet('products', productsData);}
+ if (categoriesData) { setProductCategories(categoriesData); cacheSet('product_categories', categoriesData);}
  if (clientsData) { setClients(clientsData); cacheSet('clients', clientsData);}
  if (salesData) { setSales(salesData); cacheSet('sales', salesData);}
  if (expensesData) { setExpenses(expensesData); cacheSet('expenses', expensesData);}
@@ -1883,6 +1939,7 @@ export const AppProvider = ({ children}) => {
  currentUser, session: authSession || currentUser, isOwner, isStaff, login, logout,
  syncStatus, isOnline, lastSyncedAt,
  businessProfile, updateBusinessProfile, // Data
+ productCategories, addProductCategory, updateProductCategory, deleteProductCategory,
  products, addProduct, updateProduct, deleteProduct, adjustStock,
  clients, addClient, updateClient, deleteClient,
  sales, orders, setOrders, placeSale, updateSale, deleteSale, settleSale,
