@@ -359,8 +359,8 @@ const Inventory = () => {
       {/* Add/Edit Product Modal */}
       {(showAddModal || editingProduct) && (
         <div className="modal-overlay">
-          <div className="glass-modal !max-w-2xl">
-            <div className="flex justify-between items-start mb-3 border-b border-black/5 pb-3">
+          <div className="glass-modal !max-w-4xl !p-10">
+            <div className="flex justify-between items-start mb-6 border-b border-black/5 pb-5">
               <div>
                 <h1 className="text-xl font-semibold text-ink-primary leading-none mb-1">
                   {editingProduct ? 'EDIT ASSET' : 'NEW ASSET'}.
@@ -377,26 +377,26 @@ const Inventory = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3 mt-2">
-              <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+            <form onSubmit={handleSubmit} className="space-y-8 mt-4">
+              <div className="grid grid-cols-1 md:grid-cols-6 gap-x-8 gap-y-6">
                 {/* Line 1: Name (4) + Category (2) */}
                 <div className="md:col-span-4">
-                  <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Asset Name</label>
-                  <input required type="text" className="w-full bg-canvas border-none rounded-lg p-2.5 font-medium text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="PRODUCT NAME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
+                  <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] mb-1.5 ml-1 uppercase tracking-tight">Asset Name</label>
+                  <input required type="text" className="w-full bg-canvas border-none rounded-xl p-3.5 font-medium text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all shadow-sm" placeholder="PRODUCT NAME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
                 </div>
                 <div className="md:col-span-2">
-                  <div className="flex justify-between items-center mb-0.5 ml-1">
-                    <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85]">Category</label>
+                  <div className="flex justify-between items-center mb-1.5 ml-1">
+                    <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] uppercase tracking-tight">Category</label>
                     <button 
                       type="button"
                       onClick={() => setShowCategoryManager(true)}
-                      className="text-[9px] font-bold text-accent-signature hover:underline flex items-center gap-1"
+                      className="text-[10px] font-bold text-accent-signature hover:underline flex items-center gap-1"
                     >
                       <Pencil size={8} /> EDIT
                     </button>
                   </div>
                   <select 
-                    className="w-full bg-canvas border-none rounded-lg p-2.5 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all appearance-none" 
+                    className="w-full bg-canvas border-none rounded-xl p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all appearance-none shadow-sm" 
                     value={formData.category} 
                     onChange={e => setFormData({ ...formData, category: e.target.value})}
                   >
@@ -407,47 +407,47 @@ const Inventory = () => {
 
                 {/* Line 2: SKU (2) + Cost (1) + Retail (1) + Unit (2) */}
                 <div className="md:col-span-2">
-                  <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">SKU Barcode</label>
-                  <input required type="text" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="SKU-XXXX" value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value})} />
+                  <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] mb-1.5 ml-1 uppercase tracking-tight">SKU Barcode</label>
+                  <input required type="text" className="w-full bg-canvas border-none rounded-xl p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all shadow-sm" placeholder="SKU-XXXX" value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value})} />
                 </div>
                 <div className="md:col-span-1">
-                  <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Cost</label>
-                  <input required type="number" step="0.01" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value})} />
+                  <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] mb-1.5 ml-1 uppercase tracking-tight">Cost</label>
+                  <input required type="number" step="0.01" className="w-full bg-canvas border-none rounded-xl p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all shadow-sm" value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value})} />
                 </div>
                 <div className="md:col-span-1">
-                  <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Retail</label>
-                  <input required type="number" step="0.01" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value})} />
+                  <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] mb-1.5 ml-1 uppercase tracking-tight">Retail</label>
+                  <input required type="number" step="0.01" className="w-full bg-canvas border-none rounded-xl p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all shadow-sm" value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value})} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Unit</label>
-                  <select className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all appearance-none" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value})}>
+                  <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] mb-1.5 ml-1 uppercase tracking-tight">Unit</label>
+                  <select className="w-full bg-canvas border-none rounded-xl p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all appearance-none shadow-sm" value={formData.unit} onChange={e => setFormData({ ...formData, unit: e.target.value})}>
                     {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                   </select>
                 </div>
 
                 {/* Line 3: Stock (3) + Alert (3) */}
                 <div className="md:col-span-3">
-                  <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Initial Stock</label>
-                  <input required type="number" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value})} disabled={!!editingProduct} />
+                  <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] mb-1.5 ml-1 uppercase tracking-tight">Initial Stock</label>
+                  <input required type="number" className="w-full bg-canvas border-none rounded-xl p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all shadow-sm" value={formData.stock} onChange={e => setFormData({ ...formData, stock: e.target.value})} disabled={!!editingProduct} />
                 </div>
                 <div className="md:col-span-3">
-                  <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Low Stock Alert</label>
-                  <input type="number" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" value={formData.lowStockThreshold} onChange={e => setFormData({ ...formData, lowStockThreshold: e.target.value})} />
+                  <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] mb-1.5 ml-1 uppercase tracking-tight">Low Stock Alert</label>
+                  <input type="number" className="w-full bg-canvas border-none rounded-xl p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all shadow-sm" value={formData.lowStockThreshold} onChange={e => setFormData({ ...formData, lowStockThreshold: e.target.value})} />
                 </div>
 
                 {/* Line 4: Image Preview (3) + Tax Slabs (3) */}
                 <div className="md:col-span-3">
-                  <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Visual Asset</label>
+                  <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] mb-1.5 ml-1 uppercase tracking-tight">Visual Asset</label>
                   <div 
-                    className="relative h-16 bg-canvas border-2 border-dashed border-black/5 rounded-lg flex items-center justify-center cursor-pointer hover:bg-black/5 transition-all overflow-hidden"
+                    className="relative h-24 bg-canvas border-2 border-dashed border-black/5 rounded-xl flex items-center justify-center cursor-pointer hover:bg-black/5 transition-all overflow-hidden"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     {imagePreview ? (
                       <img src={imagePreview} className="w-full h-full object-cover" alt="Preview" />
                     ) : (
-                      <div className="flex items-center gap-2 opacity-60">
-                        <ImagePlus size={14} />
-                        <span className="text-[8px] font-semibold">Select Image</span>
+                      <div className="flex flex-col items-center gap-2 opacity-60">
+                        <ImagePlus size={20} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest">Upload Resource</span>
                       </div>
                     )}
                     <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleImageChange} />
@@ -455,15 +455,15 @@ const Inventory = () => {
                 </div>
 
                 <div className="md:col-span-3">
-                  <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Taxation Compliance</label>
-                  <div className="grid grid-cols-3 gap-1.5 h-auto content-start">
+                  <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] mb-1.5 ml-1 uppercase tracking-tight">Taxation Compliance</label>
+                  <div className="grid grid-cols-3 gap-2.5 h-auto content-start">
                     {TAX_SLABS.map(slab => (
                       <button
                         key={slab.label}
                         type="button"
-                        className={`p-1 rounded-lg text-[8px] font-semibold transition-all border flex flex-col items-center justify-center gap-0 ${
+                        className={`p-1.5 h-10 rounded-xl text-[10px] font-bold transition-all border flex flex-col items-center justify-center gap-0 ${
                           formData.taxSlab === slab.label
-                            ? 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/10'
+                            ? 'bg-amber-500 text-white border-amber-500 shadow-lg shadow-amber-500/20'
                             : 'bg-canvas text-ink-primary border-black/5 hover:border-amber-300'
                         }`}
                         onClick={() => {
@@ -471,26 +471,26 @@ const Inventory = () => {
                           setFormData({ ...formData, taxSlab: slab.label, taxRate: rate});
                         }}
                       >
-                        <span className="text-[9px] leading-none mb-0.5 font-bold">
+                        <span className="leading-none mb-0.5">
                           {slab.rate !== null ? `${slab.rate}%` : (formData.taxSlab === 'Custom' ? `${formData.taxRate}%` : '?%')}
                         </span>
-                        <span className="opacity-60 leading-none text-[7px]">{slab.label}</span>
+                        <span className="opacity-60 leading-none text-[8px] uppercase">{slab.label}</span>
                       </button>
                     ))}
 
                     {formData.taxSlab === 'Custom' && (
-                      <div className="col-span-3 mt-1.5 animate-in fade-in slide-in-from-top-1 duration-300">
+                      <div className="col-span-3 mt-1 animate-in fade-in slide-in-from-top-1 duration-300">
                         <div className="relative">
                           <input 
                             autoFocus
                             type="number" 
                             step="0.01"
-                            className="w-full bg-white border border-amber-500/30 rounded-lg px-3 py-1.5 text-[10px] font-bold text-ink-primary outline-none focus:ring-2 focus:ring-amber-500/20 transition-all pr-8"
-                            placeholder="ENTER RATE..."
+                            className="w-full bg-white border border-amber-500/30 rounded-xl px-4 py-2 text-[11px] font-bold text-ink-primary outline-none focus:ring-2 focus:ring-amber-500/20 transition-all pr-10"
+                            placeholder="RATE..."
                             value={formData.taxRate}
                             onChange={e => setFormData({ ...formData, taxRate: e.target.value })}
                           />
-                          <div className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black opacity-30">%</div>
+                          <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[11px] font-black opacity-30">%</div>
                         </div>
                       </div>
                     )}
@@ -498,9 +498,9 @@ const Inventory = () => {
                 </div>
               </div>
 
-              <button type="submit" disabled={uploading} className="w-full btn-signature !h-10 !text-xs flex items-center justify-center !rounded-pill mt-1">
-                {uploading ? 'UPLOADING...' : editingProduct ? 'UPDATE REQUISITION' : 'INITIALIZE ASSET'}
-                <CheckCircle2 size={16} className="ml-2" />
+              <button type="submit" disabled={uploading} className="w-full btn-signature !h-14 !text-sm flex items-center justify-center !rounded-pill mt-4 shadow-xl shadow-accent-signature/10">
+                {uploading ? 'PROCESSING ASSET...' : editingProduct ? 'COMMIT CHANGES' : 'INITIALIZE ASSET'}
+                <CheckCircle2 size={20} className="ml-3" />
               </button>
             </form>
           </div>
