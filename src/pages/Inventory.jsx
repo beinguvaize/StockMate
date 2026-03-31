@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect} from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAppContext} from '../context/AppContext';
 import { uploadProductImage} from '../lib/supabase';
 import { Plus, PackagePlus, AlertCircle, History, Tag as TagIcon, Barcode as BarcodeIcon, X, CheckCircle2, Pencil, Trash2, ImagePlus, Upload, Percent} from 'lucide-react';
@@ -18,7 +18,8 @@ const TAX_SLABS = [
 const Inventory = () => {
   const { 
     products, purchases, addProduct, updateProduct, deleteProduct, adjustStock, movementLog, businessProfile, hasPermission,
-    productCategories, addProductCategory, updateProductCategory, deleteProductCategory
+    productCategories, addProductCategory, updateProductCategory, deleteProductCategory,
+    inventoryLocations, inventoryBalances, MAIN_WAREHOUSE_ID, transferStock
   } = useAppContext();
 
   const [showAddModal, setShowAddModal] = useState(false);
@@ -33,6 +34,11 @@ const Inventory = () => {
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedLocation, setSelectedLocation] = useState(MAIN_WAREHOUSE_ID);
+  const [showLocationModal, setShowLocationModal] = useState(null); // Product object
+  const [showTransferUI, setShowTransferUI] = useState(null); // { fromLocId, productId }
+  const [transferTarget, setTransferTarget] = useState('');
+  const [transferQty, setTransferQty] = useState('');
   const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -129,13 +135,12 @@ const Inventory = () => {
   const handleAdjust = (productId, amount) => {
     const amt = amount || parseInt(adjustAmounts[productId]) || 0;
     const reason = adjustReasons[productId] || "Inventory Adjustment";
-    const source = adjustSources[productId] || (amt > 0 ? "IN-HOUSE" : "SALES");
+    const locId = adjustSources[productId] || MAIN_WAREHOUSE_ID;
 
     if (amt !== 0) {
-      adjustStock(productId, amt, reason, source);
+      adjustStock(productId, amt, reason, locId);
       setAdjustAmounts({ ...adjustAmounts, [productId]: ''});
       setAdjustReasons({ ...adjustReasons, [productId]: ''});
-      setAdjustSources({ ...adjustSources, [productId]: 'IN-HOUSE'});
       
       setSuccessStates({ ...successStates, [productId]: true});
       setTimeout(() => {
@@ -144,7 +149,28 @@ const Inventory = () => {
     }
   };
 
-  const lowStockCount = products.filter(p => p.stock > 0 && p.stock <= (p.lowStockThreshold || businessProfile.lowStockThreshold || 10)).length;
+  const lowStockAlerts = useMemo(() => {
+    const alerts = [];
+    products.forEach(p => {
+      const threshold = p.lowStockThreshold || businessProfile.lowStockThreshold || 10;
+      
+      // Check aggregate
+      const total = inventoryBalances.filter(b => b.product_id === p.id).reduce((s, b) => s + b.quantity, 0) || p.stock || 0;
+      if (total > 0 && total <= threshold) {
+        alerts.push({ p, loc: 'AGGREGATE', qty: total });
+      }
+
+      // Check specific locations
+      inventoryBalances.filter(b => b.product_id === p.id && b.quantity > 0).forEach(b => {
+        if (b.quantity <= (threshold / 2)) { // Finer grain for fleet
+           alerts.push({ p, loc: b.location_id, qty: b.quantity });
+        }
+      });
+    });
+    return alerts;
+  }, [products, inventoryBalances, businessProfile]);
+
+  const lowStockCount = new Set(lowStockAlerts.map(a => a.p.id)).size;
 
   useEffect(() => {
     if (showAddModal || showHistoryModal || showCategoryManager) {
@@ -168,7 +194,7 @@ const Inventory = () => {
             {lowStockCount > 0 && (
               <div className="flex items-center gap-3 px-6 py-3 bg-red-500 rounded-full border border-red-400 shadow-[0_0_30px_rgba(239,68,68,0.25)] animate-pulse">
                 <AlertCircle size={16} className="text-white" />
-                <span className="text-[10px] font-semibold text-white">{lowStockCount} LOW STOCK ALERTS</span>
+                <span className="text-[10px] font-semibold text-white">{lowStockCount} ALERT SECTORS</span>
               </div>
             )}
             <button className="px-8 h-[56px] rounded-pill border border-black/10 font-[800] text-[0.95rem] text-ink-primary hover:bg-black/5 transition-all flex items-center justify-center cursor-pointer" onClick={() => setShowHistoryModal(true)}>
@@ -303,9 +329,30 @@ const Inventory = () => {
                         })()}
                       </td>
                       <td className="px-4 py-1.5 text-center hidden sm:table-cell whitespace-nowrap">
-                        <div className={`text-xl font-semibold ${isOut ? 'text-red-500' : isLow ? 'text-orange-400' : 'text-ink-primary'}`}>
-                          {product.stock}
-                          <span className="text-sm font-bold text-gray-700 lowercase opacity-70 ml-1">{product.unit}</span>
+                        <div 
+                          className="cursor-pointer hover:bg-black/5 rounded-xl p-2 transition-all group/stock relative"
+                          onClick={() => setShowLocationModal(product)}
+                        >
+                          <div className={`text-xl font-bold ${isOut ? 'text-red-500' : isLow ? 'text-orange-400' : 'text-ink-primary'}`}>
+                            {(() => {
+                              const total = inventoryBalances
+                                .filter(b => b.product_id === product.id)
+                                .reduce((acc, b) => acc + (b.quantity || 0), 0);
+                              return total || product.stock || 0;
+                            })()}
+                            <span className="text-[10px] font-black text-gray-700 uppercase opacity-40 ml-1">{product.unit}</span>
+                          </div>
+                          
+                          {/* Mini distribution indicator */}
+                          <div className="flex gap-1 mt-1 justify-center">
+                            {inventoryBalances.filter(b => b.product_id === product.id && b.quantity > 0).map(b => (
+                              <div 
+                                key={b.location_id} 
+                                className={`h-1 rounded-full ${b.location_id === MAIN_WAREHOUSE_ID ? 'w-4 bg-accent-signature/30' : 'w-2 bg-blue-400/30'}`}
+                                title={inventoryLocations.find(l => l.id === b.location_id)?.name}
+                              />
+                            ))}
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-1.5 text-right">
@@ -664,6 +711,150 @@ const Inventory = () => {
               className="w-full h-12 bg-black text-white font-black text-xs uppercase tracking-widest rounded-pill mt-6 hover:bg-gray-900 transition-all"
             >
               Finalize & Close
+            </button>
+          </div>
+        </div>
+      )}
+      {/* Location Breakdown Modal */}
+      {showLocationModal && (
+        <div className="modal-overlay">
+          <div className="glass-modal !max-w-xl">
+            <div className="flex justify-between items-start mb-6 border-b border-black/5 pb-4">
+              <div>
+                <h1 className="text-xl font-bold text-ink-primary leading-none mb-1 uppercase tracking-tight">STOCK DISTRIBUTION.</h1>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{showLocationModal.name} // {showLocationModal.sku}</p>
+              </div>
+              <button 
+                onClick={() => setShowLocationModal(null)}
+                className="w-8 h-8 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-4 bg-canvas rounded-[1.5rem] border border-black/5">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">AGGREGATE STOCK</span>
+                  <div className="text-2xl font-black text-ink-primary tracking-tight">
+                    {inventoryBalances
+                      .filter(b => b.product_id === showLocationModal.id)
+                      .reduce((acc, b) => acc + (b.quantity || 0), 0) || 0}
+                    <span className="text-sm font-bold opacity-30 ml-2">{showLocationModal.unit}</span>
+                  </div>
+                </div>
+                <div className="p-4 bg-canvas rounded-[1.5rem] border border-black/5">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-1">DISTRIBUTION NODES</span>
+                  <div className="text-2xl font-black text-ink-primary tracking-tight">
+                    {inventoryBalances.filter(b => b.product_id === showLocationModal.id && b.quantity > 0).length}
+                    <span className="text-sm font-bold opacity-30 ml-2">LOCATIONS</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2 mt-2">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">LOCATION ASSETS</label>
+                <div className="max-h-[300px] overflow-y-auto no-scrollbar space-y-2">
+                  {/* Always show Main Warehouse first */}
+                  {(() => {
+                    const sortedLocations = [...inventoryLocations].sort((a,b) => a.id === MAIN_WAREHOUSE_ID ? -1 : 1);
+                    return sortedLocations.map(loc => {
+                      const balance = inventoryBalances.find(b => b.product_id === showLocationModal.id && b.location_id === loc.id);
+                      if (!balance && loc.type === 'VEHICLE') return null; 
+
+                      const isTransferring = showTransferUI?.fromLocId === loc.id;
+
+                      return (
+                        <div key={loc.id} className="p-4 bg-white border border-black/5 rounded-2xl hover:border-black/10 transition-all">
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${loc.type === 'WAREHOUSE' ? 'bg-accent-signature/10 text-accent-signature' : 'bg-blue-50 text-blue-500'}`}>
+                                {loc.type === 'WAREHOUSE' ? <PackagePlus size={18} /> : <History size={18} />}
+                              </div>
+                              <div>
+                                <div className="text-sm font-bold text-ink-primary leading-none mb-1">{loc.name}</div>
+                                <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{loc.type}</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-lg font-black text-ink-primary tabular-nums">
+                                {balance?.quantity || 0}
+                              </div>
+                              <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Available</div>
+                            </div>
+                          </div>
+
+                          {/* Transfer Control */}
+                          {!isTransferring ? (
+                            <button 
+                              onClick={() => {
+                                setShowTransferUI({ fromLocId: loc.id, productId: showLocationModal.id });
+                                setTransferTarget(inventoryLocations.find(l => l.id !== loc.id)?.id || '');
+                              }}
+                              className="w-full py-2 bg-canvas hover:bg-black/5 rounded-lg text-[9px] font-black uppercase tracking-widest text-[#4b5563] transition-all flex items-center justify-center gap-2"
+                            >
+                              <History size={10} className="rotate-180" /> QUICK TRANSFER
+                            </button>
+                          ) : (
+                            <div className="bg-canvas/50 p-3 rounded-xl border border-black/5 space-y-3 animate-in slide-in-from-top-2 duration-300">
+                              <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                  <label className="text-[8px] font-black text-gray-400 uppercase">Target</label>
+                                  <select 
+                                    className="w-full bg-white border border-black/5 rounded-md px-2 py-1.5 text-[10px] font-bold text-ink-primary outline-none"
+                                    value={transferTarget}
+                                    onChange={e => setTransferTarget(e.target.value)}
+                                  >
+                                    {inventoryLocations.filter(l => l.id !== loc.id).map(l => (
+                                      <option key={l.id} value={l.id}>{l.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="space-y-1">
+                                  <label className="text-[8px] font-black text-gray-400 uppercase">Quantity</label>
+                                  <input 
+                                    type="number" 
+                                    className="w-full bg-white border border-black/5 rounded-md px-2 py-1.5 text-[10px] font-bold text-ink-primary outline-none"
+                                    placeholder="QTY"
+                                    value={transferQty}
+                                    onChange={e => setTransferQty(e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex gap-2">
+                                <button 
+                                  onClick={() => setShowTransferUI(null)}
+                                  className="flex-1 py-2 rounded-lg border border-black/5 text-[9px] font-bold text-gray-500 hover:bg-white"
+                                >
+                                  CANCEL
+                                </button>
+                                <button 
+                                  onClick={async () => {
+                                    if (!transferTarget || !transferQty) return;
+                                    await transferStock(loc.id, transferTarget, showLocationModal.id, parseInt(transferQty));
+                                    setShowTransferUI(null);
+                                    setTransferQty('');
+                                  }}
+                                  className="flex-[2] py-2 bg-black text-white rounded-lg text-[9px] font-black tracking-widest hover:bg-gray-800 transition-all"
+                                >
+                                  EXECUTE TRANSFER
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setShowLocationModal(null)}
+              className="w-full h-12 bg-black text-white font-black text-xs uppercase tracking-widest rounded-pill mt-6 hover:bg-gray-900 transition-all"
+            >
+              Acknowledge & Close
             </button>
           </div>
         </div>

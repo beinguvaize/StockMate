@@ -13,7 +13,8 @@ The UI/UX architecture of Ledgr is finalized. Do **NOT** modify, adjust, or "imp
 - **Typography**: All font sizes, families (`Sora`, `Inter`, `Bebas Neue`), and weights.
 - **Spacing System**: All vertical and horizontal padding, margin, and gap values.
 - **Interactive Elements**: All button styles (Signature, Primary, Secondary), hover scales, and transitions.
-- **Consistency Rule**: Any new components must **CLONE** the exact `className` structures from the most similar existing component in the codebase.
+- **Reporting Intelligence**: The `ReportShell` and `ReportTable` architecture, including all 15+ specialized KPI cards and the multi-tab layout structure.
+- **Consistency Rule**: Any new components must **CLONE** any exact `className` structures from the most similar existing component in the codebase.
 
 ### 2. Production Database Integrity (LOCKED)
 The **LedgeproProd** environment is the live system of record.

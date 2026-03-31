@@ -1,365 +1,80 @@
-import React, { useState, useMemo, useEffect} from 'react';
-import { useAppContext} from '../context/AppContext';
+import React, { useState, useMemo } from 'react';
+import { useAppContext } from '../context/AppContext';
+import ReportShell from '../components/reports/ReportShell';
+import SalesReport from '../components/reports/SalesReport';
+import InventoryReport from '../components/reports/InventoryReport';
+import ClientOutstandingReport from '../components/reports/ClientOutstandingReport';
+import PurchasesReport from '../components/reports/PurchasesReport';
+import ExpensesReport from '../components/reports/ExpensesReport';
+import HRReport from '../components/reports/HRReport';
+import LogisticsReport from '../components/reports/LogisticsReport';
+import FinancialReport from '../components/reports/FinancialReport';
+
 import { 
- Calendar, FileText, Download, Printer, TrendingUp, Package, Receipt, 
- ArrowUpRight, ArrowDownRight, X, Check, Users, Truck, 
- DollarSign, Activity, PieChart, Layers, ArrowRight, TrendingDown, Lock,
- CreditCard, LayoutGrid, UserCircle, Briefcase, Shield
+  TrendingUp, Package, UserCircle, Truck, 
+  DollarSign, Briefcase, Activity, Shield, Layers,
+  Globe, Landmark, BarChart3
 } from 'lucide-react';
 
-// Import New Report Components
-import FinancialReports from '../components/reports/FinancialReports';
-import InventoryReports from '../components/reports/InventoryReports';
-import SalesReports from '../components/reports/SalesReports';
-import ClientReports from '../components/reports/ClientReports';
-import LogisticsReports from '../components/reports/LogisticsReports';
-import HRReports from '../components/reports/HRReports';
-import ReportAudit from '../components/reports/ReportAudit';
-import ReportPerformance from '../components/reports/ReportPerformance';
-
-// Import Export Utility
-import { downloadCSV, exportSalesCSV, exportInventoryCSV} from '../utils/csvExport';
-
 const Reports = () => {
- const { 
- sales, movementLog, expenses, businessProfile, clients, users, vehicles, routes,
- getShopName, getUserName, getVehicleName, getEmployeeName, employees, payrollRecords, products, updateProduct, hasPermission, isOwner, currentUser
-} = useAppContext();
- 
- const [dateRange, setDateRange] = useState('MONTH');
- const [activeTab, setActiveTab] = useState('FINANCIAL');
- const [isSaving, setIsSaving] = useState(false);
- const [editedProducts, setEditedProducts] = useState([]);
+  const { hasPermission } = useAppContext();
+  const [activeTab, setActiveTab] = useState('SALES');
 
- // Role-based Tab Access Control
- const userRole = currentUser?.roles?.[0] || 'STAFF';
- const isFullAccess = userRole === 'GLOBAL_ADMIN' || userRole === 'OWNER';
+  // Role-based Tab Access Control (Rule 11)
+  const TABS = [
+    { id: 'SALES', label: 'Sales Intelligence', icon: <TrendingUp size={18} />, component: <SalesReport />, permission: 'sales' },
+    { id: 'INVENTORY', label: 'Inventory Intelligence', icon: <Layers size={18} />, component: <InventoryReport />, permission: 'inventory' },
+    { id: 'FINANCIALS', label: 'Financial Matrix', icon: <Landmark size={18} />, component: <FinancialReport />, permission: 'reports' },
+    { id: 'LOGISTICS', label: 'Fleet Optimization', icon: <Globe size={18} />, component: <LogisticsReport />, permission: 'inventory' },
+    { id: 'HR', label: 'Workforce Analysis', icon: <Briefcase size={18} />, component: <HRReport />, permission: 'reports' },
+    { id: 'CLIENTS', label: 'Client Exposure', icon: <UserCircle size={18} />, component: <ClientOutstandingReport />, permission: 'clients' },
+    { id: 'PURCHASES', label: 'Purchases', icon: <Truck size={18} />, component: <PurchasesReport />, permission: 'inventory' },
+    { id: 'EXPENSES', label: 'Expenses', icon: <DollarSign size={18} />, component: <ExpensesReport />, permission: 'expenses' }
+  ].filter(tab => hasPermission(tab.permission, 'view'));
 
- const TABS = [
- { id: 'FINANCIAL', label: 'Financials', icon: <DollarSign size={18} />, permission: 'expenses'},
- { id: 'INVENTORY', label: 'Inventory', icon: <Package size={18} />, permission: 'inventory'},
- { id: 'SALES', label: 'Sales', icon: <TrendingUp size={18} />, permission: 'sales'},
- { id: 'CLIENTS', label: 'Clients', icon: <UserCircle size={18} />, permission: 'clients'},
- { id: 'LOGISTICS', label: 'Logistics', icon: <Truck size={18} />, permission: 'inventory'},
- { id: 'HR', label: 'HR/Payroll', icon: <Briefcase size={18} />, permission: 'reports'},
- { id: 'PERFORMANCE', label: 'Performance', icon: <Activity size={18} />, permission: 'reports'},
- { id: 'AUDIT', label: 'Audit Trail', icon: <Shield size={18} />, permission: 'reports'},
- { id: 'ADVANCED', label: 'Bulk Edit', icon: <LayoutGrid size={18} />, permission: 'inventory'},
- ].filter(tab => hasPermission(tab.permission, 'view'));
+  const currentTab = TABS.find(t => t.id === activeTab) || TABS[0];
 
- useEffect(() => {
- if (activeTab === 'ADVANCED') {
- setEditedProducts(JSON.parse(JSON.stringify(products)));
-}
-}, [activeTab, products]);
+  return (
+    <div className="flex flex-col gap-6 w-full">
+      {/* Universal Breadcrumb / Context Identifier */}
+      <div className="no-print flex items-center gap-2 px-6 py-2 bg-white/40 backdrop-blur-md border border-black/5 rounded-pill w-fit shadow-sm">
+        <Activity size={12} className="text-accent-signature" />
+        <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
+          BI TERMINAL <span className="mx-2 opacity-30">/</span> {currentTab?.label}
+        </span>
+      </div>
 
- // Global filtering logic shared across tabs
- const filteredSales = useMemo(() => {
- if (dateRange === 'ALL') return sales;
- const now = new Date();
- const past = new Date();
- if (dateRange === 'TODAY') past.setHours(0, 0, 0, 0);
- else if (dateRange === 'WEEK') past.setDate(now.getDate() - 7);
- else if (dateRange === 'MONTH') past.setMonth(now.getMonth() - 1);
- return sales.filter(item => new Date(item.date) >= past);
-}, [sales, dateRange]);
+      {/* Modern Tab Switcher (Rule 1) */}
+      <div className="no-print flex items-center gap-1.5 p-1.5 bg-white/60 backdrop-blur-3xl border border-black/5 rounded-[2.5rem] shadow-glass overflow-x-auto no-scrollbar scroll-smooth">
+        {TABS.map(tab => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={`
+              flex items-center gap-3 px-8 py-3 rounded-full text-[10px] font-black transition-all whitespace-nowrap uppercase tracking-widest
+              ${activeTab === tab.id 
+                ? 'bg-ink-primary text-white shadow-2xl scale-[1.05]' 
+                : 'text-gray-500 hover:text-ink-primary hover:bg-white/40'}
+            `}
+          >
+            {tab.icon}
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
- const filteredExpenses = useMemo(() => {
- if (dateRange === 'ALL') return expenses;
- const now = new Date();
- const past = new Date();
- if (dateRange === 'TODAY') past.setHours(0, 0, 0, 0);
- else if (dateRange === 'WEEK') past.setDate(now.getDate() - 7);
- else if (dateRange === 'MONTH') past.setMonth(now.getMonth() - 1);
- return expenses.filter(item => new Date(item.date) >= past);
-}, [expenses, dateRange]);
+      {/* Active Report Node */}
+      <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {currentTab?.component}
+      </div>
 
- const filteredPayroll = useMemo(() => {
- const records = payrollRecords || [];
- if (dateRange === 'ALL') return records;
- const now = new Date();
- const past = new Date();
- if (dateRange === 'TODAY') past.setHours(0, 0, 0, 0);
- else if (dateRange === 'WEEK') past.setDate(now.getDate() - 7);
- else if (dateRange === 'MONTH') past.setMonth(now.getMonth() - 1);
- return records.filter(item => new Date(item.processed_at || item.date) >= past);
-}, [payrollRecords, dateRange]);
-
- const handleBulkEdit = (productId, field, value) => {
- setEditedProducts(prev => prev.map(p => {
- if (p.id === productId) {
- const updated = { ...p, [field]: value};
- if (['costPrice', 'sellingPrice', 'stock', 'taxRate'].includes(field)) {
- updated[field] = parseFloat(value) || 0;
-}
- return updated;
-}
- return p;
-}));
-};
-
- const saveBulkChanges = async () => {
- setIsSaving(true);
- try {
- const changedProducts = editedProducts.filter(ep => {
- const original = products.find(p => p.id === ep.id);
- return JSON.stringify(original) !== JSON.stringify(ep);
-});
- if (changedProducts.length === 0) return alert("No changes detected.");
- for (const p of changedProducts) await updateProduct(p);
- alert(`Successfully updated ${changedProducts.length} items.`);
-} catch (err) {
- console.error("Bulk update failed:", err);
- alert("Failed to save some changes.");
-} finally {
- setIsSaving(false);
-}
-};
-
- const handleGlobalExport = () => {
- const bName = businessProfile?.name || 'Ledgr ERP';
- 
- switch (activeTab) {
- case 'FINANCIAL':
- downloadCSV(filteredExpenses, 'ledgr_expenses', bName);
- break;
- case 'INVENTORY':
- exportInventoryCSV(products, bName);
- break;
- case 'SALES':
- exportSalesCSV(filteredSales, bName, getShopName);
- break;
- case 'CLIENTS':
- downloadCSV(clients, 'ledgr_clients', bName);
- break;
- case 'LOGISTICS':
- downloadCSV(routes, 'ledgr_routes', bName);
- break;
- case 'HR':
- downloadCSV(filteredPayroll, 'ledgr_payroll', bName);
- break;
- case 'AUDIT':
- downloadCSV(movementLog, 'ledgr_audit_trail', bName);
- break;
- default:
- alert("This module does not support direct export.");
- break;
-}
-};
-
- return (
- <div className="flex flex-col gap-5 pb-12">
- {/* Header Section */}
- <div className="flex flex-col md:flex-row justify-between items-start md:items-center no-print gap-4">
- <div className="flex flex-col gap-2">
- <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">REPORTS<span className="text-accent-signature">.</span></h1>
- <div className="flex items-center gap-3">
- <div className="w-1.5 h-4 bg-accent-signature rounded-full"></div>
- <p className="text-[10px] font-semibold text-[#4b5563] opacity-70">
- Business Intelligence & Audit Terminal
- </p>
- </div>
- </div>
-
-  <div className="flex items-center gap-2 bg-white p-2 rounded-full border border-black/5 shadow-premium no-print">
-    <div className="flex h-12 bg-canvas rounded-full items-center px-5 border border-black/5">
-      <Calendar size={14} className="text-[#4b5563] opacity-60" />
-      <select 
-        className="bg-transparent border-none font-bold text-[10px] text-ink-primary outline-none px-4 cursor-pointer appearance-none" 
-        value={dateRange} 
-        onChange={e => setDateRange(e.target.value)}
-      >
-        <option value="TODAY">TODAY</option>
-        <option value="WEEK">WEEK</option>
-        <option value="MONTH">MONTH</option>
-        <option value="ALL">ALL TIME</option>
-      </select>
+      {/* Security Footer */}
+      <div className="flex items-center justify-center gap-4 py-12 opacity-20 no-print">
+        <Shield size={16} />
+        <span className="text-[8px] font-black uppercase tracking-[0.2em]">End-to-End Encrypted Analytical Node</span>
+      </div>
     </div>
-    <button 
-      className="w-12 h-12 flex items-center justify-center rounded-full bg-ink-primary text-white hover:bg-black transition-all shadow-sm shrink-0" 
-      onClick={() => window.print()}
-      title="Print Report"
-    >
-      <Printer size={18} />
-    </button>
-    <button 
-      className="w-12 h-12 flex items-center justify-center rounded-full bg-canvas text-ink-primary border border-black/5 hover:bg-black/5 transition-all shadow-sm shrink-0" 
-      onClick={handleGlobalExport}
-      title="Export CSV"
-    >
-      <Download size={18} />
-    </button>
-  </div>
- </div>
-
- {/* Tab Navigation */}
- <div className="no-print flex items-center gap-1 p-2 bg-white/60 backdrop-blur-xl border border-white/20 rounded-[2.5rem] shadow-glass overflow-x-auto scrollbar-hide sticky top-4 z-50">
- {TABS.map(tab => (
- <button
- key={tab.id}
- onClick={() => setActiveTab(tab.id)}
- className={`flex items-center gap-3 px-8 py-2 rounded-full text-[10px] font-semibold transition-all whitespace-nowrap ${
- activeTab === tab.id 
- ? 'bg-ink-primary text-white shadow-2xl scale-[1.02]' 
- : 'text-gray-700 hover:bg-white/40'
-}`}
- >
- <span className={`${activeTab === tab.id ? 'opacity-100' : 'opacity-70'}`}>{tab.icon}</span>
- {tab.label}
- </button>
- ))}
- </div>
-
- {/* Main Content Area */}
- <div className="min-h-[60vh]">
- {activeTab === 'FINANCIAL' && (
- <FinancialReports 
- sales={filteredSales} 
- expenses={filteredExpenses} 
- payroll={filteredPayroll}
- businessProfile={businessProfile}
- />
- )}
-
- {activeTab === 'INVENTORY' && (
- <InventoryReports 
- products={products} 
- sales={sales} 
- movementLog={movementLog}
- businessProfile={businessProfile}
- />
- )}
-
- {activeTab === 'SALES' && (
- <SalesReports 
- sales={filteredSales} 
- clients={clients} 
- products={products}
- businessProfile={businessProfile}
- />
- )}
-
- {activeTab === 'CLIENTS' && (
- <ClientReports 
- clients={clients} 
- sales={sales} 
- businessProfile={businessProfile}
- />
- )}
-
- {activeTab === 'LOGISTICS' && (
- <LogisticsReports 
- sales={sales} 
- vehicles={vehicles} 
- routes={routes}
- businessProfile={businessProfile}
- />
- )}
-
- {activeTab === 'HR' && (
- <HRReports 
- employees={employees} 
- payroll={filteredPayroll} 
- businessProfile={businessProfile}
- />
- )}
-
- {activeTab === 'PERFORMANCE' && (
- <ReportPerformance 
- sales={sales} 
- products={products} 
- businessProfile={businessProfile} 
- />
- )}
-
- {activeTab === 'AUDIT' && (
- <ReportAudit 
- movementLog={movementLog} 
- products={products} 
- users={users} 
- businessProfile={businessProfile}
- />
- )}
-
- {activeTab === 'ADVANCED' && (
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
- <div className="flex justify-between items-center mb-8 pb-8 border-b border-black/5">
- <div>
- <h3 className="text-2xl font-semibold text-ink-primary leading-none mb-2">Bulk Catalog Manager.</h3>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Direct Schema Editing Tool</p>
- </div>
- <button 
- className={`btn-signature !h-12 !px-8 !text-[10px] ${isSaving ? 'opacity-[0.85] cursor-wait' : ''}`}
- onClick={saveBulkChanges}
- disabled={isSaving}
- >
- {isSaving ? 'SAVING...' : 'SAVE ALL CHANGES'}
- </button>
- </div>
-
- <div className="overflow-x-auto">
- <table className="w-full text-left border-collapse min-w-[1000px]">
- <thead>
- <tr className="border-b-2 border-black/5">
- <th className="py-2 px-2 text-[10px] font-semibold text-[#4b5563]">Product Info</th>
- <th className="py-2 px-2 text-[10px] font-semibold text-[#4b5563]">Stock</th>
- <th className="py-2 px-2 text-[10px] font-semibold text-[#4b5563]">Cost Price</th>
- <th className="py-2 px-2 text-[10px] font-semibold text-[#4b5563]">Selling Price</th>
- <th className="py-2 px-2 text-[10px] font-semibold text-[#4b5563]">Status</th>
- </tr>
- </thead>
- <tbody>
- {editedProducts.map((p, i) => (
- <tr key={i} className="border-b border-black/5 hover:bg-canvas/40">
- <td className="py-2 px-2">
- <div className="text-[11px] font-semibold text-ink-primary">{p.name}</div>
- <div className="text-[9px] font-semibold text-accent-signature-hover opacity-70">{p.sku}</div>
- </td>
- <td className="py-2 px-2">
- <input 
- type="number" 
- className="w-24 bg-canvas/50 border border-black/5 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature"
- value={p.stock}
- onChange={e => handleBulkEdit(p.id, 'stock', e.target.value)}
- />
- </td>
- <td className="py-2 px-2">
- <div className="flex items-center gap-2">
- <span className="text-[10px] font-semibold opacity-60">{businessProfile.currencySymbol}</span>
- <input 
- type="number" 
- className="w-24 bg-canvas/50 border border-black/5 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature"
- value={p.costPrice}
- onChange={e => handleBulkEdit(p.id, 'costPrice', e.target.value)}
- />
- </div>
- </td>
- <td className="py-2 px-2">
- <div className="flex items-center gap-2">
- <span className="text-[10px] font-semibold opacity-60">{businessProfile.currencySymbol}</span>
- <input 
- type="number" 
- className="w-24 bg-canvas/50 border border-black/5 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature"
- value={p.sellingPrice}
- onChange={e => handleBulkEdit(p.id, 'sellingPrice', e.target.value)}
- />
- </div>
- </td>
- <td className="py-2 px-2">
- <span className={`px-3 py-1 rounded-full text-[9px] font-semibold ${p.stock > 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
- {p.stock > 0 ? 'In Stock' : 'Alert'}
- </span>
- </td>
- </tr>
- ))}
- </tbody>
- </table>
- </div>
- </div>
- )}
- </div>
- </div>
- );
+  );
 };
 
 export default Reports;

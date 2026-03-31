@@ -28,7 +28,8 @@ const DEFAULT_ZOOM = 11;
 const Vehicles = () => {
  const { 
  vehicles, addVehicle, updateVehicle, deleteVehicle, routes, dispatchRoute, reconcileRoute, 
- products, sales, orders, businessProfile, employees, getEmployeeName, hasPermission 
+ products, sales, orders, businessProfile, employees, getEmployeeName, hasPermission,
+ inventoryLocations, inventoryBalances, MAIN_WAREHOUSE_ID
 } = useAppContext();
 
  const [activeTab, setActiveTab] = useState('ROUTES'); 
@@ -364,9 +365,14 @@ const Vehicles = () => {
  </thead>
  <tbody className="divide-y divide-black/5">
  {activeRoutes.map(route => {
- const vehicle = vehicles.find(v => v.id === route.vehicleId);
- const itemsLoaded = route.loadedStock.reduce((s, i) => s + i.quantity, 0);
- return (
+  const vehicle = vehicles.find(v => v.id === route.vehicleId);
+  const itemsInTransit = inventoryBalances
+    .filter(b => {
+      const loc = inventoryLocations.find(l => l.reference_id === route.vehicleId);
+      return loc && b.location_id === loc.id;
+    })
+    .reduce((s, i) => s + (i.quantity || 0), 0);
+  return (
  <tr key={route.id} className="group hover:bg-canvas/50 transition-colors">
  <td className="p-1.5 pl-8">
  <div className="flex items-center gap-3">
@@ -389,11 +395,11 @@ const Vehicles = () => {
  </span>
  </div>
  </td>
- <td className="p-1.5 text-center">
- <span className="px-2 py-0.5 rounded-pill bg-accent-signature/10 text-[10px] font-semibold text-ink-primary border border-accent-signature/20">
- {itemsLoaded} UNITS
- </span>
- </td>
+  <td className="p-1.5 text-center">
+  <span className="px-2 py-0.5 rounded-pill bg-accent-signature/10 text-[10px] font-semibold text-ink-primary border border-accent-signature/20">
+  {itemsInTransit} UNITS
+  </span>
+  </td>
  <td className="p-1.5 text-right">
  <div className="text-sm font-semibold text-ink-primary font-mono tabular-nums">
  {route.initialOdometer.toLocaleString()} <span className="text-[10px] opacity-20 ml-1">KM</span>
@@ -504,7 +510,12 @@ const Vehicles = () => {
  lastPing: new Date().toISOString()
 };
  const vehicle = vehicles.find(v => v.id === route.vehicleId);
- const itemsLoaded = route.loadedStock.reduce((s, i) => s + i.quantity, 0);
+ const itemsInTransit = inventoryBalances
+    .filter(b => {
+      const loc = inventoryLocations.find(l => l.reference_id === route.vehicleId);
+      return loc && b.location_id === loc.id;
+    })
+    .reduce((s, i) => s + (i.quantity || 0), 0);
 
  return (
  <Marker key={route.id} position={[sim.lat, sim.lng]} icon={vehicleIcon}>
@@ -524,7 +535,7 @@ const Vehicles = () => {
  <div style={{display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '11px', borderTop: '1px solid rgba(0,0,0,0.05)', paddingTop: '8px'}}>
  <span>🚗 Driver: <strong>{getEmployeeName(route.driverId)}</strong></span>
  <span>📍 Area: <strong>{route.location || 'Global'}</strong></span>
- <span>📦 Stock: <strong>{itemsLoaded} units</strong></span>
+ <span>📦 Live Stock: <strong>{itemsInTransit} units</strong></span>
  <span style={{fontSize: '9px', marginTop: '4px', opacity: 0.5}}>Last Ping: {new Date(sim.lastPing).toLocaleTimeString()}</span>
  </div>
  </div>
@@ -550,7 +561,12 @@ const Vehicles = () => {
  {activeRoutes.length > 0 ? (
  activeRoutes.map(route => {
  const vehicle = vehicles.find(v => v.id === route.vehicleId);
- const itemsLoaded = route.loadedStock.reduce((s, i) => s + i.quantity, 0);
+ const itemsInTransit = inventoryBalances
+    .filter(b => {
+      const loc = inventoryLocations.find(l => l.reference_id === route.vehicleId);
+      return loc && b.location_id === loc.id;
+    })
+    .reduce((s, i) => s + (i.quantity || 0), 0);
  const sim = simulatedPositions[route.id] || { status: 'Moving'};
  return (
  <div key={route.id} className="glass-panel !p-4 !rounded-lg border border-black/5 bg-surface hover:shadow-premium transition-all">
@@ -577,8 +593,8 @@ const Vehicles = () => {
  <span className="text-ink-primary">{route.location || 'Global'}</span>
  </div>
  <div className="flex justify-between">
- <span className="opacity-70">Stock</span>
- <span className="text-accent-signature">{itemsLoaded} units</span>
+ <span className="opacity-70">Live Stock</span>
+ <span className="text-accent-signature">{itemsInTransit} units</span>
  </div>
  </div>
  </div>
@@ -633,18 +649,43 @@ const Vehicles = () => {
  </button>
  </div>
  </div>
- <div className="p-4">
- <h3 className="text-sm font-semibold text-ink-primary mb-3 leading-none">{v.name}</h3>
- <div className="flex justify-between items-end mt-auto border-t border-black/5 pt-3">
- <div>
- <div className="text-[8px] font-semibold text-gray-700 opacity-70 mb-1">Clearance Plate</div>
- <div className="text-xs font-semibold text-ink-primary leading-none">{v.plate}</div>
- </div>
- <div className="w-8 h-8 rounded-lg bg-canvas flex items-center justify-center text-ink-primary border border-black/5 shadow-sm">
- <ShieldCheck size={14} />
- </div>
- </div>
- </div>
+  <div className="p-4">
+  <div className="flex justify-between items-start mb-2">
+  <h3 className="text-sm font-semibold text-ink-primary leading-none uppercase tracking-tight">{v.name}</h3>
+  <div className="text-[9px] font-black text-gray-400 opacity-50 tabular-nums">{v.plate}</div>
+  </div>
+  
+  <div className="mt-4 p-3 bg-canvas/50 rounded-xl border border-black/5">
+    <div className="flex justify-between items-center mb-1">
+      <span className="text-[9px] font-black text-gray-500 uppercase tracking-widest">ON-BOARD ASSETS</span>
+      <span className="text-[10px] font-black text-ink-primary">
+        {(() => {
+          const loc = inventoryLocations.find(l => l.reference_id === v.id);
+          return loc ? inventoryBalances.filter(b => b.location_id === loc.id).reduce((s, i) => s + (i.quantity || 0), 0) : 0;
+        })()}
+      </span>
+    </div>
+    <div className="h-1 w-full bg-black/5 rounded-full overflow-hidden">
+      <div 
+        className="h-full bg-accent-signature shadow-[0_0_8px_rgba(200,255,0,0.4)]" 
+        style={{ 
+          width: `${Math.min(100, (
+            (() => {
+              const loc = inventoryLocations.find(l => l.reference_id === v.id);
+              return loc ? inventoryBalances.filter(b => b.location_id === loc.id).reduce((s, i) => s + (i.quantity || 0), 0) : 0;
+            })() / 100) * 100)}%` 
+        }} 
+      />
+    </div>
+  </div>
+
+  <div className="flex justify-between items-center mt-4 pt-3 border-t border-black/5">
+  <div className="text-[9px] font-bold text-gray-700 opacity-70">UNIT CLEARANCE</div>
+  <div className="w-6 h-6 rounded-lg bg-white flex items-center justify-center text-ink-primary border border-black/5">
+  <ShieldCheck size={12} />
+  </div>
+  </div>
+  </div>
  </div>
  ))}
  </div>

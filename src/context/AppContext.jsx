@@ -115,6 +115,10 @@ export const AppProvider = ({ children}) => {
  const [suppliers, setSuppliers] = useState([]);
  const [dayBook, setDayBook] = useState([]);
  const [expenseCategories, setExpenseCategories] = useState(['Petrol', 'Food', 'Salary', 'Rent', 'Electricity', 'Water', 'Maintenance', 'Stationery', 'Travel', 'Marketing', 'Tax', 'Others']);
+ const [inventoryLocations, setInventoryLocations] = useState([]);
+ const [inventoryBalances, setInventoryBalances] = useState([]);
+  
+ const MAIN_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
  
  // --- Sync & Connectivity States ---
  const [syncStatus, setSyncStatus] = useState('SYNCED'); // 'SYNCED', 'SYNCING', 'ERROR', 'OFFLINE'
@@ -139,6 +143,68 @@ export const AppProvider = ({ children}) => {
  window.removeEventListener('offline', handleOffline);
 };
 }, []);
+
+  const adjustLocationStock = async (productId, amount, locationId = MAIN_WAREHOUSE_ID) => {
+    if (!productId || !locationId) return;
+
+    setInventoryBalances(prev => {
+      const existing = prev.find(b => b.product_id === productId && b.location_id === locationId);
+      if (existing) {
+        return prev.map(b => (b.product_id === productId && b.location_id === locationId) 
+          ? { ...b, quantity: Math.max(0, b.quantity + amount), updated_at: new Date().toISOString() } 
+          : b
+        );
+      } else {
+        return [...prev, { 
+          id: generateUUID(), 
+          product_id: productId, 
+          location_id: locationId, 
+          quantity: Math.max(0, amount), 
+          updated_at: new Date().toISOString() 
+        }];
+      }
+    });
+
+    if (isSupabaseConfigured) {
+      const { data: current } = await supabase
+        .from('inventory_balances')
+        .select('quantity')
+        .eq('product_id', productId)
+        .eq('location_id', locationId)
+        .maybeSingle();
+      
+      const newQty = Math.max(0, (current?.quantity || 0) + amount);
+      const { error } = await supabase
+        .from('inventory_balances')
+        .upsert({ 
+          product_id: productId, 
+          location_id: locationId, 
+          quantity: newQty,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'product_id,location_id' });
+        
+      if (error) console.error("Error adjusting location stock:", error);
+    }
+  };
+
+  const adjustStock = async (productId, amount, reason, locationId = MAIN_WAREHOUSE_ID) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    await adjustLocationStock(productId, amount, locationId);
+    
+    if (locationId === MAIN_WAREHOUSE_ID) {
+      const updatedProduct = { ...product, stock: Math.max(0, (product.stock || 0) + amount)};
+      setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p));
+      if (isSupabaseConfigured) {
+        await supabase.from('products').update({ stock: updatedProduct.stock }).eq('id', productId);
+      }
+    }
+
+    const type = amount > 0 ? 'IN' : 'OUT';
+    const locName = inventoryLocations.find(l => l.id === locationId)?.name || 'Storage';
+    logMovement(productId, product.name, type, Math.abs(amount), `${reason} [Loc: ${locName}]`, currentUser?.id);
+  };
 
  // Heartbeat check for Supabase connectivity
  useEffect(() => {
@@ -208,7 +274,6 @@ export const AppProvider = ({ children}) => {
 } catch (e) {
  console.error("Logout error:", e);
 } finally {
- setAuthSession(null);
  setCurrentUser(null);
  appInitialized.current = false;
  setLoading(false);
@@ -535,38 +600,61 @@ export const AppProvider = ({ children}) => {
 }));
 }
 
- // Persistence (Using current snapshot for now, ideally SQL increments)
+ // Persistence
  if (isSupabaseConfigured) {
- for (const [id, delta] of productDeltas) {
- const currentProduct = products.find(p => p.id === id);
- if (currentProduct) await supabase.from('products').update({ stock: Math.max(0, currentProduct.stock + delta)}).eq('id', id);
-}
- for (const [id, delta] of clientDeltas) {
- const currentClient = clients.find(c => c.id === id);
- if (currentClient) await supabase.from('clients').update({ outstanding_balance: Math.max(0, (currentClient.outstanding_balance || 0) + delta)}).eq('id', id);
-}
-}
+ for (const [prodId, pDelta] of productDeltas) {
+   await supabase.from('products').update({ stock: Math.max(0, (products.find(p => p.id === prodId)?.stock || 0) + pDelta) }).eq('id', prodId);
+ }
+ for (const [clId, cDelta] of clientDeltas) {
+   const currentClient = clients.find(c => c.id === clId);
+   if (currentClient) {
+     await supabase.from('clients').update({ outstanding_balance: Math.max(0, (currentClient.outstanding_balance || 0) + cDelta)}).eq('id', clId);
+   }
+ }
+ }
 };
 
- const placeSale = async (clientId, cartItems, subtotal, discount, tax, totalAmount, customerInfo, paymentType = 'cash', routeId = null, status = 'COMPLETED', scheduledDate = null, salesmanNote = '') => {
- const val = saleSchema.safeParse({ clientId, items: cartItems, totalAmount, paymentMethod: paymentType});
- if (!val.success) {
- addNotification("Sale Validation failed:" + val.error.errors[0].message,"error");
- return;
-}
- let totalCogs = 0;
- const updatedProducts = [...products];
+ const placeSale = async (clientId, cartItems, subtotal, discount, tax, totalAmount, customerInfo, paymentType = 'cash', routeId = null, status = 'COMPLETED', scheduledDate = null, salesmanNote = '', manualLocationId = null) => {
+    const val = saleSchema.safeParse({ clientId, items: cartItems, totalAmount, paymentMethod: paymentType});
+    if (!val.success) {
+      addNotification("Sale Validation failed:" + val.error.errors[0].message,"error");
+      return;
+    }
+    
+    let totalCogs = 0;
+    const updatedProducts = [...products];
+    
+    // Determine which location to deduct from
+    let locationId = manualLocationId || MAIN_WAREHOUSE_ID;
+    if (routeId && !manualLocationId) {
+      const route = routes.find(r => r.id === routeId);
+      if (route) {
+        // Find vehicle location
+        const loc = inventoryLocations.find(l => l.reference_id === route.vehicleId || l.name.includes(route.vehicleId));
+        if (loc) locationId = loc.id;
+      }
+    }
 
- cartItems.forEach(item => {
- const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
- if (pIndex > -1) {
- if (status === 'COMPLETED' && !routeId) {
- updatedProducts[pIndex].stock -= item.quantity;
-}
- item.cogs = updatedProducts[pIndex].costPrice * item.quantity;
- totalCogs += item.cogs;
-}
-});
+    const stockAdjustments = [];
+    cartItems.forEach(item => {
+      const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
+      if (pIndex > -1) {
+        if (status === 'COMPLETED') {
+          stockAdjustments.push(adjustLocationStock(item.productId, -item.quantity, locationId));
+          
+          // Legacy check: if warehouse sale, update the products.stock column
+          if (locationId === MAIN_WAREHOUSE_ID) {
+            updatedProducts[pIndex].stock -= item.quantity;
+          }
+        }
+        item.cogs = (updatedProducts[pIndex].costPrice || 0) * item.quantity;
+        totalCogs += item.cogs;
+      }
+    });
+
+    if (stockAdjustments.length > 0) {
+      await Promise.all(stockAdjustments);
+    }
 
  const newSale = {
  id: `SAL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -654,16 +742,14 @@ export const AppProvider = ({ children}) => {
 }
 
  // Update local products stock
- if (status === 'COMPLETED' && !routeId) {
- setProducts(prev => prev.map(p => {
- const item = cartItems.find(item => item.id === p.id);
- return item ? { ...p, stock: (p.stock || 0) - item.quantity} : p;
-}));
-}
+ if (status === 'COMPLETED' && locationId === MAIN_WAREHOUSE_ID) {
+      setProducts(updatedProducts);
+    }
 
- addNotification(`Sale Processed: ${businessProfile?.currencySymbol || ''}${totalAmount}`, 'success');
- return newSale.id;
-};
+    const locName = inventoryLocations.find(l => l.id === locationId)?.name || 'HQ';
+    addNotification(`Sale Processed from ${locName}: ${businessProfile?.currencySymbol || ''}${totalAmount}`, 'success');
+    return newSale.id;
+  };
 
  const updateSale = async (updatedSale) => {
  // Use functional state to get the absolutely latest old sale version
@@ -907,24 +993,6 @@ export const AppProvider = ({ children}) => {
  setMovementLog(prev => prev.filter(l => l.productId !== id));
 };
 
- const adjustStock = async (productId, amount, reason, source = 'ADJUSTMENT') => {
- const product = products.find(p => p.id === productId);
- if (!product) return;
- const updatedProduct = { ...product, stock: Math.max(0, product.stock + amount)};
- 
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('products').update({ stock: updatedProduct.stock}).eq('id', productId);
- if (error) {
- console.error("Error adjusting stock in Supabase:", error);
- addNotification(`Cloud Stock Sync Failed: ${error.message}`,"error");
- return;
-}
-}
-
- setProducts(products.map(p => p.id === productId ? updatedProduct : p));
- const type = amount > 0 ? 'IN' : 'OUT';
- logMovement(productId, product.name, type, Math.abs(amount), reason, currentUser?.id);
-};
 
  // Mock data generator removed
 
@@ -1063,97 +1131,98 @@ export const AppProvider = ({ children}) => {
  const { error} = await supabase.from('vehicles').delete().eq('id', vehicleId);
  if (error) {
  console.error("Error deleting vehicle from Supabase:", error);
- addNotification("Failed to delete vehicle from cloud","error");
- return;
 }
 }
- setVehicles(vehicles.filter(v => v.id !== vehicleId));
+setVehicles(vehicles.filter(v => v.id !== vehicleId));
  addNotification('Vehicle clearance revoked', 'success');
 };
 
  const dispatchRoute = async (routeData) => {
- const newRoute = {
- ...routeData,
- id: routeData.id || `RT-${Date.now()}`,
- status: 'ACTIVE',
- date: new Date().toISOString()
-};
+    const newRoute = {
+      ...routeData,
+      id: routeData.id || `RT-${Date.now()}`,
+      status: 'ACTIVE',
+      date: new Date().toISOString()
+    };
 
- if (isSupabaseConfigured) {
- const { error: routeError} = await supabase.from('routes').upsert(newRoute);
- if (routeError) {
- console.error("Error dispatching route to Supabase:", routeError);
- addNotification("Failed to dispatch route to cloud","error");
- return;
-}
-}
+    // 1. Ensure Vehicle Location Exists
+    let vehicleLoc = inventoryLocations.find(l => l.reference_id === routeData.vehicleId);
+    if (!vehicleLoc) {
+      const vName = getVehicleName(routeData.vehicleId);
+      const { data, error } = await supabase
+        .from('inventory_locations')
+        .insert({ name: vName, type: 'VEHICLE', reference_id: routeData.vehicleId })
+        .select()
+        .single();
+      
+      if (!error && data) {
+        vehicleLoc = data;
+        setInventoryLocations(prev => [...prev, data]);
+      }
+    }
 
- const updatedProducts = [...products];
- const stockUpdates = [];
+    if (isSupabaseConfigured) {
+      const { error: routeError} = await supabase.from('routes').upsert(newRoute);
+      if (routeError) {
+        console.error("Error dispatching route:", routeError);
+        return;
+      }
+    }
 
- for (const item of routeData.loadedStock) {
- const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
- if (pIndex > -1 && item.quantity > 0) {
- updatedProducts[pIndex].stock -= item.quantity;
- logMovement(item.productId, updatedProducts[pIndex].name, 'OUT', item.quantity, `Loaded onto Route ${newRoute.id}`, currentUser?.id);
- if (isSupabaseConfigured) {
- stockUpdates.push(supabase.from('products').update({ stock: updatedProducts[pIndex].stock}).eq('id', item.productId));
-}
-}
-}
+    // 2. Formal Stock Transfer: Warehouse -> Vehicle
+    for (const item of routeData.loadedStock) {
+      if (item.quantity > 0) {
+        // Remove from Warehouse (Legacy & Balance)
+        await adjustStock(item.productId, -item.quantity, `Loaded for Route ${newRoute.id}`, MAIN_WAREHOUSE_ID);
+        // Add to Vehicle
+        if (vehicleLoc) {
+          await adjustLocationStock(item.productId, item.quantity, vehicleLoc.id);
+        }
+      }
+    }
 
- if (stockUpdates.length > 0) {
- await Promise.all(stockUpdates);
-}
-
- setProducts(updatedProducts);
- setRoutes([newRoute, ...routes]);
-};
+    setRoutes([newRoute, ...routes]);
+    addNotification(`Route dispatched: ${getVehicleName(routeData.vehicleId)} inventory locked.`,"success");
+  };
 
  const reconcileRoute = async (routeId, finalOdometer, returnedStock, actualCash) => {
- const route = routes.find(r => r.id === routeId);
- if (!route) return;
+    const route = routes.find(r => r.id === routeId);
+    if (!route) return;
 
- const updatedRoute = {
- ...route,
- status: 'COMPLETED',
- final_odometer: finalOdometer,
- actual_cash: actualCash,
- reconciled_at: new Date().toISOString()
-};
+    const updatedRoute = {
+      ...route,
+      status: 'COMPLETED',
+      final_odometer: finalOdometer,
+      actual_cash: actualCash,
+      reconciled_at: new Date().toISOString()
+    };
 
- if (isSupabaseConfigured) {
- const { error: routeError} = await supabase.from('routes').upsert(updatedRoute);
- if (routeError) {
- console.error("Error reconciling route in Supabase:", routeError);
- addNotification("Failed to reconcile route in cloud","error");
- return;
-}
-}
+    if (isSupabaseConfigured) {
+      const { error: routeError} = await supabase.from('routes').upsert(updatedRoute);
+      if (routeError) {
+        console.error("Error reconciling route:", routeError);
+        return;
+      }
+    }
 
- const updatedProducts = [...products];
- const stockUpdates = [];
+    // Find Vehicle Location
+    const vehicleLoc = inventoryLocations.find(l => l.reference_id === route.vehicleId);
 
- for (const item of returnedStock) {
- if (item.quantity > 0) {
- const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
- if (pIndex > -1) {
- updatedProducts[pIndex].stock += item.quantity;
- logMovement(item.productId, updatedProducts[pIndex].name, 'IN', item.quantity, `Returned from Route ${routeId}`, currentUser?.id);
- if (isSupabaseConfigured) {
- stockUpdates.push(supabase.from('products').update({ stock: updatedProducts[pIndex].stock}).eq('id', item.productId));
-}
-}
-}
-}
+    // 3. Formal Stock Return: Vehicle -> Warehouse
+    for (const item of returnedStock) {
+      if (item.quantity > 0) {
+        // Return to Warehouse
+        await adjustStock(item.productId, item.quantity, `Returned from Route ${routeId}`, MAIN_WAREHOUSE_ID);
+        // Remove from Vehicle
+        if (vehicleLoc) {
+          await adjustLocationStock(item.productId, -item.quantity, vehicleLoc.id);
+        }
+      }
+    }
 
- if (stockUpdates.length > 0) {
- await Promise.all(stockUpdates);
-}
-
- setProducts(updatedProducts);
- setRoutes(routes.map(r => r.id === routeId ? updatedRoute : r));
-};
+    setRoutes(routes.map(r => r.id === routeId ? updatedRoute : r));
+    addNotification("Route reconciled: Remaining stock returned to warehouse.", "success");
+  };
 
  // ========== PAYROLL ==========
  const addEmployee = async (emp) => {
@@ -1536,75 +1605,107 @@ export const AppProvider = ({ children}) => {
  addNotification(`Category updated: ${newName}`, 'success');
 };
 
- const deleteExpenseCategory = async (name) => {
- const newCategories = expenseCategories.filter(c => c !== name);
- 
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories});
- if (error) {
- console.error("Error deleting expense category from Supabase:", error);
- addNotification("Failed to delete category from cloud","error");
- return;
-}
-}
+  const deleteExpenseCategory = async (name) => {
+    const newCategories = expenseCategories.filter(c => c !== name);
+    
+    if (isSupabaseConfigured) {
+      const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories});
+      if (error) {
+        console.error("Error deleting expense category from Supabase:", error);
+        addNotification("Failed to delete category from cloud","error");
+        return;
+      }
+    }
 
- setExpenseCategories(newCategories);
- addNotification(`Category removed: ${name}`, 'success');
-};
+    setExpenseCategories(newCategories);
+    addNotification(`Category removed: ${name}`, 'success');
+  };
+
+  const transferStock = async (fromLocId, toLocId, productId, qty, reason = 'Internal Transfer') => {
+    if (!fromLocId || !toLocId || !productId || qty <= 0) return;
+    
+    // 1. Deduct from Source
+    await adjustLocationStock(productId, -qty, fromLocId);
+    
+    // 2. Add to Destination
+    await adjustLocationStock(productId, qty, toLocId);
+    
+    // 3. Special Case: If moving TO/FROM Warehouse, update the legacy 'stock' column
+    if (fromLocId === MAIN_WAREHOUSE_ID || toLocId === MAIN_WAREHOUSE_ID) {
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        const delta = fromLocId === MAIN_WAREHOUSE_ID ? -qty : qty;
+        const updatedStock = Math.max(0, (product.stock || 0) + delta);
+        setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: updatedStock } : p));
+        if (isSupabaseConfigured) {
+          await supabase.from('products').update({ stock: updatedStock }).eq('id', productId);
+        }
+      }
+    }
+
+    const fromName = inventoryLocations.find(l => l.id === fromLocId)?.name || 'Source';
+    const toName = inventoryLocations.find(l => l.id === toLocId)?.name || 'Destination';
+    logMovement(productId, products.find(p => p.id === productId)?.name || 'Product', 'IN/OUT', qty, `${reason} (${fromName} -> ${toName})`, currentUser?.id);
+    addNotification(`Asset Transfer: ${qty} units moved to ${toName}`, "success");
+  };
 
  // Silent background refresh that updates state and cache without loading screens
  const refreshInBackground = async (userId) => {
  if (!isSupabaseConfigured) return;
  try {
- console.log("🔄 Running silent background refresh...");
- const [
- { data: productsData},
- { data: clientsData},
- { data: salesData},
- { data: expensesData},
- { data: employeesData},
- { data: payrollData},
- { data: businessData},
- { data: dayBookData},
- { data: settingsData},
- { data: paymentsData},
- { data: usersData},
- { data: vehiclesData},
- { data: movementData},
- { data: routesData},
- { data: purchasesData},
- { data: suppliersData},
- { data: categoriesData}
- ] = await Promise.all([
- supabase.from('products').select('*'),
- supabase.from('clients').select('*'),
- supabase.from('sales').select('*').order('date', { ascending: false}).limit(500),
- supabase.from('expenses').select('*').order('date', { ascending: false}).limit(500),
- supabase.from('employees').select('*'),
- supabase.from('payroll').select('*').order('processed_at', { ascending: false}).limit(100),
- supabase.from('business_profile').select('*').maybeSingle(),
- supabase.from('day_book').select('*').order('date', { ascending: false}).limit(31),
- supabase.from('settings').select('*'),
- supabase.from('client_payments').select('*').order('date', { ascending: false}).limit(500),
- supabase.from('users').select('*'),
- supabase.from('vehicles').select('*'),
- supabase.from('movement_log').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('routes').select('*').order('date', { ascending: false}).limit(100),
- supabase.from('purchases').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('suppliers').select('*').order('name', { ascending: true}),
- supabase.from('product_categories').select('*').order('name')
- ]);
+    console.log("🔄 Running silent background refresh...");
+    const [
+      { data: productsData},
+      { data: clientsData},
+      { data: salesData},
+      { data: expensesData},
+      { data: employeesData},
+      { data: payrollData},
+      { data: businessData},
+      { data: dayBookData},
+      { data: settingsData},
+      { data: paymentsData},
+      { data: usersData},
+      { data: vehiclesData},
+      { data: movementData},
+      { data: routesData},
+      { data: purchasesData},
+      { data: suppliersData},
+      { data: categoriesData},
+      { data: locationsData},
+      { data: balancesData}
+    ] = await Promise.all([
+      supabase.from('products').select('*'),
+      supabase.from('clients').select('*'),
+      supabase.from('sales').select('*').order('date', { ascending: false }).limit(500),
+      supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500),
+      supabase.from('employees').select('*'),
+      supabase.from('payroll').select('*').order('processed_at', { ascending: false }).limit(100),
+      supabase.from('business_profile').select('*').maybeSingle(),
+      supabase.from('day_book').select('*').order('date', { ascending: false }).limit(31),
+      supabase.from('settings').select('*'),
+      supabase.from('client_payments').select('*').order('date', { ascending: false }).limit(500),
+      supabase.from('users').select('*'),
+      supabase.from('vehicles').select('*'),
+      supabase.from('movement_log').select('*').order('date', { ascending: false }).limit(200),
+      supabase.from('routes').select('*').order('date', { ascending: false }).limit(100),
+      supabase.from('purchases').select('*').order('date', { ascending: false }).limit(200),
+      supabase.from('suppliers').select('*').order('name', { ascending: true }),
+      supabase.from('product_categories').select('*').order('name'),
+      supabase.from('inventory_locations').select('*'),
+      supabase.from('inventory_balances').select('*')
+    ]);
 
  // Update State Silently
- if (productsData) { setProducts(productsData); cacheSet('products', productsData);}
- if (categoriesData) { setProductCategories(categoriesData); cacheSet('product_categories', categoriesData);}
- if (clientsData) { setClients(clientsData); cacheSet('clients', clientsData);}
- if (salesData) { setSales(salesData); cacheSet('sales', salesData);}
- if (expensesData) { setExpenses(expensesData); cacheSet('expenses', expensesData);}
- if (usersData) { setUsers(usersData); cacheSet('users', usersData);}
- if (dayBookData) { setDayBook(dayBookData); cacheSet('day_book', dayBookData);}
- if (paymentsData) { setClientPayments(paymentsData); cacheSet('client_payments', paymentsData);}
- if (suppliersData) { setSuppliers(suppliersData); cacheSet('suppliers', suppliersData);}
+ if (productsData) setProducts(productsData);
+ if (categoriesData) setProductCategories(categoriesData);
+ if (clientsData) setClients(clientsData);
+ if (salesData) setSales(salesData);
+ if (expensesData) setExpenses(expensesData);
+ if (usersData) setUsers(usersData);
+ if (dayBookData) setDayBook(dayBookData);
+ if (paymentsData) setClientPayments(paymentsData);
+ if (suppliersData) setSuppliers(suppliersData);
  if (employeesData) {
  const mappedEmps = employeesData.map(emp => ({
  ...emp,
@@ -1615,7 +1716,6 @@ export const AppProvider = ({ children}) => {
  position: emp.position ?? emp.role ?? 'Standard Associate'
 }));
  setEmployees(mappedEmps);
- cacheSet('employees', mappedEmps);
 }
  if (payrollData) {
  const grouped = payrollData.reduce((acc, rec) => {
@@ -1633,12 +1733,11 @@ export const AppProvider = ({ children}) => {
 }, {});
  const records = Object.values(grouped);
  setPayrollRecords(records);
- cacheSet('payroll', records);
 }
- if (vehiclesData) { setVehicles(vehiclesData); cacheSet('vehicles', vehiclesData);}
- if (routesData) { setRoutes(routesData); cacheSet('routes', routesData);}
- if (purchasesData) { setPurchases(purchasesData); cacheSet('purchases', purchasesData);}
- if (businessData) { setBusinessProfile(businessData); cacheSet('business_profile', businessData);}
+ if (vehiclesData) setVehicles(vehiclesData);
+ if (routesData) setRoutes(routesData);
+ if (purchasesData) setPurchases(purchasesData);
+ if (businessData) setBusinessProfile(businessData);
  
  if (movementData) {
  const mappedLog = movementData.map(log => ({
@@ -1647,11 +1746,10 @@ export const AppProvider = ({ children}) => {
  userId: log.user_id, createdAt: log.created_at || log.date
 }));
  setMovementLog(mappedLog);
- cacheSet('movement_log', mappedLog);
 }
  if (settingsData) {
  const categories = settingsData.find(s => s.key === 'expense_categories');
- if (categories) { setExpenseCategories(categories.value); cacheSet('expense_categories', categories.value);}
+ if (categories) setExpenseCategories(categories.value);
 }
  
  setSyncStatus('SYNCED');
@@ -1700,14 +1798,26 @@ export const AppProvider = ({ children}) => {
  const cSuppliers = cacheGet('suppliers'); if (cSuppliers) setSuppliers(cSuppliers);
  const cMovement = cacheGet('movement_log'); if (cMovement) setMovementLog(cMovement);
  const cExpCategories = cacheGet('expense_categories'); if (cExpCategories) setExpenseCategories(cExpCategories);
+ const cLocations = cacheGet('inventory_locations'); if (cLocations) setInventoryLocations(cLocations);
+ const cBalances = cacheGet('inventory_balances'); if (cBalances) setInventoryBalances(cBalances);
+  
+  // --- BACKGROUND REFRESH & SEEDING ---
+  await refreshInBackground();
 
- setLoading(false);
- appInitialized.current = true;
- initializingRef.current = false;
- 
- // Trigger silent background refresh
- refreshInBackground();
- return;
+  // Ensurance IDempotent Seeding for WAREHOUSE
+  setInventoryLocations(current => {
+    if (!current.find(l => l.id === MAIN_WAREHOUSE_ID)) {
+      const warehouse = { id: MAIN_WAREHOUSE_ID, name: 'Main Warehouse', type: 'WAREHOUSE' };
+      supabase.from('inventory_locations').upsert(warehouse).then(() => {}); 
+      return [warehouse, ...current];
+    }
+    return current;
+  });
+
+  setLoading(false);
+  initializingRef.current = false;
+  appInitialized.current = true;
+  return;
 }
 
  // --- FULL FETCH (Cache Miss or Forced) ---
@@ -1754,15 +1864,15 @@ export const AppProvider = ({ children}) => {
  supabase.from('suppliers').select('*').order('name', { ascending: true})
  ]);
  
- if (productsData) { setProducts(productsData); cacheSet('products', productsData);}
- if (categoriesData) { setProductCategories(categoriesData); cacheSet('product_categories', categoriesData);}
- if (clientsData) { setClients(clientsData); cacheSet('clients', clientsData);}
- if (salesData) { setSales(salesData); cacheSet('sales', salesData);}
- if (expensesData) { setExpenses(expensesData); cacheSet('expenses', expensesData);}
- if (usersData) { setUsers(usersData); cacheSet('users', usersData);}
- if (dayBookData) { setDayBook(dayBookData); cacheSet('day_book', dayBookData);}
- if (paymentsData) { setClientPayments(paymentsData); cacheSet('client_payments', paymentsData);}
- if (suppliersData) { setSuppliers(suppliersData); cacheSet('suppliers', suppliersData);}
+ if (productsData) setProducts(productsData);
+ if (categoriesData) setProductCategories(categoriesData);
+ if (clientsData) setClients(clientsData);
+ if (salesData) setSales(salesData);
+ if (expensesData) setExpenses(expensesData);
+ if (usersData) setUsers(usersData);
+ if (dayBookData) setDayBook(dayBookData);
+ if (paymentsData) setClientPayments(paymentsData);
+ if (suppliersData) setSuppliers(suppliersData);
  
  if (employeesData) {
  const mappedEmps = employeesData.map(emp => ({
@@ -1774,7 +1884,6 @@ export const AppProvider = ({ children}) => {
  position: emp.position ?? emp.role ?? 'Standard Associate'
 }));
  setEmployees(mappedEmps);
- cacheSet('employees', mappedEmps);
 }
 
  if (payrollData) {
@@ -1793,13 +1902,12 @@ export const AppProvider = ({ children}) => {
 }, {});
  const records = Object.values(grouped);
  setPayrollRecords(records);
- cacheSet('payroll', records);
 }
 
- if (vehiclesData) { setVehicles(vehiclesData); cacheSet('vehicles', vehiclesData);}
- if (routesData) { setRoutes(routesData); cacheSet('routes', routesData);}
- if (purchasesData) { setPurchases(purchasesData); cacheSet('purchases', purchasesData);}
- if (businessData) { setBusinessProfile(businessData); cacheSet('business_profile', businessData);}
+ if (vehiclesData) setVehicles(vehiclesData);
+ if (routesData) setRoutes(routesData);
+ if (purchasesData) setPurchases(purchasesData);
+ if (businessData) setBusinessProfile(businessData);
  
  if (movementData) {
  const mappedLog = movementData.map(log => ({
@@ -1808,7 +1916,6 @@ export const AppProvider = ({ children}) => {
  userId: log.user_id, createdAt: log.created_at || log.date
 }));
  setMovementLog(mappedLog);
- cacheSet('movement_log', mappedLog);
 }
  
  if (settingsData) {
@@ -1941,6 +2048,7 @@ export const AppProvider = ({ children}) => {
  businessProfile, updateBusinessProfile, // Data
  productCategories, addProductCategory, updateProductCategory, deleteProductCategory,
  products, addProduct, updateProduct, deleteProduct, adjustStock,
+ inventoryLocations, inventoryBalances, adjustLocationStock, transferStock, MAIN_WAREHOUSE_ID, // Multi-location
  clients, addClient, updateClient, deleteClient,
  sales, orders, setOrders, placeSale, updateSale, deleteSale, settleSale,
  // Aligned aliases for backward compatibility (optional but helpful)
