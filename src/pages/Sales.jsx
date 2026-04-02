@@ -7,12 +7,14 @@ import {
  Layers, Wine, Utensils, Disc, Monitor, Box, Coffee 
 } from 'lucide-react';
 import PremiumInvoice from '../components/sales/PremiumInvoice';
+import InvoiceTemplate from '../components/invoice/InvoiceTemplate';
 
 const Sales = () => {
  const { 
  products, sales, orders, businessProfile, routes, dispatchRoute, 
  hasPermission, currentUser, clients, getShopName, placeSale, getEmployeeName, isViewOnly,
- inventoryLocations, MAIN_WAREHOUSE_ID, inventoryBalances
+ inventoryLocations, MAIN_WAREHOUSE_ID, inventoryBalances,
+ createInvoice, invoices
 } = useAppContext();
  const [selectedShopId, setSelectedShopId] = useState('WALKIN');
  const [customerInfo, setCustomerInfo] = useState({ name: 'Walk-in Customer', phone: ''});
@@ -24,6 +26,8 @@ const Sales = () => {
  const [invoiceData, setInvoiceData] = useState(null);
  const [lastOrderId, setLastOrderId] = useState(null);
  const [lastOrderTotal, setLastOrderTotal] = useState(0);
+ const [showGstInvoice, setShowGstInvoice] = useState(false);
+ const [generatedInvoice, setGeneratedInvoice] = useState(null);
  
  // Modal & Status State
  const [showPaymentModal, setShowPaymentModal] = useState(false);
@@ -276,20 +280,20 @@ const Sales = () => {
  <label className="block text-[10px] font-semibold text-[#4b5563] opacity-95 mb-1.5">Customer</label>
  <div className="relative">
  <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary opacity-70" />
- <input 
- type="text" 
- className="input-field !pl-12 !rounded-xl !py-2.5 !bg-surface !text-xs" 
- placeholder="Search customers..." 
- value={customerSearch || (selectedShopId === 'WALKIN' ? 'Default Walking Customer' : customerInfo.name)}
- onFocus={() => {
- setShowCustomerDropdown(true);
- setCustomerSearch('');
-}}
- onChange={e => {
- setCustomerSearch(e.target.value);
- setShowCustomerDropdown(true);
-}}
- />
+              <input 
+                type="text" 
+                className="input-field !pl-12 !rounded-xl !py-2.5 !bg-surface !text-xs" 
+                placeholder="Search customers..." 
+                value={showCustomerDropdown && customerSearch !== null ? customerSearch : (selectedShopId === 'WALKIN' ? 'Walk-in Customer' : customerInfo.name)}
+                onFocus={() => {
+                  setShowCustomerDropdown(true);
+                  setCustomerSearch('');
+                }}
+                onChange={e => {
+                  setCustomerSearch(e.target.value);
+                  setShowCustomerDropdown(true);
+                }}
+              />
  
  {showCustomerDropdown && (
  <div className="absolute top-full left-0 right-0 bg-surface rounded-bento border border-black/5 shadow-2xl z-[100] mt-4 max-h-[300px] overflow-hidden flex flex-col duration-500">
@@ -482,28 +486,83 @@ const Sales = () => {
  </div>
  </div>
 
- <div className="flex flex-col md:flex-row gap-4">
- <button className="flex-1 py-5 rounded-pill border border-black/10 font-semibold text-ink-primary hover:bg-black/5 transition-all text-[11px] flex items-center justify-center gap-3" 
- onClick={() => setShowInvoice(true)}>
- <Printer size={18} />
- VIEW INVOICE
- </button>
- <button className="btn-signature flex-1 h-16 !rounded-pill" onClick={() => setOrderComplete(false)}>
- NEW ORDER
- <div className="icon-nest">
- <ArrowRight size={22} />
- </div>
- </button>
- </div>
- </div>
+  <div className="flex flex-col gap-4 w-full">
+    <div className="flex flex-col md:flex-row gap-4">
+      <button className="flex-1 py-5 rounded-pill border border-black/10 font-semibold text-ink-primary hover:bg-black/5 transition-all text-[11px] flex items-center justify-center gap-3" 
+        onClick={() => setShowInvoice(true)}>
+        <Printer size={18} />
+        REGULAR SLIP
+      </button>
+      <button 
+        className="flex-1 py-5 rounded-pill bg-accent-signature/10 border border-accent-signature/20 font-bold text-ink-primary hover:bg-accent-signature/20 transition-all text-[11px] flex items-center justify-center gap-3"
+        onClick={async () => {
+          const clientObj = clients.find(c => c.id === selectedShopId);
+          const { calculateGST } = await import('../lib/gstEngine');
+          const gstData = calculateGST(invoiceData.items.map(i => ({
+            productId: i.productId,
+            name: i.name,
+            sku: i.sku,
+            qty: i.quantity,
+            rate: i.price,
+            taxRate: i.taxRate || 18
+          })), businessProfile.state, clientObj?.state || '');
 
- {showInvoice && invoiceData && (
- <PremiumInvoice 
- order={invoiceData} 
- business={businessProfile} 
- onClose={() => setShowInvoice(false)} 
- />
- )}
+          const inv = await createInvoice({
+            sale_id: lastOrderId,
+            client_id: selectedShopId === 'WALKIN' ? null : selectedShopId,
+            client_name: customerInfo.name,
+            items: gstData.items,
+            subtotal: gstData.subtotal,
+            discount_total: gstData.discount,
+            tax_total: gstData.totalTax,
+            cgst_amount: gstData.cgst,
+            sgst_amount: gstData.sgst,
+            igst_amount: gstData.igst,
+            grand_total: gstData.grandTotal,
+            round_off: gstData.roundOff,
+            amount_in_words: gstData.amountInWords,
+            is_interstate: gstData.isInterstate,
+            payment_method: invoiceData.paymentMethod,
+            payment_status: 'PAID',
+            invoice_date: new Date().toISOString().split('T')[0]
+          });
+
+          if (inv) {
+            setGeneratedInvoice(inv);
+            setShowGstInvoice(true);
+          }
+        }}
+      >
+        <FileText size={18} className="text-accent-signature" />
+        GENERATE GST INVOICE
+      </button>
+    </div>
+    <button className="btn-signature w-full h-16 !rounded-pill" onClick={() => setOrderComplete(false)}>
+      NEW ORDER
+      <div className="icon-nest">
+        <ArrowRight size={22} />
+      </div>
+    </button>
+  </div>
+  </div>
+
+  {showInvoice && invoiceData && (
+    <PremiumInvoice 
+      order={invoiceData} 
+      business={businessProfile} 
+      onClose={() => setShowInvoice(false)} 
+    />
+  )}
+
+  {showGstInvoice && generatedInvoice && (
+    <InvoiceTemplate 
+      invoice={generatedInvoice} 
+      businessProfile={businessProfile}
+      client={clients.find(c => c.id === (selectedShopId === 'WALKIN' ? null : selectedShopId))}
+      onClose={() => setShowGstInvoice(false)} 
+      onPrint={() => window.print()}
+    />
+  )}
  </div>
  );
 }

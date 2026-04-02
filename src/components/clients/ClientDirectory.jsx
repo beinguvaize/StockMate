@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
  UserCircle, Plus, Edit3, Trash2, Check, ExternalLink, 
  MapPin, Phone, AlertCircle, Search, TrendingUp, Users, CreditCard, Clock
@@ -17,12 +18,9 @@ const ClientDirectory = ({
  openEdit, 
  toggleStatus, 
  handleDelete, 
- hasPermission,
- setSelectedClientForPayment,
- setSelectedClientForStatement,
- setPaymentData,
- setPaymentError
+ hasPermission
 }) => {
+  const navigate = useNavigate();
  return (
  <div className="space-y-4">
  {/* Quick Stats & Controls - Deconstructed */}
@@ -152,7 +150,7 @@ const ClientDirectory = ({
  <div>
  <h3 
  className="text-xl font-bold text-ink-primary leading-tight hover:text-accent-signature transition-colors cursor-pointer flex items-center gap-2"
- onClick={() => setSelectedClientForStatement(client)}
+ onClick={() => navigate(`/clients/settle/${client.id}`)}
  >
  {client.name} <ExternalLink size={14} className="opacity-[0.85]" />
  </h3>
@@ -258,11 +256,7 @@ const ClientDirectory = ({
  {/* Call to Action Base */}
  <button 
  className="w-full py-3.5 px-4 rounded-xl border-2 border-transparent bg-canvas text-ink-primary text-xs font-black uppercase tracking-widest hover:border-ink-primary hover:bg-ink-primary hover:text-accent-signature transition-all duration-300 shadow-sm"
- onClick={() => {
- setSelectedClientForPayment(client);
- setPaymentData({ amount: client.outstanding_balance || '', date: new Date().toISOString().split('T')[0], notes: ''});
- setPaymentError('');
- }}
+ onClick={() => navigate(`/clients/settle/${client.id}`)}
  >
  Issue Payment Receipt
  </button>

@@ -18,6 +18,8 @@ import DayBook from './pages/DayBook';
 import Purchases from './pages/Purchases';
 import Suppliers from './pages/Suppliers';
 import Maintenance from './pages/Maintenance';
+import Invoices from './pages/Invoices';
+import ClientSettlement from './pages/ClientSettlement';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalLoading from './components/GlobalLoading';
@@ -74,6 +76,8 @@ function AppRoutes() {
         <Route path="daybook" element={<ProtectedRoute><DayBook /></ProtectedRoute>} />
         <Route path="purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
         <Route path="suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
+        <Route path="invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
+        <Route path="clients/settle/:id" element={<ProtectedRoute><ClientSettlement /></ProtectedRoute>} />
       </Route>
 
       {/* Catch-all: redirect to home (which will redirect based on auth) */}

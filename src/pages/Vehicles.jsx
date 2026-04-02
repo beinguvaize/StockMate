@@ -128,7 +128,7 @@ const Vehicles = () => {
  const vehicleRoutes = routes.filter(r => r.vehicleId === vId && r.status === 'COMPLETED');
  if (vehicleRoutes.length === 0) return '';
  const lastRoute = vehicleRoutes.sort((a,b) => new Date(b.reconciledAt) - new Date(a.reconciledAt))[0];
- return lastRoute.finalOdometer.toString();
+ return (lastRoute.finalOdometer || 0).toString();
 };
 
  const handleVehicleSubmit = (e) => {
@@ -402,7 +402,7 @@ const Vehicles = () => {
   </td>
  <td className="p-1.5 text-right">
  <div className="text-sm font-semibold text-ink-primary font-mono tabular-nums">
- {route.initialOdometer.toLocaleString()} <span className="text-[10px] opacity-20 ml-1">KM</span>
+ {(route.initialOdometer || 0).toLocaleString()} <span className="text-[10px] opacity-20 ml-1">KM</span>
  </div>
  </td>
  <td className="p-1.5 text-right">
@@ -461,7 +461,7 @@ const Vehicles = () => {
  <span className="text-[10px] font-semibold text-gray-700">{route.location || 'GLOBAL'}</span>
  </td>
  <td className="p-1.5 text-right text-sm font-semibold text-ink-primary whitespace-nowrap font-mono tabular-nums">
- {route.finalOdometer - route.initialOdometer} <span className="text-[10px] opacity-60 ml-1">NET KM</span>
+ {((route.finalOdometer || 0) - (route.initialOdometer || 0)).toLocaleString()} <span className="text-[10px] opacity-60 ml-1">NET KM</span>
  </td>
  <td className="p-1.5 text-right">
  <span className="px-3 py-1 rounded-pill bg-canvas text-ink-primary text-[9px] font-semibold border border-black/5 shadow-sm">
@@ -666,16 +666,17 @@ const Vehicles = () => {
       </span>
     </div>
     <div className="h-1 w-full bg-black/5 rounded-full overflow-hidden">
-      <div 
-        className="h-full bg-accent-signature shadow-[0_0_8px_rgba(200,255,0,0.4)]" 
-        style={{ 
-          width: `${Math.min(100, (
-            (() => {
-              const loc = inventoryLocations.find(l => l.reference_id === v.id);
-              return loc ? inventoryBalances.filter(b => b.location_id === loc.id).reduce((s, i) => s + (i.quantity || 0), 0) : 0;
-            })() / 100) * 100)}%` 
-        }} 
-      />
+    <div 
+    className="h-full bg-accent-signature shadow-[0_0_8px_rgba(200,255,0,0.4)]" 
+    style={{ 
+      width: `${Math.min(100, (
+        (() => {
+          const loc = inventoryLocations.find(l => l.reference_id === v.id);
+          const totalAssets = loc ? inventoryBalances.filter(b => b.location_id === loc.id).reduce((s, i) => s + (i.quantity || 0), 0) : 0;
+          return totalAssets / 100 * 100; // Simplified
+        })() || 0))}%` 
+    }} 
+  />
     </div>
   </div>
 

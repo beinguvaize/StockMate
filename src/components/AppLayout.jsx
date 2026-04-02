@@ -1,7 +1,7 @@
 import React, { useState, useRef} from 'react';
 import { NavLink, Outlet, Navigate} from 'react-router-dom';
 import { useAppContext} from '../context/AppContext';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown} from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText } from 'lucide-react';
 import NotificationStack from './NotificationStack';
 import GlobalLoading from './GlobalLoading';
 
@@ -73,7 +73,8 @@ const Navbar = () => {
  const primaryNavItems = [
  { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} />},
  { label: 'Inventory', path: '/inventory', icon: <Package size={20} />, hidden: !hasPermission('inventory', 'view')},
- { label: 'Sales', path: '/sales', icon: <ShoppingCart size={20} />, hidden: !hasPermission('sales', 'view')},
+  { label: 'Sales', path: '/sales', icon: <ShoppingCart size={20} />, hidden: !hasPermission('sales', 'view')},
+  { label: 'Invoices', path: '/invoices', icon: <FileText size={20} />, hidden: !hasPermission('sales', 'view')},
  { label: 'Reports', path: '/reports', icon: <BarChart3 size={20} />, hidden: !hasPermission('reports', 'view') || !isOwner},
  { label: 'Purchases', path: '/purchases', icon: <ShoppingBag size={20} />, hidden: !hasPermission('purchases', 'view')},
  { label: 'Pipeline', path: '/orders', icon: <ClipboardList size={20} />, hidden: !hasPermission('sales', 'view')},

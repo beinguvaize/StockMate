@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect} from 'react';
+﻿import React, { useMemo, useState, useEffect} from 'react';
 import { useAppContext} from '../context/AppContext';
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, LayoutDashboard, Activity, Users, Calendar} from 'lucide-react';
 import { useNavigate} from 'react-router-dom';
@@ -34,7 +34,7 @@ const Dashboard = () => {
  if (!dateStr) return false;
  const d = new Date(dateStr);
  d.setHours(0,0,0,0);
- const today = new Date();
+ const today = new Date(); // Marker
  today.setHours(0,0,0,0);
  
  if (datePreset === 'Today') {
@@ -106,7 +106,7 @@ const Dashboard = () => {
  // Chart 2: This Month vs Last Month
  const chart2Data = useMemo(() => {
  const data = [];
- const today = new Date();
+ const today = new Date(); // Marker
  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
  const thisMonthSales = {};
  const lastMonthSales = {};
@@ -137,7 +137,7 @@ const Dashboard = () => {
  let credit = 0;
  (sales || []).filter(s => {
  const d = new Date(s.date);
- const today = new Date();
+ const today = new Date(); // Marker
  return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
 }).forEach(s => {
  if (s.payment_type === 'cash' || s.paymentMethod === 'CASH') cash += (s.totalAmount || 0);
@@ -153,12 +153,16 @@ const Dashboard = () => {
 
  // Chart 4: Expenses by Category
  const chart4Data = useMemo(() => {
-  const categories = {};
-  (expenses || []).filter(e => isWithinRange(e.date)).forEach(e => {
-    categories[e.category] = (categories[e.category] || 0) + (e.amount || 0);
-  });
-  return Object.keys(categories).map(c => ({ name: c, value: categories[c]})).sort((a,b) => b.value - a.value);
-}, [expenses, datePreset, customRange]);
+ const categories = {};
+ (expenses || []).filter(e => {
+ const d = new Date(e.date);
+ const today = new Date(); // Marker
+ return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+}).forEach(e => {
+ categories[e.category] = (categories[e.category] || 0) + (e.amount || 0);
+});
+ return Object.keys(categories).map(c => ({ name: c, value: categories[c]})).sort((a,b) => b.value - a.value);
+}, [expenses]);
  
  // Recent Transactions
  const recentTransactions = useMemo(() => {
@@ -178,14 +182,14 @@ const Dashboard = () => {
  .slice(0, 5);
 }, [clients]);
 
-  // Expense Distribution by Category (Filtered)
-  const expenseByCategory = useMemo(() => {
-    const catMap = {};
-    (expenses || []).filter(e => isWithinRange(e.date)).forEach(exp => {
-      catMap[exp.category] = (catMap[exp.category] || 0) + (exp.amount || 0);
-    });
-    return Object.keys(catMap).map(name => ({ name, value: catMap[name]}));
-  }, [expenses, datePreset, customRange]);
+ // Expense Distribution by Category
+ const expenseByCategory = useMemo(() => {
+ const catMap = {};
+ (expenses || []).forEach(exp => {
+ catMap[exp.category] = (catMap[exp.category] || 0) + (exp.amount || 0);
+});
+ return Object.keys(catMap).map(name => ({ name, value: catMap[name]}));
+}, [expenses]);
 
  const COLORS = [
  '#3b82f6', // blue-500
@@ -205,7 +209,7 @@ const Dashboard = () => {
  // Activity Feed: Merged Timeline
  const activityFeed = useMemo(() => {
  const events = [];
- (sales || []).forEach(s => events.push({ id: `ord-${s.id}`, type: 'ORDER', title: `Sale ${s?.id?.slice(-4) || '...'}`, desc: `Client: ${s.customerName || 'Walk-in'} · ₹${s.totalAmount}`, date: s.date, icon: <ShoppingCart size={14} />, color: '#000'}));
+ (sales || []).forEach(s => events.push({ id: `ord-${s.id}`, type: 'ORDER', title: `Sale ${s?.id?.slice(-4) || '...'}`, desc: `Client: ${s.customerName || 'Walk-in'} Â· â‚¹${s.totalAmount}`, date: s.date, icon: <ShoppingCart size={14} />, color: '#000'}));
  (routes || []).forEach(r => events.push({ id: `rt-${r.id}`, type: 'ROUTE', title: r.status === 'ACTIVE' ? 'Route Dispatched' : 'Route Reconciled', desc: `Driver ID: ${r.driverId}`, date: r.status === 'ACTIVE' ? r.date : r.reconciledAt, icon: <Package size={14} />, color: r.status === 'ACTIVE' ? '#404040' : '#000'}));
  (movementLog || []).slice(0, 10).forEach(m => {
  events.push({ 
@@ -216,7 +220,7 @@ const Dashboard = () => {
  date: m.date, 
  icon: <TrendingUp size={14} />, 
  color: '#737373' 
- });
+});
 });
  
  return events
@@ -297,7 +301,7 @@ const Dashboard = () => {
  return orderedWeek.map(day => ({
  name: day,
  value: dayMap[day]
- }));
+}));
 }, [sales]);
 
  // System Status Check
@@ -421,7 +425,7 @@ const Dashboard = () => {
  <div className="relative z-10 flex flex-col h-full">
  <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">{datePreset} Sales</span>
  <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
+ <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || 'â‚¹'}</span>
  {Math.round(rangeSales).toLocaleString()}
  </div>
  </div>
@@ -435,7 +439,7 @@ const Dashboard = () => {
  <div className="relative z-10 flex flex-col h-full">
  <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">{datePreset} Expenses</span>
  <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
+ <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || 'â‚¹'}</span>
  {Math.round(rangeExpenses).toLocaleString()}
  </div>
  </div>
@@ -449,7 +453,7 @@ const Dashboard = () => {
  <div className="relative z-10 flex flex-col h-full">
  <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">Current Cash Balance</span>
  <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
+ <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || 'â‚¹'}</span>
  {Math.round(currentCashBalance).toLocaleString()}
  </div>
  </div>
@@ -463,7 +467,7 @@ const Dashboard = () => {
  <div className="relative z-10 flex flex-col h-full">
  <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">Outstanding Collections</span>
  <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
+ <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || 'â‚¹'}</span>
  {Math.round(totalOutstanding).toLocaleString()}
  </div>
  </div>
@@ -477,7 +481,7 @@ const Dashboard = () => {
  <div className="relative z-10 flex flex-col h-full">
  <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">{datePreset} Purchases</span>
  <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
+ <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || 'â‚¹'}</span>
  {Math.round(rangePurchases).toLocaleString()}
  </div>
  </div>
@@ -491,7 +495,7 @@ const Dashboard = () => {
  <div className="relative z-10 flex flex-col h-full">
  <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">Salary Pending</span>
  <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
+ <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || 'â‚¹'}</span>
  {Math.round(salariesPending).toLocaleString()}
  </div>
  </div>
@@ -515,7 +519,7 @@ const Dashboard = () => {
  <BarChart data={chart1Data} margin={{ top: 20, right: 10, left: -20, bottom: 0}}>
  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 700}} />
- <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `₹${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
+ <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `â‚¹${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
  <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
  <Bar dataKey="value" fill="#2563EB" radius={[4, 4, 0, 0]} barSize={32} />
  </BarChart>
@@ -550,7 +554,7 @@ const Dashboard = () => {
  </defs>
  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
  <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} />
- <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `₹${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
+ <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `â‚¹${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
  <RechartsTooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
  <Area type="monotone" dataKey="thisMonth" name="This Month" stroke="#2563EB" strokeWidth={2} fillOpacity={1} fill="url(#fillThisMonth)" />
  <Area type="monotone" dataKey="lastMonth" name="Last Month" stroke="#94A3B8" strokeWidth={2} strokeDasharray="5 5" fill="none" />
@@ -576,8 +580,8 @@ const Dashboard = () => {
  {chart3Data.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
  </Pie>
  <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" className="text-xs font-semibold text-gray-700 opacity-[0.85]">Total</text>
- <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" className="text-xl font-semibold text-ink-primary">₹{chart3Total.toLocaleString()}</text>
- <RechartsTooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} formatter={(value) => `₹${value.toLocaleString()}`} />
+ <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" className="text-xl font-semibold text-ink-primary">â‚¹{chart3Total.toLocaleString()}</text>
+ <RechartsTooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} formatter={(value) => `â‚¹${value.toLocaleString()}`} />
  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold'}} />
  </PieChart>
  </ResponsiveContainer>
@@ -598,9 +602,9 @@ const Dashboard = () => {
  <ResponsiveContainer width="100%" height="100%">
  <BarChart data={chart4Data} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0}}>
  <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="rgba(0,0,0,0.05)" />
- <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `₹${val > 999 ? (val/1000).toFixed(0) + 'k' : val}`} />
+ <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `â‚¹${val > 999 ? (val/1000).toFixed(0) + 'k' : val}`} />
  <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#1F2937', fontSize: 11, fontWeight: 700}} width={120} />
- <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} formatter={(value) => `₹${value.toLocaleString()}`} />
+ <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} formatter={(value) => `â‚¹${value.toLocaleString()}`} />
  <Bar dataKey="value" fill="#EF4444" radius={[0, 4, 4, 0]} barSize={24} />
  </BarChart>
  </ResponsiveContainer>
@@ -722,7 +726,7 @@ const Dashboard = () => {
  axisLine={false} 
  tickLine={false} 
  tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 500}}
- tickFormatter={(value) => `${businessProfile?.currencySymbol || '₹'}${value > 999 ? (value/1000).toFixed(1) + 'k' : value}`}
+ tickFormatter={(value) => `${businessProfile?.currencySymbol || 'â‚¹'}${value > 999 ? (value/1000).toFixed(1) + 'k' : value}`}
  dx={-10}
  />
  <RechartsTooltip 
@@ -731,7 +735,7 @@ const Dashboard = () => {
  border: 'none', 
  padding: '16px',
  boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' 
- }}
+}}
  itemStyle={{ fontWeight: 600, fontSize: '13px'}}
  labelStyle={{ color: '#6B7280', marginBottom: '8px', fontWeight: 500}}
  />
@@ -763,12 +767,12 @@ const Dashboard = () => {
  </div>
 
  {/* Category Sales & Weekly Performance Dual Card */}
-  <div className="bg-white p-5 rounded-[2rem] shadow-premium border border-black/5 flex flex-col gap-5">
-    <div className="flex justify-between items-center mb-2">
-      <h2 className="text-xl font-bold text-ink-primary">Analytics</h2>
-      <span className="text-xs font-bold px-3 py-1 bg-gray-100 rounded-full text-gray-700 uppercase tracking-wider">Expense Portfolio</span>
-    </div>
-  
+ <div className="bg-white p-5 rounded-[2rem] shadow-premium border border-black/5 flex flex-col gap-5">
+ <div className="flex justify-between items-center mb-2">
+ <h2 className="text-xl font-bold text-ink-primary">Analytics</h2>
+ <span className="text-xs font-bold px-3 py-1 bg-gray-100 rounded-full text-gray-700">Sales by Category</span>
+ </div>
+ 
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
  {/* Compact Category Distribution */}
  <div className="relative h-[300px] w-full">
@@ -783,7 +787,7 @@ const Dashboard = () => {
  ))}
  </defs>
  <Pie
-  data={expenseByCategory}
+ data={expenseByCategory}
  cx="60%"
  cy="50%"
  innerRadius={45}
@@ -807,7 +811,7 @@ const Dashboard = () => {
  border: 'none', 
  padding: '16px',
  boxShadow: '0 20px 40px -10px rgb(0 0 0 / 0.15)'
- }}
+}}
  />
  <Legend 
  layout="vertical"
@@ -841,7 +845,7 @@ const Dashboard = () => {
  axisLine={false} 
  tickLine={false} 
  tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}}
- tickFormatter={(val) => `${businessProfile?.currencySymbol || '₹'}${val > 1000 ? (val/1000).toFixed(0) + 'k' : val}`}
+ tickFormatter={(val) => `${businessProfile?.currencySymbol || 'â‚¹'}${val > 1000 ? (val/1000).toFixed(0) + 'k' : val}`}
  />
  <RechartsTooltip 
  cursor={{ fill: 'rgba(0,0,0,0.02)'}}
@@ -950,12 +954,12 @@ const Dashboard = () => {
  <div className="flex items-start justify-between">
  <div className="min-w-0 flex-1">
  <p className="font-bold text-ink-primary truncate text-sm">{emp.name}</p>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">{days} days × ₹{rate}</p>
+ <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">{days} days Ã— â‚¹{rate}</p>
  </div>
- <span className="bg-amber-500 text-white text-[10px] font-semibold px-2 py-1 rounded-lg shadow-sm shrink-0">₹{pending.toLocaleString()} Due</span>
+ <span className="bg-amber-500 text-white text-[10px] font-semibold px-2 py-1 rounded-lg shadow-sm shrink-0">â‚¹{pending.toLocaleString()} Due</span>
  </div>
  <div className="flex items-center justify-between">
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Paid: ₹{paid.toLocaleString()} / Total: ₹{total.toLocaleString()}</p>
+ <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Paid: â‚¹{paid.toLocaleString()} / Total: â‚¹{total.toLocaleString()}</p>
  <button onClick={() => navigate('/payroll')} className="shrink-0 bg-white border border-amber-200 text-amber-700 hover:bg-amber-600 hover:text-white transition-colors text-xs font-bold px-3 py-1 rounded-xl shadow-sm">
  Pay Now
  </button>
@@ -996,7 +1000,7 @@ const Dashboard = () => {
  </div>
  <div className="flex items-center gap-4 shrink-0">
  <p className={`text-sm font-semibold font-mono ${colorClass}`}>
- ₹{Math.round(out).toLocaleString()}
+ â‚¹{Math.round(out).toLocaleString()}
  </p>
  <button onClick={() => navigate('/clients')} className="bg-white text-ink-primary hover:bg-ink-primary hover:text-white transition-colors text-[10px] font-semibold px-2.5 py-1.5 rounded-lg shadow-sm">
  Collect
@@ -1060,10 +1064,10 @@ const Dashboard = () => {
  <td className="py-2 pr-4 text-right">
  <div className="flex items-center justify-end gap-1.5">
  <span className={`text-[10px] font-semibold ${tx.isPositive ? 'text-green-500' : 'text-red-500'}`}>
- {tx.isPositive ? '+' : '−'}
+ {tx.isPositive ? '+' : 'âˆ’'}
  </span>
  <p className={`text-sm font-bold font-mono ${tx.isPositive ? 'text-green-600' : 'text-red-600'}`}>
- ₹{Math.round(tx.amount || 0).toLocaleString()}
+ â‚¹{Math.round(tx.amount || 0).toLocaleString()}
  </p>
  </div>
  </td>

@@ -189,7 +189,7 @@ const Purchases = () => {
  <span className="px-3 py-1 rounded-pill bg-ink-primary/5 text-ink-primary text-[10px] font-semibold border border-black/5">
  {p.quantity} {product?.unit || 'units'}
  </span>
- <div className="text-[9px] font-bold text-gray-700 opacity-[0.85] mt-1">@ {businessProfile?.currencySymbol || '₹'}{p.unit_cost?.toLocaleString()}</div>
+ <div className="text-[9px] font-bold text-gray-700 opacity-[0.85] mt-1">@ {businessProfile?.currencySymbol || '₹'}{(p.unit_cost || p.unitCost || (p.total_amount / p.quantity) || 0).toLocaleString()}</div>
  </div>
  </td>
  <td className="p-4 text-center">
@@ -200,7 +200,7 @@ const Purchases = () => {
  </td>
  <td className="p-4 text-right pr-8">
  <div className="text-base font-semibold text-ink-primary">
- {businessProfile?.currencySymbol || '₹'}{p.total_cost?.toLocaleString()}
+ {businessProfile?.currencySymbol || '₹'}{(p.total_cost || p.total_amount || 0).toLocaleString()}
  </div>
  <div className="text-[9px] font-semibold text-gray-700 opacity-70">
  {new Date(p.date).toLocaleDateString()}

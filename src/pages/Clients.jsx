@@ -12,7 +12,7 @@ import ClientPayments from '../components/clients/ClientPayments';
 import ClientStatementViewer from '../components/clients/ClientStatementViewer';
 
 const Clients = () => {
- const { clients, addShop: addClient, updateShop: updateClient, deleteShop: deleteClient, sales, recordClientPayment, clientPayments, businessProfile, isViewOnly, hasPermission} = useAppContext();
+ const { clients, invoices, addShop: addClient, updateShop: updateClient, deleteShop: deleteClient, sales, clientPayments, businessProfile, hasPermission} = useAppContext();
  const [activeTab, setActiveTab] = useState('DIRECTORY'); // DIRECTORY, AGING, PAYMENTS, STATEMENTS
  const [searchTerm, setSearchTerm] = useState('');
  const [statusFilter, setStatusFilter] = useState('ALL');
@@ -21,44 +21,19 @@ const Clients = () => {
  const [formData, setFormData] = useState({ name: '', contact: '', phone: '', address: '', status: 'ACTIVE'});
  const [deleteConfirm, setDeleteConfirm] = useState(null);
  
- // Payment Modal State
- const [selectedClientForPayment, setSelectedClientForPayment] = useState(null);
- const [paymentData, setPaymentData] = useState({ amount: '', date: new Date().toISOString().split('T')[0], notes: ''});
- const [paymentError, setPaymentError] = useState('');
 
  // Statement State
  const [selectedClientForStatement, setSelectedClientForStatement] = useState(null);
 
  useEffect(() => {
- if (isAdding || selectedClientForPayment || selectedClientForStatement) {
+ if (isAdding || selectedClientForStatement) {
  document.body.style.overflow = 'hidden';
 } else {
  document.body.style.overflow = 'unset';
 }
  return () => { document.body.style.overflow = 'unset';};
-}, [isAdding, selectedClientForPayment, selectedClientForStatement]);
+}, [isAdding, selectedClientForStatement]);
 
- const handleRecordPaymentSubmit = async (e) => {
- e.preventDefault();
- setPaymentError('');
- const amount = parseFloat(paymentData.amount);
- if (isNaN(amount) || amount <= 0) {
- setPaymentError('Enter a valid amount');
- return;
-}
- if (amount > selectedClientForPayment.outstanding_balance) {
- setPaymentError('Amount exceeds outstanding balance');
- return;
-}
- 
- const res = await recordClientPayment(selectedClientForPayment.id, amount, paymentData.date, paymentData.notes);
- if (res?.success === false) {
- setPaymentError(res.error);
-} else {
- setSelectedClientForPayment(null);
- setPaymentData({ amount: '', date: new Date().toISOString().split('T')[0], notes: ''});
-}
-};
 
  const getClientStatement = (clientId) => {
  const clientSales = (sales || [])
@@ -142,6 +117,7 @@ const Clients = () => {
 });
 }, [clients, searchTerm, statusFilter]);
 
+
  const openAdd = () => {
  setEditingClient(null);
  setFormData({ name: '', contact: '', phone: '', address: '', status: 'ACTIVE'});
@@ -213,30 +189,23 @@ const Clients = () => {
 
  {/* Sub-Module Content */}
  <div className="min-h-[500px]">
- {activeTab === 'DIRECTORY' && (
- <ClientDirectory 
- filteredClients={filteredClients}
- clientStats={clientStats}
- topMetrics={topMetrics}
- businessProfile={businessProfile}
- searchTerm={searchTerm}
- setSearchTerm={setSearchTerm}
- statusFilter={statusFilter}
- setStatusFilter={setStatusFilter}
- openAdd={openAdd}
- openEdit={openEdit}
- toggleStatus={toggleStatus}
- handleDelete={handleDelete}
- hasPermission={hasPermission}
- setSelectedClientForPayment={setSelectedClientForPayment}
- setSelectedClientForStatement={(c) => { 
- setSelectedClientForStatement(c);
- setActiveTab('STATEMENTS');
-}}
- setPaymentData={setPaymentData}
- setPaymentError={setPaymentError}
- />
- )}
+  {activeTab === 'DIRECTORY' && (
+    <ClientDirectory 
+      filteredClients={filteredClients}
+      clientStats={clientStats}
+      topMetrics={topMetrics}
+      businessProfile={businessProfile}
+      searchTerm={searchTerm}
+      setSearchTerm={setSearchTerm}
+      statusFilter={statusFilter}
+      setStatusFilter={setStatusFilter}
+      openAdd={openAdd}
+      openEdit={openEdit}
+      toggleStatus={toggleStatus}
+      handleDelete={handleDelete}
+      hasPermission={hasPermission}
+    />
+  )}
 
  {activeTab === 'AGING' && (
  <ClientAging 
@@ -364,82 +333,6 @@ const Clients = () => {
  </div>
  </button>
  </div>
- </form>
- </div>
- </div>
- )}
-
- {/* Record Payment Modal */}
- {selectedClientForPayment && (
- <div className="modal-overlay z-50">
- <div className="glass-modal max-w-sm w-full mx-auto">
- <div className="flex justify-between items-start mb-5">
- <div>
- <h2 className="text-2xl font-semibold text-ink-primary leading-none mb-1">RECORD PAYMENT</h2>
- <p className="text-[10px] font-semibold text-[#4b5563] opacity-80">{selectedClientForPayment.name}</p>
- </div>
- <button
- onClick={() => setSelectedClientForPayment(null)}
- className="w-8 h-8 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary"
- >
- <X size={14} />
- </button>
- </div>
- 
- <form onSubmit={handleRecordPaymentSubmit} className="space-y-4">
- {paymentError && (
- <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-[10px] font-semibold rounded-lg flex items-center gap-2">
- <AlertCircle size={14} /> {paymentError}
- </div>
- )}
- 
- <div className="p-3 bg-canvas border border-black/5 rounded-xl flex justify-between items-center">
- <span className="text-[10px] font-semibold text-[#4b5563]">Current Balance</span>
- <span className="text-lg font-semibold font-mono text-red-500 tabular-nums">{businessProfile?.currencySymbol || '₹'}{Math.round(selectedClientForPayment.outstanding_balance || 0).toLocaleString()}</span>
- </div>
-
- <div>
- <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Amount Received</label>
- <div className="relative">
- <DollarSign size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary opacity-[0.85]" />
- <input 
- required 
- type="number" 
- step="0.01"
- min="0.01"
- max={selectedClientForPayment.outstanding_balance}
- className="w-full bg-canvas border-none rounded-xl pl-10 pr-4 py-2 font-semibold text-xl text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all font-mono" 
- placeholder="0.00"
- value={paymentData.amount} 
- onChange={e => setPaymentData({...paymentData, amount: e.target.value})} 
- />
- </div>
- </div>
- 
- <div>
- <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Payment Date</label>
- <input 
- required 
- type="date" 
- className="w-full bg-canvas border-none rounded-xl p-4 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
- value={paymentData.date} 
- onChange={e => setPaymentData({...paymentData, date: e.target.value})} 
- />
- </div>
-
- <div>
- <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Notes (Optional)</label>
- <textarea 
- className="w-full bg-canvas border-none rounded-xl p-4 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all resize-none h-20" 
- placeholder="CHEQUE NO, REF, ETC..."
- value={paymentData.notes} 
- onChange={e => setPaymentData({...paymentData, notes: e.target.value})} 
- />
- </div>
-
- <button type="submit" className="w-full mt-2 btn-signature !h-14 !text-xs flex items-center justify-center !rounded-xl">
- SAVE PAYMENT
- </button>
  </form>
  </div>
  </div>

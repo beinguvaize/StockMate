@@ -36,7 +36,11 @@ const INITIAL_BUSINESS = {
  email: '',
  website: '',
  phone: '',
- address: ''
+ address: '',
+ city: '',
+ state: '',
+ pincode: '',
+ logo_url: ''
 };
 
 const INITIAL_EXPENSE_CATEGORIES = ['General', 'Inventory', 'Logistics', 'Payroll', 'Utilities', 'Marketing', 'Rent', 'Other'];
@@ -116,7 +120,8 @@ export const AppProvider = ({ children}) => {
  const [dayBook, setDayBook] = useState([]);
  const [expenseCategories, setExpenseCategories] = useState(['Petrol', 'Food', 'Salary', 'Rent', 'Electricity', 'Water', 'Maintenance', 'Stationery', 'Travel', 'Marketing', 'Tax', 'Others']);
  const [inventoryLocations, setInventoryLocations] = useState([]);
- const [inventoryBalances, setInventoryBalances] = useState([]);
+  const [inventoryBalances, setInventoryBalances] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   
  const MAIN_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
  
@@ -751,7 +756,82 @@ export const AppProvider = ({ children}) => {
     return newSale.id;
   };
 
- const updateSale = async (updatedSale) => {
+  const createInvoice = async (invoiceData) => {
+    if (!isSupabaseConfigured) return;
+    setSyncStatus('SYNCING');
+    
+    // 1. Get atomic invoice number via RPC
+    const { data: invNumber, error: rpcError } = await supabase.rpc('get_next_invoice_number');
+    if (rpcError) {
+      console.error("Error getting invoice number:", rpcError);
+      addNotification("Numbering system failure", "error");
+      return;
+    }
+
+    const newInvoice = {
+      ...invoiceData,
+      id: generateUUID(),
+      invoice_number: invNumber,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // 2. Persist to Supabase
+    const { error } = await supabase.from('invoices').insert(newInvoice);
+    if (error) {
+      console.error("Error creating invoice:", error);
+      setSyncStatus('ERROR');
+      addNotification("Failed to save invoice to cloud", "error");
+      return;
+    }
+
+    setInvoices(prev => [newInvoice, ...prev]);
+    cacheSet('invoices', [newInvoice, ...invoices]);
+    setSyncStatus('SYNCED');
+    addNotification(`Invoice ${invNumber} generated!`, 'success');
+    return newInvoice;
+  };
+
+  const markInvoicePaid = async (invoiceId) => {
+    if (!isSupabaseConfigured) return;
+    
+    // Find invoice to get amount and client info
+    const inv = invoices.find(i => i.id === invoiceId);
+    if (!inv) return;
+
+    setSyncStatus('SYNCING');
+    
+    // 1. Update Invoice Status
+    const { error } = await supabase
+      .from('invoices')
+      .update({ payment_status: 'PAID' })
+      .eq('id', invoiceId);
+      
+    if (error) {
+       console.error("Error marking invoice paid:", error);
+       setSyncStatus('ERROR');
+       return;
+    }
+
+    // 2. If it's a client invoice, record the payment against their account
+    if (inv.client_id && inv.client_id !== 'POS-WALKIN' && inv.client_id !== 'WALKIN') {
+      await recordClientPayment(
+        inv.client_id, 
+        inv.grand_total, 
+        new Date().toISOString(), 
+        `Payment for Invoice #${inv.invoice_number}`,
+        [invoiceId]
+      );
+    }
+
+    setInvoices(prev => prev.map(item => 
+      item.id === invoiceId ? { ...item, payment_status: 'PAID' } : item
+    ));
+    setSyncStatus('SYNCED');
+    addNotification(`Invoice ${inv.invoice_number} settled successfully`, "success");
+  };
+
+  const updateSale = async (updatedSale) => {
  // Use functional state to get the absolutely latest old sale version
  let oldSale;
  setSales(prev => {
@@ -850,44 +930,69 @@ export const AppProvider = ({ children}) => {
  addNotification(`Payment of ${businessProfile?.currencySymbol || ''}${amount} received for Sale #${saleId.split('-').pop()}`, 'success');
 };
 
- // Task 4: Mark as Paid for Client
- const recordClientPayment = async (clientId, amount, paymentDate, notes) => {
- const client = clients.find(c => c.id === clientId);
- if (!client) return { success: false, error: 'Client not found'};
+ // Task 4: Mark as Paid for Client (Enhanced with Invoice Selection)
+  const recordClientPayment = async (clientId, amount, paymentDate, notes, selectedInvoiceIds = []) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return { success: false, error: 'Client not found'};
 
- if (amount > (client.outstanding_balance || 0)) {
- return { success: false, error: 'Amount exceeds outstanding balance'};
-}
+    const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
+    const updatedClient = { ...client, outstanding_balance: newBalance};
 
- const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
- const updatedClient = { ...client, outstanding_balance: newBalance};
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+      
+      // Update Client Balance
+      const { error: clientError } = await supabase.from('clients').upsert(updatedClient);
+      
+      // Update Selected Invoices if any
+      // For atomic settlement, we assume the invoice is fully paid.
+      if (selectedInvoiceIds.length > 0) {
+        for (const invId of selectedInvoiceIds) {
+          const inv = invoices.find(i => i.id === invId);
+          if (inv) {
+            await supabase
+              .from('invoices')
+              .update({ 
+                payment_status: 'PAID',
+                paid_amount: inv.grand_total 
+              })
+              .eq('id', invId);
+          }
+        }
+      }
 
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('clients').upsert(updatedClient);
- if (error) {
- console.error("Error recording client payment:", error);
- addNotification("Cloud Sync Delayed: Payment recorded locally","warning");
- // Fall through
-}
-}
+      if (clientError) {
+        console.error("Error recording client payment:", clientError);
+        setSyncStatus('ERROR');
+        addNotification("Cloud Sync Delayed: Payment recorded locally", "warning");
+      }
+    }
 
- const paymentRecord = {
- id: `CPAY-${Date.now()}`,
- client_id: clientId,
- amount: amount,
- date: paymentDate || new Date().toISOString(),
- notes: notes || ''
-};
- 
- if (isSupabaseConfigured) {
- await supabase.from('client_payments').insert(paymentRecord);
-}
+    const paymentRecord = {
+      id: `CPAY-${Date.now()}`,
+      client_id: clientId,
+      amount: amount,
+      date: paymentDate || new Date().toISOString(),
+      notes: notes || ''
+    };
+    
+    if (isSupabaseConfigured) {
+      await supabase.from('client_payments').insert(paymentRecord);
+    }
 
- setClients(clients.map(c => c.id === clientId ? updatedClient : c));
- setClientPayments(prev => [paymentRecord, ...prev]);
- addNotification(`Recorded payment of ${businessProfile?.currencySymbol || ''}${amount} from ${client.name}`,"success");
- return { success: true};
-};
+    // Update Local Invoices State
+    if (selectedInvoiceIds.length > 0) {
+      setInvoices(prev => prev.map(inv => 
+        selectedInvoiceIds.includes(inv.id) ? { ...inv, payment_status: 'PAID' } : inv
+      ));
+    }
+
+    setClients(clients.map(c => c.id === clientId ? updatedClient : c));
+    setClientPayments(prev => [paymentRecord, ...prev]);
+    addNotification(`Recorded payment of ${businessProfile?.currencySymbol || ''}${amount} from ${client.name}`,"success");
+    setSyncStatus('SYNCED');
+    return { success: true};
+  };
 
   const addProductCategory = async (categoryName) => {
     if (isSupabaseConfigured) {
@@ -1673,7 +1778,8 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
       { data: suppliersData},
       { data: categoriesData},
       { data: locationsData},
-      { data: balancesData}
+      { data: balancesData},
+      { data: invoicesData}
     ] = await Promise.all([
       supabase.from('products').select('*'),
       supabase.from('clients').select('*'),
@@ -1693,11 +1799,16 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
       supabase.from('suppliers').select('*').order('name', { ascending: true }),
       supabase.from('product_categories').select('*').order('name'),
       supabase.from('inventory_locations').select('*'),
-      supabase.from('inventory_balances').select('*')
+      supabase.from('inventory_balances').select('*'),
+      supabase.from('invoices').select('*').order('created_at', { ascending: false })
     ]);
 
  // Update State Silently
  if (productsData) setProducts(productsData);
+ if (invoicesData) {
+   setInvoices(invoicesData);
+   cacheSet('invoices', invoicesData);
+ }
  if (categoriesData) setProductCategories(categoriesData);
  if (clientsData) setClients(clientsData);
  if (salesData) setSales(salesData);
@@ -1800,6 +1911,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  const cExpCategories = cacheGet('expense_categories'); if (cExpCategories) setExpenseCategories(cExpCategories);
  const cLocations = cacheGet('inventory_locations'); if (cLocations) setInventoryLocations(cLocations);
  const cBalances = cacheGet('inventory_balances'); if (cBalances) setInventoryBalances(cBalances);
+ const cInvoices = cacheGet('invoices'); if (cInvoices) setInvoices(cInvoices);
   
   // --- BACKGROUND REFRESH & SEEDING ---
   await refreshInBackground();
@@ -1842,8 +1954,9 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  { data: vehiclesData},
  { data: movementData},
  { data: routesData},
- { data: purchasesData},
- { data: suppliersData}
+  { data: purchasesData},
+  { data: suppliersData},
+  { data: invoicesData}
  ] = await Promise.all([
  supabase.from('products').select('*'),
  supabase.from('product_categories').select('*').order('name'),
@@ -1861,7 +1974,8 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  supabase.from('movement_log').select('*').order('date', { ascending: false}).limit(200),
  supabase.from('routes').select('*').order('date', { ascending: false}).limit(100),
  supabase.from('purchases').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('suppliers').select('*').order('name', { ascending: true})
+ supabase.from('suppliers').select('*').order('name', { ascending: true}),
+ supabase.from('invoices').select('*').order('created_at', { ascending: false})
  ]);
  
  if (productsData) setProducts(productsData);
@@ -1872,7 +1986,12 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  if (usersData) setUsers(usersData);
  if (dayBookData) setDayBook(dayBookData);
  if (paymentsData) setClientPayments(paymentsData);
- if (suppliersData) setSuppliers(suppliersData);
+   if (suppliersData) setSuppliers(suppliersData);
+  if (invoicesData) {
+    setInvoices(invoicesData);
+    cacheSet('invoices', invoicesData);
+  }
+
  
  if (employeesData) {
  const mappedEmps = employeesData.map(emp => ({
@@ -2049,8 +2168,9 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  productCategories, addProductCategory, updateProductCategory, deleteProductCategory,
  products, addProduct, updateProduct, deleteProduct, adjustStock,
  inventoryLocations, inventoryBalances, adjustLocationStock, transferStock, MAIN_WAREHOUSE_ID, // Multi-location
- clients, addClient, updateClient, deleteClient,
- sales, orders, setOrders, placeSale, updateSale, deleteSale, settleSale,
+  clients, addClient, updateClient, deleteClient,
+  invoices, createInvoice, markInvoicePaid,
+  sales, orders, setOrders, placeSale, updateSale, deleteSale, settleSale,
  // Aligned aliases for backward compatibility (optional but helpful)
  addShop: addClient, updateShop: updateClient, deleteShop: deleteClient,
  placeOrder: placeSale, updateOrder: updateSale, deleteOrder: deleteSale, settleOrder: settleSale,
