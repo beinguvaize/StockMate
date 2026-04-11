@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { AppProvider, useAppContext } from './context/AppContext';
 import AppLayout from './components/AppLayout';
 import Login from './pages/Login';
@@ -20,6 +20,9 @@ import Suppliers from './pages/Suppliers';
 import Maintenance from './pages/Maintenance';
 import Invoices from './pages/Invoices';
 import ClientSettlement from './pages/ClientSettlement';
+import AdminPanel from './pages/AdminPanel';
+import TenantSetup from './pages/TenantSetup';
+import SuperAdminPortal from './pages/admin/SuperAdminPortal';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalLoading from './components/GlobalLoading';
@@ -28,40 +31,126 @@ import GlobalLoading from './components/GlobalLoading';
  * GuestRoute: Redirects authenticated users away from the login page.
  */
 const GuestRoute = ({ children }) => {
-  const { currentUser, loading } = useAppContext();
+  const { currentUser, loading, currentTenant } = useAppContext();
 
   if (loading) return <GlobalLoading />;
 
   if (currentUser) {
-    return <Navigate to="/dashboard" replace />;
+    if (currentTenant) {
+      return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
+    }
+    return <Navigate to="/setup" replace />;
   }
 
   return children;
 };
 
+/**
+ * TenantResolver: Validates the :tenantSlug param matches the user's tenant.
+ */
+const TenantResolver = ({ children }) => {
+  const { tenantSlug } = useParams();
+  const { currentTenant, loading, isImpersonating } = useAppContext();
+
+  if (loading) return <GlobalLoading />;
+
+  // Allow Global Admin impersonation — skip mismatch when bridging
+  if (currentTenant && tenantSlug !== currentTenant.slug && !isImpersonating) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-[#141c1a] p-6 text-center">
+        <div className="max-w-md w-full glass-panel border-[#dc2626]/20">
+          <div className="w-16 h-16 bg-[#dc2626]/10 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg className="w-8 h-8 text-[#dc2626]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </div>
+          <h1 className="text-xl font-bold text-white mb-2">Workspace Not Found</h1>
+          <p className="text-[#747576] text-sm mb-8 leading-relaxed">
+            The workspace <strong className="text-white">/{tenantSlug}</strong> does not exist or you don't have access.
+          </p>
+          <button 
+            onClick={() => window.location.href = `/${currentTenant?.slug || ''}/dashboard`} 
+            className="w-full bg-[#38e0a0] text-[#141c1a] font-bold py-3 rounded-xl hover:bg-[#2fb883] transition-colors"
+          >
+            Go to My Workspace
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return children;
+};
+
+/**
+ * RootRedirect: Sends / to /:tenantSlug/dashboard or /login
+ */
+const RootRedirect = () => {
+  const { currentUser, currentTenant, loading } = useAppContext();
+
+  if (loading) return <GlobalLoading />;
+
+  if (currentUser) {
+    if (currentTenant) {
+      return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
+    }
+    return <Navigate to="/setup" replace />;
+  }
+
+  return <Navigate to="/login" replace />;
+};
+
 function AppRoutes() {
-  const { isMaintenance, isOwner, loading } = useAppContext();
+  const { isMaintenance, isOwner, loading, hasRole } = useAppContext();
   const location = useLocation();
 
   if (loading) return <GlobalLoading />;
 
   // Global Maintenance Block: Allows owners to bypass, otherwise restricts all routes except login.
-  if (isMaintenance && !isOwner && location.pathname !== '/login') {
+  if (isMaintenance && !isOwner && location.pathname !== '/login' && !location.pathname.startsWith('/admin')) {
     return <Maintenance />;
   }
 
   return (
     <Routes>
+      {/* Root redirect */}
+      <Route path="/" element={<RootRedirect />} />
+
       {/* Public route: Login */}
       <Route path="/login" element={
         <GuestRoute>
           <Login />
         </GuestRoute>
       } />
+ 
+      {/* Onboarding: Setup Workspace */}
+      <Route path="/setup" element={
+        <ProtectedRoute>
+          <TenantSetup />
+        </ProtectedRoute>
+      } />
 
-      {/* Protected routes: All app pages */}
-      <Route path="/" element={<AppLayout />}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
+      {/* Super-Admin Panel (no tenant prefix, GLOBAL_ADMIN only) */}
+      <Route path="/admin" element={
+        <ProtectedRoute requireGlobalAdmin>
+          <AdminPanel />
+        </ProtectedRoute>
+      } />
+
+      {/* Hidden Super Admin Control Center: ONLY for GLOBAL_ADMIN */}
+      <Route path="/nexus-hq" element={
+        <ProtectedRoute requireGlobalAdmin={true}>
+          <SuperAdminPortal />
+        </ProtectedRoute>
+      } />
+
+      {/* Tenant-scoped routes */}
+      <Route path="/:tenantSlug" element={
+        <TenantResolver>
+          <AppLayout />
+        </TenantResolver>
+      }>
+        <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
@@ -80,7 +169,7 @@ function AppRoutes() {
         <Route path="clients/settle/:id" element={<ProtectedRoute><ClientSettlement /></ProtectedRoute>} />
       </Route>
 
-      {/* Catch-all: redirect to home (which will redirect based on auth) */}
+      {/* Catch-all: redirect to root */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -5,6 +5,7 @@ import {
  employeeSchema, clientSchema, dayBookSchema 
 } from '../lib/validation';
 import { cacheSet, cacheGet, cacheClear} from '../lib/cache';
+import { isModuleAvailable, getRequiredPlan, PLANS } from '../lib/tenancy';
 
 const AppContext = createContext();
 
@@ -98,6 +99,33 @@ export const AppProvider = ({ children}) => {
  
  // Auth Session — relies entirely on Supabase auth, no local persistence
  const [currentUser, setCurrentUser] = useState(null);
+
+ // Multi-Tenancy State
+ const [currentTenant, setCurrentTenant] = useState(() => {
+   try {
+     const stored = sessionStorage.getItem('nexus_impersonated_tenant');
+     return stored ? JSON.parse(stored) : null;
+   } catch { return null; }
+ });
+ const [isImpersonating, setIsImpersonating] = useState(sessionStorage.getItem('nexus_impersonating') === 'true');
+ const currentTenantId = currentTenant?.id || null;
+
+ const impersonateTenant = (tenant) => {
+   cacheClear();
+   setCurrentTenant(tenant);
+   setIsImpersonating(true);
+   sessionStorage.setItem('nexus_impersonating', 'true');
+   sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(tenant));
+   window.location.href = `/${tenant.slug}/dashboard`;
+ };
+
+ const stopImpersonating = () => {
+   setIsImpersonating(false);
+   sessionStorage.removeItem('nexus_impersonating');
+   sessionStorage.removeItem('nexus_impersonated_tenant');
+   cacheClear();
+   window.location.href = '/nexus-hq';
+ };
 
  // Core Data States (100% Cloud - No Local Initializers)
  const [users, setUsers] = useState([]);
@@ -291,13 +319,14 @@ export const AppProvider = ({ children}) => {
 
  const addUser = async (userData) => {
  const newUser = {
- id: userData.id || generateUUID(),
- name: userData.name,
- email: userData.email,
- roles: userData.roles || [userData.role || 'STAFF'],
- status: 'ACTIVE',
- permissions: userData.permissions || { ...DEFAULT_PERMISSIONS}
-};
+  id: userData.id || generateUUID(),
+  name: userData.name,
+  email: userData.email,
+  roles: userData.roles || [userData.role || 'STAFF'],
+  status: 'ACTIVE',
+  permissions: userData.permissions || { ...DEFAULT_PERMISSIONS},
+  tenant_id: currentTenantId
+ };
 
  if (isSupabaseConfigured && userData.password) {
  // Refactored to use official Supabase SDK for Edge Function invocation
@@ -308,7 +337,8 @@ export const AppProvider = ({ children}) => {
  password: userData.password,
  name: userData.name,
  roles: userData.roles || ['STAFF'],
- permissions: userData.permissions || { ...DEFAULT_PERMISSIONS}
+ permissions: userData.permissions || { ...DEFAULT_PERMISSIONS},
+ tenant_id: currentTenantId
 }
 });
 
@@ -396,7 +426,8 @@ export const AppProvider = ({ children}) => {
  const newClient = { 
  ...client, 
  id: client.id || `CLI-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
- outstanding_balance: client.outstanding_balance || 0
+ outstanding_balance: client.outstanding_balance || 0,
+ tenant_id: currentTenantId
 };
  
  const { status, ...dbClient} = newClient;
@@ -466,7 +497,8 @@ export const AppProvider = ({ children}) => {
  date: date || new Date().toISOString(),
  route_id: routeId,
  split_type: splitType || null,
- note: title || notes || ''
+ note: title || notes || '',
+ tenant_id: currentTenantId
 };
  
  if (isSupabaseConfigured) {
@@ -536,7 +568,8 @@ export const AppProvider = ({ children}) => {
  quantity, 
  reason, 
  user_id: userId,
- userId: userId
+ userId: userId,
+ tenant_id: currentTenantId
 };
 
  if (isSupabaseConfigured) {
@@ -1047,7 +1080,8 @@ export const AppProvider = ({ children}) => {
  ...product, 
  id: product.id || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, 
  stock: product.stock || 0, 
- taxRate: product.taxRate || 0 
+ taxRate: product.taxRate || 0,
+ tenant_id: currentTenantId
 };
 
  if (isSupabaseConfigured) {
@@ -1207,7 +1241,7 @@ export const AppProvider = ({ children}) => {
 };
 
  const addVehicle = async (vehicle) => {
- const newVehicle = { ...vehicle, id: vehicle.id || `VH-${Date.now()}`};
+ const newVehicle = { ...vehicle, id: vehicle.id || `VH-${Date.now()}`, tenant_id: currentTenantId};
  if (isSupabaseConfigured) {
  const { error} = await supabase.from('vehicles').upsert(newVehicle);
  if (error) {
@@ -1352,7 +1386,8 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  notes: emp.notes || null,
  daily_rate: emp.dailyRate || 0,
  days_worked: emp.daysWorked || 0,
- amount_paid: emp.amountPaid || 0
+ amount_paid: emp.amountPaid || 0,
+ tenant_id: currentTenantId
 };
  if (isSupabaseConfigured) {
  const { error} = await supabase.from('employees').upsert(newEmp);
@@ -1459,7 +1494,8 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  supplier_name: purchase.supplier_name || 'Unspecified',
  payment_type: purchase.payment_type || 'cash',
  notes: purchase.notes || '',
- created_at: new Date().toISOString()
+ created_at: new Date().toISOString(),
+ tenant_id: currentTenantId
 };
 
  if (isSupabaseConfigured) {
@@ -1516,7 +1552,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
 
  const addSupplier = async (supplier) => {
  const id = `SUP-${Date.now()}`;
- const newSupplier = { ...supplier, id, created_at: new Date().toISOString()};
+ const newSupplier = { ...supplier, id, created_at: new Date().toISOString(), tenant_id: currentTenantId};
  
  if (isSupabaseConfigured) {
  // CLEAN DB OBJECT
@@ -1624,7 +1660,8 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  const payload = {
  ...record,
  id: record.id || generateUUID(),
- created_at: record.created_at || new Date().toISOString()
+ created_at: record.created_at || new Date().toISOString(),
+ tenant_id: currentTenantId
 };
  if (isSupabaseConfigured) {
  const { error} = await supabase.from('day_book').upsert(payload);
@@ -1655,7 +1692,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
     if (!isSupabaseConfigured) return;
     
     try {
-      const payload = { ...profile, id: 'current' };
+      const payload = { ...profile, id: 'current', tenant_id: currentTenantId };
       const { error } = await supabase.from('business_profile').upsert(payload);
       
       if (error) {
@@ -2062,6 +2099,31 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
 
  const [authSession, setAuthSession] = useState(null);
 
+ // Resolve tenant from user profile (skip if impersonating another tenant)
+ const resolveTenant = async (userProfile) => {
+   if (!userProfile?.tenant_id) return;
+   // Do not override the impersonated tenant if the admin is bridging
+   if (sessionStorage.getItem("nexus_impersonating") === "true") return;
+   try {
+     const { data: tenant } = await supabase
+       .from('tenants')
+       .select('*')
+       .eq('id', userProfile.tenant_id)
+       .maybeSingle();
+     if (tenant) {
+       setCurrentTenant(tenant);
+     }
+   } catch (err) {
+     console.error('Failed to resolve tenant:', err);
+   }
+ };
+
+ // Plan-based module check
+ const isModuleAllowed = (moduleKey) => {
+   if (!currentTenant) return true;
+   return isModuleAvailable(currentTenant.plan, moduleKey);
+ };
+
  // Initial Session Resolver & Visibility Handler
  useEffect(() => {
  if (!isSupabaseConfigured) return;
@@ -2072,7 +2134,28 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  if (session) {
  setAuthSession(session);
  const { data: profile} = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
- if (profile) setCurrentUser(profile);
+ if (profile) {
+   setCurrentUser(profile);
+   
+   // Check if we are impersonating - if so, re-fetch the tenant to ensure we have the LATEST plan/status
+   const impersonated = sessionStorage.getItem('nexus_impersonated_tenant');
+   if (impersonated) {
+     try {
+       const tObj = JSON.parse(impersonated);
+       const { data: latestTenant } = await supabase.from('tenants').select('*').eq('id', tObj.id).maybeSingle();
+       if (latestTenant) {
+         setCurrentTenant(latestTenant);
+         sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(latestTenant));
+       } else {
+         setCurrentTenant(tObj);
+       }
+     } catch (e) {
+       console.warn("Nexus Sync Failed, using cache:", e);
+     }
+   } else {
+     await resolveTenant(profile);
+   }
+ }
  initializeApp(); // Cache-first init
 } else {
  setLoading(false);
@@ -2106,6 +2189,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  
  if (profile) {
  setCurrentUser(profile);
+ await resolveTenant(profile);
 } else {
  // AUTO-PROVISION SUPERUSER if first time login for owner
  const isSuperUser = session.user.email === 'uvaize@hotmail.com' || session.user.email === 'gladmin@ledgrpro.ca';
@@ -2141,6 +2225,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  cacheClear();
  setAuthSession(null);
  setCurrentUser(null);
+ setCurrentTenant(null);
  appInitialized.current = false;
  setLoading(false);
  if (typeof window !== 'undefined') {
@@ -2163,6 +2248,9 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
 
  const value = {
  currentUser, session: authSession || currentUser, isOwner, isStaff, login, logout,
+ // Multi-tenancy
+ currentTenant, currentTenantId, isModuleAllowed,
+ isImpersonating, impersonateTenant, stopImpersonating,
  syncStatus, isOnline, lastSyncedAt,
  businessProfile, updateBusinessProfile, // Data
  productCategories, addProductCategory, updateProductCategory, deleteProductCategory,

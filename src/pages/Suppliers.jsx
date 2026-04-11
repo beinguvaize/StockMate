@@ -242,18 +242,18 @@ const Suppliers = () => {
  </div>
 
  <div>
- <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Contact</label>
- <input required type="text" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="NAME..." value={formData.contact_person} onChange={e => setFormData({ ...formData, contact_person: e.target.value})} />
+ <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Contact (Optional)</label>
+ <input type="text" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="NAME..." value={formData.contact_person} onChange={e => setFormData({ ...formData, contact_person: e.target.value})} />
  </div>
 
  <div>
- <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Phone</label>
- <input required type="text" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="+91..." value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value})} />
+ <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Phone (Optional)</label>
+ <input type="text" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="+91..." value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value})} />
  </div>
 
  <div className="md:col-span-2">
- <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Email</label>
- <input required type="email" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="orders@partner.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value})} />
+ <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Email (Optional)</label>
+ <input type="email" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="orders@partner.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value})} />
  </div>
 
  <div className="md:col-span-2">

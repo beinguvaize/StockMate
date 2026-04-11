@@ -1,23 +1,30 @@
 import React, { useState} from 'react';
 import { useAppContext} from '../context/AppContext';
 import { 
- Settings as SettingsIcon, Building, Shield, Bell, Save, 
- CheckCircle2, Lock, Globe, Coins, ShieldCheck, 
- Database, RotateCcw, ChevronRight, Zap, Tag, Plus, Edit2, Trash2, X, FileUp, FileDown
+  Settings as SettingsIcon, Building, Shield, Bell, Save, 
+  CheckCircle2, Lock, Globe, Coins, ShieldCheck, 
+  Database, RotateCcw, ChevronRight, Zap, Tag, Plus, Edit2, Trash2, X, FileUp, FileDown,
+  Sparkles, Mail
 } from 'lucide-react';
 import DataTools from '../components/DataTools';
 
 const Settings = () => {
- const { 
- businessProfile, updateBusinessProfile, currentUser, hasPermission, 
- expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory 
-} = useAppContext();
+  const { 
+    businessProfile, updateBusinessProfile, currentUser, hasPermission, 
+    expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory,
+    currentTenant, updateTenant 
+  } = useAppContext();
+
+  const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN');
 
 
  const [newCategory, setNewCategory] = useState('');
  const [editingCategory, setEditingCategory] = useState(null);
  const [editValue, setEditValue] = useState('');
- const [showDataTools, setShowDataTools] = useState(false);
+  const [showDataTools, setShowDataTools] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [workspaceSlug, setWorkspaceSlug] = useState(currentTenant?.slug || '');
+  const [isUpdatingSlug, setIsUpdatingSlug] = useState(false);
 
  const [profileData, setProfileData] = useState({
  name: businessProfile.name || '',
@@ -275,7 +282,83 @@ const Settings = () => {
  </div>
  </div>
 
- {/* Expense Categories Management */}
+  {/* Workspace Management - OWNER ONLY */}
+  {isOwner && (
+    <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface mt-5">
+      <div className="bg-ink-primary p-6 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <Shield size={20} className="text-accent-signature" />
+          <h2 className="text-base font-bold font-semibold text-surface">Workspace Administration</h2>
+        </div>
+        <div className="flex items-center gap-2">
+           <span className="text-[10px] font-bold text-accent-signature uppercase tracking-wider">{currentTenant?.plan} TIER</span>
+        </div>
+      </div>
+      
+      <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+        {/* Plan Details */}
+        <div className="flex flex-col gap-4">
+          <div className="p-5 rounded-2xl bg-canvas border border-black/5">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-bold text-gray-700 uppercase">Current Plan</span>
+              <Sparkles size={16} className="text-accent-signature" />
+            </div>
+            <h3 className="text-3xl font-black text-ink-primary mb-2 uppercase tracking-tight">{currentTenant?.plan || 'STARTER'}</h3>
+            <p className="text-[10px] font-semibold text-gray-600 opacity-70 mb-6 leading-relaxed uppercase">
+              {currentTenant?.plan === 'STARTER' ? 'The foundational ledger for growing teams.' : 'Enterprise governance and advanced logistics active.'}
+            </p>
+            <button 
+              onClick={() => setShowUpgradeModal(true)}
+              className="w-full h-12 bg-ink-primary text-surface rounded-xl text-xs font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+            >
+              UPGRADE WORKSPACE <ChevronRight size={14} className="text-accent-signature" />
+            </button>
+          </div>
+        </div>
+
+        {/* Slug Management */}
+        <div className="flex flex-col gap-4">
+          <div className="p-5 rounded-2xl bg-canvas border border-black/5">
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Workspace Identifier (URL)</span>
+              <Globe size={16} className="text-accent-signature" />
+            </div>
+            <div className="relative group">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">/</span>
+              <input
+                type="text"
+                className="w-full !pl-8 !py-5 bg-surface border-none rounded-lg text-lg font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all uppercase"
+                value={workspaceSlug}
+                onChange={e => setWorkspaceSlug(e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''))}
+                placeholder="slug..."
+              />
+            </div>
+            <p className="text-[9px] font-semibold text-gray-500 mt-3 mb-6 uppercase italic">Changing this will update your login URL immediately.</p>
+            <button 
+              disabled={workspaceSlug === currentTenant?.slug || isUpdatingSlug}
+              onClick={async () => {
+                setIsUpdatingSlug(true);
+                const success = await updateTenant({ slug: workspaceSlug });
+                if (success) {
+                  window.location.href = `/${workspaceSlug}/settings`;
+                }
+                setIsUpdatingSlug(false);
+              }}
+              className={`w-full h-12 rounded-xl text-xs font-bold transition-all ${
+                workspaceSlug === currentTenant?.slug 
+                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                : 'bg-accent-signature text-ink-primary shadow-premium'
+              }`}
+            >
+              {isUpdatingSlug ? 'UPDATING WORKSPACE...' : 'UPDATE WORKSPACE URL'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )}
+
+  {/* Expense Categories Management */}
  <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
  <div className="bg-ink-primary p-6 flex items-center justify-between">
  <div className="flex items-center gap-4">
@@ -455,6 +538,52 @@ const Settings = () => {
 
  {/* DataTools Modal */}
  <DataTools isOpen={showDataTools} onClose={() => setShowDataTools(false)} />
+
+ {/* Upgrade Modal */}
+ {showUpgradeModal && (
+   <div className="modal-overlay">
+     <div className="glass-modal !max-w-md text-center p-8">
+       <div className="flex justify-center mb-10">
+         <div className="w-24 h-24 rounded-full bg-accent-signature/10 flex items-center justify-center text-accent-signature">
+           <Sparkles size={48} className="animate-pulse" />
+         </div>
+       </div>
+       <h2 className="text-3xl font-black text-ink-primary mb-4 uppercase tracking-tighter">Enter the Pro Tier<span className="text-accent-signature">.</span></h2>
+       <p className="text-sm font-semibold text-gray-700 opacity-70 mb-10 leading-relaxed uppercase">
+         Unlock high-density logistics tracking, enterprise RLS governance, and advanced sync engine capabilities.
+       </p>
+       
+       <div className="space-y-3 mb-10">
+         <div className="flex items-center gap-3 p-4 rounded-xl bg-canvas border border-black/5">
+           <div className="w-8 h-8 rounded-lg bg-ink-primary flex items-center justify-center text-accent-signature"><Database size={16} /></div>
+           <span className="text-[10px] font-bold text-ink-primary uppercase tracking-wide text-left">Advanced Multi-Tenant Governance</span>
+         </div>
+         <div className="flex items-center gap-3 p-4 rounded-xl bg-canvas border border-black/5">
+           <div className="w-8 h-8 rounded-lg bg-ink-primary flex items-center justify-center text-accent-signature"><Zap size={16} /></div>
+           <span className="text-[10px] font-bold text-ink-primary uppercase tracking-wide text-left">Real-time Logistics Replication</span>
+         </div>
+       </div>
+
+       <div className="grid grid-cols-1 gap-4">
+         <a 
+           href={`mailto:pro@ledgr.pro?subject=Upgrade Request: ${currentTenant?.name}`}
+           className="btn-signature !h-16 flex items-center justify-center !text-sm"
+         >
+           CONTACT ENTERPRISE SALES
+           <div className="icon-nest ml-4">
+             <Mail size={20} />
+           </div>
+         </a>
+         <button 
+           onClick={() => setShowUpgradeModal(false)}
+           className="px-6 py-4 text-[10px] font-bold text-gray-500 uppercase hover:text-ink-primary transition-all"
+         >
+           Close
+         </button>
+       </div>
+     </div>
+   </div>
+ )}
  </div>
  );
 };

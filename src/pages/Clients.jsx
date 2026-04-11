@@ -18,7 +18,7 @@ const Clients = () => {
  const [statusFilter, setStatusFilter] = useState('ALL');
  const [isAdding, setIsAdding] = useState(false);
  const [editingClient, setEditingClient] = useState(null);
- const [formData, setFormData] = useState({ name: '', contact: '', phone: '', address: '', status: 'ACTIVE'});
+ const [formData, setFormData] = useState({ name: '', contact: '', phone: '', email: '', address: '', status: 'ACTIVE'});
  const [deleteConfirm, setDeleteConfirm] = useState(null);
  
 
@@ -120,13 +120,13 @@ const Clients = () => {
 
  const openAdd = () => {
  setEditingClient(null);
- setFormData({ name: '', contact: '', phone: '', address: '', status: 'ACTIVE'});
+ setFormData({ name: '', contact: '', phone: '', email: '', address: '', status: 'ACTIVE'});
  setIsAdding(true);
 };
 
  const openEdit = (client) => {
  setEditingClient(client);
- setFormData({ name: client.name, contact: client.contact, phone: client.phone, address: client.address, status: client.status || 'ACTIVE'});
+ setFormData({ name: client.name, contact: client.contact, phone: client.phone, email: client.email || '', address: client.address, status: client.status || 'ACTIVE'});
  setIsAdding(true);
 };
 
@@ -140,7 +140,7 @@ const Clients = () => {
 }
  setIsAdding(false);
  setEditingClient(null);
- setFormData({ name: '', contact: '', phone: '', address: '', status: 'ACTIVE'});
+ setFormData({ name: '', contact: '', phone: '', email: '', address: '', status: 'ACTIVE'});
 };
 
  const toggleStatus = (client) => {
@@ -287,29 +287,38 @@ const Clients = () => {
  />
  </div>
  
- <div>
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Primary Contact</label>
- <input 
- required 
- type="text" 
- className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
- placeholder="PERSONNEL NAME..."
- value={formData.contact} 
- onChange={e => setFormData({...formData, contact: e.target.value})} 
- />
- </div>
+  <div>
+  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Primary Contact (Optional)</label>
+  <input 
+  type="text" 
+  className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
+  placeholder="PERSONNEL NAME..."
+  value={formData.contact} 
+  onChange={e => setFormData({...formData, contact: e.target.value})} 
+  />
+  </div>
 
- <div>
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Phone Number</label>
- <input 
- required 
- type="text" 
- className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums" 
- placeholder="+1 (000) 000-0000"
- value={formData.phone} 
- onChange={e => setFormData({...formData, phone: e.target.value})} 
- />
- </div>
+  <div>
+  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Phone Number (Optional)</label>
+  <input 
+  type="text" 
+  className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums" 
+  placeholder="+1 (000) 000-0000"
+  value={formData.phone} 
+  onChange={e => setFormData({...formData, phone: e.target.value})} 
+  />
+  </div>
+
+  <div className="md:col-span-2">
+  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Email Address (Optional)</label>
+  <input 
+  type="email" 
+  className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
+  placeholder="orders@clent.com"
+  value={formData.email} 
+  onChange={e => setFormData({...formData, email: e.target.value})} 
+  />
+  </div>
 
  <div className="md:col-span-2">
  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Account Status</label>

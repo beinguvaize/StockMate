@@ -56,7 +56,7 @@ class ErrorBoundary extends React.Component {
  
  <div className="grid grid-cols-2 gap-4">
  <button 
- onClick={() => window.location.href = '/dashboard'}
+ onClick={() => window.location.href = '/'}
  className="flex items-center justify-center gap-2 bg-gray-50 text-ink-primary font-bold py-2 rounded-lg hover:bg-gray-100 transition-all text-xs"
  >
  <Home className="w-4 h-4" />

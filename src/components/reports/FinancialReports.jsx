@@ -1,4 +1,5 @@
 import React, { useMemo} from 'react';
+import { useNavigate, useParams} from 'react-router-dom';
 import { 
  ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, 
  Tooltip, BarChart, Bar, Cell, PieChart, Pie, Legend
@@ -7,6 +8,8 @@ import { DollarSign, TrendingUp, CreditCard, PieChart as PieChartIcon, ArrowUpRi
 import { downloadCSV} from '../../utils/csvExport';
 
 const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
+  const navigate = useNavigate();
+  const { tenantSlug } = useParams();
  // 1a. P&L Statement Aggregation
  const plData = useMemo(() => {
  const monthlyData = {};
@@ -292,9 +295,12 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
  </div>
  </div>
 
- <button className="mt-8 w-full py-2 border border-black/10 rounded-pill text-[10px] font-semibold text-ink-primary hover:bg-black/5 transition-all">
- View Detailed Ledger
- </button>
+  <button 
+    onClick={() => navigate(`/${tenantSlug}/daybook`)}
+    className="mt-8 w-full py-2 border border-black/10 rounded-pill text-[10px] font-semibold text-ink-primary hover:bg-black/5 transition-all text-center"
+  >
+  View Detailed Ledger
+  </button>
  </div>
  </div>
  </div>

@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
 import { useAppContext, AVAILABLE_ROLES, DEFAULT_PERMISSIONS, MODULES_CONFIG} from '../context/AppContext';
+import { supabase } from '../lib/supabase';
 import { 
  ShieldCheck, User, Plus, Trash2, Edit3, X, Check, 
  Eye, Save, Package, Truck, Lock, ShieldAlert,
@@ -90,26 +91,42 @@ const Users = () => {
 });
 };
 
- const handleSubmit = async (e) => {
- e.preventDefault();
- if (isSaving) return;
- 
- setIsSaving(true);
- try {
- if (editingUser) {
- await updateUser({ ...editingUser, ...formData});
-} else {
- await addUser(formData);
-}
- setIsAdding(false);
- setEditingUser(null);
- setFormData({ name: '', email: '', roles: ['SALES']});
-} catch (err) {
- console.error("Form submission error:", err);
-} finally {
- setIsSaving(false);
-}
-};
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      if (editingUser) {
+        // Update local profile
+        await updateUser({ ...editingUser, ...formData });
+      } else {
+        // Create both Auth and User record via Edge Function
+        const { data, error: fnError } = await supabase.functions.invoke('dynamic-service', {
+          body: {
+            email: formData.email,
+            password: formData.password,
+            name: formData.name,
+            roles: formData.roles || ['STAFF'],
+          }
+        });
+
+        if (fnError) throw fnError;
+        if (data?.error) throw new Error(data.error);
+
+        // Update local state to reflect new user
+        await addUser(formData); 
+      }
+      setIsAdding(false);
+      setEditingUser(null);
+      setFormData({ name: '', email: '', roles: ['STAFF'], permissions: { ...DEFAULT_PERMISSIONS } });
+    } catch (err) {
+      console.error("Staff management error:", err);
+      alert(err.message || "Failed to process staff record");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
  const toggleStatus = (user) => {
  updateUser({ ...user, status: user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'});
@@ -377,12 +394,36 @@ const Users = () => {
  return (
  <div 
  key={role.id}
- onClick={() => {
- setFormData(prev => ({
- ...prev,
- roles: isSelected ? ['STAFF'] : [role.id]
-}));
-}}
+  onClick={() => {
+    const ROLE_PERMISSIONS_MAP = {
+      ADMIN: Object.keys(DEFAULT_PERMISSIONS).reduce((acc, key) => ({
+        ...acc,
+        [key]: { view: true, edit: true }
+      }), {}),
+      SALES: {
+        ...DEFAULT_PERMISSIONS,
+        sales: { view: true, edit: true },
+        clients: { view: true, edit: true },
+        daybook: { view: true, edit: true }
+      },
+      INVENTORY: {
+        ...DEFAULT_PERMISSIONS,
+        inventory: { view: true, edit: true },
+        purchases: { view: true, edit: true },
+        suppliers: { view: true, edit: true }
+      },
+      VIEW_ONLY: Object.keys(DEFAULT_PERMISSIONS).reduce((acc, key) => ({
+        ...acc,
+        [key]: { view: true, edit: false }
+      }), {})
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      roles: isSelected ? ['STAFF'] : [role.id],
+      permissions: isSelected ? { ...DEFAULT_PERMISSIONS } : (ROLE_PERMISSIONS_MAP[role.id] || prev.permissions)
+    }));
+  }}
  className={`p-2 rounded-lg border-2 cursor-pointer transition-all flex items-center gap-2 group ${
  isSelected 
  ? 'bg-ink-primary border-ink-primary text-surface shadow-premium' 
