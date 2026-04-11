@@ -2243,7 +2243,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  // Initial load removed (handled in auth useEffect above)
 
 
- const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN') || currentUser?.role?.toLowerCase() === 'owner' || currentUser?.email === 'uvaize@hotmail.com';
+ const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN');
  const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.role?.toLowerCase() === 'staff';
 
  const value = {

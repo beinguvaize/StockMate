@@ -463,10 +463,16 @@ const SuperAdminPortal = () => {
                     <button
                       key={plan}
                       onClick={async () => {
-                        const { error } = await supabase.from('tenants').update({ plan }).eq('id', selectedTenant.id);
-                        if (!error) {
+                        try {
+                          const { error } = await supabase.from('tenants').update({ plan }).eq('id', selectedTenant.id);
+                          if (error) throw error;
+                          
                           setSelectedTenant({ ...selectedTenant, plan });
                           fetchGlobalData();
+                          addNotification(`${selectedTenant.name} upgraded to ${plan}`, 'success');
+                        } catch (err) {
+                          console.error("Plan switch error:", err);
+                          addNotification(`Upgrade failed: ${err.message}`, 'error');
                         }
                       }}
                       className={`px-3 py-4 rounded-2xl border text-center transition-all ${

@@ -25,12 +25,6 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false }) {
  return <Navigate to="/login" state={{ from: location }} replace />;
  }
 
- // GLOBAL ADMIN BYPASS (Safety first)
- const userEmail = currentUser?.email || session?.user?.email;
- if (userEmail === 'uvaize@hotmail.com' || userEmail === 'gladmin@ledgrpro.ca') {
- return children;
- }
-
  // Global Admin route guard
  if (requireGlobalAdmin) {
    const roles = currentUser?.roles || [];
