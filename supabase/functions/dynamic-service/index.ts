@@ -27,14 +27,14 @@ serve(async (req) => {
     if (callerError || !caller) throw new Error("Unauthorized");
 
     const { data: adminProfile } = await supabaseAdmin
-      .from("profiles")
+      .from("users")
       .select("tenant_id, roles")
       .eq("id", caller.id)
       .single();
 
     if (!adminProfile?.tenant_id) throw new Error("Admin must belong to a tenant");
 
-    const { email, password, name, roles, tenant_id: requestedTenantId } = await req.json();
+    const { email, password, name, roles, permissions, tenant_id: requestedTenantId } = await req.json();
 
     // Determine target tenant: Default to caller's tenant, but allow override if GLOBAL_ADMIN
     let targetTenantId = adminProfile.tenant_id;
@@ -56,7 +56,7 @@ serve(async (req) => {
       email,
       password,
       email_confirm: true,
-      user_metadata: { name, roles, tenant_id: targetTenantId },
+      user_metadata: { name, roles, permissions, tenant_id: targetTenantId },
     });
 
     if (authError) {
@@ -84,6 +84,7 @@ serve(async (req) => {
       email,
       name,
       roles: roles || ["STAFF"],
+      permissions: permissions || {},
       status: "ACTIVE",
       tenant_id: targetTenantId
     });
@@ -93,7 +94,7 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ id: userId, email, name, roles, tenant_id: targetTenantId }),
+      JSON.stringify({ id: userId, email, name, roles, permissions, tenant_id: targetTenantId }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
 

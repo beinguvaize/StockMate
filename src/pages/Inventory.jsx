@@ -375,12 +375,14 @@ const Inventory = () => {
                               </button>
                             </>
                           )}
-                          <button 
-                            onClick={() => handleAdjust(product.id, 1)}
-                            className="w-12 h-12 rounded-pill bg-accent-signature flex items-center justify-center shadow-premium hover:scale-110 active:scale-95 transition-all"
-                          >
-                            <Plus size={18} strokeWidth={4} />
-                          </button>
+                          {hasPermission('MANAGE_INVENTORY') && (
+                            <button 
+                              onClick={() => handleAdjust(product.id, 1)}
+                              className="w-12 h-12 rounded-pill bg-accent-signature flex items-center justify-center shadow-premium hover:scale-110 active:scale-95 transition-all"
+                            >
+                              <Plus size={18} strokeWidth={4} />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -434,13 +436,15 @@ const Inventory = () => {
                 <div className="md:col-span-2">
                   <div className="flex justify-between items-center mb-1.5 ml-1">
                     <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] uppercase tracking-tight">Category</label>
-                    <button 
-                      type="button"
-                      onClick={() => setShowCategoryManager(true)}
-                      className="text-[10px] font-bold text-accent-signature hover:underline flex items-center gap-1"
-                    >
-                      <Pencil size={8} /> EDIT
-                    </button>
+                    {hasPermission('MANAGE_INVENTORY') && (
+                      <button 
+                        type="button"
+                        onClick={() => setShowCategoryManager(true)}
+                        className="text-[10px] font-bold text-accent-signature hover:underline flex items-center gap-1"
+                      >
+                        <Pencil size={8} /> EDIT
+                      </button>
+                    )}
                   </div>
                   <select 
                     className="w-full bg-canvas border-none rounded-xl p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all appearance-none shadow-sm" 

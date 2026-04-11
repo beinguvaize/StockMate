@@ -23,26 +23,24 @@ const MODULE_ICONS = {
 };
 
 const ROLE_ICONS = {
- ADMIN: ShieldCheck,
- SALES: User,
- INVENTORY: Package,
- FLEET: Truck,
- VIEW_ONLY: Eye,
+  OWNER: ShieldCheck,
+  SALES: User,
+  INVENTORY: Package,
+  STAFF: Fingerprint,
 };
 
 const ROLE_COLORS = {
- ADMIN: { bg: 'rgba(17, 17, 17, 0.05)', color: '#111111'},
- SALES: { bg: 'rgba(200, 241, 53, 0.1)', color: '#111111'},
- INVENTORY: { bg: 'rgba(79, 70, 229, 0.05)', color: '#4f46e5'},
- FLEET: { bg: 'rgba(59, 130, 246, 0.05)', color: '#3b82f6'},
- VIEW_ONLY: { bg: 'rgba(116, 117, 118, 0.05)', color: '#747576'},
+  OWNER: { bg: 'rgba(59, 130, 246, 0.05)', color: '#3b82f6'},
+  SALES: { bg: 'rgba(16, 185, 129, 0.05)', color: '#10b981'},
+  INVENTORY: { bg: 'rgba(79, 70, 229, 0.05)', color: '#4f46e5'},
+  STAFF: { bg: 'rgba(116, 117, 118, 0.05)', color: '#747576'},
 };
 
 const INTERNAL_ROLES = [
- { id: 'ADMIN', label: 'System Architect', description: 'Full Unrestricted Access'},
- { id: 'SALES', label: 'Commercial Agent', description: 'Sales & Client Relations'},
- { id: 'INVENTORY', label: 'Logistics Lead', description: 'Stock & Warehouse'},
- { id: 'VIEW_ONLY', label: 'Auditor', description: 'Read-only Access'},
+  { id: 'OWNER', label: 'Owner of Tenant', description: 'Full access to all modules'},
+  { id: 'SALES', label: 'Sales Template', description: 'Sales, Clients & Day Book'},
+  { id: 'INVENTORY', label: 'Inventory Template', description: 'Inventory, Purchases & Suppliers'},
+  { id: 'CUSTOM', label: 'Custom Template', description: 'Manual permission mapping'},
 ];
 
 const Users = () => {
@@ -101,21 +99,9 @@ const Users = () => {
         // Update local profile
         await updateUser({ ...editingUser, ...formData });
       } else {
-        // Create both Auth and User record via Edge Function
-        const { data, error: fnError } = await supabase.functions.invoke('dynamic-service', {
-          body: {
-            email: formData.email,
-            password: formData.password,
-            name: formData.name,
-            roles: formData.roles || ['STAFF'],
-          }
-        });
-
-        if (fnError) throw fnError;
-        if (data?.error) throw new Error(data.error);
-
-        // Update local state to reflect new user
-        await addUser(formData); 
+        // Create both Auth and User record via centralized AppContext method
+        const success = await addUser(formData); 
+        if (!success) return; 
       }
       setIsAdding(false);
       setEditingUser(null);
@@ -396,7 +382,7 @@ const Users = () => {
  key={role.id}
   onClick={() => {
     const ROLE_PERMISSIONS_MAP = {
-      ADMIN: Object.keys(DEFAULT_PERMISSIONS).reduce((acc, key) => ({
+      OWNER: Object.keys(DEFAULT_PERMISSIONS).reduce((acc, key) => ({
         ...acc,
         [key]: { view: true, edit: true }
       }), {}),
@@ -412,10 +398,7 @@ const Users = () => {
         purchases: { view: true, edit: true },
         suppliers: { view: true, edit: true }
       },
-      VIEW_ONLY: Object.keys(DEFAULT_PERMISSIONS).reduce((acc, key) => ({
-        ...acc,
-        [key]: { view: true, edit: false }
-      }), {})
+      CUSTOM: { ...DEFAULT_PERMISSIONS }
     };
 
     setFormData(prev => ({

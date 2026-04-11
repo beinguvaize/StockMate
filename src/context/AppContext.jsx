@@ -79,8 +79,10 @@ export const MODULES_CONFIG = [
 
 export const AVAILABLE_ROLES = [
  { id: 'GLOBAL_ADMIN', label: 'Global Admin', color: 'bg-purple-100 text-purple-700'},
- { id: 'OWNER', label: 'Owner/Manager', color: 'bg-blue-100 text-blue-700'},
- { id: 'STAFF', label: 'Staff/Operator', color: 'bg-gray-100 text-gray-700'}
+ { id: 'OWNER', label: 'Owner of Tenant', color: 'bg-blue-100 text-blue-700'},
+ { id: 'SALES', label: 'Sales Role', color: 'bg-emerald-100 text-emerald-700'},
+ { id: 'INVENTORY', label: 'Inventory Role', color: 'bg-indigo-100 text-indigo-700'},
+ { id: 'STAFF', label: 'Custom Access', color: 'bg-gray-100 text-gray-700'}
 ];
 
 export const generateUUID = () => {
@@ -1028,51 +1030,118 @@ export const AppProvider = ({ children}) => {
   };
 
   const addProductCategory = async (categoryName) => {
+    if (!categoryName?.trim()) return null;
+    
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      const { data, error } = await supabase.from('product_categories').insert({ name: categoryName }).select();
-      if (error) {
-        console.error("Error adding category:", error);
-        setSyncStatus('ERROR');
-        addNotification("Failed to add category: " + error.message, "error");
-        return null;
+      try {
+        console.log(`[Category] Adding "${categoryName}" for tenant: ${currentTenantId}`);
+        
+        if (!currentTenantId) {
+          addNotification("System error: Business context not loaded. Please refresh.", "error");
+          console.error("Category addition aborted: currentTenantId is null");
+          setSyncStatus('ERROR');
+          return null;
+        }
+
+        const { data, error } = await supabase.from('product_categories').insert({ 
+          name: categoryName,
+          tenant_id: currentTenantId
+        }).select();
+
+        if (error) {
+          console.error("Error adding product category to Supabase:", error);
+          if (error.code === '23505') {
+            addNotification(`Category "${categoryName}" already exists for your business.`, "warning");
+          } else {
+            addNotification(`Cloud Sync Failed: ${error.message}`, "error");
+          }
+          setSyncStatus('ERROR');
+          return null;
+        }
+
+        if (data && data[0]) {
+          setProductCategories(prev => {
+            if (prev.some(cat => cat.id === data[0].id)) return prev;
+            return [...prev, data[0]].sort((a, b) => a.name.localeCompare(b.name));
+          });
+          addNotification(`Category added: ${categoryName}`, 'success');
+          return data[0];
+        }
+      } catch (err) {
+        console.error("Exception in addProductCategory:", err);
+        addNotification("An unexpected error occurred", "error");
+      } finally {
+        setSyncStatus('SYNCED');
       }
-      setProductCategories(prev => [...prev, data[0]]);
-      setSyncStatus('SYNCED');
-      return data[0];
+    } else {
+      const newCat = { id: generateUUID(), name: categoryName, tenant_id: 'local' };
+      setProductCategories(prev => [...prev, newCat].sort((a, b) => a.name.localeCompare(b.name)));
+      return newCat;
     }
-    const newCat = { id: generateUUID(), name: categoryName };
-    setProductCategories(prev => [...prev, newCat]);
-    return newCat;
   };
 
   const updateProductCategory = async (updatedCategory) => {
+    if (!updatedCategory?.id || !updatedCategory?.name) return;
+
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      const { error } = await supabase.from('product_categories').update({ name: updatedCategory.name }).eq('id', updatedCategory.id);
-      if (error) {
-        setSyncStatus('ERROR');
-        addNotification("Failed to update category: " + error.message, "error");
-        return;
+      try {
+        const { error } = await supabase.from('product_categories')
+          .update({ name: updatedCategory.name })
+          .eq('id', updatedCategory.id)
+          .eq('tenant_id', currentTenantId);
+
+        if (error) {
+          console.error("Error updating product category in Supabase:", error);
+          addNotification(`Update Failed: ${error.message}`, "error");
+          setSyncStatus('ERROR');
+          return;
+        }
+
+        setProductCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c).sort((a, b) => a.name.localeCompare(b.name)));
+        addNotification(`Category updated: ${updatedCategory.name}`, 'success');
+      } catch (err) {
+        console.error("Exception in updateProductCategory:", err);
+      } finally {
+        setSyncStatus('SYNCED');
       }
-      setSyncStatus('SYNCED');
+    } else {
+      setProductCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c).sort((a, b) => a.name.localeCompare(b.name)));
     }
-    setProductCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
   };
 
   const deleteProductCategory = async (categoryId) => {
+    if (!categoryId) return false;
+
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      const { error } = await supabase.from('product_categories').delete().eq('id', categoryId);
-      if (error) {
-        setSyncStatus('ERROR');
-        addNotification("Failed to delete category: " + error.message, "error");
+      try {
+        const { error } = await supabase.from('product_categories')
+          .delete()
+          .eq('id', categoryId)
+          .eq('tenant_id', currentTenantId);
+
+        if (error) {
+          console.error("Error deleting product category from Supabase:", error);
+          addNotification(`Delete Failed: ${error.message}`, "error");
+          setSyncStatus('ERROR');
+          return false;
+        }
+
+        setProductCategories(prev => prev.filter(c => c.id !== categoryId));
+        addNotification("Category deleted", "success");
+        return true;
+      } catch (err) {
+        console.error("Exception in deleteProductCategory:", err);
         return false;
+      } finally {
+        setSyncStatus('SYNCED');
       }
-      setSyncStatus('SYNCED');
+    } else {
+      setProductCategories(prev => prev.filter(c => c.id !== categoryId));
+      return true;
     }
-    setProductCategories(prev => prev.filter(c => c.id !== categoryId));
-    return true;
   };
 
  const addProduct = async (product) => {
@@ -1152,7 +1221,7 @@ export const AppProvider = ({ children}) => {
  const hasRole = (role) => {
  // GLOBAL OVERRIDE (resilient to profile fetch failure)
  const email = currentUser?.email || authSession?.user?.email;
- if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
+  if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
 
  if (!currentUser) return false;
  
@@ -1168,7 +1237,7 @@ export const AppProvider = ({ children}) => {
  const hasPermission = (moduleOrLegacy, action = 'view') => {
  // GLOBAL OVERRIDE (resilient to profile fetch failure)
  const email = currentUser?.email || authSession?.user?.email;
- if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
+  if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
 
  if (!currentUser) return false;
  
@@ -1191,6 +1260,7 @@ export const AppProvider = ({ children}) => {
  'VIEW_EXPENSES': permissions.expenses?.view,
  'RECORD_SALE': permissions.sales?.edit,
  'VIEW_STOCK': permissions.inventory?.view,
+ 'MANAGE_INVENTORY': permissions.inventory?.edit,
  'VIEW_FLEET': permissions.vehicles?.view,
  'ADD_CLIENT': permissions.clients?.edit,
  'EDIT_CLIENT': permissions.clients?.edit,
@@ -1564,6 +1634,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  email: supplier.email,
  address: supplier.address,
  notes: supplier.notes || '',
+ tenant_id: currentTenantId,
  created_at: new Date().toISOString()
 };
  const { error} = await supabase.from('suppliers').insert(dbSupplier);
@@ -2192,7 +2263,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  await resolveTenant(profile);
 } else {
  // AUTO-PROVISION SUPERUSER if first time login for owner
- const isSuperUser = session.user.email === 'uvaize@hotmail.com' || session.user.email === 'gladmin@ledgrpro.ca';
+  const isSuperUser = session.user.email === 'uvaize@hotmail.com' || session.user.email === 'gladmin@ledgrpro.ca';
  const newUserProfile = {
  id: session.user.id,
  email: session.user.email,
