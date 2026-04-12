@@ -6,6 +6,7 @@ import {
 } from '../lib/validation';
 import { cacheSet, cacheGet, cacheClear} from '../lib/cache';
 import { isModuleAvailable, getRequiredPlan, PLANS } from '../lib/tenancy';
+import { logError } from '../lib/errorLogger';
 
 const AppContext = createContext();
 
@@ -79,10 +80,8 @@ export const MODULES_CONFIG = [
 
 export const AVAILABLE_ROLES = [
  { id: 'GLOBAL_ADMIN', label: 'Global Admin', color: 'bg-purple-100 text-purple-700'},
- { id: 'OWNER', label: 'Owner of Tenant', color: 'bg-blue-100 text-blue-700'},
- { id: 'SALES', label: 'Sales Role', color: 'bg-emerald-100 text-emerald-700'},
- { id: 'INVENTORY', label: 'Inventory Role', color: 'bg-indigo-100 text-indigo-700'},
- { id: 'STAFF', label: 'Custom Access', color: 'bg-gray-100 text-gray-700'}
+ { id: 'OWNER', label: 'Owner/Manager', color: 'bg-blue-100 text-blue-700'},
+ { id: 'STAFF', label: 'Staff/Operator', color: 'bg-gray-100 text-gray-700'}
 ];
 
 export const generateUUID = () => {
@@ -215,10 +214,20 @@ export const AppProvider = ({ children}) => {
           product_id: productId, 
           location_id: locationId, 
           quantity: newQty,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          tenant_id: currentTenantId
         }, { onConflict: 'product_id,location_id' });
         
-      if (error) console.error("Error adjusting location stock:", error);
+      if (error) {
+        console.error("Error adjusting location stock:", error);
+        logError({
+          module: 'Inventory',
+          action: 'Adjust Location Stock',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'Medium'
+        });
+      }
     }
   };
 
@@ -232,7 +241,22 @@ export const AppProvider = ({ children}) => {
       const updatedProduct = { ...product, stock: Math.max(0, (product.stock || 0) + amount)};
       setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p));
       if (isSupabaseConfigured) {
-        await supabase.from('products').update({ stock: updatedProduct.stock }).eq('id', productId);
+        const { error } = await supabase
+          .from('products')
+          .update({ stock: updatedProduct.stock })
+          .eq('id', productId)
+          .eq('tenant_id', currentTenantId);
+
+        if (error) {
+          console.error("Error adjusting product stock in Supabase:", error);
+          logError({
+            module: 'Inventory',
+            action: 'Adjust Stock',
+            error_code: error.code,
+            error_message: error.message,
+            severity: 'Medium'
+          });
+        }
       }
     }
 
@@ -744,15 +768,24 @@ export const AppProvider = ({ children}) => {
  note: salesmanNote,
  booked_by: currentUser?.id,
  route_id: routeId,
- scheduled_date: scheduledDate
+ scheduled_date: scheduledDate,
+ tenant_id: currentTenantId
 };
 
  const { error: insertError} = await supabase.from('sales').insert(dbSale);
- if (insertError) {
- setSyncStatus('ERROR');
- addNotification(`Critical: Failed to save sale. Please check connection.`,"error");
- return null;
-}
+  if (insertError) {
+  console.error("Error creating sale fallback:", insertError);
+  logError({
+    module: 'Sales',
+    action: 'Place Sale (Fallback)',
+    error_code: insertError.code,
+    error_message: insertError.message,
+    severity: 'High'
+  });
+  setSyncStatus('ERROR');
+  addNotification(`Critical: Failed to save sale. Please check connection.`,"error");
+  return null;
+ }
  addNotification(`Warning: Atomic sync failed, used legacy fallback.`,"warning");
 }
  setSyncStatus('SYNCED');
@@ -808,13 +841,21 @@ export const AppProvider = ({ children}) => {
       id: generateUUID(),
       invoice_number: invNumber,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      tenant_id: currentTenantId
     };
 
     // 2. Persist to Supabase
     const { error } = await supabase.from('invoices').insert(newInvoice);
     if (error) {
       console.error("Error creating invoice:", error);
+      logError({
+        module: 'Invoices',
+        action: 'Create Invoice',
+        error_code: error.code,
+        error_message: error.message,
+        severity: 'High'
+      });
       setSyncStatus('ERROR');
       addNotification("Failed to save invoice to cloud", "error");
       return;
@@ -840,10 +881,18 @@ export const AppProvider = ({ children}) => {
     const { error } = await supabase
       .from('invoices')
       .update({ payment_status: 'PAID' })
-      .eq('id', invoiceId);
+      .eq('id', invoiceId)
+      .eq('tenant_id', currentTenantId);
       
     if (error) {
        console.error("Error marking invoice paid:", error);
+       logError({
+         module: 'Invoices',
+         action: 'Mark Invoice Paid',
+         error_code: error.code,
+         error_message: error.message,
+         severity: 'Medium'
+       });
        setSyncStatus('ERROR');
        return;
     }
@@ -884,7 +933,8 @@ export const AppProvider = ({ children}) => {
  ...rest, 
  shopId: clientId || updatedSale.shopId, 
  status: saleStatus,
- note: salesmanNote || updatedSale.note
+ note: salesmanNote || updatedSale.note,
+ tenant_id: currentTenantId
 };
  
  // Cleanup fields that don't exist in the DB schema
@@ -892,12 +942,19 @@ export const AppProvider = ({ children}) => {
  delete dbSale.salesmanNote;
 
  const { error} = await supabase.from('sales').upsert(dbSale);
- if (error) {
- console.error("Error updating sale in Supabase:", error);
- setSyncStatus('ERROR');
- addNotification("Failed to update sale in cloud","error");
- return;
-} else {
+  if (error) {
+  console.error("Error updating sale in Supabase:", error);
+  logError({
+    module: 'Sales',
+    action: 'Update Sale',
+    error_code: error.code,
+    error_message: error.message,
+    severity: 'Medium'
+  });
+  setSyncStatus('ERROR');
+  addNotification("Failed to update sale in cloud","error");
+  return;
+ } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
 }
@@ -920,12 +977,19 @@ export const AppProvider = ({ children}) => {
  await reconcileSaleEffects(sale, null);
 
  if (isSupabaseConfigured) {
- const { error} = await supabase.from('sales').delete().eq('id', saleId);
- if (error) {
- console.error("Error deleting sale from Supabase:", error);
- addNotification("Failed to delete sale from cloud","error");
- return;
-}
+  const { error} = await supabase.from('sales').delete().eq('id', saleId).eq('tenant_id', currentTenantId);
+  if (error) {
+  console.error("Error deleting sale from Supabase:", error);
+  logError({
+    module: 'Sales',
+    action: 'Delete Sale',
+    error_code: error.code,
+    error_message: error.message,
+    severity: 'Medium'
+  });
+  addNotification("Failed to delete sale from cloud","error");
+  return;
+ }
 }
  setSales(prev => prev.filter(s => s.id !== saleId));
  addNotification("Sale deleted and stock reversed","success");
@@ -943,14 +1007,21 @@ export const AppProvider = ({ children}) => {
  lastPaymentDate: new Date().toISOString()
 };
 
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('sales').upsert(updatedSale);
- if (error) {
- console.error("Error settling sale in Supabase:", error);
- addNotification("Cloud Sync Delayed: Payment recorded locally","warning");
- // Fall through
-}
-}
+  if (isSupabaseConfigured) {
+    const { error } = await supabase.from('sales').upsert({ ...updatedSale, tenant_id: currentTenantId });
+    if (error) {
+      console.error("Error settling sale in Supabase:", error);
+      logError({
+        module: 'Sales',
+        action: 'Settle Sale (Payment)',
+        error_code: error.code,
+        error_message: error.message,
+        severity: 'Medium'
+      });
+      addNotification("Cloud Sync Delayed: Payment recorded locally", "warning");
+      // Fall through
+    }
+  }
 
  // Also update client persistent balance if it was a credit sale
  if (sale.paymentMethod === 'CREDIT' || sale.paymentMethod === 'credit') {
@@ -977,7 +1048,7 @@ export const AppProvider = ({ children}) => {
       setSyncStatus('SYNCING');
       
       // Update Client Balance
-      const { error: clientError } = await supabase.from('clients').upsert(updatedClient);
+      const { error: clientError } = await supabase.from('clients').upsert({ ...updatedClient, tenant_id: currentTenantId });
       
       // Update Selected Invoices if any
       // For atomic settlement, we assume the invoice is fully paid.
@@ -991,13 +1062,21 @@ export const AppProvider = ({ children}) => {
                 payment_status: 'PAID',
                 paid_amount: inv.grand_total 
               })
-              .eq('id', invId);
+              .eq('id', invId)
+              .eq('tenant_id', currentTenantId);
           }
         }
       }
 
       if (clientError) {
         console.error("Error recording client payment:", clientError);
+        logError({
+          module: 'Clients',
+          action: 'Record Client Payment (Balance Update)',
+          error_code: clientError.code,
+          error_message: clientError.message,
+          severity: 'High'
+        });
         setSyncStatus('ERROR');
         addNotification("Cloud Sync Delayed: Payment recorded locally", "warning");
       }
@@ -1008,11 +1087,22 @@ export const AppProvider = ({ children}) => {
       client_id: clientId,
       amount: amount,
       date: paymentDate || new Date().toISOString(),
-      notes: notes || ''
+      notes: notes || '',
+      tenant_id: currentTenantId
     };
     
     if (isSupabaseConfigured) {
-      await supabase.from('client_payments').insert(paymentRecord);
+      const { error: payErr } = await supabase.from('client_payments').insert(paymentRecord);
+      if (payErr) {
+        console.error("Error inserting client payment record:", payErr);
+        logError({
+          module: 'Clients',
+          action: 'Record Client Payment (History Insert)',
+          error_code: payErr.code,
+          error_message: payErr.message,
+          severity: 'Medium'
+        });
+      }
     }
 
     // Update Local Invoices State
@@ -1030,118 +1120,51 @@ export const AppProvider = ({ children}) => {
   };
 
   const addProductCategory = async (categoryName) => {
-    if (!categoryName?.trim()) return null;
-    
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      try {
-        console.log(`[Category] Adding "${categoryName}" for tenant: ${currentTenantId}`);
-        
-        if (!currentTenantId) {
-          addNotification("System error: Business context not loaded. Please refresh.", "error");
-          console.error("Category addition aborted: currentTenantId is null");
-          setSyncStatus('ERROR');
-          return null;
-        }
-
-        const { data, error } = await supabase.from('product_categories').insert({ 
-          name: categoryName,
-          tenant_id: currentTenantId
-        }).select();
-
-        if (error) {
-          console.error("Error adding product category to Supabase:", error);
-          if (error.code === '23505') {
-            addNotification(`Category "${categoryName}" already exists for your business.`, "warning");
-          } else {
-            addNotification(`Cloud Sync Failed: ${error.message}`, "error");
-          }
-          setSyncStatus('ERROR');
-          return null;
-        }
-
-        if (data && data[0]) {
-          setProductCategories(prev => {
-            if (prev.some(cat => cat.id === data[0].id)) return prev;
-            return [...prev, data[0]].sort((a, b) => a.name.localeCompare(b.name));
-          });
-          addNotification(`Category added: ${categoryName}`, 'success');
-          return data[0];
-        }
-      } catch (err) {
-        console.error("Exception in addProductCategory:", err);
-        addNotification("An unexpected error occurred", "error");
-      } finally {
-        setSyncStatus('SYNCED');
+      const { data, error } = await supabase.from('product_categories').insert({ name: categoryName }).select();
+      if (error) {
+        console.error("Error adding category:", error);
+        setSyncStatus('ERROR');
+        addNotification("Failed to add category: " + error.message, "error");
+        return null;
       }
-    } else {
-      const newCat = { id: generateUUID(), name: categoryName, tenant_id: 'local' };
-      setProductCategories(prev => [...prev, newCat].sort((a, b) => a.name.localeCompare(b.name)));
-      return newCat;
+      setProductCategories(prev => [...prev, data[0]]);
+      setSyncStatus('SYNCED');
+      return data[0];
     }
+    const newCat = { id: generateUUID(), name: categoryName };
+    setProductCategories(prev => [...prev, newCat]);
+    return newCat;
   };
 
   const updateProductCategory = async (updatedCategory) => {
-    if (!updatedCategory?.id || !updatedCategory?.name) return;
-
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      try {
-        const { error } = await supabase.from('product_categories')
-          .update({ name: updatedCategory.name })
-          .eq('id', updatedCategory.id)
-          .eq('tenant_id', currentTenantId);
-
-        if (error) {
-          console.error("Error updating product category in Supabase:", error);
-          addNotification(`Update Failed: ${error.message}`, "error");
-          setSyncStatus('ERROR');
-          return;
-        }
-
-        setProductCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c).sort((a, b) => a.name.localeCompare(b.name)));
-        addNotification(`Category updated: ${updatedCategory.name}`, 'success');
-      } catch (err) {
-        console.error("Exception in updateProductCategory:", err);
-      } finally {
-        setSyncStatus('SYNCED');
+      const { error } = await supabase.from('product_categories').update({ name: updatedCategory.name }).eq('id', updatedCategory.id);
+      if (error) {
+        setSyncStatus('ERROR');
+        addNotification("Failed to update category: " + error.message, "error");
+        return;
       }
-    } else {
-      setProductCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c).sort((a, b) => a.name.localeCompare(b.name)));
+      setSyncStatus('SYNCED');
     }
+    setProductCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
   };
 
   const deleteProductCategory = async (categoryId) => {
-    if (!categoryId) return false;
-
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      try {
-        const { error } = await supabase.from('product_categories')
-          .delete()
-          .eq('id', categoryId)
-          .eq('tenant_id', currentTenantId);
-
-        if (error) {
-          console.error("Error deleting product category from Supabase:", error);
-          addNotification(`Delete Failed: ${error.message}`, "error");
-          setSyncStatus('ERROR');
-          return false;
-        }
-
-        setProductCategories(prev => prev.filter(c => c.id !== categoryId));
-        addNotification("Category deleted", "success");
-        return true;
-      } catch (err) {
-        console.error("Exception in deleteProductCategory:", err);
+      const { error } = await supabase.from('product_categories').delete().eq('id', categoryId);
+      if (error) {
+        setSyncStatus('ERROR');
+        addNotification("Failed to delete category: " + error.message, "error");
         return false;
-      } finally {
-        setSyncStatus('SYNCED');
       }
-    } else {
-      setProductCategories(prev => prev.filter(c => c.id !== categoryId));
-      return true;
+      setSyncStatus('SYNCED');
     }
+    setProductCategories(prev => prev.filter(c => c.id !== categoryId));
+    return true;
   };
 
  const addProduct = async (product) => {
@@ -1156,11 +1179,18 @@ export const AppProvider = ({ children}) => {
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
  const { error} = await supabase.from('products').upsert(newProduct);
- if (error) {
- console.error("Error adding product to Supabase:", error);
- setSyncStatus('ERROR');
- addNotification(`Cloud Save Failed: ${error.message}`,"error");
- return;
+  if (error) {
+  console.error("Error adding product to Supabase:", error);
+  logError({
+    module: 'Inventory',
+    action: 'Add Product',
+    error_code: error.code,
+    error_message: error.message,
+    severity: 'High'
+  });
+  setSyncStatus('ERROR');
+  addNotification(`Cloud Save Failed: ${error.message}`,"error");
+  return;
 } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
@@ -1175,11 +1205,18 @@ export const AppProvider = ({ children}) => {
  const updateProduct = async (updatedProduct) => {
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
- const { error} = await supabase.from('products').upsert(updatedProduct);
- if (error) {
- console.error("Error updating product in Supabase:", error);
- setSyncStatus('ERROR');
- addNotification(`Cloud Sync Delayed: ${error.message}. Local changes saved.`,"warning");
+ const { error} = await supabase.from('products').upsert({ ...updatedProduct, tenant_id: currentTenantId });
+  if (error) {
+  console.error("Error updating product in Supabase:", error);
+  logError({
+    module: 'Inventory',
+    action: 'Update Product',
+    error_code: error.code,
+    error_message: error.message,
+    severity: 'Medium'
+  });
+  setSyncStatus('ERROR');
+  addNotification(`Cloud Sync Delayed: ${error.message}. Local changes saved.`,"warning");
 } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
@@ -1189,14 +1226,21 @@ export const AppProvider = ({ children}) => {
 };
 
  const deleteProduct = async (id) => {
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('products').delete().eq('id', id);
- if (error) {
- console.error("Error deleting product from Supabase:", error);
- addNotification(`Cloud Sync Delayed: Product removed locally`,"warning");
- // Fall through
-}
-}
+  if (isSupabaseConfigured) {
+    const { error } = await supabase.from('products').delete().eq('id', id).eq('tenant_id', currentTenantId);
+    if (error) {
+      console.error("Error deleting product from Supabase:", error);
+      logError({
+        module: 'Inventory',
+        action: 'Delete Product',
+        error_code: error.code,
+        error_message: error.message,
+        severity: 'Medium'
+      });
+      addNotification(`Cloud Sync Delayed: Product removed locally`, "warning");
+      // Fall through
+    }
+  }
  setProducts(prev => prev.filter(p => p.id !== id));
  setMovementLog(prev => prev.filter(l => l.productId !== id));
 };
@@ -1221,7 +1265,7 @@ export const AppProvider = ({ children}) => {
  const hasRole = (role) => {
  // GLOBAL OVERRIDE (resilient to profile fetch failure)
  const email = currentUser?.email || authSession?.user?.email;
-  if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
+ if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
 
  if (!currentUser) return false;
  
@@ -1237,7 +1281,7 @@ export const AppProvider = ({ children}) => {
  const hasPermission = (moduleOrLegacy, action = 'view') => {
  // GLOBAL OVERRIDE (resilient to profile fetch failure)
  const email = currentUser?.email || authSession?.user?.email;
-  if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
+ if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
 
  if (!currentUser) return false;
  
@@ -1260,7 +1304,6 @@ export const AppProvider = ({ children}) => {
  'VIEW_EXPENSES': permissions.expenses?.view,
  'RECORD_SALE': permissions.sales?.edit,
  'VIEW_STOCK': permissions.inventory?.view,
- 'MANAGE_INVENTORY': permissions.inventory?.edit,
  'VIEW_FLEET': permissions.vehicles?.view,
  'ADD_CLIENT': permissions.clients?.edit,
  'EDIT_CLIENT': permissions.clients?.edit,
@@ -1472,37 +1515,45 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  return true;
 };
 
- const updateEmployee = async (updated) => {
- // Prepare database-ready object (snake_case)
- const dbData = {
- id: updated.id,
- name: updated.name,
- email: updated.email !== undefined ? updated.email : null,
- phone: updated.phone !== undefined ? updated.phone : null,
- position: updated.position !== undefined ? updated.position : null,
- status: updated.status || 'ACTIVE',
- salary: updated.basePay !== undefined ? updated.basePay : (updated.salary || 0),
- department: updated.department || updated.role,
- role: updated.department || updated.role,
- pay_type: updated.payType || updated.pay_type || 'MONTHLY',
- bank_account: updated.bankAccount || updated.bank_account || null,
- notes: updated.notes !== undefined ? updated.notes : null,
- daily_rate: updated.dailyRate !== undefined ? updated.dailyRate : (updated.daily_rate || 0),
- days_worked: updated.daysWorked !== undefined ? updated.daysWorked : (updated.days_worked || 0),
- amount_paid: updated.amountPaid !== undefined ? updated.amountPaid : (updated.amount_paid || 0)
-};
+  const updateEmployee = async (updated) => {
+    // Prepare database-ready object (snake_case)
+    const dbData = {
+      id: updated.id,
+      name: updated.name,
+      email: updated.email !== undefined ? updated.email : null,
+      phone: updated.phone !== undefined ? updated.phone : null,
+      position: updated.position !== undefined ? updated.position : null,
+      status: updated.status || 'ACTIVE',
+      salary: updated.basePay !== undefined ? updated.basePay : (updated.salary || 0),
+      department: updated.department || updated.role,
+      role: updated.department || updated.role,
+      pay_type: updated.payType || updated.pay_type || 'MONTHLY',
+      bank_account: updated.bankAccount || updated.bank_account || null,
+      notes: updated.notes !== undefined ? updated.notes : null,
+      daily_rate: updated.dailyRate !== undefined ? updated.dailyRate : (updated.daily_rate || 0),
+      days_worked: updated.daysWorked !== undefined ? updated.daysWorked : (updated.days_worked || 0),
+      amount_paid: updated.amountPaid !== undefined ? updated.amountPaid : (updated.amount_paid || 0),
+      tenant_id: currentTenantId
+    };
 
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('employees').upsert(dbData);
- if (error) {
- console.error("Error updating employee in Supabase:", error);
- setSyncStatus('ERROR');
- addNotification(`Cloud Sync Delayed: ${error.message}`,"warning");
-} else {
- setSyncStatus('SYNCED');
-}
-}
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+      const { error } = await supabase.from('employees').upsert(dbData);
+      if (error) {
+        console.error("Error updating employee in Supabase:", error);
+        logError({
+          module: 'Employees',
+          action: 'Update Employee',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'High'
+        });
+        setSyncStatus('ERROR');
+        addNotification(`Cloud Sync Delayed: ${error.message}`, "warning");
+      } else {
+        setSyncStatus('SYNCED');
+      }
+    }
  
  // Update local state with the mapped object (keep both for compatibility)
  const fullEmployee = {
@@ -1582,25 +1633,35 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  p_user_id: currentUser?.id
 });
 
- if (rpcError) {
- console.error("❌ Atomic Purchase Failed:", rpcError);
- // Fallback to legacy insert
- const { error: insertError} = await supabase.from('purchases').insert({
- id: newPurchase.id,
- product_id: newPurchase.linked_product_id,
- quantity: newPurchase.quantity,
- total_amount: newPurchase.total_cost,
- date: newPurchase.date,
- supplier_id: newPurchase.supplier_id,
- supplier_name: newPurchase.supplier_name,
- payment_type: newPurchase.payment_type,
- notes: newPurchase.notes
-});
- if (insertError) {
- addNotification("Failed to record purchase","error");
- return false;
-}
-}
+  if (rpcError) {
+    console.error("❌ Atomic Purchase Failed:", rpcError);
+    // Fallback to legacy insert
+    const { error: insertError } = await supabase.from('purchases').insert({
+      id: newPurchase.id,
+      product_id: newPurchase.linked_product_id,
+      quantity: newPurchase.quantity,
+      total_amount: newPurchase.total_cost,
+      date: newPurchase.date,
+      supplier_id: newPurchase.supplier_id,
+      supplier_name: newPurchase.supplier_name,
+      payment_type: newPurchase.payment_type,
+      notes: newPurchase.notes,
+      tenant_id: currentTenantId
+    });
+    
+    if (insertError) {
+      console.error("Error creating purchase fallback:", insertError);
+      logError({
+        module: 'Inventory',
+        action: 'Add Purchase (Fallback)',
+        error_code: insertError.code,
+        error_message: insertError.message,
+        severity: 'High'
+      });
+      addNotification("Failed to record purchase", "error");
+      return false;
+    }
+  }
 }
 
  // OPTIMISTIC UPDATE
@@ -1620,106 +1681,203 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  return true;
 };
 
- const addSupplier = async (supplier) => {
- const id = `SUP-${Date.now()}`;
- const newSupplier = { ...supplier, id, created_at: new Date().toISOString(), tenant_id: currentTenantId};
- 
- if (isSupabaseConfigured) {
- // CLEAN DB OBJECT
- const dbSupplier = {
- id,
- name: supplier.name,
- contact_person: supplier.contact_person,
- phone: supplier.phone,
- email: supplier.email,
- address: supplier.address,
- notes: supplier.notes || '',
- tenant_id: currentTenantId,
- created_at: new Date().toISOString()
-};
- const { error} = await supabase.from('suppliers').insert(dbSupplier);
- if (error) {
- console.error("Error adding supplier:", error);
- addNotification("Failed to save supplier to cloud","error");
- return false;
-}
-}
- setSuppliers(prev => [newSupplier, ...prev]);
- return true;
-};
+  const addSupplier = async (supplier) => {
+    const id = `SUP-${Date.now()}`;
+    const newSupplier = { ...supplier, id, created_at: new Date().toISOString(), tenant_id: currentTenantId };
+    
+    if (isSupabaseConfigured) {
+      // CLEAN DB OBJECT
+      const dbSupplier = {
+        id,
+        name: supplier.name,
+        contact_person: supplier.contact_person,
+        phone: supplier.phone,
+        email: supplier.email,
+        address: supplier.address,
+        notes: supplier.notes || '',
+        created_at: new Date().toISOString(),
+        tenant_id: currentTenantId
+      };
+      
+      const { error } = await supabase.from('suppliers').insert(dbSupplier);
+      if (error) {
+        console.error("Error adding supplier:", error);
+        logError({
+          module: 'Suppliers',
+          action: 'Add Supplier',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'High'
+        });
+        addNotification("Failed to save supplier to cloud", "error");
+        return false;
+      }
+    }
+    setSuppliers(prev => [newSupplier, ...prev]);
+    return true;
+  };
 
- const deleteSupplier = async (supplierId) => {
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('suppliers').delete().eq('id', supplierId);
- if (error) {
- console.error("Error deleting supplier:", error);
- addNotification("Failed to delete supplier","error");
- return false;
-}
-}
- setSuppliers(prev => prev.filter(s => s.id !== supplierId));
- return true;
-};
+  const updateSupplier = async (updatedSupplier) => {
+    if (isSupabaseConfigured) {
+      const dbSupplier = {
+        name: updatedSupplier.name,
+        contact_person: updatedSupplier.contact_person,
+        phone: updatedSupplier.phone,
+        email: updatedSupplier.email,
+        address: updatedSupplier.address,
+        notes: updatedSupplier.notes || '',
+        tenant_id: currentTenantId
+      };
+      
+      const { error } = await supabase.from('suppliers')
+        .update(dbSupplier)
+        .eq('id', updatedSupplier.id)
+        .eq('tenant_id', currentTenantId);
 
- const deleteEmployee = async (empId) => {
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('employees').delete().eq('id', empId);
- if (error) {
- console.error("Error deleting employee from Supabase:", error);
- addNotification("Failed to delete employee from cloud","error");
- return;
-}
-}
- setEmployees(employees.filter(e => e.id !== empId));
-};
+      if (error) {
+        console.error("Error updating supplier:", error);
+        logError({
+          module: 'Suppliers',
+          action: 'Update Supplier',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'High'
+        });
+        addNotification(`Failed to update supplier: ${error.message}`, "error");
+        return false;
+      }
+    }
+    setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? { ...s, ...updatedSupplier } : s));
+    return true;
+  };
 
- const processPayroll = async (payRun) => {
- const timestamp = new Date().toISOString();
- const newRecord = {
- ...payRun,
- id: payRun.id || `PAY-${Date.now()}`,
- processed_at: timestamp,
- processedAt: timestamp,
- processed_by: currentUser?.id
-};
- 
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const payrollInserts = payRun.items.map(item => ({
- id: `PRL-${Date.now()}-${item.employeeId}`,
- employeeId: item.employeeId,
- amount: item.netPay,
- month: payRun.period,
- processed_at: timestamp,
- processed_by: currentUser?.id
-}));
- 
- const { error} = await supabase.from('payroll').insert(payrollInserts);
- if (error) {
- console.error("Error processing payroll in Supabase:", error);
- setSyncStatus('ERROR');
- addNotification("Failed to process payroll in cloud","error");
- return false;
-}
- setSyncStatus('SYNCED');
-}
- 
- setPayrollRecords(prev => [newRecord, ...prev]);
- addNotification(`Payroll for ${payRun.period} authorized`,"success");
- return true;
-};
+  const deleteSupplier = async (supplierId) => {
+   // DIAGNOSTIC LOG
+   console.log(`[Suppliers] Intent: Delete. ID: ${supplierId}, Tenant: ${currentTenantId}`);
+   
+   if (isSupabaseConfigured) {
+     const { error, count } = await supabase.from('suppliers')
+        .delete({ count: 'exact' })
+        .eq('id', supplierId)
+        .eq('tenant_id', currentTenantId);
 
- const deletePayrollRecord = async (recordId) => {
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('payroll').delete().eq('id', recordId);
- if (error) {
- console.error("Error deleting payroll record from Supabase:", error);
- addNotification("Cloud Sync Delayed: Record removed locally","warning");
- // Fall through
-}
-}
- setPayrollRecords(payrollRecords.filter(r => r.id !== recordId));
-};
+     if (error) {
+       console.error("❌ Supplier Deletion REJECTED:", error);
+       logError({
+         module: 'Suppliers',
+         action: 'Delete Supplier',
+         error_code: error.code,
+         error_message: error.message,
+         severity: 'High'
+       });
+       return { success: false, error: error.message };
+     }
+     
+     if (count === 0) {
+       console.warn(`[Suppliers] Silent Fail: Row not found or RLS blocked. ID: ${supplierId}`);
+       logError({
+         module: 'Suppliers',
+         action: 'Delete Supplier (Silent Fail)',
+         error_code: 'ERR_ZERO_ROWS',
+         error_message: `Database returned success but 0 rows were deleted. This usually means the row exists but RLS blocked the operation for Tenant: ${currentTenantId}`,
+         severity: 'High'
+       });
+       return { success: false, error: "Deletion blocked or record not found." };
+     }
+   }
+   
+   setSuppliers(prev => prev.filter(s => s.id !== supplierId));
+   return { success: true };
+ };
+
+  const deleteEmployee = async (empId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('employees')
+        .delete()
+        .eq('id', empId)
+        .eq('tenant_id', currentTenantId);
+
+      if (error) {
+        console.error("Error deleting employee from Supabase:", error);
+        logError({
+          module: 'Employees',
+          action: 'Delete Employee',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'Medium'
+        });
+        addNotification("Failed to delete employee from cloud", "error");
+        return;
+      }
+    }
+    setEmployees(employees.filter(e => e.id !== empId));
+  };
+
+  const processPayroll = async (payRun) => {
+    const timestamp = new Date().toISOString();
+    const newRecord = {
+      ...payRun,
+      id: payRun.id || `PAY-${Date.now()}`,
+      processed_at: timestamp,
+      processedAt: timestamp,
+      processed_by: currentUser?.id
+    };
+    
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+      const payrollInserts = payRun.items.map(item => ({
+        id: `PRL-${Date.now()}-${item.employeeId}`,
+        employeeId: item.employeeId,
+        amount: item.netPay,
+        month: payRun.period,
+        processed_at: timestamp,
+        processed_by: currentUser?.id,
+        tenant_id: currentTenantId
+      }));
+      
+      const { error } = await supabase.from('payroll').insert(payrollInserts);
+      if (error) {
+        console.error("Error processing payroll in Supabase:", error);
+        logError({
+          module: 'Payroll',
+          action: 'Process Payroll',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'High'
+        });
+        setSyncStatus('ERROR');
+        addNotification("Failed to process payroll in cloud", "error");
+        return false;
+      }
+      setSyncStatus('SYNCED');
+    }
+    
+    setPayrollRecords(prev => [newRecord, ...prev]);
+    addNotification(`Payroll for ${payRun.period} authorized`, "success");
+    return true;
+  };
+
+  const deletePayrollRecord = async (recordId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('payroll')
+        .delete()
+        .eq('id', recordId)
+        .eq('tenant_id', currentTenantId);
+
+      if (error) {
+        console.error("Error deleting payroll record from Supabase:", error);
+        logError({
+          module: 'Payroll',
+          action: 'Delete Payroll',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'Medium'
+        });
+        addNotification("Cloud Sync Delayed: Record removed locally", "warning");
+      }
+    }
+    setPayrollRecords(payrollRecords.filter(r => r.id !== recordId));
+  };
 
 
  const updateDayBook = async (record) => {
@@ -1851,7 +2009,22 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
         const updatedStock = Math.max(0, (product.stock || 0) + delta);
         setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: updatedStock } : p));
         if (isSupabaseConfigured) {
-          await supabase.from('products').update({ stock: updatedStock }).eq('id', productId);
+          const { error } = await supabase
+            .from('products')
+            .update({ stock: updatedStock })
+            .eq('id', productId)
+            .eq('tenant_id', currentTenantId);
+
+          if (error) {
+            console.error("Error updating main stock during transfer:", error);
+            logError({
+              module: 'Inventory',
+              action: 'Transfer Stock (Sync Main)',
+              error_code: error.code,
+              error_message: error.message,
+              severity: 'Medium'
+            });
+          }
         }
       }
     }
@@ -1889,26 +2062,26 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
       { data: balancesData},
       { data: invoicesData}
     ] = await Promise.all([
-      supabase.from('products').select('*'),
-      supabase.from('clients').select('*'),
-      supabase.from('sales').select('*').order('date', { ascending: false }).limit(500),
-      supabase.from('expenses').select('*').order('date', { ascending: false }).limit(500),
-      supabase.from('employees').select('*'),
-      supabase.from('payroll').select('*').order('processed_at', { ascending: false }).limit(100),
-      supabase.from('business_profile').select('*').maybeSingle(),
-      supabase.from('day_book').select('*').order('date', { ascending: false }).limit(31),
-      supabase.from('settings').select('*'),
-      supabase.from('client_payments').select('*').order('date', { ascending: false }).limit(500),
-      supabase.from('users').select('*'),
-      supabase.from('vehicles').select('*'),
-      supabase.from('movement_log').select('*').order('date', { ascending: false }).limit(200),
-      supabase.from('routes').select('*').order('date', { ascending: false }).limit(100),
-      supabase.from('purchases').select('*').order('date', { ascending: false }).limit(200),
-      supabase.from('suppliers').select('*').order('name', { ascending: true }),
-      supabase.from('product_categories').select('*').order('name'),
-      supabase.from('inventory_locations').select('*'),
-      supabase.from('inventory_balances').select('*'),
-      supabase.from('invoices').select('*').order('created_at', { ascending: false })
+      supabase.from('products').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('clients').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('sales').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+      supabase.from('expenses').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+      supabase.from('employees').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('payroll').select('*').eq('tenant_id', targetTenantId).order('processed_at', { ascending: false }).limit(100),
+      supabase.from('business_profile').select('*').eq('tenant_id', targetTenantId).maybeSingle(),
+      supabase.from('day_book').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(31),
+      supabase.from('settings').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('client_payments').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+      supabase.from('users').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('vehicles').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('movement_log').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+      supabase.from('routes').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(100),
+      supabase.from('purchases').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+      supabase.from('suppliers').select('*').eq('tenant_id', targetTenantId).order('name', { ascending: true }),
+      supabase.from('product_categories').select('*').eq('tenant_id', targetTenantId).order('name'),
+      supabase.from('inventory_locations').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('inventory_balances').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('invoices').select('*').eq('tenant_id', targetTenantId).order('created_at', { ascending: false })
     ]);
 
  // Update State Silently
@@ -2263,7 +2436,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  await resolveTenant(profile);
 } else {
  // AUTO-PROVISION SUPERUSER if first time login for owner
-  const isSuperUser = session.user.email === 'uvaize@hotmail.com' || session.user.email === 'gladmin@ledgrpro.ca';
+ const isSuperUser = session.user.email === 'uvaize@hotmail.com' || session.user.email === 'gladmin@ledgrpro.ca';
  const newUserProfile = {
  id: session.user.id,
  email: session.user.email,
@@ -2344,7 +2517,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  employees, addEmployee, updateEmployee, deleteEmployee,
  payrollRecords, processPayroll, deletePayrollRecord,
  purchases, addPurchase,
- suppliers, addSupplier, deleteSupplier,
+ suppliers, addSupplier, updateSupplier, deleteSupplier,
  dayBook, updateDayBook, getDayBookForDate,
  recordClientPayment, clientPayments,
  isMaintenance, maintenanceMessage, setIsMaintenance,

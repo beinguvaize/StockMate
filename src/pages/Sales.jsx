@@ -220,47 +220,51 @@ const Sales = () => {
  return { lines, subtotal, totalDiscount, totalTax, finalTotal, totalItems: cart.reduce((sum, item) => sum + item.quantity, 0)};
 }, [cart]);
 
- const handleConfirmTransaction = (statusOverride) => {
- const status = statusOverride || 'COMPLETED';
- const saleId = placeSale(
- selectedShopId === 'WALKIN' ? 'POS-WALKIN' : selectedShopId,
- cart,
- cartCalc.subtotal,
- cartCalc.totalDiscount,
- cartCalc.totalTax,
- cartCalc.finalTotal,
- customerInfo,
- pendingPaymentMethod.toLowerCase(),
- selectedRoute || null,
- status,
- status === 'PENDING' ? scheduledDate : null,
- salesmanNote,
- selectedSourceLocation
- );
- setInvoiceData({
- id: saleId,
- items: [...cart],
- totalAmount: cartCalc.finalTotal,
- subtotal: cartCalc.subtotal,
- discount: cartCalc.totalDiscount,
- tax: cartCalc.totalTax,
- customerInfo: { ...customerInfo},
- paymentMethod: pendingPaymentMethod.toUpperCase(),
- paymentStatus: status === 'COMPLETED' ? 'PAID' : 'PENDING',
- date: new Date().toISOString(),
- salesmanNote
-});
+  const handleConfirmTransaction = async (statusOverride) => {
+    const status = statusOverride || 'COMPLETED';
+    
+    const saleId = await placeSale(
+      selectedShopId === 'WALKIN' ? 'POS-WALKIN' : selectedShopId,
+      cart,
+      cartCalc.subtotal,
+      cartCalc.totalDiscount,
+      cartCalc.totalTax,
+      cartCalc.finalTotal,
+      customerInfo,
+      pendingPaymentMethod.toLowerCase(),
+      selectedRoute || null,
+      status,
+      status === 'PENDING' ? scheduledDate : null,
+      salesmanNote,
+      selectedSourceLocation
+    );
 
- setLastOrderId(saleId);
- setLastOrderTotal(cartCalc.finalTotal);
- setCart([]);
- setSelectedShopId('WALKIN');
- setCustomerInfo({ name: 'Walk-in Customer', phone: ''});
- setSalesmanNote('');
- setShowPaymentModal(false);
- setShowBookingDateModal(false);
- setOrderComplete(true);
-};
+    if (!saleId) return;
+
+    setInvoiceData({
+      id: saleId,
+      items: [...cart],
+      totalAmount: cartCalc.finalTotal,
+      subtotal: cartCalc.subtotal,
+      discount: cartCalc.totalDiscount,
+      tax: cartCalc.totalTax,
+      customerInfo: { ...customerInfo },
+      paymentMethod: pendingPaymentMethod.toUpperCase(),
+      paymentStatus: status === 'COMPLETED' ? 'PAID' : 'PENDING',
+      date: new Date().toISOString(),
+      salesmanNote
+    });
+
+    setLastOrderId(saleId);
+    setLastOrderTotal(cartCalc.finalTotal);
+    setCart([]);
+    setSelectedShopId('WALKIN');
+    setCustomerInfo({ name: 'Walk-in Customer', phone: '' });
+    setSalesmanNote('');
+    setShowPaymentModal(false);
+    setShowBookingDateModal(false);
+    setOrderComplete(true);
+  };
 
  const renderCartPanel = () => (
  <div className="flex flex-col h-full bg-surface lg:bg-transparent">

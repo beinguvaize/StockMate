@@ -132,13 +132,13 @@ const Inventory = () => {
 
   const [successStates, setSuccessStates] = useState({});
 
-  const handleAdjust = (productId, amount) => {
+  const handleAdjust = async (productId, amount) => {
     const amt = amount || parseInt(adjustAmounts[productId]) || 0;
     const reason = adjustReasons[productId] || "Inventory Adjustment";
     const locId = adjustSources[productId] || MAIN_WAREHOUSE_ID;
 
     if (amt !== 0) {
-      adjustStock(productId, amt, reason, locId);
+      await adjustStock(productId, amt, reason, locId);
       setAdjustAmounts({ ...adjustAmounts, [productId]: ''});
       setAdjustReasons({ ...adjustReasons, [productId]: ''});
       

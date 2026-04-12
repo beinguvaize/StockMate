@@ -21,7 +21,8 @@ INSERT INTO public.invoices (
   due_date, 
   cgst_amount, 
   sgst_amount, 
-  is_seed
+  is_seed,
+  tenant_id
 )
 SELECT 
   'inv_' || id,
@@ -40,22 +41,24 @@ SELECT
   CAST(date AS TIMESTAMPTZ) + INTERVAL '15 days',
   ROUND(("totalAmount" - ("totalAmount" / 1.18)) / 2, 2),
   ROUND(("totalAmount" - ("totalAmount" / 1.18)) / 2, 2),
-  TRUE
+  TRUE,
+  tenant_id
 FROM public.sales
 WHERE is_seed = TRUE
 ON CONFLICT (id) DO NOTHING;
 
 -- 2. Seed Client Payments (Partial & Full)
 -- Demonstrates liquidity and collection tracking.
-INSERT INTO public.client_payments (id, client_id, amount, date, notes)
+INSERT INTO public.client_payments (id, client_id, amount, date, notes, tenant_id)
 SELECT 
   'pay_' || sub.id,
   sub.client_id,
   CASE WHEN sub.row_num % 3 = 0 THEN sub.amount * 0.5 ELSE sub.amount END,
   sub.invoice_date,
-  'Repayment for Invoice ' || sub.invoice_number
+  'Repayment for Invoice ' || sub.invoice_number,
+  sub.tenant_id
 FROM (
-  SELECT id, client_id, amount, invoice_date, invoice_number,
+  SELECT id, client_id, amount, invoice_date, invoice_number, tenant_id,
          ROW_NUMBER() OVER () as row_num
   FROM public.invoices
   WHERE is_seed = TRUE
@@ -102,9 +105,9 @@ FROM numbered_employees n
 WHERE public.employees.id = n.id;
 
 -- 6. Seed Supplemental Purchases for Inventory Turnover
-INSERT INTO public.purchases (id, product_id, quantity, total_amount, date, supplier_name, payment_type, notes)
+INSERT INTO public.purchases (id, product_id, quantity, total_amount, date, supplier_name, payment_type, notes, tenant_id)
 VALUES 
-('seeder_pur_hist_1', 'seeder_prod_1', 100, 45000, '2026-03-01T10:00:00Z', 'Main Supplier Corp', 'credit', 'Historical Bulk Restock'),
-('seeder_pur_hist_2', 'seeder_prod_2', 50, 30000, '2026-03-05T14:30:00Z', 'Tech Distribution Ltd', 'cash', 'Urgent Restock'),
-('seeder_pur_hist_3', 'seeder_prod_3', 200, 15000, '2026-03-10T09:15:00Z', 'Basic Supplies Co', 'credit', 'Monthly Subscription')
+('seeder_pur_hist_1', 'seeder_prod_1', 100, 45000, '2026-03-01T10:00:00Z', 'Main Supplier Corp', 'credit', 'Historical Bulk Restock', 'a0000000-0000-0000-0000-000000000001'),
+('seeder_pur_hist_2', 'seeder_prod_2', 50, 30000, '2026-03-05T14:30:00Z', 'Tech Distribution Ltd', 'cash', 'Urgent Restock', 'a0000000-0000-0000-0000-000000000001'),
+('seeder_pur_hist_3', 'seeder_prod_3', 200, 15000, '2026-03-10T09:15:00Z', 'Basic Supplies Co', 'credit', 'Monthly Subscription', 'a0000000-0000-0000-0000-000000000001')
 ON CONFLICT (id) DO NOTHING;
