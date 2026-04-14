@@ -96,6 +96,7 @@ export const generateUUID = () => {
 
 export const AppProvider = ({ children}) => {
  const [loading, setLoading] = useState(true);
+ const [isSyncComplete, setIsSyncComplete] = useState(false);
  const [initError, setInitError] = useState(null);
  
  // Auth Session — relies entirely on Supabase auth, no local persistence
@@ -307,13 +308,39 @@ export const AppProvider = ({ children}) => {
 
  // Data Actions (LOCAL ONLY)
  const login = async (email, password) => {
- if (isSupabaseConfigured) {
- const { data, error} = await supabase.auth.signInWithPassword({ email, password});
- if (error) {
- return { success: false, error: error.message};
-}
- return { success: true, user: data.user};
-}
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      
+      // Fetch profile to get roles immediately for redirection
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', data.user.id)
+        .maybeSingle();
+        
+      if (profile) {
+        setCurrentUser(profile);
+      } else {
+        // Fallback: If no profile exists, check for roles in metadata (crucial for new admins)
+        const metaRoles = data.user.user_metadata?.roles || [];
+        if (metaRoles.length > 0) {
+          const synthesizedUser = {
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.user_metadata?.name || data.user.email.split('@')[0],
+            roles: metaRoles,
+            status: 'ACTIVE'
+          };
+          setCurrentUser(synthesizedUser);
+          return { success: true, user: synthesizedUser };
+        }
+      }
+      
+      return { success: true, user: profile || data.user };
+    }
  // Fallback for mock mode
  const user = users.find(u => u.email === email && (password === 'password' || password === 'admin123'));
  if (user) {
@@ -343,67 +370,78 @@ export const AppProvider = ({ children}) => {
 };
 
 
- const addUser = async (userData) => {
- const newUser = {
-  id: userData.id || generateUUID(),
-  name: userData.name,
-  email: userData.email,
-  roles: userData.roles || [userData.role || 'STAFF'],
-  status: 'ACTIVE',
-  permissions: userData.permissions || { ...DEFAULT_PERMISSIONS},
-  tenant_id: currentTenantId
- };
+  const addUser = async (userData) => {
+    // Fallback: If currentTenantId is missing but we are in a tenant-scoped route, try to resolve it from the URL
+    let targetTenantId = currentTenantId;
+    if (!targetTenantId && typeof window !== 'undefined') {
+      const pathSegments = window.location.pathname.split('/');
+      if (pathSegments.length >= 2 && pathSegments[1] !== 'nexus-hq' && pathSegments[1] !== 'setup') {
+        const slug = pathSegments[1];
+        const tenant = await resolveTenantBySlug(slug);
+        if (tenant) targetTenantId = tenant.id;
+      }
+    }
 
- if (isSupabaseConfigured && userData.password) {
- // Refactored to use official Supabase SDK for Edge Function invocation
- try {
- const { data: result, error: invokeError} = await supabase.functions.invoke('dynamic-service', {
- body: {
- email: userData.email,
- password: userData.password,
- name: userData.name,
- roles: userData.roles || ['STAFF'],
- permissions: userData.permissions || { ...DEFAULT_PERMISSIONS},
- tenant_id: currentTenantId
-}
-});
+    const newUser = {
+      id: userData.id || generateUUID(),
+      name: userData.name,
+      email: userData.email,
+      roles: userData.roles || [userData.role || 'STAFF'],
+      status: 'ACTIVE',
+      permissions: userData.permissions || { ...DEFAULT_PERMISSIONS },
+      tenant_id: targetTenantId
+    };
 
- if (invokeError) {
- console.error("❌ Staff Creation Failed:", invokeError);
- addNotification(`Staff creation failed: ${invokeError.message}`,"error");
- return false;
-}
+    if (isSupabaseConfigured && userData.password) {
+      try {
+        const { data: result, error: invokeError } = await supabase.functions.invoke('dynamic-service', {
+          body: {
+            email: userData.email,
+            password: userData.password,
+            name: userData.name,
+            roles: userData.roles || ['STAFF'],
+            permissions: userData.permissions || { ...DEFAULT_PERMISSIONS },
+            tenant_id: targetTenantId
+          }
+        });
 
- const createdUser = { ...newUser, id: result.id};
- setUsers(prev => [...prev, createdUser]);
- addNotification(`${userData.name} added! They can now log in with their email & password.`,"success");
- return true;
+        if (invokeError) {
+          console.error("❌ Staff Creation Failed:", invokeError);
+          const errorMessage = invokeError.message || JSON.stringify(invokeError);
+          addNotification(`Staff creation failed: ${errorMessage}`, "error");
+          return false;
+        }
 
-} catch (err) {
- console.error("❌ Edge Function Unreachable:", err);
- addNotification("Edge function unreachable — saving profile only. Add them in Supabase Auth manually for login access.","warning");
- // Fall through to profile-only save below
-}
-}
+        const createdUser = { ...newUser, id: result.id };
+        setUsers(prev => [...prev, createdUser]);
+        addNotification(`${userData.name} added! They can now log in with their email & password.`, "success");
+        return true;
 
- // Fallback: save profile only (no auth account)
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error: profileError} = await supabase.from('users').upsert(newUser);
- if (profileError) {
- console.error("Error adding user:", profileError);
- setSyncStatus('ERROR');
- addNotification(`Failed to save staff profile: ${profileError.message}`,"error");
- return false;
-}
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
+      } catch (err) {
+        console.error("❌ Edge Function Unreachable:", err);
+        addNotification(`Request failed: ${err.message || 'Check connection'}`, "error");
+        return false;
+      }
+    }
 
- setUsers(prev => [...prev, newUser]);
- addNotification(`${userData.name} added! (Note: no login account created — add them in Supabase Auth to give login access.)`,"warning");
- return true;
-};
+    // Fallback: save profile only (no auth account)
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+      const { error: profileError } = await supabase.from('users').upsert(newUser);
+      if (profileError) {
+        console.error("Error adding user:", profileError);
+        setSyncStatus('ERROR');
+        addNotification(`Failed to save staff profile: ${profileError.message}`, "error");
+        return false;
+      }
+      setSyncStatus('SYNCED');
+      setLastSyncedAt(new Date().toISOString());
+    }
+
+    setUsers(prev => [...prev, newUser]);
+    addNotification(`${userData.name} added locally.`, "warning");
+    return true;
+  };
 
  const updateUser = async (updatedUser) => {
  if (isSupabaseConfigured) {
@@ -2344,23 +2382,43 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  const [authSession, setAuthSession] = useState(null);
 
  // Resolve tenant from user profile (skip if impersonating another tenant)
- const resolveTenant = async (userProfile) => {
-   if (!userProfile?.tenant_id) return;
-   // Do not override the impersonated tenant if the admin is bridging
-   if (sessionStorage.getItem("nexus_impersonating") === "true") return;
-   try {
-     const { data: tenant } = await supabase
-       .from('tenants')
-       .select('*')
-       .eq('id', userProfile.tenant_id)
-       .maybeSingle();
-     if (tenant) {
-       setCurrentTenant(tenant);
-     }
-   } catch (err) {
-     console.error('Failed to resolve tenant:', err);
-   }
- };
+  const resolveTenant = async (userProfile) => {
+    if (!userProfile?.tenant_id) return;
+    // Do not override the impersonated tenant if the admin is bridging
+    if (sessionStorage.getItem("nexus_impersonating") === "true") return;
+    try {
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('id', userProfile.tenant_id)
+        .maybeSingle();
+      if (tenant) {
+        setCurrentTenant(tenant);
+      }
+    } catch (err) {
+      console.error('Failed to resolve tenant:', err);
+    }
+  };
+
+  // Resolve tenant by slug (for Global Admin auto-bridging)
+  const resolveTenantBySlug = async (slug) => {
+    if (!slug || !isSupabaseConfigured) return;
+    try {
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('slug', slug)
+        .maybeSingle();
+      
+      if (tenant) {
+        setCurrentTenant(tenant);
+        return tenant;
+      }
+    } catch (err) {
+      console.error('Failed to resolve tenant by slug:', err);
+    }
+    return null;
+  };
 
  // Plan-based module check
  const isModuleAllowed = (moduleKey) => {
@@ -2400,10 +2458,11 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
      await resolveTenant(profile);
    }
  }
- initializeApp(); // Cache-first init
+  await initializeApp();
 } else {
  setLoading(false);
 }
+ setIsSyncComplete(true);
 };
  initSession();
 
@@ -2523,7 +2582,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  isMaintenance, maintenanceMessage, setIsMaintenance,
  notifications, addNotification,
  DEFAULT_PERMISSIONS, MODULES_CONFIG,
- loading, initError, migrateLocalToSupabase, resetAndSeedLocal, resetAndSeedCloud
+ loading, initError, isSyncComplete, migrateLocalToSupabase, resetAndSeedLocal, resetAndSeedCloud
 };
 
  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

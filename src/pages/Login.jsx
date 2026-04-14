@@ -45,11 +45,16 @@ const Login = () => {
 
  setError('');
  const result = await login(credentials.email, credentials.password);
- if (result.success) {
- navigate('/');
-} else {
- setError(result.error || 'Invalid email or password');
-}
+  if (result.success) {
+    // If we have role data immediately, use it, otherwise let RootRedirect handle it
+    if (result.user?.roles?.includes('GLOBAL_ADMIN') || result.user?.user_metadata?.roles?.includes('GLOBAL_ADMIN')) {
+      navigate('/nexus-hq');
+    } else {
+      navigate('/');
+    }
+  } else {
+    setError(result.error || 'Invalid email or password');
+  }
 };
 
  return (

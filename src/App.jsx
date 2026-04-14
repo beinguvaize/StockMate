@@ -23,6 +23,7 @@ import ClientSettlement from './pages/ClientSettlement';
 import AdminPanel from './pages/AdminPanel';
 import TenantSetup from './pages/TenantSetup';
 import SuperAdminPortal from './pages/admin/SuperAdminPortal';
+import NoAccess from './pages/NoAccess';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalLoading from './components/GlobalLoading';
@@ -31,15 +32,16 @@ import GlobalLoading from './components/GlobalLoading';
  * GuestRoute: Redirects authenticated users away from the login page.
  */
 const GuestRoute = ({ children }) => {
-  const { currentUser, loading, currentTenant } = useAppContext();
+  const { currentUser, currentTenant, isSyncComplete } = useAppContext();
 
-  if (loading) return <GlobalLoading />;
+  if (!isSyncComplete) return <GlobalLoading />;
 
   if (currentUser) {
     if (currentTenant) {
       return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
     }
-    return <Navigate to="/setup" replace />;
+    // If sync is complete and we still have no tenant, they truly have no access
+    return <Navigate to="/no-access" replace />;
   }
 
   return children;
@@ -50,12 +52,29 @@ const GuestRoute = ({ children }) => {
  */
 const TenantResolver = ({ children }) => {
   const { tenantSlug } = useParams();
-  const { currentTenant, loading, isImpersonating } = useAppContext();
+  const { currentTenant, currentUser, loading, isImpersonating, resolveTenantBySlug, isSyncComplete } = useAppContext();
+  const [isResolving, setIsResolving] = React.useState(false);
+  const attemptedSlugRef = React.useRef(null);
 
-  if (loading) return <GlobalLoading />;
+  React.useEffect(() => {
+    // If we have a slug but no tenant context, and user is a Global Admin, auto-resolve
+    if (tenantSlug && !currentTenant && currentUser?.roles?.includes('GLOBAL_ADMIN') && !isResolving && attemptedSlugRef.current !== tenantSlug) {
+      setIsResolving(true);
+      attemptedSlugRef.current = tenantSlug;
+      resolveTenantBySlug(tenantSlug).finally(() => {
+        setIsResolving(false);
+      });
+    }
+  }, [tenantSlug, currentTenant, currentUser, isResolving, resolveTenantBySlug]);
+
+  if (loading || isResolving || !isSyncComplete) return <GlobalLoading />;
 
   // Allow Global Admin impersonation — skip mismatch when bridging
   if (currentTenant && tenantSlug !== currentTenant.slug && !isImpersonating) {
+    if (currentUser?.roles?.includes('GLOBAL_ADMIN') && attemptedSlugRef.current !== tenantSlug) {
+       return <GlobalLoading />;
+    }
+
     return (
       <div className="flex items-center justify-center h-screen bg-[#141c1a] p-6 text-center">
         <div className="max-w-md w-full glass-panel border-[#dc2626]/20">
@@ -86,15 +105,23 @@ const TenantResolver = ({ children }) => {
  * RootRedirect: Sends / to /:tenantSlug/dashboard or /login
  */
 const RootRedirect = () => {
-  const { currentUser, currentTenant, loading } = useAppContext();
+  const { currentUser, currentTenant, isSyncComplete } = useAppContext();
 
-  if (loading) return <GlobalLoading />;
+  if (!isSyncComplete) return <GlobalLoading />;
 
   if (currentUser) {
+    // 1. Global Admin always lands in Nexus HQ
+    if (currentUser.roles?.includes('GLOBAL_ADMIN')) {
+      return <Navigate to="/nexus-hq" replace />;
+    }
+
+    // 2. Tenant Owners/Staff land in their specific dashboard
     if (currentTenant) {
       return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
     }
-    return <Navigate to="/setup" replace />;
+
+    // 3. Authenticated but No Tenant/Role -> No Access
+    return <Navigate to="/no-access" replace />;
   }
 
   return <Navigate to="/login" replace />;
@@ -123,12 +150,15 @@ function AppRoutes() {
         </GuestRoute>
       } />
  
-      {/* Onboarding: Setup Workspace */}
+      {/* Onboarding: Setup Workspace (Global Admin Only) */}
       <Route path="/setup" element={
-        <ProtectedRoute>
+        <ProtectedRoute requireGlobalAdmin={true}>
           <TenantSetup />
         </ProtectedRoute>
       } />
+
+      {/* Access Restriction */}
+      <Route path="/no-access" element={<NoAccess />} />
 
       {/* Super-Admin Panel (no tenant prefix, GLOBAL_ADMIN only) */}
       <Route path="/admin" element={

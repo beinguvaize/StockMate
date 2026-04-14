@@ -1,13 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import { Building2, Sparkles, ArrowRight, Loader2 } from 'lucide-react';
+import { Building2, Sparkles, ArrowRight, Loader2, ShieldCheck, ChevronLeft } from 'lucide-react';
+import { useAppContext } from '../context/AppContext';
 
 const TenantSetup = () => {
   const [businessName, setBusinessName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
+  const { currentUser } = useAppContext();
   const navigate = useNavigate();
+
+  const isGlobalAdmin = currentUser?.roles?.includes('GLOBAL_ADMIN');
 
   const handleSetup = async (e) => {
     e.preventDefault();
@@ -40,6 +44,24 @@ const TenantSetup = () => {
       {/* Background Glow */}
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#C8F135]/10 rounded-full blur-[120px]" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px]" />
+
+      {/* Admin Quick Exit */}
+      {isGlobalAdmin && (
+        <div className="absolute top-10 left-10 z-50 animate-in fade-in slide-in-from-left-4 duration-500">
+          <button 
+            onClick={() => navigate('/nexus-hq')}
+            className="flex items-center gap-3 px-6 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl text-white transition-all group backdrop-blur-md"
+          >
+            <div className="p-1.5 bg-emerald-500/20 text-emerald-400 rounded-lg group-hover:scale-110 transition-transform">
+              <ChevronLeft size={18} />
+            </div>
+            <div className="text-left">
+              <p className="text-[10px] font-black uppercase tracking-widest text-[#747576]">Return to</p>
+              <p className="text-xs font-bold uppercase tracking-tight">The Nexus Protocol</p>
+            </div>
+          </button>
+        </div>
+      )}
 
       <div className="w-full max-w-md glass-panel border-white/5 bg-white/5 backdrop-blur-xl p-8 relative z-10 rounded-[2rem] border border-white/10 shadow-2xl">
         <div className="flex flex-col items-center mb-8 text-center">

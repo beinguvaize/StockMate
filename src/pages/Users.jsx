@@ -44,7 +44,7 @@ const INTERNAL_ROLES = [
 ];
 
 const Users = () => {
- const { users, addUser, updateUser, deleteUser, currentUser, hasPermission} = useAppContext();
+ const { users, addUser, updateUser, deleteUser, currentUser, hasPermission, addNotification} = useAppContext();
  const [isAdding, setIsAdding] = useState(false);
  const [editingUser, setEditingUser] = useState(null);
  const [formData, setFormData] = useState({ name: '', email: '', roles: ['STAFF'], permissions: { ...DEFAULT_PERMISSIONS}});
@@ -94,6 +94,13 @@ const Users = () => {
     if (isSaving) return;
     
     setIsSaving(true);
+    
+    // Safety timeout: If request takes > 15s, release the button
+    const timeout = setTimeout(() => {
+      setIsSaving(false);
+      addNotification("Request timed out. Please check your connection or try again.", "warning");
+    }, 15000);
+
     try {
       if (editingUser) {
         // Update local profile
@@ -101,7 +108,11 @@ const Users = () => {
       } else {
         // Create both Auth and User record via centralized AppContext method
         const success = await addUser(formData); 
-        if (!success) return; 
+        if (!success) {
+          clearTimeout(timeout);
+          setIsSaving(false);
+          return;
+        } 
       }
       setIsAdding(false);
       setEditingUser(null);
@@ -110,6 +121,7 @@ const Users = () => {
       console.error("Staff management error:", err);
       alert(err.message || "Failed to process staff record");
     } finally {
+      clearTimeout(timeout);
       setIsSaving(false);
     }
   };

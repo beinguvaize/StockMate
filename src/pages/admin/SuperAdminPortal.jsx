@@ -23,7 +23,11 @@ const SuperAdminPortal = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isProvisioning, setIsProvisioning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [isProvisioningLoading, setIsProvisioningLoading] = useState(false);
+  const [provisioningError, setProvisioningError] = useState(null);
+  const [provisioningData, setProvisioningData] = useState({ businessName: '', plan: 'STARTER' });
   const [recentActivities, setRecentActivities] = useState([]);
   const [activeView, setActiveView] = useState('TENANTS'); // 'TENANTS' or 'DIAGNOSTICS'
 
@@ -33,6 +37,35 @@ const SuperAdminPortal = () => {
   useEffect(() => {
     fetchGlobalData();
   }, []);
+
+  const handleProvision = async () => {
+    if (!provisioningData.businessName.trim() || isProvisioningLoading) return;
+    
+    setIsProvisioningLoading(true);
+    setProvisioningError(null);
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-tenant', {
+        body: { 
+          businessName: provisioningData.businessName.trim(),
+          plan: provisioningData.plan 
+        }
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      addNotification(`Workspace ${data.slug} provisioned successfully.`, 'success');
+      setIsProvisioning(false);
+      setProvisioningData({ businessName: '', plan: 'STARTER' });
+      fetchGlobalData();
+    } catch (err) {
+      console.error("Provisioning error:", err);
+      setProvisioningError(err.message || "Failed to create workspace");
+    } finally {
+      setIsProvisioningLoading(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!selectedTenant || isSaving) return;
@@ -307,7 +340,7 @@ const SuperAdminPortal = () => {
               <div className="glass-panel border-black/5 bg-white p-6 space-y-6 shadow-premium">
                 <p className="text-[11px] font-bold text-gray-500 uppercase mb-4">Manual Orchestration</p>
                 <button 
-                  onClick={() => window.location.href = '/setup'}
+                  onClick={() => setIsProvisioning(true)}
                   className="w-full flex items-center justify-between p-4 rounded-xl bg-canvas hover:bg-gray-100 border border-black/5 transition-all group">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-accent-signature/20 text-ink-primary"><Plus size={16} /></div>
@@ -317,6 +350,19 @@ const SuperAdminPortal = () => {
                     </div>
                   </div>
                   <ChevronRight size={16} className="text-gray-400 group-hover:text-accent-signature transition-colors" />
+                </button>
+
+                <button 
+                  onClick={() => window.location.href = '/setup'}
+                  className="w-full flex items-center justify-between p-4 rounded-xl bg-canvas hover:bg-gray-100 border border-black/5 transition-all group">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600"><Globe size={16} /></div>
+                    <div className="text-left">
+                      <p className="text-xs font-bold text-ink-primary uppercase">Legacy Onboarding Flow</p>
+                      <p className="text-[8px] text-gray-500 font-bold uppercase tracking-wide">Standalone Tenant Provisioning Page</p>
+                    </div>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-400 group-hover:text-emerald-600 transition-colors" />
                 </button>
 
                 <button 
@@ -506,6 +552,96 @@ const SuperAdminPortal = () => {
                   {isSaving ? 'Sealing...' : 'Seal Settings'}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Workspace Provisioning Drawer */}
+      {isProvisioning && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsProvisioning(false)} />
+          <div className="relative w-full max-w-md bg-white h-full shadow-2xl flex flex-col border-l border-black/5 animate-in slide-in-from-right duration-300">
+            <div className="p-6 border-b border-black/5 flex items-center justify-between bg-canvas">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-emerald-500 text-white rounded-lg shadow-lg">
+                  <Plus size={20} />
+                </div>
+                <div>
+                  <h2 className="text-lg font-black text-ink-primary uppercase tracking-tight">Provision Workspace</h2>
+                  <p className="text-[10px] font-bold text-ink-primary/40 uppercase tracking-widest">Deploy New Infrastructure instance</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setIsProvisioning(false)}
+                className="p-2 hover:bg-black/5 rounded-full text-ink-primary/50 hover:text-ink-primary transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6 space-y-8">
+              <section className="space-y-6">
+                <div className="p-4 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-800 text-[10px] font-bold uppercase leading-relaxed tracking-wide">
+                  Creating a new workspace will automatically provision a unique database silo, slug, and administrator context.
+                </div>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-[10px] font-black text-ink-primary/60 uppercase mb-1.5 ml-1 tracking-widest">Business Legal Entity Name</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. ACME LOGISTICS LTD" 
+                      autoComplete="off" 
+                      className="w-full px-5 py-4 bg-canvas border border-black/5 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all uppercase placeholder:text-gray-300" 
+                      value={provisioningData.businessName}
+                      onChange={e => setProvisioningData({...provisioningData, businessName: e.target.value})}
+                      disabled={isProvisioningLoading}
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-[10px] font-black text-ink-primary/60 uppercase mb-1.5 ml-1 tracking-widest">Subscription Tier</label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {['STARTER', 'PRO', 'ENTERPRISE'].map(plan => (
+                        <button
+                          key={plan}
+                          onClick={() => setProvisioningData({...provisioningData, plan})}
+                          className={`px-3 py-4 rounded-xl border text-center transition-all ${provisioningData.plan === plan ? 'bg-emerald-500 text-white border-emerald-500 shadow-lg' : 'bg-canvas text-ink-primary/60 border-black/5 hover:border-black/10'}`}
+                        >
+                          <div className="text-[9px] font-black tracking-tight">{plan}</div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </section>
+
+              {provisioningError && (
+                <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-[10px] font-bold text-center uppercase">
+                  {provisioningError}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-black/5 bg-canvas sticky bottom-0">
+              <button 
+                onClick={handleProvision}
+                disabled={!provisioningData.businessName.trim() || isProvisioningLoading}
+                className="w-full py-4 bg-emerald-500 text-white text-xs font-black uppercase rounded-2xl hover:bg-emerald-600 disabled:opacity-50 shadow-2xl shadow-emerald-500/30 transition-all flex items-center justify-center gap-3"
+              >
+                {isProvisioningLoading ? (
+                  <>
+                    <RefreshCcw size={16} className="animate-spin" />
+                    Deploying Instance...
+                  </>
+                ) : (
+                  <>
+                    <Database size={16} />
+                    INITIALIZE INFRASTRUCTURE
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </div>
