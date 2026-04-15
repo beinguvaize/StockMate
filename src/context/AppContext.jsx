@@ -5,8 +5,20 @@ import {
  employeeSchema, clientSchema, dayBookSchema 
 } from '../lib/validation';
 import { cacheSet, cacheGet, cacheClear} from '../lib/cache';
+import { isLocked, recordFailure, recordSuccess, timeRemaining } from '../lib/loginThrottle';
 import { isModuleAvailable, getRequiredPlan, PLANS } from '../lib/tenancy';
 import { logError } from '../lib/errorLogger';
+import { logAuditEvent, AUDIT_ACTIONS, diffRoles } from '../lib/auditLog';
+
+// Bootstrap allowlist for first-login auto-provisioning. Parsed once from env.
+// NOT a permission gate — only decides what roles to stamp on a brand-new user
+// profile. After that, normal RBAC (users.roles) applies.
+const BOOTSTRAP_ADMIN_EMAILS = new Set(
+ (import.meta.env.VITE_BOOTSTRAP_ADMIN_EMAILS || '')
+ .split(',')
+ .map((e) => e.trim().toLowerCase())
+ .filter(Boolean)
+);
 
 const AppContext = createContext();
 
@@ -308,12 +320,22 @@ export const AppProvider = ({ children}) => {
 
  // Data Actions (LOCAL ONLY)
  const login = async (email, password) => {
+    // Client-side progressive backoff — check lockout before hitting Supabase.
+    if (isLocked(email)) {
+      const remaining = timeRemaining(email);
+      return { success: false, error: `Too many failed attempts. Try again in ${remaining}.` };
+    }
+
     if (isSupabaseConfigured) {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) {
+        recordFailure(email);
         return { success: false, error: error.message };
       }
-      
+
+      // Successful auth — clear the failure counter.
+      recordSuccess(email);
+
       // Fetch profile to get roles immediately for redirection
       const { data: profile } = await supabase
         .from('users')
@@ -341,13 +363,16 @@ export const AppProvider = ({ children}) => {
       
       return { success: true, user: profile || data.user };
     }
- // Fallback for mock mode
- const user = users.find(u => u.email === email && (password === 'password' || password === 'admin123'));
- if (user) {
- setCurrentUser(user);
- return { success: true};
-}
- return { success: false, error: 'Invalid local credentials'};
+
+    // SECURITY: No offline/mock credential fallback. Previously this block
+    // accepted `password` / `admin123` against any in-memory user — a weak-
+    // password backdoor that ran whenever Supabase env vars were missing.
+    // Auth now requires a configured Supabase client; misconfigured deploys
+    // fail loudly instead of silently granting access.
+    return {
+      success: false,
+      error: 'Authentication unavailable — Supabase is not configured. Contact your administrator.',
+    };
 };
 
  const logout = async () => {
@@ -444,6 +469,9 @@ export const AppProvider = ({ children}) => {
   };
 
  const updateUser = async (updatedUser) => {
+ // Snapshot the prior record BEFORE the upsert so we can audit role/permission diffs.
+ const priorUser = users.find(u => u.id === updatedUser.id) || null;
+
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
  const { error} = await supabase.from('users').upsert(updatedUser);
@@ -455,6 +483,21 @@ export const AppProvider = ({ children}) => {
 } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
+ // Audit RBAC-sensitive changes only (avoid spamming for name/phone edits).
+ const diff = diffRoles(priorUser, updatedUser);
+ if (diff) {
+ const parts = [];
+ if (diff.rolesChanged)  parts.push(`roles ${JSON.stringify(diff.before.roles)} → ${JSON.stringify(diff.after.roles)}`);
+ if (diff.permsChanged)  parts.push('permissions matrix updated');
+ if (diff.statusChanged) parts.push(`status ${diff.before.status || '∅'} → ${diff.after.status || '∅'}`);
+ logAuditEvent({
+ action: diff.rolesChanged || diff.statusChanged ? AUDIT_ACTIONS.ROLE_CHANGE : AUDIT_ACTIONS.PERMISSION_CHANGE,
+ entityType: 'user',
+ entityId: updatedUser.id,
+ summary: `Updated ${updatedUser.email || updatedUser.name || updatedUser.id}: ${parts.join('; ')}`,
+ metadata: diff,
+});
+}
 }
 }
  setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
@@ -462,7 +505,8 @@ export const AppProvider = ({ children}) => {
 
  const deleteUser = async (userId) => {
  if (userId === currentUser?.id) return;
- 
+ const target = users.find(u => u.id === userId) || null;
+
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
  const { error} = await supabase.from('users').delete().eq('id', userId);
@@ -474,6 +518,13 @@ export const AppProvider = ({ children}) => {
 } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
+ logAuditEvent({
+ action: AUDIT_ACTIONS.USER_DELETE,
+ entityType: 'user',
+ entityId: userId,
+ summary: `Removed staff ${target?.email || target?.name || userId}`,
+ metadata: { roles: target?.roles, status: target?.status },
+});
 }
 }
 
@@ -1028,6 +1079,19 @@ export const AppProvider = ({ children}) => {
   addNotification("Failed to delete sale from cloud","error");
   return;
  }
+ // Audit: deleting a sale reverses stock + balances — treat as a refund/void.
+ logAuditEvent({
+   action: AUDIT_ACTIONS.SALE_DELETE,
+   entityType: 'sale',
+   entityId: saleId,
+   summary: `Deleted sale #${saleId.split('-').pop()} (stock & balances reversed)`,
+   metadata: {
+     client_id: sale?.clientId || sale?.client_id || null,
+     total: sale?.total ?? sale?.totalAmount ?? null,
+     payment_type: sale?.paymentType || sale?.payment_type || null,
+     items_count: Array.isArray(sale?.items) ? sale.items.length : 0,
+   },
+ });
 }
  setSales(prev => prev.filter(s => s.id !== saleId));
  addNotification("Sale deleted and stock reversed","success");
@@ -1300,13 +1364,11 @@ export const AppProvider = ({ children}) => {
 };
 
  // Helper: check if current user has a specific role
+ // SECURITY: No hardcoded-email overrides. Admin rights come ONLY from the
+ // server-authoritative `users.roles` column. Fail closed if profile missing.
  const hasRole = (role) => {
- // GLOBAL OVERRIDE (resilient to profile fetch failure)
- const email = currentUser?.email || authSession?.user?.email;
- if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
-
  if (!currentUser) return false;
- 
+
  const roles = currentUser.roles || (currentUser.role ? [currentUser.role] : ['STAFF']);
  if (roles.includes('GLOBAL_ADMIN')) return true;
  return roles.includes(role);
@@ -1315,12 +1377,11 @@ export const AppProvider = ({ children}) => {
  /**
  * RBAC Permission System (v12)
  * Supports both legacy strings and granular module/action pairs.
+ *
+ * SECURITY: Authorization is driven exclusively by the persisted
+ * `users.roles` + `users.permissions` columns. No email-based overrides.
  */
  const hasPermission = (moduleOrLegacy, action = 'view') => {
- // GLOBAL OVERRIDE (resilient to profile fetch failure)
- const email = currentUser?.email || authSession?.user?.email;
- if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
-
  if (!currentUser) return false;
  
  const roles = currentUser.roles || (currentUser.role ? [currentUser.role] : ['STAFF']);
@@ -1668,7 +1729,8 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  p_payment_type: newPurchase.payment_type,
  p_date: newPurchase.date,
  p_notes: newPurchase.notes,
- p_user_id: currentUser?.id
+ p_user_id: currentUser?.id,
+ p_tenant_id: currentTenantId
 });
 
   if (rpcError) {
@@ -1888,6 +1950,20 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
         return false;
       }
       setSyncStatus('SYNCED');
+
+      // Audit: payroll run authorized. Capture totals + headcount, not individual amounts.
+      const totalNet = payrollInserts.reduce((s, r) => s + Number(r.amount || 0), 0);
+      logAuditEvent({
+        action: AUDIT_ACTIONS.PAYROLL_PROCESS,
+        entityType: 'payroll',
+        entityId: newRecord.id,
+        summary: `Processed payroll for ${payRun.period}: ${payrollInserts.length} employee(s), net ${totalNet.toFixed(2)}`,
+        metadata: {
+          period: payRun.period,
+          employee_count: payrollInserts.length,
+          total_net: totalNet,
+        },
+      });
     }
     
     setPayrollRecords(prev => [newRecord, ...prev]);
@@ -1896,6 +1972,8 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
   };
 
   const deletePayrollRecord = async (recordId) => {
+    const target = payrollRecords.find(r => r.id === recordId) || null;
+
     if (isSupabaseConfigured) {
       const { error } = await supabase.from('payroll')
         .delete()
@@ -1912,6 +1990,17 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
           severity: 'Medium'
         });
         addNotification("Cloud Sync Delayed: Record removed locally", "warning");
+      } else {
+        logAuditEvent({
+          action: AUDIT_ACTIONS.PAYROLL_DELETE,
+          entityType: 'payroll',
+          entityId: recordId,
+          summary: `Deleted payroll record ${recordId}${target?.period ? ` (${target.period})` : ''}`,
+          metadata: {
+            period: target?.period || target?.month || null,
+            employee_count: Array.isArray(target?.items) ? target.items.length : null,
+          },
+        });
       }
     }
     setPayrollRecords(payrollRecords.filter(r => r.id !== recordId));
@@ -2494,8 +2583,12 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  setCurrentUser(profile);
  await resolveTenant(profile);
 } else {
- // AUTO-PROVISION SUPERUSER if first time login for owner
- const isSuperUser = session.user.email === 'uvaize@hotmail.com' || session.user.email === 'gladmin@ledgrpro.ca';
+ // AUTO-PROVISION SUPERUSER if first time login for owner.
+ // Allowlist is configured via VITE_BOOTSTRAP_ADMIN_EMAILS (comma-separated).
+ // Non-listed emails are provisioned as STAFF and can be elevated later
+ // through the normal Users admin UI.
+ const emailLower = (session.user.email || '').toLowerCase();
+ const isSuperUser = BOOTSTRAP_ADMIN_EMAILS.has(emailLower);
  const newUserProfile = {
  id: session.user.id,
  email: session.user.email,

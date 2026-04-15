@@ -1,27 +1,31 @@
 import React, { useState, useMemo } from 'react';
-import { 
-  Calendar, ChevronDown, X, Filter, Download, 
-  Check, ArrowRight, RotateCcw, Share2, FileText
+import {
+  Calendar, ChevronDown, X, Filter, Download,
+  Check, ArrowRight, RotateCcw, Share2, FileText,
+  FileSpreadsheet, Printer
 } from 'lucide-react';
 
 /**
  * ReportFilterBar Component
- * 
+ *
  * Props:
  * @param {Object} filters - Current state of all filters
  * @param {Function} setFilters - State setter for filters
  * @param {Array} config - Configuration for dynamic filter chips [{ key, label, options: [{ value, label }] }]
- * @param {Function} onExport - Callback for CSV export
+ * @param {Function} onExportCSV - Callback to export current tab as CSV
+ * @param {Function} onExportPDF - Callback to trigger browser print → PDF
  * @param {string} lastUpdated - Timestamp of last data sync
  */
 
-const ReportFilterBar = ({ 
-  filters = {}, 
-  setFilters = () => {}, 
-  config = [], 
-  onExport = () => {},
-  lastUpdated = null
+const ReportFilterBar = ({
+  filters = {},
+  setFilters = () => {},
+  config = [],
+  onExportCSV = null,
+  onExportPDF = null,
+  lastUpdated = null,
 }) => {
+  const [showExportMenu, setShowExportMenu] = useState(false);
   const [showCustomDate, setShowCustomDate] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
 
@@ -125,17 +129,65 @@ const ReportFilterBar = ({
 
           <div className="h-10 w-px bg-black/5 mx-2" />
 
-          <button 
-            onClick={onExport}
-            className="btn-signature !h-11 !px-8 !text-[10px] !rounded-pill shadow-xl hover:shadow-accent-signature/20 flex items-center gap-3 transition-all active:scale-95"
-          >
-            <span>EXPORT MATRIX</span>
-            <div className="icon-nest !w-7 !h-7 bg-ink-primary/20 backdrop-blur-md">
-              <Download size={14} className="text-ink-primary" />
-            </div>
-          </button>
+          {/* Export split menu: CSV (spreadsheet) / PDF (print) */}
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu((s) => !s)}
+              className="btn-signature !h-11 !px-8 !text-[10px] !rounded-pill shadow-xl hover:shadow-accent-signature/20 flex items-center gap-3 transition-all active:scale-95"
+            >
+              <span>EXPORT MATRIX</span>
+              <div className="icon-nest !w-7 !h-7 bg-ink-primary/20 backdrop-blur-md">
+                <Download size={14} className="text-ink-primary" />
+              </div>
+            </button>
+
+            {showExportMenu && (
+              <div className="absolute top-full right-0 mt-3 w-64 bg-white rounded-2xl border border-black/10 shadow-hover z-[100] p-2 animate-in fade-in zoom-in-95 duration-200">
+                <button
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    onExportCSV?.();
+                  }}
+                  disabled={!onExportCSV}
+                  className="flex items-center gap-3 w-full p-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-canvas transition-all text-ink-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <div className="icon-nest !w-8 !h-8 bg-emerald-50">
+                    <FileSpreadsheet size={14} className="text-emerald-600" />
+                  </div>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <span>Export CSV</span>
+                    <span className="text-[8px] font-bold normal-case tracking-normal text-gray-400">Spreadsheet (Excel / Numbers)</span>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowExportMenu(false);
+                    onExportPDF?.();
+                  }}
+                  disabled={!onExportPDF}
+                  className="flex items-center gap-3 w-full p-3 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-canvas transition-all text-ink-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <div className="icon-nest !w-8 !h-8 bg-rose-50">
+                    <Printer size={14} className="text-rose-600" />
+                  </div>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <span>Export PDF</span>
+                    <span className="text-[8px] font-bold normal-case tracking-normal text-gray-400">Via browser print dialog</span>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* Backdrop for export menu */}
+      {showExportMenu && (
+        <div
+          className="fixed inset-0 z-[90] bg-transparent"
+          onClick={() => setShowExportMenu(false)}
+        />
+      )}
 
       {/* Dynamic Filter Chips & Custom Date (Rule 5) */}
       {(showCustomDate || config.length > 0) && (

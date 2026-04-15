@@ -46,3 +46,55 @@ export const dayBookSchema = z.object({
   opening_balance: z.number().min(0, 'Opening balance cannot be negative').optional(),
   closing_balance: z.number().min(0, 'Closing balance cannot be negative').optional()
 });
+
+/** Common weak passwords that are trivially guessable — rejected regardless of length. */
+const PASSWORD_DENYLIST = ['password', 'admin123', 'letmein', 'qwerty', '12345678', 'password1'];
+
+/**
+ * Strong-password schema.
+ * Rules:
+ *  - min 10 characters
+ *  - at least one uppercase letter
+ *  - at least one lowercase letter
+ *  - at least one digit
+ *  - at least one non-alphanumeric (special) character
+ *  - not in the common-password denylist (case-insensitive)
+ */
+export const passwordSchema = z
+  .string()
+  .min(10, 'Password must be at least 10 characters')
+  .refine((v) => /[A-Z]/.test(v), { message: 'Password must contain at least one uppercase letter' })
+  .refine((v) => /[a-z]/.test(v), { message: 'Password must contain at least one lowercase letter' })
+  .refine((v) => /[0-9]/.test(v), { message: 'Password must contain at least one digit' })
+  .refine((v) => /[^A-Za-z0-9]/.test(v), { message: 'Password must contain at least one special character' })
+  .refine((v) => !PASSWORD_DENYLIST.includes(v.toLowerCase()), { message: 'Password is too common — choose a stronger one' });
+
+/**
+ * Schema for creating a new staff member.
+ * Combines identity fields with the strong-password requirement.
+ */
+export const staffCreateSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters'),
+  email: z.string().email('Invalid email address'),
+  password: passwordSchema,
+  role: z.string().min(1, 'Role is required').optional(),
+  roles: z.array(z.string()).min(1, 'At least one role is required').optional()
+});
+
+/**
+ * Returns a strength score and label for a password string.
+ * Score 0 = very weak, 4 = strong.
+ *
+ * @param {string} str
+ * @returns {{ score: number, label: string }}
+ */
+export const passwordStrength = (str) => {
+  if (!str) return { score: 0, label: 'empty' };
+  let score = 0;
+  if (str.length >= 10) score++;
+  if (/[A-Z]/.test(str) && /[a-z]/.test(str)) score++;
+  if (/[0-9]/.test(str)) score++;
+  if (/[^A-Za-z0-9]/.test(str)) score++;
+  const labels = ['very weak', 'weak', 'fair', 'good', 'strong'];
+  return { score, label: labels[score] };
+};

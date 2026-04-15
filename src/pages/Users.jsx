@@ -1,6 +1,7 @@
 import React, { useState} from 'react';
 import { useAppContext, AVAILABLE_ROLES, DEFAULT_PERMISSIONS, MODULES_CONFIG} from '../context/AppContext';
 import { supabase } from '../lib/supabase';
+import { staffCreateSchema, passwordStrength } from '../lib/validation';
 import { 
  ShieldCheck, User, Plus, Trash2, Edit3, X, Check, 
  Eye, Save, Package, Truck, Lock, ShieldAlert,
@@ -106,13 +107,28 @@ const Users = () => {
         // Update local profile
         await updateUser({ ...editingUser, ...formData });
       } else {
+        // Validate password strength before hitting Supabase
+        const validation = staffCreateSchema.safeParse({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password || '',
+          roles: formData.roles
+        });
+        if (!validation.success) {
+          const firstError = validation.error.errors[0]?.message || 'Validation failed';
+          addNotification(firstError, 'error');
+          clearTimeout(timeout);
+          setIsSaving(false);
+          return;
+        }
+
         // Create both Auth and User record via centralized AppContext method
-        const success = await addUser(formData); 
+        const success = await addUser(formData);
         if (!success) {
           clearTimeout(timeout);
           setIsSaving(false);
           return;
-        } 
+        }
       }
       setIsAdding(false);
       setEditingUser(null);
@@ -328,14 +344,32 @@ const Users = () => {
  {!editingUser && (
  <div className="md:col-span-2">
  <label className="block text-[8px] font-semibold text-gray-700 mb-0.5 ml-1 opacity-[0.85]">Security Secret</label>
- <input 
- required 
- type="password" 
- className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" 
- placeholder="MIN 6 CHAR..."
- value={formData.password || ''} 
- onChange={e => setFormData({...formData, password: e.target.value})} 
+ <input
+ required
+ type="password"
+ className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all"
+ placeholder="MIN 10 CHAR..."
+ value={formData.password || ''}
+ onChange={e => setFormData({...formData, password: e.target.value})}
  />
+ {/* Inline password-strength bar */}
+ {formData.password && (() => {
+   const { score, label } = passwordStrength(formData.password);
+   const segmentColors = ['bg-red-500', 'bg-orange-400', 'bg-yellow-400', 'bg-green-400', 'bg-emerald-500'];
+   const color = segmentColors[score] || 'bg-red-500';
+   return (
+     <div className="mt-1.5 px-1">
+       <div className="flex gap-1 mb-0.5">
+         {[0,1,2,3].map(i => (
+           <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i < score ? color : 'bg-black/10'}`} />
+         ))}
+       </div>
+       <p className={`text-[8px] font-semibold capitalize ${score <= 1 ? 'text-red-500' : score <= 2 ? 'text-yellow-500' : 'text-green-500'}`}>
+         {label}
+       </p>
+     </div>
+   );
+ })()}
  </div>
  )}
  </div>
