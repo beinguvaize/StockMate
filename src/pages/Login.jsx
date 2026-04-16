@@ -3,12 +3,30 @@ import { useNavigate} from 'react-router-dom';
 import { useAppContext as useAuth} from '../context/AppContext';
 
 const Login = () => {
- const [credentials, setCredentials] = useState({ email: '', password: ''});
- const [error, setError] = useState('');
- const [btnClicked, setBtnClicked] = useState(false);
- const [markSpin, setMarkSpin] = useState(false);
- const { login, loading} = useAuth();
- const navigate = useNavigate();
+  const [credentials, setCredentials] = useState({ email: '', password: ''});
+  const [error, setError] = useState('');
+  const [btnClicked, setBtnClicked] = useState(false);
+  const [markSpin, setMarkSpin] = useState(false);
+  const [logoClickCount, setLogoClickCount] = useState(0);
+  const [lastClickTime, setLastClickTime] = useState(0);
+  const { login, loading} = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogoClick = () => {
+    const currentTime = Date.now();
+    if (currentTime - lastClickTime < 1000) {
+      const newCount = logoClickCount + 1;
+      if (newCount === 3) {
+        navigate('/nexus-hq');
+        setLogoClickCount(0);
+      } else {
+        setLogoClickCount(newCount);
+      }
+    } else {
+      setLogoClickCount(1);
+    }
+    setLastClickTime(currentTime);
+  };
 
  const handleSubmit = async (e) => {
  e.preventDefault();
@@ -27,22 +45,28 @@ const Login = () => {
 
  setError('');
  const result = await login(credentials.email, credentials.password);
- if (result.success) {
- navigate('/');
-} else {
- setError(result.error || 'Invalid email or password');
-}
+  if (result.success) {
+    // If we have role data immediately, use it, otherwise let RootRedirect handle it
+    if (result.user?.roles?.includes('GLOBAL_ADMIN') || result.user?.user_metadata?.roles?.includes('GLOBAL_ADMIN')) {
+      navigate('/nexus-hq');
+    } else {
+      navigate('/');
+    }
+  } else {
+    setError(result.error || 'Invalid email or password');
+  }
 };
 
  return (
  <div className="flex w-full h-screen overflow-hidden bg-[#141c1a] font-inter select-none">
  {/* Left Panel: Branding */}
  <div className="hidden lg:flex w-1/2 bg-white flex-col items-center justify-center gap-4">
- <img 
- className="w-[420px] max-w-[88%] block" 
- src="/logo.png" 
- alt="Ledgr Pro Logo" 
- />
+  <img 
+  className="w-[420px] max-w-[88%] block cursor-pointer transition-transform active:scale-95" 
+  src="/logo.png" 
+  alt="Ledgr Pro Logo" 
+  onClick={handleLogoClick}
+  />
  <p className="text-[13px] text-[#747576] font-medium">
  Digital Asset Management. Reimagined.
  </p>

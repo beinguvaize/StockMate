@@ -63,7 +63,7 @@ const Dashboard = () => {
  // New KPIs
  const rangeSales = (sales || []).filter(s => isWithinRange(s.date)).reduce((sum, s) => sum + (s.totalAmount || 0), 0);
  const rangeExpenses = (expenses || []).filter(e => isWithinRange(e.date)).reduce((sum, e) => sum + (e.amount || 0), 0);
- const rangePurchases = (purchases || []).filter(p => isWithinRange(p.date)).reduce((sum, p) => sum + (p.total_cost || 0), 0);
+  const rangePurchases = (purchases || []).filter(p => isWithinRange(p.date)).reduce((sum, p) => sum + (p.total_cost || p.total_amount || 0), 0);
  
  const todayStr = new Date().toISOString().split('T')[0];
  const todaysDayBook = (dayBook || []).find(db => db.date === todayStr);
@@ -153,16 +153,12 @@ const Dashboard = () => {
 
  // Chart 4: Expenses by Category
  const chart4Data = useMemo(() => {
- const categories = {};
- (expenses || []).filter(e => {
- const d = new Date(e.date);
- const today = new Date();
- return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-}).forEach(e => {
- categories[e.category] = (categories[e.category] || 0) + (e.amount || 0);
-});
- return Object.keys(categories).map(c => ({ name: c, value: categories[c]})).sort((a,b) => b.value - a.value);
-}, [expenses]);
+  const categories = {};
+  (expenses || []).filter(e => isWithinRange(e.date)).forEach(e => {
+    categories[e.category] = (categories[e.category] || 0) + (e.amount || 0);
+  });
+  return Object.keys(categories).map(c => ({ name: c, value: categories[c]})).sort((a,b) => b.value - a.value);
+}, [expenses, datePreset, customRange]);
  
  // Recent Transactions
  const recentTransactions = useMemo(() => {
@@ -182,14 +178,14 @@ const Dashboard = () => {
  .slice(0, 5);
 }, [clients]);
 
- // Expense Distribution by Category
- const expenseByCategory = useMemo(() => {
- const catMap = {};
- (expenses || []).forEach(exp => {
- catMap[exp.category] = (catMap[exp.category] || 0) + (exp.amount || 0);
-});
- return Object.keys(catMap).map(name => ({ name, value: catMap[name]}));
-}, [expenses]);
+  // Expense Distribution by Category (Filtered)
+  const expenseByCategory = useMemo(() => {
+    const catMap = {};
+    (expenses || []).filter(e => isWithinRange(e.date)).forEach(exp => {
+      catMap[exp.category] = (catMap[exp.category] || 0) + (exp.amount || 0);
+    });
+    return Object.keys(catMap).map(name => ({ name, value: catMap[name]}));
+  }, [expenses, datePreset, customRange]);
 
  const COLORS = [
  '#3b82f6', // blue-500
@@ -220,7 +216,7 @@ const Dashboard = () => {
  date: m.date, 
  icon: <TrendingUp size={14} />, 
  color: '#737373' 
-});
+ });
 });
  
  return events
@@ -301,7 +297,7 @@ const Dashboard = () => {
  return orderedWeek.map(day => ({
  name: day,
  value: dayMap[day]
-}));
+ }));
 }, [sales]);
 
  // System Status Check
@@ -735,7 +731,7 @@ const Dashboard = () => {
  border: 'none', 
  padding: '16px',
  boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)' 
-}}
+ }}
  itemStyle={{ fontWeight: 600, fontSize: '13px'}}
  labelStyle={{ color: '#6B7280', marginBottom: '8px', fontWeight: 500}}
  />
@@ -767,12 +763,12 @@ const Dashboard = () => {
  </div>
 
  {/* Category Sales & Weekly Performance Dual Card */}
- <div className="bg-white p-5 rounded-[2rem] shadow-premium border border-black/5 flex flex-col gap-5">
- <div className="flex justify-between items-center mb-2">
- <h2 className="text-xl font-bold text-ink-primary">Analytics</h2>
- <span className="text-xs font-bold px-3 py-1 bg-gray-100 rounded-full text-gray-700">Sales by Category</span>
- </div>
- 
+  <div className="bg-white p-5 rounded-[2rem] shadow-premium border border-black/5 flex flex-col gap-5">
+    <div className="flex justify-between items-center mb-2">
+      <h2 className="text-xl font-bold text-ink-primary">Analytics</h2>
+      <span className="text-xs font-bold px-3 py-1 bg-gray-100 rounded-full text-gray-700 uppercase tracking-wider">Expense Portfolio</span>
+    </div>
+  
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-center">
  {/* Compact Category Distribution */}
  <div className="relative h-[300px] w-full">
@@ -787,7 +783,7 @@ const Dashboard = () => {
  ))}
  </defs>
  <Pie
- data={expenseByCategory}
+  data={expenseByCategory}
  cx="60%"
  cy="50%"
  innerRadius={45}
@@ -811,7 +807,7 @@ const Dashboard = () => {
  border: 'none', 
  padding: '16px',
  boxShadow: '0 20px 40px -10px rgb(0 0 0 / 0.15)'
-}}
+ }}
  />
  <Legend 
  layout="vertical"

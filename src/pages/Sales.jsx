@@ -7,11 +7,14 @@ import {
  Layers, Wine, Utensils, Disc, Monitor, Box, Coffee 
 } from 'lucide-react';
 import PremiumInvoice from '../components/sales/PremiumInvoice';
+import InvoiceTemplate from '../components/invoice/InvoiceTemplate';
 
 const Sales = () => {
  const { 
  products, sales, orders, businessProfile, routes, dispatchRoute, 
- hasPermission, currentUser, clients, getShopName, placeSale, getEmployeeName, isViewOnly 
+ hasPermission, currentUser, clients, getShopName, placeSale, getEmployeeName, isViewOnly,
+ inventoryLocations, MAIN_WAREHOUSE_ID, inventoryBalances,
+ createInvoice, invoices
 } = useAppContext();
  const [selectedShopId, setSelectedShopId] = useState('WALKIN');
  const [customerInfo, setCustomerInfo] = useState({ name: 'Walk-in Customer', phone: ''});
@@ -23,11 +26,14 @@ const Sales = () => {
  const [invoiceData, setInvoiceData] = useState(null);
  const [lastOrderId, setLastOrderId] = useState(null);
  const [lastOrderTotal, setLastOrderTotal] = useState(0);
+ const [showGstInvoice, setShowGstInvoice] = useState(false);
+ const [generatedInvoice, setGeneratedInvoice] = useState(null);
  
  // Modal & Status State
  const [showPaymentModal, setShowPaymentModal] = useState(false);
  const [pendingPaymentMethod, setPendingPaymentMethod] = useState('CASH');
  const [salesmanNote, setSalesmanNote] = useState('');
+ const [selectedSourceLocation, setSelectedSourceLocation] = useState(MAIN_WAREHOUSE_ID);
  
  // UI State
  const [mobileCartOpen, setMobileCartOpen] = useState(false);
@@ -74,30 +80,38 @@ const Sales = () => {
  return routeSales;
 }, [products, routes, sales, selectedRoute]);
 
- const availableProducts = useMemo(() => {
- if (!selectedRoute) return (products || []).filter(p => p.stock > 0);
- 
- const route = (routes || []).find(r => r.id === selectedRoute);
- if (!route) return [];
+  const availableProducts = useMemo(() => {
+    // 1. Legacy Route Logic (Overrides everything else)
+    if (selectedRoute) {
+      const route = (routes || []).find(r => r.id === selectedRoute);
+      if (!route) return [];
+      const routeSales = (sales || []).filter(o => o.routeId === route.id);
+      const soldMap = {};
+      routeSales.forEach(sale => {
+        (sale.items || []).forEach(item => {
+          soldMap[item.productId] = (soldMap[item.productId] || 0) + item.quantity;
+        });
+      });
 
- const routeSales = (sales || []).filter(o => o.routeId === route.id);
- const soldMap = {};
- routeSales.forEach(sale => {
- (sale.items || []).forEach(item => {
- soldMap[item.productId] = (soldMap[item.productId] || 0) + item.quantity;
-});
-});
-
- return (route.loadedStock || []).map(item => {
- const sold = soldMap[item.productId] || 0;
- const left = item.quantity - sold;
- if (left > 0) {
- const productRef = products.find(p => p.id === item.productId);
- return { ...productRef, stock: left};
-}
- return null;
-}).filter(p => p !== null);
-}, [products, routes, orders, selectedRoute]);
+      return (route.loadedStock || []).map(item => {
+        const sold = soldMap[item.productId] || 0;
+        const left = item.quantity - sold;
+        if (left > 0) {
+          const productRef = products.find(p => p.id === item.productId);
+          return { ...productRef, stock: left };
+        }
+        return null;
+      }).filter(p => p !== null);
+    }
+    
+    // 2. Multi-Location Logic (Location-aware)
+    return (products || []).map(p => {
+      const balance = (inventoryBalances || []).find(b => b.product_id === p.id && b.location_id === selectedSourceLocation);
+      // Fallback: If it's MAIN_WAREHOUSE and no balance record exists, use p.stock (legacy)
+      const stock = balance ? balance.quantity : (selectedSourceLocation === MAIN_WAREHOUSE_ID ? (p.stock || 0) : 0);
+      return { ...p, stock };
+    }).filter(p => p.stock > 0);
+  }, [products, inventoryBalances, routes, sales, selectedRoute, selectedSourceLocation]);
 
  const categories = useMemo(() => {
  const cats = [...new Set(availableProducts.map(p => p.category))];
@@ -206,46 +220,51 @@ const Sales = () => {
  return { lines, subtotal, totalDiscount, totalTax, finalTotal, totalItems: cart.reduce((sum, item) => sum + item.quantity, 0)};
 }, [cart]);
 
- const handleConfirmTransaction = (statusOverride) => {
- const status = statusOverride || 'COMPLETED';
- const saleId = placeSale(
- selectedShopId === 'WALKIN' ? 'POS-WALKIN' : selectedShopId,
- cart,
- cartCalc.subtotal,
- cartCalc.totalDiscount,
- cartCalc.totalTax,
- cartCalc.finalTotal,
- customerInfo,
- pendingPaymentMethod.toLowerCase(),
- selectedRoute || null,
- status,
- status === 'PENDING' ? scheduledDate : null,
- salesmanNote
- );
- setInvoiceData({
- id: saleId,
- items: [...cart],
- totalAmount: cartCalc.finalTotal,
- subtotal: cartCalc.subtotal,
- discount: cartCalc.totalDiscount,
- tax: cartCalc.totalTax,
- customerInfo: { ...customerInfo},
- paymentMethod: pendingPaymentMethod.toUpperCase(),
- paymentStatus: status === 'COMPLETED' ? 'PAID' : 'PENDING',
- date: new Date().toISOString(),
- salesmanNote
-});
+  const handleConfirmTransaction = async (statusOverride) => {
+    const status = statusOverride || 'COMPLETED';
+    
+    const saleId = await placeSale(
+      selectedShopId === 'WALKIN' ? 'POS-WALKIN' : selectedShopId,
+      cart,
+      cartCalc.subtotal,
+      cartCalc.totalDiscount,
+      cartCalc.totalTax,
+      cartCalc.finalTotal,
+      customerInfo,
+      pendingPaymentMethod.toLowerCase(),
+      selectedRoute || null,
+      status,
+      status === 'PENDING' ? scheduledDate : null,
+      salesmanNote,
+      selectedSourceLocation
+    );
 
- setLastOrderId(saleId);
- setLastOrderTotal(cartCalc.finalTotal);
- setCart([]);
- setSelectedShopId('WALKIN');
- setCustomerInfo({ name: 'Walk-in Customer', phone: ''});
- setSalesmanNote('');
- setShowPaymentModal(false);
- setShowBookingDateModal(false);
- setOrderComplete(true);
-};
+    if (!saleId) return;
+
+    setInvoiceData({
+      id: saleId,
+      items: [...cart],
+      totalAmount: cartCalc.finalTotal,
+      subtotal: cartCalc.subtotal,
+      discount: cartCalc.totalDiscount,
+      tax: cartCalc.totalTax,
+      customerInfo: { ...customerInfo },
+      paymentMethod: pendingPaymentMethod.toUpperCase(),
+      paymentStatus: status === 'COMPLETED' ? 'PAID' : 'PENDING',
+      date: new Date().toISOString(),
+      salesmanNote
+    });
+
+    setLastOrderId(saleId);
+    setLastOrderTotal(cartCalc.finalTotal);
+    setCart([]);
+    setSelectedShopId('WALKIN');
+    setCustomerInfo({ name: 'Walk-in Customer', phone: '' });
+    setSalesmanNote('');
+    setShowPaymentModal(false);
+    setShowBookingDateModal(false);
+    setOrderComplete(true);
+  };
 
  const renderCartPanel = () => (
  <div className="flex flex-col h-full bg-surface lg:bg-transparent">
@@ -265,20 +284,20 @@ const Sales = () => {
  <label className="block text-[10px] font-semibold text-[#4b5563] opacity-95 mb-1.5">Customer</label>
  <div className="relative">
  <User size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary opacity-70" />
- <input 
- type="text" 
- className="input-field !pl-12 !rounded-xl !py-2.5 !bg-surface !text-xs" 
- placeholder="Search customers..." 
- value={customerSearch || (selectedShopId === 'WALKIN' ? 'Default Walking Customer' : customerInfo.name)}
- onFocus={() => {
- setShowCustomerDropdown(true);
- setCustomerSearch('');
-}}
- onChange={e => {
- setCustomerSearch(e.target.value);
- setShowCustomerDropdown(true);
-}}
- />
+              <input 
+                type="text" 
+                className="input-field !pl-12 !rounded-xl !py-2.5 !bg-surface !text-xs" 
+                placeholder="Search customers..." 
+                value={showCustomerDropdown && customerSearch !== null ? customerSearch : (selectedShopId === 'WALKIN' ? 'Walk-in Customer' : customerInfo.name)}
+                onFocus={() => {
+                  setShowCustomerDropdown(true);
+                  setCustomerSearch('');
+                }}
+                onChange={e => {
+                  setCustomerSearch(e.target.value);
+                  setShowCustomerDropdown(true);
+                }}
+              />
  
  {showCustomerDropdown && (
  <div className="absolute top-full left-0 right-0 bg-surface rounded-bento border border-black/5 shadow-2xl z-[100] mt-4 max-h-[300px] overflow-hidden flex flex-col duration-500">
@@ -416,7 +435,7 @@ const Sales = () => {
  <div className="space-y-2 mb-4">
  <div className="flex justify-between text-[9px] font-semibold text-[#4b5563] opacity-95">
  <span>Subtotal ({cartCalc.totalItems} items)</span>
- <span>${cartCalc.subtotal.toLocaleString()}</span>
+ <span>₹{cartCalc.subtotal.toLocaleString()}</span>
  </div>
  {cartCalc.totalDiscount > 0 && (
  <div className="flex justify-between text-[9px] font-semibold text-red-500">
@@ -471,28 +490,83 @@ const Sales = () => {
  </div>
  </div>
 
- <div className="flex flex-col md:flex-row gap-4">
- <button className="flex-1 py-5 rounded-pill border border-black/10 font-semibold text-ink-primary hover:bg-black/5 transition-all text-[11px] flex items-center justify-center gap-3" 
- onClick={() => setShowInvoice(true)}>
- <Printer size={18} />
- VIEW INVOICE
- </button>
- <button className="btn-signature flex-1 h-16 !rounded-pill" onClick={() => setOrderComplete(false)}>
- NEW ORDER
- <div className="icon-nest">
- <ArrowRight size={22} />
- </div>
- </button>
- </div>
- </div>
+  <div className="flex flex-col gap-4 w-full">
+    <div className="flex flex-col md:flex-row gap-4">
+      <button className="flex-1 py-5 rounded-pill border border-black/10 font-semibold text-ink-primary hover:bg-black/5 transition-all text-[11px] flex items-center justify-center gap-3" 
+        onClick={() => setShowInvoice(true)}>
+        <Printer size={18} />
+        REGULAR SLIP
+      </button>
+      <button 
+        className="flex-1 py-5 rounded-pill bg-accent-signature/10 border border-accent-signature/20 font-bold text-ink-primary hover:bg-accent-signature/20 transition-all text-[11px] flex items-center justify-center gap-3"
+        onClick={async () => {
+          const clientObj = clients.find(c => c.id === selectedShopId);
+          const { calculateGST } = await import('../lib/gstEngine');
+          const gstData = calculateGST(invoiceData.items.map(i => ({
+            productId: i.productId,
+            name: i.name,
+            sku: i.sku,
+            qty: i.quantity,
+            rate: i.price,
+            taxRate: i.taxRate || 18
+          })), businessProfile.state, clientObj?.state || '');
 
- {showInvoice && invoiceData && (
- <PremiumInvoice 
- order={invoiceData} 
- business={businessProfile} 
- onClose={() => setShowInvoice(false)} 
- />
- )}
+          const inv = await createInvoice({
+            sale_id: lastOrderId,
+            client_id: selectedShopId === 'WALKIN' ? null : selectedShopId,
+            client_name: customerInfo.name,
+            items: gstData.items,
+            subtotal: gstData.subtotal,
+            discount_total: gstData.discount,
+            tax_total: gstData.totalTax,
+            cgst_amount: gstData.cgst,
+            sgst_amount: gstData.sgst,
+            igst_amount: gstData.igst,
+            grand_total: gstData.grandTotal,
+            round_off: gstData.roundOff,
+            amount_in_words: gstData.amountInWords,
+            is_interstate: gstData.isInterstate,
+            payment_method: invoiceData.paymentMethod,
+            payment_status: 'PAID',
+            invoice_date: new Date().toISOString().split('T')[0]
+          });
+
+          if (inv) {
+            setGeneratedInvoice(inv);
+            setShowGstInvoice(true);
+          }
+        }}
+      >
+        <FileText size={18} className="text-accent-signature" />
+        GENERATE GST INVOICE
+      </button>
+    </div>
+    <button className="btn-signature w-full h-16 !rounded-pill" onClick={() => setOrderComplete(false)}>
+      NEW ORDER
+      <div className="icon-nest">
+        <ArrowRight size={22} />
+      </div>
+    </button>
+  </div>
+  </div>
+
+  {showInvoice && invoiceData && (
+    <PremiumInvoice 
+      order={invoiceData} 
+      business={businessProfile} 
+      onClose={() => setShowInvoice(false)} 
+    />
+  )}
+
+  {showGstInvoice && generatedInvoice && (
+    <InvoiceTemplate 
+      invoice={generatedInvoice} 
+      businessProfile={businessProfile}
+      client={clients.find(c => c.id === (selectedShopId === 'WALKIN' ? null : selectedShopId))}
+      onClose={() => setShowGstInvoice(false)} 
+      onPrint={() => window.print()}
+    />
+  )}
  </div>
  );
 }
@@ -511,16 +585,38 @@ const Sales = () => {
 
  {/* Controls Section */}
  <div className="flex flex-col md:flex-row gap-4">
- <div className="flex-1 relative group">
- <Search size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-70 group-focus-within:opacity-100 transition-opacity" />
- <input 
- type="text" 
- className="input-field !pl-16 !py-2 !rounded-pill bg-surface border-black/5 shadow-premium !text-sm font-semibold" 
- placeholder="Search products..." 
- value={searchTerm} 
- onChange={e => setSearchTerm(e.target.value)} 
- />
- </div>
+            <div className="flex items-center gap-3 w-full md:w-auto">
+              <div className="relative group flex-1 md:w-64">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-accent-signature transition-colors" size={16} />
+                <input 
+                  type="text" 
+                  placeholder="Universal Catalog Search..."
+                  className="w-full bg-white/50 border border-black/5 rounded-xl py-3 pl-12 pr-4 text-xs font-semibold focus:ring-4 focus:ring-accent-signature/10 transition-all outline-none"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+
+              {/* Multi-Location Sector Selector */}
+              <div className="relative group">
+                <Layers className="absolute left-4 top-1/2 -translate-y-1/2 text-accent-signature opacity-70" size={14} />
+                <select 
+                  className="bg-white/50 border border-black/5 rounded-xl py-3 pl-10 pr-10 text-xs font-bold text-ink-primary appearance-none outline-none focus:ring-4 focus:ring-accent-signature/10 transition-all cursor-pointer"
+                  value={selectedSourceLocation}
+                  onChange={(e) => setSelectedSourceLocation(e.target.value)}
+                  disabled={!!selectedRoute}
+                >
+                  {inventoryLocations.map(loc => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.type === 'WAREHOUSE' ? '🏢 ' : '🚛 '} {loc.name.toUpperCase()}
+                    </option>
+                  ))}
+                </select>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-50">
+                  <Package size={12} />
+                </div>
+              </div>
+            </div>
  {activeRoutes.length > 0 && (
  <div className="relative group min-w-[300px]">
  <Truck size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-70" />
@@ -726,18 +822,43 @@ const Sales = () => {
  ))}
  </div>
 
- {/* Field Notes (Salesman) */}
- <div className="space-y-2">
- <label className="text-[10px] font-semibold text-gray-700 opacity-60 flex items-center gap-2">
- <FileText size={12} /> ORDER LOGISTICS NOTES
- </label>
- <textarea 
- className="w-full bg-canvas border-none rounded-lg p-4 font-medium text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all min-h-[80px] text-sm"
- placeholder="ENTER NOTES REGARDING DELIVERY OR DISCOUNTS..."
- value={salesmanNote}
- onChange={(e) => setSalesmanNote(e.target.value)}
- />
- </div>
+  {/* Field Notes (Salesman) */}
+  <div className="space-y-4">
+   {/* Source Sector Indicator (Read-only here) */}
+   <div className="p-4 bg-canvas rounded-xl border border-black/5 flex items-center justify-between">
+     <div className="flex items-center gap-3">
+       <div className="w-10 h-10 rounded-full bg-accent-signature/10 flex items-center justify-center text-accent-signature">
+         <Layers size={18} />
+       </div>
+       <div>
+         <div className="text-[9px] font-bold text-gray-500 uppercase tracking-widest">Selected Sector</div>
+         <div className="text-xs font-bold text-ink-primary">
+           {inventoryLocations.find(l => l.id === selectedSourceLocation)?.name || 'Default'}
+         </div>
+       </div>
+     </div>
+     <div className="flex flex-col items-end">
+       <div className="text-[9px] font-bold text-gray-500 uppercase">Status</div>
+       <div className="flex items-center gap-2">
+         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+         <span className="text-[10px] font-bold text-ink-primary uppercase tracking-tighter">Verified</span>
+       </div>
+     </div>
+   </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="space-y-2">
+        <label className="text-[10px] font-semibold text-gray-700 opacity-60 flex items-center gap-2 uppercase tracking-wider font-sora">
+          <FileText size={12} className="text-accent-signature" /> LOGISTICS NOTES
+        </label>
+        <textarea 
+          className="w-full bg-canvas border-none rounded-lg p-3 font-medium text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all min-h-[50px] text-xs"
+          placeholder="DELIVERY INSTRUCTIONS..."
+          value={salesmanNote}
+          onChange={(e) => setSalesmanNote(e.target.value)}
+        />
+      </div>
+    </div>
+  </div>
  </div>
 
  {/* Footer Actions */}

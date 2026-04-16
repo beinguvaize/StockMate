@@ -5,6 +5,20 @@ import {
  employeeSchema, clientSchema, dayBookSchema 
 } from '../lib/validation';
 import { cacheSet, cacheGet, cacheClear} from '../lib/cache';
+import { isLocked, recordFailure, recordSuccess, timeRemaining } from '../lib/loginThrottle';
+import { isModuleAvailable, getRequiredPlan, PLANS } from '../lib/tenancy';
+import { logError } from '../lib/errorLogger';
+import { logAuditEvent, AUDIT_ACTIONS, diffRoles } from '../lib/auditLog';
+
+// Bootstrap allowlist for first-login auto-provisioning. Parsed once from env.
+// NOT a permission gate — only decides what roles to stamp on a brand-new user
+// profile. After that, normal RBAC (users.roles) applies.
+const BOOTSTRAP_ADMIN_EMAILS = new Set(
+ (import.meta.env.VITE_BOOTSTRAP_ADMIN_EMAILS || '')
+ .split(',')
+ .map((e) => e.trim().toLowerCase())
+ .filter(Boolean)
+);
 
 const AppContext = createContext();
 
@@ -36,7 +50,11 @@ const INITIAL_BUSINESS = {
  email: '',
  website: '',
  phone: '',
- address: ''
+ address: '',
+ city: '',
+ state: '',
+ pincode: '',
+ logo_url: ''
 };
 
 const INITIAL_EXPENSE_CATEGORIES = ['General', 'Inventory', 'Logistics', 'Payroll', 'Utilities', 'Marketing', 'Rent', 'Other'];
@@ -90,10 +108,38 @@ export const generateUUID = () => {
 
 export const AppProvider = ({ children}) => {
  const [loading, setLoading] = useState(true);
+ const [isSyncComplete, setIsSyncComplete] = useState(false);
  const [initError, setInitError] = useState(null);
  
  // Auth Session — relies entirely on Supabase auth, no local persistence
  const [currentUser, setCurrentUser] = useState(null);
+
+ // Multi-Tenancy State
+ const [currentTenant, setCurrentTenant] = useState(() => {
+   try {
+     const stored = sessionStorage.getItem('nexus_impersonated_tenant');
+     return stored ? JSON.parse(stored) : null;
+   } catch { return null; }
+ });
+ const [isImpersonating, setIsImpersonating] = useState(sessionStorage.getItem('nexus_impersonating') === 'true');
+ const currentTenantId = currentTenant?.id || null;
+
+ const impersonateTenant = (tenant) => {
+   cacheClear();
+   setCurrentTenant(tenant);
+   setIsImpersonating(true);
+   sessionStorage.setItem('nexus_impersonating', 'true');
+   sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(tenant));
+   window.location.href = `/${tenant.slug}/dashboard`;
+ };
+
+ const stopImpersonating = () => {
+   setIsImpersonating(false);
+   sessionStorage.removeItem('nexus_impersonating');
+   sessionStorage.removeItem('nexus_impersonated_tenant');
+   cacheClear();
+   window.location.href = '/nexus-hq';
+ };
 
  // Core Data States (100% Cloud - No Local Initializers)
  const [users, setUsers] = useState([]);
@@ -115,6 +161,11 @@ export const AppProvider = ({ children}) => {
  const [suppliers, setSuppliers] = useState([]);
  const [dayBook, setDayBook] = useState([]);
  const [expenseCategories, setExpenseCategories] = useState(['Petrol', 'Food', 'Salary', 'Rent', 'Electricity', 'Water', 'Maintenance', 'Stationery', 'Travel', 'Marketing', 'Tax', 'Others']);
+ const [inventoryLocations, setInventoryLocations] = useState([]);
+  const [inventoryBalances, setInventoryBalances] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  
+ const MAIN_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
  
  // --- Sync & Connectivity States ---
  const [syncStatus, setSyncStatus] = useState('SYNCED'); // 'SYNCED', 'SYNCING', 'ERROR', 'OFFLINE'
@@ -139,6 +190,93 @@ export const AppProvider = ({ children}) => {
  window.removeEventListener('offline', handleOffline);
 };
 }, []);
+
+  const adjustLocationStock = async (productId, amount, locationId = MAIN_WAREHOUSE_ID) => {
+    if (!productId || !locationId) return;
+
+    setInventoryBalances(prev => {
+      const existing = prev.find(b => b.product_id === productId && b.location_id === locationId);
+      if (existing) {
+        return prev.map(b => (b.product_id === productId && b.location_id === locationId) 
+          ? { ...b, quantity: Math.max(0, b.quantity + amount), updated_at: new Date().toISOString() } 
+          : b
+        );
+      } else {
+        return [...prev, { 
+          id: generateUUID(), 
+          product_id: productId, 
+          location_id: locationId, 
+          quantity: Math.max(0, amount), 
+          updated_at: new Date().toISOString() 
+        }];
+      }
+    });
+
+    if (isSupabaseConfigured) {
+      const { data: current } = await supabase
+        .from('inventory_balances')
+        .select('quantity')
+        .eq('product_id', productId)
+        .eq('location_id', locationId)
+        .maybeSingle();
+      
+      const newQty = Math.max(0, (current?.quantity || 0) + amount);
+      const { error } = await supabase
+        .from('inventory_balances')
+        .upsert({ 
+          product_id: productId, 
+          location_id: locationId, 
+          quantity: newQty,
+          updated_at: new Date().toISOString(),
+          tenant_id: currentTenantId
+        }, { onConflict: 'product_id,location_id' });
+        
+      if (error) {
+        console.error("Error adjusting location stock:", error);
+        logError({
+          module: 'Inventory',
+          action: 'Adjust Location Stock',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'Medium'
+        });
+      }
+    }
+  };
+
+  const adjustStock = async (productId, amount, reason, locationId = MAIN_WAREHOUSE_ID) => {
+    const product = products.find(p => p.id === productId);
+    if (!product) return;
+
+    await adjustLocationStock(productId, amount, locationId);
+    
+    if (locationId === MAIN_WAREHOUSE_ID) {
+      const updatedProduct = { ...product, stock: Math.max(0, (product.stock || 0) + amount)};
+      setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p));
+      if (isSupabaseConfigured) {
+        const { error } = await supabase
+          .from('products')
+          .update({ stock: updatedProduct.stock })
+          .eq('id', productId)
+          .eq('tenant_id', currentTenantId);
+
+        if (error) {
+          console.error("Error adjusting product stock in Supabase:", error);
+          logError({
+            module: 'Inventory',
+            action: 'Adjust Stock',
+            error_code: error.code,
+            error_message: error.message,
+            severity: 'Medium'
+          });
+        }
+      }
+    }
+
+    const type = amount > 0 ? 'IN' : 'OUT';
+    const locName = inventoryLocations.find(l => l.id === locationId)?.name || 'Storage';
+    logMovement(productId, product.name, type, Math.abs(amount), `${reason} [Loc: ${locName}]`, currentUser?.id);
+  };
 
  // Heartbeat check for Supabase connectivity
  useEffect(() => {
@@ -182,20 +320,59 @@ export const AppProvider = ({ children}) => {
 
  // Data Actions (LOCAL ONLY)
  const login = async (email, password) => {
- if (isSupabaseConfigured) {
- const { data, error} = await supabase.auth.signInWithPassword({ email, password});
- if (error) {
- return { success: false, error: error.message};
-}
- return { success: true, user: data.user};
-}
- // Fallback for mock mode
- const user = users.find(u => u.email === email && (password === 'password' || password === 'admin123'));
- if (user) {
- setCurrentUser(user);
- return { success: true};
-}
- return { success: false, error: 'Invalid local credentials'};
+    // Client-side progressive backoff — check lockout before hitting Supabase.
+    if (isLocked(email)) {
+      const remaining = timeRemaining(email);
+      return { success: false, error: `Too many failed attempts. Try again in ${remaining}.` };
+    }
+
+    if (isSupabaseConfigured) {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) {
+        recordFailure(email);
+        return { success: false, error: error.message };
+      }
+
+      // Successful auth — clear the failure counter.
+      recordSuccess(email);
+
+      // Fetch profile to get roles immediately for redirection
+      const { data: profile } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', data.user.id)
+        .maybeSingle();
+        
+      if (profile) {
+        setCurrentUser(profile);
+      } else {
+        // Fallback: If no profile exists, check for roles in metadata (crucial for new admins)
+        const metaRoles = data.user.user_metadata?.roles || [];
+        if (metaRoles.length > 0) {
+          const synthesizedUser = {
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.user_metadata?.name || data.user.email.split('@')[0],
+            roles: metaRoles,
+            status: 'ACTIVE'
+          };
+          setCurrentUser(synthesizedUser);
+          return { success: true, user: synthesizedUser };
+        }
+      }
+      
+      return { success: true, user: profile || data.user };
+    }
+
+    // SECURITY: No offline/mock credential fallback. Previously this block
+    // accepted `password` / `admin123` against any in-memory user — a weak-
+    // password backdoor that ran whenever Supabase env vars were missing.
+    // Auth now requires a configured Supabase client; misconfigured deploys
+    // fail loudly instead of silently granting access.
+    return {
+      success: false,
+      error: 'Authentication unavailable — Supabase is not configured. Contact your administrator.',
+    };
 };
 
  const logout = async () => {
@@ -208,7 +385,6 @@ export const AppProvider = ({ children}) => {
 } catch (e) {
  console.error("Logout error:", e);
 } finally {
- setAuthSession(null);
  setCurrentUser(null);
  appInitialized.current = false;
  setLoading(false);
@@ -219,67 +395,83 @@ export const AppProvider = ({ children}) => {
 };
 
 
- const addUser = async (userData) => {
- const newUser = {
- id: userData.id || generateUUID(),
- name: userData.name,
- email: userData.email,
- roles: userData.roles || [userData.role || 'STAFF'],
- status: 'ACTIVE',
- permissions: userData.permissions || { ...DEFAULT_PERMISSIONS}
-};
+  const addUser = async (userData) => {
+    // Fallback: If currentTenantId is missing but we are in a tenant-scoped route, try to resolve it from the URL
+    let targetTenantId = currentTenantId;
+    if (!targetTenantId && typeof window !== 'undefined') {
+      const pathSegments = window.location.pathname.split('/');
+      if (pathSegments.length >= 2 && pathSegments[1] !== 'nexus-hq' && pathSegments[1] !== 'setup') {
+        const slug = pathSegments[1];
+        const tenant = await resolveTenantBySlug(slug);
+        if (tenant) targetTenantId = tenant.id;
+      }
+    }
 
- if (isSupabaseConfigured && userData.password) {
- // Refactored to use official Supabase SDK for Edge Function invocation
- try {
- const { data: result, error: invokeError} = await supabase.functions.invoke('dynamic-service', {
- body: {
- email: userData.email,
- password: userData.password,
- name: userData.name,
- roles: userData.roles || ['STAFF'],
- permissions: userData.permissions || { ...DEFAULT_PERMISSIONS}
-}
-});
+    const newUser = {
+      id: userData.id || generateUUID(),
+      name: userData.name,
+      email: userData.email,
+      roles: userData.roles || [userData.role || 'STAFF'],
+      status: 'ACTIVE',
+      permissions: userData.permissions || { ...DEFAULT_PERMISSIONS },
+      tenant_id: targetTenantId
+    };
 
- if (invokeError) {
- console.error("❌ Staff Creation Failed:", invokeError);
- addNotification(`Staff creation failed: ${invokeError.message}`,"error");
- return false;
-}
+    if (isSupabaseConfigured && userData.password) {
+      try {
+        const { data: result, error: invokeError } = await supabase.functions.invoke('dynamic-service', {
+          body: {
+            email: userData.email,
+            password: userData.password,
+            name: userData.name,
+            roles: userData.roles || ['STAFF'],
+            permissions: userData.permissions || { ...DEFAULT_PERMISSIONS },
+            tenant_id: targetTenantId
+          }
+        });
 
- const createdUser = { ...newUser, id: result.id};
- setUsers(prev => [...prev, createdUser]);
- addNotification(`${userData.name} added! They can now log in with their email & password.`,"success");
- return true;
+        if (invokeError) {
+          console.error("❌ Staff Creation Failed:", invokeError);
+          const errorMessage = invokeError.message || JSON.stringify(invokeError);
+          addNotification(`Staff creation failed: ${errorMessage}`, "error");
+          return false;
+        }
 
-} catch (err) {
- console.error("❌ Edge Function Unreachable:", err);
- addNotification("Edge function unreachable — saving profile only. Add them in Supabase Auth manually for login access.","warning");
- // Fall through to profile-only save below
-}
-}
+        const createdUser = { ...newUser, id: result.id };
+        setUsers(prev => [...prev, createdUser]);
+        addNotification(`${userData.name} added! They can now log in with their email & password.`, "success");
+        return true;
 
- // Fallback: save profile only (no auth account)
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error: profileError} = await supabase.from('users').upsert(newUser);
- if (profileError) {
- console.error("Error adding user:", profileError);
- setSyncStatus('ERROR');
- addNotification(`Failed to save staff profile: ${profileError.message}`,"error");
- return false;
-}
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
+      } catch (err) {
+        console.error("❌ Edge Function Unreachable:", err);
+        addNotification(`Request failed: ${err.message || 'Check connection'}`, "error");
+        return false;
+      }
+    }
 
- setUsers(prev => [...prev, newUser]);
- addNotification(`${userData.name} added! (Note: no login account created — add them in Supabase Auth to give login access.)`,"warning");
- return true;
-};
+    // Fallback: save profile only (no auth account)
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+      const { error: profileError } = await supabase.from('users').upsert(newUser);
+      if (profileError) {
+        console.error("Error adding user:", profileError);
+        setSyncStatus('ERROR');
+        addNotification(`Failed to save staff profile: ${profileError.message}`, "error");
+        return false;
+      }
+      setSyncStatus('SYNCED');
+      setLastSyncedAt(new Date().toISOString());
+    }
+
+    setUsers(prev => [...prev, newUser]);
+    addNotification(`${userData.name} added locally.`, "warning");
+    return true;
+  };
 
  const updateUser = async (updatedUser) => {
+ // Snapshot the prior record BEFORE the upsert so we can audit role/permission diffs.
+ const priorUser = users.find(u => u.id === updatedUser.id) || null;
+
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
  const { error} = await supabase.from('users').upsert(updatedUser);
@@ -291,6 +483,21 @@ export const AppProvider = ({ children}) => {
 } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
+ // Audit RBAC-sensitive changes only (avoid spamming for name/phone edits).
+ const diff = diffRoles(priorUser, updatedUser);
+ if (diff) {
+ const parts = [];
+ if (diff.rolesChanged)  parts.push(`roles ${JSON.stringify(diff.before.roles)} → ${JSON.stringify(diff.after.roles)}`);
+ if (diff.permsChanged)  parts.push('permissions matrix updated');
+ if (diff.statusChanged) parts.push(`status ${diff.before.status || '∅'} → ${diff.after.status || '∅'}`);
+ logAuditEvent({
+ action: diff.rolesChanged || diff.statusChanged ? AUDIT_ACTIONS.ROLE_CHANGE : AUDIT_ACTIONS.PERMISSION_CHANGE,
+ entityType: 'user',
+ entityId: updatedUser.id,
+ summary: `Updated ${updatedUser.email || updatedUser.name || updatedUser.id}: ${parts.join('; ')}`,
+ metadata: diff,
+});
+}
 }
 }
  setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
@@ -298,7 +505,8 @@ export const AppProvider = ({ children}) => {
 
  const deleteUser = async (userId) => {
  if (userId === currentUser?.id) return;
- 
+ const target = users.find(u => u.id === userId) || null;
+
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
  const { error} = await supabase.from('users').delete().eq('id', userId);
@@ -310,6 +518,13 @@ export const AppProvider = ({ children}) => {
 } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
+ logAuditEvent({
+ action: AUDIT_ACTIONS.USER_DELETE,
+ entityType: 'user',
+ entityId: userId,
+ summary: `Removed staff ${target?.email || target?.name || userId}`,
+ metadata: { roles: target?.roles, status: target?.status },
+});
 }
 }
 
@@ -326,7 +541,8 @@ export const AppProvider = ({ children}) => {
  const newClient = { 
  ...client, 
  id: client.id || `CLI-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
- outstanding_balance: client.outstanding_balance || 0
+ outstanding_balance: client.outstanding_balance || 0,
+ tenant_id: currentTenantId
 };
  
  const { status, ...dbClient} = newClient;
@@ -396,7 +612,8 @@ export const AppProvider = ({ children}) => {
  date: date || new Date().toISOString(),
  route_id: routeId,
  split_type: splitType || null,
- note: title || notes || ''
+ note: title || notes || '',
+ tenant_id: currentTenantId
 };
  
  if (isSupabaseConfigured) {
@@ -466,7 +683,8 @@ export const AppProvider = ({ children}) => {
  quantity, 
  reason, 
  user_id: userId,
- userId: userId
+ userId: userId,
+ tenant_id: currentTenantId
 };
 
  if (isSupabaseConfigured) {
@@ -535,38 +753,61 @@ export const AppProvider = ({ children}) => {
 }));
 }
 
- // Persistence (Using current snapshot for now, ideally SQL increments)
+ // Persistence
  if (isSupabaseConfigured) {
- for (const [id, delta] of productDeltas) {
- const currentProduct = products.find(p => p.id === id);
- if (currentProduct) await supabase.from('products').update({ stock: Math.max(0, currentProduct.stock + delta)}).eq('id', id);
-}
- for (const [id, delta] of clientDeltas) {
- const currentClient = clients.find(c => c.id === id);
- if (currentClient) await supabase.from('clients').update({ outstanding_balance: Math.max(0, (currentClient.outstanding_balance || 0) + delta)}).eq('id', id);
-}
-}
+ for (const [prodId, pDelta] of productDeltas) {
+   await supabase.from('products').update({ stock: Math.max(0, (products.find(p => p.id === prodId)?.stock || 0) + pDelta) }).eq('id', prodId);
+ }
+ for (const [clId, cDelta] of clientDeltas) {
+   const currentClient = clients.find(c => c.id === clId);
+   if (currentClient) {
+     await supabase.from('clients').update({ outstanding_balance: Math.max(0, (currentClient.outstanding_balance || 0) + cDelta)}).eq('id', clId);
+   }
+ }
+ }
 };
 
- const placeSale = async (clientId, cartItems, subtotal, discount, tax, totalAmount, customerInfo, paymentType = 'cash', routeId = null, status = 'COMPLETED', scheduledDate = null, salesmanNote = '') => {
- const val = saleSchema.safeParse({ clientId, items: cartItems, totalAmount, paymentMethod: paymentType});
- if (!val.success) {
- addNotification("Sale Validation failed:" + val.error.errors[0].message,"error");
- return;
-}
- let totalCogs = 0;
- const updatedProducts = [...products];
+ const placeSale = async (clientId, cartItems, subtotal, discount, tax, totalAmount, customerInfo, paymentType = 'cash', routeId = null, status = 'COMPLETED', scheduledDate = null, salesmanNote = '', manualLocationId = null) => {
+    const val = saleSchema.safeParse({ clientId, items: cartItems, totalAmount, paymentMethod: paymentType});
+    if (!val.success) {
+      addNotification("Sale Validation failed:" + val.error.errors[0].message,"error");
+      return;
+    }
+    
+    let totalCogs = 0;
+    const updatedProducts = [...products];
+    
+    // Determine which location to deduct from
+    let locationId = manualLocationId || MAIN_WAREHOUSE_ID;
+    if (routeId && !manualLocationId) {
+      const route = routes.find(r => r.id === routeId);
+      if (route) {
+        // Find vehicle location
+        const loc = inventoryLocations.find(l => l.reference_id === route.vehicleId || l.name.includes(route.vehicleId));
+        if (loc) locationId = loc.id;
+      }
+    }
 
- cartItems.forEach(item => {
- const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
- if (pIndex > -1) {
- if (status === 'COMPLETED' && !routeId) {
- updatedProducts[pIndex].stock -= item.quantity;
-}
- item.cogs = updatedProducts[pIndex].costPrice * item.quantity;
- totalCogs += item.cogs;
-}
-});
+    const stockAdjustments = [];
+    cartItems.forEach(item => {
+      const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
+      if (pIndex > -1) {
+        if (status === 'COMPLETED') {
+          stockAdjustments.push(adjustLocationStock(item.productId, -item.quantity, locationId));
+          
+          // Legacy check: if warehouse sale, update the products.stock column
+          if (locationId === MAIN_WAREHOUSE_ID) {
+            updatedProducts[pIndex].stock -= item.quantity;
+          }
+        }
+        item.cogs = (updatedProducts[pIndex].costPrice || 0) * item.quantity;
+        totalCogs += item.cogs;
+      }
+    });
+
+    if (stockAdjustments.length > 0) {
+      await Promise.all(stockAdjustments);
+    }
 
  const newSale = {
  id: `SAL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -616,15 +857,24 @@ export const AppProvider = ({ children}) => {
  note: salesmanNote,
  booked_by: currentUser?.id,
  route_id: routeId,
- scheduled_date: scheduledDate
+ scheduled_date: scheduledDate,
+ tenant_id: currentTenantId
 };
 
  const { error: insertError} = await supabase.from('sales').insert(dbSale);
- if (insertError) {
- setSyncStatus('ERROR');
- addNotification(`Critical: Failed to save sale. Please check connection.`,"error");
- return null;
-}
+  if (insertError) {
+  console.error("Error creating sale fallback:", insertError);
+  logError({
+    module: 'Sales',
+    action: 'Place Sale (Fallback)',
+    error_code: insertError.code,
+    error_message: insertError.message,
+    severity: 'High'
+  });
+  setSyncStatus('ERROR');
+  addNotification(`Critical: Failed to save sale. Please check connection.`,"error");
+  return null;
+ }
  addNotification(`Warning: Atomic sync failed, used legacy fallback.`,"warning");
 }
  setSyncStatus('SYNCED');
@@ -654,18 +904,107 @@ export const AppProvider = ({ children}) => {
 }
 
  // Update local products stock
- if (status === 'COMPLETED' && !routeId) {
- setProducts(prev => prev.map(p => {
- const item = cartItems.find(item => item.id === p.id);
- return item ? { ...p, stock: (p.stock || 0) - item.quantity} : p;
-}));
-}
+ if (status === 'COMPLETED' && locationId === MAIN_WAREHOUSE_ID) {
+      setProducts(updatedProducts);
+    }
 
- addNotification(`Sale Processed: ${businessProfile?.currencySymbol || ''}${totalAmount}`, 'success');
- return newSale.id;
-};
+    const locName = inventoryLocations.find(l => l.id === locationId)?.name || 'HQ';
+    addNotification(`Sale Processed from ${locName}: ${businessProfile?.currencySymbol || ''}${totalAmount}`, 'success');
+    return newSale.id;
+  };
 
- const updateSale = async (updatedSale) => {
+  const createInvoice = async (invoiceData) => {
+    if (!isSupabaseConfigured) return;
+    setSyncStatus('SYNCING');
+    
+    // 1. Get atomic invoice number via RPC
+    const { data: invNumber, error: rpcError } = await supabase.rpc('get_next_invoice_number');
+    if (rpcError) {
+      console.error("Error getting invoice number:", rpcError);
+      addNotification("Numbering system failure", "error");
+      return;
+    }
+
+    const newInvoice = {
+      ...invoiceData,
+      id: generateUUID(),
+      invoice_number: invNumber,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      tenant_id: currentTenantId
+    };
+
+    // 2. Persist to Supabase
+    const { error } = await supabase.from('invoices').insert(newInvoice);
+    if (error) {
+      console.error("Error creating invoice:", error);
+      logError({
+        module: 'Invoices',
+        action: 'Create Invoice',
+        error_code: error.code,
+        error_message: error.message,
+        severity: 'High'
+      });
+      setSyncStatus('ERROR');
+      addNotification("Failed to save invoice to cloud", "error");
+      return;
+    }
+
+    setInvoices(prev => [newInvoice, ...prev]);
+    cacheSet('invoices', [newInvoice, ...invoices]);
+    setSyncStatus('SYNCED');
+    addNotification(`Invoice ${invNumber} generated!`, 'success');
+    return newInvoice;
+  };
+
+  const markInvoicePaid = async (invoiceId) => {
+    if (!isSupabaseConfigured) return;
+    
+    // Find invoice to get amount and client info
+    const inv = invoices.find(i => i.id === invoiceId);
+    if (!inv) return;
+
+    setSyncStatus('SYNCING');
+    
+    // 1. Update Invoice Status
+    const { error } = await supabase
+      .from('invoices')
+      .update({ payment_status: 'PAID' })
+      .eq('id', invoiceId)
+      .eq('tenant_id', currentTenantId);
+      
+    if (error) {
+       console.error("Error marking invoice paid:", error);
+       logError({
+         module: 'Invoices',
+         action: 'Mark Invoice Paid',
+         error_code: error.code,
+         error_message: error.message,
+         severity: 'Medium'
+       });
+       setSyncStatus('ERROR');
+       return;
+    }
+
+    // 2. If it's a client invoice, record the payment against their account
+    if (inv.client_id && inv.client_id !== 'POS-WALKIN' && inv.client_id !== 'WALKIN') {
+      await recordClientPayment(
+        inv.client_id, 
+        inv.grand_total, 
+        new Date().toISOString(), 
+        `Payment for Invoice #${inv.invoice_number}`,
+        [invoiceId]
+      );
+    }
+
+    setInvoices(prev => prev.map(item => 
+      item.id === invoiceId ? { ...item, payment_status: 'PAID' } : item
+    ));
+    setSyncStatus('SYNCED');
+    addNotification(`Invoice ${inv.invoice_number} settled successfully`, "success");
+  };
+
+  const updateSale = async (updatedSale) => {
  // Use functional state to get the absolutely latest old sale version
  let oldSale;
  setSales(prev => {
@@ -683,7 +1022,8 @@ export const AppProvider = ({ children}) => {
  ...rest, 
  shopId: clientId || updatedSale.shopId, 
  status: saleStatus,
- note: salesmanNote || updatedSale.note
+ note: salesmanNote || updatedSale.note,
+ tenant_id: currentTenantId
 };
  
  // Cleanup fields that don't exist in the DB schema
@@ -691,12 +1031,19 @@ export const AppProvider = ({ children}) => {
  delete dbSale.salesmanNote;
 
  const { error} = await supabase.from('sales').upsert(dbSale);
- if (error) {
- console.error("Error updating sale in Supabase:", error);
- setSyncStatus('ERROR');
- addNotification("Failed to update sale in cloud","error");
- return;
-} else {
+  if (error) {
+  console.error("Error updating sale in Supabase:", error);
+  logError({
+    module: 'Sales',
+    action: 'Update Sale',
+    error_code: error.code,
+    error_message: error.message,
+    severity: 'Medium'
+  });
+  setSyncStatus('ERROR');
+  addNotification("Failed to update sale in cloud","error");
+  return;
+ } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
 }
@@ -719,12 +1066,32 @@ export const AppProvider = ({ children}) => {
  await reconcileSaleEffects(sale, null);
 
  if (isSupabaseConfigured) {
- const { error} = await supabase.from('sales').delete().eq('id', saleId);
- if (error) {
- console.error("Error deleting sale from Supabase:", error);
- addNotification("Failed to delete sale from cloud","error");
- return;
-}
+  const { error} = await supabase.from('sales').delete().eq('id', saleId).eq('tenant_id', currentTenantId);
+  if (error) {
+  console.error("Error deleting sale from Supabase:", error);
+  logError({
+    module: 'Sales',
+    action: 'Delete Sale',
+    error_code: error.code,
+    error_message: error.message,
+    severity: 'Medium'
+  });
+  addNotification("Failed to delete sale from cloud","error");
+  return;
+ }
+ // Audit: deleting a sale reverses stock + balances — treat as a refund/void.
+ logAuditEvent({
+   action: AUDIT_ACTIONS.SALE_DELETE,
+   entityType: 'sale',
+   entityId: saleId,
+   summary: `Deleted sale #${saleId.split('-').pop()} (stock & balances reversed)`,
+   metadata: {
+     client_id: sale?.clientId || sale?.client_id || null,
+     total: sale?.total ?? sale?.totalAmount ?? null,
+     payment_type: sale?.paymentType || sale?.payment_type || null,
+     items_count: Array.isArray(sale?.items) ? sale.items.length : 0,
+   },
+ });
 }
  setSales(prev => prev.filter(s => s.id !== saleId));
  addNotification("Sale deleted and stock reversed","success");
@@ -742,14 +1109,21 @@ export const AppProvider = ({ children}) => {
  lastPaymentDate: new Date().toISOString()
 };
 
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('sales').upsert(updatedSale);
- if (error) {
- console.error("Error settling sale in Supabase:", error);
- addNotification("Cloud Sync Delayed: Payment recorded locally","warning");
- // Fall through
-}
-}
+  if (isSupabaseConfigured) {
+    const { error } = await supabase.from('sales').upsert({ ...updatedSale, tenant_id: currentTenantId });
+    if (error) {
+      console.error("Error settling sale in Supabase:", error);
+      logError({
+        module: 'Sales',
+        action: 'Settle Sale (Payment)',
+        error_code: error.code,
+        error_message: error.message,
+        severity: 'Medium'
+      });
+      addNotification("Cloud Sync Delayed: Payment recorded locally", "warning");
+      // Fall through
+    }
+  }
 
  // Also update client persistent balance if it was a credit sale
  if (sale.paymentMethod === 'CREDIT' || sale.paymentMethod === 'credit') {
@@ -764,44 +1138,88 @@ export const AppProvider = ({ children}) => {
  addNotification(`Payment of ${businessProfile?.currencySymbol || ''}${amount} received for Sale #${saleId.split('-').pop()}`, 'success');
 };
 
- // Task 4: Mark as Paid for Client
- const recordClientPayment = async (clientId, amount, paymentDate, notes) => {
- const client = clients.find(c => c.id === clientId);
- if (!client) return { success: false, error: 'Client not found'};
+ // Task 4: Mark as Paid for Client (Enhanced with Invoice Selection)
+  const recordClientPayment = async (clientId, amount, paymentDate, notes, selectedInvoiceIds = []) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return { success: false, error: 'Client not found'};
 
- if (amount > (client.outstanding_balance || 0)) {
- return { success: false, error: 'Amount exceeds outstanding balance'};
-}
+    const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
+    const updatedClient = { ...client, outstanding_balance: newBalance};
 
- const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
- const updatedClient = { ...client, outstanding_balance: newBalance};
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+      
+      // Update Client Balance
+      const { error: clientError } = await supabase.from('clients').upsert({ ...updatedClient, tenant_id: currentTenantId });
+      
+      // Update Selected Invoices if any
+      // For atomic settlement, we assume the invoice is fully paid.
+      if (selectedInvoiceIds.length > 0) {
+        for (const invId of selectedInvoiceIds) {
+          const inv = invoices.find(i => i.id === invId);
+          if (inv) {
+            await supabase
+              .from('invoices')
+              .update({ 
+                payment_status: 'PAID',
+                paid_amount: inv.grand_total 
+              })
+              .eq('id', invId)
+              .eq('tenant_id', currentTenantId);
+          }
+        }
+      }
 
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('clients').upsert(updatedClient);
- if (error) {
- console.error("Error recording client payment:", error);
- addNotification("Cloud Sync Delayed: Payment recorded locally","warning");
- // Fall through
-}
-}
+      if (clientError) {
+        console.error("Error recording client payment:", clientError);
+        logError({
+          module: 'Clients',
+          action: 'Record Client Payment (Balance Update)',
+          error_code: clientError.code,
+          error_message: clientError.message,
+          severity: 'High'
+        });
+        setSyncStatus('ERROR');
+        addNotification("Cloud Sync Delayed: Payment recorded locally", "warning");
+      }
+    }
 
- const paymentRecord = {
- id: `CPAY-${Date.now()}`,
- client_id: clientId,
- amount: amount,
- date: paymentDate || new Date().toISOString(),
- notes: notes || ''
-};
- 
- if (isSupabaseConfigured) {
- await supabase.from('client_payments').insert(paymentRecord);
-}
+    const paymentRecord = {
+      id: `CPAY-${Date.now()}`,
+      client_id: clientId,
+      amount: amount,
+      date: paymentDate || new Date().toISOString(),
+      notes: notes || '',
+      tenant_id: currentTenantId
+    };
+    
+    if (isSupabaseConfigured) {
+      const { error: payErr } = await supabase.from('client_payments').insert(paymentRecord);
+      if (payErr) {
+        console.error("Error inserting client payment record:", payErr);
+        logError({
+          module: 'Clients',
+          action: 'Record Client Payment (History Insert)',
+          error_code: payErr.code,
+          error_message: payErr.message,
+          severity: 'Medium'
+        });
+      }
+    }
 
- setClients(clients.map(c => c.id === clientId ? updatedClient : c));
- setClientPayments(prev => [paymentRecord, ...prev]);
- addNotification(`Recorded payment of ${businessProfile?.currencySymbol || ''}${amount} from ${client.name}`,"success");
- return { success: true};
-};
+    // Update Local Invoices State
+    if (selectedInvoiceIds.length > 0) {
+      setInvoices(prev => prev.map(inv => 
+        selectedInvoiceIds.includes(inv.id) ? { ...inv, payment_status: 'PAID' } : inv
+      ));
+    }
+
+    setClients(clients.map(c => c.id === clientId ? updatedClient : c));
+    setClientPayments(prev => [paymentRecord, ...prev]);
+    addNotification(`Recorded payment of ${businessProfile?.currencySymbol || ''}${amount} from ${client.name}`,"success");
+    setSyncStatus('SYNCED');
+    return { success: true};
+  };
 
   const addProductCategory = async (categoryName) => {
     if (isSupabaseConfigured) {
@@ -856,17 +1274,25 @@ export const AppProvider = ({ children}) => {
  ...product, 
  id: product.id || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, 
  stock: product.stock || 0, 
- taxRate: product.taxRate || 0 
+ taxRate: product.taxRate || 0,
+ tenant_id: currentTenantId
 };
 
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
  const { error} = await supabase.from('products').upsert(newProduct);
- if (error) {
- console.error("Error adding product to Supabase:", error);
- setSyncStatus('ERROR');
- addNotification(`Cloud Save Failed: ${error.message}`,"error");
- return;
+  if (error) {
+  console.error("Error adding product to Supabase:", error);
+  logError({
+    module: 'Inventory',
+    action: 'Add Product',
+    error_code: error.code,
+    error_message: error.message,
+    severity: 'High'
+  });
+  setSyncStatus('ERROR');
+  addNotification(`Cloud Save Failed: ${error.message}`,"error");
+  return;
 } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
@@ -881,11 +1307,18 @@ export const AppProvider = ({ children}) => {
  const updateProduct = async (updatedProduct) => {
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
- const { error} = await supabase.from('products').upsert(updatedProduct);
- if (error) {
- console.error("Error updating product in Supabase:", error);
- setSyncStatus('ERROR');
- addNotification(`Cloud Sync Delayed: ${error.message}. Local changes saved.`,"warning");
+ const { error} = await supabase.from('products').upsert({ ...updatedProduct, tenant_id: currentTenantId });
+  if (error) {
+  console.error("Error updating product in Supabase:", error);
+  logError({
+    module: 'Inventory',
+    action: 'Update Product',
+    error_code: error.code,
+    error_message: error.message,
+    severity: 'Medium'
+  });
+  setSyncStatus('ERROR');
+  addNotification(`Cloud Sync Delayed: ${error.message}. Local changes saved.`,"warning");
 } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
@@ -895,36 +1328,25 @@ export const AppProvider = ({ children}) => {
 };
 
  const deleteProduct = async (id) => {
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('products').delete().eq('id', id);
- if (error) {
- console.error("Error deleting product from Supabase:", error);
- addNotification(`Cloud Sync Delayed: Product removed locally`,"warning");
- // Fall through
-}
-}
+  if (isSupabaseConfigured) {
+    const { error } = await supabase.from('products').delete().eq('id', id).eq('tenant_id', currentTenantId);
+    if (error) {
+      console.error("Error deleting product from Supabase:", error);
+      logError({
+        module: 'Inventory',
+        action: 'Delete Product',
+        error_code: error.code,
+        error_message: error.message,
+        severity: 'Medium'
+      });
+      addNotification(`Cloud Sync Delayed: Product removed locally`, "warning");
+      // Fall through
+    }
+  }
  setProducts(prev => prev.filter(p => p.id !== id));
  setMovementLog(prev => prev.filter(l => l.productId !== id));
 };
 
- const adjustStock = async (productId, amount, reason, source = 'ADJUSTMENT') => {
- const product = products.find(p => p.id === productId);
- if (!product) return;
- const updatedProduct = { ...product, stock: Math.max(0, product.stock + amount)};
- 
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('products').update({ stock: updatedProduct.stock}).eq('id', productId);
- if (error) {
- console.error("Error adjusting stock in Supabase:", error);
- addNotification(`Cloud Stock Sync Failed: ${error.message}`,"error");
- return;
-}
-}
-
- setProducts(products.map(p => p.id === productId ? updatedProduct : p));
- const type = amount > 0 ? 'IN' : 'OUT';
- logMovement(productId, product.name, type, Math.abs(amount), reason, currentUser?.id);
-};
 
  // Mock data generator removed
 
@@ -942,13 +1364,11 @@ export const AppProvider = ({ children}) => {
 };
 
  // Helper: check if current user has a specific role
+ // SECURITY: No hardcoded-email overrides. Admin rights come ONLY from the
+ // server-authoritative `users.roles` column. Fail closed if profile missing.
  const hasRole = (role) => {
- // GLOBAL OVERRIDE (resilient to profile fetch failure)
- const email = currentUser?.email || authSession?.user?.email;
- if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
-
  if (!currentUser) return false;
- 
+
  const roles = currentUser.roles || (currentUser.role ? [currentUser.role] : ['STAFF']);
  if (roles.includes('GLOBAL_ADMIN')) return true;
  return roles.includes(role);
@@ -957,12 +1377,11 @@ export const AppProvider = ({ children}) => {
  /**
  * RBAC Permission System (v12)
  * Supports both legacy strings and granular module/action pairs.
+ *
+ * SECURITY: Authorization is driven exclusively by the persisted
+ * `users.roles` + `users.permissions` columns. No email-based overrides.
  */
  const hasPermission = (moduleOrLegacy, action = 'view') => {
- // GLOBAL OVERRIDE (resilient to profile fetch failure)
- const email = currentUser?.email || authSession?.user?.email;
- if (email === 'uvaize@hotmail.com' || email === 'gladmin@ledgrpro.ca') return true;
-
  if (!currentUser) return false;
  
  const roles = currentUser.roles || (currentUser.role ? [currentUser.role] : ['STAFF']);
@@ -1034,7 +1453,7 @@ export const AppProvider = ({ children}) => {
 };
 
  const addVehicle = async (vehicle) => {
- const newVehicle = { ...vehicle, id: vehicle.id || `VH-${Date.now()}`};
+ const newVehicle = { ...vehicle, id: vehicle.id || `VH-${Date.now()}`, tenant_id: currentTenantId};
  if (isSupabaseConfigured) {
  const { error} = await supabase.from('vehicles').upsert(newVehicle);
  if (error) {
@@ -1063,97 +1482,98 @@ export const AppProvider = ({ children}) => {
  const { error} = await supabase.from('vehicles').delete().eq('id', vehicleId);
  if (error) {
  console.error("Error deleting vehicle from Supabase:", error);
- addNotification("Failed to delete vehicle from cloud","error");
- return;
 }
 }
- setVehicles(vehicles.filter(v => v.id !== vehicleId));
+setVehicles(vehicles.filter(v => v.id !== vehicleId));
  addNotification('Vehicle clearance revoked', 'success');
 };
 
  const dispatchRoute = async (routeData) => {
- const newRoute = {
- ...routeData,
- id: routeData.id || `RT-${Date.now()}`,
- status: 'ACTIVE',
- date: new Date().toISOString()
-};
+    const newRoute = {
+      ...routeData,
+      id: routeData.id || `RT-${Date.now()}`,
+      status: 'ACTIVE',
+      date: new Date().toISOString()
+    };
 
- if (isSupabaseConfigured) {
- const { error: routeError} = await supabase.from('routes').upsert(newRoute);
- if (routeError) {
- console.error("Error dispatching route to Supabase:", routeError);
- addNotification("Failed to dispatch route to cloud","error");
- return;
-}
-}
+    // 1. Ensure Vehicle Location Exists
+    let vehicleLoc = inventoryLocations.find(l => l.reference_id === routeData.vehicleId);
+    if (!vehicleLoc) {
+      const vName = getVehicleName(routeData.vehicleId);
+      const { data, error } = await supabase
+        .from('inventory_locations')
+        .insert({ name: vName, type: 'VEHICLE', reference_id: routeData.vehicleId })
+        .select()
+        .single();
+      
+      if (!error && data) {
+        vehicleLoc = data;
+        setInventoryLocations(prev => [...prev, data]);
+      }
+    }
 
- const updatedProducts = [...products];
- const stockUpdates = [];
+    if (isSupabaseConfigured) {
+      const { error: routeError} = await supabase.from('routes').upsert(newRoute);
+      if (routeError) {
+        console.error("Error dispatching route:", routeError);
+        return;
+      }
+    }
 
- for (const item of routeData.loadedStock) {
- const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
- if (pIndex > -1 && item.quantity > 0) {
- updatedProducts[pIndex].stock -= item.quantity;
- logMovement(item.productId, updatedProducts[pIndex].name, 'OUT', item.quantity, `Loaded onto Route ${newRoute.id}`, currentUser?.id);
- if (isSupabaseConfigured) {
- stockUpdates.push(supabase.from('products').update({ stock: updatedProducts[pIndex].stock}).eq('id', item.productId));
-}
-}
-}
+    // 2. Formal Stock Transfer: Warehouse -> Vehicle
+    for (const item of routeData.loadedStock) {
+      if (item.quantity > 0) {
+        // Remove from Warehouse (Legacy & Balance)
+        await adjustStock(item.productId, -item.quantity, `Loaded for Route ${newRoute.id}`, MAIN_WAREHOUSE_ID);
+        // Add to Vehicle
+        if (vehicleLoc) {
+          await adjustLocationStock(item.productId, item.quantity, vehicleLoc.id);
+        }
+      }
+    }
 
- if (stockUpdates.length > 0) {
- await Promise.all(stockUpdates);
-}
-
- setProducts(updatedProducts);
- setRoutes([newRoute, ...routes]);
-};
+    setRoutes([newRoute, ...routes]);
+    addNotification(`Route dispatched: ${getVehicleName(routeData.vehicleId)} inventory locked.`,"success");
+  };
 
  const reconcileRoute = async (routeId, finalOdometer, returnedStock, actualCash) => {
- const route = routes.find(r => r.id === routeId);
- if (!route) return;
+    const route = routes.find(r => r.id === routeId);
+    if (!route) return;
 
- const updatedRoute = {
- ...route,
- status: 'COMPLETED',
- final_odometer: finalOdometer,
- actual_cash: actualCash,
- reconciled_at: new Date().toISOString()
-};
+    const updatedRoute = {
+      ...route,
+      status: 'COMPLETED',
+      final_odometer: finalOdometer,
+      actual_cash: actualCash,
+      reconciled_at: new Date().toISOString()
+    };
 
- if (isSupabaseConfigured) {
- const { error: routeError} = await supabase.from('routes').upsert(updatedRoute);
- if (routeError) {
- console.error("Error reconciling route in Supabase:", routeError);
- addNotification("Failed to reconcile route in cloud","error");
- return;
-}
-}
+    if (isSupabaseConfigured) {
+      const { error: routeError} = await supabase.from('routes').upsert(updatedRoute);
+      if (routeError) {
+        console.error("Error reconciling route:", routeError);
+        return;
+      }
+    }
 
- const updatedProducts = [...products];
- const stockUpdates = [];
+    // Find Vehicle Location
+    const vehicleLoc = inventoryLocations.find(l => l.reference_id === route.vehicleId);
 
- for (const item of returnedStock) {
- if (item.quantity > 0) {
- const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
- if (pIndex > -1) {
- updatedProducts[pIndex].stock += item.quantity;
- logMovement(item.productId, updatedProducts[pIndex].name, 'IN', item.quantity, `Returned from Route ${routeId}`, currentUser?.id);
- if (isSupabaseConfigured) {
- stockUpdates.push(supabase.from('products').update({ stock: updatedProducts[pIndex].stock}).eq('id', item.productId));
-}
-}
-}
-}
+    // 3. Formal Stock Return: Vehicle -> Warehouse
+    for (const item of returnedStock) {
+      if (item.quantity > 0) {
+        // Return to Warehouse
+        await adjustStock(item.productId, item.quantity, `Returned from Route ${routeId}`, MAIN_WAREHOUSE_ID);
+        // Remove from Vehicle
+        if (vehicleLoc) {
+          await adjustLocationStock(item.productId, -item.quantity, vehicleLoc.id);
+        }
+      }
+    }
 
- if (stockUpdates.length > 0) {
- await Promise.all(stockUpdates);
-}
-
- setProducts(updatedProducts);
- setRoutes(routes.map(r => r.id === routeId ? updatedRoute : r));
-};
+    setRoutes(routes.map(r => r.id === routeId ? updatedRoute : r));
+    addNotification("Route reconciled: Remaining stock returned to warehouse.", "success");
+  };
 
  // ========== PAYROLL ==========
  const addEmployee = async (emp) => {
@@ -1178,7 +1598,8 @@ export const AppProvider = ({ children}) => {
  notes: emp.notes || null,
  daily_rate: emp.dailyRate || 0,
  days_worked: emp.daysWorked || 0,
- amount_paid: emp.amountPaid || 0
+ amount_paid: emp.amountPaid || 0,
+ tenant_id: currentTenantId
 };
  if (isSupabaseConfigured) {
  const { error} = await supabase.from('employees').upsert(newEmp);
@@ -1193,37 +1614,45 @@ export const AppProvider = ({ children}) => {
  return true;
 };
 
- const updateEmployee = async (updated) => {
- // Prepare database-ready object (snake_case)
- const dbData = {
- id: updated.id,
- name: updated.name,
- email: updated.email !== undefined ? updated.email : null,
- phone: updated.phone !== undefined ? updated.phone : null,
- position: updated.position !== undefined ? updated.position : null,
- status: updated.status || 'ACTIVE',
- salary: updated.basePay !== undefined ? updated.basePay : (updated.salary || 0),
- department: updated.department || updated.role,
- role: updated.department || updated.role,
- pay_type: updated.payType || updated.pay_type || 'MONTHLY',
- bank_account: updated.bankAccount || updated.bank_account || null,
- notes: updated.notes !== undefined ? updated.notes : null,
- daily_rate: updated.dailyRate !== undefined ? updated.dailyRate : (updated.daily_rate || 0),
- days_worked: updated.daysWorked !== undefined ? updated.daysWorked : (updated.days_worked || 0),
- amount_paid: updated.amountPaid !== undefined ? updated.amountPaid : (updated.amount_paid || 0)
-};
+  const updateEmployee = async (updated) => {
+    // Prepare database-ready object (snake_case)
+    const dbData = {
+      id: updated.id,
+      name: updated.name,
+      email: updated.email !== undefined ? updated.email : null,
+      phone: updated.phone !== undefined ? updated.phone : null,
+      position: updated.position !== undefined ? updated.position : null,
+      status: updated.status || 'ACTIVE',
+      salary: updated.basePay !== undefined ? updated.basePay : (updated.salary || 0),
+      department: updated.department || updated.role,
+      role: updated.department || updated.role,
+      pay_type: updated.payType || updated.pay_type || 'MONTHLY',
+      bank_account: updated.bankAccount || updated.bank_account || null,
+      notes: updated.notes !== undefined ? updated.notes : null,
+      daily_rate: updated.dailyRate !== undefined ? updated.dailyRate : (updated.daily_rate || 0),
+      days_worked: updated.daysWorked !== undefined ? updated.daysWorked : (updated.days_worked || 0),
+      amount_paid: updated.amountPaid !== undefined ? updated.amountPaid : (updated.amount_paid || 0),
+      tenant_id: currentTenantId
+    };
 
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('employees').upsert(dbData);
- if (error) {
- console.error("Error updating employee in Supabase:", error);
- setSyncStatus('ERROR');
- addNotification(`Cloud Sync Delayed: ${error.message}`,"warning");
-} else {
- setSyncStatus('SYNCED');
-}
-}
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+      const { error } = await supabase.from('employees').upsert(dbData);
+      if (error) {
+        console.error("Error updating employee in Supabase:", error);
+        logError({
+          module: 'Employees',
+          action: 'Update Employee',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'High'
+        });
+        setSyncStatus('ERROR');
+        addNotification(`Cloud Sync Delayed: ${error.message}`, "warning");
+      } else {
+        setSyncStatus('SYNCED');
+      }
+    }
  
  // Update local state with the mapped object (keep both for compatibility)
  const fullEmployee = {
@@ -1285,7 +1714,8 @@ export const AppProvider = ({ children}) => {
  supplier_name: purchase.supplier_name || 'Unspecified',
  payment_type: purchase.payment_type || 'cash',
  notes: purchase.notes || '',
- created_at: new Date().toISOString()
+ created_at: new Date().toISOString(),
+ tenant_id: currentTenantId
 };
 
  if (isSupabaseConfigured) {
@@ -1299,28 +1729,39 @@ export const AppProvider = ({ children}) => {
  p_payment_type: newPurchase.payment_type,
  p_date: newPurchase.date,
  p_notes: newPurchase.notes,
- p_user_id: currentUser?.id
+ p_user_id: currentUser?.id,
+ p_tenant_id: currentTenantId
 });
 
- if (rpcError) {
- console.error("❌ Atomic Purchase Failed:", rpcError);
- // Fallback to legacy insert
- const { error: insertError} = await supabase.from('purchases').insert({
- id: newPurchase.id,
- product_id: newPurchase.linked_product_id,
- quantity: newPurchase.quantity,
- total_amount: newPurchase.total_cost,
- date: newPurchase.date,
- supplier_id: newPurchase.supplier_id,
- supplier_name: newPurchase.supplier_name,
- payment_type: newPurchase.payment_type,
- notes: newPurchase.notes
-});
- if (insertError) {
- addNotification("Failed to record purchase","error");
- return false;
-}
-}
+  if (rpcError) {
+    console.error("❌ Atomic Purchase Failed:", rpcError);
+    // Fallback to legacy insert
+    const { error: insertError } = await supabase.from('purchases').insert({
+      id: newPurchase.id,
+      product_id: newPurchase.linked_product_id,
+      quantity: newPurchase.quantity,
+      total_amount: newPurchase.total_cost,
+      date: newPurchase.date,
+      supplier_id: newPurchase.supplier_id,
+      supplier_name: newPurchase.supplier_name,
+      payment_type: newPurchase.payment_type,
+      notes: newPurchase.notes,
+      tenant_id: currentTenantId
+    });
+    
+    if (insertError) {
+      console.error("Error creating purchase fallback:", insertError);
+      logError({
+        module: 'Inventory',
+        action: 'Add Purchase (Fallback)',
+        error_code: insertError.code,
+        error_message: insertError.message,
+        severity: 'High'
+      });
+      addNotification("Failed to record purchase", "error");
+      return false;
+    }
+  }
 }
 
  // OPTIMISTIC UPDATE
@@ -1340,105 +1781,230 @@ export const AppProvider = ({ children}) => {
  return true;
 };
 
- const addSupplier = async (supplier) => {
- const id = `SUP-${Date.now()}`;
- const newSupplier = { ...supplier, id, created_at: new Date().toISOString()};
- 
- if (isSupabaseConfigured) {
- // CLEAN DB OBJECT
- const dbSupplier = {
- id,
- name: supplier.name,
- contact_person: supplier.contact_person,
- phone: supplier.phone,
- email: supplier.email,
- address: supplier.address,
- notes: supplier.notes || '',
- created_at: new Date().toISOString()
-};
- const { error} = await supabase.from('suppliers').insert(dbSupplier);
- if (error) {
- console.error("Error adding supplier:", error);
- addNotification("Failed to save supplier to cloud","error");
- return false;
-}
-}
- setSuppliers(prev => [newSupplier, ...prev]);
- return true;
-};
+  const addSupplier = async (supplier) => {
+    const id = `SUP-${Date.now()}`;
+    const newSupplier = { ...supplier, id, created_at: new Date().toISOString(), tenant_id: currentTenantId };
+    
+    if (isSupabaseConfigured) {
+      // CLEAN DB OBJECT
+      const dbSupplier = {
+        id,
+        name: supplier.name,
+        contact_person: supplier.contact_person,
+        phone: supplier.phone,
+        email: supplier.email,
+        address: supplier.address,
+        notes: supplier.notes || '',
+        created_at: new Date().toISOString(),
+        tenant_id: currentTenantId
+      };
+      
+      const { error } = await supabase.from('suppliers').insert(dbSupplier);
+      if (error) {
+        console.error("Error adding supplier:", error);
+        logError({
+          module: 'Suppliers',
+          action: 'Add Supplier',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'High'
+        });
+        addNotification("Failed to save supplier to cloud", "error");
+        return false;
+      }
+    }
+    setSuppliers(prev => [newSupplier, ...prev]);
+    return true;
+  };
 
- const deleteSupplier = async (supplierId) => {
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('suppliers').delete().eq('id', supplierId);
- if (error) {
- console.error("Error deleting supplier:", error);
- addNotification("Failed to delete supplier","error");
- return false;
-}
-}
- setSuppliers(prev => prev.filter(s => s.id !== supplierId));
- return true;
-};
+  const updateSupplier = async (updatedSupplier) => {
+    if (isSupabaseConfigured) {
+      const dbSupplier = {
+        name: updatedSupplier.name,
+        contact_person: updatedSupplier.contact_person,
+        phone: updatedSupplier.phone,
+        email: updatedSupplier.email,
+        address: updatedSupplier.address,
+        notes: updatedSupplier.notes || '',
+        tenant_id: currentTenantId
+      };
+      
+      const { error } = await supabase.from('suppliers')
+        .update(dbSupplier)
+        .eq('id', updatedSupplier.id)
+        .eq('tenant_id', currentTenantId);
 
- const deleteEmployee = async (empId) => {
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('employees').delete().eq('id', empId);
- if (error) {
- console.error("Error deleting employee from Supabase:", error);
- addNotification("Failed to delete employee from cloud","error");
- return;
-}
-}
- setEmployees(employees.filter(e => e.id !== empId));
-};
+      if (error) {
+        console.error("Error updating supplier:", error);
+        logError({
+          module: 'Suppliers',
+          action: 'Update Supplier',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'High'
+        });
+        addNotification(`Failed to update supplier: ${error.message}`, "error");
+        return false;
+      }
+    }
+    setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? { ...s, ...updatedSupplier } : s));
+    return true;
+  };
 
- const processPayroll = async (payRun) => {
- const timestamp = new Date().toISOString();
- const newRecord = {
- ...payRun,
- id: payRun.id || `PAY-${Date.now()}`,
- processed_at: timestamp,
- processedAt: timestamp,
- processed_by: currentUser?.id
-};
- 
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const payrollInserts = payRun.items.map(item => ({
- id: `PRL-${Date.now()}-${item.employeeId}`,
- employeeId: item.employeeId,
- amount: item.netPay,
- month: payRun.period,
- processed_at: timestamp,
- processed_by: currentUser?.id
-}));
- 
- const { error} = await supabase.from('payroll').insert(payrollInserts);
- if (error) {
- console.error("Error processing payroll in Supabase:", error);
- setSyncStatus('ERROR');
- addNotification("Failed to process payroll in cloud","error");
- return false;
-}
- setSyncStatus('SYNCED');
-}
- 
- setPayrollRecords(prev => [newRecord, ...prev]);
- addNotification(`Payroll for ${payRun.period} authorized`,"success");
- return true;
-};
+  const deleteSupplier = async (supplierId) => {
+   // DIAGNOSTIC LOG
+   console.log(`[Suppliers] Intent: Delete. ID: ${supplierId}, Tenant: ${currentTenantId}`);
+   
+   if (isSupabaseConfigured) {
+     const { error, count } = await supabase.from('suppliers')
+        .delete({ count: 'exact' })
+        .eq('id', supplierId)
+        .eq('tenant_id', currentTenantId);
 
- const deletePayrollRecord = async (recordId) => {
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('payroll').delete().eq('id', recordId);
- if (error) {
- console.error("Error deleting payroll record from Supabase:", error);
- addNotification("Cloud Sync Delayed: Record removed locally","warning");
- // Fall through
-}
-}
- setPayrollRecords(payrollRecords.filter(r => r.id !== recordId));
-};
+     if (error) {
+       console.error("❌ Supplier Deletion REJECTED:", error);
+       logError({
+         module: 'Suppliers',
+         action: 'Delete Supplier',
+         error_code: error.code,
+         error_message: error.message,
+         severity: 'High'
+       });
+       return { success: false, error: error.message };
+     }
+     
+     if (count === 0) {
+       console.warn(`[Suppliers] Silent Fail: Row not found or RLS blocked. ID: ${supplierId}`);
+       logError({
+         module: 'Suppliers',
+         action: 'Delete Supplier (Silent Fail)',
+         error_code: 'ERR_ZERO_ROWS',
+         error_message: `Database returned success but 0 rows were deleted. This usually means the row exists but RLS blocked the operation for Tenant: ${currentTenantId}`,
+         severity: 'High'
+       });
+       return { success: false, error: "Deletion blocked or record not found." };
+     }
+   }
+   
+   setSuppliers(prev => prev.filter(s => s.id !== supplierId));
+   return { success: true };
+ };
+
+  const deleteEmployee = async (empId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('employees')
+        .delete()
+        .eq('id', empId)
+        .eq('tenant_id', currentTenantId);
+
+      if (error) {
+        console.error("Error deleting employee from Supabase:", error);
+        logError({
+          module: 'Employees',
+          action: 'Delete Employee',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'Medium'
+        });
+        addNotification("Failed to delete employee from cloud", "error");
+        return;
+      }
+    }
+    setEmployees(employees.filter(e => e.id !== empId));
+  };
+
+  const processPayroll = async (payRun) => {
+    const timestamp = new Date().toISOString();
+    const newRecord = {
+      ...payRun,
+      id: payRun.id || `PAY-${Date.now()}`,
+      processed_at: timestamp,
+      processedAt: timestamp,
+      processed_by: currentUser?.id
+    };
+    
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+      const payrollInserts = payRun.items.map(item => ({
+        id: `PRL-${Date.now()}-${item.employeeId}`,
+        employeeId: item.employeeId,
+        amount: item.netPay,
+        month: payRun.period,
+        processed_at: timestamp,
+        processed_by: currentUser?.id,
+        tenant_id: currentTenantId
+      }));
+      
+      const { error } = await supabase.from('payroll').insert(payrollInserts);
+      if (error) {
+        console.error("Error processing payroll in Supabase:", error);
+        logError({
+          module: 'Payroll',
+          action: 'Process Payroll',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'High'
+        });
+        setSyncStatus('ERROR');
+        addNotification("Failed to process payroll in cloud", "error");
+        return false;
+      }
+      setSyncStatus('SYNCED');
+
+      // Audit: payroll run authorized. Capture totals + headcount, not individual amounts.
+      const totalNet = payrollInserts.reduce((s, r) => s + Number(r.amount || 0), 0);
+      logAuditEvent({
+        action: AUDIT_ACTIONS.PAYROLL_PROCESS,
+        entityType: 'payroll',
+        entityId: newRecord.id,
+        summary: `Processed payroll for ${payRun.period}: ${payrollInserts.length} employee(s), net ${totalNet.toFixed(2)}`,
+        metadata: {
+          period: payRun.period,
+          employee_count: payrollInserts.length,
+          total_net: totalNet,
+        },
+      });
+    }
+    
+    setPayrollRecords(prev => [newRecord, ...prev]);
+    addNotification(`Payroll for ${payRun.period} authorized`, "success");
+    return true;
+  };
+
+  const deletePayrollRecord = async (recordId) => {
+    const target = payrollRecords.find(r => r.id === recordId) || null;
+
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('payroll')
+        .delete()
+        .eq('id', recordId)
+        .eq('tenant_id', currentTenantId);
+
+      if (error) {
+        console.error("Error deleting payroll record from Supabase:", error);
+        logError({
+          module: 'Payroll',
+          action: 'Delete Payroll',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'Medium'
+        });
+        addNotification("Cloud Sync Delayed: Record removed locally", "warning");
+      } else {
+        logAuditEvent({
+          action: AUDIT_ACTIONS.PAYROLL_DELETE,
+          entityType: 'payroll',
+          entityId: recordId,
+          summary: `Deleted payroll record ${recordId}${target?.period ? ` (${target.period})` : ''}`,
+          metadata: {
+            period: target?.period || target?.month || null,
+            employee_count: Array.isArray(target?.items) ? target.items.length : null,
+          },
+        });
+      }
+    }
+    setPayrollRecords(payrollRecords.filter(r => r.id !== recordId));
+  };
 
 
  const updateDayBook = async (record) => {
@@ -1450,7 +2016,8 @@ export const AppProvider = ({ children}) => {
  const payload = {
  ...record,
  id: record.id || generateUUID(),
- created_at: record.created_at || new Date().toISOString()
+ created_at: record.created_at || new Date().toISOString(),
+ tenant_id: currentTenantId
 };
  if (isSupabaseConfigured) {
  const { error} = await supabase.from('day_book').upsert(payload);
@@ -1481,7 +2048,7 @@ export const AppProvider = ({ children}) => {
     if (!isSupabaseConfigured) return;
     
     try {
-      const payload = { ...profile, id: 'current' };
+      const payload = { ...profile, id: 'current', tenant_id: currentTenantId };
       const { error } = await supabase.from('business_profile').upsert(payload);
       
       if (error) {
@@ -1536,75 +2103,128 @@ export const AppProvider = ({ children}) => {
  addNotification(`Category updated: ${newName}`, 'success');
 };
 
- const deleteExpenseCategory = async (name) => {
- const newCategories = expenseCategories.filter(c => c !== name);
- 
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories});
- if (error) {
- console.error("Error deleting expense category from Supabase:", error);
- addNotification("Failed to delete category from cloud","error");
- return;
-}
-}
+  const deleteExpenseCategory = async (name) => {
+    const newCategories = expenseCategories.filter(c => c !== name);
+    
+    if (isSupabaseConfigured) {
+      const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories});
+      if (error) {
+        console.error("Error deleting expense category from Supabase:", error);
+        addNotification("Failed to delete category from cloud","error");
+        return;
+      }
+    }
 
- setExpenseCategories(newCategories);
- addNotification(`Category removed: ${name}`, 'success');
-};
+    setExpenseCategories(newCategories);
+    addNotification(`Category removed: ${name}`, 'success');
+  };
+
+  const transferStock = async (fromLocId, toLocId, productId, qty, reason = 'Internal Transfer') => {
+    if (!fromLocId || !toLocId || !productId || qty <= 0) return;
+    
+    // 1. Deduct from Source
+    await adjustLocationStock(productId, -qty, fromLocId);
+    
+    // 2. Add to Destination
+    await adjustLocationStock(productId, qty, toLocId);
+    
+    // 3. Special Case: If moving TO/FROM Warehouse, update the legacy 'stock' column
+    if (fromLocId === MAIN_WAREHOUSE_ID || toLocId === MAIN_WAREHOUSE_ID) {
+      const product = products.find(p => p.id === productId);
+      if (product) {
+        const delta = fromLocId === MAIN_WAREHOUSE_ID ? -qty : qty;
+        const updatedStock = Math.max(0, (product.stock || 0) + delta);
+        setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: updatedStock } : p));
+        if (isSupabaseConfigured) {
+          const { error } = await supabase
+            .from('products')
+            .update({ stock: updatedStock })
+            .eq('id', productId)
+            .eq('tenant_id', currentTenantId);
+
+          if (error) {
+            console.error("Error updating main stock during transfer:", error);
+            logError({
+              module: 'Inventory',
+              action: 'Transfer Stock (Sync Main)',
+              error_code: error.code,
+              error_message: error.message,
+              severity: 'Medium'
+            });
+          }
+        }
+      }
+    }
+
+    const fromName = inventoryLocations.find(l => l.id === fromLocId)?.name || 'Source';
+    const toName = inventoryLocations.find(l => l.id === toLocId)?.name || 'Destination';
+    logMovement(productId, products.find(p => p.id === productId)?.name || 'Product', 'IN/OUT', qty, `${reason} (${fromName} -> ${toName})`, currentUser?.id);
+    addNotification(`Asset Transfer: ${qty} units moved to ${toName}`, "success");
+  };
 
  // Silent background refresh that updates state and cache without loading screens
  const refreshInBackground = async (userId) => {
  if (!isSupabaseConfigured) return;
  try {
- console.log("🔄 Running silent background refresh...");
- const [
- { data: productsData},
- { data: clientsData},
- { data: salesData},
- { data: expensesData},
- { data: employeesData},
- { data: payrollData},
- { data: businessData},
- { data: dayBookData},
- { data: settingsData},
- { data: paymentsData},
- { data: usersData},
- { data: vehiclesData},
- { data: movementData},
- { data: routesData},
- { data: purchasesData},
- { data: suppliersData},
- { data: categoriesData}
- ] = await Promise.all([
- supabase.from('products').select('*'),
- supabase.from('clients').select('*'),
- supabase.from('sales').select('*').order('date', { ascending: false}).limit(500),
- supabase.from('expenses').select('*').order('date', { ascending: false}).limit(500),
- supabase.from('employees').select('*'),
- supabase.from('payroll').select('*').order('processed_at', { ascending: false}).limit(100),
- supabase.from('business_profile').select('*').maybeSingle(),
- supabase.from('day_book').select('*').order('date', { ascending: false}).limit(31),
- supabase.from('settings').select('*'),
- supabase.from('client_payments').select('*').order('date', { ascending: false}).limit(500),
- supabase.from('users').select('*'),
- supabase.from('vehicles').select('*'),
- supabase.from('movement_log').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('routes').select('*').order('date', { ascending: false}).limit(100),
- supabase.from('purchases').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('suppliers').select('*').order('name', { ascending: true}),
- supabase.from('product_categories').select('*').order('name')
- ]);
+    console.log("🔄 Running silent background refresh...");
+    const [
+      { data: productsData},
+      { data: clientsData},
+      { data: salesData},
+      { data: expensesData},
+      { data: employeesData},
+      { data: payrollData},
+      { data: businessData},
+      { data: dayBookData},
+      { data: settingsData},
+      { data: paymentsData},
+      { data: usersData},
+      { data: vehiclesData},
+      { data: movementData},
+      { data: routesData},
+      { data: purchasesData},
+      { data: suppliersData},
+      { data: categoriesData},
+      { data: locationsData},
+      { data: balancesData},
+      { data: invoicesData}
+    ] = await Promise.all([
+      supabase.from('products').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('clients').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('sales').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+      supabase.from('expenses').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+      supabase.from('employees').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('payroll').select('*').eq('tenant_id', targetTenantId).order('processed_at', { ascending: false }).limit(100),
+      supabase.from('business_profile').select('*').eq('tenant_id', targetTenantId).maybeSingle(),
+      supabase.from('day_book').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(31),
+      supabase.from('settings').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('client_payments').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+      supabase.from('users').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('vehicles').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('movement_log').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+      supabase.from('routes').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(100),
+      supabase.from('purchases').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+      supabase.from('suppliers').select('*').eq('tenant_id', targetTenantId).order('name', { ascending: true }),
+      supabase.from('product_categories').select('*').eq('tenant_id', targetTenantId).order('name'),
+      supabase.from('inventory_locations').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('inventory_balances').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('invoices').select('*').eq('tenant_id', targetTenantId).order('created_at', { ascending: false })
+    ]);
 
  // Update State Silently
- if (productsData) { setProducts(productsData); cacheSet('products', productsData);}
- if (categoriesData) { setProductCategories(categoriesData); cacheSet('product_categories', categoriesData);}
- if (clientsData) { setClients(clientsData); cacheSet('clients', clientsData);}
- if (salesData) { setSales(salesData); cacheSet('sales', salesData);}
- if (expensesData) { setExpenses(expensesData); cacheSet('expenses', expensesData);}
- if (usersData) { setUsers(usersData); cacheSet('users', usersData);}
- if (dayBookData) { setDayBook(dayBookData); cacheSet('day_book', dayBookData);}
- if (paymentsData) { setClientPayments(paymentsData); cacheSet('client_payments', paymentsData);}
- if (suppliersData) { setSuppliers(suppliersData); cacheSet('suppliers', suppliersData);}
+ if (productsData) setProducts(productsData);
+ if (invoicesData) {
+   setInvoices(invoicesData);
+   cacheSet('invoices', invoicesData);
+ }
+ if (categoriesData) setProductCategories(categoriesData);
+ if (clientsData) setClients(clientsData);
+ if (salesData) setSales(salesData);
+ if (expensesData) setExpenses(expensesData);
+ if (usersData) setUsers(usersData);
+ if (dayBookData) setDayBook(dayBookData);
+ if (paymentsData) setClientPayments(paymentsData);
+ if (suppliersData) setSuppliers(suppliersData);
  if (employeesData) {
  const mappedEmps = employeesData.map(emp => ({
  ...emp,
@@ -1615,7 +2235,6 @@ export const AppProvider = ({ children}) => {
  position: emp.position ?? emp.role ?? 'Standard Associate'
 }));
  setEmployees(mappedEmps);
- cacheSet('employees', mappedEmps);
 }
  if (payrollData) {
  const grouped = payrollData.reduce((acc, rec) => {
@@ -1633,12 +2252,11 @@ export const AppProvider = ({ children}) => {
 }, {});
  const records = Object.values(grouped);
  setPayrollRecords(records);
- cacheSet('payroll', records);
 }
- if (vehiclesData) { setVehicles(vehiclesData); cacheSet('vehicles', vehiclesData);}
- if (routesData) { setRoutes(routesData); cacheSet('routes', routesData);}
- if (purchasesData) { setPurchases(purchasesData); cacheSet('purchases', purchasesData);}
- if (businessData) { setBusinessProfile(businessData); cacheSet('business_profile', businessData);}
+ if (vehiclesData) setVehicles(vehiclesData);
+ if (routesData) setRoutes(routesData);
+ if (purchasesData) setPurchases(purchasesData);
+ if (businessData) setBusinessProfile(businessData);
  
  if (movementData) {
  const mappedLog = movementData.map(log => ({
@@ -1647,11 +2265,10 @@ export const AppProvider = ({ children}) => {
  userId: log.user_id, createdAt: log.created_at || log.date
 }));
  setMovementLog(mappedLog);
- cacheSet('movement_log', mappedLog);
 }
  if (settingsData) {
  const categories = settingsData.find(s => s.key === 'expense_categories');
- if (categories) { setExpenseCategories(categories.value); cacheSet('expense_categories', categories.value);}
+ if (categories) setExpenseCategories(categories.value);
 }
  
  setSyncStatus('SYNCED');
@@ -1700,14 +2317,27 @@ export const AppProvider = ({ children}) => {
  const cSuppliers = cacheGet('suppliers'); if (cSuppliers) setSuppliers(cSuppliers);
  const cMovement = cacheGet('movement_log'); if (cMovement) setMovementLog(cMovement);
  const cExpCategories = cacheGet('expense_categories'); if (cExpCategories) setExpenseCategories(cExpCategories);
+ const cLocations = cacheGet('inventory_locations'); if (cLocations) setInventoryLocations(cLocations);
+ const cBalances = cacheGet('inventory_balances'); if (cBalances) setInventoryBalances(cBalances);
+ const cInvoices = cacheGet('invoices'); if (cInvoices) setInvoices(cInvoices);
+  
+  // --- BACKGROUND REFRESH & SEEDING ---
+  await refreshInBackground();
 
- setLoading(false);
- appInitialized.current = true;
- initializingRef.current = false;
- 
- // Trigger silent background refresh
- refreshInBackground();
- return;
+  // Ensurance IDempotent Seeding for WAREHOUSE
+  setInventoryLocations(current => {
+    if (!current.find(l => l.id === MAIN_WAREHOUSE_ID)) {
+      const warehouse = { id: MAIN_WAREHOUSE_ID, name: 'Main Warehouse', type: 'WAREHOUSE' };
+      supabase.from('inventory_locations').upsert(warehouse).then(() => {}); 
+      return [warehouse, ...current];
+    }
+    return current;
+  });
+
+  setLoading(false);
+  initializingRef.current = false;
+  appInitialized.current = true;
+  return;
 }
 
  // --- FULL FETCH (Cache Miss or Forced) ---
@@ -1732,8 +2362,9 @@ export const AppProvider = ({ children}) => {
  { data: vehiclesData},
  { data: movementData},
  { data: routesData},
- { data: purchasesData},
- { data: suppliersData}
+  { data: purchasesData},
+  { data: suppliersData},
+  { data: invoicesData}
  ] = await Promise.all([
  supabase.from('products').select('*'),
  supabase.from('product_categories').select('*').order('name'),
@@ -1751,18 +2382,24 @@ export const AppProvider = ({ children}) => {
  supabase.from('movement_log').select('*').order('date', { ascending: false}).limit(200),
  supabase.from('routes').select('*').order('date', { ascending: false}).limit(100),
  supabase.from('purchases').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('suppliers').select('*').order('name', { ascending: true})
+ supabase.from('suppliers').select('*').order('name', { ascending: true}),
+ supabase.from('invoices').select('*').order('created_at', { ascending: false})
  ]);
  
- if (productsData) { setProducts(productsData); cacheSet('products', productsData);}
- if (categoriesData) { setProductCategories(categoriesData); cacheSet('product_categories', categoriesData);}
- if (clientsData) { setClients(clientsData); cacheSet('clients', clientsData);}
- if (salesData) { setSales(salesData); cacheSet('sales', salesData);}
- if (expensesData) { setExpenses(expensesData); cacheSet('expenses', expensesData);}
- if (usersData) { setUsers(usersData); cacheSet('users', usersData);}
- if (dayBookData) { setDayBook(dayBookData); cacheSet('day_book', dayBookData);}
- if (paymentsData) { setClientPayments(paymentsData); cacheSet('client_payments', paymentsData);}
- if (suppliersData) { setSuppliers(suppliersData); cacheSet('suppliers', suppliersData);}
+ if (productsData) setProducts(productsData);
+ if (categoriesData) setProductCategories(categoriesData);
+ if (clientsData) setClients(clientsData);
+ if (salesData) setSales(salesData);
+ if (expensesData) setExpenses(expensesData);
+ if (usersData) setUsers(usersData);
+ if (dayBookData) setDayBook(dayBookData);
+ if (paymentsData) setClientPayments(paymentsData);
+   if (suppliersData) setSuppliers(suppliersData);
+  if (invoicesData) {
+    setInvoices(invoicesData);
+    cacheSet('invoices', invoicesData);
+  }
+
  
  if (employeesData) {
  const mappedEmps = employeesData.map(emp => ({
@@ -1774,7 +2411,6 @@ export const AppProvider = ({ children}) => {
  position: emp.position ?? emp.role ?? 'Standard Associate'
 }));
  setEmployees(mappedEmps);
- cacheSet('employees', mappedEmps);
 }
 
  if (payrollData) {
@@ -1793,13 +2429,12 @@ export const AppProvider = ({ children}) => {
 }, {});
  const records = Object.values(grouped);
  setPayrollRecords(records);
- cacheSet('payroll', records);
 }
 
- if (vehiclesData) { setVehicles(vehiclesData); cacheSet('vehicles', vehiclesData);}
- if (routesData) { setRoutes(routesData); cacheSet('routes', routesData);}
- if (purchasesData) { setPurchases(purchasesData); cacheSet('purchases', purchasesData);}
- if (businessData) { setBusinessProfile(businessData); cacheSet('business_profile', businessData);}
+ if (vehiclesData) setVehicles(vehiclesData);
+ if (routesData) setRoutes(routesData);
+ if (purchasesData) setPurchases(purchasesData);
+ if (businessData) setBusinessProfile(businessData);
  
  if (movementData) {
  const mappedLog = movementData.map(log => ({
@@ -1808,7 +2443,6 @@ export const AppProvider = ({ children}) => {
  userId: log.user_id, createdAt: log.created_at || log.date
 }));
  setMovementLog(mappedLog);
- cacheSet('movement_log', mappedLog);
 }
  
  if (settingsData) {
@@ -1836,6 +2470,51 @@ export const AppProvider = ({ children}) => {
 
  const [authSession, setAuthSession] = useState(null);
 
+ // Resolve tenant from user profile (skip if impersonating another tenant)
+  const resolveTenant = async (userProfile) => {
+    if (!userProfile?.tenant_id) return;
+    // Do not override the impersonated tenant if the admin is bridging
+    if (sessionStorage.getItem("nexus_impersonating") === "true") return;
+    try {
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('id', userProfile.tenant_id)
+        .maybeSingle();
+      if (tenant) {
+        setCurrentTenant(tenant);
+      }
+    } catch (err) {
+      console.error('Failed to resolve tenant:', err);
+    }
+  };
+
+  // Resolve tenant by slug (for Global Admin auto-bridging)
+  const resolveTenantBySlug = async (slug) => {
+    if (!slug || !isSupabaseConfigured) return;
+    try {
+      const { data: tenant } = await supabase
+        .from('tenants')
+        .select('*')
+        .eq('slug', slug)
+        .maybeSingle();
+      
+      if (tenant) {
+        setCurrentTenant(tenant);
+        return tenant;
+      }
+    } catch (err) {
+      console.error('Failed to resolve tenant by slug:', err);
+    }
+    return null;
+  };
+
+ // Plan-based module check
+ const isModuleAllowed = (moduleKey) => {
+   if (!currentTenant) return true;
+   return isModuleAvailable(currentTenant.plan, moduleKey);
+ };
+
  // Initial Session Resolver & Visibility Handler
  useEffect(() => {
  if (!isSupabaseConfigured) return;
@@ -1846,11 +2525,33 @@ export const AppProvider = ({ children}) => {
  if (session) {
  setAuthSession(session);
  const { data: profile} = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
- if (profile) setCurrentUser(profile);
- initializeApp(); // Cache-first init
+ if (profile) {
+   setCurrentUser(profile);
+   
+   // Check if we are impersonating - if so, re-fetch the tenant to ensure we have the LATEST plan/status
+   const impersonated = sessionStorage.getItem('nexus_impersonated_tenant');
+   if (impersonated) {
+     try {
+       const tObj = JSON.parse(impersonated);
+       const { data: latestTenant } = await supabase.from('tenants').select('*').eq('id', tObj.id).maybeSingle();
+       if (latestTenant) {
+         setCurrentTenant(latestTenant);
+         sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(latestTenant));
+       } else {
+         setCurrentTenant(tObj);
+       }
+     } catch (e) {
+       console.warn("Nexus Sync Failed, using cache:", e);
+     }
+   } else {
+     await resolveTenant(profile);
+   }
+ }
+  await initializeApp();
 } else {
  setLoading(false);
 }
+ setIsSyncComplete(true);
 };
  initSession();
 
@@ -1880,9 +2581,14 @@ export const AppProvider = ({ children}) => {
  
  if (profile) {
  setCurrentUser(profile);
+ await resolveTenant(profile);
 } else {
- // AUTO-PROVISION SUPERUSER if first time login for owner
- const isSuperUser = session.user.email === 'uvaize@hotmail.com' || session.user.email === 'gladmin@ledgrpro.ca';
+ // AUTO-PROVISION SUPERUSER if first time login for owner.
+ // Allowlist is configured via VITE_BOOTSTRAP_ADMIN_EMAILS (comma-separated).
+ // Non-listed emails are provisioned as STAFF and can be elevated later
+ // through the normal Users admin UI.
+ const emailLower = (session.user.email || '').toLowerCase();
+ const isSuperUser = BOOTSTRAP_ADMIN_EMAILS.has(emailLower);
  const newUserProfile = {
  id: session.user.id,
  email: session.user.email,
@@ -1915,6 +2621,7 @@ export const AppProvider = ({ children}) => {
  cacheClear();
  setAuthSession(null);
  setCurrentUser(null);
+ setCurrentTenant(null);
  appInitialized.current = false;
  setLoading(false);
  if (typeof window !== 'undefined') {
@@ -1932,17 +2639,22 @@ export const AppProvider = ({ children}) => {
  // Initial load removed (handled in auth useEffect above)
 
 
- const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN') || currentUser?.role?.toLowerCase() === 'owner' || currentUser?.email === 'uvaize@hotmail.com';
+ const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN');
  const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.role?.toLowerCase() === 'staff';
 
  const value = {
  currentUser, session: authSession || currentUser, isOwner, isStaff, login, logout,
+ // Multi-tenancy
+ currentTenant, currentTenantId, isModuleAllowed,
+ isImpersonating, impersonateTenant, stopImpersonating,
  syncStatus, isOnline, lastSyncedAt,
  businessProfile, updateBusinessProfile, // Data
  productCategories, addProductCategory, updateProductCategory, deleteProductCategory,
  products, addProduct, updateProduct, deleteProduct, adjustStock,
- clients, addClient, updateClient, deleteClient,
- sales, orders, setOrders, placeSale, updateSale, deleteSale, settleSale,
+ inventoryLocations, inventoryBalances, adjustLocationStock, transferStock, MAIN_WAREHOUSE_ID, // Multi-location
+  clients, addClient, updateClient, deleteClient,
+  invoices, createInvoice, markInvoicePaid,
+  sales, orders, setOrders, placeSale, updateSale, deleteSale, settleSale,
  // Aligned aliases for backward compatibility (optional but helpful)
  addShop: addClient, updateShop: updateClient, deleteShop: deleteClient,
  placeOrder: placeSale, updateOrder: updateSale, deleteOrder: deleteSale, settleOrder: settleSale,
@@ -1957,13 +2669,13 @@ export const AppProvider = ({ children}) => {
  employees, addEmployee, updateEmployee, deleteEmployee,
  payrollRecords, processPayroll, deletePayrollRecord,
  purchases, addPurchase,
- suppliers, addSupplier, deleteSupplier,
+ suppliers, addSupplier, updateSupplier, deleteSupplier,
  dayBook, updateDayBook, getDayBookForDate,
  recordClientPayment, clientPayments,
  isMaintenance, maintenanceMessage, setIsMaintenance,
  notifications, addNotification,
  DEFAULT_PERMISSIONS, MODULES_CONFIG,
- loading, initError, migrateLocalToSupabase, resetAndSeedLocal, resetAndSeedCloud
+ loading, initError, isSyncComplete, migrateLocalToSupabase, resetAndSeedLocal, resetAndSeedCloud
 };
 
  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

@@ -1,7 +1,7 @@
 import React, { useState, useRef} from 'react';
-import { NavLink, Outlet, Navigate} from 'react-router-dom';
+import { NavLink, Outlet, Navigate, useParams} from 'react-router-dom';
 import { useAppContext} from '../context/AppContext';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown} from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield} from 'lucide-react';
 import NotificationStack from './NotificationStack';
 import GlobalLoading from './GlobalLoading';
 
@@ -60,7 +60,12 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
 };
 
 const Navbar = () => {
- const { currentUser, logout, businessProfile, isMaintenance, hasPermission, syncStatus, lastSyncedAt, isOnline} = useAppContext();
+ const { 
+   currentUser, logout, businessProfile, isMaintenance, hasPermission, 
+   syncStatus, lastSyncedAt, isOnline, currentTenant, isModuleAllowed, hasRole,
+   isImpersonating, stopImpersonating
+ } = useAppContext();
+ const { tenantSlug } = useParams();
  const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
  const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
@@ -69,32 +74,43 @@ const Navbar = () => {
 
  const roles = currentUser?.roles || (currentUser?.role ? [currentUser?.role] : ['STAFF']);
  const isOwner = roles.includes('OWNER') || roles.includes('GLOBAL_ADMIN');
+ const isGlobalAdmin = roles.includes('GLOBAL_ADMIN');
+ const basePath = tenantSlug ? `/${tenantSlug}` : '';
+
+ // Nav item builder with plan gating
+ const navItem = (label, path, icon, moduleKey, extraHidden = false) => ({
+   label,
+   path: `${basePath}${path}`,
+   icon,
+   hidden: extraHidden || !hasPermission(moduleKey || path.replace('/', ''), 'view'),
+   locked: moduleKey ? !isModuleAllowed(moduleKey) : false
+ });
 
  const primaryNavItems = [
- { label: 'Dashboard', path: '/dashboard', icon: <LayoutDashboard size={20} />},
- { label: 'Inventory', path: '/inventory', icon: <Package size={20} />, hidden: !hasPermission('inventory', 'view')},
- { label: 'Sales', path: '/sales', icon: <ShoppingCart size={20} />, hidden: !hasPermission('sales', 'view')},
- { label: 'Reports', path: '/reports', icon: <BarChart3 size={20} />, hidden: !hasPermission('reports', 'view') || !isOwner},
- { label: 'Purchases', path: '/purchases', icon: <ShoppingBag size={20} />, hidden: !hasPermission('purchases', 'view')},
- { label: 'Pipeline', path: '/orders', icon: <ClipboardList size={20} />, hidden: !hasPermission('sales', 'view')},
- { label: 'Expenses', path: '/expenses', icon: <Wallet size={20} />, hidden: !hasPermission('expenses', 'view')},
- { label: 'Clients', path: '/clients', icon: <UsersIcon size={20} />, hidden: !hasPermission('clients', 'view')},
+    navItem('Dashboard', '/dashboard', <LayoutDashboard size={20} />, 'dashboard'),
+    navItem('Inventory', '/inventory', <Package size={20} />, 'inventory'),
+    navItem('Sales', '/sales', <ShoppingCart size={20} />, 'sales'),
+    navItem('Invoices', '/invoices', <FileText size={20} />, 'sales'),
+    navItem('Purchases', '/purchases', <ShoppingBag size={20} />, 'purchases'),
+    navItem('Expenses', '/expenses', <Wallet size={20} />, 'expenses'),
+    navItem('Clients', '/clients', <UsersIcon size={20} />, 'clients'),
  ];
 
  const moreNavItems = [
- { label: 'Suppliers', path: '/suppliers', icon: <Truck size={20} />, hidden: !hasPermission('suppliers', 'view')},
- { label: 'Payroll', path: '/payroll', icon: <Banknote size={20} />, hidden: !hasPermission('payroll', 'view')},
- { label: 'Day Book', path: '/daybook', icon: <BookOpen size={20} />, hidden: !hasPermission('daybook', 'view')},
- { label: 'Vehicles', path: '/vehicles', icon: <Truck size={20} />, hidden: !hasPermission('vehicles', 'view')},
- { label: 'Reports', path: '/reports', icon: <BarChart3 size={20} />, hidden: !hasPermission('reports', 'view') || isOwner},
+   navItem('Pipeline', '/orders', <ClipboardList size={20} />, 'sales'),
+   navItem('Suppliers', '/suppliers', <Truck size={20} />, 'suppliers'),
+   navItem('Payroll', '/payroll', <Banknote size={20} />, 'payroll'),
+   navItem('Day Book', '/daybook', <BookOpen size={20} />, 'daybook'),
+   navItem('Vehicles', '/vehicles', <Truck size={20} />, 'vehicles'),
+   navItem('Reports', '/reports', <BarChart3 size={20} />, 'reports'),
  ];
 
  const allNavItems = [...primaryNavItems, ...moreNavItems];
  const activeInMore = moreNavItems.some(item => window.location.pathname.startsWith(item.path));
 
  const adminItems = [
- { label: 'User Management', path: '/users', icon: <UsersIcon size={18} />, hidden: !hasPermission('users', 'view')},
- { label: 'Settings', path: '/settings', icon: <SettingsIcon size={18} />, hidden: !hasPermission('settings', 'view')},
+   navItem('Personnel Portal', '/users', <UsersIcon size={18} />, 'users'),
+   navItem('Workspace Settings', '/settings', <SettingsIcon size={18} />, 'settings'),
  ];
 
  React.useEffect(() => {
@@ -109,6 +125,41 @@ const Navbar = () => {
  document.addEventListener('mousedown', handleClickOutside);
  return () => document.removeEventListener('mousedown', handleClickOutside);
 }, []);
+
+ const renderNavItem = (item, onClick = null) => {
+   if (item.locked) {
+     return (
+       <div
+         key={item.path}
+         className="flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold text-gray-400 cursor-not-allowed relative group"
+         title={`Upgrade to access ${item.label}`}
+       >
+         <span className="opacity-40">{item.icon}</span>
+         {item.label}
+         <Sparkles size={12} className="text-amber-400 ml-0.5" />
+       </div>
+     );
+   }
+   return (
+     <NavLink
+       key={item.path}
+       to={item.path}
+       onClick={onClick}
+       className={({ isActive}) => `flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
+         isActive 
+         ? 'bg-ink-primary text-white shadow-md' 
+         : 'text-gray-700 hover:text-ink-primary hover:bg-gray-100'
+       }`}
+     >
+       {({ isActive}) => (
+         <>
+           <span className={isActive ? 'text-white/60' : 'opacity-70'}>{item.icon}</span>
+           {item.label}
+         </>
+       )}
+     </NavLink>
+   );
+ };
 
  return (
  <>
@@ -130,28 +181,22 @@ const Navbar = () => {
  alt="Ledger Logo" 
  className="h-10 md:h-14 w-auto object-contain mix-blend-multiply animate-in fade-in duration-700"
  />
+ {currentTenant && (
+   <div className="hidden md:flex items-center gap-2">
+     <div className="w-px h-6 bg-black/10"></div>
+     <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wide">{currentTenant.name}</span>
+     <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+       currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
+       currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
+       'bg-gray-100 text-gray-500'
+     }`}>{currentTenant.plan}</span>
+   </div>
+ )}
  </div>
 
  {/* Pill Navigation — Desktop Only */}
  <div className="hidden md:flex items-center space-x-1 bg-white p-1.5 rounded-full shadow-sm border border-black/5">
- {primaryNavItems.filter(i => !i.hidden).map((item) => (
- <NavLink
- key={item.path}
- to={item.path}
- className={({ isActive}) => `flex items-center gap-2 px-3 py-2 rounded-full text-xs font-semibold transition-all ${
- isActive 
- ? 'bg-ink-primary text-white shadow-md' 
- : 'text-gray-700 hover:text-ink-primary hover:bg-gray-100'
-}`}
- >
- {({ isActive}) => (
- <>
- <span className={isActive ? 'text-white/60' : 'opacity-70'}>{item.icon}</span>
- {item.label}
- </>
- )}
- </NavLink>
- ))}
+ {primaryNavItems.filter(i => !i.hidden).map((item) => renderNavItem(item))}
 
  {/* More Dropdown */}
  <div className="relative" ref={moreMenuRef}>
@@ -170,21 +215,32 @@ const Navbar = () => {
 
  {isMoreMenuOpen && (
  <div className="absolute top-full right-0 mt-3 w-56 bg-surface rounded-xl border border-black/5 shadow-2xl p-2 animate-in fade-in slide-in-from-top-2 duration-200 z-[110]">
- {moreNavItems.filter(i => !i.hidden).map((item) => (
- <NavLink
- key={item.path}
- to={item.path}
- onClick={() => setIsMoreMenuOpen(false)}
- className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium transition-all ${
- isActive 
- ? 'bg-canvas text-ink-primary font-bold shadow-sm' 
- : 'text-gray-700 hover:bg-canvas/50 hover:text-ink-primary'
-}`}
- >
- <span className="opacity-60">{item.icon}</span>
- {item.label}
- </NavLink>
- ))}
+ {moreNavItems.filter(i => !i.hidden).map((item) => {
+   if (item.locked) {
+     return (
+       <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium text-gray-400 cursor-not-allowed">
+         <span className="opacity-40">{item.icon}</span>
+         {item.label}
+         <Sparkles size={12} className="text-amber-400 ml-auto" />
+       </div>
+     );
+   }
+   return (
+     <NavLink
+       key={item.path}
+       to={item.path}
+       onClick={() => setIsMoreMenuOpen(false)}
+       className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium transition-all ${
+         isActive 
+         ? 'bg-canvas text-ink-primary font-bold shadow-sm' 
+         : 'text-gray-700 hover:bg-canvas/50 hover:text-ink-primary'
+       }`}
+     >
+       <span className="opacity-60">{item.icon}</span>
+       {item.label}
+     </NavLink>
+   );
+ })}
  </div>
  )}
  </div>
@@ -208,7 +264,7 @@ const Navbar = () => {
  {isUserMenuOpen && (
  <div className="absolute top-full right-0 mt-3 w-64 bg-surface rounded-[2rem] border border-black/5 shadow-2xl p-4 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 z-[100]">
  <div className="mb-4 pb-4 border-b border-black/5">
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Administration</p>
+ <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">WORKSPACE PORTAL</p>
  <div className="space-y-1">
  {adminItems.filter(i => !i.hidden).map(item => (
  <NavLink
@@ -220,6 +276,16 @@ const Navbar = () => {
  {item.label}
  </NavLink>
  ))}
+ {isGlobalAdmin && (
+   <NavLink
+     to="/nexus-hq"
+     onClick={() => setIsUserMenuOpen(false)}
+     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+   >
+     <Shield size={16} />
+     The Nexus Console
+   </NavLink>
+ )}
  </div>
  </div>
  <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-all">
@@ -254,35 +320,58 @@ const Navbar = () => {
  <X size={18} />
  </button>
  </div>
+
+ {/* Tenant Badge in Mobile */}
+ {currentTenant && (
+   <div className="px-5 py-3 border-b border-black/5">
+     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{currentTenant.name}</p>
+     <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
+       currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
+       currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
+       'bg-gray-100 text-gray-500'
+     }`}>{currentTenant.plan} Plan</span>
+   </div>
+ )}
  
  {/* Nav Items */}
  <nav className="flex-1 overflow-y-auto py-3 px-3">
  <p className="text-[9px] font-semibold text-gray-700 opacity-[0.85] px-3 mb-2">Navigation</p>
- {allNavItems.filter(i => !i.hidden).map(item => (
- <NavLink
- key={item.path}
- to={item.path}
- onClick={() => setIsMobileMenuOpen(false)}
- className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all mb-0.5 ${
- isActive 
- ? 'bg-ink-primary text-white shadow-md' 
- : 'text-gray-700 hover:bg-canvas'
-}`}
- >
- {({ isActive}) => (
- <>
- <span className={isActive ? 'text-accent-signature' : 'opacity-[0.85]'}>{item.icon}</span>
- {item.label}
- </>
- )}
- </NavLink>
- ))}
+ {allNavItems.filter(i => !i.hidden).map(item => {
+   if (item.locked) {
+     return (
+       <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-400 cursor-not-allowed mb-0.5">
+         <span className="opacity-40">{item.icon}</span>
+         {item.label}
+         <Sparkles size={12} className="text-amber-400 ml-auto" />
+       </div>
+     );
+   }
+   return (
+     <NavLink
+       key={item.path}
+       to={item.path}
+       onClick={() => setIsMobileMenuOpen(false)}
+       className={({ isActive}) => `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all mb-0.5 ${
+         isActive 
+         ? 'bg-ink-primary text-white shadow-md' 
+         : 'text-gray-700 hover:bg-canvas'
+       }`}
+     >
+       {({ isActive}) => (
+         <>
+           <span className={isActive ? 'text-accent-signature' : 'opacity-[0.85]'}>{item.icon}</span>
+           {item.label}
+         </>
+       )}
+     </NavLink>
+   );
+ })}
  
  {/* Admin Section */}
  {adminItems.filter(i => !i.hidden).length > 0 && (
  <>
  <div className="my-3 border-t border-black/5" />
- <p className="text-[9px] font-semibold text-gray-700 opacity-[0.85] px-3 mb-2">Administration</p>
+ <p className="text-[9px] font-semibold text-gray-700 opacity-[0.85] px-3 mb-2">WORKSPACE PORTAL</p>
  {adminItems.filter(i => !i.hidden).map(item => (
  <NavLink
  key={item.path}
@@ -302,6 +391,16 @@ const Navbar = () => {
  )}
  </NavLink>
  ))}
+ {isGlobalAdmin && (
+   <NavLink
+     to="/nexus-hq"
+     onClick={() => setIsMobileMenuOpen(false)}
+     className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-purple-600 hover:bg-purple-50 transition-all mb-0.5"
+   >
+     <Shield size={18} />
+     The Nexus Console
+   </NavLink>
+ )}
  </>
  )}
  </nav>
@@ -323,25 +422,37 @@ const Navbar = () => {
 };
 
 const AppLayout = () => {
- const { currentUser, loading} = useAppContext();
+  const { currentUser, loading, isImpersonating, stopImpersonating, currentTenant } = useAppContext();
 
- if (loading) {
- return <GlobalLoading />;
-}
+  if (loading) {
+    return <GlobalLoading />;
+  }
 
- return (
- <div className="min-h-screen bg-canvas font-inter selection:bg-accent-signature/30 flex flex-col relative">
- <Navbar />
- <NotificationStack />
- 
- <main 
- key={window.location.pathname}
- className="flex-1 max-w-[1800px] w-full mx-auto px-4 sm:px-6 lg:px-12 py-2 md:py-6 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out"
- >
- <Outlet />
- </main>
- </div>
- );
+  return (
+    <div className="min-h-screen bg-canvas font-inter selection:bg-accent-signature/30 flex flex-col relative">
+      {isImpersonating && (
+        <div className="bg-amber-500 text-white px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-4 sticky top-0 z-[200] shadow-xl">
+          <Shield size={14} className="animate-pulse" />
+          <span>Operations Bridge: {currentTenant?.name}</span>
+          <button 
+            onClick={stopImpersonating}
+            className="bg-white text-amber-600 px-3 py-1 rounded-lg hover:bg-amber-50 transition-all shadow-sm active:scale-[0.98] font-black border border-amber-600/20"
+          >
+            Terminal Management
+          </button>
+        </div>
+      )}
+      <Navbar />
+      <NotificationStack />
+      
+      <main 
+        key={window.location.pathname}
+        className="flex-1 max-w-[1800px] w-full mx-auto px-4 sm:px-6 lg:px-12 py-2 md:py-6 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out"
+      >
+        <Outlet />
+      </main>
+    </div>
+  );
 };
 
 export default AppLayout;

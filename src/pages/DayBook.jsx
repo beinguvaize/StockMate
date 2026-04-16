@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect} from 'react';
 import { useAppContext} from '../context/AppContext';
 import { 
- Calendar, Save, ArrowUpRight, ArrowDownRight, 
- Calculator, BookOpen, Clock, AlertCircle, TrendingUp, TrendingDown, RefreshCcw
+  Calendar, Save, ArrowUpRight, ArrowDownRight, 
+  Calculator, BookOpen, Clock, AlertCircle, TrendingUp, TrendingDown, RefreshCcw, Eye
 } from 'lucide-react';
+import DailyLedgerDetail from '../components/reports/DailyLedgerDetail';
 
 const DayBook = () => {
  const { 
@@ -15,6 +16,7 @@ const DayBook = () => {
  const [manualOpeningBalance, setManualOpeningBalance] = useState('');
  const [isSaving, setIsSaving] = useState(false);
  const [message, setMessage] = useState(null);
+ const [showDetailDate, setShowDetailDate] = useState(null);
 
  // Get previous day's record to get closing balance
  const previousDayRecord = useMemo(() => {
@@ -80,6 +82,7 @@ const DayBook = () => {
  if (loading) return <div className="p-20 text-center animate-pulse font-semibold opacity-60">Synchronizing Ledger...</div>;
 
  return (
+ <>
  <div className="animate-fade-in flex flex-col gap-4 pb-20">
  {/* Header */}
  <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-4 border-b border-black/5">
@@ -234,12 +237,17 @@ const DayBook = () => {
  {closingBalance.toLocaleString()}
  </div>
  </div>
- <div className="text-right">
+ <div className="flex flex-col items-end gap-3">
  <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-pill font-semibold text-[10px] ${closingBalance >= openingBalance ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
  {closingBalance >= openingBalance ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
  {closingBalance >= openingBalance ? 'Daily Surplus' : 'Daily Deficit'}
  </div>
- <p className="text-[10px] mt-4 font-bold text-surface/30 italic">Closing = Opening + Sales - Expenses</p>
+ <button 
+ onClick={() => setShowDetailDate(selectedDate)}
+ className="w-full px-6 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-pill text-[9px] font-bold text-surface transition-all flex items-center justify-center gap-2"
+ >
+ <Eye size={12} /> VIEW BREAKDOWN
+ </button>
  </div>
  </div>
  </div>
@@ -258,7 +266,7 @@ const DayBook = () => {
  {dayBook.slice(0, 5).map(log => (
  <div 
  key={log.id} 
- className={`p-4 rounded-lg border bg-white cursor-pointer transition-all hover:scale-[1.02] ${selectedDate === log.date ? 'border-accent-signature ring-1 ring-accent-signature' : 'border-black/5 hover:border-black/10'}`}
+ className={`p-4 rounded-lg border bg-white cursor-pointer transition-all hover:scale-[1.02] relative group ${selectedDate === log.date ? 'border-accent-signature ring-1 ring-accent-signature' : 'border-black/5 hover:border-black/10'}`}
  onClick={() => setSelectedDate(log.date)}
  >
  <div className="flex justify-between items-start mb-2">
@@ -267,8 +275,14 @@ const DayBook = () => {
  {log.closing_balance >= log.opening_balance ? '+' : '-'}{Math.abs(log.closing_balance - log.opening_balance).toLocaleString()}
  </span>
  </div>
- <div className="text-lg font-semibold text-ink-primary">
- {businessProfile?.currencySymbol || '₹'}{log.closing_balance?.toLocaleString()}
+ <div className="text-lg font-semibold text-ink-primary flex justify-between items-end">
+ <span>{businessProfile?.currencySymbol || '₹'}{log.closing_balance?.toLocaleString()}</span>
+ <button 
+ onClick={(e) => { e.stopPropagation(); setShowDetailDate(log.date); }}
+ className="w-7 h-7 bg-canvas rounded-lg flex items-center justify-center text-gray-400 hover:text-ink-primary border border-black/5 opacity-0 group-hover:opacity-100 transition-all"
+ >
+ <Eye size={14} />
+ </button>
  </div>
  </div>
  ))}
@@ -290,6 +304,26 @@ const DayBook = () => {
  </div>
  </div>
  </div>
+
+ {/* Detailed Report Modal Participation */}
+ {showDetailDate && (
+ <DailyLedgerDetail 
+ date={showDetailDate}
+ openingBalance={
+ dayBook.find(db => db.date === showDetailDate)?.opening_balance || 
+ (showDetailDate === selectedDate ? openingBalance : 0)
+}
+ closingBalance={
+ dayBook.find(db => db.date === showDetailDate)?.closing_balance || 
+ (showDetailDate === selectedDate ? closingBalance : 0)
+}
+ sales={(sales || []).filter(s => new Date(s.date).toISOString().split('T')[0] === showDetailDate && s.payment_type === 'cash')}
+ expenses={(expenses || []).filter(e => new Date(e.date).toISOString().split('T')[0] === showDetailDate)}
+ businessProfile={businessProfile}
+ onClose={() => setShowDetailDate(null)}
+ />
+ )}
+ </>
  );
 };
 

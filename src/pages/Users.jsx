@@ -1,5 +1,7 @@
 import React, { useState} from 'react';
 import { useAppContext, AVAILABLE_ROLES, DEFAULT_PERMISSIONS, MODULES_CONFIG} from '../context/AppContext';
+import { supabase } from '../lib/supabase';
+import { staffCreateSchema, passwordStrength } from '../lib/validation';
 import { 
  ShieldCheck, User, Plus, Trash2, Edit3, X, Check, 
  Eye, Save, Package, Truck, Lock, ShieldAlert,
@@ -22,30 +24,28 @@ const MODULE_ICONS = {
 };
 
 const ROLE_ICONS = {
- ADMIN: ShieldCheck,
- SALES: User,
- INVENTORY: Package,
- FLEET: Truck,
- VIEW_ONLY: Eye,
+  OWNER: ShieldCheck,
+  SALES: User,
+  INVENTORY: Package,
+  STAFF: Fingerprint,
 };
 
 const ROLE_COLORS = {
- ADMIN: { bg: 'rgba(17, 17, 17, 0.05)', color: '#111111'},
- SALES: { bg: 'rgba(200, 241, 53, 0.1)', color: '#111111'},
- INVENTORY: { bg: 'rgba(79, 70, 229, 0.05)', color: '#4f46e5'},
- FLEET: { bg: 'rgba(59, 130, 246, 0.05)', color: '#3b82f6'},
- VIEW_ONLY: { bg: 'rgba(116, 117, 118, 0.05)', color: '#747576'},
+  OWNER: { bg: 'rgba(59, 130, 246, 0.05)', color: '#3b82f6'},
+  SALES: { bg: 'rgba(16, 185, 129, 0.05)', color: '#10b981'},
+  INVENTORY: { bg: 'rgba(79, 70, 229, 0.05)', color: '#4f46e5'},
+  STAFF: { bg: 'rgba(116, 117, 118, 0.05)', color: '#747576'},
 };
 
 const INTERNAL_ROLES = [
- { id: 'ADMIN', label: 'System Architect', description: 'Full Unrestricted Access'},
- { id: 'SALES', label: 'Commercial Agent', description: 'Sales & Client Relations'},
- { id: 'INVENTORY', label: 'Logistics Lead', description: 'Stock & Warehouse'},
- { id: 'VIEW_ONLY', label: 'Auditor', description: 'Read-only Access'},
+  { id: 'OWNER', label: 'Owner of Tenant', description: 'Full access to all modules'},
+  { id: 'SALES', label: 'Sales Template', description: 'Sales, Clients & Day Book'},
+  { id: 'INVENTORY', label: 'Inventory Template', description: 'Inventory, Purchases & Suppliers'},
+  { id: 'CUSTOM', label: 'Custom Template', description: 'Manual permission mapping'},
 ];
 
 const Users = () => {
- const { users, addUser, updateUser, deleteUser, currentUser, hasPermission} = useAppContext();
+ const { users, addUser, updateUser, deleteUser, currentUser, hasPermission, addNotification} = useAppContext();
  const [isAdding, setIsAdding] = useState(false);
  const [editingUser, setEditingUser] = useState(null);
  const [formData, setFormData] = useState({ name: '', email: '', roles: ['STAFF'], permissions: { ...DEFAULT_PERMISSIONS}});
@@ -90,26 +90,57 @@ const Users = () => {
 });
 };
 
- const handleSubmit = async (e) => {
- e.preventDefault();
- if (isSaving) return;
- 
- setIsSaving(true);
- try {
- if (editingUser) {
- await updateUser({ ...editingUser, ...formData});
-} else {
- await addUser(formData);
-}
- setIsAdding(false);
- setEditingUser(null);
- setFormData({ name: '', email: '', roles: ['SALES']});
-} catch (err) {
- console.error("Form submission error:", err);
-} finally {
- setIsSaving(false);
-}
-};
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (isSaving) return;
+    
+    setIsSaving(true);
+    
+    // Safety timeout: If request takes > 15s, release the button
+    const timeout = setTimeout(() => {
+      setIsSaving(false);
+      addNotification("Request timed out. Please check your connection or try again.", "warning");
+    }, 15000);
+
+    try {
+      if (editingUser) {
+        // Update local profile
+        await updateUser({ ...editingUser, ...formData });
+      } else {
+        // Validate password strength before hitting Supabase
+        const validation = staffCreateSchema.safeParse({
+          name: formData.name,
+          email: formData.email,
+          password: formData.password || '',
+          roles: formData.roles
+        });
+        if (!validation.success) {
+          const firstError = validation.error.errors[0]?.message || 'Validation failed';
+          addNotification(firstError, 'error');
+          clearTimeout(timeout);
+          setIsSaving(false);
+          return;
+        }
+
+        // Create both Auth and User record via centralized AppContext method
+        const success = await addUser(formData);
+        if (!success) {
+          clearTimeout(timeout);
+          setIsSaving(false);
+          return;
+        }
+      }
+      setIsAdding(false);
+      setEditingUser(null);
+      setFormData({ name: '', email: '', roles: ['STAFF'], permissions: { ...DEFAULT_PERMISSIONS } });
+    } catch (err) {
+      console.error("Staff management error:", err);
+      alert(err.message || "Failed to process staff record");
+    } finally {
+      clearTimeout(timeout);
+      setIsSaving(false);
+    }
+  };
 
  const toggleStatus = (user) => {
  updateUser({ ...user, status: user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'});
@@ -313,14 +344,32 @@ const Users = () => {
  {!editingUser && (
  <div className="md:col-span-2">
  <label className="block text-[8px] font-semibold text-gray-700 mb-0.5 ml-1 opacity-[0.85]">Security Secret</label>
- <input 
- required 
- type="password" 
- className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" 
- placeholder="MIN 6 CHAR..."
- value={formData.password || ''} 
- onChange={e => setFormData({...formData, password: e.target.value})} 
+ <input
+ required
+ type="password"
+ className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all"
+ placeholder="MIN 10 CHAR..."
+ value={formData.password || ''}
+ onChange={e => setFormData({...formData, password: e.target.value})}
  />
+ {/* Inline password-strength bar */}
+ {formData.password && (() => {
+   const { score, label } = passwordStrength(formData.password);
+   const segmentColors = ['bg-red-500', 'bg-orange-400', 'bg-yellow-400', 'bg-green-400', 'bg-emerald-500'];
+   const color = segmentColors[score] || 'bg-red-500';
+   return (
+     <div className="mt-1.5 px-1">
+       <div className="flex gap-1 mb-0.5">
+         {[0,1,2,3].map(i => (
+           <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i < score ? color : 'bg-black/10'}`} />
+         ))}
+       </div>
+       <p className={`text-[8px] font-semibold capitalize ${score <= 1 ? 'text-red-500' : score <= 2 ? 'text-yellow-500' : 'text-green-500'}`}>
+         {label}
+       </p>
+     </div>
+   );
+ })()}
  </div>
  )}
  </div>
@@ -377,12 +426,33 @@ const Users = () => {
  return (
  <div 
  key={role.id}
- onClick={() => {
- setFormData(prev => ({
- ...prev,
- roles: isSelected ? ['STAFF'] : [role.id]
-}));
-}}
+  onClick={() => {
+    const ROLE_PERMISSIONS_MAP = {
+      OWNER: Object.keys(DEFAULT_PERMISSIONS).reduce((acc, key) => ({
+        ...acc,
+        [key]: { view: true, edit: true }
+      }), {}),
+      SALES: {
+        ...DEFAULT_PERMISSIONS,
+        sales: { view: true, edit: true },
+        clients: { view: true, edit: true },
+        daybook: { view: true, edit: true }
+      },
+      INVENTORY: {
+        ...DEFAULT_PERMISSIONS,
+        inventory: { view: true, edit: true },
+        purchases: { view: true, edit: true },
+        suppliers: { view: true, edit: true }
+      },
+      CUSTOM: { ...DEFAULT_PERMISSIONS }
+    };
+
+    setFormData(prev => ({
+      ...prev,
+      roles: isSelected ? ['STAFF'] : [role.id],
+      permissions: isSelected ? { ...DEFAULT_PERMISSIONS } : (ROLE_PERMISSIONS_MAP[role.id] || prev.permissions)
+    }));
+  }}
  className={`p-2 rounded-lg border-2 cursor-pointer transition-all flex items-center gap-2 group ${
  isSelected 
  ? 'bg-ink-primary border-ink-primary text-surface shadow-premium' 

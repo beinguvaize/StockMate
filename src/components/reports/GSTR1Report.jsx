@@ -1,0 +1,303 @@
+import React, { useMemo } from 'react';
+import { useAppContext } from '../../context/AppContext';
+import useReportData from './useReportData';
+import ReportShell from './ReportShell';
+import {
+  FileText, Users, Globe, ShoppingBag, Layers, BookOpen,
+  Building2, Hash, Receipt, Calendar, Tag
+} from 'lucide-react';
+import { formatINR, round2 } from '../../utils/financialCalculations';
+import { buildGSTR1 } from '../../utils/gstReporting';
+
+/**
+ * GSTR-1 Report — Outward Supplies
+ * --------------------------------
+ * Monthly/Quarterly return of sales.
+ * Sections: B2B · B2CL · B2CS · HSN Summary · Docs Issued
+ *
+ * Compatible with GST Portal JSON schema (can be exported and uploaded).
+ */
+const GSTR1Report = () => {
+  const { businessProfile } = useAppContext();
+  const businessState = businessProfile?.state || businessProfile?.business_state || 'KERALA';
+
+  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: '*', dateColumn: 'date' });
+  const { data: clients, loading: l2 } = useReportData({ table: 'clients', select: '*' });
+
+  const loading = l1 || l2;
+
+  const gstr1 = useMemo(
+    () => buildGSTR1(sales, { businessState, clients }),
+    [sales, clients, businessState]
+  );
+
+  // Shared KPIs for all tabs
+  const kpis = useMemo(() => {
+    const taxTotal = gstr1.totals.cgst + gstr1.totals.sgst + gstr1.totals.igst;
+    return [
+      { id: 'turnover', label: 'Total Turnover (Taxable)', value: gstr1.totals.taxable, trend: 0, trendDir: 'up', color: 'indigo',
+        chartData: gstr1.hsn.slice(0, 6).map((h) => ({ value: h.taxable })) },
+      { id: 'tax', label: 'Total Tax Liability', value: taxTotal, trend: 0, trendDir: 'up', color: 'rose',
+        chartData: [{ value: gstr1.totals.cgst }, { value: gstr1.totals.sgst }, { value: gstr1.totals.igst }] },
+      { id: 'invoices', label: 'Invoices', value: gstr1.totals.invoiceCount, trend: 0, trendDir: 'none', color: 'emerald', chartData: [] },
+      { id: 'b2b', label: 'B2B Count', value: gstr1.b2b.length, trend: 0, trendDir: 'up', color: 'amber', chartData: [] },
+    ];
+  }, [gstr1]);
+
+  // --- B2B Tab (4A, 4B, 4C, 6B, 6C) ---
+  const b2bTab = {
+    id: 'GSTR1_B2B',
+    label: '4A — B2B Invoices',
+    icon: <Users size={18} />,
+    data: gstr1.b2b,
+    loading: loading,
+    totals: {
+      taxable: round2(gstr1.b2b.reduce((a, r) => a + r.taxable, 0)),
+      cgst: round2(gstr1.b2b.reduce((a, r) => a + r.cgst, 0)),
+      sgst: round2(gstr1.b2b.reduce((a, r) => a + r.sgst, 0)),
+      igst: round2(gstr1.b2b.reduce((a, r) => a + r.igst, 0)),
+      invoiceValue: round2(gstr1.b2b.reduce((a, r) => a + r.invoiceValue, 0)),
+    },
+    columns: [
+      { key: 'gstin', label: 'Recipient GSTIN', sortable: true, width: 170,
+        render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 font-bold">{val || '—'}</span> },
+      { key: 'invoiceNo', label: 'Invoice #', sortable: true, width: 130,
+        render: (val) => <span className="font-mono text-[10px] font-bold text-ink-primary">{val}</span> },
+      { key: 'date', label: 'Invoice Date', type: 'date', sortable: true, width: 130 },
+      { key: 'invoiceValue', label: 'Invoice Value', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => formatINR(val) },
+      { key: 'placeOfSupply', label: 'Place of Supply', width: 180,
+        render: (val) => <span className="text-[10px] font-bold text-gray-500">{val || '—'}</span> },
+      { key: 'reverseCharge', label: 'RCM', width: 80, render: (val) => <span className="font-mono text-[10px]">{val}</span> },
+      { key: 'invoiceType', label: 'Type', width: 110, render: (val) => <span className="text-[10px] font-bold text-gray-500">{val}</span> },
+      { key: 'taxRate', label: 'Rate %', align: 'right', width: 90, render: (val) => <span className="font-mono font-bold">{val}%</span> },
+      { key: 'taxable', label: 'Taxable', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => formatINR(val) },
+      { key: 'cgst', label: 'CGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-black text-indigo-600">{formatINR(val)}</span> : '—' },
+      { key: 'sgst', label: 'SGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-black text-sky-600">{formatINR(val)}</span> : '—' },
+      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-black text-rose-500">{formatINR(val)}</span> : '—' },
+    ],
+    kpis,
+    chartConfig: {
+      title: 'Tax split (CGST vs SGST vs IGST)',
+      type: 'pie',
+      data: [
+        { name: 'CGST', value: gstr1.totals.cgst },
+        { name: 'SGST', value: gstr1.totals.sgst },
+        { name: 'IGST', value: gstr1.totals.igst },
+      ].filter((d) => d.value > 0),
+    },
+    detailFields: [
+      { key: 'invoiceValue', label: 'Invoice Value', type: 'currency', isHero: true },
+      { key: 'gstin', label: 'Recipient GSTIN', icon: <Hash size={12} /> },
+      { key: 'invoiceNo', label: 'Invoice Number', icon: <Receipt size={12} /> },
+      { key: 'date', label: 'Date', type: 'date', icon: <Calendar size={12} /> },
+      { key: 'placeOfSupply', label: 'Place of Supply', icon: <Globe size={12} /> },
+      { key: 'taxable', label: 'Taxable Value', type: 'currency' },
+      { key: 'cgst', label: 'CGST', type: 'currency' },
+      { key: 'sgst', label: 'SGST', type: 'currency' },
+      { key: 'igst', label: 'IGST', type: 'currency' },
+    ],
+  };
+
+  // --- B2CL Tab (5A) ---
+  const b2clTab = {
+    id: 'GSTR1_B2CL',
+    label: '5A — B2C Large',
+    icon: <Building2 size={18} />,
+    data: gstr1.b2cl,
+    loading: loading,
+    totals: {
+      taxable: round2(gstr1.b2cl.reduce((a, r) => a + r.taxable, 0)),
+      igst: round2(gstr1.b2cl.reduce((a, r) => a + r.igst, 0)),
+      invoiceValue: round2(gstr1.b2cl.reduce((a, r) => a + r.invoiceValue, 0)),
+    },
+    columns: [
+      { key: 'invoiceNo', label: 'Invoice #', sortable: true, width: 130 },
+      { key: 'date', label: 'Date', type: 'date', sortable: true, width: 130 },
+      { key: 'invoiceValue', label: 'Invoice Value', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => formatINR(val) },
+      { key: 'placeOfSupply', label: 'Place of Supply', width: 180 },
+      { key: 'taxRate', label: 'Rate %', align: 'right', width: 90, render: (val) => `${val}%` },
+      { key: 'taxable', label: 'Taxable', type: 'currency', align: 'right', width: 140, render: (val) => formatINR(val) },
+      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 130, render: (val) => <span className="font-black text-rose-500">{formatINR(val)}</span> },
+      { key: 'cess', label: 'Cess', type: 'currency', align: 'right', width: 100 },
+    ],
+    kpis,
+    chartConfig: {
+      title: 'B2CL invoices by state',
+      type: 'bar',
+      data: Object.values(
+        gstr1.b2cl.reduce((acc, r) => {
+          const k = r.placeOfSupply || 'Unknown';
+          if (!acc[k]) acc[k] = { name: k, value: 0 };
+          acc[k].value += r.taxable;
+          return acc;
+        }, {})
+      ),
+      series: [{ key: 'value', name: 'Taxable', color: '#ef4444' }],
+    },
+    detailFields: [
+      { key: 'invoiceValue', label: 'Invoice Value', type: 'currency', isHero: true },
+      { key: 'invoiceNo', label: 'Invoice Number', icon: <Receipt size={12} /> },
+      { key: 'date', label: 'Date', type: 'date', icon: <Calendar size={12} /> },
+      { key: 'placeOfSupply', label: 'Place of Supply', icon: <Globe size={12} /> },
+      { key: 'taxable', label: 'Taxable Value', type: 'currency' },
+      { key: 'igst', label: 'IGST', type: 'currency' },
+    ],
+  };
+
+  // --- B2CS Tab (7) ---
+  const b2csTab = {
+    id: 'GSTR1_B2CS',
+    label: '7 — B2C Small (Consolidated)',
+    icon: <ShoppingBag size={18} />,
+    data: gstr1.b2cs,
+    loading: loading,
+    totals: {
+      taxable: round2(gstr1.b2cs.reduce((a, r) => a + r.taxable, 0)),
+      cgst: round2(gstr1.b2cs.reduce((a, r) => a + r.cgst, 0)),
+      sgst: round2(gstr1.b2cs.reduce((a, r) => a + r.sgst, 0)),
+      igst: round2(gstr1.b2cs.reduce((a, r) => a + r.igst, 0)),
+    },
+    columns: [
+      { key: 'type', label: 'Type', sortable: true, width: 140,
+        render: (val) => (
+          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase ${
+            val === 'Inter-State' ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+          }`}>{val}</span>
+        ) },
+      { key: 'state', label: 'State', sortable: true, width: 180,
+        render: (val, row) => <span className="font-bold text-ink-primary">{row.stateCode ? `${row.stateCode} - ` : ''}{val}</span> },
+      { key: 'taxRate', label: 'Rate %', align: 'right', sortable: true, width: 100, render: (val) => <span className="font-mono font-bold">{val}%</span> },
+      { key: 'invoices', label: 'Invoices', align: 'right', sortable: true, width: 110 },
+      { key: 'taxable', label: 'Taxable', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => formatINR(val) },
+      { key: 'cgst', label: 'CGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-black text-indigo-600">{formatINR(val)}</span> : '—' },
+      { key: 'sgst', label: 'SGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-black text-sky-600">{formatINR(val)}</span> : '—' },
+      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-black text-rose-500">{formatINR(val)}</span> : '—' },
+    ],
+    kpis,
+    chartConfig: {
+      title: 'B2CS taxable by rate',
+      type: 'bar',
+      data: gstr1.b2cs.map((r) => ({ name: `${r.taxRate}% · ${r.state}`, value: r.taxable })),
+      series: [{ key: 'value', name: 'Taxable Value', color: '#6366f1' }],
+    },
+    detailFields: [
+      { key: 'taxable', label: 'Taxable Value', type: 'currency', isHero: true },
+      { key: 'type', label: 'Supply Type', icon: <Tag size={12} /> },
+      { key: 'state', label: 'State', icon: <Globe size={12} /> },
+      { key: 'taxRate', label: 'Tax Rate' },
+      { key: 'invoices', label: 'Invoice Count' },
+      { key: 'cgst', label: 'CGST', type: 'currency' },
+      { key: 'sgst', label: 'SGST', type: 'currency' },
+      { key: 'igst', label: 'IGST', type: 'currency' },
+    ],
+  };
+
+  // --- HSN Summary Tab (12) ---
+  const hsnTab = {
+    id: 'GSTR1_HSN',
+    label: '12 — HSN Summary',
+    icon: <Layers size={18} />,
+    data: gstr1.hsn,
+    loading: loading,
+    totals: {
+      qty: gstr1.hsn.reduce((a, r) => a + r.qty, 0),
+      taxable: round2(gstr1.hsn.reduce((a, r) => a + r.taxable, 0)),
+      cgst: round2(gstr1.hsn.reduce((a, r) => a + r.cgst, 0)),
+      sgst: round2(gstr1.hsn.reduce((a, r) => a + r.sgst, 0)),
+      igst: round2(gstr1.hsn.reduce((a, r) => a + r.igst, 0)),
+      totalValue: round2(gstr1.hsn.reduce((a, r) => a + r.totalValue, 0)),
+    },
+    columns: [
+      { key: 'hsn', label: 'HSN / SAC', sortable: true, width: 130,
+        render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 font-bold">{val}</span> },
+      { key: 'description', label: 'Description', width: 220,
+        render: (val) => <span className="text-[10px] font-bold text-gray-500">{val || '—'}</span> },
+      { key: 'uqc', label: 'UQC', width: 80, render: (val) => <span className="font-mono text-[10px] font-bold">{val}</span> },
+      { key: 'qty', label: 'Qty', align: 'right', sortable: true, width: 100, render: (val) => <span className="font-mono">{val}</span> },
+      { key: 'taxRate', label: 'Rate %', align: 'right', sortable: true, width: 90, render: (val) => `${val}%` },
+      { key: 'taxable', label: 'Taxable', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => formatINR(val) },
+      { key: 'cgst', label: 'CGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-black text-indigo-600">{formatINR(val)}</span> : '—' },
+      { key: 'sgst', label: 'SGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-black text-sky-600">{formatINR(val)}</span> : '—' },
+      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-black text-rose-500">{formatINR(val)}</span> : '—' },
+      { key: 'totalValue', label: 'Total Value', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => <span className="font-black">{formatINR(val)}</span> },
+    ],
+    kpis,
+    chartConfig: {
+      title: 'HSN taxable value (Top 10)',
+      type: 'bar',
+      data: [...gstr1.hsn].sort((a, b) => b.taxable - a.taxable).slice(0, 10).map((h) => ({ name: h.hsn, value: h.taxable })),
+      series: [{ key: 'value', name: 'Taxable', color: '#6366f1' }],
+    },
+    detailFields: [
+      { key: 'totalValue', label: 'Total Value', type: 'currency', isHero: true },
+      { key: 'hsn', label: 'HSN/SAC Code' },
+      { key: 'description', label: 'Description' },
+      { key: 'uqc', label: 'Unit of Measurement' },
+      { key: 'qty', label: 'Quantity' },
+      { key: 'taxRate', label: 'Tax Rate' },
+      { key: 'taxable', label: 'Taxable Value', type: 'currency' },
+      { key: 'cgst', label: 'CGST', type: 'currency' },
+      { key: 'sgst', label: 'SGST', type: 'currency' },
+      { key: 'igst', label: 'IGST', type: 'currency' },
+    ],
+  };
+
+  // --- Documents Issued Tab (13) ---
+  const docsTab = {
+    id: 'GSTR1_DOCS',
+    label: '13 — Documents Issued',
+    icon: <BookOpen size={18} />,
+    data: gstr1.docs,
+    loading: loading,
+    totals: {
+      total: gstr1.docs.reduce((a, r) => a + (r.total || 0), 0),
+      cancelled: gstr1.docs.reduce((a, r) => a + (r.cancelled || 0), 0),
+      net: gstr1.docs.reduce((a, r) => a + (r.net || 0), 0),
+    },
+    columns: [
+      { key: 'natureOfDoc', label: 'Nature of Document', width: 320,
+        render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
+      { key: 'from', label: 'Serial From', width: 180,
+        render: (val) => <span className="font-mono text-[10px] font-bold">{val}</span> },
+      { key: 'to', label: 'Serial To', width: 180,
+        render: (val) => <span className="font-mono text-[10px] font-bold">{val}</span> },
+      { key: 'total', label: 'Total Number', align: 'right', width: 130 },
+      { key: 'cancelled', label: 'Cancelled', align: 'right', width: 120 },
+      { key: 'net', label: 'Net Issued', align: 'right', width: 130, render: (val) => <span className="font-black text-emerald-600">{val}</span> },
+    ],
+    kpis,
+    detailFields: [
+      { key: 'net', label: 'Net Issued', isHero: true },
+      { key: 'natureOfDoc', label: 'Nature' },
+      { key: 'from', label: 'From' },
+      { key: 'to', label: 'To' },
+      { key: 'total', label: 'Total' },
+      { key: 'cancelled', label: 'Cancelled' },
+    ],
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Compliance banner */}
+      <div className="no-print flex items-center gap-3 px-4 py-3 rounded-xl border bg-indigo-50 border-indigo-200">
+        <FileText className="text-indigo-600" size={20} />
+        <div className="flex-1">
+          <div className="text-[11px] font-black uppercase tracking-widest text-indigo-700">
+            GSTR-1 · Outward Supplies Return · Business State: {businessState}
+          </div>
+          <div className="text-[10px] font-bold text-gray-500 mt-0.5">
+            Total Turnover: <span className="font-black text-ink-primary">{formatINR(gstr1.totals.taxable)}</span>
+            {' · '}
+            Tax Liability: <span className="font-black text-rose-600">{formatINR(gstr1.totals.cgst + gstr1.totals.sgst + gstr1.totals.igst)}</span>
+            {' · '}
+            {gstr1.totals.invoiceCount} Invoices
+          </div>
+        </div>
+      </div>
+
+      <ReportShell tabs={[b2bTab, b2clTab, b2csTab, hsnTab, docsTab]} />
+    </div>
+  );
+};
+
+export default GSTR1Report;

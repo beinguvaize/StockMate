@@ -49,13 +49,13 @@ const DailyRevenueTrendChart = () => {
  oDate.getDate() === d.getDate();
 });
 
- const cash = daySales
- .filter(o => o.paymentMethod === 'CASH')
- .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  const cash = daySales
+  .filter(o => o.paymentMethod?.toUpperCase() === 'CASH')
+  .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
  
- const credit = daySales // Corrected from dayOrders to daySales
- .filter(o => o.paymentMethod === 'CREDIT')
- .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  const credit = daySales // Corrected from dayOrders to daySales
+  .filter(o => o.paymentMethod?.toUpperCase() === 'CREDIT')
+  .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
  
  result.push({
  date: label,
@@ -136,7 +136,7 @@ const DailyRevenueTrendChart = () => {
  <p className="text-gray-700 font-medium italic">No sales data yet</p>
  </div>
  ) : (
- <ResponsiveContainer width="100%" height="100%" debounce={10}>
+ <ResponsiveContainer width="100%" height="100%" debounce={50} minHeight={300}>
  <BarChart
  data={data}
  margin={{ top: 10, right: 10, left: -20, bottom: 20}}
