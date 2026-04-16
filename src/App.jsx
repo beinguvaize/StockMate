@@ -23,6 +23,7 @@ import ClientSettlement from './pages/ClientSettlement';
 import AdminPanel from './pages/AdminPanel';
 import TenantSetup from './pages/TenantSetup';
 import SuperAdminPortal from './pages/admin/SuperAdminPortal';
+import AuditLog from './pages/AuditLog';
 import NoAccess from './pages/NoAccess';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -41,7 +42,7 @@ const GuestRoute = ({ children }) => {
       return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
     }
     // If sync is complete and we still have no tenant, they truly have no access
-    return <Navigate to="/no-access" replace />;
+    return <Navigate to="/login" replace />;
   }
 
   return children;
@@ -120,8 +121,8 @@ const RootRedirect = () => {
       return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
     }
 
-    // 3. Authenticated but No Tenant/Role -> No Access
-    return <Navigate to="/no-access" replace />;
+    // 3. Authenticated but No Tenant/Role -> Redirect to login (Login page handles the error state)
+    return <Navigate to="/login" replace />;
   }
 
   return <Navigate to="/login" replace />;
@@ -187,6 +188,7 @@ function AppRoutes() {
         <Route path="sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
         <Route path="expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
         <Route path="settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="audit-log" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
         <Route path="users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
         <Route path="clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
         <Route path="reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />

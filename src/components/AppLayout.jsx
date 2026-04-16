@@ -1,7 +1,7 @@
 import React, { useState, useRef} from 'react';
 import { NavLink, Outlet, Navigate, useParams} from 'react-router-dom';
 import { useAppContext} from '../context/AppContext';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield} from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText} from 'lucide-react';
 import NotificationStack from './NotificationStack';
 import GlobalLoading from './GlobalLoading';
 
@@ -111,6 +111,7 @@ const Navbar = () => {
  const adminItems = [
    navItem('Personnel Portal', '/users', <UsersIcon size={18} />, 'users'),
    navItem('Workspace Settings', '/settings', <SettingsIcon size={18} />, 'settings'),
+   ...(isOwner ? [{ label: 'Audit Log', path: `${basePath}/audit-log`, icon: <ScrollText size={18} />, hidden: false, locked: false }] : []),
  ];
 
  React.useEffect(() => {

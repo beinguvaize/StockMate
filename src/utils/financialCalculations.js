@@ -96,10 +96,23 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
 
 // Compute GL balances from operational tables (virtual GL)
 // Assumes clean operational data; in a real ERP this would be replaced by journal_entries table.
-export const computeVirtualLedger = ({ sales = [], expenses = [], payroll = [], clients = [], products = [], purchases = [], vehicles = [] }) => {
+//
+// `taxRate` is an OPTIONAL fallback (expressed as a decimal, e.g. 0.18) used only when
+// none of the sales rows carry a per-sale `tax` amount. Prefer the actual collected tax
+// from `sale.tax` over any blanket rate.
+export const computeVirtualLedger = ({
+  sales = [], expenses = [], payroll = [], clients = [], products = [], purchases = [], vehicles = [],
+  taxRate = 0,
+}) => {
   // Revenue side
   const totalRevenue = sales.reduce((a, s) => a + (Number(s.totalAmount) || 0), 0);
   const totalCogs = sales.reduce((a, s) => a + (Number(s.totalCogs) || 0), 0);
+
+  // Tax payable — sum actual tax captured on each sale row (source of truth).
+  // Fallback: `taxRate * totalRevenue` only if no sales carry tax data.
+  const totalTaxCollected = sales.reduce((a, s) => a + (Number(s.tax) || 0), 0);
+  const fallbackTaxRate = Number.isFinite(taxRate) ? Math.max(0, taxRate) : 0;
+  const taxPayable = totalTaxCollected > 0 ? totalTaxCollected : totalRevenue * fallbackTaxRate;
 
   // Expenses
   const totalOpex = expenses.reduce((a, e) => a + (Number(e.amount) || 0), 0);
@@ -142,8 +155,8 @@ export const computeVirtualLedger = ({ sales = [], expenses = [], payroll = [], 
     // Liabilities
     accountsPayable: round2(totalAP),
     accruedPayroll: 0, // placeholder — no unpaid payroll tracking yet
-    taxPayable: round2(totalRevenue * 0.18), // assumed GST 18%
-    totalLiabilities: round2(totalAP + totalRevenue * 0.18),
+    taxPayable: round2(taxPayable),
+    totalLiabilities: round2(totalAP + taxPayable),
     // Equity
     ownerEquity: 0, // placeholder
     retainedEarnings: round2(netProfit),

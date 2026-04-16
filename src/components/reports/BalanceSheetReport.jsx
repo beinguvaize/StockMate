@@ -14,10 +14,10 @@ import { formatINR, round2, computeVirtualLedger } from '../../utils/financialCa
  * Computed from operational tables (sales, expenses, payroll, clients, products, purchases, vehicles).
  */
 const BalanceSheetReport = () => {
-  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, totalCogs, date', dateColumn: 'date' });
+  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, totalCogs, tax, date', dateColumn: 'date' });
   const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, date', dateColumn: 'date' });
   const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: 'amount, processed_at', dateColumn: 'processed_at' });
-  const { data: clients, loading: l4 } = useReportData({ table: 'clients', select: '*' });
+  const { data: clients, loading: l4 } = useReportData({ table: 'clients', select: '*', nullFilters: { deleted_at: null } });
   const { data: products, loading: l5 } = useReportData({ table: 'products', select: '*' });
   const { data: purchases, loading: l6 } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date' });
   const { data: vehicles, loading: l7 } = useReportData({ table: 'vehicles', select: '*' });

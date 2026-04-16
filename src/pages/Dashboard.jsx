@@ -140,7 +140,10 @@ const Dashboard = () => {
  const today = new Date();
  return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
 }).forEach(s => {
- if (s.payment_type === 'cash' || s.paymentMethod === 'CASH') cash += (s.totalAmount || 0);
+ // Sales objects use `paymentMethod: 'Cash'/'Credit'`. Normalize to lowercase and
+ // accept either convention to handle legacy rows.
+ const method = (s.paymentMethod || s.payment_type || '').toString().toLowerCase();
+ if (method === 'cash') cash += (s.totalAmount || 0);
  else credit += (s.totalAmount || 0);
 });
  return [

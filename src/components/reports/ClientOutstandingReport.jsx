@@ -3,70 +3,116 @@ import useReportData from './useReportData';
 import ReportShell from './ReportShell';
 import { UserCircle, Phone, CreditCard, AlertTriangle, TrendingUp, DollarSign, Calendar, Info } from 'lucide-react';
 
+const DEFAULT_CREDIT_LIMIT = 200000;
+const OVERDUE_DAYS_THRESHOLD = 30;
+
+// Helper: compute days since last payment / invoice
+const daysBetween = (dateStr) => {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  const diff = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
+  return diff;
+};
+
+const formatCurrency = (val) =>
+  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(val || 0);
+
 const ClientOutstandingReport = () => {
   // 1. Fetch Client Data (Rule 11)
   const { data: rawData, loading, error, lastUpdated } = useReportData({
     table: 'clients',
     select: '*',
-    dateColumn: 'created_at'
+    dateColumn: 'created_at',
+    nullFilters: { deleted_at: null },
   });
+
+  // Enrich clients with computed overdue/credit fields
+  const enrichedData = useMemo(() => {
+    return (rawData || []).map((c) => {
+      const creditLimit = Number(c.credit_limit ?? c.creditLimit ?? DEFAULT_CREDIT_LIMIT);
+      const balance = Number(c.balance || 0);
+
+      // Use actual last_payment_date / due_date fields (fall back to updated_at)
+      const lastPaymentDate = c.last_payment_date || c.lastPaymentDate || c.updated_at || c.created_at;
+      const dueDate = c.due_date || c.dueDate || lastPaymentDate;
+      const daysSinceDue = daysBetween(dueDate);
+      const isOverdue = balance > 0 && daysSinceDue !== null && daysSinceDue > OVERDUE_DAYS_THRESHOLD;
+
+      const utilization = creditLimit > 0 ? (balance / creditLimit) * 100 : 0;
+
+      return {
+        ...c,
+        credit_limit: creditLimit,
+        last_payment_date: lastPaymentDate,
+        due_date: dueDate,
+        days_overdue: isOverdue ? daysSinceDue - OVERDUE_DAYS_THRESHOLD : 0,
+        overdue_amount: isOverdue ? balance : 0,
+        utilization: utilization,
+      };
+    });
+  }, [rawData]);
 
   // 2. Process Client Metrics (Rule 4)
   const metrics = useMemo(() => {
-    if (!rawData.length) return { totalOutstanding: 0, overdue: 0, chartData: [], kpis: [] };
+    if (!enrichedData.length) return { totalOutstanding: 0, overdueBalance: 0, chartData: [], kpis: [] };
 
-    const totalOutstanding = rawData.reduce((acc, c) => acc + (c.balance || 0), 0);
-    const overdueBalance = rawData.reduce((acc, c) => acc + (c.balance > 50000 ? c.balance : 0), 0); // Mock overdue logic
-    const highRiskClients = rawData.filter(c => c.balance > 100000).length;
+    const totalOutstanding = enrichedData.reduce((acc, c) => acc + (c.balance || 0), 0);
+    const overdueBalance = enrichedData.reduce((acc, c) => acc + (c.overdue_amount || 0), 0);
+    const highRiskClients = enrichedData.filter((c) => c.utilization > 80).length;
+    const overdueClientCount = enrichedData.filter((c) => c.overdue_amount > 0).length;
+    const collectionRate = totalOutstanding > 0
+      ? ((totalOutstanding - overdueBalance) / totalOutstanding) * 100
+      : 100;
 
-    // Top 10 Debtors for Bar Chart
-    const chartData = [...rawData]
-      .filter(c => (c.balance || 0) > 0)
+    // Top 10 Debtors
+    const chartData = [...enrichedData]
+      .filter((c) => (c.balance || 0) > 0)
       .sort((a, b) => b.balance - a.balance)
       .slice(0, 10)
-      .map(c => ({ name: c.name, value: c.balance }));
+      .map((c) => ({ name: c.name, value: c.balance }));
 
     const kpis = [
-      { 
-        id: 'out', 
-        label: 'Total Outstanding', 
-        value: totalOutstanding, 
-        trend: 14.2, 
-        trendDir: 'up', 
-        chartData: chartData.map(d => ({ value: d.value })),
-        color: 'rose'
+      {
+        id: 'out',
+        label: 'Total Outstanding',
+        value: totalOutstanding,
+        trend: 14.2,
+        trendDir: 'up',
+        chartData: chartData.map((d) => ({ value: d.value })),
+        color: 'rose',
       },
-      { 
-        id: 'over', 
-        label: 'Overdue Magnitude', 
-        value: overdueBalance, 
-        trend: 5.8, 
-        trendDir: 'up', 
-        chartData: chartData.map(d => ({ value: d.value * 0.4 })),
-        color: 'amber'
+      {
+        id: 'over',
+        label: 'Overdue Magnitude',
+        value: overdueBalance,
+        trend: overdueClientCount,
+        trendDir: overdueClientCount > 0 ? 'up' : 'down',
+        chartData: chartData.map((d) => ({ value: d.value * 0.4 })),
+        color: 'amber',
       },
-      { 
-        id: 'risk', 
-        label: 'High Risk Nodes', 
-        value: highRiskClients, 
-        trend: 2, 
-        trendDir: 'down', 
+      {
+        id: 'risk',
+        label: 'High Risk Nodes',
+        value: highRiskClients,
+        trend: 2,
+        trendDir: 'down',
         chartData: [{ value: 5 }, { value: 8 }, { value: 4 }, { value: highRiskClients }],
-        color: 'orange'
+        color: 'orange',
       },
-      { 
-        id: 'coll', 
-        label: 'Collection Rate', 
-        value: '84.5%', 
-        trend: 2.1, 
-        trendDir: 'up', 
-        chartData: [{ value: 70 }, { value: 75 }, { value: 82 }, { value: 84 }],
-        color: 'emerald'
-      }
+      {
+        id: 'coll',
+        label: 'Collection Rate',
+        value: `${collectionRate.toFixed(1)}%`,
+        trend: 2.1,
+        trendDir: collectionRate >= 80 ? 'up' : 'down',
+        chartData: [{ value: 70 }, { value: 75 }, { value: 82 }, { value: collectionRate }],
+        color: 'emerald',
+      },
     ];
 
     return { totalOutstanding, overdueBalance, chartData, kpis };
-  }, [rawData]);
+  }, [enrichedData]);
 
   // 3. Define Table Columns (Rule 2)
   const columns = [
@@ -74,12 +120,12 @@ const ClientOutstandingReport = () => {
     { key: 'phone', label: 'Contact Node', width: 150, render: (val) => <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400"><Phone size={10} /> {val || 'NO PHONE'}</div> },
     { key: 'balance', label: 'Current Balance', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => (
       <span className={`font-black ${val > 50000 ? 'text-red-500' : val > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>
-        {new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val)}
+        {formatCurrency(val)}
       </span>
     )},
-    { key: 'credit_limit', label: 'Credit Limit', type: 'currency', align: 'right', width: 150, render: () => '₹ 2,00,000' }, // Standard mock limit
-    { key: 'utilization', label: 'Utilization %', align: 'right', width: 120, render: (_, row) => {
-      const u = (row.balance / 200000) * 100;
+    { key: 'credit_limit', label: 'Credit Limit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => formatCurrency(val) },
+    { key: 'utilization', label: 'Utilization %', align: 'right', sortable: true, width: 120, render: (_, row) => {
+      const u = row.utilization || 0;
       return (
         <div className="flex flex-col items-end gap-1">
           <span className={`text-[10px] font-black ${u > 80 ? 'text-red-500' : 'text-gray-400'}`}>{u.toFixed(1)}%</span>
@@ -89,8 +135,14 @@ const ClientOutstandingReport = () => {
         </div>
       );
     }},
+    { key: 'days_overdue', label: 'Days Overdue', align: 'right', sortable: true, width: 120, render: (val) => {
+      if (!val || val <= 0) return <span className="text-[10px] font-black text-emerald-500">CURRENT</span>;
+      return <span className={`text-[10px] font-black ${val > 60 ? 'text-red-600' : val > 30 ? 'text-orange-500' : 'text-amber-500'}`}>{val} DAYS</span>;
+    }},
     { key: 'status', label: 'Risk Status', width: 140, render: (_, row) => {
-      const risk = row.balance > 100000 ? 'CRITICAL' : row.balance > 50000 ? 'WARNING' : 'STABLE';
+      const u = row.utilization || 0;
+      const isOverdue = (row.overdue_amount || 0) > 0;
+      const risk = isOverdue || u > 90 ? 'CRITICAL' : u > 60 ? 'WARNING' : 'STABLE';
       return (
         <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase w-fit ${
           risk === 'CRITICAL' ? 'bg-red-50 text-red-600' : risk === 'WARNING' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
@@ -100,7 +152,14 @@ const ClientOutstandingReport = () => {
         </div>
       );
     }},
-    { key: 'last_payment', label: 'Last Activity', type: 'date', width: 150, render: () => '14 Mar 2026' }
+    { key: 'last_payment_date', label: 'Last Activity', type: 'date', width: 150, render: (val) => {
+      if (!val) return <span className="text-gray-400 text-[10px]">NO ACTIVITY</span>;
+      try {
+        return new Date(val).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      } catch {
+        return val;
+      }
+    }}
   ];
 
   // 4. Detail Panel Configuration (Rule 9)
@@ -111,21 +170,24 @@ const ClientOutstandingReport = () => {
     { key: 'email', label: 'Digital Address', icon: <Info size={12} /> },
     { key: 'address', label: 'Physical Premises', icon: <Calendar size={12} /> },
     { key: 'gstin', label: 'Tax Identifier (GSTIN)', icon: <CreditCard size={12} /> },
-    { key: 'outstanding_balance', label: 'Aggregated Debt', type: 'currency', icon: <AlertTriangle size={12} /> }
+    { key: 'credit_limit', label: 'Approved Credit Limit', type: 'currency', icon: <TrendingUp size={12} /> },
+    { key: 'days_overdue', label: 'Days Past Due', icon: <AlertTriangle size={12} /> },
   ];
 
   const totals = useMemo(() => {
-    if (!rawData.length) return null;
+    if (!enrichedData.length) return null;
     return {
-      balance: rawData.reduce((acc, c) => acc + (c.balance || 0), 0)
+      balance: enrichedData.reduce((acc, c) => acc + (c.balance || 0), 0),
+      credit_limit: enrichedData.reduce((acc, c) => acc + (c.credit_limit || 0), 0),
+      overdue_amount: enrichedData.reduce((acc, c) => acc + (c.overdue_amount || 0), 0),
     };
-  }, [rawData]);
+  }, [enrichedData]);
 
   const clientTab = {
     id: 'CLIENT_OUTSTANDING',
     label: 'Client Outstanding',
     icon: <UserCircle size={18} />,
-    data: rawData,
+    data: enrichedData,
     loading: loading,
     totals: totals,
     columns: columns,

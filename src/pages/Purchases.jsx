@@ -71,8 +71,10 @@ const Purchases = () => {
  // Find selected supplier name for redundancy
  const selectedSupplier = availableSuppliers.find(s => s.id === formData.supplier_id);
 
+ // Drop the raw camelCase `unitCost` from the spread — backend + schema use `unit_cost`.
+ const { unitCost: _unitCostAlias, ...rest } = formData;
  const purchaseData = {
- ...formData,
+ ...rest,
  linked_product_id: formData.linked_product_id || null,
  quantity: parseFloat(formData.quantity) || 0,
  unit_cost: parseFloat(formData.unitCost) || 0,

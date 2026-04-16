@@ -114,7 +114,7 @@ const Sales = () => {
   }, [products, inventoryBalances, routes, sales, selectedRoute, selectedSourceLocation]);
 
  const categories = useMemo(() => {
- const cats = [...new Set(availableProducts.map(p => p.category))];
+ const cats = [...new Set(availableProducts.map(p => p.category).filter(Boolean))];
  return ['All', ...cats.sort()];
 }, [availableProducts]);
 
@@ -144,7 +144,7 @@ const Sales = () => {
 }, [clients, customerSearch]);
 
  const getCategoryIcon = (cat) => {
- const lower = cat.toLowerCase();
+ const lower = (cat || '').toLowerCase();
  if (lower === 'all') return <Grid3X3 size={14} />;
  if (lower.includes('cup') || lower.includes('coffee')) return <Coffee size={14} />;
  if (lower.includes('plate') || lower.includes('dish')) return <Disc size={14} />;

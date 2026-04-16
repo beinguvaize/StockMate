@@ -474,6 +474,7 @@ export const AppProvider = ({ children}) => {
 
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
+ updatedUser.tenant_id = currentTenantId;
  const { error} = await supabase.from('users').upsert(updatedUser);
  if (error) {
  console.error("Error updating user in Supabase:", error);
@@ -509,7 +510,7 @@ export const AppProvider = ({ children}) => {
 
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
- const { error} = await supabase.from('users').delete().eq('id', userId);
+ const { error} = await supabase.from('users').delete().eq('id', userId).eq('tenant_id', currentTenantId);
  if (error) {
  console.error("Error deleting user from Supabase:", error);
  setSyncStatus('ERROR');
@@ -582,12 +583,27 @@ export const AppProvider = ({ children}) => {
  setClients(clients.map(c => c.id === updatedClient.id ? updatedClient : c));
 };
 
+ // Soft-delete a client. A hard DELETE orphans sales, client_payments, and
+ // invoices (those rows still reference the missing client id), which crashes
+ // reports on the next render. Setting `deleted_at = now()` hides the client
+ // from active UI queries while preserving the historical audit trail.
  const deleteClient = async (clientId) => {
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
- const { error} = await supabase.from('clients').delete().eq('id', clientId);
+ const { error} = await supabase
+   .from('clients')
+   .update({ deleted_at: new Date().toISOString() })
+   .eq('id', clientId)
+   .eq('tenant_id', currentTenantId);
  if (error) {
- console.error("Error deleting client from Supabase:", error);
+ console.error("Error soft-deleting client in Supabase:", error);
+ logError({
+   module: 'Clients',
+   action: 'Soft Delete Client',
+   error_code: error.code,
+   error_message: error.message,
+   severity: 'Medium'
+ });
  setSyncStatus('ERROR');
  addNotification("Cloud Sync Delayed: Client removed locally","warning");
  // Fall through
@@ -637,7 +653,7 @@ export const AppProvider = ({ children}) => {
  const updateExpense = async (updatedExpense) => {
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
- const { error} = await supabase.from('expenses').upsert(updatedExpense);
+ const { error} = await supabase.from('expenses').upsert({ ...updatedExpense, tenant_id: currentTenantId });
  if (error) {
  console.error("Error updating expense in Supabase:", error);
  setSyncStatus('ERROR');
@@ -655,7 +671,7 @@ export const AppProvider = ({ children}) => {
  const deleteExpense = async (expenseId) => {
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
- const { error} = await supabase.from('expenses').delete().eq('id', expenseId);
+ const { error} = await supabase.from('expenses').delete().eq('id', expenseId).eq('tenant_id', currentTenantId);
  if (error) {
  console.error("Error deleting expense from Supabase:", error);
  setSyncStatus('ERROR');
@@ -692,12 +708,13 @@ export const AppProvider = ({ children}) => {
  const dbLog = {
  id: newLog.id,
  date: newLog.date,
- product_id: productId, 
- product_name: productName, 
- type, 
- quantity, 
- reason, 
- user_id: userId
+ product_id: productId,
+ product_name: productName,
+ type,
+ quantity,
+ reason,
+ user_id: userId,
+ tenant_id: currentTenantId
 };
  const { error} = await supabase.from('movement_log').insert(dbLog);
  if (error) {
@@ -753,17 +770,37 @@ export const AppProvider = ({ children}) => {
 }));
 }
 
- // Persistence
+ // Persistence — use atomic RPCs that compute `col + delta` server-side in a
+ // single statement. The previous SELECT-from-closure-then-UPDATE pattern read
+ // stale React state (not the live DB value), corrupting stock/balance when two
+ // sale edits fired close together or background sync had advanced the DB row.
  if (isSupabaseConfigured) {
- for (const [prodId, pDelta] of productDeltas) {
-   await supabase.from('products').update({ stock: Math.max(0, (products.find(p => p.id === prodId)?.stock || 0) + pDelta) }).eq('id', prodId);
- }
- for (const [clId, cDelta] of clientDeltas) {
-   const currentClient = clients.find(c => c.id === clId);
-   if (currentClient) {
-     await supabase.from('clients').update({ outstanding_balance: Math.max(0, (currentClient.outstanding_balance || 0) + cDelta)}).eq('id', clId);
+   const stockCalls = Array.from(productDeltas.entries()).map(([prodId, pDelta]) =>
+     supabase.rpc('apply_product_stock_delta', {
+       p_product_id: prodId,
+       p_delta: pDelta,
+       p_tenant_id: currentTenantId,
+     })
+   );
+   const balanceCalls = Array.from(clientDeltas.entries()).map(([clId, cDelta]) =>
+     supabase.rpc('apply_client_balance_delta', {
+       p_client_id: clId,
+       p_delta: cDelta,
+       p_tenant_id: currentTenantId,
+     })
+   );
+   const results = await Promise.all([...stockCalls, ...balanceCalls]);
+   const failures = results.filter(r => r?.error);
+   if (failures.length > 0) {
+     console.error('reconcileSaleEffects: RPC failure(s):', failures.map(f => f.error));
+     logError({
+       module: 'Sales',
+       action: 'Reconcile Sale Effects',
+       error_code: failures[0].error.code,
+       error_message: failures[0].error.message,
+       severity: 'High'
+     });
    }
- }
  }
 };
 
@@ -776,8 +813,9 @@ export const AppProvider = ({ children}) => {
     
     let totalCogs = 0;
     const updatedProducts = [...products];
-    
-    // Determine which location to deduct from
+
+    // Determine which location to deduct from. MAIN_WAREHOUSE_ID is a client-side sentinel
+    // — the RPC resolves/auto-creates the tenant's real warehouse row when null is passed.
     let locationId = manualLocationId || MAIN_WAREHOUSE_ID;
     if (routeId && !manualLocationId) {
       const route = routes.find(r => r.id === routeId);
@@ -788,26 +826,21 @@ export const AppProvider = ({ children}) => {
       }
     }
 
-    const stockAdjustments = [];
+    // Compute COGS + prepare OPTIMISTIC local state only.
+    // No DB writes here — `process_sale` RPC is the single source of truth for stock
+    // (products.stock, inventory_balances, movement_log). This prevents the double-
+    // deduction race that existed when adjustLocationStock + RPC both wrote to DB.
     cartItems.forEach(item => {
       const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
       if (pIndex > -1) {
         if (status === 'COMPLETED') {
-          stockAdjustments.push(adjustLocationStock(item.productId, -item.quantity, locationId));
-          
-          // Legacy check: if warehouse sale, update the products.stock column
-          if (locationId === MAIN_WAREHOUSE_ID) {
-            updatedProducts[pIndex].stock -= item.quantity;
-          }
+          // Legacy global stock (RPC decrements products.stock regardless of location)
+          updatedProducts[pIndex].stock = Math.max(0, (updatedProducts[pIndex].stock || 0) - item.quantity);
         }
         item.cogs = (updatedProducts[pIndex].costPrice || 0) * item.quantity;
         totalCogs += item.cogs;
       }
     });
-
-    if (stockAdjustments.length > 0) {
-      await Promise.all(stockAdjustments);
-    }
 
  const newSale = {
  id: `SAL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
@@ -831,16 +864,20 @@ export const AppProvider = ({ children}) => {
 
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
- // Priority 2: Atomic Transaction via RPC
+ // Priority 2: Atomic Transaction via RPC (single source of truth for stock writes)
+ // Pass null when using client-side MAIN_WAREHOUSE sentinel so the RPC resolves/creates
+ // the tenant's real warehouse row.
+ const rpcLocationId = (locationId && locationId !== MAIN_WAREHOUSE_ID) ? locationId : null;
  const { error: rpcError} = await supabase.rpc('process_sale', {
  p_id: newSale.id,
  p_shop_id: clientId,
  p_items: cartItems,
  p_total_amount: totalAmount,
- p_payment_method: newSale.paymentMethod, 
+ p_payment_method: newSale.paymentMethod,
  p_payment_status: newSale.paymentStatus,
  p_date: newSale.date,
- p_user_id: currentUser?.id
+ p_user_id: currentUser?.id,
+ p_location_id: rpcLocationId
 });
 
  if (rpcError) {
@@ -848,7 +885,7 @@ export const AppProvider = ({ children}) => {
  // CLEAN DB OBJECT
  const dbSale = {
  id: newSale.id,
- product_id: newSale.items?.[0]?.productId, 
+ product_id: newSale.items?.[0]?.productId,
  shop_id: clientId,
  total_amount: totalAmount,
  payment_method: newSale.paymentMethod,
@@ -875,6 +912,31 @@ export const AppProvider = ({ children}) => {
   addNotification(`Critical: Failed to save sale. Please check connection.`,"error");
   return null;
  }
+
+ // Fallback path: RPC failed but sale row persisted, so we must manually deduct
+ // stock in the DB to keep inventory consistent with the optimistic local state.
+ if (status === 'COMPLETED') {
+   const fallbackAdjustments = cartItems.map(item =>
+     adjustLocationStock(item.productId, -item.quantity, locationId)
+   );
+   // Also decrement legacy products.stock for non-warehouse locations
+   // (adjustLocationStock only writes products.stock when locationId === MAIN_WAREHOUSE_ID)
+   if (locationId !== MAIN_WAREHOUSE_ID) {
+     for (const item of cartItems) {
+       const p = products.find(x => x.id === item.productId);
+       if (p) {
+         const { error: stockErr } = await supabase
+           .from('products')
+           .update({ stock: Math.max(0, (p.stock || 0) - item.quantity) })
+           .eq('id', item.productId)
+           .eq('tenant_id', currentTenantId);
+         if (stockErr) console.error('Fallback products.stock update failed:', stockErr);
+       }
+     }
+   }
+   await Promise.all(fallbackAdjustments);
+ }
+
  addNotification(`Warning: Atomic sync failed, used legacy fallback.`,"warning");
 }
  setSyncStatus('SYNCED');
@@ -903,9 +965,38 @@ export const AppProvider = ({ children}) => {
  ));
 }
 
- // Update local products stock
- if (status === 'COMPLETED' && locationId === MAIN_WAREHOUSE_ID) {
+ // Update local products stock (RPC decrements products.stock regardless of location)
+ if (status === 'COMPLETED') {
       setProducts(updatedProducts);
+
+      // Mirror the inventory_balances decrement the RPC just performed, so the UI
+      // stays in sync without re-fetching. Skip when using the MAIN_WAREHOUSE sentinel —
+      // we don't know the real tenant warehouse UUID client-side until next sync.
+      if (locationId && locationId !== MAIN_WAREHOUSE_ID) {
+        setInventoryBalances(prev => {
+          const byKey = new Map(prev.map(b => [`${b.product_id}|${b.location_id}`, b]));
+          for (const item of cartItems) {
+            const key = `${item.productId}|${locationId}`;
+            const existing = byKey.get(key);
+            if (existing) {
+              byKey.set(key, {
+                ...existing,
+                quantity: Math.max(0, (existing.quantity || 0) - item.quantity),
+                updated_at: new Date().toISOString(),
+              });
+            } else {
+              byKey.set(key, {
+                id: generateUUID(),
+                product_id: item.productId,
+                location_id: locationId,
+                quantity: 0,
+                updated_at: new Date().toISOString(),
+              });
+            }
+          }
+          return Array.from(byKey.values());
+        });
+      }
     }
 
     const locName = inventoryLocations.find(l => l.id === locationId)?.name || 'HQ';
@@ -1224,7 +1315,7 @@ export const AppProvider = ({ children}) => {
   const addProductCategory = async (categoryName) => {
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      const { data, error } = await supabase.from('product_categories').insert({ name: categoryName }).select();
+      const { data, error } = await supabase.from('product_categories').insert({ name: categoryName, tenant_id: currentTenantId }).select();
       if (error) {
         console.error("Error adding category:", error);
         setSyncStatus('ERROR');
@@ -1243,7 +1334,7 @@ export const AppProvider = ({ children}) => {
   const updateProductCategory = async (updatedCategory) => {
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      const { error } = await supabase.from('product_categories').update({ name: updatedCategory.name }).eq('id', updatedCategory.id);
+      const { error } = await supabase.from('product_categories').update({ name: updatedCategory.name }).eq('id', updatedCategory.id).eq('tenant_id', currentTenantId);
       if (error) {
         setSyncStatus('ERROR');
         addNotification("Failed to update category: " + error.message, "error");
@@ -1257,7 +1348,7 @@ export const AppProvider = ({ children}) => {
   const deleteProductCategory = async (categoryId) => {
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      const { error } = await supabase.from('product_categories').delete().eq('id', categoryId);
+      const { error } = await supabase.from('product_categories').delete().eq('id', categoryId).eq('tenant_id', currentTenantId);
       if (error) {
         setSyncStatus('ERROR');
         addNotification("Failed to delete category: " + error.message, "error");
@@ -1467,7 +1558,7 @@ export const AppProvider = ({ children}) => {
 
  const updateVehicle = async (updated) => {
  if (isSupabaseConfigured) {
- const { error} = await supabase.from('vehicles').upsert(updated);
+ const { error} = await supabase.from('vehicles').upsert({ ...updated, tenant_id: currentTenantId });
  if (error) {
  console.error("Error updating vehicle in Supabase:", error);
  addNotification("Cloud Sync Delayed: Changes saved locally","warning");
@@ -1479,7 +1570,7 @@ export const AppProvider = ({ children}) => {
 
  const deleteVehicle = async (vehicleId) => {
  if (isSupabaseConfigured) {
- const { error} = await supabase.from('vehicles').delete().eq('id', vehicleId);
+ const { error} = await supabase.from('vehicles').delete().eq('id', vehicleId).eq('tenant_id', currentTenantId);
  if (error) {
  console.error("Error deleting vehicle from Supabase:", error);
 }
@@ -1502,7 +1593,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
       const vName = getVehicleName(routeData.vehicleId);
       const { data, error } = await supabase
         .from('inventory_locations')
-        .insert({ name: vName, type: 'VEHICLE', reference_id: routeData.vehicleId })
+        .insert({ name: vName, type: 'VEHICLE', reference_id: routeData.vehicleId, tenant_id: currentTenantId })
         .select()
         .single();
       
@@ -1513,7 +1604,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
     }
 
     if (isSupabaseConfigured) {
-      const { error: routeError} = await supabase.from('routes').upsert(newRoute);
+      const { error: routeError} = await supabase.from('routes').upsert({ ...newRoute, tenant_id: currentTenantId });
       if (routeError) {
         console.error("Error dispatching route:", routeError);
         return;
@@ -2073,7 +2164,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  const newCategories = [...expenseCategories, name];
  
  if (isSupabaseConfigured) {
- const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories});
+ const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories, tenant_id: currentTenantId });
  if (error) {
  console.error("Error adding expense category to Supabase:", error);
  addNotification("Cloud Sync Delayed: Category added locally","warning");
@@ -2090,7 +2181,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  const newCategories = expenseCategories.map(c => c === oldName ? newName : c);
  
  if (isSupabaseConfigured) {
- const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories});
+ const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories, tenant_id: currentTenantId });
  if (error) {
  console.error("Error updating expense category in Supabase:", error);
  addNotification("Cloud Sync Delayed: Category updated locally","warning");
@@ -2107,7 +2198,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
     const newCategories = expenseCategories.filter(c => c !== name);
     
     if (isSupabaseConfigured) {
-      const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories});
+      const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories, tenant_id: currentTenantId });
       if (error) {
         console.error("Error deleting expense category from Supabase:", error);
         addNotification("Failed to delete category from cloud","error");
@@ -2165,6 +2256,8 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  // Silent background refresh that updates state and cache without loading screens
  const refreshInBackground = async (userId) => {
  if (!isSupabaseConfigured) return;
+ const targetTenantId = currentTenantId;
+ if (!targetTenantId) { console.warn('[refreshInBackground] No tenant — skipping'); return; }
  try {
     console.log("🔄 Running silent background refresh...");
     const [
@@ -2190,7 +2283,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
       { data: invoicesData}
     ] = await Promise.all([
       supabase.from('products').select('*').eq('tenant_id', targetTenantId),
-      supabase.from('clients').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('clients').select('*').eq('tenant_id', targetTenantId).is('deleted_at', null),
       supabase.from('sales').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
       supabase.from('expenses').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
       supabase.from('employees').select('*').eq('tenant_id', targetTenantId),
@@ -2342,10 +2435,18 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
 
  // --- FULL FETCH (Cache Miss or Forced) ---
  if (!isSilentSync) setLoading(true);
- 
+
  try {
  console.log(force ?"🚀 Force-Initializing App Data..." :"🚀 Initializing App (Full Fetch)...");
- 
+
+ // Fail-closed: refuse to fetch cross-tenant data if tenant is unknown
+ if (!currentTenantId) {
+   console.warn('[initializeApp] No currentTenantId — skipping full fetch to prevent cross-tenant data leak');
+   setLoading(false);
+   initializingRef.current = false;
+   return;
+ }
+
  const [
  { data: productsData},
  { data: categoriesData},
@@ -2366,24 +2467,24 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
   { data: suppliersData},
   { data: invoicesData}
  ] = await Promise.all([
- supabase.from('products').select('*'),
- supabase.from('product_categories').select('*').order('name'),
- supabase.from('clients').select('*'),
- supabase.from('sales').select('*').order('date', { ascending: false}).limit(500),
- supabase.from('expenses').select('*').order('date', { ascending: false}).limit(500),
- supabase.from('employees').select('*'),
- supabase.from('payroll').select('*').order('processed_at', { ascending: false}).limit(100),
- supabase.from('business_profile').select('*').maybeSingle(),
- supabase.from('day_book').select('*').order('date', { ascending: false}).limit(31),
- supabase.from('settings').select('*'),
- supabase.from('client_payments').select('*').order('date', { ascending: false}).limit(500),
- supabase.from('users').select('*'),
- supabase.from('vehicles').select('*'),
- supabase.from('movement_log').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('routes').select('*').order('date', { ascending: false}).limit(100),
- supabase.from('purchases').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('suppliers').select('*').order('name', { ascending: true}),
- supabase.from('invoices').select('*').order('created_at', { ascending: false})
+ supabase.from('products').select('*').eq('tenant_id', currentTenantId),
+ supabase.from('product_categories').select('*').eq('tenant_id', currentTenantId).order('name'),
+ supabase.from('clients').select('*').eq('tenant_id', currentTenantId).is('deleted_at', null),
+ supabase.from('sales').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(500),
+ supabase.from('expenses').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(500),
+ supabase.from('employees').select('*').eq('tenant_id', currentTenantId),
+ supabase.from('payroll').select('*').eq('tenant_id', currentTenantId).order('processed_at', { ascending: false}).limit(100),
+ supabase.from('business_profile').select('*').eq('tenant_id', currentTenantId).maybeSingle(),
+ supabase.from('day_book').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(31),
+ supabase.from('settings').select('*').eq('tenant_id', currentTenantId),
+ supabase.from('client_payments').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(500),
+ supabase.from('users').select('*').eq('tenant_id', currentTenantId),
+ supabase.from('vehicles').select('*').eq('tenant_id', currentTenantId),
+ supabase.from('movement_log').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(200),
+ supabase.from('routes').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(100),
+ supabase.from('purchases').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(200),
+ supabase.from('suppliers').select('*').eq('tenant_id', currentTenantId).order('name', { ascending: true}),
+ supabase.from('invoices').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false})
  ]);
  
  if (productsData) setProducts(productsData);

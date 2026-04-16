@@ -22,7 +22,7 @@ const GSTR1Report = () => {
   const businessState = businessProfile?.state || businessProfile?.business_state || 'KERALA';
 
   const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: '*', dateColumn: 'date' });
-  const { data: clients, loading: l2 } = useReportData({ table: 'clients', select: '*' });
+  const { data: clients, loading: l2 } = useReportData({ table: 'clients', select: '*', nullFilters: { deleted_at: null } });
 
   const loading = l1 || l2;
 

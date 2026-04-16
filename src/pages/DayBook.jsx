@@ -30,8 +30,14 @@ const DayBook = () => {
  const dateStr = selectedDate;
  const getLocalDate = (d) => new Date(d).toISOString().split('T')[0];
 
+ // Sales objects use `paymentMethod` (e.g. 'Cash'/'Credit'). `payment_type` is the
+ // purchases-side convention; accept either so legacy rows still match.
+ const isCashSale = (o) => {
+   const m = (o.paymentMethod || o.payment_type || '').toString().toLowerCase();
+   return m === 'cash';
+ };
  const cashSales = (sales || [])
- .filter(o => getLocalDate(o.date) === dateStr && o.status !== 'CANCELLED' && o.payment_type === 'cash')
+ .filter(o => getLocalDate(o.date) === dateStr && o.status !== 'CANCELLED' && isCashSale(o))
  .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
  
  const cost = (expenses || [])
@@ -317,7 +323,10 @@ const DayBook = () => {
  dayBook.find(db => db.date === showDetailDate)?.closing_balance || 
  (showDetailDate === selectedDate ? closingBalance : 0)
 }
- sales={(sales || []).filter(s => new Date(s.date).toISOString().split('T')[0] === showDetailDate && s.payment_type === 'cash')}
+ sales={(sales || []).filter(s => {
+   const m = (s.paymentMethod || s.payment_type || '').toString().toLowerCase();
+   return new Date(s.date).toISOString().split('T')[0] === showDetailDate && m === 'cash';
+ })}
  expenses={(expenses || []).filter(e => new Date(e.date).toISOString().split('T')[0] === showDetailDate)}
  businessProfile={businessProfile}
  onClose={() => setShowDetailDate(null)}
