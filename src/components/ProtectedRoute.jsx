@@ -110,15 +110,15 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false }) {
              ))}
            </div>
          </div>
-         <button 
-           className="btn-signature w-full h-14 !rounded-xl !text-sm"
-           onClick={() => window.history.back()}
+         <a
+           href={`mailto:pro@ledgr.pro?subject=${encodeURIComponent(`Upgrade Request: ${currentTenant?.name || ''} — to ${planConfig?.label || 'PRO'}`)}&body=${encodeURIComponent(`Please upgrade my workspace to the ${planConfig?.label || 'PRO'} plan so I can access the ${path} module.`)}`}
+           className="btn-signature w-full h-14 !rounded-xl !text-sm flex items-center justify-center"
          >
            UPGRADE TO {planConfig?.label?.toUpperCase() || 'PRO'}
            <div className="icon-nest">
              <Sparkles size={20} />
            </div>
-         </button>
+         </a>
        </div>
      </div>
    );
