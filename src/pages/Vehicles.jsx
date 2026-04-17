@@ -814,11 +814,13 @@ const Vehicles = () => {
  <ShoppingCart size={12} className="text-accent-signature" /> ASSET LOADING MATRIX
  </label>
  <div className="flex-1 overflow-y-auto max-h-[350px] space-y-2 custom-scrollbar pr-2">
- {products.filter(p => p.stock >= 0).map(p => (
+ {products.map(p => {
+   const totalQty = (inventoryBalances || []).filter(b => b.product_id === p.id).reduce((s, b) => s + b.quantity, 0);
+   return (
  <div key={p.id} className="flex items-center justify-between p-4 bg-white/5 rounded-lg border border-white/5 group hover:bg-white/10 transition-all">
  <div className="min-w-0 pr-4">
  <div className="text-[11px] font-semibold text-surface truncate">{p.name}</div>
- <div className="text-[9px] font-semibold text-surface/20 mt-0.5">{p.stock} AVAILABLE</div>
+ <div className="text-[9px] font-semibold text-surface/20 mt-0.5">{totalQty} AVAILABLE</div>
  </div>
  <input 
  type="number" 
@@ -831,7 +833,8 @@ const Vehicles = () => {
 })}
  />
  </div>
- ))}
+  );
+ })}
  </div>
  </div>
 

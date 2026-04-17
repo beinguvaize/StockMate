@@ -40,7 +40,13 @@ export async function logError({
         plan_tier: tenantObj?.plan || user?.user_metadata?.plan || 'STARTER'
     };
 
-    // 2. Transmit Diagnostics via SECURITY DEFINER function
+    // 2. Detect RLS / Plan Restriction
+    const isPlanBlocked = String(error_code) === '42501';
+    const finalErrorMessage = isPlanBlocked 
+        ? `[RLS_PLAN_BLOCKED] ${error_message} (Action potentially unauthorized for current plan)`
+        : error_message;
+
+    // 3. Transmit Diagnostics via SECURITY DEFINER function
     const { data, error } = await supabase.rpc('record_platform_error', {
       p_tenant_id: context.tenant_id,
       p_user_id: context.user_id,
@@ -48,9 +54,9 @@ export async function logError({
       p_module: module,
       p_action: action,
       p_error_code: String(error_code || 'APP_ERR'),
-      p_error_message: error_message,
+      p_error_message: finalErrorMessage,
       p_stack_trace: stack_trace || new Error().stack,
-      p_severity: severity,
+      p_severity: isPlanBlocked ? 'High' : severity,
       p_plan_tier: context.plan_tier
     });
 

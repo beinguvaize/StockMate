@@ -1,3 +1,20 @@
+/**
+ * ─── NOTE: PARTIAL REFACTOR IN FLIGHT (ARCH-01) ──────────────────────────────
+ * This file is mid-migration. The plan is to split its ~2400 lines into the
+ * domain contexts imported below (Auth/Tenant/Sync/Inventory/Sales/etc.).
+ *
+ * Current structure:
+ *   - `AppProviderInner`  : consumes each domain context via useAuth/useTenant/…
+ *                           and still owns the bulk of the business logic.
+ *   - `AppProvider`       : exported wrapper that nests all domain providers
+ *                           around `AppProviderInner`, so `App.jsx` only
+ *                           mounts `<AppProvider>`.
+ *
+ * Until the split is complete, `useAppContext()` remains the single public
+ * hook — do NOT reach into the domain hooks directly from components yet,
+ * or you'll have two sources of truth.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 import React, { createContext, useContext, useState, useEffect, useRef} from 'react';
 import { supabase, isSupabaseConfigured} from '../lib/supabase';
 import { 
@@ -5,10 +22,26 @@ import {
  employeeSchema, clientSchema, dayBookSchema 
 } from '../lib/validation';
 import { cacheSet, cacheGet, cacheClear} from '../lib/cache';
+import { 
+  AVAILABLE_ROLES, MODULES_CONFIG, DEFAULT_PERMISSIONS, 
+  INITIAL_BUSINESS, INITIAL_EXPENSE_CATEGORIES 
+} from '../lib/constants';
 import { isLocked, recordFailure, recordSuccess, timeRemaining } from '../lib/loginThrottle';
 import { isModuleAvailable, getRequiredPlan, PLANS } from '../lib/tenancy';
 import { logError } from '../lib/errorLogger';
 import { logAuditEvent, AUDIT_ACTIONS, diffRoles } from '../lib/auditLog';
+import { generateUUID } from '../lib/utils';
+
+// Domain Hooks
+import { AuthProvider, useAuth } from './AuthContext';
+import { TenantProvider, useTenant } from './TenantContext';
+import { SyncProvider, useSync } from './SyncContext';
+import { InventoryProvider, useInventory } from './InventoryContext';
+import { NotificationProvider, useNotifications } from './NotificationContext';
+import { SalesProvider, useSales } from './SalesContext';
+import { PurchasesProvider, usePurchases } from './PurchasesContext';
+import { FinanceProvider, useFinance } from './FinanceContext';
+import { HRProvider, useHR } from './HRContext';
 
 // Bootstrap allowlist for first-login auto-provisioning. Parsed once from env.
 // NOT a permission gate — only decides what roles to stamp on a brand-new user
@@ -35,365 +68,67 @@ const INITIAL_VEHICLES = [];
 const INITIAL_SHOPS = [];
 const INITIAL_EMPLOYEES = [];
 
-const INITIAL_BUSINESS = {
- name: 'Ledgr ERP',
- country: 'India',
- currency: 'INR',
- currencySymbol: '₹',
- lowStockThreshold: 10,
- pan_no: '',
- gst_no: '',
- bank_name: '',
- account_no: '',
- ifsc_code: '',
- upi_id: '',
- email: '',
- website: '',
- phone: '',
- address: '',
- city: '',
- state: '',
- pincode: '',
- logo_url: ''
-};
-
-const INITIAL_EXPENSE_CATEGORIES = ['General', 'Inventory', 'Logistics', 'Payroll', 'Utilities', 'Marketing', 'Rent', 'Other'];
-
-// Available role definitions
-export const DEFAULT_PERMISSIONS = {
- inventory: { view: true, edit: false},
- sales: { view: true, edit: true},
- purchases: { view: true, edit: false},
- expenses: { view: true, edit: false},
- clients: { view: true, edit: true},
- suppliers: { view: true, edit: false},
- vehicles: { view: true, edit: false},
- reports: { view: false, edit: false},
- payroll: { view: false, edit: false},
- users: { view: false, edit: false},
- settings: { view: false, edit: false},
- daybook: { view: true, edit: true}
-};
-
-export const MODULES_CONFIG = [
- { key: 'inventory', label: 'Inventory Management', icon: 'Package'},
- { key: 'sales', label: 'Sales & Invoicing', icon: 'ShoppingCart'},
- { key: 'purchases', label: 'Purchases (Stock-In)', icon: 'ShoppingBag'},
- { key: 'expenses', label: 'Expense Tracking', icon: 'Wallet'},
- { key: 'clients', label: 'Client Directory', icon: 'Users'},
- { key: 'suppliers', label: 'Supplier Network', icon: 'Truck'},
- { key: 'vehicles', label: 'Fleet Management', icon: 'Truck'},
- { key: 'reports', label: 'Business Intelligence', icon: 'BarChart3'},
- { key: 'payroll', label: 'HR & Payroll', icon: 'Banknote'},
- { key: 'users', label: 'Personnel & Permissions', icon: 'UserPlus'},
- { key: 'settings', label: 'Global Settings', icon: 'Settings'},
- { key: 'daybook', label: 'Day Book', icon: 'BookOpen'}
-];
-
-export const AVAILABLE_ROLES = [
- { id: 'GLOBAL_ADMIN', label: 'Global Admin', color: 'bg-purple-100 text-purple-700'},
- { id: 'OWNER', label: 'Owner/Manager', color: 'bg-blue-100 text-blue-700'},
- { id: 'STAFF', label: 'Staff/Operator', color: 'bg-gray-100 text-gray-700'}
-];
-
-export const generateUUID = () => {
- if (typeof crypto !== 'undefined' && crypto.randomUUID) {
- return crypto.randomUUID();
-}
- return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
- var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
- return v.toString(16);
-});
-};
-
-export const AppProvider = ({ children}) => {
- const [loading, setLoading] = useState(true);
- const [isSyncComplete, setIsSyncComplete] = useState(false);
- const [initError, setInitError] = useState(null);
- 
- // Auth Session — relies entirely on Supabase auth, no local persistence
- const [currentUser, setCurrentUser] = useState(null);
-
- // Multi-Tenancy State
- const [currentTenant, setCurrentTenant] = useState(() => {
-   try {
-     const stored = sessionStorage.getItem('nexus_impersonated_tenant');
-     return stored ? JSON.parse(stored) : null;
-   } catch { return null; }
- });
- const [isImpersonating, setIsImpersonating] = useState(sessionStorage.getItem('nexus_impersonating') === 'true');
- const currentTenantId = currentTenant?.id || null;
-
- const impersonateTenant = (tenant) => {
-   cacheClear();
-   setCurrentTenant(tenant);
-   setIsImpersonating(true);
-   sessionStorage.setItem('nexus_impersonating', 'true');
-   sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(tenant));
-   window.location.href = `/${tenant.slug}/dashboard`;
- };
-
- const stopImpersonating = () => {
-   setIsImpersonating(false);
-   sessionStorage.removeItem('nexus_impersonating');
-   sessionStorage.removeItem('nexus_impersonated_tenant');
-   cacheClear();
-   window.location.href = '/nexus-hq';
- };
-
- // Core Data States (100% Cloud - No Local Initializers)
- const [users, setUsers] = useState([]);
- const [businessProfile, setBusinessProfile] = useState({});
- const [products, setProducts] = useState([]);
- const [productCategories, setProductCategories] = useState([]);
- const [clients, setClients] = useState([]);
- const [clientPayments, setClientPayments] = useState([]);
- const [sales, setSales] = useState([]);
- const [expenses, setExpenses] = useState([]);
- const [isMaintenance, setIsMaintenance] = useState(false);
- const [maintenanceMessage, setMaintenanceMessage] = useState('');
- const [movementLog, setMovementLog] = useState([]);
- const [vehicles, setVehicles] = useState([]);
- const [routes, setRoutes] = useState([]);
- const [employees, setEmployees] = useState([]);
- const [payrollRecords, setPayrollRecords] = useState([]);
- const [purchases, setPurchases] = useState([]);
- const [suppliers, setSuppliers] = useState([]);
- const [dayBook, setDayBook] = useState([]);
- const [expenseCategories, setExpenseCategories] = useState(['Petrol', 'Food', 'Salary', 'Rent', 'Electricity', 'Water', 'Maintenance', 'Stationery', 'Travel', 'Marketing', 'Tax', 'Others']);
- const [inventoryLocations, setInventoryLocations] = useState([]);
-  const [inventoryBalances, setInventoryBalances] = useState([]);
-  const [invoices, setInvoices] = useState([]);
+const AppProviderInner = ({ children }) => {
+  // --- 1. Consume Modular Contexts ---
+  const {
+    currentUser, setCurrentUser, session, isOwner, isStaff, login, logout, loading: authLoading
+  } = useAuth();
   
- const MAIN_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
- 
- // --- Sync & Connectivity States ---
- const [syncStatus, setSyncStatus] = useState('SYNCED'); // 'SYNCED', 'SYNCING', 'ERROR', 'OFFLINE'
- const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
- const [lastSyncedAt, setLastSyncedAt] = useState(new Date().toISOString());
+  const { 
+    currentTenant, currentTenantId, setCurrentTenant, isImpersonating, impersonateTenant, stopImpersonating,
+    resolveTenant, resolveTenantBySlug, isModuleAllowed
+  } = useTenant();
 
- // Monitor Online/Offline status
- useEffect(() => {
- const handleOnline = () => {
- setIsOnline(true);
- setSyncStatus(prev => prev === 'OFFLINE' ? 'SYNCED' : prev);
-};
- const handleOffline = () => {
- setIsOnline(false);
- setSyncStatus('OFFLINE');
-};
+  const {
+    syncStatus, setSyncStatus, isOnline, lastSyncedAt, setLastSyncedAt, initializingRef, appInitialized 
+  } = useSync();
 
- window.addEventListener('online', handleOnline);
- window.addEventListener('offline', handleOffline);
- return () => {
- window.removeEventListener('online', handleOnline);
- window.removeEventListener('offline', handleOffline);
-};
-}, []);
+  const {
+    products, setProducts, productCategories, setProductCategories,
+    inventoryLocations, setInventoryLocations, inventoryBalances, setInventoryBalances,
+    movementLog, setMovementLog, MAIN_WAREHOUSE_ID,
+    adjustLocationStock, adjustStock, transferStock
+  } = useInventory();
 
-  const adjustLocationStock = async (productId, amount, locationId = MAIN_WAREHOUSE_ID) => {
-    if (!productId || !locationId) return;
+  const {
+    notifications, addNotification
+  } = useNotifications();
 
-    setInventoryBalances(prev => {
-      const existing = prev.find(b => b.product_id === productId && b.location_id === locationId);
-      if (existing) {
-        return prev.map(b => (b.product_id === productId && b.location_id === locationId) 
-          ? { ...b, quantity: Math.max(0, b.quantity + amount), updated_at: new Date().toISOString() } 
-          : b
-        );
-      } else {
-        return [...prev, { 
-          id: generateUUID(), 
-          product_id: productId, 
-          location_id: locationId, 
-          quantity: Math.max(0, amount), 
-          updated_at: new Date().toISOString() 
-        }];
-      }
-    });
+  const {
+    sales, setSales, clients, setClients, clientPayments, setClientPayments, invoices, setInvoices
+  } = useSales();
 
-    if (isSupabaseConfigured) {
-      const { data: current } = await supabase
-        .from('inventory_balances')
-        .select('quantity')
-        .eq('product_id', productId)
-        .eq('location_id', locationId)
-        .maybeSingle();
-      
-      const newQty = Math.max(0, (current?.quantity || 0) + amount);
-      const { error } = await supabase
-        .from('inventory_balances')
-        .upsert({ 
-          product_id: productId, 
-          location_id: locationId, 
-          quantity: newQty,
-          updated_at: new Date().toISOString(),
-          tenant_id: currentTenantId
-        }, { onConflict: 'product_id,location_id' });
-        
-      if (error) {
-        console.error("Error adjusting location stock:", error);
-        logError({
-          module: 'Inventory',
-          action: 'Adjust Location Stock',
-          error_code: error.code,
-          error_message: error.message,
-          severity: 'Medium'
-        });
-      }
-    }
-  };
+  const {
+    purchases, setPurchases, suppliers, setSuppliers
+  } = usePurchases();
 
-  const adjustStock = async (productId, amount, reason, locationId = MAIN_WAREHOUSE_ID) => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
+  const {
+    expenses, setExpenses, expenseCategories, setExpenseCategories, dayBook, setDayBook
+  } = useFinance();
 
-    await adjustLocationStock(productId, amount, locationId);
-    
-    if (locationId === MAIN_WAREHOUSE_ID) {
-      const updatedProduct = { ...product, stock: Math.max(0, (product.stock || 0) + amount)};
-      setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p));
-      if (isSupabaseConfigured) {
-        const { error } = await supabase
-          .from('products')
-          .update({ stock: updatedProduct.stock })
-          .eq('id', productId)
-          .eq('tenant_id', currentTenantId);
+  const {
+    employees, setEmployees, payrollRecords, setPayrollRecords
+  } = useHR();
 
-        if (error) {
-          console.error("Error adjusting product stock in Supabase:", error);
-          logError({
-            module: 'Inventory',
-            action: 'Adjust Stock',
-            error_code: error.code,
-            error_message: error.message,
-            severity: 'Medium'
-          });
-        }
-      }
-    }
+  // --- 2. Remaining Facade State (to be moved in later phases) ---
+  const [loading, setLoading] = useState(true);
+  const [isSyncComplete, setIsSyncComplete] = useState(false);
+  const [initError, setInitError] = useState(null);
+   // --- 3. Persistence States (Cloud only) ---
+  const [users, setUsers] = useState([]);
+  const [businessProfile, setBusinessProfile] = useState({});
+  const [isMaintenance, setIsMaintenance] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState('');
+  const [vehicles, setVehicles] = useState([]);
+  const [routes, setRoutes] = useState([]);
 
-    const type = amount > 0 ? 'IN' : 'OUT';
-    const locName = inventoryLocations.find(l => l.id === locationId)?.name || 'Storage';
-    logMovement(productId, product.name, type, Math.abs(amount), `${reason} [Loc: ${locName}]`, currentUser?.id);
-  };
 
- // Heartbeat check for Supabase connectivity
- useEffect(() => {
- if (!isSupabaseConfigured || !isOnline) return;
+  const [authSession, setAuthSession] = useState(null);
 
- const interval = setInterval(async () => {
- try {
- const { error} = await supabase.from('settings').select('key').limit(1);
- if (error) throw error;
- setSyncStatus(prev => prev === 'ERROR' ? 'SYNCED' : prev);
-} catch (err) {
- console.warn("Supabase heartbeat failed:", err);
- setSyncStatus('ERROR');
-}
-}, 30000); // Every 30 seconds
-
- return () => clearInterval(interval);
-}, [isOnline]);
 
  // Aliases
  const orders = sales;
  const setOrders = setSales;
-
- const [notifications, setNotifications] = useState([]);
-
- const addNotification = (message, type = 'success') => {
- const id = `NOTIF-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
- setNotifications(prev => [{ id, message, type, date: new Date().toISOString()}, ...prev].slice(0, 5));
- 
- // Auto-remove after 5 seconds
- setTimeout(() => {
- setNotifications(prev => prev.filter(n => n.id !== id));
-}, 5000);
-};
-
- // Data Persistence (100% CLOUD — No Local Storage)
-
- const initializingRef = useRef(false);
- const appInitialized = useRef(false);
-
-
- // Data Actions (LOCAL ONLY)
- const login = async (email, password) => {
-    // Client-side progressive backoff — check lockout before hitting Supabase.
-    if (isLocked(email)) {
-      const remaining = timeRemaining(email);
-      return { success: false, error: `Too many failed attempts. Try again in ${remaining}.` };
-    }
-
-    if (isSupabaseConfigured) {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        recordFailure(email);
-        return { success: false, error: error.message };
-      }
-
-      // Successful auth — clear the failure counter.
-      recordSuccess(email);
-
-      // Fetch profile to get roles immediately for redirection
-      const { data: profile } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', data.user.id)
-        .maybeSingle();
-        
-      if (profile) {
-        setCurrentUser(profile);
-      } else {
-        // Fallback: If no profile exists, check for roles in metadata (crucial for new admins)
-        const metaRoles = data.user.user_metadata?.roles || [];
-        if (metaRoles.length > 0) {
-          const synthesizedUser = {
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.user_metadata?.name || data.user.email.split('@')[0],
-            roles: metaRoles,
-            status: 'ACTIVE'
-          };
-          setCurrentUser(synthesizedUser);
-          return { success: true, user: synthesizedUser };
-        }
-      }
-      
-      return { success: true, user: profile || data.user };
-    }
-
-    // SECURITY: No offline/mock credential fallback. Previously this block
-    // accepted `password` / `admin123` against any in-memory user — a weak-
-    // password backdoor that ran whenever Supabase env vars were missing.
-    // Auth now requires a configured Supabase client; misconfigured deploys
-    // fail loudly instead of silently granting access.
-    return {
-      success: false,
-      error: 'Authentication unavailable — Supabase is not configured. Contact your administrator.',
-    };
-};
-
- const logout = async () => {
- try {
- setLoading(true);
- cacheClear(); // Immediate clear
- if (isSupabaseConfigured) {
- await supabase.auth.signOut();
-}
-} catch (e) {
- console.error("Logout error:", e);
-} finally {
- setCurrentUser(null);
- appInitialized.current = false;
- setLoading(false);
- if (typeof window !== 'undefined') {
- window.location.href = '/login';
-}
-}
-};
-
 
   const addUser = async (userData) => {
     // Fallback: If currentTenantId is missing but we are in a tenant-scoped route, try to resolve it from the URL
@@ -862,86 +597,51 @@ export const AppProvider = ({ children}) => {
  bookedBy: currentUser?.id
 };
 
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- // Priority 2: Atomic Transaction via RPC (single source of truth for stock writes)
- // Pass null when using client-side MAIN_WAREHOUSE sentinel so the RPC resolves/creates
- // the tenant's real warehouse row.
- const rpcLocationId = (locationId && locationId !== MAIN_WAREHOUSE_ID) ? locationId : null;
- const { error: rpcError} = await supabase.rpc('process_sale', {
- p_id: newSale.id,
- p_shop_id: clientId,
- p_items: cartItems,
- p_total_amount: totalAmount,
- p_payment_method: newSale.paymentMethod,
- p_payment_status: newSale.paymentStatus,
- p_date: newSale.date,
- p_user_id: currentUser?.id,
- p_location_id: rpcLocationId
-});
+  if (isSupabaseConfigured) {
+    setSyncStatus('SYNCING');
 
- if (rpcError) {
- console.error("❌ Atomic Sale Failed:", rpcError);
- // CLEAN DB OBJECT
- const dbSale = {
- id: newSale.id,
- product_id: newSale.items?.[0]?.productId,
- shop_id: clientId,
- total_amount: totalAmount,
- payment_method: newSale.paymentMethod,
- payment_status: newSale.paymentStatus,
- status: newSale.status,
- note: salesmanNote,
- booked_by: currentUser?.id,
- route_id: routeId,
- scheduled_date: scheduledDate,
- tenant_id: currentTenantId
-};
+    // 1. Snapshots for Reversion
+    const prevSales = [...sales];
+    const prevProducts = [...products];
+    const prevBalances = [...inventoryBalances];
 
- const { error: insertError} = await supabase.from('sales').insert(dbSale);
-  if (insertError) {
-  console.error("Error creating sale fallback:", insertError);
-  logError({
-    module: 'Sales',
-    action: 'Place Sale (Fallback)',
-    error_code: insertError.code,
-    error_message: insertError.message,
-    severity: 'High'
-  });
-  setSyncStatus('ERROR');
-  addNotification(`Critical: Failed to save sale. Please check connection.`,"error");
-  return null;
- }
+    // Priority 2: Atomic Transaction via RPC (single source of truth for stock writes)
+    const rpcLocationId = (locationId && locationId !== MAIN_WAREHOUSE_ID) ? locationId : null;
+    const { error: rpcError} = await supabase.rpc('process_sale', {
+      p_id: newSale.id,
+      p_shop_id: clientId,
+      p_items: cartItems,
+      p_total_amount: totalAmount,
+      p_payment_method: newSale.paymentMethod,
+      p_payment_status: newSale.paymentStatus,
+      p_date: newSale.date,
+      p_user_id: currentUser?.id,
+      p_location_id: rpcLocationId
+    });
 
- // Fallback path: RPC failed but sale row persisted, so we must manually deduct
- // stock in the DB to keep inventory consistent with the optimistic local state.
- if (status === 'COMPLETED') {
-   const fallbackAdjustments = cartItems.map(item =>
-     adjustLocationStock(item.productId, -item.quantity, locationId)
-   );
-   // Also decrement legacy products.stock for non-warehouse locations
-   // (adjustLocationStock only writes products.stock when locationId === MAIN_WAREHOUSE_ID)
-   if (locationId !== MAIN_WAREHOUSE_ID) {
-     for (const item of cartItems) {
-       const p = products.find(x => x.id === item.productId);
-       if (p) {
-         const { error: stockErr } = await supabase
-           .from('products')
-           .update({ stock: Math.max(0, (p.stock || 0) - item.quantity) })
-           .eq('id', item.productId)
-           .eq('tenant_id', currentTenantId);
-         if (stockErr) console.error('Fallback products.stock update failed:', stockErr);
-       }
-     }
-   }
-   await Promise.all(fallbackAdjustments);
- }
+    if (rpcError) {
+      console.error("❌ Atomic Sale Failed:", rpcError);
+      
+      // 2. Revert State (fail hard as per directive)
+      setSales(prevSales);
+      setProducts(prevProducts);
+      setInventoryBalances(prevBalances);
 
- addNotification(`Warning: Atomic sync failed, used legacy fallback.`,"warning");
-}
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
+      logError({
+        module: 'Sales',
+        action: 'Place Sale (Atomic)',
+        error_code: rpcError.code,
+        error_message: rpcError.message,
+        severity: 'High'
+      });
+      setSyncStatus('ERROR');
+      addNotification(`Critical: Failed to sync sale. Transaction reverted. ${rpcError.message}`, "error");
+      return null;
+    }
+
+    setSyncStatus('SYNCED');
+    setLastSyncedAt(new Date().toISOString());
+  }
 
  // OPTIMISTIC LOCAL UPDATES (Keep UI snappy)
  setSales(prev => [newSale, ...prev]);
@@ -1809,51 +1509,43 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  tenant_id: currentTenantId
 };
 
- if (isSupabaseConfigured) {
- // Priority 4: Atomic Purchase via RPC
- const { error: rpcError} = await supabase.rpc('process_purchase', {
- p_id: newPurchase.id,
- p_product_id: newPurchase.linked_product_id,
- p_quantity: newPurchase.quantity,
- p_total_amount: newPurchase.total_cost,
- p_supplier_id: newPurchase.supplier_id || newPurchase.supplier_name,
- p_payment_type: newPurchase.payment_type,
- p_date: newPurchase.date,
- p_notes: newPurchase.notes,
- p_user_id: currentUser?.id,
- p_tenant_id: currentTenantId
-});
+  if (isSupabaseConfigured) {
+    // 1. Snapshots for Reversion
+    const prevPurchases = [...purchases];
+    const prevProducts = [...products];
 
-  if (rpcError) {
-    console.error("❌ Atomic Purchase Failed:", rpcError);
-    // Fallback to legacy insert
-    const { error: insertError } = await supabase.from('purchases').insert({
-      id: newPurchase.id,
-      product_id: newPurchase.linked_product_id,
-      quantity: newPurchase.quantity,
-      total_amount: newPurchase.total_cost,
-      date: newPurchase.date,
-      supplier_id: newPurchase.supplier_id,
-      supplier_name: newPurchase.supplier_name,
-      payment_type: newPurchase.payment_type,
-      notes: newPurchase.notes,
-      tenant_id: currentTenantId
+    // Priority 4: Atomic Purchase via RPC
+    const { error: rpcError} = await supabase.rpc('process_purchase', {
+      p_id: newPurchase.id,
+      p_product_id: newPurchase.linked_product_id,
+      p_quantity: newPurchase.quantity,
+      p_total_amount: newPurchase.total_cost,
+      p_supplier_id: newPurchase.supplier_id || newPurchase.supplier_name,
+      p_payment_type: newPurchase.payment_type,
+      p_date: newPurchase.date,
+      p_notes: newPurchase.notes,
+      p_user_id: currentUser?.id,
+      p_tenant_id: currentTenantId
     });
-    
-    if (insertError) {
-      console.error("Error creating purchase fallback:", insertError);
+
+    if (rpcError) {
+      console.error("❌ Atomic Purchase Failed:", rpcError);
+      
+      // 2. Revert State
+      setPurchases(prevPurchases);
+      setProducts(prevProducts);
+
       logError({
         module: 'Inventory',
-        action: 'Add Purchase (Fallback)',
-        error_code: insertError.code,
-        error_message: insertError.message,
+        action: 'Add Purchase (Atomic)',
+        error_code: rpcError.code,
+        error_message: rpcError.message,
         severity: 'High'
       });
-      addNotification("Failed to record purchase", "error");
+      addNotification(`Critical: Failed to sync purchase. Transaction reverted. ${rpcError.message}`, "error");
       return false;
     }
   }
-}
 
  // OPTIMISTIC UPDATE
  setPurchases(prev => [newPurchase, ...prev]);
@@ -2210,48 +1902,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
     addNotification(`Category removed: ${name}`, 'success');
   };
 
-  const transferStock = async (fromLocId, toLocId, productId, qty, reason = 'Internal Transfer') => {
-    if (!fromLocId || !toLocId || !productId || qty <= 0) return;
-    
-    // 1. Deduct from Source
-    await adjustLocationStock(productId, -qty, fromLocId);
-    
-    // 2. Add to Destination
-    await adjustLocationStock(productId, qty, toLocId);
-    
-    // 3. Special Case: If moving TO/FROM Warehouse, update the legacy 'stock' column
-    if (fromLocId === MAIN_WAREHOUSE_ID || toLocId === MAIN_WAREHOUSE_ID) {
-      const product = products.find(p => p.id === productId);
-      if (product) {
-        const delta = fromLocId === MAIN_WAREHOUSE_ID ? -qty : qty;
-        const updatedStock = Math.max(0, (product.stock || 0) + delta);
-        setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: updatedStock } : p));
-        if (isSupabaseConfigured) {
-          const { error } = await supabase
-            .from('products')
-            .update({ stock: updatedStock })
-            .eq('id', productId)
-            .eq('tenant_id', currentTenantId);
 
-          if (error) {
-            console.error("Error updating main stock during transfer:", error);
-            logError({
-              module: 'Inventory',
-              action: 'Transfer Stock (Sync Main)',
-              error_code: error.code,
-              error_message: error.message,
-              severity: 'Medium'
-            });
-          }
-        }
-      }
-    }
-
-    const fromName = inventoryLocations.find(l => l.id === fromLocId)?.name || 'Source';
-    const toName = inventoryLocations.find(l => l.id === toLocId)?.name || 'Destination';
-    logMovement(productId, products.find(p => p.id === productId)?.name || 'Product', 'IN/OUT', qty, `${reason} (${fromName} -> ${toName})`, currentUser?.id);
-    addNotification(`Asset Transfer: ${qty} units moved to ${toName}`, "success");
-  };
 
  // Silent background refresh that updates state and cache without loading screens
  const refreshInBackground = async (userId) => {
@@ -2412,80 +2063,61 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  const cExpCategories = cacheGet('expense_categories'); if (cExpCategories) setExpenseCategories(cExpCategories);
  const cLocations = cacheGet('inventory_locations'); if (cLocations) setInventoryLocations(cLocations);
  const cBalances = cacheGet('inventory_balances'); if (cBalances) setInventoryBalances(cBalances);
- const cInvoices = cacheGet('invoices'); if (cInvoices) setInvoices(cInvoices);
-  
-  // --- BACKGROUND REFRESH & SEEDING ---
-  await refreshInBackground();
+ const cInvoices = cacheGet('invoices');       console.log("Restoring from cache, then refreshing in background...");
+      await refreshInBackground();
 
-  // Ensurance IDempotent Seeding for WAREHOUSE
-  setInventoryLocations(current => {
-    if (!current.find(l => l.id === MAIN_WAREHOUSE_ID)) {
-      const warehouse = { id: MAIN_WAREHOUSE_ID, name: 'Main Warehouse', type: 'WAREHOUSE' };
-      supabase.from('inventory_locations').upsert(warehouse).then(() => {}); 
-      return [warehouse, ...current];
+      setLoading(false);
+      initializingRef.current = false;
+      appInitialized.current = true;
+      return;
     }
-    return current;
-  });
 
-  setLoading(false);
-  initializingRef.current = false;
-  appInitialized.current = true;
-  return;
-}
-
- // --- FULL FETCH (Cache Miss or Forced) ---
- if (!isSilentSync) setLoading(true);
-
- try {
- console.log(force ?"🚀 Force-Initializing App Data..." :"🚀 Initializing App (Full Fetch)...");
-
- // Fail-closed: refuse to fetch cross-tenant data if tenant is unknown
- if (!currentTenantId) {
-   console.warn('[initializeApp] No currentTenantId — skipping full fetch to prevent cross-tenant data leak');
-   setLoading(false);
-   initializingRef.current = false;
-   return;
- }
-
- const [
- { data: productsData},
- { data: categoriesData},
- { data: clientsData},
- { data: salesData},
- { data: expensesData},
- { data: employeesData},
- { data: payrollData},
- { data: businessData},
- { data: dayBookData},
- { data: settingsData},
- { data: paymentsData},
- { data: usersData},
- { data: vehiclesData},
- { data: movementData},
- { data: routesData},
-  { data: purchasesData},
-  { data: suppliersData},
-  { data: invoicesData}
- ] = await Promise.all([
- supabase.from('products').select('*').eq('tenant_id', currentTenantId),
- supabase.from('product_categories').select('*').eq('tenant_id', currentTenantId).order('name'),
- supabase.from('clients').select('*').eq('tenant_id', currentTenantId).is('deleted_at', null),
- supabase.from('sales').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(500),
- supabase.from('expenses').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(500),
- supabase.from('employees').select('*').eq('tenant_id', currentTenantId),
- supabase.from('payroll').select('*').eq('tenant_id', currentTenantId).order('processed_at', { ascending: false}).limit(100),
- supabase.from('business_profile').select('*').eq('tenant_id', currentTenantId).maybeSingle(),
- supabase.from('day_book').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(31),
- supabase.from('settings').select('*').eq('tenant_id', currentTenantId),
- supabase.from('client_payments').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(500),
- supabase.from('users').select('*').eq('tenant_id', currentTenantId),
- supabase.from('vehicles').select('*').eq('tenant_id', currentTenantId),
- supabase.from('movement_log').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(200),
- supabase.from('routes').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(100),
- supabase.from('purchases').select('*').eq('tenant_id', currentTenantId).order('date', { ascending: false}).limit(200),
- supabase.from('suppliers').select('*').eq('tenant_id', currentTenantId).order('name', { ascending: true}),
- supabase.from('invoices').select('*').eq('tenant_id', currentTenantId).order('created_at', { ascending: false})
- ]);
+    const targetTenantId = typeof force === 'string' ? force : currentTenantId;
+    try {
+      console.log("Initializing app for tenant (Full Fetch):", targetTenantId);
+      const [
+        { data: productsData },
+        { data: categoriesData },
+        { data: clientsData },
+        { data: salesData },
+        { data: expensesData },
+        { data: employeesData },
+        { data: payrollData },
+        { data: businessData },
+        { data: dayBookData },
+        { data: settingsData },
+        { data: paymentsData },
+        { data: usersData },
+        { data: vehiclesData },
+        { data: movementData },
+        { data: routesData },
+        { data: purchasesData },
+        { data: suppliersData },
+        { data: locationsData },
+        { data: balancesData },
+        { data: invoicesData }
+      ] = await Promise.all([
+        supabase.from('products').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('product_categories').select('*').eq('tenant_id', targetTenantId).order('name'),
+        supabase.from('clients').select('*').eq('tenant_id', targetTenantId).is('deleted_at', null),
+        supabase.from('sales').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+        supabase.from('expenses').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+        supabase.from('employees').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('payroll').select('*').eq('tenant_id', targetTenantId).order('processed_at', { ascending: false }).limit(100),
+        supabase.from('business_profile').select('*').eq('tenant_id', targetTenantId).maybeSingle(),
+        supabase.from('day_book').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(31),
+        supabase.from('settings').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('client_payments').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+        supabase.from('users').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('vehicles').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('movement_log').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+        supabase.from('routes').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(100),
+        supabase.from('purchases').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+        supabase.from('suppliers').select('*').eq('tenant_id', targetTenantId).order('name', { ascending: true }),
+        supabase.from('inventory_locations').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('inventory_balances').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('invoices').select('*').eq('tenant_id', targetTenantId).order('created_at', { ascending: false })
+      ]);
  
  if (productsData) setProducts(productsData);
  if (categoriesData) setProductCategories(categoriesData);
@@ -2500,6 +2132,9 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
     setInvoices(invoicesData);
     cacheSet('invoices', invoicesData);
   }
+
+  if (locationsData) setInventoryLocations(locationsData);
+  if (balancesData) setInventoryBalances(balancesData);
 
  
  if (employeesData) {
@@ -2569,91 +2204,75 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
 };
 
 
- const [authSession, setAuthSession] = useState(null);
 
- // Resolve tenant from user profile (skip if impersonating another tenant)
-  const resolveTenant = async (userProfile) => {
-    if (!userProfile?.tenant_id) return;
-    // Do not override the impersonated tenant if the admin is bridging
-    if (sessionStorage.getItem("nexus_impersonating") === "true") return;
-    try {
-      const { data: tenant } = await supabase
-        .from('tenants')
-        .select('*')
-        .eq('id', userProfile.tenant_id)
-        .maybeSingle();
-      if (tenant) {
-        setCurrentTenant(tenant);
-      }
-    } catch (err) {
-      console.error('Failed to resolve tenant:', err);
-    }
-  };
 
-  // Resolve tenant by slug (for Global Admin auto-bridging)
-  const resolveTenantBySlug = async (slug) => {
-    if (!slug || !isSupabaseConfigured) return;
-    try {
-      const { data: tenant } = await supabase
-        .from('tenants')
-        .select('*')
-        .eq('slug', slug)
-        .maybeSingle();
-      
-      if (tenant) {
-        setCurrentTenant(tenant);
-        return tenant;
-      }
-    } catch (err) {
-      console.error('Failed to resolve tenant by slug:', err);
-    }
-    return null;
-  };
-
- // Plan-based module check
- const isModuleAllowed = (moduleKey) => {
-   if (!currentTenant) return true;
-   return isModuleAvailable(currentTenant.plan, moduleKey);
- };
 
  // Initial Session Resolver & Visibility Handler
- useEffect(() => {
- if (!isSupabaseConfigured) return;
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setIsSyncComplete(true);
+      return;
+    }
 
  // 1. Resolve session immediately on mount
  const initSession = async () => {
- const { data: { session}} = await supabase.auth.getSession();
- if (session) {
- setAuthSession(session);
- const { data: profile} = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
- if (profile) {
-   setCurrentUser(profile);
-   
-   // Check if we are impersonating - if so, re-fetch the tenant to ensure we have the LATEST plan/status
-   const impersonated = sessionStorage.getItem('nexus_impersonated_tenant');
-   if (impersonated) {
+     console.log("🕵️ [initSession] Primary initialization sequence started.");
      try {
-       const tObj = JSON.parse(impersonated);
-       const { data: latestTenant } = await supabase.from('tenants').select('*').eq('id', tObj.id).maybeSingle();
-       if (latestTenant) {
-         setCurrentTenant(latestTenant);
-         sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(latestTenant));
-       } else {
-         setCurrentTenant(tObj);
-       }
-     } catch (e) {
-       console.warn("Nexus Sync Failed, using cache:", e);
-     }
-   } else {
-     await resolveTenant(profile);
-   }
- }
-  await initializeApp();
-} else {
- setLoading(false);
-}
- setIsSyncComplete(true);
-};
+       const { data: { session}} = await supabase.auth.getSession();
+       console.log("🔑 [initSession] Auth session resolved:", session ? "FOUND" : "NOT FOUND");
+      if (session) {
+        setAuthSession(session);
+        const { data: profile} = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
+        if (profile) {
+          setCurrentUser(profile);
+          
+          let tenantToInit = null;
+          // Check if we are impersonating - if so, re-fetch the tenant to ensure we have the LATEST plan/status
+          const impersonated = sessionStorage.getItem('nexus_impersonated_tenant');
+          if (impersonated) {
+            try {
+              const tObj = JSON.parse(impersonated);
+              tenantToInit = tObj;
+              const { data: latestTenant } = await supabase.from('tenants').select('*').eq('id', tObj.id).maybeSingle();
+              if (latestTenant) {
+                setCurrentTenant(latestTenant);
+                tenantToInit = latestTenant;
+                sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(latestTenant));
+              } else {
+                setCurrentTenant(tObj);
+              }
+            } catch (e) {
+              console.warn("Nexus Sync Failed, using cache:", e);
+            }
+          } else {
+            const resolved = await resolveTenant(profile);
+            tenantToInit = resolved;
+          }
+           // Pass resolved tenant ID directly to initializeApp to avoid stale state closure issues
+          if (tenantToInit?.id) {
+            console.log("🏭 [initSession] Launching app initialization for tenant:", tenantToInit.id);
+            await initializeApp(tenantToInit.id);
+          } else {
+            console.warn("⚠️ [initSession] Profile found but no tenant association.");
+            setLoading(false);
+          }
+        } else {
+          console.warn("⚠️ [initSession] Session found but no profile entry.");
+          setLoading(false);
+        }
+      } else {
+        console.log("👋 [initSession] No active session, skipping app init.");
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error("❌ Session Init Error:", err);
+      setInitError("Critical initialization failed. Please check your connection.");
+    } finally {
+      console.log("🏁 [initSession] Initialization complete. isSyncComplete -> true");
+      setIsSyncComplete(true);
+      setLoading(false);
+    }
+ };
  initSession();
 
  // 2. Handle Document Visibility (Silent Sync)
@@ -2740,8 +2359,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  // Initial load removed (handled in auth useEffect above)
 
 
- const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN');
- const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.role?.toLowerCase() === 'staff';
+
 
  const value = {
  currentUser, session: authSession || currentUser, isOwner, isStaff, login, logout,
@@ -2781,4 +2399,26 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
 
  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
+
+export const AppProvider = ({ children }) => (
+  <AuthProvider>
+    <TenantProvider>
+      <SyncProvider>
+        <NotificationProvider>
+          <InventoryProvider>
+            <SalesProvider>
+              <HRProvider>
+                <FinanceProvider>
+                  <PurchasesProvider>
+                    <AppProviderInner>{children}</AppProviderInner>
+                  </PurchasesProvider>
+                </FinanceProvider>
+              </HRProvider>
+            </SalesProvider>
+          </InventoryProvider>
+        </NotificationProvider>
+      </SyncProvider>
+    </TenantProvider>
+  </AuthProvider>
+);
 

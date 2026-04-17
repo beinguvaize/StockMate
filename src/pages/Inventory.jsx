@@ -155,7 +155,7 @@ const Inventory = () => {
       const threshold = p.lowStockThreshold || businessProfile.lowStockThreshold || 10;
       
       // Check aggregate
-      const total = inventoryBalances.filter(b => b.product_id === p.id).reduce((s, b) => s + b.quantity, 0) || p.stock || 0;
+      const total = inventoryBalances.filter(b => b.product_id === p.id).reduce((s, b) => s + b.quantity, 0) || 0;
       if (total > 0 && total <= threshold) {
         alerts.push({ p, loc: 'AGGREGATE', qty: total });
       }
@@ -245,7 +245,10 @@ const Inventory = () => {
               <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Aggregate Market Valuation</span>
               <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
                 <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
-                {Math.round(products.reduce((acc, p) => acc + (p.stock > 0 ? p.stock * p.sellingPrice : 0), 0)).toLocaleString()}
+                {Math.round(products.reduce((acc, p) => {
+                  const productTotal = inventoryBalances.filter(b => b.product_id === p.id).reduce((s, b) => s + b.quantity, 0);
+                  return acc + (productTotal > 0 ? productTotal * p.sellingPrice : 0);
+                }, 0)).toLocaleString()}
               </div>
             </div>
           </div>
@@ -266,9 +269,9 @@ const Inventory = () => {
               </thead>
               <tbody className="divide-y divide-black/5">
                 {products.map((product, idx) => {
-                  const threshold = product.lowStockThreshold || businessProfile.lowStockThreshold || 10;
-                  const isLow = product.stock > 0 && product.stock <= threshold;
-                  const isOut = product.stock <= 0;
+                  const productTotalQty = inventoryBalances.filter(b => b.product_id === product.id).reduce((s, b) => s + b.quantity, 0);
+                  const isLow = productTotalQty > 0 && productTotalQty <= threshold;
+                  const isOut = productTotalQty <= 0;
 
                   return (
                     <tr key={product.id} className="hover:bg-canvas transition-colors group">
@@ -338,7 +341,7 @@ const Inventory = () => {
                               const total = inventoryBalances
                                 .filter(b => b.product_id === product.id)
                                 .reduce((acc, b) => acc + (b.quantity || 0), 0);
-                              return total || product.stock || 0;
+                              return total || 0;
                             })()}
                             <span className="text-[10px] font-black text-gray-700 uppercase opacity-40 ml-1">{product.unit}</span>
                           </div>

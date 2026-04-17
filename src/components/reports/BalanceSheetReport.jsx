@@ -1,36 +1,83 @@
-import React, { useMemo } from 'react';
-import useReportData from './useReportData';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReportShell from './ReportShell';
 import {
   Landmark, Wallet, Package, Truck, CreditCard,
   TrendingUp, Scale, Building2, Layers, Receipt
 } from 'lucide-react';
-import { formatINR, round2, computeVirtualLedger } from '../../utils/financialCalculations';
+import { formatINR, round2 } from '../../utils/financialCalculations';
+import { supabase } from '../../lib/supabase';
+import { useAppContext } from '../../context/AppContext';
 
 /**
  * Balance Sheet Report
  * --------------------
  * Classical accounting equation: Assets = Liabilities + Equity
- * Computed from operational tables (sales, expenses, payroll, clients, products, purchases, vehicles).
+ * Computed from the General Ledger.
  */
 const BalanceSheetReport = () => {
-  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, totalCogs, tax, date', dateColumn: 'date' });
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, date', dateColumn: 'date' });
-  const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: 'amount, processed_at', dateColumn: 'processed_at' });
-  const { data: clients, loading: l4 } = useReportData({ table: 'clients', select: '*', nullFilters: { deleted_at: null } });
-  const { data: products, loading: l5 } = useReportData({ table: 'products', select: '*' });
-  const { data: purchases, loading: l6 } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date' });
-  const { data: vehicles, loading: l7 } = useReportData({ table: 'vehicles', select: '*' });
+  const { currentTenantId } = useAppContext();
+  const [gl, setGl] = useState({
+    cash: 0, accountsReceivable: 0, inventory: 0, fixedAssets: 0,
+    accountsPayable: 0, accruedPayroll: 0, taxPayable: 0,
+    ownerEquity: 0, retainedEarnings: 0,
+    totalAssets: 0, totalLiabilities: 0, totalEquity: 0
+  });
+  const [loading, setLoading] = useState(true);
 
-  const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7;
+  useEffect(() => {
+    const fetchGL = async () => {
+      if (!currentTenantId) return;
+      setLoading(true);
+      
+      const { data, error } = await supabase.rpc('get_gl_balances', { p_tenant_id: currentTenantId });
+      
+      if (!error && data) {
+         const t = {
+            cash: 0, accountsReceivable: 0, inventory: 0, fixedAssets: 0,
+            accountsPayable: 0, accruedPayroll: 0, taxPayable: 0,
+            ownerEquity: 0, retainedEarnings: 0,
+            totalAssets: 0, totalLiabilities: 0, totalEquity: 0
+         };
 
-  const gl = useMemo(() => computeVirtualLedger({
-    sales, expenses, payroll, clients, products, purchases, vehicles
-  }), [sales, expenses, payroll, clients, products, purchases, vehicles]);
+         let netIncome = 0;
+
+         data.forEach(acc => {
+            const code = acc.code;
+            const bal = Number(acc.balance) || 0;
+            
+            if (code === '1000') t.cash = bal;
+            if (code === '1100') t.accountsReceivable = bal;
+            if (code === '1200') t.inventory = bal;
+            if (code === '1500') t.fixedAssets = bal;
+            if (code === '2000') t.accountsPayable = bal;
+            if (code === '2100') t.accruedPayroll = bal;
+            if (code === '2200') t.taxPayable = bal;
+            if (code === '3000') t.ownerEquity = bal;
+            if (code === '3100') t.retainedEarnings = bal;
+
+            if (acc.type === 'ASSET') t.totalAssets += bal;
+            if (acc.type === 'LIABILITY') t.totalLiabilities += bal;
+            if (acc.type === 'EQUITY') t.totalEquity += bal;
+            
+            // Net Income rolls into Equity
+            if (acc.type === 'REVENUE') netIncome += bal;  // Credit
+            if (acc.type === 'EXPENSE') netIncome -= bal;  // Debit
+         });
+
+         // Close current period net income to retained earnings
+         t.retainedEarnings += netIncome;
+         t.totalEquity += netIncome;
+
+         setGl(t);
+      }
+      setLoading(false);
+    };
+    fetchGL();
+  }, [currentTenantId]);
 
   // Build balance sheet rows (hierarchical)
   const rows = useMemo(() => {
-    const data = [
+    return [
       // === ASSETS ===
       { section: 'ASSETS', category: 'Current Assets', account: 'Cash & Bank', code: '1000', amount: gl.cash, side: 'ASSET' },
       { section: 'ASSETS', category: 'Current Assets', account: 'Accounts Receivable', code: '1100', amount: gl.accountsReceivable, side: 'ASSET' },
@@ -46,7 +93,6 @@ const BalanceSheetReport = () => {
       { section: 'EQUITY', category: 'Equity', account: 'Owner Capital', code: '3000', amount: gl.ownerEquity, side: 'EQUITY' },
       { section: 'EQUITY', category: 'Equity', account: 'Retained Earnings', code: '3100', amount: gl.retainedEarnings, side: 'EQUITY' },
     ];
-    return data;
   }, [gl]);
 
   // KPIs

@@ -1,5 +1,6 @@
 import React, { useState} from 'react';
-import { useAppContext, AVAILABLE_ROLES, DEFAULT_PERMISSIONS, MODULES_CONFIG} from '../context/AppContext';
+import { useAppContext} from '../context/AppContext';
+import { AVAILABLE_ROLES, DEFAULT_PERMISSIONS, MODULES_CONFIG } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import { staffCreateSchema, passwordStrength } from '../lib/validation';
 import { 

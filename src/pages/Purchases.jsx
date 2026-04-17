@@ -8,7 +8,7 @@ import {
 const Purchases = () => {
  const { 
  purchases, addPurchase, products, businessProfile, 
- suppliers, isViewOnly, hasPermission 
+ suppliers, isViewOnly, hasPermission, inventoryBalances 
 } = useAppContext();
  
  const [searchTerm, setSearchTerm] = useState('');
@@ -250,7 +250,10 @@ const Purchases = () => {
  onChange={e => setFormData({...formData, linked_product_id: e.target.value})}
  >
  <option value="">STANDALONE PURCHASE (NO INVENTORY LINK)...</option>
- {products.map(p => <option key={p.id} value={p.id}>{p.name.toUpperCase()} (IN STOCK: {p.stock})</option>)}
+ {products.map(p => {
+    const totalQty = (inventoryBalances || []).filter(b => b.product_id === p.id).reduce((s, b) => s + b.quantity, 0);
+    return <option key={p.id} value={p.id}>{p.name.toUpperCase()} (IN STOCK: {totalQty})</option>
+  })}
  </select>
  </div>
  

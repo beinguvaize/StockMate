@@ -29,6 +29,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalLoading from './components/GlobalLoading';
 
+
 /**
  * GuestRoute: Redirects authenticated users away from the login page.
  */
@@ -207,7 +208,7 @@ function AppRoutes() {
   );
 }
 
-function App() {
+function AppContainer() {
   const { initError, loading } = useAppContext();
 
   if (initError && !loading) {
@@ -243,12 +244,22 @@ function App() {
   }
 
   return (
-    <Router>
-      <ErrorBoundary>
-        <AppRoutes />
-      </ErrorBoundary>
-    </Router>
+    <ErrorBoundary>
+      <AppRoutes />
+    </ErrorBoundary>
   );
 }
+
+const App = () => {
+  return (
+    <Router>
+      <AppProvider>
+        <AppContainer>
+          <AppRoutes />
+        </AppContainer>
+      </AppProvider>
+    </Router>
+  );
+};
 
 export default App;
