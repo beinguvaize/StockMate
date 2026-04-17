@@ -17,6 +17,11 @@ export const InventoryProvider = ({ children }) => {
   const [inventoryLocations, setInventoryLocations] = useState([]);
   const [inventoryBalances, setInventoryBalances] = useState([]);
   const [movementLog, setMovementLog] = useState([]);
+  // Routes + vehicles are inventory movement artifacts (stock dispatched to
+  // mobile warehouses). State lives here so Sales/Purchases contexts can read
+  // route→location mapping without pulling from AppContext (circular dep).
+  const [vehicles, setVehicles] = useState([]);
+  const [routes, setRoutes] = useState([]);
 
   const MAIN_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -213,6 +218,8 @@ export const InventoryProvider = ({ children }) => {
     inventoryLocations, setInventoryLocations,
     inventoryBalances, setInventoryBalances,
     movementLog, setMovementLog,
+    vehicles, setVehicles,
+    routes, setRoutes,
     MAIN_WAREHOUSE_ID,
     adjustLocationStock,
     adjustStock,

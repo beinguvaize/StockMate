@@ -87,6 +87,7 @@ const AppProviderInner = ({ children }) => {
     products, setProducts, productCategories, setProductCategories,
     inventoryLocations, setInventoryLocations, inventoryBalances, setInventoryBalances,
     movementLog, setMovementLog, MAIN_WAREHOUSE_ID,
+    vehicles, setVehicles, routes, setRoutes,
     adjustLocationStock, adjustStock, transferStock
   } = useInventory();
 
@@ -98,7 +99,8 @@ const AppProviderInner = ({ children }) => {
     sales, setSales, clients, setClients, clientPayments, setClientPayments, invoices, setInvoices,
     addClient, updateClient, deleteClient,
     recordClientPayment,
-    createInvoice, markInvoicePaid
+    createInvoice, markInvoicePaid,
+    reconcileSaleEffects, placeSale, updateSale, deleteSale, settleSale
   } = useSales();
 
   const {
@@ -129,9 +131,7 @@ const AppProviderInner = ({ children }) => {
   const [businessProfile, setBusinessProfile] = useState({});
   const [isMaintenance, setIsMaintenance] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState('');
-  const [vehicles, setVehicles] = useState([]);
-  const [routes, setRoutes] = useState([]);
-
+  // vehicles/routes state moved to InventoryContext
 
   const [authSession, setAuthSession] = useState(null);
 
@@ -321,385 +321,13 @@ const AppProviderInner = ({ children }) => {
  setMovementLog(prev => [newLog, ...prev]);
 };
 
- const reconcileSaleEffects = async (oldSale, newSale) => {
- const productDeltas = new Map();
- 
- if (oldSale?.status === 'COMPLETED') {
- oldSale.items.forEach(i => productDeltas.set(i.productId, (productDeltas.get(i.productId) || 0) + i.quantity));
-}
- if (newSale?.status === 'COMPLETED') {
- newSale.items.forEach(i => {
- productDeltas.set(i.productId, (productDeltas.get(i.productId) || 0) - i.quantity);
- 
- // Recalculate COGS in the new sale using current product cost
- const product = products.find(p => p.id === i.productId);
- if (product) {
- i.cogs = (product.costPrice || 0) * i.quantity;
-}
-});
- // Update totalCogs
- newSale.totalCogs = newSale.items.reduce((sum, i) => sum + (i.cogs || 0), 0);
-}
+ // reconcileSaleEffects moved to SalesContext
 
- const clientDeltas = new Map();
- if (oldSale?.paymentMethod?.toLowerCase() === 'credit') {
- const id = oldSale.clientId || oldSale.shopId;
- clientDeltas.set(id, (clientDeltas.get(id) || 0) - oldSale.totalAmount);
-}
- if (newSale?.paymentMethod?.toLowerCase() === 'credit') {
- const id = newSale.clientId || newSale.shopId;
- clientDeltas.set(id, (clientDeltas.get(id) || 0) + newSale.totalAmount);
-}
-
- // Apply Deltas to Local State
- if (productDeltas.size > 0) {
- setProducts(prev => prev.map(p => {
- const delta = productDeltas.get(p.id);
- return delta ? { ...p, stock: Math.max(0, p.stock + delta)} : p;
-}));
-}
-
- if (clientDeltas.size > 0) {
- setClients(prev => prev.map(c => {
- const delta = clientDeltas.get(c.id);
- return delta ? { ...c, outstanding_balance: Math.max(0, (c.outstanding_balance || 0) + delta)} : c;
-}));
-}
-
- // Persistence — use atomic RPCs that compute `col + delta` server-side in a
- // single statement. The previous SELECT-from-closure-then-UPDATE pattern read
- // stale React state (not the live DB value), corrupting stock/balance when two
- // sale edits fired close together or background sync had advanced the DB row.
- if (isSupabaseConfigured) {
-   const stockCalls = Array.from(productDeltas.entries()).map(([prodId, pDelta]) =>
-     supabase.rpc('apply_product_stock_delta', {
-       p_product_id: prodId,
-       p_delta: pDelta,
-       p_tenant_id: currentTenantId,
-     })
-   );
-   const balanceCalls = Array.from(clientDeltas.entries()).map(([clId, cDelta]) =>
-     supabase.rpc('apply_client_balance_delta', {
-       p_client_id: clId,
-       p_delta: cDelta,
-       p_tenant_id: currentTenantId,
-     })
-   );
-   const results = await Promise.all([...stockCalls, ...balanceCalls]);
-   const failures = results.filter(r => r?.error);
-   if (failures.length > 0) {
-     console.error('reconcileSaleEffects: RPC failure(s):', failures.map(f => f.error));
-     logError({
-       module: 'Sales',
-       action: 'Reconcile Sale Effects',
-       error_code: failures[0].error.code,
-       error_message: failures[0].error.message,
-       severity: 'High'
-     });
-   }
- }
-};
-
- const placeSale = async (clientId, cartItems, subtotal, discount, tax, totalAmount, customerInfo, paymentType = 'cash', routeId = null, status = 'COMPLETED', scheduledDate = null, salesmanNote = '', manualLocationId = null) => {
-    const val = saleSchema.safeParse({ clientId, items: cartItems, totalAmount, paymentMethod: paymentType});
-    if (!val.success) {
-      addNotification("Sale Validation failed:" + val.error.errors[0].message,"error");
-      return;
-    }
-    
-    let totalCogs = 0;
-    const updatedProducts = [...products];
-
-    // Determine which location to deduct from. MAIN_WAREHOUSE_ID is a client-side sentinel
-    // — the RPC resolves/auto-creates the tenant's real warehouse row when null is passed.
-    let locationId = manualLocationId || MAIN_WAREHOUSE_ID;
-    if (routeId && !manualLocationId) {
-      const route = routes.find(r => r.id === routeId);
-      if (route) {
-        // Find vehicle location
-        const loc = inventoryLocations.find(l => l.reference_id === route.vehicleId || l.name.includes(route.vehicleId));
-        if (loc) locationId = loc.id;
-      }
-    }
-
-    // Compute COGS + prepare OPTIMISTIC local state only.
-    // No DB writes here — `process_sale` RPC is the single source of truth for stock
-    // (products.stock, inventory_balances, movement_log). This prevents the double-
-    // deduction race that existed when adjustLocationStock + RPC both wrote to DB.
-    cartItems.forEach(item => {
-      const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
-      if (pIndex > -1) {
-        if (status === 'COMPLETED') {
-          // Legacy global stock (RPC decrements products.stock regardless of location)
-          updatedProducts[pIndex].stock = Math.max(0, (updatedProducts[pIndex].stock || 0) - item.quantity);
-        }
-        item.cogs = (updatedProducts[pIndex].costPrice || 0) * item.quantity;
-        totalCogs += item.cogs;
-      }
-    });
-
- const newSale = {
- id: `SAL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
- date: new Date().toISOString(),
- clientId,
- items: cartItems,
- subtotal,
- discount,
- tax,
- totalAmount,
- totalCogs,
- customerInfo,
- paymentMethod: paymentType.charAt(0).toUpperCase() + paymentType.slice(1), // Normalize to 'Cash'/'Credit' for RPC
- paymentStatus: paymentType === 'cash' ? 'PAID' : 'PENDING',
- status,
- routeId,
- scheduledDate,
- salesmanNote,
- bookedBy: currentUser?.id
-};
-
-  if (isSupabaseConfigured) {
-    setSyncStatus('SYNCING');
-
-    // 1. Snapshots for Reversion
-    const prevSales = [...sales];
-    const prevProducts = [...products];
-    const prevBalances = [...inventoryBalances];
-
-    // Priority 2: Atomic Transaction via RPC (single source of truth for stock writes)
-    const rpcLocationId = (locationId && locationId !== MAIN_WAREHOUSE_ID) ? locationId : null;
-    const { error: rpcError} = await supabase.rpc('process_sale', {
-      p_id: newSale.id,
-      p_shop_id: clientId,
-      p_items: cartItems,
-      p_total_amount: totalAmount,
-      p_payment_method: newSale.paymentMethod,
-      p_payment_status: newSale.paymentStatus,
-      p_date: newSale.date,
-      p_user_id: currentUser?.id,
-      p_location_id: rpcLocationId
-    });
-
-    if (rpcError) {
-      console.error("❌ Atomic Sale Failed:", rpcError);
-      
-      // 2. Revert State (fail hard as per directive)
-      setSales(prevSales);
-      setProducts(prevProducts);
-      setInventoryBalances(prevBalances);
-
-      logError({
-        module: 'Sales',
-        action: 'Place Sale (Atomic)',
-        error_code: rpcError.code,
-        error_message: rpcError.message,
-        severity: 'High'
-      });
-      setSyncStatus('ERROR');
-      addNotification(`Critical: Failed to sync sale. Transaction reverted. ${rpcError.message}`, "error");
-      return null;
-    }
-
-    setSyncStatus('SYNCED');
-    setLastSyncedAt(new Date().toISOString());
-  }
-
- // OPTIMISTIC LOCAL UPDATES (Keep UI snappy)
- setSales(prev => [newSale, ...prev]);
- 
- // Update outstanding balance locally (for immediate UI reflect)
- if (paymentType.toLowerCase() === 'credit') {
- setClients(prev => prev.map(c => 
- c.id === clientId 
- ? { ...c, outstanding_balance: (c.outstanding_balance || 0) + totalAmount}
- : c
- ));
-}
-
- // Update Day Book Cash locally if Cash
- if (paymentType.toLowerCase() === 'cash') {
- const today = new Date().toISOString().split('T')[0];
- setDayBook(prev => prev.map(db => 
- db.date === today 
- ? { ...db, total_sales: (db.total_sales || 0) + totalAmount}
- : db
- ));
-}
-
- // Update local products stock (RPC decrements products.stock regardless of location)
- if (status === 'COMPLETED') {
-      setProducts(updatedProducts);
-
-      // Mirror the inventory_balances decrement the RPC just performed, so the UI
-      // stays in sync without re-fetching. Skip when using the MAIN_WAREHOUSE sentinel —
-      // we don't know the real tenant warehouse UUID client-side until next sync.
-      if (locationId && locationId !== MAIN_WAREHOUSE_ID) {
-        setInventoryBalances(prev => {
-          const byKey = new Map(prev.map(b => [`${b.product_id}|${b.location_id}`, b]));
-          for (const item of cartItems) {
-            const key = `${item.productId}|${locationId}`;
-            const existing = byKey.get(key);
-            if (existing) {
-              byKey.set(key, {
-                ...existing,
-                quantity: Math.max(0, (existing.quantity || 0) - item.quantity),
-                updated_at: new Date().toISOString(),
-              });
-            } else {
-              byKey.set(key, {
-                id: generateUUID(),
-                product_id: item.productId,
-                location_id: locationId,
-                quantity: 0,
-                updated_at: new Date().toISOString(),
-              });
-            }
-          }
-          return Array.from(byKey.values());
-        });
-      }
-    }
-
-    const locName = inventoryLocations.find(l => l.id === locationId)?.name || 'HQ';
-    addNotification(`Sale Processed from ${locName}: ${businessProfile?.currencySymbol || ''}${totalAmount}`, 'success');
-    return newSale.id;
-  };
+ // placeSale moved to SalesContext
 
   // createInvoice/markInvoicePaid moved to SalesContext
 
-  const updateSale = async (updatedSale) => {
- // Use functional state to get the absolutely latest old sale version
- let oldSale;
- setSales(prev => {
- oldSale = prev.find(s => s.id === updatedSale.id);
- return prev;
-});
-
- // Reconcile based on the detected change
- await reconcileSaleEffects(oldSale, updatedSale);
-
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { status: saleStatus, clientId, salesmanNote, ...rest} = updatedSale;
- const dbSale = { 
- ...rest, 
- shopId: clientId || updatedSale.shopId, 
- status: saleStatus,
- note: salesmanNote || updatedSale.note,
- tenant_id: currentTenantId
-};
- 
- // Cleanup fields that don't exist in the DB schema
- delete dbSale.clientId; 
- delete dbSale.salesmanNote;
-
- const { error} = await supabase.from('sales').upsert(dbSale);
-  if (error) {
-  console.error("Error updating sale in Supabase:", error);
-  logError({
-    module: 'Sales',
-    action: 'Update Sale',
-    error_code: error.code,
-    error_message: error.message,
-    severity: 'Medium'
-  });
-  setSyncStatus('ERROR');
-  addNotification("Failed to update sale in cloud","error");
-  return;
- } else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
- setSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
- addNotification(`Sale #${updatedSale.id.split('-').pop()} synchronized`, 'success');
-};
-
- const deleteSale = async (saleId) => {
- // Get the latest version of the sale from current state
- let sale;
- setSales(prev => {
- sale = prev.find(s => s.id === saleId);
- return prev;
-});
-
- if (!sale) return;
-
- if (window.confirm("Are you sure you want to PERMANENTLY delete this sale? Stock and balances will be reversed.")) {
- await reconcileSaleEffects(sale, null);
-
- if (isSupabaseConfigured) {
-  const { error} = await supabase.from('sales').delete().eq('id', saleId).eq('tenant_id', currentTenantId);
-  if (error) {
-  console.error("Error deleting sale from Supabase:", error);
-  logError({
-    module: 'Sales',
-    action: 'Delete Sale',
-    error_code: error.code,
-    error_message: error.message,
-    severity: 'Medium'
-  });
-  addNotification("Failed to delete sale from cloud","error");
-  return;
- }
- // Audit: deleting a sale reverses stock + balances — treat as a refund/void.
- logAuditEvent({
-   action: AUDIT_ACTIONS.SALE_DELETE,
-   entityType: 'sale',
-   entityId: saleId,
-   summary: `Deleted sale #${saleId.split('-').pop()} (stock & balances reversed)`,
-   metadata: {
-     client_id: sale?.clientId || sale?.client_id || null,
-     total: sale?.total ?? sale?.totalAmount ?? null,
-     payment_type: sale?.paymentType || sale?.payment_type || null,
-     items_count: Array.isArray(sale?.items) ? sale.items.length : 0,
-   },
- });
-}
- setSales(prev => prev.filter(s => s.id !== saleId));
- addNotification("Sale deleted and stock reversed","success");
-}
-};
-
- const settleSale = async (saleId, amount) => {
- const sale = sales.find(s => s.id === saleId);
- if (!sale) return;
-
- const updatedSale = {
- ...sale,
- paidAmount: (sale.paidAmount || 0) + amount,
- paymentStatus: ((sale.paidAmount || 0) + amount >= sale.totalAmount) ? 'PAID' : 'PARTIAL',
- lastPaymentDate: new Date().toISOString()
-};
-
-  if (isSupabaseConfigured) {
-    const { error } = await supabase.from('sales').upsert({ ...updatedSale, tenant_id: currentTenantId });
-    if (error) {
-      console.error("Error settling sale in Supabase:", error);
-      logError({
-        module: 'Sales',
-        action: 'Settle Sale (Payment)',
-        error_code: error.code,
-        error_message: error.message,
-        severity: 'Medium'
-      });
-      addNotification("Cloud Sync Delayed: Payment recorded locally", "warning");
-      // Fall through
-    }
-  }
-
- // Also update client persistent balance if it was a credit sale
- if (sale.paymentMethod === 'CREDIT' || sale.paymentMethod === 'credit') {
- const client = clients.find(c => c.id === sale.clientId || c.id === sale.shopId);
- if (client) {
- const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
- await updateClient({ ...client, outstanding_balance: newBalance});
-}
-}
-
- setSales(sales.map(s => s.id === saleId ? updatedSale : s));
- addNotification(`Payment of ${businessProfile?.currencySymbol || ''}${amount} received for Sale #${saleId.split('-').pop()}`, 'success');
-};
+  // updateSale/deleteSale/settleSale moved to SalesContext
 
  // Task 4: Mark as Paid for Client (Enhanced with Invoice Selection)
   // recordClientPayment moved to SalesContext
@@ -1603,15 +1231,15 @@ export const AppProvider = ({ children }) => (
       <SyncProvider>
         <NotificationProvider>
           <InventoryProvider>
-            <SalesProvider>
-              <HRProvider>
-                <FinanceProvider>
+            <FinanceProvider>
+              <SalesProvider>
+                <HRProvider>
                   <PurchasesProvider>
                     <AppProviderInner>{children}</AppProviderInner>
                   </PurchasesProvider>
-                </FinanceProvider>
-              </HRProvider>
-            </SalesProvider>
+                </HRProvider>
+              </SalesProvider>
+            </FinanceProvider>
           </InventoryProvider>
         </NotificationProvider>
       </SyncProvider>
