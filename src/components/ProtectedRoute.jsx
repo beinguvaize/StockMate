@@ -72,7 +72,9 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false }) {
  'vehicles': 'vehicles',
  'reports': 'reports',
  'users': 'users',
- 'settings': 'settings'
+ 'settings': 'settings',
+ 'invoices': 'invoices',   // STARTER+ (all plans); ensures route is gated, not bypassed
+ 'audit-log': 'audit-log', // ENTERPRISE-only
  };
 
  const moduleKey = moduleMap[path];
