@@ -95,7 +95,10 @@ const AppProviderInner = ({ children }) => {
   } = useNotifications();
 
   const {
-    sales, setSales, clients, setClients, clientPayments, setClientPayments, invoices, setInvoices
+    sales, setSales, clients, setClients, clientPayments, setClientPayments, invoices, setInvoices,
+    addClient, updateClient, deleteClient,
+    recordClientPayment,
+    createInvoice, markInvoicePaid
   } = useSales();
 
   const {
@@ -275,87 +278,7 @@ const AppProviderInner = ({ children }) => {
  addNotification('Staff record removed from system', 'success');
 };
 
- const addClient = async (client) => {
- const val = clientSchema.safeParse(client);
- if (!val.success) {
- addNotification("Validation failed:" + val.error.errors[0].message,"error");
- return;
-}
- const newClient = { 
- ...client, 
- id: client.id || `CLI-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
- outstanding_balance: client.outstanding_balance || 0,
- tenant_id: currentTenantId
-};
- 
- const { status, ...dbClient} = newClient;
-
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('clients').upsert(dbClient);
- if (error) {
- console.error("Error adding client to Supabase:", error);
- setSyncStatus('ERROR');
- addNotification(`Cloud Sync Delayed: Client saved locally`,"warning");
- // Fall through
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
- setClients([newClient, ...clients]);
-};
-
- const updateClient = async (updatedClient) => {
- const { status, ...dbClient} = updatedClient;
-
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('clients').upsert(dbClient);
- if (error) {
- console.error("Error updating client in Supabase:", error);
- setSyncStatus('ERROR');
- addNotification("Failed to update client in cloud","error");
- return;
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
- setClients(clients.map(c => c.id === updatedClient.id ? updatedClient : c));
-};
-
- // Soft-delete a client. A hard DELETE orphans sales, client_payments, and
- // invoices (those rows still reference the missing client id), which crashes
- // reports on the next render. Setting `deleted_at = now()` hides the client
- // from active UI queries while preserving the historical audit trail.
- const deleteClient = async (clientId) => {
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase
-   .from('clients')
-   .update({ deleted_at: new Date().toISOString() })
-   .eq('id', clientId)
-   .eq('tenant_id', currentTenantId);
- if (error) {
- console.error("Error soft-deleting client in Supabase:", error);
- logError({
-   module: 'Clients',
-   action: 'Soft Delete Client',
-   error_code: error.code,
-   error_message: error.message,
-   severity: 'Medium'
- });
- setSyncStatus('ERROR');
- addNotification("Cloud Sync Delayed: Client removed locally","warning");
- // Fall through
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
- setClients(clients.filter(c => c.id !== clientId));
-};
+ // addClient/updateClient/deleteClient moved to SalesContext
 
  // addExpense/updateExpense/deleteExpense moved to FinanceContext
 
@@ -642,96 +565,7 @@ const AppProviderInner = ({ children }) => {
     return newSale.id;
   };
 
-  const createInvoice = async (invoiceData) => {
-    if (!isSupabaseConfigured) return;
-    setSyncStatus('SYNCING');
-    
-    // 1. Get atomic invoice number via RPC
-    const { data: invNumber, error: rpcError } = await supabase.rpc('get_next_invoice_number');
-    if (rpcError) {
-      console.error("Error getting invoice number:", rpcError);
-      addNotification("Numbering system failure", "error");
-      return;
-    }
-
-    const newInvoice = {
-      ...invoiceData,
-      id: generateUUID(),
-      invoice_number: invNumber,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      tenant_id: currentTenantId
-    };
-
-    // 2. Persist to Supabase
-    const { error } = await supabase.from('invoices').insert(newInvoice);
-    if (error) {
-      console.error("Error creating invoice:", error);
-      logError({
-        module: 'Invoices',
-        action: 'Create Invoice',
-        error_code: error.code,
-        error_message: error.message,
-        severity: 'High'
-      });
-      setSyncStatus('ERROR');
-      addNotification("Failed to save invoice to cloud", "error");
-      return;
-    }
-
-    setInvoices(prev => [newInvoice, ...prev]);
-    cacheSet('invoices', [newInvoice, ...invoices]);
-    setSyncStatus('SYNCED');
-    addNotification(`Invoice ${invNumber} generated!`, 'success');
-    return newInvoice;
-  };
-
-  const markInvoicePaid = async (invoiceId) => {
-    if (!isSupabaseConfigured) return;
-    
-    // Find invoice to get amount and client info
-    const inv = invoices.find(i => i.id === invoiceId);
-    if (!inv) return;
-
-    setSyncStatus('SYNCING');
-    
-    // 1. Update Invoice Status
-    const { error } = await supabase
-      .from('invoices')
-      .update({ payment_status: 'PAID' })
-      .eq('id', invoiceId)
-      .eq('tenant_id', currentTenantId);
-      
-    if (error) {
-       console.error("Error marking invoice paid:", error);
-       logError({
-         module: 'Invoices',
-         action: 'Mark Invoice Paid',
-         error_code: error.code,
-         error_message: error.message,
-         severity: 'Medium'
-       });
-       setSyncStatus('ERROR');
-       return;
-    }
-
-    // 2. If it's a client invoice, record the payment against their account
-    if (inv.client_id && inv.client_id !== 'POS-WALKIN' && inv.client_id !== 'WALKIN') {
-      await recordClientPayment(
-        inv.client_id, 
-        inv.grand_total, 
-        new Date().toISOString(), 
-        `Payment for Invoice #${inv.invoice_number}`,
-        [invoiceId]
-      );
-    }
-
-    setInvoices(prev => prev.map(item => 
-      item.id === invoiceId ? { ...item, payment_status: 'PAID' } : item
-    ));
-    setSyncStatus('SYNCED');
-    addNotification(`Invoice ${inv.invoice_number} settled successfully`, "success");
-  };
+  // createInvoice/markInvoicePaid moved to SalesContext
 
   const updateSale = async (updatedSale) => {
  // Use functional state to get the absolutely latest old sale version
@@ -868,87 +702,7 @@ const AppProviderInner = ({ children }) => {
 };
 
  // Task 4: Mark as Paid for Client (Enhanced with Invoice Selection)
-  const recordClientPayment = async (clientId, amount, paymentDate, notes, selectedInvoiceIds = []) => {
-    const client = clients.find(c => c.id === clientId);
-    if (!client) return { success: false, error: 'Client not found'};
-
-    const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
-    const updatedClient = { ...client, outstanding_balance: newBalance};
-
-    if (isSupabaseConfigured) {
-      setSyncStatus('SYNCING');
-      
-      // Update Client Balance
-      const { error: clientError } = await supabase.from('clients').upsert({ ...updatedClient, tenant_id: currentTenantId });
-      
-      // Update Selected Invoices if any
-      // For atomic settlement, we assume the invoice is fully paid.
-      if (selectedInvoiceIds.length > 0) {
-        for (const invId of selectedInvoiceIds) {
-          const inv = invoices.find(i => i.id === invId);
-          if (inv) {
-            await supabase
-              .from('invoices')
-              .update({ 
-                payment_status: 'PAID',
-                paid_amount: inv.grand_total 
-              })
-              .eq('id', invId)
-              .eq('tenant_id', currentTenantId);
-          }
-        }
-      }
-
-      if (clientError) {
-        console.error("Error recording client payment:", clientError);
-        logError({
-          module: 'Clients',
-          action: 'Record Client Payment (Balance Update)',
-          error_code: clientError.code,
-          error_message: clientError.message,
-          severity: 'High'
-        });
-        setSyncStatus('ERROR');
-        addNotification("Cloud Sync Delayed: Payment recorded locally", "warning");
-      }
-    }
-
-    const paymentRecord = {
-      id: `CPAY-${Date.now()}`,
-      client_id: clientId,
-      amount: amount,
-      date: paymentDate || new Date().toISOString(),
-      notes: notes || '',
-      tenant_id: currentTenantId
-    };
-    
-    if (isSupabaseConfigured) {
-      const { error: payErr } = await supabase.from('client_payments').insert(paymentRecord);
-      if (payErr) {
-        console.error("Error inserting client payment record:", payErr);
-        logError({
-          module: 'Clients',
-          action: 'Record Client Payment (History Insert)',
-          error_code: payErr.code,
-          error_message: payErr.message,
-          severity: 'Medium'
-        });
-      }
-    }
-
-    // Update Local Invoices State
-    if (selectedInvoiceIds.length > 0) {
-      setInvoices(prev => prev.map(inv => 
-        selectedInvoiceIds.includes(inv.id) ? { ...inv, payment_status: 'PAID' } : inv
-      ));
-    }
-
-    setClients(clients.map(c => c.id === clientId ? updatedClient : c));
-    setClientPayments(prev => [paymentRecord, ...prev]);
-    addNotification(`Recorded payment of ${businessProfile?.currencySymbol || ''}${amount} from ${client.name}`,"success");
-    setSyncStatus('SYNCED');
-    return { success: true};
-  };
+  // recordClientPayment moved to SalesContext
 
   const addProductCategory = async (categoryName) => {
     if (isSupabaseConfigured) {
