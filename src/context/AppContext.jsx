@@ -103,7 +103,10 @@ const AppProviderInner = ({ children }) => {
   } = usePurchases();
 
   const {
-    expenses, setExpenses, expenseCategories, setExpenseCategories, dayBook, setDayBook
+    expenses, setExpenses, expenseCategories, setExpenseCategories, dayBook, setDayBook,
+    addExpense, updateExpense, deleteExpense,
+    addExpenseCategory, updateExpenseCategory, deleteExpenseCategory,
+    updateDayBook, getDayBookForDate,
   } = useFinance();
 
   const {
@@ -350,76 +353,7 @@ const AppProviderInner = ({ children }) => {
  setClients(clients.filter(c => c.id !== clientId));
 };
 
- const addExpense = async (expense) => {
- const val = expenseSchema.safeParse(expense);
- if (!val.success) {
- addNotification("Validation failed:" + val.error.errors[0].message,"error");
- return;
-}
- const { title, date, routeId, splitType, notes, ...restExpense} = expense;
- const newExpense = { 
- ...restExpense, 
- id: expense.id || `EXP-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, 
- date: date || new Date().toISOString(),
- route_id: routeId,
- split_type: splitType || null,
- note: title || notes || '',
- tenant_id: currentTenantId
-};
- 
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('expenses').upsert(newExpense);
- if (error) {
- console.error("Error adding expense to Supabase:", error);
- setSyncStatus('ERROR');
- addNotification(`Cloud Sync Delayed: Expense saved locally`,"warning");
- // Fall through
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
-
- setExpenses([newExpense, ...expenses]);
- addNotification(`Expense recorded: ${businessProfile?.currencySymbol || ''}${expense.amount}`, 'expense');
-};
-
- const updateExpense = async (updatedExpense) => {
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('expenses').upsert({ ...updatedExpense, tenant_id: currentTenantId });
- if (error) {
- console.error("Error updating expense in Supabase:", error);
- setSyncStatus('ERROR');
- addNotification("Cloud Sync Delayed: Expense updated locally","warning");
- // Fall through
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
- setExpenses(expenses.map(e => e.id === updatedExpense.id ? updatedExpense : e));
- addNotification(`Expense updated: ${businessProfile?.currencySymbol || ''}${updatedExpense.amount}`, 'success');
-};
-
- const deleteExpense = async (expenseId) => {
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('expenses').delete().eq('id', expenseId).eq('tenant_id', currentTenantId);
- if (error) {
- console.error("Error deleting expense from Supabase:", error);
- setSyncStatus('ERROR');
- addNotification("Cloud Sync Delayed: Expense removed locally","warning");
- // Fall through
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
- setExpenses(expenses.filter(e => e.id !== expenseId));
- addNotification('Expense record removed', 'success');
-};
+ // addExpense/updateExpense/deleteExpense moved to FinanceContext
 
  const logMovement = async (productId, productName, type, quantity, reason, userId) => {
  const newLog = {
@@ -1790,40 +1724,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
   };
 
 
- const updateDayBook = async (record) => {
- const val = dayBookSchema.safeParse(record);
- if (!val.success) {
- addNotification("Validation failed:" + val.error.errors[0].message,"error");
- return null;
-}
- const payload = {
- ...record,
- id: record.id || generateUUID(),
- created_at: record.created_at || new Date().toISOString(),
- tenant_id: currentTenantId
-};
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('day_book').upsert(payload);
- if (error) {
- console.error("Error updating Day Book in Supabase:", error);
- addNotification("Failed to sync Day Book to cloud","error");
- return null;
-}
-}
- 
- setDayBook(prev => {
- const exists = prev.find(db => db.date === payload.date);
- if (exists) {
- return prev.map(db => db.date === payload.date ? payload : db);
-}
- return [payload, ...prev];
-});
- return payload.id;
-};
-
- const getDayBookForDate = (date) => {
- return dayBook.find(db => db.date === date);
-};
+ // updateDayBook / getDayBookForDate moved to FinanceContext
 
  // Redundant migration removed
 
@@ -1851,56 +1752,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
     }
   };
 
- const addExpenseCategory = async (name) => {
- if (!name || expenseCategories.includes(name)) return;
- const newCategories = [...expenseCategories, name];
- 
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories, tenant_id: currentTenantId });
- if (error) {
- console.error("Error adding expense category to Supabase:", error);
- addNotification("Cloud Sync Delayed: Category added locally","warning");
- // Fall through
-}
-}
-
- setExpenseCategories(newCategories);
- addNotification(`Category added: ${name}`, 'success');
-};
-
- const updateExpenseCategory = async (oldName, newName) => {
- if (!newName || expenseCategories.includes(newName)) return;
- const newCategories = expenseCategories.map(c => c === oldName ? newName : c);
- 
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories, tenant_id: currentTenantId });
- if (error) {
- console.error("Error updating expense category in Supabase:", error);
- addNotification("Cloud Sync Delayed: Category updated locally","warning");
- // Fall through
-}
-}
-
- setExpenseCategories(newCategories);
- setExpenses(expenses.map(e => e.category === oldName ? { ...e, category: newName} : e));
- addNotification(`Category updated: ${newName}`, 'success');
-};
-
-  const deleteExpenseCategory = async (name) => {
-    const newCategories = expenseCategories.filter(c => c !== name);
-    
-    if (isSupabaseConfigured) {
-      const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories, tenant_id: currentTenantId });
-      if (error) {
-        console.error("Error deleting expense category from Supabase:", error);
-        addNotification("Failed to delete category from cloud","error");
-        return;
-      }
-    }
-
-    setExpenseCategories(newCategories);
-    addNotification(`Category removed: ${name}`, 'success');
-  };
+ // addExpenseCategory / updateExpenseCategory / deleteExpenseCategory moved to FinanceContext
 
 
 
