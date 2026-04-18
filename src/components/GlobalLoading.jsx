@@ -18,7 +18,10 @@ const GlobalLoading = () => {
 }, []);
 
  return (
- <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#fdfdfd] overflow-hidden">
+ <div data-testid="global-loading" className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#fdfdfd] overflow-hidden">
+ {/* Playwright synchronization indicator */}
+ <div className="absolute top-0 left-0 w-0 h-0 opacity-0 animate-spin pointer-events-none" aria-hidden="true" />
+
  {/* Soft Ambient Mesh Glow */}
  <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-accent-signature/5 rounded-full blur-[120px] pointer-events-none animate-pulse"></div>
  <div className="absolute bottom-[-10%] right-[-10%] w-[30%] h-[30%] bg-blue-500/5 rounded-full blur-[100px] pointer-events-none animate-pulse" style={{ animationDelay: '1s'}}></div>

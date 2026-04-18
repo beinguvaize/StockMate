@@ -436,10 +436,11 @@ export const AppProvider = ({ children}) => {
       }
       setSyncStatus('SYNCED');
       setLastSyncedAt(new Date().toISOString());
+      return true;
     }
 
     setUsers(prev => [...prev, newUser]);
-    addNotification(`${userData.name} added locally.`, "warning");
+    addNotification(`${userData.name} added!`, "success");
     return true;
   };
 
@@ -450,8 +451,8 @@ export const AppProvider = ({ children}) => {
  if (error) {
  console.error("Error updating user in Supabase:", error);
  setSyncStatus('ERROR');
- addNotification("Cloud Sync Delayed: Profile updated locally","warning");
- // Fall through
+ addNotification(`Cloud sync failed: ${error.message}`, "error");
+ return;
 } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
@@ -464,6 +465,7 @@ export const AppProvider = ({ children}) => {
  if (userId === currentUser?.id) return;
  
  if (isSupabaseConfigured) {
+<<<<<<< Updated upstream
  setSyncStatus('SYNCING');
  const { error} = await supabase.from('users').delete().eq('id', userId);
  if (error) {
@@ -476,9 +478,29 @@ export const AppProvider = ({ children}) => {
  setLastSyncedAt(new Date().toISOString());
 }
 }
+=======
+      setSyncStatus('SYNCING');
+      const { error } = await supabase.from('users').delete().eq('id', userId).eq('tenant_id', currentTenantId);
+      if (error) {
+        console.error("Error deleting user from Supabase:", error);
+        setSyncStatus('ERROR');
+        addNotification(`Cloud sync failed: ${error.message}`, "error");
+        return; // STOP: Do not remove locally if cloud delete fails
+      }
+      setSyncStatus('SYNCED');
+      setLastSyncedAt(new Date().toISOString());
+      logAuditEvent({
+        action: AUDIT_ACTIONS.USER_DELETE,
+        entityType: 'user',
+        entityId: userId,
+        summary: `Removed staff ${target?.email || target?.name || userId}`,
+        metadata: { roles: target?.roles, status: target?.status },
+      });
+    }
+>>>>>>> Stashed changes
 
- setUsers(users.filter(u => u.id !== userId));
- addNotification('Staff record removed from system', 'success');
+    setUsers(users.filter(u => u.id !== userId));
+    addNotification('Staff record removed from system', 'success');
 };
 
  const addClient = async (client) => {
@@ -1254,7 +1276,8 @@ export const AppProvider = ({ children}) => {
     severity: 'Medium'
   });
   setSyncStatus('ERROR');
-  addNotification(`Cloud Sync Delayed: ${error.message}. Local changes saved.`,"warning");
+  addNotification(`Cloud Sync Failed: ${error.message}`, "error");
+  return;
 } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
@@ -1264,21 +1287,21 @@ export const AppProvider = ({ children}) => {
 };
 
  const deleteProduct = async (id) => {
-  if (isSupabaseConfigured) {
-    const { error } = await supabase.from('products').delete().eq('id', id).eq('tenant_id', currentTenantId);
-    if (error) {
-      console.error("Error deleting product from Supabase:", error);
-      logError({
-        module: 'Inventory',
-        action: 'Delete Product',
-        error_code: error.code,
-        error_message: error.message,
-        severity: 'Medium'
-      });
-      addNotification(`Cloud Sync Delayed: Product removed locally`, "warning");
-      // Fall through
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('products').delete().eq('id', id).eq('tenant_id', currentTenantId);
+      if (error) {
+        console.error("Error deleting product from Supabase:", error);
+        logError({
+          module: 'Inventory',
+          action: 'Delete Product',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'Medium'
+        });
+        addNotification(`Cloud Delete Failed: ${error.message}`, "error");
+        return; // STOP
+      }
     }
-  }
  setProducts(prev => prev.filter(p => p.id !== id));
  setMovementLog(prev => prev.filter(l => l.productId !== id));
 };
@@ -1397,11 +1420,12 @@ export const AppProvider = ({ children}) => {
  const { error} = await supabase.from('vehicles').upsert(newVehicle);
  if (error) {
  console.error("Error adding vehicle to Supabase:", error);
- addNotification("Cloud Sync Delayed: Vehicle saved locally","warning");
- // Fall through
+ addNotification(`Cloud Sync Failed: ${error.message}`, "error");
+ return; // STOP
 }
 }
  setVehicles([...vehicles, newVehicle]);
+ addNotification(`${vehicle.name} registered and synced`, "success");
 };
 
  const updateVehicle = async (updated) => {
@@ -1409,8 +1433,8 @@ export const AppProvider = ({ children}) => {
  const { error} = await supabase.from('vehicles').upsert(updated);
  if (error) {
  console.error("Error updating vehicle in Supabase:", error);
- addNotification("Cloud Sync Delayed: Changes saved locally","warning");
- // Fall through
+ addNotification(`Cloud Sync Failed: ${error.message}`, "error");
+ return; // STOP
 }
 }
  setVehicles(vehicles.map(v => v.id === updated.id ? updated : v));

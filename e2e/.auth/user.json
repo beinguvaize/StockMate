@@ -1,0 +1,86 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://localhost:5173",
+      "localStorage": [
+        {
+          "name": "ledgr_users",
+          "value": "{\"data\":[{\"id\":\"00000000-0000-0000-0000-000000000001\",\"email\":\"owner@test.com\",\"name\":\"Test Owner\",\"roles\":[\"OWNER\"],\"status\":\"ACTIVE\",\"tenant_id\":\"00000000-0000-0000-0000-000000000099\",\"permissions\":{}}],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_routes",
+          "value": "{\"data\":[],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_invoices",
+          "value": "{\"data\":[],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_cache_version",
+          "value": "v2"
+        },
+        {
+          "name": "ledgr_vehicles",
+          "value": "{\"data\":[],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "sm-auth-token",
+          "value": "{\"access_token\":\"fake-access-token\",\"refresh_token\":\"fake-refresh-token\",\"token_type\":\"bearer\",\"expires_in\":3600,\"expires_at\":1776391914,\"user\":{\"id\":\"00000000-0000-0000-0000-000000000001\",\"email\":\"owner@test.com\",\"role\":\"authenticated\",\"aud\":\"authenticated\"}}"
+        },
+        {
+          "name": "ledgr_payroll",
+          "value": "{\"data\":[],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_products",
+          "value": "{\"data\":[{\"id\":\"PROD-001\",\"name\":\"Widget A\",\"sku\":\"WGT-001\",\"category\":\"General\",\"stock\":100,\"sellingPrice\":50,\"costPrice\":30,\"taxRate\":18,\"tenant_id\":\"00000000-0000-0000-0000-000000000099\"},{\"id\":\"PROD-002\",\"name\":\"Gadget B\",\"sku\":\"GDG-002\",\"category\":\"General\",\"stock\":50,\"sellingPrice\":120,\"costPrice\":80,\"taxRate\":18,\"tenant_id\":\"00000000-0000-0000-0000-000000000099\"}],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_expenses",
+          "value": "{\"data\":[],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_inventory_balances",
+          "value": "{\"data\":[{\"product_id\":\"PROD-001\",\"location_id\":\"00000000-0000-0000-0000-000000000001\",\"quantity\":75,\"tenant_id\":\"00000000-0000-0000-0000-000000000099\"}],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_employees",
+          "value": "{\"data\":[],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_sales",
+          "value": "{\"data\":[],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_clients",
+          "value": "{\"data\":[{\"id\":\"CLI-001\",\"name\":\"Acme Corp\",\"outstanding_balance\":0,\"tenant_id\":\"00000000-0000-0000-0000-000000000099\",\"deleted_at\":null},{\"id\":\"CLI-002\",\"name\":\"Beta Ltd\",\"outstanding_balance\":500,\"tenant_id\":\"00000000-0000-0000-0000-000000000099\",\"deleted_at\":null}],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_movement_log",
+          "value": "{\"data\":[],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_purchases",
+          "value": "{\"data\":[],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_suppliers",
+          "value": "{\"data\":[{\"id\":\"SUP-001\",\"name\":\"Supplier X\",\"tenant_id\":\"00000000-0000-0000-0000-000000000099\"}],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_business_profile",
+          "value": "{\"data\":{\"id\":\"BP-1\",\"name\":\"Test Co\",\"currency\":\"USD\",\"currencySymbol\":\"$\",\"tenant_id\":\"00000000-0000-0000-0000-000000000099\"},\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_client_payments",
+          "value": "{\"data\":[],\"expiry\":1776391914789}"
+        },
+        {
+          "name": "ledgr_day_book",
+          "value": "{\"data\":[],\"expiry\":1776391914789}"
+        }
+      ]
+    }
+  ]
+}
