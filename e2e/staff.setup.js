@@ -1,9 +1,8 @@
 /**
- * auth.setup.js — runs once before the authenticated smoke tests.
+ * staff.setup.js — runs once before the staff-authenticated tests.
  *
- * Performs a real login (with mocked Supabase network) and saves the
- * resulting browser storage state to e2e/.auth/user.json.  The authenticated
- * tests then load that file via `test.use({ storageState })`, skipping login.
+ * Performs a real login (with mocked Supabase network mimicking a STAFF user)
+ * and saves the browser storage state to e2e/.auth/staff.json.
  */
 
 import { test as setup, expect } from '@playwright/test';
@@ -12,16 +11,17 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const AUTH_FILE = path.join(__dirname, '.auth/user.json');
+export const STAFF_AUTH_FILE = path.join(__dirname, '.auth/staff.json');
 
-setup('authenticate and save storage state', async ({ page }) => {
-  await seedAppCache(page); // seed cache BEFORE page loads
-  await setupMocks(page);
+setup('authenticate and save staff storage state', async ({ page }) => {
+  const isStaff = true;
+  await seedAppCache(page, isStaff);
+  await setupMocks(page, isStaff);
 
   await page.goto('/login');
   await page.waitForLoadState('domcontentloaded');
 
-  await page.locator('input[type="email"]').fill('owner@test.com', { timeout: 15_000 });
+  await page.locator('input[type="email"]').fill('staff@test.com', { timeout: 15_000 });
   await page.locator('input[type="password"]').fill('password123');
   await page.locator('button[type="submit"]').click();
 
@@ -29,5 +29,5 @@ setup('authenticate and save storage state', async ({ page }) => {
   await expect(page).toHaveURL(new RegExp(`/${TENANT_SLUG}/dashboard`));
 
   // Persist cookies + localStorage so other tests can skip login
-  await page.context().storageState({ path: AUTH_FILE });
+  await page.context().storageState({ path: STAFF_AUTH_FILE });
 });

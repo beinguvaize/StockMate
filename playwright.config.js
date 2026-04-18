@@ -29,12 +29,12 @@ export default defineConfig({
   },
 
   projects: [
-    // Step 1: authenticate (runs auth.setup.js, saves .auth/user.json)
+    // Step 1: authenticate (runs auth.setup.js & staff.setup.js, saves .auth/user.json & .auth/staff.json)
     {
       name: 'setup',
-      testMatch: /auth\.setup\.js/,
+      testMatch: /.*\.setup\.js/,
     },
-    // Step 2: smoke tests (depend on setup having run)
+    // Step 2: smoke + new tests (depend on setup having run)
     {
       name: 'chromium',
       use: {
@@ -43,7 +43,7 @@ export default defineConfig({
         // the login test ignores it (it has its own context without storageState)
       },
       dependencies: ['setup'],
-      testMatch: /smoke\.spec\.js/,
+      testMatch: /.*\.spec\.js/,
     },
   ],
 
