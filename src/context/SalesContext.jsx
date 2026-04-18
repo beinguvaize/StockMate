@@ -481,63 +481,68 @@ export const SalesProvider = ({ children }) => {
 
       setSyncStatus('SYNCED');
       setLastSyncedAt(new Date().toISOString());
-    }
+      
+      // --- CLOUD SUCCESS: COMMIT LOCAL STATE ---
+      setSales((prev) => [newSale, ...prev]);
 
-    setSales((prev) => [newSale, ...prev]);
-
-    if (paymentType.toLowerCase() === 'credit') {
-      setClients((prev) =>
-        prev.map((c) =>
-          c.id === clientId
-            ? { ...c, outstanding_balance: (c.outstanding_balance || 0) + totalAmount }
-            : c,
-        ),
-      );
-    }
-
-    if (paymentType.toLowerCase() === 'cash') {
-      const today = new Date().toISOString().split('T')[0];
-      setDayBook((prev) =>
-        prev.map((db) =>
-          db.date === today ? { ...db, total_sales: (db.total_sales || 0) + totalAmount } : db,
-        ),
-      );
-    }
-
-    if (status === 'COMPLETED') {
-      setProducts(updatedProducts);
-
-      // Mirror inventory_balances decrement the RPC just performed. Skip for
-      // MAIN_WAREHOUSE sentinel — real warehouse UUID unknown client-side.
-      if (locationId && locationId !== MAIN_WAREHOUSE_ID) {
-        setInventoryBalances((prev) => {
-          const byKey = new Map(prev.map((b) => [`${b.product_id}|${b.location_id}`, b]));
-          for (const item of cartItems) {
-            const key = `${item.productId}|${locationId}`;
-            const existing = byKey.get(key);
-            if (existing) {
-              byKey.set(key, {
-                ...existing,
-                quantity: Math.max(0, (existing.quantity || 0) - item.quantity),
-                updated_at: new Date().toISOString(),
-              });
-            } else {
-              byKey.set(key, {
-                id: generateUUID(),
-                product_id: item.productId,
-                location_id: locationId,
-                quantity: 0,
-                updated_at: new Date().toISOString(),
-              });
-            }
-          }
-          return Array.from(byKey.values());
-        });
+      if (paymentType.toLowerCase() === 'credit') {
+        setClients((prev) =>
+          prev.map((c) =>
+            c.id === clientId
+              ? { ...c, outstanding_balance: (c.outstanding_balance || 0) + totalAmount }
+              : c,
+          ),
+        );
       }
+
+      if (paymentType.toLowerCase() === 'cash') {
+        const today = new Date().toISOString().split('T')[0];
+        setDayBook((prev) =>
+          prev.map((db) =>
+            db.date === today ? { ...db, total_sales: (db.total_sales || 0) + totalAmount } : db,
+          ),
+        );
+      }
+
+      if (status === 'COMPLETED') {
+        setProducts(updatedProducts);
+
+        if (locationId && locationId !== MAIN_WAREHOUSE_ID) {
+          setInventoryBalances((prev) => {
+            const byKey = new Map(prev.map((b) => [`${b.product_id}|${b.location_id}`, b]));
+            for (const item of cartItems) {
+              const key = `${item.productId}|${locationId}`;
+              const existing = byKey.get(key);
+              if (existing) {
+                byKey.set(key, {
+                  ...existing,
+                  quantity: Math.max(0, (existing.quantity || 0) - item.quantity),
+                  updated_at: new Date().toISOString(),
+                });
+              } else {
+                byKey.set(key, {
+                  id: generateUUID(),
+                  product_id: item.productId,
+                  location_id: locationId,
+                  quantity: 0,
+                  updated_at: new Date().toISOString(),
+                });
+              }
+            }
+            return Array.from(byKey.values());
+          });
+        }
+      }
+      
+      const locName = inventoryLocations.find((l) => l.id === locationId)?.name || 'HQ';
+      addNotification(`Sale Processed from ${locName}: ${totalAmount}`, 'success');
+      return newSale.id;
     }
 
-    const locName = inventoryLocations.find((l) => l.id === locationId)?.name || 'HQ';
-    addNotification(`Sale Processed from ${locName}: ${totalAmount}`, 'success');
+    // --- FALLBACK: MOCK/LOCAL ONLY MODE ---
+    setSales((prev) => [newSale, ...prev]);
+    if (status === 'COMPLETED') setProducts(updatedProducts);
+    addNotification('Sale Recorded (Offline)', 'success');
     return newSale.id;
   };
 

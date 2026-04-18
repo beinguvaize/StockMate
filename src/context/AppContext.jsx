@@ -465,20 +465,6 @@ export const AppProvider = ({ children}) => {
  if (userId === currentUser?.id) return;
  
  if (isSupabaseConfigured) {
-<<<<<<< Updated upstream
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('users').delete().eq('id', userId);
- if (error) {
- console.error("Error deleting user from Supabase:", error);
- setSyncStatus('ERROR');
- addNotification("Cloud Sync Delayed: Staff removed locally","warning");
- // Fall through
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
-=======
       setSyncStatus('SYNCING');
       const { error } = await supabase.from('users').delete().eq('id', userId).eq('tenant_id', currentTenantId);
       if (error) {
@@ -497,7 +483,6 @@ export const AppProvider = ({ children}) => {
         metadata: { roles: target?.roles, status: target?.status },
       });
     }
->>>>>>> Stashed changes
 
     setUsers(users.filter(u => u.id !== userId));
     addNotification('Staff record removed from system', 'success');
