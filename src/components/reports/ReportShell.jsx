@@ -11,8 +11,9 @@ import ReportKPICards from './ReportKPICards';
 import ReportChartSection from './ReportChartSection';
 import ReportTable from './ReportTable';
 import ReportDetailPanel from './ReportDetailPanel';
-import { 
-  TrendingUp, Package, UserCircle, Truck, 
+import { exportToCSV, exportToPDF, safeFilename } from '../../lib/reportExport';
+import {
+  TrendingUp, Package, UserCircle, Truck,
   Briefcase, Shield, LayoutGrid, DollarSign,
   Activity, Info
 } from 'lucide-react';
@@ -111,11 +112,33 @@ const ReportShell = ({
       </div>
 
       {/* 2. Global Filter Bar (Rule 5) */}
-      <ReportFilterBar 
-        filters={globalFilters} 
-        setFilters={setGlobalFilters} 
+      <ReportFilterBar
+        filters={globalFilters}
+        setFilters={setGlobalFilters}
         config={activeTab.filterConfig || []}
-        onExport={() => activeTab.onExport?.(globalFilters)}
+        onExportCSV={() => {
+          // Tab can override with a custom exporter; otherwise use the generic
+          // columns+data serializer.
+          if (activeTab.onExportCSV) {
+            activeTab.onExportCSV(globalFilters);
+            return;
+          }
+          const base = safeFilename(`${activeTab.label}_${(globalFilters.dateRange?.end) || new Date().toISOString().split('T')[0]}`);
+          exportToCSV({
+            filename: base,
+            columns: activeTab.columns || [],
+            data: activeTab.data || [],
+            totals: activeTab.totals || null,
+          });
+        }}
+        onExportPDF={() => {
+          if (activeTab.onExportPDF) {
+            activeTab.onExportPDF(globalFilters);
+            return;
+          }
+          const title = `${businessProfile?.name || 'Ledger'} — ${activeTab.label}`;
+          exportToPDF({ title });
+        }}
         lastUpdated={new Date().toISOString()} // Simulating live sync
       />
 

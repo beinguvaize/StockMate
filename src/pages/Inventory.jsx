@@ -27,6 +27,9 @@ const Inventory = () => {
   const [newCategoryName, setNewCategoryName] = useState('');
   const [editingCategory, setEditingCategory] = useState(null);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [showLibrary, setShowLibrary] = useState(false);
+  const [libraryImages, setLibraryImages] = useState([]);
+  const [fetchingLibrary, setFetchingLibrary] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [adjustAmounts, setAdjustAmounts] = useState({});
   const [adjustReasons, setAdjustReasons] = useState({});
@@ -74,20 +77,46 @@ const Inventory = () => {
   };
 
   const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      alert('Image must be under 5MB');
-      return;
+    const file = e.target.files[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setImagePreview(reader.result);
+      reader.readAsDataURL(file);
     }
-    if (!file.type.startsWith('image/')) {
-      alert('Please select an image file');
-      return;
+  };
+
+  const fetchLibraryImages = async () => {
+    setFetchingLibrary(true);
+    try {
+      const { data, error } = await supabase.storage
+        .from('product-images')
+        .list('products');
+      
+      if (error) throw error;
+      
+      const urls = data
+        .filter(f => f.name !== '.emptyFolderPlaceholder')
+        .map(f => {
+          const { data: { publicUrl } } = supabase.storage
+            .from('product-images')
+            .getPublicUrl(`products/${f.name}`);
+          return publicUrl;
+        });
+      
+      setLibraryImages(urls);
+    } catch (err) {
+      console.error('Library fetch error:', err);
+    } finally {
+      setFetchingLibrary(false);
     }
-    setImageFile(file);
-    const reader = new FileReader();
-    reader.onload = (e) => setImagePreview(e.target.result);
-    reader.readAsDataURL(file);
+  };
+
+  const handleLibrarySelect = (url) => {
+    setFormData({ ...formData, image: url });
+    setImagePreview(url);
+    setImageFile(null); // Clear local file so we don't re-upload
+    setShowLibrary(false);
   };
 
   const handleSubmit = async (e) => {
@@ -488,7 +517,16 @@ const Inventory = () => {
 
                 {/* Line 4: Image Preview (3) + Tax Slabs (3) */}
                 <div className="md:col-span-3">
-                  <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] mb-1.5 ml-1 uppercase tracking-tight">Visual Asset</label>
+                  <div className="flex justify-between items-center mb-1.5 ml-1">
+                    <label className="block text-[10px] font-bold text-gray-700 opacity-[0.85] uppercase tracking-tight">Visual Asset</label>
+                    <button 
+                      type="button"
+                      onClick={() => { setShowLibrary(true); fetchLibraryImages(); }}
+                      className="text-[10px] font-bold text-accent-signature hover:underline flex items-center gap-1"
+                    >
+                      <History size={10} /> LIBRARY
+                    </button>
+                  </div>
                   <div 
                     className="relative h-24 bg-canvas border-2 border-dashed border-black/5 rounded-xl flex items-center justify-center cursor-pointer hover:bg-black/5 transition-all overflow-hidden"
                     onClick={() => fileInputRef.current?.click()}
@@ -614,6 +652,61 @@ const Inventory = () => {
                 </table>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Library Selection Modal */}
+      {showLibrary && (
+        <div className="modal-overlay !z-[1000]">
+          <div className="glass-modal !max-w-2xl !p-8 animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-start mb-6 border-b border-black/5 pb-4">
+              <div>
+                <h1 className="text-xl font-semibold text-ink-primary leading-none mb-1 uppercase tracking-tight">Product Media Library.</h1>
+                <p className="text-[9px] font-semibold text-gray-700 opacity-60 uppercase tracking-widest">Select from existing uploaded assets</p>
+              </div>
+              <button 
+                onClick={() => setShowLibrary(false)}
+                className="w-7 h-7 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary"
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            {fetchingLibrary ? (
+              <div className="grid grid-cols-4 gap-4 py-12">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="aspect-square bg-canvas rounded-xl animate-pulse" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
+                <div 
+                  className="aspect-square rounded-xl bg-canvas border-2 border-dashed border-black/10 flex flex-col items-center justify-center cursor-pointer hover:bg-black/5 transition-all text-gray-400 gap-2"
+                  onClick={() => { setShowLibrary(false); fileInputRef.current?.click(); }}
+                >
+                  <Plus size={20} />
+                  <span className="text-[8px] font-bold uppercase">New Upload</span>
+                </div>
+                {libraryImages.map((url, i) => (
+                  <div 
+                    key={i} 
+                    className={`group relative aspect-square rounded-xl bg-canvas border-2 transition-all cursor-pointer overflow-hidden ${
+                      imagePreview === url ? 'border-accent-signature ring-2 ring-accent-signature/20' : 'border-transparent hover:border-black/5'
+                    }`}
+                    onClick={() => handleLibrarySelect(url)}
+                  >
+                    <img src={url} className="w-full h-full object-cover transition-transform group-hover:scale-110" alt="Resource" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <CheckCircle2 size={24} className="text-white" />
+                    </div>
+                  </div>
+                ))}
+                {libraryImages.length === 0 && !fetchingLibrary && (
+                  <div className="col-span-4 py-20 text-center text-[10px] font-bold text-gray-400 uppercase tracking-widest">No assets found in library</div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
