@@ -842,9 +842,12 @@ export const AppProvider = ({ children}) => {
    quantity: i.quantity,
    name: i.name,
  }));
- // Walk-in sale => no client record. Pass NULL, not the literal 'WALKIN'
- // (which breaks FK lookups inside the RPC).
- const rpcShopId = (clientId && clientId !== 'WALKIN') ? clientId : null;
+ // Walk-in sale => no client record. Pass NULL, not any of the literal
+ // walk-in sentinels ('WALKIN', 'POS-WALKIN') used upstream — those have
+ // no matching row in clients and the RPC's UPDATE-by-id would break or
+ // silently no-op depending on column types.
+ const isWalkIn = !clientId || ['WALKIN','POS-WALKIN','walk-in','WALK-IN'].includes(clientId);
+ const rpcShopId = isWalkIn ? null : clientId;
  const { error: rpcError} = await supabase.rpc('process_sale', {
  p_id: newSale.id,
  p_shop_id: rpcShopId,
