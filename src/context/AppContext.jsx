@@ -788,12 +788,24 @@ export const AppProvider = ({ children}) => {
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
  // Priority 2: Atomic Transaction via RPC
+ // RPC reads jsonb items as (id text, quantity numeric, name text). The
+ // POS carries {productId, ...} so we remap here — otherwise the stock
+ // deduction loop sees NULL ids, RPC errors out, and we fall through to
+ // the "Failed to save sale" fallback.
+ const rpcItems = (cartItems || []).map(i => ({
+   id: i.productId || i.id,
+   quantity: i.quantity,
+   name: i.name,
+ }));
+ // Walk-in sale => no client record. Pass NULL, not the literal 'WALKIN'
+ // (which breaks FK lookups inside the RPC).
+ const rpcShopId = (clientId && clientId !== 'WALKIN') ? clientId : null;
  const { error: rpcError} = await supabase.rpc('process_sale', {
  p_id: newSale.id,
- p_shop_id: clientId,
- p_items: cartItems,
+ p_shop_id: rpcShopId,
+ p_items: rpcItems,
  p_total_amount: totalAmount,
- p_payment_method: newSale.paymentMethod, 
+ p_payment_method: newSale.paymentMethod,
  p_payment_status: newSale.paymentStatus,
  p_date: newSale.date,
  p_user_id: currentUser?.id
@@ -801,19 +813,19 @@ export const AppProvider = ({ children}) => {
 
  if (rpcError) {
  console.error("❌ Atomic Sale Failed:", rpcError);
- // CLEAN DB OBJECT
+ // Fallback direct insert. Column names match the sales table (camelCase
+ // quoted identifiers), not snake_case. The previous dbSale shape used
+ // total_amount/payment_method/shop_id — none of which exist on the
+ // table — so the fallback always failed alongside the RPC.
  const dbSale = {
  id: newSale.id,
- product_id: newSale.items?.[0]?.productId, 
- shop_id: clientId,
- total_amount: totalAmount,
- payment_method: newSale.paymentMethod,
- payment_status: newSale.paymentStatus,
- status: newSale.status,
- note: salesmanNote,
- booked_by: currentUser?.id,
- route_id: routeId,
- scheduled_date: scheduledDate,
+ shopId: rpcShopId,
+ items: rpcItems,
+ totalAmount: totalAmount,
+ paymentMethod: newSale.paymentMethod,
+ paymentStatus: newSale.paymentStatus,
+ date: newSale.date,
+ bookedBy: currentUser?.id,
  tenant_id: currentTenantId
 };
 
