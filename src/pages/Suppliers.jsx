@@ -1,4 +1,5 @@
 import React, { useState, useMemo} from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAppContext} from '../context/AppContext';
 import { 
  Plus, Search, Phone, Mail, MapPin, Building2, 
@@ -13,10 +14,11 @@ const Suppliers = () => {
     isViewOnly, hasPermission, addNotification 
   } = useAppContext();
 
- const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
+  const { tenantSlug } = useParams();
+  const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [viewingSupplier, setViewingSupplier] = useState(null);
   const [editingSupplier, setEditingSupplier] = useState(null);
  const [formData, setFormData] = useState({
  name: '',
@@ -28,9 +30,8 @@ const Suppliers = () => {
 });
 
  const filteredSuppliers = useMemo(() => {
- return suppliers.filter(s => 
- s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
- s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
+ return suppliers.filter(s =>  s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
  );
 }, [suppliers, searchTerm]);
 
@@ -82,13 +83,13 @@ const Suppliers = () => {
 
   // Lock body scroll when modal is open
   React.useEffect(() => {
-    if (isAdding || viewingSupplier || editingSupplier) {
+    if (isAdding || editingSupplier) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => { document.body.style.overflow = 'unset'; };
-  }, [isAdding, viewingSupplier, editingSupplier]);
+  }, [isAdding, editingSupplier]);
 
   const handleDelete = async (id) => {
     // Explicitly check for ID
@@ -97,7 +98,11 @@ const Suppliers = () => {
       return;
     }
 
-    // Force call for debugging (removing window.confirm to rule out browser blocks)
+    // Restoration of window.confirm for standard UX
+    if (!window.confirm("Are you sure you want to remove this partner? All linked procurement data will be preserved but the supplier record will be cleared.")) {
+      return;
+    }
+
     console.log(`[Suppliers] Triggering delete flow for ID: ${id}`);
     
     try {
@@ -125,12 +130,16 @@ const Suppliers = () => {
  <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">GLOBAL PROCUREMENT & PARTNER NETWORK</p>
  </div>
  {!isViewOnly() && (
- <button className="btn-signature h-14 !px-6 !rounded-pill flex items-center justify-between gap-4 group transition-all" onClick={() => setIsAdding(true)}>
- <span className="text-xs font-semibold px-2">ONBOARD PARTNER</span>
- <div className="icon-nest !w-10 !h-10 bg-black shadow-lg">
- <Plus size={20} className="text-accent-signature" />
- </div>
- </button>
+  <button 
+    data-testid="onboard-partner-btn"
+    className="btn-signature h-14 !px-6 !rounded-pill flex items-center justify-between gap-4 group transition-all" 
+    onClick={() => setIsAdding(true)}
+  >
+  <span className="text-xs font-semibold px-2">ONBOARD PARTNER</span>
+  <div className="icon-nest !w-10 !h-10 bg-black shadow-lg">
+  <Plus size={20} className="text-accent-signature" />
+  </div>
+  </button>
  )}
  </div>
 
@@ -181,6 +190,7 @@ const Suppliers = () => {
   <div className="flex-1 w-full relative group h-[56px]">
   <Search size={22} strokeWidth={2.5} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-30 group-focus-within:opacity-100 transition-opacity" />
   <input 
+  data-testid="search-suppliers-input"
   type="text" 
   className="w-full h-full pl-16 pr-6 bg-canvas border border-black/5 rounded-pill text-[13px] font-bold text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all placeholder:text-gray-400 uppercase tracking-wide" 
   placeholder="SEARCH VENDORS, CONTACTS OR IDS..." 
@@ -194,7 +204,7 @@ const Suppliers = () => {
  {filteredSuppliers.map(s => {
  const stats = getSupplierStats(s.id);
  return (
- <div key={s.id} className="glass-panel !p-0 !rounded-[2.5rem] border border-black/5 bg-white hover:shadow-premium transition-all overflow-hidden group">
+  <div key={s.id} data-testid="supplier-row" className="glass-panel !p-0 !rounded-[2.5rem] border border-black/5 bg-white hover:shadow-premium transition-all overflow-hidden group">
  <div className="p-6">
  <div className="flex justify-between items-start mb-6">
  <div className="flex items-center gap-4">
@@ -207,14 +217,22 @@ const Suppliers = () => {
  </div>
  </div>
  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
- <button onClick={() => openEditModal(s)} className="p-2 rounded-xl border border-black/5 hover:bg-canvas transition-colors text-gray-700">
- <Edit3 size={14} />
- </button>
- {!isViewOnly() && (
- <button onClick={() => handleDelete(s.id)} className="p-2 rounded-xl border border-black/5 hover:bg-red-50 hover:text-red-500 transition-colors text-gray-700">
- <Trash2 size={14} />
- </button>
- )}
+  <button 
+    data-testid="edit-supplier-btn"
+    onClick={() => openEditModal(s)} 
+    className="p-2 rounded-xl border border-black/5 hover:bg-canvas transition-colors text-gray-700"
+  >
+  <Edit3 size={14} />
+  </button>
+  {!isViewOnly() && (
+  <button 
+    data-testid="delete-supplier-btn"
+    onClick={() => handleDelete(s.id)} 
+    className="p-2 rounded-xl border border-black/5 hover:bg-red-50 hover:text-red-500 transition-colors text-gray-700"
+  >
+  <Trash2 size={14} />
+  </button>
+  )}
  </div>
  </div>
 
@@ -246,7 +264,7 @@ const Suppliers = () => {
  </div>
  
  <button 
- onClick={() => setViewingSupplier(s)}
+ onClick={() => navigate(`/${tenantSlug}/suppliers/ledger/${s.id}`)}
  className="w-full py-2 bg-ink-primary text-surface text-[10px] font-semibold hover:bg-ink-primary/95 transition-all flex items-center justify-center gap-3"
  >
  View Activity Log
@@ -367,67 +385,6 @@ const Suppliers = () => {
     </div>
   )}
 
-  {/* Activity Log Modal */}
-  {viewingSupplier && (
-    <div className="modal-overlay">
-      <div className="glass-modal !max-w-3xl !p-0 overflow-hidden flex flex-col max-h-[85vh]">
-        <div className="p-6 border-b border-black/5 flex justify-between items-center bg-canvas/30">
-          <div>
-            <h2 className="text-xl font-bold text-ink-primary flex items-center gap-2">
-              <History size={20} className="text-accent-signature" />
-              PARTNER HISTORY
-            </h2>
-            <p className="text-[10px] font-semibold text-gray-500 uppercase mt-1">
-              {viewingSupplier.name} | Procurement Log
-            </p>
-          </div>
-          <button 
-            onClick={() => setViewingSupplier(null)}
-            className="w-8 h-8 flex items-center justify-center hover:bg-black/5 rounded-full transition-colors opacity-60 hover:opacity-100"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-surface space-y-4">
-          {purchases.filter(p => p.supplier_id === viewingSupplier.id || p.supplier_name === viewingSupplier.name).length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-center opacity-50">
-              <Box size={48} className="mb-4 text-gray-300" strokeWidth={1} />
-              <p className="text-sm font-semibold text-ink-primary">No procurement history found</p>
-              <p className="text-[10px] uppercase mt-1">Generate a purchase order to begin tracking</p>
-            </div>
-          ) : (
-            purchases
-              .filter(p => p.supplier_id === viewingSupplier.id || p.supplier_name === viewingSupplier.name)
-              .sort((a,b) => new Date(b.date) - new Date(a.date))
-              .map(p => (
-                <div key={p.id} className="p-4 bg-white border border-black/5 rounded-xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-black/5 text-ink-primary">
-                        ORD-{p.id.split('-')[1]?.substring(0,6) || p.id.substring(0,8)}
-                      </span>
-                      <span className="text-xs font-medium text-gray-500">
-                        {new Date(p.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
-                    <p className="text-sm font-semibold text-ink-primary">
-                      {p.quantity} Unit{p.quantity > 1 ? 's' : ''} procured
-                    </p>
-                  </div>
-                  <div className="flex flex-col md:items-end">
-                    <span className="text-lg font-bold text-ink-primary tracking-tight">
-                      {businessProfile?.currencySymbol || '₹'}{(p.total_cost || 0).toLocaleString()}
-                    </span>
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase mt-0.5">Total Value</span>
-                  </div>
-                </div>
-              ))
-          )}
-        </div>
-      </div>
-    </div>
-  )}
   </>
   );
 };

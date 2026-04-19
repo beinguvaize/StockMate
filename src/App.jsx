@@ -17,6 +17,7 @@ import Payroll from './pages/Payroll';
 import DayBook from './pages/DayBook';
 import Purchases from './pages/Purchases';
 import Suppliers from './pages/Suppliers';
+import SupplierLedger from './pages/SupplierLedger';
 import Maintenance from './pages/Maintenance';
 import Invoices from './pages/Invoices';
 import ClientSettlement from './pages/ClientSettlement';
@@ -195,6 +196,7 @@ function AppRoutes() {
         <Route path="daybook" element={<ProtectedRoute><DayBook /></ProtectedRoute>} />
         <Route path="purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
         <Route path="suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
+        <Route path="suppliers/ledger/:id" element={<ProtectedRoute><SupplierLedger /></ProtectedRoute>} />
         <Route path="invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
         <Route path="clients/settle/:id" element={<ProtectedRoute><ClientSettlement /></ProtectedRoute>} />
       </Route>
