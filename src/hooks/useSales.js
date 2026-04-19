@@ -6,6 +6,7 @@ export const useSales = (tenantId) => {
   const { currentUser } = useAuth();
   const [data, setData] = useState([]);
   const [clients, setClients] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -19,17 +20,21 @@ export const useSales = (tenantId) => {
     try {
       const [
         { data: salesData, error: salesErr },
-        { data: clientsData, error: clientsErr }
+        { data: clientsData, error: clientsErr },
+        { data: invoicesData, error: invoicesErr }
       ] = await Promise.all([
         supabase.from('sales').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
-        supabase.from('clients').select('*').eq('tenant_id', tenantId).order('name')
+        supabase.from('clients').select('*').eq('tenant_id', tenantId).order('name'),
+        supabase.from('invoices').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(500)
       ]);
 
       if (salesErr) throw salesErr;
       if (clientsErr) throw clientsErr;
+      if (invoicesErr) throw invoicesErr;
 
       setData(salesData || []);
       setClients(clientsData || []);
+      setInvoices(invoicesData || []);
     } catch (err) {
       console.error("useSales Fetch Error:", err);
       setError(err.message);
@@ -153,8 +158,80 @@ export const useSales = (tenantId) => {
       await fetchSales();
       return { success: true, id };
     },
-    updateSale: update, 
+    updateSale: update,
     deleteSale: remove,
-    settleSale: settlePayment 
+    settleSale: settlePayment,
+    // --- Invoice API ---
+    // Invoices table stores GST-billing metadata separate from sales/POS. The
+    // Invoices page composes a rich draft (grand_total, cgst/sgst/igst, HSN
+    // line items). We whitelist fields that match the public.invoices schema
+    // and drop anything else (amount_in_words, notes, paymentMethod, etc.)
+    // so the insert doesn't fail on unknown columns.
+    invoices,
+    createInvoice: async (draft) => {
+      if (!tenantId) return { error: new Error('createInvoice: no tenant') };
+      const id = draft.id || `INV-${Date.now()}`;
+      const invoiceNumber = draft.invoice_number || `#${Date.now().toString().slice(-6)}`;
+      const row = {
+        id,
+        tenant_id: tenantId,
+        invoice_number: invoiceNumber,
+        client_id: draft.client_id ?? draft.clientId ?? null,
+        client_name: draft.client_name ?? null,
+        sale_id: draft.sale_id ?? null,
+        items: draft.items ?? [],
+        taxable_amount: draft.taxable_amount ?? draft.subtotal ?? 0,
+        discount_total: draft.discount_total ?? 0,
+        tax_total: draft.tax_total ?? 0,
+        cgst_amount: draft.cgst_amount ?? 0,
+        sgst_amount: draft.sgst_amount ?? 0,
+        igst_amount: draft.igst_amount ?? 0,
+        round_off: draft.round_off ?? 0,
+        grand_total: draft.grand_total ?? 0,
+        amount: draft.grand_total ?? draft.amount ?? 0,
+        paid_amount: draft.paid_amount ?? 0,
+        status: draft.status ?? 'ISSUED',
+        payment_status: draft.payment_status ?? 'UNPAID',
+        invoice_date: draft.invoice_date ?? (draft.date || new Date().toISOString().split('T')[0]),
+        due_date: draft.due_date ?? draft.dueDate ?? null,
+        date: draft.date ?? new Date().toISOString(),
+      };
+      const { data: inserted, error: insErr } = await supabase
+        .from('invoices')
+        .insert([row])
+        .select()
+        .single();
+      if (insErr) {
+        console.error('createInvoice error:', insErr);
+        return { error: insErr };
+      }
+      setInvoices(prev => [inserted, ...prev]);
+      return { success: true, data: inserted };
+    },
+    markInvoicePaid: async (id) => {
+      if (!id) return { error: new Error('markInvoicePaid: id required') };
+      // Read grand_total first so paid_amount stays in sync with total.
+      const { data: inv, error: readErr } = await supabase
+        .from('invoices')
+        .select('grand_total')
+        .eq('id', id)
+        .eq('tenant_id', tenantId)
+        .single();
+      if (readErr) return { error: readErr };
+      const { error: updErr } = await supabase
+        .from('invoices')
+        .update({
+          status: 'PAID',
+          payment_status: 'PAID',
+          paid_amount: inv?.grand_total ?? 0,
+        })
+        .eq('id', id)
+        .eq('tenant_id', tenantId);
+      if (updErr) return { error: updErr };
+      setInvoices(prev => prev.map(i => i.id === id
+        ? { ...i, status: 'PAID', payment_status: 'PAID', paid_amount: i.grand_total }
+        : i));
+      return { success: true };
+    },
   };
 };
