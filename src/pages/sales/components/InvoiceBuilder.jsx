@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X } from 'lucide-react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User } from 'lucide-react';
 import Button from '../../../shared/Button';
 import Modal from '../../../shared/Modal';
 import { formatCurrency } from '../../../lib/utils';
@@ -53,10 +53,23 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
   const tax = cart.reduce((acc, item) => acc + (item.price * item.quantity * (item.taxRate / 100)), 0);
   const total = subtotal + tax;
 
+  // Credit sales require a real client (so outstanding_balance has a target).
+  // Block the CREDIT button when the cart is attached to WALKIN — auto-revert
+  // to CASH if the user swaps back to walk-in after picking credit.
+  useEffect(() => {
+    if (paymentMethod === 'CREDIT' && selectedClientId === 'WALKIN') {
+      setPaymentMethod('CASH');
+    }
+  }, [selectedClientId, paymentMethod]);
+
   const handleCompleteSale = async () => {
     if (isSubmitting) return;
     if (cart.length === 0) {
       addNotification('Cart is empty', 'error');
+      return;
+    }
+    if (paymentMethod === 'CREDIT' && selectedClientId === 'WALKIN') {
+      addNotification('Credit sale requires a client. Pick one or switch to Cash.', 'error');
       return;
     }
     setIsSubmitting(true);
@@ -168,6 +181,22 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
         </div>
 
         <div className="p-6 border-t border-black/5 bg-canvas/10">
+          {/* Client picker — walk-in by default. Credit requires a real client. */}
+          <div className="mb-4">
+            <label className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+              <User size={12} /> Client
+            </label>
+            <select
+              value={selectedClientId}
+              onChange={(e) => setSelectedClientId(e.target.value)}
+              className="w-full bg-white rounded-xl py-3 px-4 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/20 text-xs font-bold text-ink-primary uppercase tracking-tight"
+            >
+              <option value="WALKIN">WALK-IN (Cash only)</option>
+              {(clients || []).map(c => (
+                <option key={c.id} value={c.id}>{(c.name || 'Unnamed').toUpperCase()}</option>
+              ))}
+            </select>
+          </div>
           <div className="space-y-2 mb-6">
             <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
               <span>Subtotal</span>
@@ -205,9 +234,18 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
             </div>
             <span className="text-xs font-black uppercase tracking-widest">Cash Payment</span>
           </div>
-          <div 
-            onClick={() => setPaymentMethod('CREDIT')}
-            className={`p-10 rounded-3xl border-2 transition-all cursor-pointer flex flex-col items-center gap-4 ${paymentMethod === 'CREDIT' ? 'border-accent-signature bg-accent-signature/5 shadow-premium' : 'border-black/5 hover:border-black/10'}`}
+          <div
+            onClick={() => {
+              if (selectedClientId === 'WALKIN') {
+                addNotification('Select a client before choosing Credit.', 'info');
+                return;
+              }
+              setPaymentMethod('CREDIT');
+            }}
+            className={`p-10 rounded-3xl border-2 transition-all flex flex-col items-center gap-4 ${
+              selectedClientId === 'WALKIN' ? 'opacity-40 cursor-not-allowed border-black/5' :
+              paymentMethod === 'CREDIT' ? 'border-accent-signature bg-accent-signature/5 shadow-premium cursor-pointer' : 'border-black/5 hover:border-black/10 cursor-pointer'
+            }`}
           >
             <div className={`p-4 rounded-2xl ${paymentMethod === 'CREDIT' ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
               <CreditCard size={32} />
