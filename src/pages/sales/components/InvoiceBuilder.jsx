@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User } from 'lucide-react';
+import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark } from 'lucide-react';
 import Button from '../../../shared/Button';
 import Modal from '../../../shared/Modal';
 import { formatCurrency, generateRef } from '../../../lib/utils';
@@ -225,16 +225,30 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
       </div>
 
       <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} title="Complete Sale" subtitle="Select payment method">
-        <div className="grid grid-cols-2 gap-4 mt-4">
-          <div 
-            onClick={() => setPaymentMethod('CASH')}
-            className={`p-10 rounded-3xl border-2 transition-all cursor-pointer flex flex-col items-center gap-4 ${paymentMethod === 'CASH' ? 'border-accent-signature bg-accent-signature/5 shadow-premium' : 'border-black/5 hover:border-black/10'}`}
-          >
-            <div className={`p-4 rounded-2xl ${paymentMethod === 'CASH' ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
-              <Banknote size={32} />
+        <div className="grid grid-cols-2 gap-3 mt-4">
+          {[
+            { key: 'CASH',   label: 'Cash',   icon: <Banknote size={28} /> },
+            { key: 'CARD',   label: 'Card',   icon: <CreditCard size={28} /> },
+            { key: 'UPI',    label: 'UPI',    icon: <Smartphone size={28} /> },
+            { key: 'BANK',   label: 'Bank Transfer', icon: <Landmark size={28} /> },
+          ].map(({ key, label, icon }) => (
+            <div
+              key={key}
+              onClick={() => setPaymentMethod(key)}
+              className={`p-6 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center gap-3 ${
+                paymentMethod === key
+                  ? 'border-accent-signature bg-accent-signature/5 shadow-premium'
+                  : 'border-black/5 hover:border-black/10'
+              }`}
+            >
+              <div className={`p-3 rounded-xl ${paymentMethod === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
+                {icon}
+              </div>
+              <span className="text-xs font-black uppercase tracking-widest">{label}</span>
             </div>
-            <span className="text-xs font-black uppercase tracking-widest">Cash Payment</span>
-          </div>
+          ))}
+
+          {/* Credit — client required */}
           <div
             onClick={() => {
               if (selectedClientId === 'WALKIN') {
@@ -243,15 +257,21 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
               }
               setPaymentMethod('CREDIT');
             }}
-            className={`p-10 rounded-3xl border-2 transition-all flex flex-col items-center gap-4 ${
-              selectedClientId === 'WALKIN' ? 'opacity-40 cursor-not-allowed border-black/5' :
-              paymentMethod === 'CREDIT' ? 'border-accent-signature bg-accent-signature/5 shadow-premium cursor-pointer' : 'border-black/5 hover:border-black/10 cursor-pointer'
+            className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 col-span-2 ${
+              selectedClientId === 'WALKIN'
+                ? 'opacity-40 cursor-not-allowed border-black/5'
+                : paymentMethod === 'CREDIT'
+                ? 'border-accent-signature bg-accent-signature/5 shadow-premium cursor-pointer'
+                : 'border-black/5 hover:border-black/10 cursor-pointer'
             }`}
           >
-            <div className={`p-4 rounded-2xl ${paymentMethod === 'CREDIT' ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
-              <CreditCard size={32} />
+            <div className={`p-3 rounded-xl ${paymentMethod === 'CREDIT' ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
+              <CreditCard size={28} />
             </div>
             <span className="text-xs font-black uppercase tracking-widest">Client Credit</span>
+            {selectedClientId === 'WALKIN' && (
+              <span className="text-[9px] text-gray-400 font-semibold">Select a client first</span>
+            )}
           </div>
         </div>
         <div className="mt-8 bg-canvas rounded-2xl p-6 border border-black/5">
