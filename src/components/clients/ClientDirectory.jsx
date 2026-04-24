@@ -22,9 +22,9 @@ const ClientDirectory = ({
   hasPermission,
 }) => {
   const navigate = useNavigate();
-  const { slug: paramSlug } = useParams();
-  const { businessProfile: bp } = useTenant();
-  const slug = paramSlug || bp?.slug;
+  const { tenantSlug } = useParams();
+  const { currentTenant } = useTenant();
+  const slug = tenantSlug || currentTenant?.slug;
   const sym = businessProfile?.currencySymbol || '₹';
 
   const goToSettle = (clientId) => {
