@@ -44,16 +44,34 @@ export const useFinance = (tenantId) => {
     fetchFinanceData();
   }, [fetchFinanceData]);
 
+  // Map camelCase form fields → snake_case DB columns
+  const toDbRow = (expense) => {
+    const { splitType, routeId, ...rest } = expense;
+    return {
+      ...rest,
+      split_type: splitType ?? rest.split_type ?? null,
+      route_id: routeId ?? rest.route_id ?? null,
+    };
+  };
+
   const addExpense = async (expense) => {
-    const { error } = await supabase.from('expenses').insert({ ...expense, tenant_id: tenantId });
-    if (!error) await fetchFinanceData();
+    const { error } = await supabase
+      .from('expenses')
+      .insert({ ...toDbRow(expense), tenant_id: tenantId });
+    if (error) console.error('addExpense error:', error);
+    else await fetchFinanceData();
     return { error };
   };
 
   const updateExpense = async (expense) => {
     const { id, ...data } = expense;
-    const { error } = await supabase.from('expenses').update(data).eq('id', id).eq('tenant_id', tenantId);
-    if (!error) await fetchFinanceData();
+    const { error } = await supabase
+      .from('expenses')
+      .update(toDbRow(data))
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
+    if (error) console.error('updateExpense error:', error);
+    else await fetchFinanceData();
     return { error };
   };
 

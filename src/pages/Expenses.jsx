@@ -24,6 +24,8 @@ const Expenses = () => {
  const [filterDate, setFilterDate] = useState('');
  const [isAdding, setIsAdding] = useState(false);
  const [editingExpense, setEditingExpense] = useState(null);
+ const [saving, setSaving] = useState(false);
+ const [formError, setFormError] = useState('');
  const [formData, setFormData] = useState({
  title: '',
  amount: '',
@@ -94,29 +96,43 @@ const Expenses = () => {
  return"Total Expenses";
 };
 
- const handleSubmit = (e) => {
+ const handleSubmit = async (e) => {
  e.preventDefault();
- const expenseData = {
- ...formData,
- amount: parseFloat(formData.amount) || 0
-};
+ setFormError('');
 
- if (editingExpense) {
- updateExpense({ ...expenseData, id: editingExpense.id});
- setEditingExpense(null);
-} else {
- addExpense(expenseData);
-}
- 
+ const amount = parseFloat(formData.amount);
+ if (!amount || amount <= 0) {
+   setFormError('Amount must be greater than 0.');
+   return;
+ }
+ if (!formData.title.trim()) {
+   setFormError('Expense title is required.');
+   return;
+ }
+
+ const expenseData = { ...formData, amount };
+
+ setSaving(true);
+ const { error } = editingExpense
+   ? await updateExpense({ ...expenseData, id: editingExpense.id })
+   : await addExpense(expenseData);
+ setSaving(false);
+
+ if (error) {
+   setFormError(error.message || 'Failed to save expense. Please try again.');
+   return;
+ }
+
  setIsAdding(false);
+ setEditingExpense(null);
  setFormData({
- title: '',
- amount: '',
- category: 'Other',
- date: todayISOInAppTZ(),
- notes: '',
- splitType: 'Company'
-});
+   title: '',
+   amount: '',
+   category: 'Other',
+   date: todayISOInAppTZ(),
+   notes: '',
+   splitType: 'Company'
+ });
 };
 
  const handleEdit = (expense) => {
@@ -136,14 +152,16 @@ const Expenses = () => {
  const handleCloseModal = () => {
  setIsAdding(false);
  setEditingExpense(null);
+ setFormError('');
+ setSaving(false);
  setFormData({
- title: '',
- amount: '',
- category: 'Other',
- date: todayISOInAppTZ(),
- notes: '',
- splitType: 'Company'
-});
+   title: '',
+   amount: '',
+   category: 'Other',
+   date: todayISOInAppTZ(),
+   notes: '',
+   splitType: 'Company'
+ });
 };
 
  useEffect(() => {
@@ -418,10 +436,11 @@ const Expenses = () => {
  {businessProfile?.currencySymbol || '₹'}
  </div>
  <input 
- required 
- type="number" 
+ required
+ type="number"
  step="0.01"
- className="w-full bg-canvas border-none rounded-lg p-5 pl-14 font-semibold text-2xl text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums" 
+ min="0.01"
+ className="w-full bg-canvas border-none rounded-lg p-5 pl-14 font-semibold text-2xl text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums"
  value={formData.amount} 
  onChange={e => setFormData({...formData, amount: e.target.value})} 
  />
@@ -483,13 +502,17 @@ const Expenses = () => {
  </div>
  </div>
 
+ {formError && (
+   <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
+     {formError}
+   </div>
+ )}
+
  <div className="grid grid-cols-2 gap-4 pt-4">
- <button type="button" className="px-8 py-2 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all cursor-pointer" onClick={handleCloseModal}>Cancel</button>
- <button type="submit" className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill">
- {editingExpense ? 'SAVE CHANGES' : 'LOG EXPENSE'}
- <div className="icon-nest !w-10 !h-10 ml-4">
- <Save size={22} />
- </div>
+ <button type="button" className="px-8 py-2 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all cursor-pointer" onClick={handleCloseModal} disabled={saving}>Cancel</button>
+ <button type="submit" disabled={saving} className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill disabled:opacity-60 disabled:cursor-not-allowed">
+   {saving ? 'SAVING...' : (editingExpense ? 'SAVE CHANGES' : 'LOG EXPENSE')}
+   {!saving && <div className="icon-nest !w-10 !h-10 ml-4"><Save size={22} /></div>}
  </button>
  </div>
  </form>
