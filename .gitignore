@@ -31,3 +31,9 @@ dist-ssr
 
 # Scratch
 scratch/
+
+# Test artifacts
+playwright-report/
+test-results/
+build_log.txt
+full_build_log.txt
