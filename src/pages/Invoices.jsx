@@ -20,7 +20,7 @@ import { usePeople } from '../hooks/usePeople';
 import { formatINR, calculateGST, shareToWhatsApp } from '../lib/gstEngine';
 import { todayISOInAppTZ, formatDate, parseLocalDate } from '../lib/utils';
 import InvoiceTemplate from '../components/invoice/InvoiceTemplate';
-import PremiumInvoice from '../components/sales/PremiumInvoice';
+import POSReceipt from '../components/invoice/POSReceipt';
 import ReportTable from '../components/reports/ReportTable';
 
 const Invoices = () => {
@@ -309,47 +309,13 @@ const Invoices = () => {
         const closeInvoice = () => { setViewingInvoice(null); setInvoiceMode('gst'); };
 
         if (invoiceMode === 'simple') {
-          // Map invoice → PremiumInvoice's order shape
-          const order = {
-            id: viewingInvoice.id,
-            date: viewingInvoice.invoice_date,
-            items: (viewingInvoice.items || []).map(i => ({
-              name: i.name,
-              sku: i.sku || '',
-              quantity: i.qty || i.quantity || 1,
-              price: i.rate || i.price || 0,
-              unit: i.unit || 'PCS',
-            })),
-            totalAmount: viewingInvoice.grand_total,
-            subtotal: viewingInvoice.taxable_amount,
-            tax: viewingInvoice.tax_total,
-            discount: viewingInvoice.discount_total || 0,
-            paymentMethod: viewingInvoice.payment_status === 'PAID' ? 'CASH' : 'CREDIT',
-            paymentStatus: viewingInvoice.payment_status,
-            customerInfo: {
-              name: invClient.name,
-              phone: invClient.phone || invClient.contact || '',
-              address: invClient.address || '',
-              gstin: invClient.gstin || '',
-            },
-          };
           return (
-            <div className="relative">
-              {/* GST Bill toggle button for Simple mode */}
-              <div className="fixed top-6 left-6 z-[120] print:hidden">
-                <button
-                  onClick={() => setInvoiceMode('gst')}
-                  className="flex items-center gap-2 px-6 py-3 rounded-full bg-ink-primary text-white font-black text-[10px] uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
-                >
-                  GST Bill
-                </button>
-              </div>
-              <PremiumInvoice
-                order={order}
-                business={businessProfile || {}}
-                onClose={closeInvoice}
-              />
-            </div>
+            <POSReceipt
+              invoice={viewingInvoice}
+              businessProfile={businessProfile}
+              client={invClient}
+              onClose={closeInvoice}
+            />
           );
         }
 
