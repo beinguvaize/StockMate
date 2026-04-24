@@ -21,9 +21,9 @@ const Orders = () => {
 
   const sym = businessProfile?.currencySymbol || '₹';
 
-  const getClientName  = (id) => clients.find(c => c.id === id)?.name || 'Walk-in';
-  const getVehicleName = (id) => vehicles.find(v => v.id === id)?.name || '—';
-  const getUserName    = (id) => users.find(u => u.id === id)?.name || '—';
+  const getClientName  = (id) => id ? (clients.find(c => c.id === id)?.name || 'Walk-in') : 'Walk-in';
+  const getVehicleName = (id) => id ? (vehicles.find(v => v.id === id)?.name || '—') : '—';
+  const getUserName    = (id) => id ? (users.find(u => u.id === id)?.name || '—') : '—';
 
   const [activeTab,  setActiveTab]  = useState('PENDING');
   const [searchTerm, setSearchTerm] = useState('');
@@ -40,15 +40,15 @@ const Orders = () => {
         if (!searchTerm) return true;
         const q = searchTerm.toLowerCase();
         return (
-          s.invoice_number?.toLowerCase().includes(q) ||
-          getClientName(s.client_id)?.toLowerCase().includes(q)
+          s.id?.toLowerCase().includes(q) ||
+          getClientName(s.shopId)?.toLowerCase().includes(q)
         );
       });
   }, [sales, activeTab, searchTerm]);
 
   const handleSettle = async (order) => {
     if (!hasPermission('finance', 'edit')) return;
-    const due = (order.total_amount || 0) - (order.paid_amount || 0);
+    const due = (order.totalAmount || 0) - (order.paidAmount || 0);
     const input = prompt(`Amount to settle (due: ${sym}${due}):`, due);
     if (input && !isNaN(input)) await settleSale(order.id, parseFloat(input));
   };
@@ -87,12 +87,12 @@ const Orders = () => {
     },
     {
       label: "Today's Revenue",
-      value: `${sym}${sales.filter(s => s.date === todayISOInAppTZ()).reduce((s, i) => s + (i.total_amount || 0), 0).toLocaleString()}`,
+      value: `${sym}${sales.filter(s => s.date === todayISOInAppTZ()).reduce((s, i) => s + (i.totalAmount || 0), 0).toLocaleString()}`,
       icon: <TrendingUp size={20} />, color: 'text-green-500',
     },
     {
       label: 'Avg Order',
-      value: `${sym}${Math.round(sales.reduce((s, i) => s + (i.total_amount || 0), 0) / (sales.length || 1)).toLocaleString()}`,
+      value: `${sym}${Math.round(sales.reduce((s, i) => s + (i.totalAmount || 0), 0) / (sales.length || 1)).toLocaleString()}`,
       icon: <Activity size={20} />, color: 'text-purple-500',
     },
   ];
@@ -181,7 +181,7 @@ const Orders = () => {
                   {/* Order */}
                   <td className="py-4 px-6">
                     <div className="text-sm font-black text-ink-primary leading-none mb-1">
-                      #{order.invoice_number || order.id?.split('-').pop()}
+                      #{order.id?.split('-').pop()}
                     </div>
                     <div className="text-[10px] text-gray-400 font-semibold">{formatDate(order.date)}</div>
                   </td>
@@ -192,26 +192,26 @@ const Orders = () => {
                       <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
                         <User size={14} className="text-ink-primary" />
                       </div>
-                      <span className="text-sm font-bold text-ink-primary">{getClientName(order.client_id)}</span>
+                      <span className="text-sm font-bold text-ink-primary">{getClientName(order.shopId)}</span>
                     </div>
                   </td>
 
                   {/* Vehicle / Driver */}
                   <td className="py-4 px-6">
-                    <div className="text-sm font-semibold text-ink-primary">{getVehicleName(order.vehicle_id)}</div>
-                    <div className="text-[10px] text-gray-400 font-semibold">{getUserName(order.user_id)}</div>
+                    <div className="text-sm font-semibold text-ink-primary">{getVehicleName(order.vehicleId || order.vehicleid)}</div>
+                    <div className="text-[10px] text-gray-400 font-semibold">{getUserName(order.salesRepId || order.bookedBy)}</div>
                   </td>
 
                   {/* Amount */}
                   <td className="py-4 px-6 text-right tabular-nums">
-                    <div className="text-sm font-black text-ink-primary">{sym}{(order.total_amount || 0).toLocaleString()}</div>
-                    {(order.paid_amount || 0) > 0 && (
-                      <div className="text-[10px] text-green-500 font-semibold">Paid: {sym}{order.paid_amount.toLocaleString()}</div>
+                    <div className="text-sm font-black text-ink-primary">{sym}{(order.totalAmount || 0).toLocaleString()}</div>
+                    {(order.paidAmount || 0) > 0 && (
+                      <div className="text-[10px] text-green-500 font-semibold">Paid: {sym}{order.paidAmount.toLocaleString()}</div>
                     )}
                   </td>
 
                   {/* Status */}
-                  <td className="py-4 px-6">{statusBadge(order.status)}</td>
+                  <td className="py-4 px-6">{statusBadge(order.status || order.paymentStatus)}</td>
 
                   {/* Actions */}
                   <td className="py-4 px-6">
@@ -264,7 +264,7 @@ const Orders = () => {
         <POSReceipt
           invoice={{
             id: showReceipt.id,
-            invoice_number: showReceipt.invoice_number || showReceipt.id?.split('-').pop(),
+            invoice_number: showReceipt.id?.split('-').pop(),
             invoice_date: showReceipt.date,
             items: (showReceipt.items || []).map(i => ({
               name: i.name || i.productName || 'Item',
@@ -273,12 +273,12 @@ const Orders = () => {
               taxRate: i.taxRate || 0,
               unit: i.unit || 'PCS',
             })),
-            grand_total: showReceipt.total_amount,
-            paid_amount: showReceipt.paid_amount || 0,
+            grand_total: showReceipt.totalAmount || 0,
+            paid_amount: showReceipt.paidAmount || 0,
             payment_status: showReceipt.status === 'PAID' || showReceipt.status === 'COMPLETED' ? 'PAID' : 'UNPAID',
           }}
           businessProfile={businessProfile}
-          client={clients.find(c => c.id === showReceipt.client_id) || { name: 'Walk-in' }}
+          client={clients.find(c => c.id === showReceipt.shopId) || { name: 'Walk-in' }}
           onClose={() => setShowReceipt(null)}
         />
       )}
