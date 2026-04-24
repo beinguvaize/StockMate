@@ -8,6 +8,24 @@ import { formatDate } from '../../lib/utils';
 
 const PremiumInvoice = ({ order, business, onClose}) => {
  const [isEditMode, setIsEditMode] = useState(false);
+
+ useEffect(() => {
+   const style = document.createElement('style');
+   style.id = 'simple-invoice-print-css';
+   style.textContent = `
+     @media print {
+       @page { size: A4; margin: 10mm; }
+       html, body { background: white !important; margin: 0 !important; padding: 0 !important;
+         -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+       body > *:not(#premium-invoice-wrapper) { display: none !important; }
+       #premium-invoice-wrapper { position: static !important; background: white !important;
+         overflow: visible !important; padding: 0 !important; display: block !important; }
+       #premium-invoice-wrapper .print-hidden { display: none !important; }
+     }
+   `;
+   document.head.appendChild(style);
+   return () => { const el = document.getElementById('simple-invoice-print-css'); if (el) el.remove(); };
+ }, []);
  const [editedOrder, setEditedOrder] = useState({
  invoiceNo: order.id ? String(order.id).split('-').pop() : 'NEW',
  date: order.date ? formatDate(order.date) : new Date().toLocaleDateString('en-IN'),
@@ -37,10 +55,10 @@ const PremiumInvoice = ({ order, business, onClose}) => {
 };
 
  return (
- <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto no-scrollbar print:p-0 print:block print:bg-white print:static">
+ <div id="premium-invoice-wrapper" className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto no-scrollbar print:p-0 print:block print:bg-white print:static">
  
  {/* Toolbar - Hidden on Print */}
- <div className="fixed top-6 right-6 flex gap-3 z-[110] print:hidden">
+ <div className="print-hidden fixed top-6 right-6 flex gap-3 z-[110] print:hidden">
  <button 
  onClick={() => setIsEditMode(!isEditMode)}
  className={`flex items-center gap-3 px-6 py-3 rounded-pill font-bold text-sm transition-all ${

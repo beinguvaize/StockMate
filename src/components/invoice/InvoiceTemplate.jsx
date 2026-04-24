@@ -5,7 +5,7 @@
  * Optimized for A4 precision and high-fidelity business branding.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Printer, Share2, ZoomIn, ZoomOut, Maximize2, X,
@@ -24,6 +24,39 @@ const Totals = ({ k, v, bold }) => (
 
 const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode }) => {
   const [zoom, setZoom] = useState(100);
+
+  // Inject print isolation CSS into <head> so it's guaranteed to apply
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.id = 'gst-invoice-print-css';
+    style.textContent = `
+      @media print {
+        @page { size: A4; margin: 12mm 10mm; }
+        html, body { background: white !important; margin: 0 !important; padding: 0 !important;
+          -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        body > *:not(#invoice-template-portal) { display: none !important; }
+        #invoice-template-portal { position: static !important; inset: auto !important;
+          background: #fff !important; backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important; overflow: visible !important;
+          padding: 0 !important; margin: 0 !important; display: block !important; height: auto !important; }
+        #invoice-template-portal .print-hidden,
+        #invoice-template-portal [class*="print:hidden"] { display: none !important; }
+        #invoice-template-portal, #invoice-template-portal > div, #invoice-template-portal > div > div {
+          flex: initial !important; display: block !important; overflow: visible !important;
+          padding: 0 !important; margin: 0 !important; width: 100% !important;
+          height: auto !important; max-height: none !important; }
+        #invoice-print-area { transform: none !important; box-shadow: none !important;
+          margin: 0 !important; width: 100% !important; min-height: 0 !important;
+          height: auto !important; padding: 0 !important; }
+        #invoice-template-portal .print-empty-row { display: none !important; }
+        #invoice-print-area table { page-break-inside: auto; }
+        #invoice-print-area tr { page-break-inside: avoid; page-break-after: auto; }
+        #invoice-print-area thead { display: table-header-group; }
+      }
+    `;
+    document.head.appendChild(style);
+    return () => { const el = document.getElementById('gst-invoice-print-css'); if (el) el.remove(); };
+  }, []);
 
   // Relaxed validation: Handle cases where businessProfile or client might be missing (e.g. Walk-in)
   if (!invoice) return null;
@@ -78,7 +111,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
     <div id="invoice-template-portal" className="fixed inset-0 z-[60] flex flex-col items-center bg-slate-900/90 backdrop-blur-2xl overflow-hidden animate-fade-in print:bg-white print:p-0">
       
       {/* Action Bar - Hidden in Print */}
-      <div className="w-full h-16 flex items-center justify-between px-6 bg-white/5 border-b border-white/10 print:hidden">
+      <div className="print-hidden w-full h-16 flex items-center justify-between px-6 bg-white/5 border-b border-white/10 print:hidden">
         <div className="flex items-center gap-4">
           <button 
             onClick={onClose}
