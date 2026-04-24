@@ -130,7 +130,7 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
                 )}
               </div>
               <div className="font-bold text-xs text-ink-primary line-clamp-2 mb-1 uppercase tracking-tight">{product.name}</div>
-              <div className="text-lg font-black text-accent-signature leading-none">{formatCurrency(product.sellingPrice)}</div>
+              <div className="text-lg font-black text-emerald-600 leading-none">{formatCurrency(product.sellingPrice)}</div>
               <div className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{product.stock} in stock</div>
             </div>
           ))}
