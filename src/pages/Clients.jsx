@@ -30,7 +30,7 @@ const Clients = () => {
  const [statusFilter, setStatusFilter] = useState('ALL');
  const [isAdding, setIsAdding] = useState(false);
  const [editingClient, setEditingClient] = useState(null);
- const [formData, setFormData] = useState({ name: '', contact: '', phone: '', email: '', status: 'ACTIVE'});
+ const [formData, setFormData] = useState({ name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', status: 'ACTIVE' });
  const [deleteConfirm, setDeleteConfirm] = useState(null);
  const [saving, setSaving] = useState(false);
  const [formError, setFormError] = useState('');
@@ -134,14 +134,24 @@ const Clients = () => {
 
  const openAdd = () => {
  setEditingClient(null);
- setFormData({ name: '', contact: '', phone: '', email: '', status: 'ACTIVE' });
+ setFormData({ name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', status: 'ACTIVE' });
  setFormError('');
  setIsAdding(true);
 };
 
  const openEdit = (client) => {
  setEditingClient(client);
- setFormData({ name: client.name, contact: client.contact, phone: client.phone, email: client.email || '', status: client.status || 'ACTIVE' });
+ setFormData({
+   name: client.name || '',
+   contact: client.contact || '',
+   phone: client.phone || '',
+   email: client.email || '',
+   address: client.address || '',
+   gstin: client.gstin || '',
+   state: client.state || '',
+   state_code: client.state_code || '',
+   status: client.status || 'ACTIVE',
+ });
  setIsAdding(true);
 };
 
@@ -164,7 +174,7 @@ const Clients = () => {
    }
    setIsAdding(false);
    setEditingClient(null);
-   setFormData({ name: '', contact: '', phone: '', email: '', status: 'ACTIVE' });
+   setFormData({ name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', status: 'ACTIVE' });
  };
 
  const toggleStatus = (client) => {
@@ -334,27 +344,41 @@ const Clients = () => {
   </div>
 
   <div className="md:col-span-2">
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Email Address (Optional)</label>
-  <input 
-  type="email" 
-  className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
-  placeholder="orders@clent.com"
-  value={formData.email} 
-  onChange={e => setFormData({...formData, email: e.target.value})} 
-  />
+    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Email Address (Optional)</label>
+    <input type="email" className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
+      placeholder="orders@client.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
   </div>
 
- <div className="md:col-span-2">
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Account Status</label>
- <select 
- className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer" 
- value={formData.status} 
- onChange={e => setFormData({ ...formData, status: e.target.value})}
- >
- <option value="ACTIVE">ACTIVE ACCOUNT</option>
- <option value="INACTIVE">INACTIVE / ON HOLD</option>
- </select>
- </div>
+  <div className="md:col-span-2">
+    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Address (Optional)</label>
+    <input type="text" className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
+      placeholder="Shop / Street / City..." value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
+  </div>
+
+  {/* GST Compliance — Optional */}
+  <div className="md:col-span-2">
+    <div className="border-t border-black/5 pt-4 mb-2">
+      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">GST Compliance (Optional)</span>
+    </div>
+  </div>
+
+  <div className="md:col-span-2">
+    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">GSTIN</label>
+    <input type="text" maxLength={15} className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase tracking-widest"
+      placeholder="22AAAAA0000A1Z5" value={formData.gstin} onChange={e => setFormData({...formData, gstin: e.target.value.toUpperCase()})} />
+  </div>
+
+  <div>
+    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">State</label>
+    <input type="text" className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
+      placeholder="Tamil Nadu" value={formData.state} onChange={e => setFormData({...formData, state: e.target.value})} />
+  </div>
+
+  <div>
+    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">State Code</label>
+    <input type="text" maxLength={2} className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums"
+      placeholder="33" value={formData.state_code} onChange={e => setFormData({...formData, state_code: e.target.value})} />
+  </div>
  </div>
 
  {formError && (

@@ -4,7 +4,7 @@ import { useTenant } from '../../context/TenantContext';
 import {
   UserCircle, Plus, Edit3, Trash2, Check,
   Phone, AlertCircle, Search, TrendingUp, Users, CreditCard, Clock,
-  Mail, Receipt
+  Mail, Receipt, MapPin, ShieldCheck
 } from 'lucide-react';
 
 const ClientDirectory = ({
@@ -177,6 +177,7 @@ const ClientDirectory = ({
 
                 {/* Contact Info */}
                 <div className="px-5 py-4 flex flex-col gap-2 border-b border-black/5">
+                  {/* Contact + Phone grid */}
                   {(client.contact || client.phone) && (
                     <div className="grid grid-cols-2 gap-2">
                       {client.contact && (
@@ -197,13 +198,32 @@ const ClientDirectory = ({
                       )}
                     </div>
                   )}
+                  {/* Email */}
                   {client.email && (
                     <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-500">
                       <Mail size={11} className="opacity-60 shrink-0" />
                       <span className="truncate">{client.email}</span>
                     </div>
                   )}
-                  {!client.contact && !client.phone && !client.email && (
+                  {/* Address */}
+                  {client.address && (
+                    <div className="flex items-start gap-2 text-[11px] font-semibold text-gray-500">
+                      <MapPin size={11} className="opacity-60 shrink-0 mt-0.5" />
+                      <span className="line-clamp-2">{client.address}</span>
+                    </div>
+                  )}
+                  {/* GST badge */}
+                  {client.gstin && (
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-100 text-[9px] font-bold text-blue-600 tracking-wider uppercase">
+                        <ShieldCheck size={10} /> GST · {client.gstin}
+                      </span>
+                      {client.state && (
+                        <span className="text-[10px] font-semibold text-gray-400">{client.state}{client.state_code ? ` (${client.state_code})` : ''}</span>
+                      )}
+                    </div>
+                  )}
+                  {!client.contact && !client.phone && !client.email && !client.address && (
                     <p className="text-[11px] text-gray-400 font-semibold">No contact info on record.</p>
                   )}
                 </div>
