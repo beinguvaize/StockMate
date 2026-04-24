@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
+import { generateUUID } from '../lib/utils';
 
 const CLIENT_NUMERIC = ['outstanding_balance', 'credit_limit'];
 const SUPPLIER_NUMERIC = ['balance', 'outstanding_balance'];
@@ -55,7 +56,8 @@ export const usePeople = (tenantId) => {
   }, [fetchPeopleData]);
 
   const addSupplier = async (supplier) => {
-    const { error } = await supabase.from('suppliers').insert({ ...supplier, tenant_id: tenantId });
+    const id = supplier.id || generateUUID();
+    const { error } = await supabase.from('suppliers').insert({ id, ...supplier, tenant_id: tenantId });
     if (!error) await fetchPeopleData();
     return { success: !error, error };
   };
@@ -77,7 +79,7 @@ export const usePeople = (tenantId) => {
   const toClientRow = ({ status, ...rest }) => rest; // 'status' not in DB schema
 
   const addClient = async (client) => {
-    const id = crypto.randomUUID();
+    const id = generateUUID();
     const { error } = await supabase
       .from('clients')
       .insert({ id, ...toClientRow(client), tenant_id: tenantId });
