@@ -1,26 +1,84 @@
-import React from 'react';
-import CashBillPrint from './CashBillPrint';
-import GSTInvoicePrint from './GSTInvoicePrint';
+import React, { useState } from 'react';
+import InvoiceTemplate from '../../../components/invoice/InvoiceTemplate';
+import POSReceipt from '../../../components/invoice/POSReceipt';
+import { shareToWhatsApp } from '../../../lib/gstEngine';
 
-// Picks layout by client. Walk-in (no client row or marker) → simple cash bill,
-// no GST lines. Registered client → full tax invoice with CGST/SGST/IGST.
-const isWalkIn = (sale, client) => {
-  const cid = sale?.shopId ?? sale?.shop_id ?? sale?.clientId ?? null;
-  if (!cid) return true;
-  const markers = ['WALKIN', 'WALK-IN', 'WALK_IN', 'POS-WALKIN'];
-  if (markers.includes(String(cid).toUpperCase())) return true;
-  if (!client) return true;
-  if (!client.name) return true;
-  if (/walk[\s-]?in/i.test(client.name)) return true;
-  return false;
+/**
+ * Maps a POS sale record → InvoiceTemplate / POSReceipt invoice shape.
+ * Identical format to the Invoices page so print output is the same.
+ */
+const saleToInvoice = (sale) => {
+  const items = (sale.items || []).map(i => {
+    const qty  = parseFloat(i.quantity || i.qty || 1);
+    const rate = parseFloat(i.price || i.sellingPrice || i.rate || 0);
+    const taxRate = parseFloat(i.taxRate ?? 0);
+    const taxAmount = qty * rate * taxRate / 100;
+    return {
+      name:     i.name || i.productName || 'Item',
+      sku:      i.sku || '',
+      hsn_code: i.hsn_code || i.hsn || '---',
+      qty, rate, taxRate, taxAmount,
+      unit:  i.unit || 'PCS',
+      total: qty * rate + taxAmount,
+    };
+  });
+
+  const taxableAmt = items.reduce((s, i) => s + i.qty * i.rate, 0);
+  const totalTax   = items.reduce((s, i) => s + i.taxAmount, 0);
+  const grandTotal = parseFloat(sale.totalAmount || taxableAmt + totalTax);
+
+  return {
+    id:             sale.id,
+    invoice_number: sale.id?.split('-').pop() || sale.id,
+    invoice_date:   sale.date,
+    items,
+    taxable_amount: taxableAmt,
+    tax_total:      totalTax,
+    cgst_amount:    totalTax / 2,
+    sgst_amount:    totalTax / 2,
+    igst_amount:    0,
+    is_interstate:  false,
+    grand_total:    grandTotal,
+    paid_amount:    parseFloat(sale.paidAmount || 0),
+    payment_status: (sale.status === 'COMPLETED' || sale.paymentStatus === 'PAID') ? 'PAID' : 'UNPAID',
+    round_off:      0,
+  };
 };
 
 const SalePrintDispatcher = ({ sale, client, business, onClose }) => {
+  const [mode, setMode] = useState('gst'); // 'gst' | 'pos'
+
   if (!sale) return null;
-  if (isWalkIn(sale, client)) {
-    return <CashBillPrint sale={sale} business={business || {}} onClose={onClose} />;
+
+  const invoice = saleToInvoice(sale);
+  const safeClient = client || { name: 'Walk-in' };
+
+  const closeAll = () => { setMode('gst'); onClose(); };
+
+  if (mode === 'pos') {
+    return (
+      <POSReceipt
+        invoice={invoice}
+        businessProfile={business}
+        client={safeClient}
+        onClose={closeAll}
+      />
+    );
   }
-  return <GSTInvoicePrint sale={sale} client={client || {}} business={business || {}} onClose={onClose} />;
+
+  return (
+    <InvoiceTemplate
+      invoice={invoice}
+      businessProfile={business}
+      client={safeClient}
+      onPrint={() => window.print()}
+      onShare={(type) => {
+        if (type === 'whatsapp') shareToWhatsApp(invoice, safeClient, business);
+      }}
+      onToggleMode={() => setMode('pos')}
+      onClose={closeAll}
+    />
+  );
 };
 
 export default SalePrintDispatcher;
