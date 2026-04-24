@@ -15,6 +15,13 @@ import { formatINR, amountToWords } from '../../lib/gstEngine';
 import { formatDate } from '../../lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 
+const Totals = ({ k, v, bold }) => (
+  <div className={`flex justify-between items-center py-0.5 ${bold ? 'font-bold' : ''}`}>
+    <span className="text-slate-500">{k}</span>
+    <span className="font-semibold tabular-nums">{v}</span>
+  </div>
+);
+
 const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose }) => {
   const [zoom, setZoom] = useState(100);
 
