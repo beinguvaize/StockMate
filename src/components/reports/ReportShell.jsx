@@ -5,13 +5,15 @@
  * Do not modify the backdrop-blur, opacity, or border tokens.
  */
 import React, { useState, useMemo, useEffect } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { useTenant } from '../../context/TenantContext';
 import ReportFilterBar from './ReportFilterBar';
 import ReportKPICards from './ReportKPICards';
 import ReportChartSection from './ReportChartSection';
 import ReportTable from './ReportTable';
 import ReportDetailPanel from './ReportDetailPanel';
 import { exportToCSV, exportToPDF, safeFilename } from '../../lib/reportExport';
+import { todayISOInAppTZ } from '../../lib/utils';
 import {
   TrendingUp, Package, UserCircle, Truck,
   Briefcase, Shield, LayoutGrid, DollarSign,
@@ -30,7 +32,8 @@ import {
 const ReportShell = ({ 
   tabs = [] 
 }) => {
-  const { hasPermission, currentUser, businessProfile } = useAppContext();
+  const { hasPermission, currentUser } = useAuth();
+  const { businessProfile } = useTenant();
   
   // 1. Role-based Access Control (Rule 11)
   const allowedTabs = useMemo(() => {
@@ -46,7 +49,7 @@ const ReportShell = ({
     datePreset: 'MONTH',
     dateRange: { 
       start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
-      end: new Date().toISOString().split('T')[0]
+      end: todayISOInAppTZ()
     }
   });
 
@@ -123,7 +126,7 @@ const ReportShell = ({
             activeTab.onExportCSV(globalFilters);
             return;
           }
-          const base = safeFilename(`${activeTab.label}_${(globalFilters.dateRange?.end) || new Date().toISOString().split('T')[0]}`);
+          const base = safeFilename(`${activeTab.label}_${(globalFilters.dateRange?.end) || todayISOInAppTZ()}`);
           exportToCSV({
             filename: base,
             columns: activeTab.columns || [],

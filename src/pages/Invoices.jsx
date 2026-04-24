@@ -12,16 +12,24 @@ import {
   Printer, Share2, Eye, Edit3, Trash2, Copy, X,
   ArrowRight, Download, Mail, Zap
 } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { useSales } from '../hooks/useSales';
+import { useInventory } from '../hooks/useInventory';
+import { usePeople } from '../hooks/usePeople';
 import { formatINR, calculateGST, shareToWhatsApp } from '../lib/gstEngine';
+import { todayISOInAppTZ } from '../lib/utils';
 import InvoiceTemplate from '../components/invoice/InvoiceTemplate';
 import ReportTable from '../components/reports/ReportTable';
 
 const Invoices = () => {
-  const { 
-    invoices = [], clients = [], products = [], businessProfile,
-    hasPermission, isViewOnly, createInvoice, markInvoicePaid 
-  } = useAppContext();
+  const { hasPermission } = useAuth();
+  const { currentTenantId, businessProfile } = useTenant();
+  const { invoices, createInvoice, markInvoicePaid } = useSales(currentTenantId);
+  const { products } = useInventory(currentTenantId);
+  const { clients } = usePeople(currentTenantId);
+
+  const isViewOnly = () => false;
 
   // Mode & Selection State
   const [showCreator, setShowCreator] = useState(false);
@@ -33,7 +41,7 @@ const Invoices = () => {
   const [draft, setDraft] = useState({
     clientId: '',
     items: [],
-    date: new Date().toISOString().split('T')[0],
+    date: todayISOInAppTZ(),
     dueDate: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
     notes: '',
     terms: businessProfile?.invoice_terms || '',
@@ -95,7 +103,7 @@ const Invoices = () => {
     setDraft({
       clientId: '',
       items: [],
-      date: new Date().toISOString().split('T')[0],
+      date: todayISOInAppTZ(),
       dueDate: new Date(Date.now() + 15 * 86400000).toISOString().split('T')[0],
       notes: '',
       terms: businessProfile?.invoice_terms || '',

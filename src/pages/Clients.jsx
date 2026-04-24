@@ -1,10 +1,15 @@
 import React, { useState, useMemo, useEffect} from 'react';
-import { useAppContext} from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { usePeople } from '../hooks/usePeople';
+import { useSales } from '../hooks/useSales';
+import { useFinance } from '../hooks/useFinance';
+
 import { 
- UserCircle, Plus, DollarSign, Building, Phone, MapPin, 
- Edit3, Trash2, X, Check, Save, UserCheck, CreditCard, 
- ChevronRight, ExternalLink, ShieldCheck, Mail, Search,
- TrendingUp, AlertCircle, Users, BarChart3, Receipt, History
+  UserCircle, Plus, DollarSign, Building, Phone, MapPin, 
+  Edit3, Trash2, X, Check, Save, UserCheck, CreditCard, 
+  ChevronRight, ExternalLink, ShieldCheck, Mail, Search,
+  TrendingUp, AlertCircle, Users, BarChart3, Receipt, History
 } from 'lucide-react';
 import ClientDirectory from '../components/clients/ClientDirectory';
 import ClientAging from '../components/clients/ClientAging';
@@ -12,7 +17,13 @@ import ClientPayments from '../components/clients/ClientPayments';
 import ClientStatementViewer from '../components/clients/ClientStatementViewer';
 
 const Clients = () => {
- const { clients, invoices, addShop: addClient, updateShop: updateClient, deleteShop: deleteClient, sales, clientPayments, businessProfile, hasPermission} = useAppContext();
+  const { hasPermission } = useAuth();
+  const { currentTenantId, businessProfile } = useTenant();
+  const { 
+    clients, addClient, updateClient, deleteClient 
+  } = usePeople(currentTenantId);
+  const { sales } = useSales(currentTenantId);
+  const { clientPayments } = { clientPayments: [] }; // Placeholder for now
  const [activeTab, setActiveTab] = useState('DIRECTORY'); // DIRECTORY, AGING, PAYMENTS, STATEMENTS
  const [searchTerm, setSearchTerm] = useState('');
  const [statusFilter, setStatusFilter] = useState('ALL');

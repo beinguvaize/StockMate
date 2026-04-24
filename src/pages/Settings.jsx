@@ -1,5 +1,7 @@
 import React, { useState} from 'react';
-import { useAppContext} from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { useFinance } from '../hooks/useFinance';
 import { 
   Settings as SettingsIcon, Building, Shield, Bell, Save, 
   CheckCircle2, Lock, Globe, Coins, ShieldCheck, 
@@ -9,13 +11,17 @@ import {
 import DataTools from '../components/DataTools';
 
 const Settings = () => {
+  const { currentUser, hasPermission, isOwner } = useAuth();
   const { 
-    businessProfile, updateBusinessProfile, currentUser, hasPermission, 
-    expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory,
-    currentTenant, updateTenant 
-  } = useAppContext();
+    currentTenant, currentTenantId, businessProfile, 
+    updateBusinessProfile, updateTenant 
+  } = useTenant();
+  const { 
+    expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory 
+  } = useFinance(currentTenantId);
 
-  const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN');
+  // Fallback for missing businessProfile during load
+  const profile = businessProfile || {};
 
 
  const [newCategory, setNewCategory] = useState('');
@@ -26,32 +32,34 @@ const Settings = () => {
   const [workspaceSlug, setWorkspaceSlug] = useState(currentTenant?.slug || '');
   const [isUpdatingSlug, setIsUpdatingSlug] = useState(false);
 
- const [profileData, setProfileData] = useState({
- name: businessProfile.name || '',
- country: businessProfile.country || '',
- currency: businessProfile.currency || 'USD',
- currencySymbol: businessProfile.currencySymbol || '$',
- lowStockThreshold: businessProfile.lowStockThreshold || 20,
- pan_no: businessProfile.pan_no || '',
- gst_no: businessProfile.gst_no || '',
- bank_name: businessProfile.bank_name || '',
- account_no: businessProfile.account_no || '',
- ifsc_code: businessProfile.ifsc_code || '',
- upi_id: businessProfile.upi_id || '',
- email: businessProfile.email || '',
- website: businessProfile.website || '',
- phone: businessProfile.phone || '',
- address: businessProfile.address || ''
-});
+  const [profileData, setProfileData] = useState({
+    name: profile.name || '',
+    country: profile.country || '',
+    currency: profile.currency || 'USD',
+    currencySymbol: profile.currencySymbol || '$',
+    lowStockThreshold: profile.lowStockThreshold || 20,
+    pan_no: profile.pan_no || '',
+    gst_no: profile.gst_no || '',
+    bank_name: profile.bank_name || '',
+    account_no: profile.account_no || '',
+    ifsc_code: profile.ifsc_code || '',
+    upi_id: profile.upi_id || '',
+    email: profile.email || '',
+    website: profile.website || '',
+    phone: profile.phone || '',
+    address: profile.address || ''
+  });
 
  const [savedStatus, setSavedStatus] = useState(false);
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    const success = await updateBusinessProfile(profileData);
+    const { success, error } = await updateBusinessProfile(profileData);
     if (success) {
       setSavedStatus(true);
       setTimeout(() => setSavedStatus(false), 3000);
+    } else {
+      alert('Save failed: ' + (error?.message || 'Unknown error'));
     }
   };
 
@@ -271,11 +279,21 @@ const Settings = () => {
  </div>
 
  <div className="flex gap-4 pt-8 border-t border-black/5">
- <button type="submit" className="btn-signature w-full !rounded-lg !py-6 !text-base">
- SAVE SETTINGS
- <div className="icon-nest">
- <Save size={24} />
- </div>
+ <button
+   type="submit"
+   disabled={savedStatus}
+   className={`btn-signature w-full !rounded-lg !py-6 !text-base transition-all duration-500 ${
+     savedStatus
+       ? '!bg-emerald-500 !text-white scale-[0.98] shadow-emerald-500/40 shadow-lg'
+       : ''
+   }`}
+ >
+   <span className={`transition-transform duration-300 ${savedStatus ? 'scale-105' : ''}`}>
+     {savedStatus ? 'SAVED' : 'SAVE SETTINGS'}
+   </span>
+   <div className={`icon-nest transition-transform duration-500 ${savedStatus ? 'rotate-[360deg] bg-white/20' : ''}`}>
+     {savedStatus ? <CheckCircle2 size={24} className="animate-in zoom-in duration-300" /> : <Save size={24} />}
+   </div>
  </button>
  </div>
  </form>
@@ -303,16 +321,33 @@ const Settings = () => {
               <span className="text-xs font-bold text-gray-700 uppercase">Current Plan</span>
               <Sparkles size={16} className="text-accent-signature" />
             </div>
-            <h3 className="text-3xl font-black text-ink-primary mb-2 uppercase tracking-tight">{currentTenant?.plan || 'STARTER'}</h3>
-            <p className="text-[10px] font-semibold text-gray-600 opacity-70 mb-6 leading-relaxed uppercase">
-              {currentTenant?.plan === 'STARTER' ? 'The foundational ledger for growing teams.' : 'Enterprise governance and advanced logistics active.'}
-            </p>
-            <button 
-              onClick={() => setShowUpgradeModal(true)}
-              className="w-full h-12 bg-ink-primary text-surface rounded-xl text-xs font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
-            >
-              UPGRADE WORKSPACE <ChevronRight size={14} className="text-accent-signature" />
-            </button>
+            {(() => {
+              const plan = (currentTenant?.plan || 'STARTER').toUpperCase();
+              const isTop = plan === 'ENTERPRISE';
+              const blurb = plan === 'STARTER'
+                ? 'The foundational ledger for growing teams.'
+                : plan === 'PRO'
+                ? 'Advanced operations and pipeline tooling.'
+                : 'Enterprise governance and advanced logistics active.';
+              return (
+                <>
+                  <h3 className="text-3xl font-black text-ink-primary mb-2 uppercase tracking-tight">{plan}</h3>
+                  <p className="text-[10px] font-semibold text-gray-600 opacity-70 mb-6 leading-relaxed uppercase">{blurb}</p>
+                  {isTop ? (
+                    <div className="w-full h-12 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                      <CheckCircle2 size={14} /> TOP TIER — ALL MODULES UNLOCKED
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowUpgradeModal(true)}
+                      className="w-full h-12 bg-ink-primary text-surface rounded-xl text-xs font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                    >
+                      UPGRADE WORKSPACE <ChevronRight size={14} className="text-accent-signature" />
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
 

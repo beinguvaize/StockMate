@@ -1,17 +1,21 @@
 import React, { useState, useEffect, useRef} from 'react';
 import { useNavigate} from 'react-router-dom';
-import { useAppContext} from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { usePeople } from '../hooks/usePeople';
+import { useTenant } from '../context/TenantContext';
 import { ArrowRight} from 'lucide-react';
 
 const SaaSLogin = () => {
- const { login, users} = useAppContext();
+ const { login } = useAuth();
+ const { currentTenantId } = useTenant();
+ const { users } = usePeople(currentTenantId || 'MASTER');
  const navigate = useNavigate();
  const [email, setEmail] = useState('');
  const [password, setPassword] = useState('');
  const [mousePos, setMousePos] = useState({ x: 0, y: 0});
  const containerRef = useRef(null);
 
- const activeUsers = users.filter(u => u.status === 'ACTIVE');
+ const activeUsers = (users || []).filter(u => u.status === 'ACTIVE');
 
  const handleMouseMove = (e) => {
  const { clientX, clientY} = e;

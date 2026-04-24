@@ -8,6 +8,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@100..800&family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+/* Global blur strip — no backdrop-filter anywhere */
+*, *::before, *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     -webkit-font-smoothing: antialiased;
@@ -254,15 +260,18 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* Very subtle white wash keeps focus on modal without the old dark dim. */
+  background: rgba(255, 255, 255, 0.55);
   z-index: 9999;
   display: flex;
-  flex-direction: column;
-  padding: 0.5rem; /* Ultra-low padding for viewport fit */
-  overflow-y: auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
   animation: fadeIn 0.2s ease-out forwards;
+}
+@media (min-width: 768px) {
+  .modal-overlay { padding: 1rem; }
 }
 
 .glass-modal {
@@ -271,8 +280,8 @@ body {
   padding: 1rem 1.25rem; /* Reduced vertical padding */
   width: 100%;
   max-width: 500px;
-  margin: auto;
-  min-height: min-content;
+  margin: 0;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   position: relative;

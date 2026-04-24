@@ -1,18 +1,26 @@
 import React, { useState, useMemo} from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useAppContext} from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { usePeople } from '../hooks/usePeople';
+import { usePurchases } from '../hooks/usePurchases';
+import { useInventory } from '../hooks/useInventory';
 import { 
- Plus, Search, Phone, Mail, MapPin, Building2, 
- Trash2, Edit3, X, Save, ArrowLeft, ArrowUpRight,
- Package, CreditCard, History, User2, Check, Box
+  Plus, Search, Phone, Mail, MapPin, Building2, 
+  Trash2, Edit3, X, Save, ArrowLeft, ArrowUpRight,
+  Package, CreditCard, History, User2, Check, Box
 } from 'lucide-react';
 
 const Suppliers = () => {
+  const { hasPermission } = useAuth();
+  const { currentTenantId, businessProfile } = useTenant();
   const { 
-    suppliers, addSupplier, updateSupplier, deleteSupplier, 
-    purchases, products, businessProfile,
-    isViewOnly, hasPermission, addNotification 
-  } = useAppContext();
+    suppliers, addSupplier, updateSupplier, deleteSupplier 
+  } = usePeople(currentTenantId);
+  const { purchases } = usePurchases(currentTenantId);
+  
+  const isViewOnly = () => false;
+  const addNotification = (msg, type) => console.log(msg, type);
 
   const navigate = useNavigate();
   const { tenantSlug } = useParams();
@@ -37,12 +45,15 @@ const Suppliers = () => {
 
  const getSupplierStats = (supplierId) => {
  const supplier = suppliers.find(s => s.id === supplierId);
- const supplierPurchases = purchases.filter(p => 
+ const supplierPurchases = purchases.filter(p =>
  p.supplier_id === supplierId || p.supplier_name === supplier?.name
  );
- 
+ const amt = (p) => Number(p.total_amount ?? p.total_cost ?? 0);
+ const isCredit = (pt) => ['CREDIT','UDHAAR','POST-CAPITAL'].includes(String(pt || '').toUpperCase());
+
  return {
- totalProcured: supplierPurchases.reduce((sum, p) => sum + (p.total_cost || 0), 0),
+ totalProcured: supplierPurchases.reduce((sum, p) => sum + amt(p), 0),
+ creditDue: Number(supplier?.balance ?? supplier?.outstanding_balance ?? supplierPurchases.filter(p => isCredit(p.payment_type)).reduce((s,p) => s + amt(p), 0)),
  purchaseCount: supplierPurchases.length,
  lastPurchase: supplierPurchases.sort((a,b) => new Date(b.date) - new Date(a.date))[0]?.date
 };
@@ -99,7 +110,7 @@ const Suppliers = () => {
     }
 
     // Restoration of window.confirm for standard UX
-    if (!window.confirm("Are you sure you want to remove this partner? All linked procurement data will be preserved but the supplier record will be cleared.")) {
+    if (!window.confirm("Delete this supplier? Purchase history will be kept but the supplier record will be removed.")) {
       return;
     }
 
@@ -126,8 +137,8 @@ const Suppliers = () => {
  {/* Header */}
  <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-6 border-b border-black/5">
  <div>
- <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">SUPPLIERS<span className="text-accent-signature">.</span></h1>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">GLOBAL PROCUREMENT & PARTNER NETWORK</p>
+ <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2">Suppliers<span className="text-accent-signature">.</span></h1>
+ <p className="text-xs font-semibold text-gray-600 opacity-80 mb-6">Manage suppliers and purchase history</p>
  </div>
  {!isViewOnly() && (
   <button 
@@ -135,7 +146,7 @@ const Suppliers = () => {
     className="btn-signature h-14 !px-6 !rounded-pill flex items-center justify-between gap-4 group transition-all" 
     onClick={() => setIsAdding(true)}
   >
-  <span className="text-xs font-semibold px-2">ONBOARD PARTNER</span>
+  <span className="text-xs font-semibold px-2">Add Supplier</span>
   <div className="icon-nest !w-10 !h-10 bg-black shadow-lg">
   <Plus size={20} className="text-accent-signature" />
   </div>
@@ -150,9 +161,9 @@ const Suppliers = () => {
   <Building2 size={40} strokeWidth={2} />
   </div>
   <div className="relative z-10 flex flex-col">
-  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Active Partners</span>
+  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Suppliers</span>
   <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-  {suppliers.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">VENDORS</span>
+  {suppliers.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">TOTAL</span>
   </div>
   </div>
   </div>
@@ -162,10 +173,10 @@ const Suppliers = () => {
   <ArrowUpRight size={40} strokeWidth={2} />
   </div>
   <div className="relative z-10 flex flex-col">
-  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Procurement Volume</span>
+  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Total Purchased</span>
   <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
   <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
-  {purchases.reduce((sum, p) => sum + (p.total_cost || 0), 0).toLocaleString()}
+  {purchases.reduce((sum, p) => sum + Number(p.total_amount ?? p.total_cost ?? 0), 0).toLocaleString()}
   </div>
   </div>
   </div>
@@ -175,9 +186,9 @@ const Suppliers = () => {
   <Box size={40} strokeWidth={2} />
   </div>
   <div className="relative z-10 flex flex-col">
-  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Logistics Inflows</span>
+  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Purchase Orders</span>
   <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-  {purchases.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">ORDERS</span>
+  {purchases.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">TOTAL</span>
   </div>
   </div>
   </div>
@@ -193,7 +204,7 @@ const Suppliers = () => {
   data-testid="search-suppliers-input"
   type="text" 
   className="w-full h-full pl-16 pr-6 bg-canvas border border-black/5 rounded-pill text-[13px] font-bold text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all placeholder:text-gray-400 uppercase tracking-wide" 
-  placeholder="SEARCH VENDORS, CONTACTS OR IDS..." 
+  placeholder="Search suppliers or contacts..."
   value={searchTerm}
   onChange={e => setSearchTerm(e.target.value)}
   />
@@ -247,11 +258,17 @@ const Suppliers = () => {
  </div>
  </div>
 
- <div className="grid grid-cols-2 gap-2">
+ <div className="grid grid-cols-3 gap-2">
  <div className="bg-canvas p-3 rounded-lg border border-black/5">
  <p className="text-[8px] font-semibold text-gray-700 opacity-70 mb-1">Procured</p>
  <p className="text-xs font-semibold text-ink-primary truncate">
  {businessProfile?.currencySymbol || '₹'}{stats.totalProcured.toLocaleString()}
+ </p>
+ </div>
+ <div className={`p-3 rounded-lg border ${stats.creditDue > 0 ? 'bg-red-50 border-red-100' : 'bg-canvas border-black/5'}`}>
+ <p className="text-[8px] font-semibold text-gray-700 opacity-70 mb-1">You Owe</p>
+ <p className={`text-xs font-semibold truncate ${stats.creditDue > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+ {businessProfile?.currencySymbol || '₹'}{stats.creditDue.toLocaleString()}
  </p>
  </div>
  <div className="bg-canvas p-3 rounded-lg border border-black/5">
@@ -267,7 +284,7 @@ const Suppliers = () => {
  onClick={() => navigate(`/${tenantSlug}/suppliers/ledger/${s.id}`)}
  className="w-full py-2 bg-ink-primary text-surface text-[10px] font-semibold hover:bg-ink-primary/95 transition-all flex items-center justify-center gap-3"
  >
- View Activity Log
+ View Transactions
  <ArrowUpRight size={14} className="text-accent-signature" />
  </button>
  </div>
@@ -283,8 +300,8 @@ const Suppliers = () => {
  <div className="glass-modal !max-w-xl">
  <div className="flex justify-between items-start mb-3 border-b border-black/5 pb-3">
  <div>
- <h1 className="text-lg font-semibold text-ink-primary leading-none mb-1">PARTNER ONBOARDING.</h1>
- <p className="text-[9px] font-semibold text-gray-700 opacity-60">Register new supply vector</p>
+ <h1 className="text-lg font-semibold text-ink-primary leading-none mb-1">Add Supplier</h1>
+ <p className="text-[10px] font-semibold text-gray-700 opacity-60">Register a new supplier</p>
  </div>
  <button className="w-7 h-7 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer" onClick={() => setIsAdding(false)}>
  <X size={14} />
@@ -294,7 +311,7 @@ const Suppliers = () => {
  <form onSubmit={handleSubmit} className="space-y-2.5 mt-2">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
  <div className="md:col-span-2">
- <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Entity Name</label>
+ <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Supplier Name</label>
  <input required type="text" className="w-full bg-canvas border-none rounded-lg p-2.5 font-semibold text-base text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
  </div>
 
@@ -320,7 +337,7 @@ const Suppliers = () => {
  </div>
 
  <button type="submit" disabled={loading} className="w-full btn-signature !h-10 !text-xs flex items-center justify-center !rounded-pill mt-2">
- {loading ? 'INITIALIZING...' : 'INITIALIZE PARTNERSHIP'}
+ {loading ? 'Saving...' : 'Add Supplier'}
  <Check size={16} className="ml-2" />
  </button>
  </form>
@@ -334,8 +351,8 @@ const Suppliers = () => {
       <div className="glass-modal !max-w-xl">
         <div className="flex justify-between items-start mb-3 border-b border-black/5 pb-3">
           <div>
-            <h1 className="text-lg font-semibold text-ink-primary leading-none mb-1">EDIT PARTNER.</h1>
-            <p className="text-[9px] font-semibold text-gray-700 opacity-60">Update supply vector details</p>
+            <h1 className="text-lg font-semibold text-ink-primary leading-none mb-1">Edit Supplier</h1>
+            <p className="text-[10px] font-semibold text-gray-700 opacity-60">Update supplier details</p>
           </div>
           <button 
             className="w-7 h-7 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer" 
@@ -351,7 +368,7 @@ const Suppliers = () => {
         <form onSubmit={handleEditSubmit} className="space-y-2.5 mt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             <div className="md:col-span-2">
-              <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Entity Name</label>
+              <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Supplier Name</label>
               <input required type="text" className="w-full bg-canvas border-none rounded-lg p-2.5 font-semibold text-base text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
             </div>
 

@@ -1,17 +1,23 @@
 import React, { useState, useMemo, useEffect} from 'react';
-import { useAppContext} from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { useFinance } from '../hooks/useFinance';
 import { 
- Plus, Search, Filter, ArrowUpRight, ArrowDownRight, 
- Calendar, Tag, FileText, X, Check, Save, TrendingDown,
- DollarSign, Briefcase, CreditCard, Layers
+  Plus, Search, Filter, ArrowUpRight, ArrowDownRight, 
+  Calendar, Tag, FileText, X, Check, Save, TrendingDown,
+  DollarSign, Briefcase, CreditCard, Layers
 } from 'lucide-react';
+import { todayISOInAppTZ } from '../lib/utils';
 
 const Expenses = () => {
- const { 
- expenses, addExpense, updateExpense, deleteExpense, 
- businessProfile, hasPermission, isViewOnly,
- expenseCategories 
-} = useAppContext();
+  const { hasPermission } = useAuth();
+  const { currentTenantId, businessProfile } = useTenant();
+  const { 
+    expenses, addExpense, updateExpense, deleteExpense, 
+    expenseCategories, loading 
+  } = useFinance(currentTenantId);
+  
+  const isViewOnly = false; // Placeholder for legacy view mode
  
  const [searchTerm, setSearchTerm] = useState('');
  const [filterType, setFilterType] = useState('all'); // 'all', 'today', 'yesterday', 'custom'
@@ -22,7 +28,7 @@ const Expenses = () => {
  title: '',
  amount: '',
  category: 'Other',
- date: new Date().toISOString().split('T')[0],
+ date: todayISOInAppTZ(),
  notes: '',
  splitType: 'Company'
 });
@@ -107,7 +113,7 @@ const Expenses = () => {
  title: '',
  amount: '',
  category: 'Other',
- date: new Date().toISOString().split('T')[0],
+ date: todayISOInAppTZ(),
  notes: '',
  splitType: 'Company'
 });
@@ -120,7 +126,7 @@ const Expenses = () => {
  title: expense.title || '',
  amount: (expense.amount || 0).toString(),
  category: expense.category || 'Other',
- date: expense.date ? expense.date.split('T')[0] : new Date().toISOString().split('T')[0],
+ date: expense.date ? expense.date.split('T')[0] : todayISOInAppTZ(),
  notes: expense.notes || '',
  splitType: expense.split_type || expense.splitType || 'Company'
 });
@@ -134,7 +140,7 @@ const Expenses = () => {
  title: '',
  amount: '',
  category: 'Other',
- date: new Date().toISOString().split('T')[0],
+ date: todayISOInAppTZ(),
  notes: '',
  splitType: 'Company'
 });

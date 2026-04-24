@@ -1,6 +1,7 @@
 import React, { useState, useRef} from 'react';
 import { NavLink, Outlet, Navigate, useParams} from 'react-router-dom';
-import { useAppContext} from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
 import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield} from 'lucide-react';
 import NotificationStack from './NotificationStack';
 import GlobalLoading from './GlobalLoading';
@@ -60,11 +61,13 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
 };
 
 const Navbar = () => {
- const { 
-   currentUser, logout, businessProfile, isMaintenance, hasPermission, 
-   syncStatus, lastSyncedAt, isOnline, currentTenant, isModuleAllowed, hasRole,
-   isImpersonating, stopImpersonating
- } = useAppContext();
+  const { 
+    currentUser, logout, hasPermission, hasRole 
+  } = useAuth();
+  const {
+    currentTenant, isModuleAllowed, isImpersonating, stopImpersonating,
+    isOnline = true, syncStatus = 'SYNCED', lastSyncedAt = new Date().toISOString()
+  } = useTenant();
  const { tenantSlug } = useParams();
  const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
  const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
@@ -422,24 +425,33 @@ const Navbar = () => {
 };
 
 const AppLayout = () => {
-  const { currentUser, loading, isImpersonating, stopImpersonating, currentTenant } = useAppContext();
+  const { currentUser, loading: authLoading } = useAuth();
+  const { currentTenant, isImpersonating, stopImpersonating, loading: tenantLoading } = useTenant();
 
-  if (loading) {
+  if (authLoading || tenantLoading) {
     return <GlobalLoading />;
   }
 
   return (
     <div className="min-h-screen bg-canvas font-inter selection:bg-accent-signature/30 flex flex-col relative">
       {isImpersonating && (
-        <div className="bg-amber-500 text-white px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-4 sticky top-0 z-[200] shadow-xl">
-          <Shield size={14} className="animate-pulse" />
-          <span>Operations Bridge: {currentTenant?.name}</span>
-          <button 
-            onClick={stopImpersonating}
-            className="bg-white text-amber-600 px-3 py-1 rounded-lg hover:bg-amber-50 transition-all shadow-sm active:scale-[0.98] font-black border border-amber-600/20"
-          >
-            Terminal Management
-          </button>
+        <div className="group fixed top-0 left-0 right-0 z-[200] h-2.5 print:hidden">
+          {/* 10px hover trigger (wrapper height = 10px so nothing below gets blocked) */}
+          {/* Always-visible pill, no pointer events */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-0.5 rounded-b-md shadow-md opacity-80 group-hover:opacity-0 transition-opacity duration-200 pointer-events-none flex items-center gap-1">
+            <Shield size={10} /> Impersonating
+          </div>
+          {/* Banner absolute — out of flow, slides down on hover */}
+          <div className="absolute top-0 left-0 right-0 bg-amber-500 text-white px-4 py-2 text-center text-xs font-semibold flex items-center justify-center gap-4 shadow-xl -translate-y-full group-hover:translate-y-0 transition-transform duration-200 ease-out pointer-events-auto">
+            <Shield size={14} className="animate-pulse" />
+            <span>Viewing as: {currentTenant?.name}</span>
+            <button
+              onClick={stopImpersonating}
+              className="bg-white text-amber-600 px-3 py-1 rounded-lg hover:bg-amber-50 transition-all shadow-sm active:scale-[0.98] font-semibold border border-amber-600/20"
+            >
+              Exit View
+            </button>
+          </div>
         </div>
       )}
       <Navbar />

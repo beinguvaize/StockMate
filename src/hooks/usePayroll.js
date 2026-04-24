@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { normalizeNumericRows } from '../lib/numeric';
+
+const EMPLOYEE_NUMERIC = ['dailyRate', 'monthlySalary', 'balance'];
+const PAYROLL_NUMERIC = ['gross', 'net', 'deductions', 'bonus', 'days_worked'];
 
 export const usePayroll = (tenantId) => {
   const [employees, setEmployees] = useState([]);
@@ -25,8 +29,8 @@ export const usePayroll = (tenantId) => {
       if (empErr) throw empErr;
       if (payErr) throw payErr;
 
-      setEmployees(empData || []);
-      setPayrollRecords(payData || []);
+      setEmployees(normalizeNumericRows(empData, EMPLOYEE_NUMERIC));
+      setPayrollRecords(normalizeNumericRows(payData, PAYROLL_NUMERIC));
     } catch (err) {
       console.error("usePayroll Fetch Error:", err);
       setError(err.message);

@@ -9,6 +9,7 @@ import { isLocked, recordFailure, recordSuccess, timeRemaining } from '../lib/lo
 import { isModuleAvailable, getRequiredPlan, PLANS } from '../lib/tenancy';
 import { logError } from '../lib/errorLogger';
 import { logAuditEvent, AUDIT_ACTIONS, diffRoles } from '../lib/auditLog';
+import { generateRef, todayISOInAppTZ } from '../lib/utils';
 
 // Bootstrap allowlist for first-login auto-provisioning. Parsed once from env.
 // NOT a permission gate — only decides what roles to stamp on a brand-new user
@@ -811,7 +812,7 @@ export const AppProvider = ({ children}) => {
     }
 
  const newSale = {
- id: `SAL-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+ id: generateRef('SAL'),
  date: new Date().toISOString(),
  clientId,
  items: cartItems,
@@ -856,7 +857,10 @@ export const AppProvider = ({ children}) => {
  p_payment_method: newSale.paymentMethod,
  p_payment_status: newSale.paymentStatus,
  p_date: newSale.date,
- p_user_id: currentUser?.id
+ p_user_id: currentUser?.id,
+ // Impersonation-safe: GLOBAL_ADMIN override honored server-side only for
+ // admins; non-admins always get their own tenant regardless of payload.
+ p_tenant_id: currentTenantId || null
 });
 
  if (rpcError) {
@@ -911,7 +915,7 @@ export const AppProvider = ({ children}) => {
 
  // Update Day Book Cash locally if Cash
  if (paymentType.toLowerCase() === 'cash') {
- const today = new Date().toISOString().split('T')[0];
+ const today = todayISOInAppTZ();
  setDayBook(prev => prev.map(db => 
  db.date === today 
  ? { ...db, total_sales: (db.total_sales || 0) + totalAmount}
@@ -1722,8 +1726,8 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
 }
 
  const newPurchase = {
- id: `PUR-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
- date: purchase.date || new Date().toISOString().split('T')[0],
+ id: generateRef('PUR'),
+ date: purchase.date || todayISOInAppTZ(),
  linked_product_id: purchase.linked_product_id || null,
  quantity: Number(purchase.quantity) || 0,
  unit_cost: Number(purchase.unit_cost) || 0,

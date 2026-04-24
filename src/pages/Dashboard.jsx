@@ -1,8 +1,16 @@
 import React, { useMemo, useState, useEffect} from 'react';
-import { useAppContext} from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { useInventory } from '../hooks/useInventory';
+import { useSales } from '../hooks/useSales';
+import { usePurchases } from '../hooks/usePurchases';
+import { useFinance } from '../hooks/useFinance';
+import { usePeople } from '../hooks/usePeople';
+import { useOperations } from '../hooks/useOperations';
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, LayoutDashboard, Activity, Users, Calendar} from 'lucide-react';
 import { useNavigate} from 'react-router-dom';
 import DailyRevenueTrendChart from '../components/DailyRevenueTrendChart';
+import { todayISOInAppTZ } from '../lib/utils';
 import { 
  ResponsiveContainer, 
  AreaChart, 
@@ -20,10 +28,17 @@ import {
 } from 'recharts';
 
 const Dashboard = () => {
- const { 
- sales, purchases, expenses, products, businessProfile, routes, 
- movementLog, clients, employees, payrollRecords, clientPayments, dayBook
-} = useAppContext();
+  const { currentTenantId, businessProfile } = useTenant();
+  const { products } = useInventory(currentTenantId);
+  const { sales } = useSales(currentTenantId);
+  const { purchases } = usePurchases(currentTenantId);
+  const { expenses, dayBook } = useFinance(currentTenantId);
+  const { clients, employees } = usePeople(currentTenantId);
+  const { routes, movementLog } = useOperations(currentTenantId);
+  
+  // Placeholders for remaining data
+  const payrollRecords = [];
+  const clientPayments = [];
  const navigate = useNavigate();
 
  // Core Metrics Calculation
@@ -65,7 +80,7 @@ const Dashboard = () => {
  const rangeExpenses = (expenses || []).filter(e => isWithinRange(e.date)).reduce((sum, e) => sum + (e.amount || 0), 0);
   const rangePurchases = (purchases || []).filter(p => isWithinRange(p.date)).reduce((sum, p) => sum + (p.total_cost || p.total_amount || 0), 0);
  
- const todayStr = new Date().toISOString().split('T')[0];
+ const todayStr = todayISOInAppTZ();
  const todaysDayBook = (dayBook || []).find(db => db.date === todayStr);
  const currentCashBalance = todaysDayBook ? (todaysDayBook.closing_balance || 0) : 0;
  
