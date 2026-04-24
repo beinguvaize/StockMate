@@ -84,7 +84,10 @@ const Expenses = () => {
  const getFilterLabel = () => {
  if (filterType === 'today') return"Today's Expenses";
  if (filterType === 'yesterday') return"Yesterday's Expenses";
- if (filterType === 'custom' && filterDate) return `Expenses for ${new Date(filterDate).toLocaleDateString()}`;
+ if (filterType === 'custom' && filterDate) {
+   const [y, m, d] = filterDate.split('-');
+   return `Expenses for ${new Date(+y, +m - 1, +d).toLocaleDateString()}`;
+ }
  return"Total Expenses";
 };
 
@@ -306,7 +309,10 @@ const Expenses = () => {
  <td className="p-1.5 text-center">
  <div className="flex items-center justify-center gap-2 text-[10px] font-bold text-gray-700">
  <Calendar size={10} className="opacity-60" />
- {new Date(expense.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric'})}
+ {expense.date ? (() => {
+   const [y, m, d] = (expense.date.split('T')[0]).split('-');
+   return new Date(+y, +m - 1, +d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+ })() : '—'}
  </div>
  </td>
  <td className="p-1.5 text-right">
