@@ -81,29 +81,44 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
   // Calculate row counts for filling up to 8 rows
   const minRows = 10;
   
-  // Robust data mapping to handle both Database (snake_case) and UI (camelCase)
-  const grandTotal = invoice.grand_total ?? invoice.grandTotal ?? 0;
-  const totalTax = invoice.tax_total ?? invoice.totalTax ?? 0;
-  const taxableAmount = invoice.taxable_amount ?? invoice.taxable ?? 0;
-  const cgstAmount = invoice.cgst_amount ?? invoice.cgst ?? 0;
-  const sgstAmount = invoice.sgst_amount ?? invoice.sgst ?? 0;
-  const igstAmount = invoice.igst_amount ?? invoice.igst ?? 0;
-  const roundOff = invoice.round_off ?? invoice.roundOff ?? 0;
-  const paidAmount = invoice.paid_amount ?? 0;
-  const outstandingBalance = safeClient.outstanding_balance ?? safeClient.outstanding ?? 0;
+  // Map items to a consistent structure first (needed for fallback tax calc)
+  const items = (invoice.items || []).map(item => {
+    const qty  = parseFloat(item.qty || item.quantity || 0);
+    const rate = parseFloat(item.rate || item.price || item.sellingPrice || 0);
+    const taxRate = parseFloat(item.taxRate ?? 0);
+    const taxAmount = qty * rate * taxRate / 100;
+    return {
+      name: item.name || 'Unnamed Product',
+      sku: item.sku || item.hsn || '',
+      hsn_code: item.hsn_code || item.hsn || '---',
+      qty, unit: item.unit || 'PCS', rate, taxRate, taxAmount,
+      total: qty * rate + taxAmount,
+    };
+  });
 
-  // Map items to a consistent structure
-  const items = (invoice.items || []).map(item => ({
-    name: item.name || 'Unnamed Product',
-    sku: item.sku || item.hsn || '',
-    hsn_code: item.hsn_code || item.hsn || '---',
-    qty: item.qty || item.quantity || 0,
-    unit: item.unit || 'PCS',
-    rate: item.rate || item.price || item.sellingPrice || 0,
-    taxRate: item.taxRate || 18,
-    taxAmount: item.totalTax || item.tax_amount || ((item.qty * item.rate * (item.taxRate || 18)) / 100),
-    total: item.total || item.total_amount || ((item.qty * item.rate) * (1 + (item.taxRate || 18)/100))
-  }));
+  // Robust data mapping — fall back to recalculating from items when
+  // stored tax fields are 0 (e.g. auto-created invoices from POS credit sales)
+  const grandTotal    = parseFloat(invoice.grand_total ?? invoice.grandTotal ?? 0);
+  const roundOff      = parseFloat(invoice.round_off ?? invoice.roundOff ?? 0);
+  const paidAmount    = parseFloat(invoice.paid_amount ?? 0);
+  const outstandingBalance = parseFloat(safeClient.outstanding_balance ?? safeClient.outstanding ?? 0);
+
+  const derivedTaxable = items.reduce((s, i) => s + i.qty * i.rate, 0);
+  const derivedTax     = items.reduce((s, i) => s + i.taxAmount, 0);
+  const isInterstate   = invoice.is_interstate || invoice.isInterstate || false;
+
+  const storedTaxable  = parseFloat(invoice.taxable_amount ?? invoice.taxable ?? 0);
+  const storedTax      = parseFloat(invoice.tax_total ?? invoice.totalTax ?? 0);
+  const storedCgst     = parseFloat(invoice.cgst_amount ?? invoice.cgst ?? 0);
+  const storedSgst     = parseFloat(invoice.sgst_amount ?? invoice.sgst ?? 0);
+  const storedIgst     = parseFloat(invoice.igst_amount ?? invoice.igst ?? 0);
+
+  // Use stored values when non-zero; else derive from items
+  const taxableAmount  = storedTaxable > 0 ? storedTaxable : derivedTaxable;
+  const totalTax       = storedTax     > 0 ? storedTax     : derivedTax;
+  const cgstAmount     = storedCgst    > 0 ? storedCgst    : (isInterstate ? 0 : derivedTax / 2);
+  const sgstAmount     = storedSgst    > 0 ? storedSgst    : (isInterstate ? 0 : derivedTax / 2);
+  const igstAmount     = storedIgst    > 0 ? storedIgst    : (isInterstate ? derivedTax : 0);
 
   const emptyRowsNeeded = Math.max(0, minRows - items.length);
 

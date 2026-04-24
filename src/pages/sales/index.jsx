@@ -20,23 +20,34 @@ const SalesPage = () => {
     const result = await placeSale(saleData);
     if (!result.error && saleData.paymentMethod === 'CREDIT' && saleData.clientId && saleData.clientId !== 'WALKIN') {
       const client = clients.find(c => c.id === saleData.clientId);
+      const invoiceItems = (saleData.items || []).map(i => ({
+        name: i.name,
+        qty: i.quantity,
+        rate: i.price,
+        taxRate: i.taxRate || 0,
+        total: (i.price || 0) * (i.quantity || 1) * (1 + (i.taxRate || 0) / 100),
+        sku: i.sku || '',
+        hsn_code: i.hsn_code || '',
+        unit: i.unit || 'PCS',
+      }));
+      // Calculate tax breakdown from line items
+      const taxableAmt = invoiceItems.reduce((sum, i) => sum + i.rate * i.qty, 0);
+      const totalTax   = invoiceItems.reduce((sum, i) => sum + i.rate * i.qty * (i.taxRate / 100), 0);
+      const isInterstate = client?.state && businessProfile?.state
+        ? client.state.trim().toLowerCase() !== businessProfile.state.trim().toLowerCase()
+        : false;
       await createInvoice({
         sale_id: result.id,
         client_id: saleData.clientId,
         client_name: client?.name || 'Unknown',
-        items: (saleData.items || []).map(i => ({
-          name: i.name,
-          qty: i.quantity,
-          rate: i.price,
-          taxRate: i.taxRate || 0,
-          total: (i.price || 0) * (i.quantity || 1),
-          sku: i.sku || '',
-          hsn_code: i.hsn_code || '',
-          unit: i.unit || 'PCS',
-        })),
+        items: invoiceItems,
         grand_total: saleData.totalAmount,
-        taxable_amount: saleData.totalAmount,
-        tax_total: 0,
+        taxable_amount: taxableAmt,
+        tax_total: totalTax,
+        cgst_amount: isInterstate ? 0 : totalTax / 2,
+        sgst_amount: isInterstate ? 0 : totalTax / 2,
+        igst_amount: isInterstate ? totalTax : 0,
+        is_interstate: isInterstate,
         paid_amount: 0,
         payment_status: 'UNPAID',
       });
