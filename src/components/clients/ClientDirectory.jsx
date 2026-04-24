@@ -265,7 +265,7 @@ const ClientDirectory = ({
                     onClick={() => goToSettle(client.id)}
                     className="flex-1 py-3 px-4 rounded-xl bg-ink-primary text-accent-signature text-[11px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-2"
                   >
-                    <Receipt size={13} /> Issue Receipt
+                    <Receipt size={13} /> Settle Account
                   </button>
                   {hasPermission('clients', 'edit') && (
                     <button
