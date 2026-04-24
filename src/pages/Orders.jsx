@@ -8,7 +8,7 @@ import {
   ShoppingBag, Truck, CheckCircle2, XCircle, Clock,
   Search, Filter, ChevronRight, Eye, Trash2, Edit3,
   MapPin, Printer, ShieldCheck, CreditCard, User,
-  ArrowUpRight, Package, AlertCircle, X, Check, Activity
+  ArrowUpRight, Package, AlertCircle, X, Check, Activity, TrendingUp
 } from 'lucide-react';
 import PremiumInvoice from '../components/sales/PremiumInvoice';
 import { todayISOInAppTZ, formatDate } from '../lib/utils';
