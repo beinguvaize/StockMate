@@ -392,13 +392,15 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
               </div>
               <div className="p-3 text-[11px]">
                 <Totals k="Subtotal" v={`₹${parseFloat(taxableAmount).toFixed(2)}`} />
-                {(invoice.is_interstate || invoice.isInterstate) ? (
-                  <Totals k={`IGST @${items[0]?.taxRate || 18}%`} v={`₹${parseFloat(igstAmount).toFixed(2)}`} />
-                ) : (
-                  <>
-                    <Totals k={`CGST @${(items[0]?.taxRate || 18) / 2}%`} v={`₹${parseFloat(cgstAmount).toFixed(2)}`} />
-                    <Totals k={`SGST @${(items[0]?.taxRate || 18) / 2}%`} v={`₹${parseFloat(sgstAmount).toFixed(2)}`} />
-                  </>
+                {totalTax > 0 && (
+                  (invoice.is_interstate || invoice.isInterstate) ? (
+                    <Totals k={`IGST @${items[0]?.taxRate ?? 0}%`} v={`₹${parseFloat(igstAmount).toFixed(2)}`} />
+                  ) : (
+                    <>
+                      <Totals k={`CGST @${(items[0]?.taxRate ?? 0) / 2}%`} v={`₹${parseFloat(cgstAmount).toFixed(2)}`} />
+                      <Totals k={`SGST @${(items[0]?.taxRate ?? 0) / 2}%`} v={`₹${parseFloat(sgstAmount).toFixed(2)}`} />
+                    </>
+                  )
                 )}
                 {roundOff !== 0 && <Totals k="Round Off" v={`₹${parseFloat(roundOff).toFixed(2)}`} />}
                 <div className="flex justify-between items-center mt-1 pt-1 border-t-2 border-slate-900">
