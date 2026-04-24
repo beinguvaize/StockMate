@@ -204,7 +204,18 @@ const ClientSettlement = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Amount Received</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Amount Received</label>
+                  {outstanding > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setPaymentData({ ...paymentData, amount: outstanding.toString() })}
+                      className="text-[10px] font-bold text-accent-signature hover:underline"
+                    >
+                      Fill outstanding ({formatCurrency(outstanding)})
+                    </button>
+                  )}
+                </div>
                 <div className="relative">
                   <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-black text-gray-400">
                     {businessProfile?.currencySymbol || '₹'}
@@ -255,6 +266,10 @@ const ClientSettlement = () => {
                 <CheckCircle2 size={15} />
                 {isSubmitting ? 'Saving…' : 'Record Payment'}
               </button>
+              <p className="text-[10px] text-gray-400 text-center leading-snug">
+                Payment reduces outstanding balance directly.<br />
+                Select invoices above to also mark them as paid.
+              </p>
             </form>
           </div>
         </div>
@@ -262,6 +277,14 @@ const ClientSettlement = () => {
         {/* Right panel — invoice list */}
         <div className="lg:col-span-8">
           <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
+
+            {/* Section header */}
+            <div className="px-4 pt-4 pb-0">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Unpaid Invoices</span>
+                <span className="text-[10px] font-semibold text-gray-400 italic">Optional — select to mark specific invoices as paid</span>
+              </div>
+            </div>
 
             {/* Toolbar */}
             <div className="p-4 border-b border-black/5 flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
