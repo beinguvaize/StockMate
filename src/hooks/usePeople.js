@@ -73,16 +73,28 @@ export const usePeople = (tenantId) => {
     return { success: !error, error };
   };
 
+  // Strip unknown columns before insert/update
+  const toClientRow = ({ status, ...rest }) => rest; // 'status' not in DB schema
+
   const addClient = async (client) => {
-    const { error } = await supabase.from('clients').insert({ ...client, tenant_id: tenantId });
-    if (!error) await fetchPeopleData();
+    const id = crypto.randomUUID();
+    const { error } = await supabase
+      .from('clients')
+      .insert({ id, ...toClientRow(client), tenant_id: tenantId });
+    if (error) console.error('addClient error:', error);
+    else await fetchPeopleData();
     return { success: !error, error };
   };
 
   const updateClient = async (client) => {
     const { id, ...data } = client;
-    const { error } = await supabase.from('clients').update(data).eq('id', id).eq('tenant_id', tenantId);
-    if (!error) await fetchPeopleData();
+    const { error } = await supabase
+      .from('clients')
+      .update(toClientRow(data))
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
+    if (error) console.error('updateClient error:', error);
+    else await fetchPeopleData();
     return { success: !error, error };
   };
 

@@ -32,6 +32,8 @@ const Clients = () => {
  const [editingClient, setEditingClient] = useState(null);
  const [formData, setFormData] = useState({ name: '', contact: '', phone: '', email: '', address: '', status: 'ACTIVE'});
  const [deleteConfirm, setDeleteConfirm] = useState(null);
+ const [saving, setSaving] = useState(false);
+ const [formError, setFormError] = useState('');
  
 
  // Statement State
@@ -132,7 +134,8 @@ const Clients = () => {
 
  const openAdd = () => {
  setEditingClient(null);
- setFormData({ name: '', contact: '', phone: '', email: '', address: '', status: 'ACTIVE'});
+ setFormData({ name: '', contact: '', phone: '', email: '', address: '', status: 'ACTIVE' });
+ setFormError('');
  setIsAdding(true);
 };
 
@@ -142,18 +145,27 @@ const Clients = () => {
  setIsAdding(true);
 };
 
- const handleSubmit = (e) => {
- e.preventDefault();
- const data = { ...formData, status: formData.status || 'ACTIVE'};
- if (editingClient) {
- updateClient({ ...editingClient, ...data});
-} else {
- addClient(data);
-}
- setIsAdding(false);
- setEditingClient(null);
- setFormData({ name: '', contact: '', phone: '', email: '', address: '', status: 'ACTIVE'});
-};
+ const handleSubmit = async (e) => {
+   e.preventDefault();
+   setFormError('');
+   if (!formData.name.trim() || formData.name.trim().length < 2) {
+     setFormError('Business name must be at least 2 characters.');
+     return;
+   }
+   setSaving(true);
+   const data = { ...formData };
+   const { error } = editingClient
+     ? await updateClient({ ...editingClient, ...data })
+     : await addClient(data);
+   setSaving(false);
+   if (error) {
+     setFormError(error.message || 'Failed to save client. Please try again.');
+     return;
+   }
+   setIsAdding(false);
+   setEditingClient(null);
+   setFormData({ name: '', contact: '', phone: '', email: '', address: '', status: 'ACTIVE' });
+ };
 
  const toggleStatus = (client) => {
  const newStatus = client.status === 'INACTIVE' ? 'ACTIVE' : 'INACTIVE';
@@ -345,14 +357,17 @@ const Clients = () => {
  </div>
  </div>
 
+ {formError && (
+   <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
+     {formError}
+   </div>
+ )}
  <div className="grid grid-cols-2 gap-4 pt-4">
- <button type="button" className="px-8 py-2 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all cursor-pointer" onClick={() => { setIsAdding(false); setEditingClient(null);}}>Cancel</button>
- <button type="submit" className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill">
- {editingClient ? 'SAVE CHANGES' : 'ADD CLIENT'}
- <div className="icon-nest !w-10 !h-10 ml-4">
- <Save size={22} />
- </div>
- </button>
+   <button type="button" disabled={saving} className="px-8 py-2 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all cursor-pointer" onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}>Cancel</button>
+   <button type="submit" disabled={saving} className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill disabled:opacity-60 disabled:cursor-not-allowed">
+     {saving ? 'SAVING...' : (editingClient ? 'SAVE CHANGES' : 'ADD CLIENT')}
+     {!saving && <div className="icon-nest !w-10 !h-10 ml-4"><Save size={22} /></div>}
+   </button>
  </div>
  </form>
  </div>
