@@ -74,14 +74,15 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
     }
     setIsSubmitting(true);
     try {
+      const isCreditSale = paymentMethod === 'CREDIT';
       const saleData = {
         id: generateRef('SAL'),
         clientId: selectedClientId,
         items: cart,
         totalAmount: total,
-        paidAmount: paymentMethod === 'CASH' ? total : 0,
+        paidAmount: isCreditSale ? 0 : total,
         paymentMethod,
-        status: 'COMPLETED'
+        status: isCreditSale ? 'PENDING' : 'COMPLETED',
       };
       const result = await onPlaceSale(saleData);
       if (result && result.error) {

@@ -23,8 +23,10 @@ const isPaidStatus = (s) => s === 'PAID' || s === 'COMPLETED';
 
 const shortRef = (id) => {
   if (!id) return '';
+  // Keep full ref for SAL-XXXXXX format; strip only long UUIDs
+  if (/^[A-Z]+-[A-Z0-9]+$/i.test(id)) return id; // e.g. SAL-X2QQ5B → show as-is
   const tail = id.split('-').pop() || id;
-  return /^\d{10,}$/.test(tail) ? tail.slice(-5) : tail;
+  return /^\d{10,}$/.test(tail) ? tail.slice(-5) : tail.toUpperCase();
 };
 
 const formatTime = (isoOrDate) => {
