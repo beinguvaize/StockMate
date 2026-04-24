@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useTenant } from '../../context/TenantContext';
 import {
   UserCircle, Plus, Edit3, Trash2, Check,
@@ -22,12 +22,14 @@ const ClientDirectory = ({
   hasPermission,
 }) => {
   const navigate = useNavigate();
+  const { slug: paramSlug } = useParams();
   const { businessProfile: bp } = useTenant();
-  const slug = bp?.slug;
+  const slug = paramSlug || bp?.slug;
   const sym = businessProfile?.currencySymbol || '₹';
 
   const goToSettle = (clientId) => {
     if (slug) navigate(`/${slug}/clients/settle/${clientId}`);
+    else console.warn('goToSettle: slug not available yet');
   };
 
   return (

@@ -12,7 +12,37 @@ import SalePrintDispatcher from './components/SalePrintDispatcher';
 
 const SalesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
-  const { sales, clients, placeSale: addSale, deleteSale: removeSale, settleSale, loading: salesLoading } = useSales(currentTenantId);
+  const { sales, clients, placeSale, createInvoice, deleteSale: removeSale, settleSale, loading: salesLoading } = useSales(currentTenantId);
+
+  // Wrap placeSale: auto-create an UNPAID invoice for every credit sale so
+  // the settlement page can show and settle it.
+  const addSale = async (saleData) => {
+    const result = await placeSale(saleData);
+    if (!result.error && saleData.paymentMethod === 'CREDIT' && saleData.clientId && saleData.clientId !== 'WALKIN') {
+      const client = clients.find(c => c.id === saleData.clientId);
+      await createInvoice({
+        sale_id: result.id,
+        client_id: saleData.clientId,
+        client_name: client?.name || 'Unknown',
+        items: (saleData.items || []).map(i => ({
+          name: i.name,
+          qty: i.quantity,
+          rate: i.price,
+          taxRate: i.taxRate || 0,
+          total: (i.price || 0) * (i.quantity || 1),
+          sku: i.sku || '',
+          hsn_code: i.hsn_code || '',
+          unit: i.unit || 'PCS',
+        })),
+        grand_total: saleData.totalAmount,
+        taxable_amount: saleData.totalAmount,
+        tax_total: 0,
+        paid_amount: 0,
+        payment_status: 'UNPAID',
+      });
+    }
+    return result;
+  };
   const { products, loading: productsLoading } = useInventory(currentTenantId);
   const { users: staff = [] } = usePeople(currentTenantId);
 
