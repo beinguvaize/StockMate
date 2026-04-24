@@ -4,6 +4,7 @@ import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { useSales } from '../hooks/useSales';
 import { useFinance } from '../hooks/useFinance';
+import { formatDate } from '../lib/utils';
 
 import { 
   UserCircle, Plus, DollarSign, Building, Phone, MapPin, 
@@ -69,7 +70,7 @@ const Clients = () => {
  credit: p.amount // Decreases outstanding balance
 }));
 
- const combined = [...clientSales, ...payments].sort((a, b) => new Date(a.date) - new Date(b.date));
+ const combined = [...clientSales, ...payments].sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
  
  let runningBalance = 0;
  return combined.map(txn => {
@@ -411,7 +412,7 @@ const Clients = () => {
  <tr key={`${txn.id}-${idx}`} className="hover:bg-canvas/50 transition-colors">
  <td className="py-3 px-4">
  <span className="text-[10px] font-semibold text-ink-primary">
- {new Date(txn.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric'})}
+ {formatDate(txn.date)}
  </span>
  </td>
  <td className="py-3 px-4">

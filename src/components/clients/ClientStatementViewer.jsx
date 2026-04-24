@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Check, AlertCircle, Download, Printer, UserCircle} from 'lucide-react';
+import { formatDate } from '../../lib/utils';
 
 const ClientStatementViewer = ({ 
  client, 
@@ -112,7 +113,7 @@ const ClientStatementViewer = ({
  {txn.description}
  </span>
  <span className="text-[8px] font-bold text-gray-700 opacity-60">
- {new Date(txn.date).toLocaleDateString('en-US', { day: '2-digit', month: 'short', year: 'numeric'})}
+ {formatDate(txn.date)}
  </span>
  </div>
  </td>

@@ -1,5 +1,6 @@
 import React, { useMemo, useState} from 'react';
 import { Search, CreditCard, Calendar, Download, Trash2, CheckCircle2} from 'lucide-react';
+import { formatDate } from '../../lib/utils';
 
 const ClientPayments = ({ clientPayments, clients, businessProfile}) => {
  const [searchTerm, setSearchTerm] = useState('');
@@ -15,7 +16,7 @@ const ClientPayments = ({ clientPayments, clients, businessProfile}) => {
  p.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
  p.id.toLowerCase().includes(searchTerm.toLowerCase())
  )
- .sort((a, b) => new Date(b.date) - new Date(a.date));
+ .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
 }, [clientPayments, clients, searchTerm]);
 
  return (
@@ -80,7 +81,7 @@ const ClientPayments = ({ clientPayments, clients, businessProfile}) => {
  {payment.client_name}
  </h4>
  <div className="flex items-center gap-1 text-[9px] font-bold text-gray-700 opacity-60">
- <Calendar size={9} /> {new Date(payment.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric'})}
+ <Calendar size={9} /> {formatDate(payment.date)}
  </div>
  </div>
 

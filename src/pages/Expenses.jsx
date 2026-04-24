@@ -68,7 +68,7 @@ const Expenses = () => {
  
  return matchesSearch && matchesDate;
 })
- .sort((a, b) => new Date(b.date) - new Date(a.date));
+ .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
 }, [expenses, searchTerm, filterType, filterDate]);
 
  const totalExpenses = useMemo(() => {

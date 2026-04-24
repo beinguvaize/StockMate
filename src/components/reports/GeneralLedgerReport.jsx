@@ -3,6 +3,7 @@ import useReportData from './useReportData';
 import ReportShell from './ReportShell';
 import { BookOpen, TrendingUp, TrendingDown, Calendar, Receipt, Tag, Landmark } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
+import { formatDate } from '../../lib/utils';
 
 /**
  * General Ledger Report
@@ -169,7 +170,7 @@ const GeneralLedgerReport = () => {
     });
 
     // Sort newest first
-    return entries.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return entries.sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
   }, [sales, expenses, payroll, purchases]);
 
   // Account summary

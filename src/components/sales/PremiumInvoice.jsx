@@ -1,15 +1,16 @@
 import React, { useState, useEffect} from 'react';
-import { 
- Printer, X, Edit3, Check, Calendar, 
- CreditCard, Building2, MapPin, Phone, 
+import {
+ Printer, X, Edit3, Check, Calendar,
+ CreditCard, Building2, MapPin, Phone,
  Mail, Globe, ShieldCheck, Download
 } from 'lucide-react';
+import { formatDate } from '../../lib/utils';
 
 const PremiumInvoice = ({ order, business, onClose}) => {
  const [isEditMode, setIsEditMode] = useState(false);
  const [editedOrder, setEditedOrder] = useState({
  invoiceNo: order.id ? String(order.id).split('-').pop() : 'NEW',
- date: order.date ? new Date(order.date).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN'),
+ date: order.date ? formatDate(order.date) : new Date().toLocaleDateString('en-IN'),
  dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN'),
  remarks: order.salesmanNote || 'Thanks for your business!',
  paymentMethod: order.paymentMethod || 'CASH'

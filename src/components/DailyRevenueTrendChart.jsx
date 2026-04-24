@@ -11,6 +11,7 @@ import {
 import { useSales } from '../hooks/useSales';
 import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
+import { parseLocalDate } from '../lib/utils';
 
 /**
  * DailyRevenueTrendChart
@@ -47,7 +48,7 @@ const DailyRevenueTrendChart = () => {
  
  // Group sales for this specific date
  const daySales = (sales || []).filter(o => {
- const oDate = new Date(o.date);
+ const oDate = parseLocalDate(o.date);
  return oDate.getFullYear() === d.getFullYear() &&
  oDate.getMonth() === d.getMonth() &&
  oDate.getDate() === d.getDate();

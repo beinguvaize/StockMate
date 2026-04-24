@@ -1,9 +1,10 @@
 import React from 'react';
-import { 
-  X, Printer, ArrowUpRight, ArrowDownRight, 
-  Calendar, DollarSign, Clock, Receipt, ShoppingCart, 
-  FileText, TrendingUp, TrendingDown 
+import {
+  X, Printer, ArrowUpRight, ArrowDownRight,
+  Calendar, DollarSign, Clock, Receipt, ShoppingCart,
+  FileText, TrendingUp, TrendingDown
 } from 'lucide-react';
+import { formatDate, parseLocalDate } from '../../lib/utils';
 
 const DailyLedgerDetail = ({ 
   date, 
@@ -25,7 +26,7 @@ const DailyLedgerDetail = ({
       description: `Sale to ${s.customerInfo?.name || 'Walk-in Customer'}`,
       amount: s.totalAmount,
       time: new Date(s.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timestamp: new Date(s.date).getTime(),
+      timestamp: parseLocalDate(s.date).getTime(),
       method: s.paymentMethod || 'Cash'
     })),
     ...expenses.map(e => ({
@@ -35,7 +36,7 @@ const DailyLedgerDetail = ({
       description: e.note || 'Operational Expense',
       amount: parseFloat(e.amount) || 0,
       time: new Date(e.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      timestamp: new Date(e.date).getTime(),
+      timestamp: parseLocalDate(e.date).getTime(),
       method: 'Cash'
     }))
   ].sort((a, b) => a.timestamp - b.timestamp);
@@ -67,7 +68,7 @@ const DailyLedgerDetail = ({
                 <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">TRANSACTION MANIFEST</span>
                 <div className="h-1 w-1 rounded-full bg-black/10"></div>
                 <span className="text-[11px] font-black text-ink-primary uppercase tracking-wider bg-canvas px-3 py-1 rounded-pill">
-                  {new Date(date).toLocaleDateString(undefined, { day: 'numeric', month: 'long', year: 'numeric' })}
+                  {formatDate(date)}
                 </span>
               </div>
             </div>
@@ -215,7 +216,7 @@ const DailyLedgerDetail = ({
             <p className="font-bold text-sm uppercase opacity-60">Daily Financial Ledger</p>
           </div>
           <div className="text-right">
-            <p className="font-black text-xl">{new Date(date).toLocaleDateString()}</p>
+            <p className="font-black text-xl">{formatDate(date)}</p>
             <p className="font-bold text-xs uppercase opacity-60">Status: Locked Record</p>
           </div>
         </div>

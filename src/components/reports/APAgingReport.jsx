@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
 import ReportShell from './ReportShell';
+import { parseLocalDate } from '../../lib/utils';
 import {
   AlertTriangle, Truck, Phone, Calendar, DollarSign,
   Clock, FileWarning, Package, Receipt,
@@ -70,7 +71,7 @@ const APAgingReport = () => {
       .map((p) => {
         const supplier = suppliers.find((s) => s.id === p.supplier_id);
         const purchaseDate = p.date;
-        const parsed = purchaseDate ? new Date(purchaseDate) : null;
+        const parsed = purchaseDate ? parseLocalDate(purchaseDate) : null;
         const impliedDue = parsed && !isNaN(parsed.getTime())
           ? new Date(parsed.getTime() + DEFAULT_PAYMENT_TERMS_DAYS * 86400000)
           : null;

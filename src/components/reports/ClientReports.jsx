@@ -4,6 +4,7 @@ import {
  Tooltip, Legend, Cell, PieChart, Pie
 } from 'recharts';
 import { Users, AlertTriangle, Printer, Search, ArrowRight, ShieldAlert, CreditCard} from 'lucide-react';
+import { parseLocalDate } from '../../lib/utils';
 
 const ClientReports = ({ clients, sales, businessProfile}) => {
  const [searchTerm, setSearchTerm] = useState('');
@@ -31,7 +32,7 @@ const ClientReports = ({ clients, sales, businessProfile}) => {
  return;
 }
 
- const oldestSaleDate = new Date(Math.min(...clientSales.map(s => new Date(s.date).getTime())));
+ const oldestSaleDate = new Date(Math.min(...clientSales.map(s => parseLocalDate(s.date).getTime())));
  const diffDays = Math.floor((now - oldestSaleDate) / (1000 * 60 * 60 * 24));
 
  if (diffDays <= 30) { aging[0].value += balance; aging[0].count += 1;}

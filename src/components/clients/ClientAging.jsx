@@ -1,5 +1,6 @@
 import React, { useMemo} from 'react';
 import { AlertCircle, Calendar, ArrowRight, ShieldCheck, Download} from 'lucide-react';
+import { parseLocalDate } from '../../lib/utils';
 
 const ClientAging = ({ clients, sales, clientPayments, businessProfile}) => {
  const agingData = useMemo(() => {
@@ -19,12 +20,12 @@ const ClientAging = ({ clients, sales, clientPayments, businessProfile}) => {
  const aging = { current: 0, overdue30: 0, overdue60: 0, overdue90: 0};
 
  // Apply payments to oldest sales first (FIFO)
- clientSales.sort((a, b) => new Date(a.date) - new Date(b.date)).forEach(sale => {
+ clientSales.sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0)).forEach(sale => {
  const unpaid = Math.max(0, sale.totalAmount - Math.min(sale.totalAmount, remainingPayments));
  remainingPayments = Math.max(0, remainingPayments - sale.totalAmount);
 
  if (unpaid > 0) {
- const daysOld = Math.floor((now - new Date(sale.date)) / (1000 * 60 * 60 * 24));
+ const daysOld = Math.floor((now - parseLocalDate(sale.date)) / (1000 * 60 * 60 * 24));
  if (daysOld <= 30) aging.current += unpaid;
  else if (daysOld <= 60) aging.overdue30 += unpaid;
  else if (daysOld <= 90) aging.overdue60 += unpaid;

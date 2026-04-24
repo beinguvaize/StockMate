@@ -11,7 +11,7 @@ import {
   ArrowUpRight, Package, AlertCircle, X, Check
 } from 'lucide-react';
 import PremiumInvoice from '../components/sales/PremiumInvoice';
-import { todayISOInAppTZ } from '../lib/utils';
+import { todayISOInAppTZ, formatDate } from '../lib/utils';
 
 const Orders = () => {
   const { hasPermission } = useAuth();
@@ -171,7 +171,7 @@ const Orders = () => {
                     <div className="flex flex-col">
                       <span className="text-xs font-black text-ink-primary leading-none uppercase tracking-tight mb-1">#{order.invoice_number}</span>
                       <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                        {new Date(order.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+                        {formatDate(order.date)}
                       </span>
                     </div>
                   </td>

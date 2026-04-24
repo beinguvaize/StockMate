@@ -118,6 +118,21 @@ export const formatDateTime = (dateString) => {
   });
 };
 
+/**
+ * Parse a YYYY-MM-DD date string as a LOCAL midnight Date (no UTC shift).
+ * Safe to use for comparisons, aging calculations, sorting.
+ * Falls back to full ISO parse for timestamp strings.
+ */
+export const parseLocalDate = (dateStr) => {
+  if (!dateStr) return new Date(NaN);
+  const ymd = typeof dateStr === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateStr);
+  if (ymd) {
+    const [y, m, d] = dateStr.split('T')[0].split('-').map(Number);
+    return new Date(y, m - 1, d); // local midnight, no UTC shift
+  }
+  return new Date(dateStr);
+};
+
 // YYYY-MM-DD string for today in IST (use for default form dates).
 export const todayISOInAppTZ = () => {
   const parts = new Intl.DateTimeFormat('en-CA', {

@@ -10,7 +10,7 @@ import { useOperations } from '../hooks/useOperations';
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, LayoutDashboard, Activity, Users, Calendar} from 'lucide-react';
 import { useNavigate} from 'react-router-dom';
 import DailyRevenueTrendChart from '../components/DailyRevenueTrendChart';
-import { todayISOInAppTZ } from '../lib/utils';
+import { todayISOInAppTZ, formatDate, parseLocalDate } from '../lib/utils';
 import { 
  ResponsiveContainer, 
  AreaChart, 
@@ -180,7 +180,7 @@ const Dashboard = () => {
  const txs = [];
  (sales || []).forEach(s => txs.push({ id: `sale-${s.id}`, time: s.date, type: 'Sale', desc: `Sale to ${s.customerName || 'Walk-in'}`, amount: s.totalAmount, isPositive: true}));
  (expenses || []).forEach(e => txs.push({ id: `exp-${e.id}`, time: e.date, type: 'Expense', desc: e.description || e.category, amount: e.amount, isPositive: false}));
- return txs.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 10);
+ return txs.sort((a, b) => (b.time > a.time ? 1 : b.time < a.time ? -1 : 0)).slice(0, 10);
 }, [sales, expenses]);
 
  // Operational Metrics
@@ -236,7 +236,7 @@ const Dashboard = () => {
  
  return events
  .filter(e => e.date && !isNaN(new Date(e.date).getTime()))
- .sort((a, b) => new Date(b.date) - new Date(a.date))
+ .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0))
  .slice(0, 10);
 }, [sales, routes, movementLog, businessProfile]);
 
@@ -273,7 +273,7 @@ const Dashboard = () => {
  // Process Sales (Income)
  (sales || []).forEach(s => {
  if (!s.date) return;
- const dateStr = new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'});
+ const dateStr = parseLocalDate(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'});
  if (dataMap[dateStr]) {
  dataMap[dateStr].income += (s.totalAmount || 0);
 }
@@ -282,7 +282,7 @@ const Dashboard = () => {
  // Process Expenses (Expense)
  (expenses || []).forEach(exp => {
  if (!exp.date) return;
- const dateStr = new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'});
+ const dateStr = parseLocalDate(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'});
  if (dataMap[dateStr]) {
  dataMap[dateStr].expense += (exp.amount || 0);
 }
@@ -301,7 +301,7 @@ const Dashboard = () => {
  const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
  (sales || []).forEach(o => {
- const oDate = new Date(o.date);
+ const oDate = parseLocalDate(o.date);
  if (oDate >= last7Days && !isNaN(oDate.getTime())) {
  const dayName = days[oDate.getDay()];
  dayMap[dayName] += (o.totalAmount || 0);
@@ -339,9 +339,9 @@ const Dashboard = () => {
  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
- const currentWeekSales = (sales || []).filter(o => new Date(o.date) >= sevenDaysAgo).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+ const currentWeekSales = (sales || []).filter(o => parseLocalDate(o.date) >= sevenDaysAgo).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
  const previousWeekSales = (sales || []).filter(o => {
- const d = new Date(o.date);
+ const d = parseLocalDate(o.date);
  return d >= fourteenDaysAgo && d < sevenDaysAgo;
 }).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
@@ -1058,7 +1058,7 @@ const Dashboard = () => {
  <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors group">
  <td className="py-2 pl-4">
  <p className="text-sm font-bold text-ink-primary">
- {new Date(tx.time).toLocaleDateString([], { month: 'short', day: 'numeric'})}
+ {formatDate(tx.time)}
  </p>
  <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">
  {new Date(tx.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}

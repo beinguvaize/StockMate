@@ -12,6 +12,7 @@ import {
   Phone, Globe, Mail, MapPin, Landmark, QrCode
 } from 'lucide-react';
 import { formatINR, amountToWords } from '../../lib/gstEngine';
+import { formatDate } from '../../lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 
 const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose }) => {
@@ -152,8 +153,8 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
               </div>
               <div className="p-3 text-[10px] grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 self-center">
                 <span className="text-slate-500">Invoice No</span><span className="font-bold text-right">#{invoice.invoice_number}</span>
-                <span className="text-slate-500">Invoice Date</span><span className="font-bold text-right">{new Date(invoice.invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
-                <span className="text-slate-500">Due Date</span><span className="font-bold text-right">{new Date(invoice.due_date || invoice.invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</span>
+                <span className="text-slate-500">Invoice Date</span><span className="font-bold text-right">{formatDate(invoice.invoice_date)}</span>
+                <span className="text-slate-500">Due Date</span><span className="font-bold text-right">{formatDate(invoice.due_date || invoice.invoice_date)}</span>
                 <span className="text-slate-500">Supply Type</span><span className="font-bold text-right">{(invoice.is_interstate || invoice.isInterstate) ? 'Inter-State' : 'Intra-State'}</span>
                 {safeClient.state && <><span className="text-slate-500">Place of Supply</span><span className="font-bold text-right">{safeClient.state}</span></>}
               </div>

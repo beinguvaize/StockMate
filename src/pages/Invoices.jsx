@@ -18,7 +18,7 @@ import { useSales } from '../hooks/useSales';
 import { useInventory } from '../hooks/useInventory';
 import { usePeople } from '../hooks/usePeople';
 import { formatINR, calculateGST, shareToWhatsApp } from '../lib/gstEngine';
-import { todayISOInAppTZ } from '../lib/utils';
+import { todayISOInAppTZ, formatDate, parseLocalDate } from '../lib/utils';
 import InvoiceTemplate from '../components/invoice/InvoiceTemplate';
 import ReportTable from '../components/reports/ReportTable';
 
@@ -54,7 +54,7 @@ const Invoices = () => {
     const paid = invoices.reduce((sum, inv) => sum + (inv.paid_amount || 0), 0);
     const pending = total - paid;
     const overdue = invoices.filter(inv => 
-      inv.payment_status === 'UNPAID' && new Date(inv.due_date) < new Date()
+      inv.payment_status === 'UNPAID' && parseLocalDate(inv.due_date) < new Date()
     ).reduce((sum, inv) => sum + inv.grand_total, 0);
 
     return { total, paid, pending, overdue };
@@ -224,7 +224,7 @@ const Invoices = () => {
                     <td className="py-4 px-6">
                       <div className="flex flex-col">
                         <span className="text-sm font-black text-ink-primary leading-none mb-1 group-hover:text-accent-signature transition-colors">#{inv.invoice_number}</span>
-                        <span className="text-[10px] font-bold text-gray-400">{new Date(inv.invoice_date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                        <span className="text-[10px] font-bold text-gray-400">{formatDate(inv.invoice_date)}</span>
                       </div>
                     </td>
                     <td className="py-4 px-6">

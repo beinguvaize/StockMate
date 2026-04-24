@@ -10,6 +10,7 @@ import {
   Trash2, Edit3, X, Save, ArrowLeft, ArrowUpRight,
   Package, CreditCard, History, User2, Check, Box
 } from 'lucide-react';
+import { parseLocalDate } from '../lib/utils';
 
 const Suppliers = () => {
   const { hasPermission } = useAuth();
@@ -55,7 +56,7 @@ const Suppliers = () => {
  totalProcured: supplierPurchases.reduce((sum, p) => sum + amt(p), 0),
  creditDue: Number(supplier?.balance ?? supplier?.outstanding_balance ?? supplierPurchases.filter(p => isCredit(p.payment_type)).reduce((s,p) => s + amt(p), 0)),
  purchaseCount: supplierPurchases.length,
- lastPurchase: supplierPurchases.sort((a,b) => new Date(b.date) - new Date(a.date))[0]?.date
+ lastPurchase: supplierPurchases.sort((a,b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0))[0]?.date
 };
 };
 

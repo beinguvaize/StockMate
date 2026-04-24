@@ -5,12 +5,13 @@ import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { usePurchases } from '../hooks/usePurchases';
 import { useInventory } from '../hooks/useInventory';
-import { 
-  ArrowLeft, Building2, Phone, Mail, MapPin, 
-  History, Box, TrendingUp, Calendar, Search, 
+import {
+  ArrowLeft, Building2, Phone, Mail, MapPin,
+  History, Box, TrendingUp, Calendar, Search,
   ArrowUpRight, CreditCard, Clock, FileText, ChevronRight,
   TrendingDown, Percent, Info, ShieldCheck
 } from 'lucide-react';
+import { formatDate } from '../lib/utils';
 
 const SupplierLedger = () => {
   const { id } = useParams();
@@ -40,7 +41,7 @@ const SupplierLedger = () => {
     if (!supplier) return [];
     return (purchases || [])
       .filter(p => p.supplier_id === supplier.id || p.supplier_name === supplier.name)
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
+      .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
   }, [supplier, purchases]);
 
   const filteredPurchases = useMemo(() => {
@@ -206,7 +207,7 @@ const SupplierLedger = () => {
                 <div className="flex justify-between items-center">
                   <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Last Purchase</span>
                   <span className="text-base font-bold text-ink-primary tabular-nums">
-                    {metrics.last ? new Date(metrics.last).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : 'N/A'}
+                    {metrics.last ? formatDate(metrics.last) : 'N/A'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center pt-5 border-t border-black/5">
@@ -311,7 +312,7 @@ const SupplierLedger = () => {
                               <ChevronRight size={14} className={`transition-transform ${expanded ? 'rotate-90 text-accent-signature' : ''}`} />
                             </td>
                             <td className="py-4 px-4">
-                              <div className="text-xs font-semibold text-ink-primary">{new Date(p.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                              <div className="text-xs font-semibold text-ink-primary">{formatDate(p.date)}</div>
                             </td>
                             <td className="py-4 px-4">
                               <div className="text-xs font-mono text-gray-600">#{(p.id || '').slice(-8).toUpperCase()}</div>

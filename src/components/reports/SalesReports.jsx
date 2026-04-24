@@ -53,7 +53,7 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
 }
 
  sales.forEach(s => {
- const date = new Date(s.date).toISOString().split('T')[0];
+ const date = s.date.slice(0, 10);
  if (last30Days[date]) {
  last30Days[date].amount += s.total || 0;
 }

@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import useReportData from './useReportData';
 import ReportShell from './ReportShell';
+import { parseLocalDate } from '../../lib/utils';
 import { 
   Package, Smartphone, Layers, AlertCircle, TrendingUp, 
   DollarSign, Tag, Info, ArrowRight, ShieldAlert, Archive
@@ -63,7 +64,7 @@ const InventoryReport = () => {
     const deadItems = products.filter(p => {
       if ((p.stock || 0) <= 0) return false;
       const hasSales = sales.some(s => {
-        const isRecent = new Date(s.date) >= thresholdDate;
+        const isRecent = parseLocalDate(s.date) >= thresholdDate;
         const includesProduct = s.items?.some(item => item.productId === p.id);
         return isRecent && includesProduct;
       });
