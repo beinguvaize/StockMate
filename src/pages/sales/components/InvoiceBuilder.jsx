@@ -277,7 +277,7 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
         <div className="mt-8 bg-canvas rounded-2xl p-6 border border-black/5">
           <div className="flex justify-between items-center mb-1">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Amount Due</span>
-            <span className="text-sm font-black text-accent-signature">{formatCurrency(total)}</span>
+            <span className="text-sm font-black text-ink-primary">{formatCurrency(total)}</span>
           </div>
           <p className="text-[9px] text-gray-400 italic">Verify amount before finalizing the sale.</p>
         </div>
