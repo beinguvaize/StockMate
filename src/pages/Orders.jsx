@@ -5,10 +5,10 @@ import { useSales } from '../hooks/useSales';
 import { usePeople } from '../hooks/usePeople';
 import { useOperations } from '../hooks/useOperations';
 import { 
-  ShoppingBag, Truck, CheckCircle2, XCircle, Clock, 
-  Search, Filter, ChevronRight, Eye, Trash2, Edit3, 
+  ShoppingBag, Truck, CheckCircle2, XCircle, Clock,
+  Search, Filter, ChevronRight, Eye, Trash2, Edit3,
   MapPin, Printer, ShieldCheck, CreditCard, User,
-  ArrowUpRight, Package, AlertCircle, X, Check
+  ArrowUpRight, Package, AlertCircle, X, Check, Activity
 } from 'lucide-react';
 import PremiumInvoice from '../components/sales/PremiumInvoice';
 import { todayISOInAppTZ, formatDate } from '../lib/utils';
