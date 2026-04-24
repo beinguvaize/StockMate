@@ -234,7 +234,7 @@ const Invoices = () => {
                         </div>
                         <div className="flex flex-col">
                           <span className="text-[13px] font-black text-ink-primary leading-none mb-1">{client?.name}</span>
-                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{client?.gst_no || 'Unregistered'}</span>
+                          <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">{client?.gstin || client?.gst_no || 'Unregistered'}</span>
                         </div>
                       </div>
                     </td>
@@ -340,7 +340,7 @@ const Invoices = () => {
                       onChange={(e) => setDraft({ ...draft, clientId: e.target.value })}
                     >
                       <option value="">SELECT TARGET CLIENT...</option>
-                      {clients.map(c => <option key={c.id} value={c.id}>{c.name.toUpperCase()} ({c.gst_no || 'URD'})</option>)}
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name.toUpperCase()} ({c.gstin || c.gst_no || 'URD'})</option>)}
                     </select>
                  </div>
                  

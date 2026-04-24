@@ -289,8 +289,8 @@ const Clients = () => {
  {/* Client Form Modal */}
  {isAdding && (
  <div className="modal-overlay">
- <div className="glass-modal">
- <div className="flex justify-between items-start mb-5">
+ <div className="glass-modal flex flex-col max-h-[90vh]">
+ <div className="flex justify-between items-start mb-5 shrink-0">
  <div>
  <h2 className="text-3xl font-semibold text-ink-primary leading-none mb-2">
  {editingClient ? 'EDIT CLIENT.' : 'NEW CLIENT.'}
@@ -307,7 +307,8 @@ const Clients = () => {
  </button>
  </div>
 
- <form onSubmit={handleSubmit} className="space-y-5">
+ <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
+ <div className="overflow-y-auto flex-1 space-y-5 pr-1">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  <div className="md:col-span-2">
  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Business Name</label>
@@ -386,7 +387,8 @@ const Clients = () => {
      {formError}
    </div>
  )}
- <div className="grid grid-cols-2 gap-4 pt-4">
+ </div>{/* end scrollable */}
+ <div className="grid grid-cols-2 gap-4 pt-4 shrink-0 border-t border-black/5 mt-4">
    <button type="button" disabled={saving} className="px-8 py-2 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all cursor-pointer" onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}>Cancel</button>
    <button type="submit" disabled={saving} className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill disabled:opacity-60 disabled:cursor-not-allowed">
      {saving ? 'SAVING...' : (editingClient ? 'SAVE CHANGES' : 'ADD CLIENT')}
