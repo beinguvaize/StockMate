@@ -17,10 +17,15 @@ const PremiumInvoice = ({ order, business, onClose}) => {
        @page { size: A4; margin: 10mm; }
        html, body { background: white !important; margin: 0 !important; padding: 0 !important;
          -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-       body > *:not(#premium-invoice-wrapper) { display: none !important; }
-       #premium-invoice-wrapper { position: static !important; background: white !important;
-         overflow: visible !important; padding: 0 !important; display: block !important; }
-       #premium-invoice-wrapper .print-hidden { display: none !important; }
+       /* visibility technique works for nested elements (display:none on body children kills nested too) */
+       body * { visibility: hidden !important; }
+       #premium-invoice-content, #premium-invoice-content * { visibility: visible !important; }
+       #premium-invoice-content {
+         position: absolute !important; left: 0 !important; top: 0 !important;
+         width: 100% !important; background: white !important;
+         box-shadow: none !important; max-width: none !important;
+       }
+       #premium-invoice-content .print-hidden { display: none !important; }
      }
    `;
    document.head.appendChild(style);
@@ -84,7 +89,7 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  </div>
 
  {/* Invoice Container */}
- <div className="bg-white w-full max-w-[850px] min-h-[1100px] shadow-2xl relative overflow-hidden print:shadow-none print:max-w-none print:w-full">
+ <div id="premium-invoice-content" className="bg-white w-full max-w-[850px] min-h-[1100px] shadow-2xl relative overflow-hidden print:shadow-none print:max-w-none print:w-full">
  
  {/* Header Decoration */}
  <div className="absolute top-0 right-0 w-32 h-32 bg-[#C8F135] opacity-10 rounded-bl-[100px] print:hidden"></div>
