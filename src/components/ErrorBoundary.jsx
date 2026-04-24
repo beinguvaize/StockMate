@@ -77,6 +77,15 @@ class ErrorBoundary extends React.Component {
  {this.state.error?.name || 'GENERIC_RUNTIME_EXCEPTION'}
  </span>
  </p>
+ {/* Surface the runtime message + stack in dev so the boundary stops
+     swallowing bug signal. In production this section still renders, but
+     the information is what would otherwise require opening DevTools. */}
+ {this.state.error?.message && (
+   <pre className="mt-4 text-left text-[10px] font-mono text-red-600 whitespace-pre-wrap break-words bg-red-50/50 p-3 rounded-lg max-h-48 overflow-auto">
+     {this.state.error.message}
+     {this.state.error.stack ? '\n\n' + this.state.error.stack : ''}
+   </pre>
+ )}
  </div>
  </div>
  </div>

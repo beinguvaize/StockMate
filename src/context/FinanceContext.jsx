@@ -38,6 +38,8 @@ export const FinanceProvider = ({ children }) => {
       tenant_id: currentTenantId,
     };
 
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('expenses').upsert(newExpense);
       if (error) {
         console.error('Error adding expense to Supabase:', error);
         setSyncStatus('ERROR');
@@ -52,6 +54,8 @@ export const FinanceProvider = ({ children }) => {
     addNotification(`Expense recorded: ${expense.amount}`, 'expense');
   };
 
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('expenses').upsert(updatedExpense);
       if (error) {
         console.error('Error updating expense in Supabase:', error);
         setSyncStatus('ERROR');
@@ -65,6 +69,8 @@ export const FinanceProvider = ({ children }) => {
     addNotification(`Expense updated: ${updatedExpense.amount}`, 'success');
   };
 
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
       if (error) {
         console.error('Error deleting expense from Supabase:', error);
         setSyncStatus('ERROR');
@@ -83,6 +89,10 @@ export const FinanceProvider = ({ children }) => {
     if (!name || expenseCategories.includes(name)) return;
     const newCategories = [...expenseCategories, name];
 
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('settings')
+        .upsert({ key: 'expense_categories', value: newCategories, tenant_id: currentTenantId });
       if (error) {
         console.error('Error adding expense category to Supabase:', error);
         addNotification(`Category sync failed: ${error.message}`, "error");
@@ -98,6 +108,10 @@ export const FinanceProvider = ({ children }) => {
     if (!newName || expenseCategories.includes(newName)) return;
     const newCategories = expenseCategories.map((c) => (c === oldName ? newName : c));
 
+    if (isSupabaseConfigured) {
+      const { error } = await supabase
+        .from('settings')
+        .upsert({ key: 'expense_categories', value: newCategories, tenant_id: currentTenantId });
       if (error) {
         console.error('Error updating expense category in Supabase:', error);
         addNotification(`Category sync failed: ${error.message}`, "error");

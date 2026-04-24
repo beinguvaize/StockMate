@@ -1,6 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { generateRef, todayISOInAppTZ } from '../lib/utils';
+
+// Postgres `numeric` -> JS string over the wire. Coerce on fetch so downstream
+// `reduce(sum + x, 0)` doesn't string-concat and `.toFixed` doesn't throw.
+const NUMERIC_SALE_COLS = ['totalAmount', 'subtotal', 'tax', 'discount', 'totalCogs', 'paidAmount'];
+const NUMERIC_CLIENT_COLS = ['outstanding_balance', 'credit_limit'];
+const NUMERIC_INVOICE_COLS = ['amount', 'grand_total', 'taxable_amount', 'tax_total', 'discount_total', 'cgst_amount', 'sgst_amount', 'igst_amount', 'round_off', 'paid_amount'];
+
+const normalizeRow = (row, cols) => {
+  if (!row || typeof row !== 'object') return row;
+  const out = { ...row };
+  for (const col of cols) {
+    if (out[col] != null) out[col] = Number(out[col]);
+  }
+  return out;
+};
 
 export const useSales = (tenantId) => {
   const { currentUser } = useAuth();
@@ -23,7 +39,7 @@ export const useSales = (tenantId) => {
         { data: clientsData, error: clientsErr },
         { data: invoicesData, error: invoicesErr }
       ] = await Promise.all([
-        supabase.from('sales').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+        supabase.from('sales').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false, nullsFirst: false }).limit(500),
         supabase.from('clients').select('*').eq('tenant_id', tenantId).order('name'),
         supabase.from('invoices').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(500)
       ]);
@@ -32,9 +48,9 @@ export const useSales = (tenantId) => {
       if (clientsErr) throw clientsErr;
       if (invoicesErr) throw invoicesErr;
 
-      setData(salesData || []);
-      setClients(clientsData || []);
-      setInvoices(invoicesData || []);
+      setData((salesData || []).map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
+      setClients((clientsData || []).map(r => normalizeRow(r, NUMERIC_CLIENT_COLS)));
+      setInvoices((invoicesData || []).map(r => normalizeRow(r, NUMERIC_INVOICE_COLS)));
     } catch (err) {
       console.error("useSales Fetch Error:", err);
       setError(err.message);
@@ -65,9 +81,10 @@ export const useSales = (tenantId) => {
       p_total_amount: sale.totalAmount,
       p_payment_method: sale.paymentMethod || 'CASH',
       p_payment_status: sale.status === 'COMPLETED' ? 'PAID' : (sale.status || 'PENDING'),
-      p_date: sale.date || new Date().toISOString().split('T')[0],
+      p_date: sale.date || todayISOInAppTZ(),
       p_user_id: currentUser.id,
       p_location_id: sale.locationId || null,
+      p_tenant_id: tenantId || null,
     });
     if (rpcError) return { error: rpcError };
     await fetchSales();
@@ -128,7 +145,7 @@ export const useSales = (tenantId) => {
         return { error: new Error('placeSale: not authenticated') };
       }
 
-      const id = sale.id || `SAL-${Date.now()}`;
+      const id = sale.id || generateRef('SAL');
       const clientId = sale.clientId === 'WALKIN' ? null : (sale.clientId ?? null);
       const items = (sale.items || []).map(i => ({
         id: i.productId || i.id,
@@ -145,9 +162,13 @@ export const useSales = (tenantId) => {
         p_total_amount: totalAmount,
         p_payment_method: sale.paymentMethod || 'CASH',
         p_payment_status: paymentStatus,
-        p_date: sale.date || new Date().toISOString().split('T')[0],
+        p_date: sale.date || todayISOInAppTZ(),
         p_user_id: currentUser.id,
         p_location_id: sale.locationId || null,
+        // Honor impersonation: GLOBAL_ADMIN acting on another tenant must
+        // persist sales under that tenant, not the admin's home tenant.
+        // RPC rejects the override for non-admins (defence-in-depth).
+        p_tenant_id: tenantId || null,
       });
 
       if (rpcError) {
@@ -170,8 +191,8 @@ export const useSales = (tenantId) => {
     invoices,
     createInvoice: async (draft) => {
       if (!tenantId) return { error: new Error('createInvoice: no tenant') };
-      const id = draft.id || `INV-${Date.now()}`;
-      const invoiceNumber = draft.invoice_number || `#${Date.now().toString().slice(-6)}`;
+      const id = draft.id || generateRef('INV');
+      const invoiceNumber = draft.invoice_number || `#${id.split('-').pop()}`;
       const row = {
         id,
         tenant_id: tenantId,
@@ -192,7 +213,7 @@ export const useSales = (tenantId) => {
         paid_amount: draft.paid_amount ?? 0,
         status: draft.status ?? 'ISSUED',
         payment_status: draft.payment_status ?? 'UNPAID',
-        invoice_date: draft.invoice_date ?? (draft.date || new Date().toISOString().split('T')[0]),
+        invoice_date: draft.invoice_date ?? (draft.date || todayISOInAppTZ()),
         due_date: draft.due_date ?? draft.dueDate ?? null,
         date: draft.date ?? new Date().toISOString(),
       };

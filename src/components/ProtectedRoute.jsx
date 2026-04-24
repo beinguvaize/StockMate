@@ -1,11 +1,14 @@
 import React from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
 import { ShieldAlert, Lock, Sparkles } from 'lucide-react';
 import { getRequiredPlan, PLANS } from '../lib/tenancy';
 
 export function ProtectedRoute({ children, requireGlobalAdmin = false }) {
- const { session, currentUser, loading, hasPermission, currentTenant, isModuleAllowed } = useAppContext();
+  const { session, currentUser, hasPermission, loading: authLoading } = useAuth();
+  const { currentTenant, isModuleAllowed, loading: tenantLoading } = useTenant();
+  const loading = authLoading || tenantLoading;
  const location = useLocation();
  const { tenantSlug } = useParams();
 
@@ -20,10 +23,13 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false }) {
  );
  }
 
- // Authentication Guard
- if (!session && !currentUser) {
- return <Navigate to="/login" state={{ from: location }} replace />;
- }
+  // Authentication Guard
+  if (!session && !currentUser) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // GLOBAL ADMIN BYPASS: Complete platform sovereignty
+  if (currentUser?.roles?.includes('GLOBAL_ADMIN')) return children;
 
  // Global Admin route guard
  if (requireGlobalAdmin) {
@@ -66,14 +72,15 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false }) {
  'orders': 'sales', // Pipeline is part of sales
  'expenses': 'expenses',
  'clients': 'clients',
- 'suppliers': 'suppliers',
- 'payroll': 'payroll',
- 'daybook': 'daybook',
- 'vehicles': 'vehicles',
- 'reports': 'reports',
- 'users': 'users',
- 'settings': 'settings'
- };
+  'suppliers': 'suppliers',
+  'payroll': 'payroll',
+  'daybook': 'daybook',
+  'vehicles': 'vehicles',
+  'reports': 'reports',
+  'users': 'users',
+  'settings': 'settings',
+  'invoices': 'sales'
+  };
 
  const moduleKey = moduleMap[path];
 

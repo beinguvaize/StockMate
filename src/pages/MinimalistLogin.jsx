@@ -1,15 +1,19 @@
 import React, { useState} from 'react';
 import { useNavigate} from 'react-router-dom';
-import { useAppContext} from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { usePeople } from '../hooks/usePeople';
+import { useTenant } from '../context/TenantContext';
 import { Shield, ChevronRight, Mail, Lock} from 'lucide-react';
 
 const MinimalistLogin = () => {
- const { login, users} = useAppContext();
+ const { login } = useAuth();
+ const { currentTenantId } = useTenant();
+ const { users } = usePeople(currentTenantId || 'MASTER'); // MASTER or null depending on auth flow
  const navigate = useNavigate();
  const [email, setEmail] = useState('');
  const [password, setPassword] = useState('');
 
- const activeUsers = users.filter(u => u.status === 'ACTIVE');
+ const activeUsers = (users || []).filter(u => u.status === 'ACTIVE');
 
  const [error, setError] = useState('');
 

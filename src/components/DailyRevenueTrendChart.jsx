@@ -8,7 +8,9 @@ import {
  Tooltip, 
  ResponsiveContainer 
 } from 'recharts';
-import { useAppContext} from '../context/AppContext';
+import { useSales } from '../hooks/useSales';
+import { useTenant } from '../context/TenantContext';
+import { usePeople } from '../hooks/usePeople';
 
 /**
  * DailyRevenueTrendChart
@@ -16,7 +18,9 @@ import { useAppContext} from '../context/AppContext';
  * Follows the high-performance"Obsidian-glass" aesthetic.
  */
 const DailyRevenueTrendChart = () => {
- const { sales, businessProfile, employees} = useAppContext();
+ const { currentTenantId, businessProfile } = useTenant();
+ const { sales } = useSales(currentTenantId);
+ const { employees } = usePeople(currentTenantId);
  const currency = businessProfile?.currencySymbol || '₹';
 
  const getEmployeeName = (empId) => {

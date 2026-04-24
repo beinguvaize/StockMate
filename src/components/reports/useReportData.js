@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { useTenant } from '../../context/TenantContext';
+import { useAppContext } from '../../context/AppContext';
 
 /**
  * useReportData - Custom hook for premium report data fetching with Database Sync (Realtime)
@@ -19,7 +19,7 @@ const useReportData = ({
   params = {}, // Additional static params
   skipTenantFilter = false // Opt-out for global/admin reports
 }) => {
-  const { currentTenantId } = useTenant();
+  const { currentTenantId } = useAppContext();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

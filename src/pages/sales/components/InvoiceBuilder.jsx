@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User } from 'lucide-react';
 import Button from '../../../shared/Button';
 import Modal from '../../../shared/Modal';
-import { formatCurrency } from '../../../lib/utils';
+import { formatCurrency, generateRef } from '../../../lib/utils';
 import { useNotifications } from '../../../context/NotificationContext';
 
 const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => {
@@ -75,7 +75,7 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
     setIsSubmitting(true);
     try {
       const saleData = {
-        id: `SAL-${Date.now()}`,
+        id: generateRef('SAL'),
         clientId: selectedClientId,
         items: cart,
         totalAmount: total,
@@ -141,10 +141,10 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
         <div className="p-6 border-b border-black/5 flex justify-between items-center bg-canvas/30">
           <div className="flex items-center gap-3">
             <CartIcon size={20} className="text-accent-signature" />
-            <h2 className="font-bold text-sm uppercase tracking-widest">Active Cart</h2>
+            <h2 className="font-semibold text-sm text-ink-primary">Cart</h2>
           </div>
           <div className="bg-accent-signature text-button-text text-[10px] font-black px-2 py-1 rounded-pill ring-4 ring-accent-signature/10">
-            {cart.reduce((acc, i) => acc + i.quantity, 0)} ITEMS
+            {cart.reduce((acc, i) => acc + i.quantity, 0)} items
           </div>
         </div>
 
@@ -203,7 +203,7 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
               <span>{formatCurrency(subtotal)}</span>
             </div>
             <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-              <span>VAT / Tax</span>
+              <span>Tax</span>
               <span>{formatCurrency(tax)}</span>
             </div>
             <div className="flex justify-between text-xl font-black text-ink-primary pt-2 border-t border-black/5">
@@ -218,12 +218,12 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
             className="w-full !rounded-xl !h-14 shadow-xl"
             icon={ArrowRight}
           >
-            CHECKOUT
+            Checkout
           </Button>
         </div>
       </div>
 
-      <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} title="COMPLETE TRANSACTION" subtitle="SELECT PAYMENT METHOD">
+      <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} title="Complete Sale" subtitle="Select payment method">
         <div className="grid grid-cols-2 gap-4 mt-4">
           <div 
             onClick={() => setPaymentMethod('CASH')}
@@ -266,7 +266,7 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
           className="w-full !mt-8 !h-14 !rounded-xl"
           icon={Check}
         >
-          {isSubmitting ? 'PROCESSING...' : `FINALIZE ORDER (${formatCurrency(total)})`}
+          {isSubmitting ? 'Saving...' : `Confirm & Pay ${formatCurrency(total)}`}
         </Button>
       </Modal>
     </div>

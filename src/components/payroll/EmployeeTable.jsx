@@ -1,5 +1,6 @@
 import React, { useState, useMemo} from 'react';
 import { Search, Filter, Edit3, Trash2, UserPlus, UserMinus, DollarSign, Calendar} from 'lucide-react';
+import { todayISOInAppTZ } from '../../lib/utils';
 
 const EmployeeTable = ({ 
  employees, 
@@ -149,7 +150,7 @@ const EmployeeTable = ({
  <div className="flex justify-center gap-1">
  {!viewOnly && (
  <button 
- onClick={() => { setSalaryPayment({ empId: emp.id, amount: '', date: new Date().toISOString().split('T')[0], notes: ''}); setShowSalaryModal(true);}} 
+ onClick={() => { setSalaryPayment({ empId: emp.id, amount: '', date: todayISOInAppTZ(), notes: ''}); setShowSalaryModal(true);}} 
  className="px-3 py-1.5 rounded-lg bg-surface border border-black/10 text-[9px] font-semibold text-ink-primary hover:bg-ink-primary hover:text-accent-signature transition-all shadow-sm"
  >Pay</button>
  )}

@@ -1,13 +1,19 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import './index.css'
-import { AppProvider } from './context/AppContext'
+import { AuthProvider } from './context/AuthContext'
+import { TenantProvider } from './context/TenantContext'
+import { NotificationProvider } from './context/NotificationContext'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AppProvider>
-      <App />
-    </AppProvider>
+    <AuthProvider>
+      <TenantProvider>
+        <NotificationProvider>
+          <App />
+        </NotificationProvider>
+      </TenantProvider>
+    </AuthProvider>
   </StrictMode>,
 )

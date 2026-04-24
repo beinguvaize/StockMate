@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import ReportShell from '../components/reports/ReportShell';
 import SalesReport from '../components/reports/SalesReport';
 import InventoryReport from '../components/reports/InventoryReport';
@@ -31,7 +31,7 @@ import {
 } from 'lucide-react';
 
 const Reports = () => {
-  const { hasPermission } = useAppContext();
+  const { hasPermission } = useAuth();
   const [activeTab, setActiveTab] = useState('SALES');
   const [activeGroup, setActiveGroup] = useState('OPERATIONAL');
 
