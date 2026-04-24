@@ -44,14 +44,17 @@ export const useFinance = (tenantId) => {
     fetchFinanceData();
   }, [fetchFinanceData]);
 
-  // Map camelCase form fields → snake_case DB columns
+  // Map form fields → DB columns (only known columns sent)
   const toDbRow = (expense) => {
-    const { splitType, routeId, ...rest } = expense;
-    return {
-      ...rest,
-      split_type: splitType ?? rest.split_type ?? null,
-      route_id: routeId ?? rest.route_id ?? null,
+    const { title, notes, splitType, routeId, split_type, route_id, ...rest } = expense;
+    const row = {
+      category: rest.category ?? null,
+      amount: rest.amount ?? null,
+      date: rest.date ?? null,
+      // title stored in note (no title column in DB)
+      note: title ?? notes ?? rest.note ?? null,
     };
+    return row;
   };
 
   const addExpense = async (expense) => {

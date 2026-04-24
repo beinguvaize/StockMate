@@ -2,10 +2,9 @@ import React, { useState, useMemo, useEffect} from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
-import { 
-  Plus, Search, Filter, ArrowUpRight, ArrowDownRight, 
-  Calendar, Tag, FileText, X, Check, Save, TrendingDown,
-  DollarSign, Briefcase, CreditCard, Layers
+import {
+  Plus, Search, Calendar, FileText, X, Save, TrendingDown,
+  DollarSign, Briefcase, Layers
 } from 'lucide-react';
 import { todayISOInAppTZ } from '../lib/utils';
 
@@ -27,13 +26,11 @@ const Expenses = () => {
  const [saving, setSaving] = useState(false);
  const [formError, setFormError] = useState('');
  const [formData, setFormData] = useState({
- title: '',
- amount: '',
- category: 'Other',
- date: todayISOInAppTZ(),
- notes: '',
- splitType: 'Company'
-});
+   title: '',
+   amount: '',
+   category: 'Other',
+   date: todayISOInAppTZ(),
+ });
 
  const uniqueTitles = useMemo(() => {
  if (!Array.isArray(expenses)) return [];
@@ -125,44 +122,28 @@ const Expenses = () => {
 
  setIsAdding(false);
  setEditingExpense(null);
- setFormData({
-   title: '',
-   amount: '',
-   category: 'Other',
-   date: todayISOInAppTZ(),
-   notes: '',
-   splitType: 'Company'
- });
+ setFormData({ title: '', amount: '', category: 'Other', date: todayISOInAppTZ() });
 };
 
  const handleEdit = (expense) => {
- if (!expense) return;
- setEditingExpense(expense);
- setFormData({
- title: expense.title || '',
- amount: (expense.amount || 0).toString(),
- category: expense.category || 'Other',
- date: expense.date ? expense.date.split('T')[0] : todayISOInAppTZ(),
- notes: expense.notes || '',
- splitType: expense.split_type || expense.splitType || 'Company'
-});
- setIsAdding(true);
-};
+   if (!expense) return;
+   setEditingExpense(expense);
+   setFormData({
+     title: expense.note || expense.title || '',
+     amount: (expense.amount || 0).toString(),
+     category: expense.category || 'Other',
+     date: expense.date ? expense.date.split('T')[0] : todayISOInAppTZ(),
+   });
+   setIsAdding(true);
+ };
 
  const handleCloseModal = () => {
- setIsAdding(false);
- setEditingExpense(null);
- setFormError('');
- setSaving(false);
- setFormData({
-   title: '',
-   amount: '',
-   category: 'Other',
-   date: todayISOInAppTZ(),
-   notes: '',
-   splitType: 'Company'
- });
-};
+   setIsAdding(false);
+   setEditingExpense(null);
+   setFormError('');
+   setSaving(false);
+   setFormData({ title: '', amount: '', category: 'Other', date: todayISOInAppTZ() });
+ };
 
  useEffect(() => {
  if (isAdding) {
@@ -312,14 +293,8 @@ const Expenses = () => {
  {filteredExpenses.map(expense => (
  <tr key={expense.id} className="group hover:bg-canvas transition-colors">
  <td className="p-1.5 pl-8">
- <div className="flex flex-col">
- <div className="text-xs font-semibold text-ink-primary flex items-center gap-2">
- {expense.title}
- <span className="px-2 py-0.5 rounded-full bg-gray-100 text-[#747576] text-[8px] font-semibold border border-gray-200">
- {expense.splitType || expense.split_type || 'Company'}
- </span>
- </div>
- <div className="text-sm font-bold text-ink-primary opacity-70 mt-0.5">{expense.notes}</div>
+ <div className="text-xs font-semibold text-ink-primary">
+   {expense.note || '—'}
  </div>
  </td>
  <td className="p-1.5 text-center">
@@ -477,29 +452,6 @@ const Expenses = () => {
  />
  </div>
 
- <div>
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Split Type</label>
- <select 
- className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer" 
- value={formData.splitType} 
- onChange={e => setFormData({...formData, splitType: e.target.value})}
- >
- <option value="Company">COMPANY (DEFAULT)</option>
- <option value="Akbar">AKBAR</option>
- <option value="Nadar">NADAR</option>
- <option value="Narshik">NARSHIK</option>
- </select>
- </div>
-
- <div className="md:col-span-2">
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Notes (Internal Record)</label>
- <textarea 
- className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all min-h-[80px] resize-none" 
- placeholder="ADD DETAILS FOR THIS EXPENDITURE..."
- value={formData.notes} 
- onChange={e => setFormData({...formData, notes: e.target.value})} 
- />
- </div>
  </div>
 
  {formError && (
