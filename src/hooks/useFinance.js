@@ -46,21 +46,20 @@ export const useFinance = (tenantId) => {
 
   // Map form fields → DB columns (only known columns sent)
   const toDbRow = (expense) => {
-    const { title, notes, splitType, routeId, split_type, route_id, ...rest } = expense;
-    const row = {
+    const { title, notes, note, splitType, routeId, split_type, route_id, id, ...rest } = expense;
+    return {
       category: rest.category ?? null,
       amount: rest.amount ?? null,
       date: rest.date ?? null,
-      // title stored in note (no title column in DB)
-      note: title ?? notes ?? rest.note ?? null,
+      note: note ?? notes ?? title ?? null,
     };
-    return row;
   };
 
   const addExpense = async (expense) => {
+    const id = crypto.randomUUID();
     const { error } = await supabase
       .from('expenses')
-      .insert({ ...toDbRow(expense), tenant_id: tenantId });
+      .insert({ id, ...toDbRow(expense), tenant_id: tenantId });
     if (error) console.error('addExpense error:', error);
     else await fetchFinanceData();
     return { error };

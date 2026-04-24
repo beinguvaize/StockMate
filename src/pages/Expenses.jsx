@@ -26,17 +26,12 @@ const Expenses = () => {
  const [saving, setSaving] = useState(false);
  const [formError, setFormError] = useState('');
  const [formData, setFormData] = useState({
-   title: '',
+   note: '',
    amount: '',
    category: 'Other',
    date: todayISOInAppTZ(),
  });
 
- const uniqueTitles = useMemo(() => {
- if (!Array.isArray(expenses)) return [];
- const titles = expenses.map(e => e.title || '');
- return [...new Set(titles)].filter(t => t);
-}, [expenses]);
 
  const filteredExpenses = useMemo(() => {
  if (!Array.isArray(expenses)) return [];
@@ -102,11 +97,6 @@ const Expenses = () => {
    setFormError('Amount must be greater than 0.');
    return;
  }
- if (!formData.title.trim()) {
-   setFormError('Expense title is required.');
-   return;
- }
-
  const expenseData = { ...formData, amount };
 
  setSaving(true);
@@ -122,14 +112,14 @@ const Expenses = () => {
 
  setIsAdding(false);
  setEditingExpense(null);
- setFormData({ title: '', amount: '', category: 'Other', date: todayISOInAppTZ() });
+ setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ() });
 };
 
  const handleEdit = (expense) => {
    if (!expense) return;
    setEditingExpense(expense);
    setFormData({
-     title: expense.note || expense.title || '',
+     note: expense.note || '',
      amount: (expense.amount || 0).toString(),
      category: expense.category || 'Other',
      date: expense.date ? expense.date.split('T')[0] : todayISOInAppTZ(),
@@ -142,7 +132,7 @@ const Expenses = () => {
    setEditingExpense(null);
    setFormError('');
    setSaving(false);
-   setFormData({ title: '', amount: '', category: 'Other', date: todayISOInAppTZ() });
+   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ() });
  };
 
  useEffect(() => {
@@ -387,21 +377,15 @@ const Expenses = () => {
  <form onSubmit={handleSubmit} className="space-y-5">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  <div className="md:col-span-2">
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Expense Title</label>
- <input 
- required 
- type="text" 
- list="expense-titles"
- placeholder="VENDOR OR SERVICE NAME..."
- className="w-full bg-canvas border-none rounded-lg p-5 font-medium text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
- value={formData.title} 
- onChange={e => setFormData({...formData, title: e.target.value})} 
- />
- <datalist id="expense-titles">
- {uniqueTitles.map(title => (
- <option key={title} value={title} />
- ))}
- </datalist>
+   <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Description / Notes</label>
+   <textarea
+     required
+     rows={3}
+     placeholder="E.g. Fuel for delivery van, rent payment, office supplies..."
+     className="w-full bg-canvas border-none rounded-lg p-5 font-medium text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all resize-none"
+     value={formData.note}
+     onChange={e => setFormData({...formData, note: e.target.value})}
+   />
  </div>
  
  <div>
