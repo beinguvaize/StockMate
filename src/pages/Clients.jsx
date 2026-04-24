@@ -30,7 +30,7 @@ const Clients = () => {
  const [statusFilter, setStatusFilter] = useState('ALL');
  const [isAdding, setIsAdding] = useState(false);
  const [editingClient, setEditingClient] = useState(null);
- const [formData, setFormData] = useState({ name: '', contact: '', phone: '', email: '', address: '', status: 'ACTIVE'});
+ const [formData, setFormData] = useState({ name: '', contact: '', phone: '', email: '', status: 'ACTIVE'});
  const [deleteConfirm, setDeleteConfirm] = useState(null);
  const [saving, setSaving] = useState(false);
  const [formError, setFormError] = useState('');
@@ -134,14 +134,14 @@ const Clients = () => {
 
  const openAdd = () => {
  setEditingClient(null);
- setFormData({ name: '', contact: '', phone: '', email: '', address: '', status: 'ACTIVE' });
+ setFormData({ name: '', contact: '', phone: '', email: '', status: 'ACTIVE' });
  setFormError('');
  setIsAdding(true);
 };
 
  const openEdit = (client) => {
  setEditingClient(client);
- setFormData({ name: client.name, contact: client.contact, phone: client.phone, email: client.email || '', address: client.address, status: client.status || 'ACTIVE'});
+ setFormData({ name: client.name, contact: client.contact, phone: client.phone, email: client.email || '', status: client.status || 'ACTIVE' });
  setIsAdding(true);
 };
 
@@ -164,7 +164,7 @@ const Clients = () => {
    }
    setIsAdding(false);
    setEditingClient(null);
-   setFormData({ name: '', contact: '', phone: '', email: '', address: '', status: 'ACTIVE' });
+   setFormData({ name: '', contact: '', phone: '', email: '', status: 'ACTIVE' });
  };
 
  const toggleStatus = (client) => {
