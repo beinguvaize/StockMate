@@ -22,7 +22,7 @@ const Totals = ({ k, v, bold }) => (
   </div>
 );
 
-const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose }) => {
+const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode }) => {
   const [zoom, setZoom] = useState(100);
 
   // Relaxed validation: Handle cases where businessProfile or client might be missing (e.g. Walk-in)
@@ -104,7 +104,16 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
             <button onClick={() => handleZoom('reset')} className="p-1.5 text-white/60 hover:text-white border-l border-white/10 ml-1"><Maximize2 size={14} /></button>
           </div>
 
-          <button 
+          {onToggleMode && (
+            <button
+              onClick={onToggleMode}
+              className="flex items-center gap-2 px-6 py-2.5 bg-white/10 text-white border border-white/20 rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-white/20 active:scale-95 transition-all"
+            >
+              Simple Bill
+            </button>
+          )}
+
+          <button
             onClick={onPrint}
             className="flex items-center gap-2 px-6 py-2.5 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 active:scale-95 transition-all shadow-xl"
           >

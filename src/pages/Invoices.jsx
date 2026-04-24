@@ -20,6 +20,7 @@ import { usePeople } from '../hooks/usePeople';
 import { formatINR, calculateGST, shareToWhatsApp } from '../lib/gstEngine';
 import { todayISOInAppTZ, formatDate, parseLocalDate } from '../lib/utils';
 import InvoiceTemplate from '../components/invoice/InvoiceTemplate';
+import PremiumInvoice from '../components/sales/PremiumInvoice';
 import ReportTable from '../components/reports/ReportTable';
 
 const Invoices = () => {
@@ -34,6 +35,7 @@ const Invoices = () => {
   // Mode & Selection State
   const [showCreator, setShowCreator] = useState(false);
   const [viewingInvoice, setViewingInvoice] = useState(null);
+  const [invoiceMode, setInvoiceMode] = useState('gst'); // 'gst' | 'simple'
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
 
@@ -299,21 +301,72 @@ const Invoices = () => {
       </div>
 
       {/* Invoice Detail View Overlay */}
-      {viewingInvoice && (
-        <InvoiceTemplate 
-          invoice={viewingInvoice}
-          businessProfile={businessProfile}
-          client={clients.find(c => c.id === viewingInvoice.client_id) || { name: viewingInvoice.client_name || 'Walk-in Customer', address: '---', contact: '---', state: '' }}
-          onPrint={() => window.print()}
-          onShare={(type) => {
-             if (type === 'whatsapp') {
-               const client = clients.find(c => c.id === viewingInvoice.client_id) || { name: viewingInvoice.client_name || 'Walk-in Customer', contact: '' };
-               shareToWhatsApp(viewingInvoice, client, businessProfile);
-             }
-          }}
-          onClose={() => setViewingInvoice(null)}
-        />
-      )}
+      {viewingInvoice && (() => {
+        const invClient = clients.find(c => c.id === viewingInvoice.client_id) || {
+          name: viewingInvoice.client_name || 'Walk-in Customer',
+          address: '', contact: '', phone: '', state: '', gstin: ''
+        };
+        const closeInvoice = () => { setViewingInvoice(null); setInvoiceMode('gst'); };
+
+        if (invoiceMode === 'simple') {
+          // Map invoice → PremiumInvoice's order shape
+          const order = {
+            id: viewingInvoice.id,
+            date: viewingInvoice.invoice_date,
+            items: (viewingInvoice.items || []).map(i => ({
+              name: i.name,
+              sku: i.sku || '',
+              quantity: i.qty || i.quantity || 1,
+              price: i.rate || i.price || 0,
+              unit: i.unit || 'PCS',
+            })),
+            totalAmount: viewingInvoice.grand_total,
+            subtotal: viewingInvoice.taxable_amount,
+            tax: viewingInvoice.tax_total,
+            discount: viewingInvoice.discount_total || 0,
+            paymentMethod: viewingInvoice.payment_status === 'PAID' ? 'CASH' : 'CREDIT',
+            paymentStatus: viewingInvoice.payment_status,
+            customerInfo: {
+              name: invClient.name,
+              phone: invClient.phone || invClient.contact || '',
+              address: invClient.address || '',
+              gstin: invClient.gstin || '',
+            },
+          };
+          return (
+            <div className="relative">
+              {/* GST Bill toggle button for Simple mode */}
+              <div className="fixed top-6 left-6 z-[120] print:hidden">
+                <button
+                  onClick={() => setInvoiceMode('gst')}
+                  className="flex items-center gap-2 px-6 py-3 rounded-full bg-ink-primary text-white font-black text-[10px] uppercase tracking-widest hover:opacity-90 transition-all shadow-xl"
+                >
+                  GST Bill
+                </button>
+              </div>
+              <PremiumInvoice
+                order={order}
+                business={businessProfile || {}}
+                onClose={closeInvoice}
+              />
+            </div>
+          );
+        }
+
+        return (
+          <InvoiceTemplate
+            invoice={viewingInvoice}
+            businessProfile={businessProfile}
+            client={invClient}
+            onPrint={() => window.print()}
+            onShare={(type) => {
+              if (type === 'whatsapp') shareToWhatsApp(viewingInvoice, invClient, businessProfile);
+            }}
+            onToggleMode={() => setInvoiceMode('simple')}
+            onClose={closeInvoice}
+          />
+        );
+      })()}
 
       {/* Creator Modal Placeholder (Step 6 implementation continues) */}
       {showCreator && (
