@@ -120,30 +120,30 @@ export const usePeople = (tenantId) => {
     addClient,
     deleteClient,
 
-    recordClientPayment: async (clientId, amount, date, notes, invoiceIds) => {
+    recordClientPayment: async (clientId, amount, date, notes, invoiceIds, paymentMethod = 'CASH') => {
       try {
         setLoading(true);
-        
-        // 1. Update Invoices
+
+        // 1. Mark selected invoices as PAID
         if (invoiceIds && invoiceIds.length > 0) {
+          // Try invoices table first (manually created invoices)
           const { error: invErr } = await supabase
-            .from('sales') // The table is actually 'sales' but used as invoices in some contexts
-            .update({ payment_status: 'PAID', paid_amount: amount }) // Simplified logic
+            .from('invoices')
+            .update({ payment_status: 'PAID', paid_amount: amount })
             .in('id', invoiceIds)
             .eq('tenant_id', tenantId);
-          
-          if (invErr) {
-             // Fallback to 'invoices' table if 'sales' doesn't exist/work here
-             const { error: invTableErr } = await supabase
-               .from('invoices')
-               .update({ payment_status: 'PAID' })
-               .in('id', invoiceIds)
-               .eq('tenant_id', tenantId);
-             if (invTableErr) console.warn("Invoice update failed:", invTableErr);
-          }
+          if (invErr) console.warn('Invoice update failed:', invErr);
+
+          // Also try sales table (POS credit sales)
+          const { error: saleErr } = await supabase
+            .from('sales')
+            .update({ paymentStatus: 'PAID', paidAmount: amount })
+            .in('id', invoiceIds)
+            .eq('tenant_id', tenantId);
+          if (saleErr) console.warn('Sales update failed:', saleErr);
         }
 
-        // 2. Update Client Balance
+        // 2. Reduce client outstanding_balance
         const client = clients.find(c => c.id === clientId);
         if (client) {
           const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
@@ -152,14 +152,29 @@ export const usePeople = (tenantId) => {
             .update({ outstanding_balance: newBalance })
             .eq('id', clientId)
             .eq('tenant_id', tenantId);
-          
           if (cliErr) throw cliErr;
         }
+
+        // 3. Insert audit record into client_payments
+        const { data: { user } } = await supabase.auth.getUser();
+        const { error: payErr } = await supabase
+          .from('client_payments')
+          .insert({
+            id:             generateUUID(),
+            tenant_id:      tenantId,
+            client_id:      clientId,
+            amount,
+            date,
+            payment_method: paymentMethod,
+            notes:          notes || null,
+            recorded_by:    user?.id || null,
+          });
+        if (payErr) console.warn('Payment audit insert failed:', payErr);
 
         await fetchPeopleData();
         return { success: true };
       } catch (err) {
-        console.error("recordClientPayment Error:", err);
+        console.error('recordClientPayment Error:', err);
         return { success: false, error: err.message };
       } finally {
         setLoading(false);

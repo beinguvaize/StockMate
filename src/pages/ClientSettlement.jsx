@@ -1,14 +1,25 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { useSales } from '../hooks/useSales';
+import { supabase } from '../lib/supabase';
 import {
-  ArrowLeft, User, Calendar, FileText,
-  CheckCircle2, AlertCircle, Search, Clock, Receipt
+  ArrowLeft, Calendar, FileText,
+  CheckCircle2, AlertCircle, Search, Clock, Receipt,
+  Wallet, CreditCard, Smartphone, Landmark, History
 } from 'lucide-react';
-import { todayISOInAppTZ, formatDate, formatCurrency } from '../lib/utils';
+import { todayISOInAppTZ, formatDate, formatDateTime, formatCurrency } from '../lib/utils';
+
+const METHOD_ICON = {
+  CASH: Wallet, CARD: CreditCard, UPI: Smartphone,
+  BANK: Landmark, CHEQUE: Landmark,
+};
+const METHOD_LABEL = {
+  CASH: 'Cash', CARD: 'Card', UPI: 'UPI',
+  BANK: 'Bank Transfer', CHEQUE: 'Cheque',
+};
 
 const ClientSettlement = () => {
   const { id } = useParams();
@@ -36,6 +47,20 @@ const ClientSettlement = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [paymentHistory, setPaymentHistory] = useState([]);
+
+  // Fetch payment history for this client
+  useEffect(() => {
+    if (!id || !currentTenantId) return;
+    supabase
+      .from('client_payments')
+      .select('*')
+      .eq('client_id', id)
+      .eq('tenant_id', currentTenantId)
+      .order('created_at', { ascending: false })
+      .limit(50)
+      .then(({ data }) => { if (data) setPaymentHistory(data); });
+  }, [id, currentTenantId, success]); // refetch after successful payment
 
   const clientInvoices = useMemo(() => {
     if (!client) return [];
@@ -78,7 +103,7 @@ const ClientSettlement = () => {
     if (isNaN(amt) || amt <= 0) { setPaymentError('Enter a valid payment amount.'); return; }
     setIsSubmitting(true);
     try {
-      const res = await recordClientPayment(client.id, amt, paymentData.date, paymentData.notes, selectedInvoiceIds);
+      const res = await recordClientPayment(client.id, amt, paymentData.date, paymentData.notes, selectedInvoiceIds, paymentData.paymentMethod);
       if (res?.success === false) {
         setPaymentError(res.error || 'Payment failed. Try again.');
       } else {
@@ -399,6 +424,72 @@ const ClientSettlement = () => {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Payment History */}
+      <div className="mt-6">
+        <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
+          <div className="px-5 py-4 border-b border-black/5 flex items-center gap-2">
+            <History size={15} className="text-gray-400" />
+            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Payment History</span>
+            <span className="ml-auto text-[10px] font-semibold text-gray-400">{paymentHistory.length} records</span>
+          </div>
+
+          {paymentHistory.length === 0 ? (
+            <div className="py-10 text-center text-xs font-semibold text-gray-400">
+              No payments recorded yet
+            </div>
+          ) : (
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-canvas/50 border-b border-black/5">
+                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Method</th>
+                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Notes</th>
+                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Recorded</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/5">
+                {paymentHistory.map(p => {
+                  const Icon = METHOD_ICON[p.payment_method] || Wallet;
+                  return (
+                    <tr key={p.id} className="hover:bg-canvas/40 transition-colors">
+                      <td className="py-3 px-4">
+                        <div className="text-sm font-semibold text-ink-primary">{formatDate(p.date)}</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">{new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-2">
+                          <Icon size={13} className="text-gray-400" />
+                          <span className="text-xs font-semibold text-ink-primary">{METHOD_LABEL[p.payment_method] || p.payment_method}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-xs text-gray-500 max-w-[200px] truncate">{p.notes || '—'}</td>
+                      <td className="py-3 px-4 text-right">
+                        <span className="text-sm font-black text-emerald-600 tabular-nums">{formatCurrency(p.amount)}</span>
+                      </td>
+                      <td className="py-3 px-4 text-[10px] text-gray-400 font-semibold">
+                        {new Date(p.created_at).toLocaleDateString()}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="border-t-2 border-black/10">
+                <tr>
+                  <td colSpan="3" className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Total Collected</td>
+                  <td className="py-3 px-4 text-right">
+                    <span className="text-sm font-black text-emerald-600 tabular-nums">
+                      {formatCurrency(paymentHistory.reduce((s, p) => s + Number(p.amount), 0))}
+                    </span>
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          )}
         </div>
       </div>
     </div>
