@@ -3,6 +3,21 @@ import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import { generateUUID } from '../lib/utils';
 
+const DEFAULT_PERMISSIONS = {
+  inventory: { view: false, edit: false },
+  sales:     { view: false, edit: false },
+  purchases: { view: false, edit: false },
+  expenses:  { view: false, edit: false },
+  clients:   { view: false, edit: false },
+  suppliers: { view: false, edit: false },
+  vehicles:  { view: false, edit: false },
+  reports:   { view: false, edit: false },
+  payroll:   { view: false, edit: false },
+  users:     { view: false, edit: false },
+  settings:  { view: false, edit: false },
+  daybook:   { view: false, edit: false },
+};
+
 const CLIENT_NUMERIC = ['outstanding_balance', 'credit_limit', 'credit_days'];
 const SUPPLIER_NUMERIC = ['balance', 'outstanding_balance'];
 const EMPLOYEE_NUMERIC = ['dailyRate', 'monthlySalary', 'balance'];
@@ -107,14 +122,81 @@ export const usePeople = (tenantId) => {
     return { success: !error, error };
   };
 
-  return { 
-    clients, 
-    suppliers, 
-    employees, 
-    users, 
-    loading, 
-    error, 
+  // ── User management ───────────────────────────────────────────────
+  const addUser = async (userData) => {
+    const newUser = {
+      id: generateUUID(),
+      name: userData.name,
+      email: userData.email,
+      roles: userData.roles || ['STAFF'],
+      status: 'ACTIVE',
+      permissions: userData.permissions || { ...DEFAULT_PERMISSIONS },
+      tenant_id: tenantId,
+    };
+
+    if (userData.password) {
+      try {
+        const { data: result, error: invokeError } = await supabase.functions.invoke('dynamic-service', {
+          body: {
+            email: userData.email,
+            password: userData.password,
+            name: userData.name,
+            roles: userData.roles || ['STAFF'],
+            permissions: userData.permissions || { ...DEFAULT_PERMISSIONS },
+            tenant_id: tenantId,
+          },
+        });
+        if (invokeError) throw invokeError;
+        if (result?.error) throw new Error(result.error);
+        await fetchPeopleData();
+        return true;
+      } catch (err) {
+        console.error('addUser edge fn error:', err);
+        alert('Staff creation failed: ' + (err.message || 'Unknown error'));
+        return false;
+      }
+    }
+
+    // No password — insert profile only
+    const { error } = await supabase.from('users').upsert(newUser);
+    if (error) {
+      console.error('addUser insert error:', error);
+      alert('Failed to save staff profile: ' + error.message);
+      return false;
+    }
+    await fetchPeopleData();
+    return true;
+  };
+
+  const updateUser = async (updatedUser) => {
+    const { error } = await supabase
+      .from('users')
+      .upsert(updatedUser);
+    if (error) console.error('updateUser error:', error);
+    else await fetchPeopleData();
+  };
+
+  const deleteUser = async (userId) => {
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId)
+      .eq('tenant_id', tenantId);
+    if (error) console.error('deleteUser error:', error);
+    else await fetchPeopleData();
+  };
+
+  return {
+    clients,
+    suppliers,
+    employees,
+    users,
+    loading,
+    error,
     refetch: fetchPeopleData,
+    addUser,
+    updateUser,
+    deleteUser,
     addSupplier,
     updateSupplier,
     deleteSupplier,
