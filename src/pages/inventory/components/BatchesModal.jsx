@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Layers, Package, TrendingUp } from 'lucide-react';
+import { Layers, Package, TrendingUp, AlertTriangle } from 'lucide-react';
 import Modal from '../../../shared/Modal';
 import { supabase } from '../../../lib/supabase';
 import { formatDate } from '../../../lib/utils';
@@ -33,10 +33,12 @@ const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
     return () => { cancelled = true; };
   }, [isOpen, product?.id]);
 
+  const sellPrice = toNum(product?.sellingPrice);
   const openBatches = batches.filter(b => toNum(b.qty_remaining) > 0);
   const totalOpenQty = openBatches.reduce((a, b) => a + toNum(b.qty_remaining), 0);
   const totalOpenValue = openBatches.reduce((a, b) => a + toNum(b.qty_remaining) * toNum(b.unit_cost), 0);
   const wAvg = totalOpenQty > 0 ? totalOpenValue / totalOpenQty : 0;
+  const lossRiskBatches = openBatches.filter(b => toNum(b.unit_cost) > sellPrice && sellPrice > 0);
 
   return (
     <Modal
@@ -73,6 +75,20 @@ const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
         </div>
       </div>
 
+      {/* Loss risk warning */}
+      {lossRiskBatches.length > 0 && (
+        <div className="mb-4 flex items-start gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700">
+          <AlertTriangle size={16} className="shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-black uppercase tracking-wide">Selling Below Cost — Loss Risk</p>
+            <p className="text-xs font-semibold mt-0.5 opacity-80">
+              {lossRiskBatches.length} batch{lossRiskBatches.length > 1 ? 'es' : ''} with unit cost above sell price ({currencySymbol}{sellPrice.toFixed(2)}).
+              On FIFO, these units are consumed first — every sale generates a loss.
+            </p>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="py-12 text-center text-sm font-semibold opacity-50 animate-pulse">Loading batches...</div>
       ) : batches.length === 0 ? (
@@ -91,31 +107,34 @@ const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
                 <th className="text-right py-2 px-2">Received Qty</th>
                 <th className="text-right py-2 px-2">Remaining</th>
                 <th className="text-right py-2 px-2">Value</th>
+                <th className="text-right py-2 px-2">Margin</th>
                 <th className="text-center py-2 px-2">Status</th>
               </tr>
             </thead>
             <tbody>
               {batches.map((b) => {
                 const remaining = toNum(b.qty_remaining);
-                const received = toNum(b.qty_received);
-                const depleted = remaining === 0;
-                const pct = received > 0 ? (remaining / received) * 100 : 0;
+                const received  = toNum(b.qty_received);
+                const cost      = toNum(b.unit_cost);
+                const depleted  = remaining === 0;
+                const pct       = received > 0 ? (remaining / received) * 100 : 0;
+                const margin    = sellPrice > 0 ? ((sellPrice - cost) / sellPrice) * 100 : null;
+                const isLoss    = margin !== null && margin < 0;
+                const marginColor = isLoss ? 'text-red-600' : (margin !== null && margin < 20) ? 'text-orange-500' : 'text-emerald-600';
                 return (
-                  <tr key={b.id} className={`border-b border-black/5 ${depleted ? 'opacity-40' : ''}`}>
-                    <td className="py-3 px-2 font-semibold text-ink-primary">
-                      {formatDate(b.received_date)}
+                  <tr key={b.id} className={`border-b border-black/5 ${depleted ? 'opacity-40' : ''} ${isLoss && !depleted ? 'bg-red-50/40' : ''}`}>
+                    <td className="py-3 px-2 font-semibold text-ink-primary">{formatDate(b.received_date)}</td>
+                    <td className={`py-3 px-2 text-right tabular-nums font-semibold ${isLoss && !depleted ? 'text-red-600' : ''}`}>
+                      {currencySymbol}{cost.toFixed(2)}
+                      {isLoss && !depleted && <AlertTriangle size={10} className="inline ml-1 text-red-500" />}
                     </td>
-                    <td className="py-3 px-2 text-right tabular-nums font-semibold">
-                      {currencySymbol}{toNum(b.unit_cost).toFixed(2)}
-                    </td>
-                    <td className="py-3 px-2 text-right tabular-nums text-gray-500">
-                      {received.toFixed(2)}
-                    </td>
-                    <td className="py-3 px-2 text-right tabular-nums font-bold">
-                      {remaining.toFixed(2)}
-                    </td>
+                    <td className="py-3 px-2 text-right tabular-nums text-gray-500">{received.toFixed(2)}</td>
+                    <td className="py-3 px-2 text-right tabular-nums font-bold">{remaining.toFixed(2)}</td>
                     <td className="py-3 px-2 text-right tabular-nums text-emerald-600 font-semibold">
-                      {currencySymbol}{(remaining * toNum(b.unit_cost)).toFixed(2)}
+                      {currencySymbol}{(remaining * cost).toFixed(2)}
+                    </td>
+                    <td className={`py-3 px-2 text-right tabular-nums font-bold ${marginColor}`}>
+                      {margin !== null ? `${margin.toFixed(1)}%` : '—'}
                     </td>
                     <td className="py-3 px-2 text-center">
                       {depleted ? (

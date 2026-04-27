@@ -5,6 +5,7 @@ import { usePeople } from '../hooks/usePeople';
 import { useSales } from '../hooks/useSales';
 import { useFinance } from '../hooks/useFinance';
 import { formatDate } from '../lib/utils';
+import { supabase } from '../lib/supabase';
 
 import { 
   UserCircle, Plus, DollarSign, Building, Phone, MapPin, 
@@ -15,7 +16,6 @@ import {
 import ClientDirectory from '../components/clients/ClientDirectory';
 import ClientAging from '../components/clients/ClientAging';
 import ClientPayments from '../components/clients/ClientPayments';
-import ClientStatementViewer from '../components/clients/ClientStatementViewer';
 
 const Clients = () => {
   const { hasPermission } = useAuth();
@@ -24,63 +24,42 @@ const Clients = () => {
     clients, addClient, updateClient, deleteClient 
   } = usePeople(currentTenantId);
   const { sales } = useSales(currentTenantId);
-  const { clientPayments } = { clientPayments: [] }; // Placeholder for now
+  const [clientPayments, setClientPayments] = useState([]);
+
+  useEffect(() => {
+    if (!currentTenantId) return;
+    supabase
+      .from('client_payments')
+      .select('*')
+      .eq('tenant_id', currentTenantId)
+      .order('created_at', { ascending: false })
+      .limit(500)
+      .then(({ data, error }) => {
+        if (error) console.error('clientPayments fetch error:', error);
+        else if (data) setClientPayments(data);
+      });
+  }, [currentTenantId]);
  const [activeTab, setActiveTab] = useState('DIRECTORY'); // DIRECTORY, AGING, PAYMENTS, STATEMENTS
  const [searchTerm, setSearchTerm] = useState('');
  const [statusFilter, setStatusFilter] = useState('ALL');
  const [isAdding, setIsAdding] = useState(false);
  const [editingClient, setEditingClient] = useState(null);
- const [formData, setFormData] = useState({ name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', status: 'ACTIVE' });
+ const EMPTY_FORM = { name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', status: 'ACTIVE', client_type: 'B2C', price_tier: 'RETAIL', credit_days: 0 };
+ const [formData, setFormData] = useState(EMPTY_FORM);
  const [deleteConfirm, setDeleteConfirm] = useState(null);
  const [saving, setSaving] = useState(false);
  const [formError, setFormError] = useState('');
  
 
  // Statement State
- const [selectedClientForStatement, setSelectedClientForStatement] = useState(null);
-
  useEffect(() => {
- if (isAdding || selectedClientForStatement) {
+ if (isAdding) {
  document.body.style.overflow = 'hidden';
 } else {
  document.body.style.overflow = 'unset';
 }
  return () => { document.body.style.overflow = 'unset';};
-}, [isAdding, selectedClientForStatement]);
-
-
- const getClientStatement = (clientId) => {
- const clientSales = (sales || [])
- .filter(s => s.clientId === clientId && (s.paymentMethod === 'credit' || s.paymentMethod === 'CREDIT'))
- .map(s => ({
- id: s.id,
- date: s.date,
- type: 'SALE',
- description: `Credit Sale #${s.id.split('-').pop()}`,
- debit: s.totalAmount, // Increases outstanding balance
- credit: 0
-}));
- 
- const payments = (clientPayments || [])
- .filter(p => p.client_id === clientId)
- .map(p => ({
- id: p.id,
- date: p.date,
- type: 'PAYMENT',
- description: p.notes ? `Payment: ${p.notes}` : 'Payment Received',
- debit: 0,
- credit: p.amount // Decreases outstanding balance
-}));
-
- const combined = [...clientSales, ...payments].sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
- 
- let runningBalance = 0;
- return combined.map(txn => {
- runningBalance += txn.debit;
- runningBalance -= txn.credit;
- return { ...txn, balance: runningBalance};
-});
-};
+}, [isAdding]);
 
  const clientStats = useMemo(() => {
  const stats = {};
@@ -134,7 +113,7 @@ const Clients = () => {
 
  const openAdd = () => {
  setEditingClient(null);
- setFormData({ name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', status: 'ACTIVE' });
+ setFormData(EMPTY_FORM);
  setFormError('');
  setIsAdding(true);
 };
@@ -142,15 +121,18 @@ const Clients = () => {
  const openEdit = (client) => {
  setEditingClient(client);
  setFormData({
-   name: client.name || '',
-   contact: client.contact || '',
-   phone: client.phone || '',
-   email: client.email || '',
-   address: client.address || '',
-   gstin: client.gstin || '',
-   state: client.state || '',
-   state_code: client.state_code || '',
-   status: client.status || 'ACTIVE',
+   name:        client.name        || '',
+   contact:     client.contact     || '',
+   phone:       client.phone       || '',
+   email:       client.email       || '',
+   address:     client.address     || '',
+   gstin:       client.gstin       || '',
+   state:       client.state       || '',
+   state_code:  client.state_code  || '',
+   status:      client.status      || 'ACTIVE',
+   client_type: client.client_type || 'B2C',
+   price_tier:  client.price_tier  || 'RETAIL',
+   credit_days: client.credit_days ?? 0,
  });
  setIsAdding(true);
 };
@@ -174,7 +156,7 @@ const Clients = () => {
    }
    setIsAdding(false);
    setEditingClient(null);
-   setFormData({ name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', status: 'ACTIVE' });
+   setFormData(EMPTY_FORM);
  };
 
  const toggleStatus = (client) => {
@@ -203,7 +185,6 @@ const Clients = () => {
  { id: 'DIRECTORY', label: 'Directory', icon: <Users size={14} />},
  { id: 'AGING', label: 'Aging Report', icon: <History size={14} />},
  { id: 'PAYMENTS', label: 'Payment History', icon: <CreditCard size={14} />},
- { id: 'STATEMENTS', label: 'Statements', icon: <Receipt size={14} />}
  ].map(tab => (
  <button
  key={tab.id}
@@ -258,31 +239,6 @@ const Clients = () => {
  />
  )}
 
- {activeTab === 'STATEMENTS' && (
- <div className="animate-in fade-in slide-in-from-right-4 duration-500">
- {!selectedClientForStatement ? (
- <div className="glass-panel !py-22 rounded-[3rem] text-center border-dashed border-2">
- <Receipt size={64} className="mx-auto mb-6 opacity-10" />
- <h3 className="text-3xl font-semibold mb-4">Select a Client</h3>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Choose a customer from the directory to view their detailed transaction statement.</p>
- <button 
- onClick={() => setActiveTab('DIRECTORY')}
- className="btn-signature !px-10 !h-14 !rounded-pill"
- >
- OPEN DIRECTORY
- </button>
- </div>
- ) : (
- <ClientStatementViewer 
- client={selectedClientForStatement}
- clientStats={clientStats}
- businessProfile={businessProfile}
- getClientStatement={getClientStatement}
- onClose={() => setSelectedClientForStatement(null)}
- />
- )}
- </div>
- )}
  </div>
  </div>
 
@@ -380,6 +336,68 @@ const Clients = () => {
     <input type="text" maxLength={2} className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums"
       placeholder="33" value={formData.state_code} onChange={e => setFormData({...formData, state_code: e.target.value})} />
   </div>
+
+  {/* B2B / B2C Classification */}
+  <div className="md:col-span-2">
+    <div className="border-t border-black/5 pt-4 mb-2">
+      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Account Classification</span>
+    </div>
+  </div>
+
+  {/* Client type toggle */}
+  <div className="md:col-span-2">
+    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-2">Account Type</label>
+    <div className="flex gap-2">
+      {[
+        { val: 'B2C', label: 'B2C — Consumer',   desc: 'Walk-in / retail customer' },
+        { val: 'B2B', label: 'B2B — Business',   desc: 'Company / distributor account' },
+      ].map(opt => (
+        <button
+          key={opt.val}
+          type="button"
+          onClick={() => setFormData({ ...formData, client_type: opt.val })}
+          className={`flex-1 px-4 py-3 rounded-xl border-2 text-left transition-all ${
+            formData.client_type === opt.val
+              ? 'border-ink-primary bg-ink-primary text-surface'
+              : 'border-black/10 bg-canvas text-ink-primary hover:border-black/20'
+          }`}
+        >
+          <div className="text-[11px] font-black">{opt.label}</div>
+          <div className={`text-[9px] mt-0.5 ${formData.client_type === opt.val ? 'text-surface/60' : 'text-gray-400'}`}>{opt.desc}</div>
+        </button>
+      ))}
+    </div>
+  </div>
+
+  {/* Price tier */}
+  <div>
+    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Price Tier</label>
+    <select
+      className="w-full bg-canvas border-none rounded-lg p-4 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none"
+      value={formData.price_tier}
+      onChange={e => setFormData({ ...formData, price_tier: e.target.value })}
+    >
+      <option value="RETAIL">RETAIL — Standard pricing</option>
+      <option value="WHOLESALE">WHOLESALE — Volume pricing</option>
+      <option value="DISTRIBUTOR">DISTRIBUTOR — Trade pricing</option>
+    </select>
+  </div>
+
+  {/* Credit days (only relevant for B2B) */}
+  <div>
+    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">
+      Credit Days <span className="text-gray-400 font-normal">(0 = cash)</span>
+    </label>
+    <select
+      className="w-full bg-canvas border-none rounded-lg p-4 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none"
+      value={formData.credit_days}
+      onChange={e => setFormData({ ...formData, credit_days: Number(e.target.value) })}
+    >
+      {[0, 7, 15, 30, 45, 60, 90].map(d => (
+        <option key={d} value={d}>{d === 0 ? 'Cash on delivery' : `Net ${d}`}</option>
+      ))}
+    </select>
+  </div>
  </div>
 
  {formError && (
@@ -400,98 +418,6 @@ const Clients = () => {
  </div>
  )}
 
- {/* Client Statement Modal */}
- {selectedClientForStatement && (
- <div className="modal-overlay z-40">
- <div className="glass-modal max-w-2xl w-full mx-auto max-h-[85vh] flex flex-col">
- <div className="flex justify-between items-start mb-6 shrink-0">
- <div>
- <h2 className="text-3xl font-semibold text-ink-primary leading-none mb-2">CLIENT STATEMENT.</h2>
- <p className="text-[10px] font-semibold text-[#4b5563] opacity-80">{selectedClientForStatement.name}</p>
- </div>
- <button
- onClick={() => setSelectedClientForStatement(null)}
- className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary"
- >
- <X size={18} />
- </button>
- </div>
- 
- <div className="grid grid-cols-2 gap-4 mb-6 shrink-0">
- <div className="p-4 bg-canvas border border-black/5 rounded-lg flex flex-col">
- <span className="text-[9px] font-semibold text-[#4b5563] mb-1">Current Outstanding</span>
- <span className={`text-3xl font-semibold font-mono tabular-nums leading-none ${(selectedClientForStatement.outstanding_balance || 0) > 0 ? 'text-red-500' : 'text-green-500'}`}>
- {businessProfile?.currencySymbol || '₹'}{Math.round(selectedClientForStatement.outstanding_balance || 0).toLocaleString()}
- </span>
- </div>
- <div className="p-4 bg-canvas border border-black/5 rounded-lg flex flex-col">
- <span className="text-[9px] font-semibold text-[#4b5563] mb-1">Total Lifetime Sales</span>
- <span className="text-3xl font-semibold font-mono text-ink-primary tabular-nums leading-none flex items-baseline gap-2">
- {businessProfile?.currencySymbol || '₹'}{Math.round(clientStats[selectedClientForStatement.id]?.totalSales || 0).toLocaleString()}
- </span>
- </div>
- </div>
-
- <div className="flex-1 overflow-y-auto min-h-[300px] border border-black/10 rounded-lg bg-white">
- <table className="w-full text-left border-collapse">
- <thead className="sticky top-0 bg-canvas/90 backdrop-blur-sm z-10 border-b border-black/10">
- <tr>
- <th className="py-3 px-4 text-[9px] font-semibold text-[#4b5563]">Date</th>
- <th className="py-3 px-4 text-[9px] font-semibold text-[#4b5563]">Description</th>
- <th className="py-3 px-4 text-[9px] font-semibold text-[#4b5563] text-right">Debit (Sale)</th>
- <th className="py-3 px-4 text-[9px] font-semibold text-[#4b5563] text-right">Credit (Pay)</th>
- <th className="py-3 px-4 text-[9px] font-semibold text-[#4b5563] text-right">Balance</th>
- </tr>
- </thead>
- <tbody className="divide-y divide-black/5">
- {getClientStatement(selectedClientForStatement.id).length === 0 ? (
- <tr>
- <td colSpan="5" className="py-12 text-center text-[11px] font-semibold text-gray-700">No Transactions Found</td>
- </tr>
- ) : (
- getClientStatement(selectedClientForStatement.id).map((txn, idx) => (
- <tr key={`${txn.id}-${idx}`} className="hover:bg-canvas/50 transition-colors">
- <td className="py-3 px-4">
- <span className="text-[10px] font-semibold text-ink-primary">
- {formatDate(txn.date)}
- </span>
- </td>
- <td className="py-3 px-4">
- <div className="flex items-center gap-2">
- <span className={`w-1.5 h-1.5 rounded-full ${txn.type === 'SALE' ? 'bg-red-500' : 'bg-green-500'}`}></span>
- <span className="text-[11px] font-semibold text-[#4b5563]">
- {txn.description}
- </span>
- </div>
- </td>
- <td className="py-3 px-4 text-right">
- {txn.debit > 0 ? (
- <span className="text-[11px] font-semibold font-mono text-red-500 tabular-nums">
- {businessProfile?.currencySymbol || '₹'}{Math.round(txn.debit).toLocaleString()}
- </span>
- ) : '-'}
- </td>
- <td className="py-3 px-4 text-right">
- {txn.credit > 0 ? (
- <span className="text-[11px] font-semibold font-mono text-green-500 tabular-nums">
- {businessProfile?.currencySymbol || '₹'}{Math.round(txn.credit).toLocaleString()}
- </span>
- ) : '-'}
- </td>
- <td className="py-3 px-4 text-right">
- <span className={`text-[11px] font-semibold font-mono tabular-nums ${txn.balance > 0 ? 'text-red-500' : 'text-green-500'}`}>
- {businessProfile?.currencySymbol || '₹'}{Math.round(txn.balance).toLocaleString()}
- </span>
- </td>
- </tr>
- ))
- )}
- </tbody>
- </table>
- </div>
- </div>
- </div>
- )}
  </>
  );
 };

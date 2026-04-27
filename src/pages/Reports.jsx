@@ -41,29 +41,29 @@ const Reports = () => {
   // COMPLIANCE: GST / tax filing returns (P1)
   const TABS = [
     // --- OPERATIONAL GROUP ---
-    { id: 'SALES',       group: 'OPERATIONAL', label: 'Sales Intelligence',     icon: <TrendingUp size={18} />, component: <SalesReport />,              permission: 'sales' },
-    { id: 'INVENTORY',   group: 'OPERATIONAL', label: 'Inventory Intelligence', icon: <Layers size={18} />,     component: <InventoryReport />,          permission: 'inventory' },
-    { id: 'PROFITABILITY', group: 'OPERATIONAL', label: 'Product Profitability', icon: <Tag size={18} />,       component: <ProductProfitabilityReport />, permission: 'inventory' },
-    { id: 'LOGISTICS',   group: 'OPERATIONAL', label: 'Fleet Optimization',     icon: <Globe size={18} />,      component: <LogisticsReport />,          permission: 'inventory' },
-    { id: 'HR',          group: 'OPERATIONAL', label: 'Workforce Analysis',     icon: <Briefcase size={18} />,  component: <HRReport />,                 permission: 'reports' },
-    { id: 'CLIENTS',     group: 'OPERATIONAL', label: 'Client Exposure',        icon: <UserCircle size={18} />, component: <ClientOutstandingReport />,  permission: 'clients' },
-    { id: 'PURCHASES',   group: 'OPERATIONAL', label: 'Purchases',              icon: <Truck size={18} />,      component: <PurchasesReport />,          permission: 'inventory' },
-    { id: 'EXPENSES',    group: 'OPERATIONAL', label: 'Expenses',               icon: <DollarSign size={18} />, component: <ExpensesReport />,           permission: 'expenses' },
+    { id: 'SALES',       group: 'OPERATIONAL', label: 'Sales',               icon: <TrendingUp size={18} />, component: <SalesReport />,              permission: 'sales' },
+    { id: 'INVENTORY',   group: 'OPERATIONAL', label: 'Inventory',           icon: <Layers size={18} />,     component: <InventoryReport />,          permission: 'inventory' },
+    { id: 'PROFITABILITY', group: 'OPERATIONAL', label: 'Product Margins',   icon: <Tag size={18} />,        component: <ProductProfitabilityReport />, permission: 'inventory' },
+    { id: 'LOGISTICS',   group: 'OPERATIONAL', label: 'Deliveries',          icon: <Globe size={18} />,      component: <LogisticsReport />,          permission: 'inventory' },
+    { id: 'HR',          group: 'OPERATIONAL', label: 'Staff & Payroll',     icon: <Briefcase size={18} />,  component: <HRReport />,                 permission: 'reports' },
+    { id: 'CLIENTS',     group: 'OPERATIONAL', label: 'Clients',             icon: <UserCircle size={18} />, component: <ClientOutstandingReport />,  permission: 'clients' },
+    { id: 'PURCHASES',   group: 'OPERATIONAL', label: 'Purchases',           icon: <Truck size={18} />,      component: <PurchasesReport />,          permission: 'inventory' },
+    { id: 'EXPENSES',    group: 'OPERATIONAL', label: 'Expenses',            icon: <DollarSign size={18} />, component: <ExpensesReport />,           permission: 'expenses' },
 
-    // --- ACCOUNTING GROUP (NEW P0) ---
-    { id: 'BALANCE_SHEET', group: 'ACCOUNTING', label: 'Balance Sheet',      icon: <Scale size={18} />,       component: <BalanceSheetReport />,   permission: 'reports' },
-    { id: 'TRIAL_BALANCE', group: 'ACCOUNTING', label: 'Trial Balance',      icon: <Landmark size={18} />,    component: <TrialBalanceReport />,   permission: 'reports' },
-    { id: 'GENERAL_LEDGER',group: 'ACCOUNTING', label: 'General Ledger',     icon: <BookOpen size={18} />,    component: <GeneralLedgerReport />,  permission: 'reports' },
-    { id: 'CASH_FLOW',     group: 'ACCOUNTING', label: 'Cash Flow',          icon: <Droplets size={18} />,    component: <CashFlowReport />,       permission: 'reports' },
-    { id: 'AR_AGING',      group: 'ACCOUNTING', label: 'A/R Aging',          icon: <FileWarning size={18} />, component: <ARAgingReport />,        permission: 'clients' },
-    { id: 'AP_AGING',      group: 'ACCOUNTING', label: 'A/P Aging',          icon: <Receipt size={18} />,     component: <APAgingReport />,        permission: 'inventory' },
-    { id: 'BUDGET_ACTUAL', group: 'ACCOUNTING', label: 'Budget vs Actual',   icon: <Target size={18} />,      component: <BudgetVsActualReport />, permission: 'reports' },
-    { id: 'YOY',           group: 'ACCOUNTING', label: 'Year-over-Year',     icon: <CalendarRange size={18} />, component: <YoYComparisonReport />, permission: 'reports' },
-    { id: 'FINANCIALS',    group: 'ACCOUNTING', label: 'P&L Matrix',         icon: <BarChart3 size={18} />,   component: <FinancialReport />,      permission: 'reports' },
+    // --- ACCOUNTING GROUP ---
+    { id: 'BALANCE_SHEET', group: 'ACCOUNTING', label: 'Balance Sheet',       icon: <Scale size={18} />,       component: <BalanceSheetReport />,   permission: 'reports' },
+    { id: 'TRIAL_BALANCE', group: 'ACCOUNTING', label: 'Trial Balance',       icon: <Landmark size={18} />,    component: <TrialBalanceReport />,   permission: 'reports' },
+    { id: 'GENERAL_LEDGER',group: 'ACCOUNTING', label: 'General Ledger',      icon: <BookOpen size={18} />,    component: <GeneralLedgerReport />,  permission: 'reports' },
+    { id: 'CASH_FLOW',     group: 'ACCOUNTING', label: 'Cash Flow',           icon: <Droplets size={18} />,    component: <CashFlowReport />,       permission: 'reports' },
+    { id: 'AR_AGING',      group: 'ACCOUNTING', label: 'Customer Aging',      icon: <FileWarning size={18} />, component: <ARAgingReport />,        permission: 'clients' },
+    { id: 'AP_AGING',      group: 'ACCOUNTING', label: 'Supplier Aging',      icon: <Receipt size={18} />,     component: <APAgingReport />,        permission: 'inventory' },
+    { id: 'BUDGET_ACTUAL', group: 'ACCOUNTING', label: 'Budget vs Actual',    icon: <Target size={18} />,      component: <BudgetVsActualReport />, permission: 'reports' },
+    { id: 'YOY',           group: 'ACCOUNTING', label: 'Year Comparison',     icon: <CalendarRange size={18} />, component: <YoYComparisonReport />, permission: 'reports' },
+    { id: 'FINANCIALS',    group: 'ACCOUNTING', label: 'Profit & Loss',       icon: <BarChart3 size={18} />,   component: <FinancialReport />,      permission: 'reports' },
 
-    // --- COMPLIANCE GROUP (NEW P1 — India GST) ---
-    { id: 'GSTR1',  group: 'COMPLIANCE', label: 'GSTR-1 (Outward)',  icon: <FileText size={18} />,  component: <GSTR1Report />,  permission: 'reports' },
-    { id: 'GSTR3B', group: 'COMPLIANCE', label: 'GSTR-3B (Summary)', icon: <FileCheck size={18} />, component: <GSTR3BReport />, permission: 'reports' },
+    // --- COMPLIANCE GROUP (India GST) ---
+    { id: 'GSTR1',  group: 'COMPLIANCE', label: 'GSTR-1',  icon: <FileText size={18} />,  component: <GSTR1Report />,  permission: 'reports' },
+    { id: 'GSTR3B', group: 'COMPLIANCE', label: 'GSTR-3B', icon: <FileCheck size={18} />, component: <GSTR3BReport />, permission: 'reports' },
   ].filter(tab => hasPermission(tab.permission, 'view'));
 
   const groupedTabs = useMemo(() => {
@@ -90,16 +90,16 @@ const Reports = () => {
       <div className="no-print flex items-center gap-2 px-6 py-2 bg-white/40 backdrop-blur-md border border-black/5 rounded-pill w-fit shadow-sm">
         <Activity size={12} className="text-accent-signature" />
         <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">
-          BI TERMINAL <span className="mx-2 opacity-30">/</span> {activeGroup} <span className="mx-2 opacity-30">/</span> {currentTab?.label}
+          REPORTS <span className="mx-2 opacity-30">/</span> {activeGroup} <span className="mx-2 opacity-30">/</span> {currentTab?.label}
         </span>
       </div>
 
       {/* Group Switcher: OPERATIONAL · ACCOUNTING · COMPLIANCE */}
       <div className="no-print flex items-center gap-2 flex-wrap">
         {[
-          { key: 'OPERATIONAL', label: 'Business Intelligence', icon: <TrendingUp size={14} /> },
-          { key: 'ACCOUNTING', label: 'Financial Accounting', icon: <Scale size={14} /> },
-          { key: 'COMPLIANCE', label: 'GST Compliance', icon: <FileCheck size={14} /> },
+          { key: 'OPERATIONAL', label: 'Operations', icon: <TrendingUp size={14} /> },
+          { key: 'ACCOUNTING', label: 'Accounting', icon: <Scale size={14} /> },
+          { key: 'COMPLIANCE', label: 'GST', icon: <FileCheck size={14} /> },
         ].map(({ key, label, icon }) => {
           const count = groupedTabs[key]?.length || 0;
           if (count === 0) return null;

@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import { generateUUID } from '../lib/utils';
 
-const CLIENT_NUMERIC = ['outstanding_balance', 'credit_limit'];
+const CLIENT_NUMERIC = ['outstanding_balance', 'credit_limit', 'credit_days'];
 const SUPPLIER_NUMERIC = ['balance', 'outstanding_balance'];
 const EMPLOYEE_NUMERIC = ['dailyRate', 'monthlySalary', 'balance'];
 
@@ -76,6 +76,7 @@ export const usePeople = (tenantId) => {
   };
 
   // Strip unknown columns before insert/update
+  // Passes through: client_type, price_tier, credit_days (new B2B fields)
   const toClientRow = ({ status, ...rest }) => rest; // 'status' not in DB schema
 
   const addClient = async (client) => {
@@ -124,17 +125,33 @@ export const usePeople = (tenantId) => {
       try {
         setLoading(true);
 
-        // 1. Mark selected invoices as PAID
+        // 1. Allocate payment across selected invoices, mark each correctly
         if (invoiceIds && invoiceIds.length > 0) {
-          // Try invoices table first (manually created invoices)
-          const { error: invErr } = await supabase
+          const { data: invRows } = await supabase
             .from('invoices')
-            .update({ payment_status: 'PAID', paid_amount: amount })
+            .select('id, grand_total, paid_amount')
             .in('id', invoiceIds)
             .eq('tenant_id', tenantId);
-          if (invErr) console.warn('Invoice update failed:', invErr);
 
-          // Also try sales table (POS credit sales)
+          if (invRows && invRows.length > 0) {
+            let remaining = amount;
+            for (const inv of invRows) {
+              const alreadyPaid = Number(inv.paid_amount) || 0;
+              const owed = Number(inv.grand_total) - alreadyPaid;
+              const allocating = Math.min(remaining, owed);
+              const newPaid = alreadyPaid + allocating;
+              const newStatus = newPaid >= Number(inv.grand_total) ? 'PAID' : 'PARTIAL';
+              await supabase
+                .from('invoices')
+                .update({ payment_status: newStatus, paid_amount: newPaid })
+                .eq('id', inv.id)
+                .eq('tenant_id', tenantId);
+              remaining -= allocating;
+              if (remaining <= 0) break;
+            }
+          }
+
+          // Also update any matching sales (POS credit sales)
           const { error: saleErr } = await supabase
             .from('sales')
             .update({ paymentStatus: 'PAID', paidAmount: amount })
@@ -143,19 +160,12 @@ export const usePeople = (tenantId) => {
           if (saleErr) console.warn('Sales update failed:', saleErr);
         }
 
-        // 2. Reduce client outstanding_balance
-        const client = clients.find(c => c.id === clientId);
-        if (client) {
-          const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
-          const { error: cliErr } = await supabase
-            .from('clients')
-            .update({ outstanding_balance: newBalance })
-            .eq('id', clientId)
-            .eq('tenant_id', tenantId);
-          if (cliErr) throw cliErr;
-        }
+        // Note: clients.outstanding_balance is auto-recomputed by the
+        // on_invoice_payment_sync DB trigger after each invoice update above.
+        // No manual balance decrement needed here — fetchPeopleData() below
+        // will read the trigger-computed correct value.
 
-        // 3. Insert audit record into client_payments
+        // 2. Insert audit record into client_payments
         const { data: { user } } = await supabase.auth.getUser();
         const { error: payErr } = await supabase
           .from('client_payments')

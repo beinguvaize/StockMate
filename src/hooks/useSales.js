@@ -59,9 +59,24 @@ export const useSales = (tenantId) => {
     }
   }, [tenantId]);
 
+  useEffect(() => { fetchSales(); }, [fetchSales]);
+
+  // ── Realtime — invoices + sales ───────────────────────────────────────
   useEffect(() => {
-    fetchSales();
-  }, [fetchSales]);
+    if (!tenantId) return;
+    const channel = supabase
+      .channel(`sales-realtime-${tenantId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'invoices',
+        filter: `tenant_id=eq.${tenantId}`,
+      }, fetchSales)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'sales',
+        filter: `tenant_id=eq.${tenantId}`,
+      }, fetchSales)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tenantId, fetchSales]);
 
   // Deprecated in favor of placeSale() returned below, which matches the
   // actual process_sale RPC signature. Kept to preserve the update/remove

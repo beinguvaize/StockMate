@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabase';
 // `"0100"` (string concat), `Math.min("10",5)` coerces but silently, and
 // `.toFixed` on strings throws outright. Coerce once at the fetch boundary
 // so every caller sees clean numbers.
-const NUMERIC_PRODUCT_COLS = ['costPrice', 'sellingPrice', 'stock', 'taxRate', 'mrp', 'discount'];
+const NUMERIC_PRODUCT_COLS = ['costPrice', 'sellingPrice', 'stock', 'taxRate', 'mrp', 'discount', 'min_margin'];
 const NUMERIC_BALANCE_COLS = ['quantity'];
 
 const normalizeRow = (row, cols) => {

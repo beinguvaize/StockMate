@@ -972,6 +972,20 @@ export const AppProvider = ({ children}) => {
 
     setInvoices(prev => [newInvoice, ...prev]);
     cacheSet('invoices', [newInvoice, ...invoices]);
+
+    // 3. Update local client balance optimistically.
+    // The on_invoice_payment_sync DB trigger already recomputed the authoritative
+    // value in clients.outstanding_balance. We mirror that locally so the UI
+    // updates immediately without a full refetch.
+    if (newInvoice.client_id && newInvoice.payment_status !== 'PAID') {
+      const owed = Math.max(0, Number(newInvoice.grand_total) - Number(newInvoice.paid_amount || 0));
+      setClients(prev => prev.map(c =>
+        c.id === newInvoice.client_id
+          ? { ...c, outstanding_balance: (c.outstanding_balance || 0) + owed }
+          : c
+      ));
+    }
+
     setSyncStatus('SYNCED');
     addNotification(`Invoice ${invNumber} generated!`, 'success');
     return newInvoice;
@@ -1163,46 +1177,41 @@ export const AppProvider = ({ children}) => {
     const client = clients.find(c => c.id === clientId);
     if (!client) return { success: false, error: 'Client not found'};
 
-    const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
-    const updatedClient = { ...client, outstanding_balance: newBalance};
-
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      
-      // Update Client Balance
-      const { error: clientError } = await supabase.from('clients').upsert({ ...updatedClient, tenant_id: currentTenantId });
-      
-      // Update Selected Invoices if any
-      // For atomic settlement, we assume the invoice is fully paid.
+
+      // Update selected invoices. Each update fires on_invoice_payment_sync trigger
+      // which recomputes clients.outstanding_balance automatically — no manual
+      // balance decrement needed.
       if (selectedInvoiceIds.length > 0) {
         for (const invId of selectedInvoiceIds) {
           const inv = invoices.find(i => i.id === invId);
           if (inv) {
             await supabase
               .from('invoices')
-              .update({ 
+              .update({
                 payment_status: 'PAID',
-                paid_amount: inv.grand_total 
+                paid_amount: inv.grand_total
               })
               .eq('id', invId)
               .eq('tenant_id', currentTenantId);
           }
         }
       }
-
-      if (clientError) {
-        console.error("Error recording client payment:", clientError);
-        logError({
-          module: 'Clients',
-          action: 'Record Client Payment (Balance Update)',
-          error_code: clientError.code,
-          error_message: clientError.message,
-          severity: 'High'
-        });
-        setSyncStatus('ERROR');
-        addNotification("Cloud Sync Delayed: Payment recorded locally", "warning");
-      }
     }
+
+    // Re-read the trigger-computed balance from DB so local state is accurate
+    let newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
+    if (isSupabaseConfigured) {
+      const { data: freshClient } = await supabase
+        .from('clients')
+        .select('outstanding_balance')
+        .eq('id', clientId)
+        .eq('tenant_id', currentTenantId)
+        .single();
+      if (freshClient) newBalance = Number(freshClient.outstanding_balance) || 0;
+    }
+    const updatedClient = { ...client, outstanding_balance: newBalance };
 
     const paymentRecord = {
       id: `CPAY-${Date.now()}`,

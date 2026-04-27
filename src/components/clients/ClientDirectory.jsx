@@ -4,7 +4,7 @@ import { useTenant } from '../../context/TenantContext';
 import {
   UserCircle, Plus, Edit3, Trash2, Check,
   Phone, AlertCircle, Search, TrendingUp, Users, CreditCard, Clock,
-  Mail, Receipt, MapPin, ShieldCheck
+  Mail, Receipt, MapPin, ShieldCheck, FileText
 } from 'lucide-react';
 
 const ClientDirectory = ({
@@ -20,6 +20,7 @@ const ClientDirectory = ({
   openEdit,
   handleDelete,
   hasPermission,
+  onViewStatement,
 }) => {
   const navigate = useNavigate();
   const { tenantSlug } = useParams();

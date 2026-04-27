@@ -57,9 +57,10 @@ const Payroll = () => {
   setEmpForm({
   name: emp.name, email: emp.email || '', phone: emp.phone || '',
   department: emp.department || DEPARTMENTS[0], position: emp.position || '',
-  payType: emp.payType || 'MONTHLY', basePay: emp.basePay || '',
-  bankAccount: emp.bankAccount || '', notes: emp.notes || '',
-  dailyRate: emp.dailyRate || 500, daysWorked: emp.daysWorked || 0
+  payType: emp.pay_type || emp.payType || 'MONTHLY', basePay: emp.salary ?? emp.basePay ?? '',
+  bankAccount: emp.bank_account || emp.bankAccount || '', notes: emp.notes || '',
+  dailyRate: emp.daily_rate ?? emp.dailyRate ?? 500,
+  daysWorked: emp.days_worked ?? emp.daysWorked ?? 0
 });
   setShowForm(true);
 };
@@ -79,19 +80,18 @@ const Payroll = () => {
 };
   setIsSaving(true);
   try {
-  let success;
   if (editingEmployee) {
-  await updateEmployee({ ...editingEmployee, ...data});
-  success = true;
-} else {
-  success = await addEmployee(data);
-}
-  if (success !== false) {
+    const { error } = await updateEmployee({ ...editingEmployee, ...data });
+    if (error) { alert('Failed to update: ' + error.message); return; }
+  } else {
+    const { success, error } = await addEmployee(data);
+    if (error || !success) { alert('Failed to add employee: ' + (error?.message || 'Unknown error')); return; }
+  }
   setShowForm(false);
   setEditingEmployee(null);
-}
 } catch(err) {
   console.error('Employee form error:', err);
+  alert('Error: ' + err.message);
 } finally {
   setIsSaving(false);
 }
@@ -133,12 +133,12 @@ const Payroll = () => {
   employeeName: emp.name,
   department: emp.department,
   payType: emp.payType,
-  basePay: emp.basePay || 0,
+  basePay: Number(emp.salary) || Number(emp.basePay) || 0,
   hoursWorked: 160,
   overtime: 0,
   bonus: 0,
   deductions: 0,
-  netPay: emp.basePay || 0
+  netPay: Number(emp.salary) || Number(emp.basePay) || 0
 }));
   setPayRunItems(items);
   setShowPayRunModal(true);
@@ -201,7 +201,7 @@ const Payroll = () => {
 
   // ===== METRICS =====
   const activeEmployeesCount = useMemo(() => employees.filter(e => e.status === 'ACTIVE').length, [employees]);
-  const totalMonthlyPayroll = useMemo(() => employees.filter(e => e.status === 'ACTIVE').reduce((sum, emp) => sum + (emp.basePay || 0), 0), [employees]);
+  const totalMonthlyPayroll = useMemo(() => employees.filter(e => e.status === 'ACTIVE').reduce((sum, emp) => sum + (Number(emp.salary) || Number(emp.basePay) || 0), 0), [employees]);
   const lastPayRun = useMemo(() => payrollRecords.length > 0 ? payrollRecords[0] : null, [payrollRecords]);
 
   useEffect(() => {
@@ -220,7 +220,7 @@ const Payroll = () => {
   activeEmployeesCount={activeEmployeesCount}
   totalMonthlyPayroll={totalMonthlyPayroll}
   lastPayRun={lastPayRun}
-  currencySymbol={businessProfile.currencySymbol}
+  currencySymbol={businessProfile?.currencySymbol || ''}
   viewOnly={viewOnly}
   hasRole={hasRole}
   handleMonthlyReset={handleMonthlyReset}
@@ -252,7 +252,7 @@ const Payroll = () => {
   setDeleteConfirm={setDeleteConfirm}
   setSalaryPayment={setSalaryPayment}
   setShowSalaryModal={setShowSalaryModal}
-  currencySymbol={businessProfile.currencySymbol}
+  currencySymbol={businessProfile?.currencySymbol || ''}
   viewOnly={viewOnly}
   departments={DEPARTMENTS}
   />
@@ -261,7 +261,7 @@ const Payroll = () => {
   {activeTab === 'HISTORY' && (
   <PayHistory 
   payrollRecords={payrollRecords}
-  currencySymbol={businessProfile.currencySymbol}
+  currencySymbol={businessProfile?.currencySymbol || ''}
   openPayRun={openPayRun}
   deletePayrollRecord={deletePayrollRecord}
   />
@@ -286,7 +286,7 @@ const Payroll = () => {
   <div>
   <label className="text-[10px] font-semibold text-gray-700 opacity-70 block mb-2">Amount Paying</label>
   <div className="flex items-center gap-2 bg-canvas px-4 py-3 rounded-xl border border-black/10">
-  <span className="text-sm font-semibold text-gray-700">{businessProfile.currencySymbol}</span>
+  <span className="text-sm font-semibold text-gray-700">{businessProfile?.currencySymbol || ''}</span>
   <input type="number" step="0.01" required className="w-full bg-transparent border-none text-base font-semibold text-ink-primary outline-none" value={salaryPayment.amount} onChange={e => setSalaryPayment({...salaryPayment, amount: e.target.value})} />
   </div>
   </div>
@@ -312,8 +312,8 @@ const Payroll = () => {
   <div className="glass-modal">
   <div className="flex justify-between items-start mb-4">
   <div>
-  <h1 className="text-2xl font-semibold text-ink-primary leading-none mb-1">DISBURSEMENT.</h1>
-  <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">INSTITUTIONAL PAYROLL SETTLEMENT</p>
+  <h1 className="text-4xl font-black font-sora text-ink-primary leading-[0.9] tracking-tight mb-1 uppercase">{editingEmployee ? 'EDIT EMPLOYEE' : 'ADD EMPLOYEE'}<span className="text-accent-signature">.</span></h1>
+  <p className="text-[10px] font-semibold text-gray-500 mb-6 uppercase tracking-wider">{editingEmployee ? 'Update employee details' : 'Add a new employee to payroll'}</p>
   </div>
   <button 
   onClick={() => setShowForm(false)}
@@ -326,12 +326,12 @@ const Payroll = () => {
   <form onSubmit={handleSubmit} className="space-y-4">
   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
   <div className="md:col-span-2">
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Full Legal Name</label>
-  <input 
-  required 
-  type="text" 
-  className="w-full bg-canvas border-none rounded-lg p-4 font-medium text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
-  placeholder="PERSONNEL NAME..."
+  <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Full Name</label>
+  <input
+  required
+  type="text"
+  className="w-full bg-canvas border-none rounded-lg p-4 font-medium text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
+  placeholder="e.g. John Smith"
   value={empForm.name} 
   onChange={e => setEmpForm({ ...empForm, name: e.target.value})} 
   />
@@ -349,19 +349,19 @@ const Payroll = () => {
   </div>
 
   <div>
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Position</label>
-  <input 
-  required 
-  type="text" 
-  className="w-full bg-canvas border-none rounded-lg p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
-  placeholder="e.g. ARCHITECT"
+  <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Position / Role</label>
+  <input
+  required
+  type="text"
+  className="w-full bg-canvas border-none rounded-lg p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
+  placeholder="e.g. Driver, Cashier, Warehouse Staff"
   value={empForm.position} 
   onChange={e => setEmpForm({ ...empForm, position: e.target.value})} 
   />
   </div>
 
   <div>
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Pay Frequency</label>
+  <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Pay Type</label>
   <select 
   className="w-full bg-canvas border-none rounded-lg p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer" 
   value={empForm.payType} 
@@ -372,9 +372,9 @@ const Payroll = () => {
   </div>
 
   <div className="p-4 rounded-lg bg-ink-primary flex flex-col justify-center">
-  <label className="block text-[8px] font-semibold text-surface/40 mb-2">Base Compensation</label>
+  <label className="block text-[8px] font-semibold text-surface/40 mb-2">Base Salary / Pay</label>
   <div className="flex items-center gap-2">
-  <span className="text-xl font-semibold text-surface/30">{businessProfile.currencySymbol}</span>
+  <span className="text-xl font-semibold text-surface/30">{businessProfile?.currencySymbol || ''}</span>
   <input 
   required 
   type="number" 
@@ -387,7 +387,7 @@ const Payroll = () => {
   </div>
 
   <div> 
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Daily Wage Counter (Optional)</label>
+  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Daily Wage (Optional)</label>
   <div className="grid grid-cols-2 gap-2 bg-canvas p-3 rounded-lg border border-black/5">
   <div>
   <label className="text-[8px] font-semibold opacity-[0.85] mb-1 block">Daily Rate</label>
@@ -413,12 +413,12 @@ const Payroll = () => {
   </div>
 
   <div>
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Payment Identification</label>
+  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Bank Account / UPI ID</label>
   <div className="relative">
-  <input 
-  type="text" 
-  className="w-full bg-canvas border-none rounded-lg p-5 pl-14 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
-  placeholder="ACCOUNT ID / IBAN..."
+  <input
+  type="text"
+  className="w-full bg-canvas border-none rounded-lg p-5 pl-14 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
+  placeholder="e.g. account number or UPI ID"
   value={empForm.bankAccount} 
   onChange={e => setEmpForm({ ...empForm, bankAccount: e.target.value})} 
   />
@@ -430,7 +430,7 @@ const Payroll = () => {
   <div className="grid grid-cols-2 gap-4 pt-4">
   <button type="button" className="px-8 py-2 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowForm(false)}>Cancel</button>
   <button type="submit" className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill">
-  {editingEmployee ? 'SAVE CHANGES' : 'ONBOARD STAFF'}
+  {editingEmployee ? 'SAVE CHANGES' : 'ADD EMPLOYEE'}
   <div className="icon-nest !w-10 !h-10 ml-4">
   <UserPlus size={18} />
   </div>
@@ -467,9 +467,9 @@ const Payroll = () => {
   <table className="w-full text-left border-collapse">
   <thead className="sticky top-0 z-10 bg-surface/50 backdrop-blur-xl">
   <tr className="border-b-2 border-ink-primary">
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70">Personnel Node</th>
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Hours/Period</th>
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Base Units</th>
+  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70">Employee</th>
+  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Hours</th>
+  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Base Pay</th>
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Overtime (1.5x)</th>
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Bonus</th>
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Deductions</th>
@@ -491,12 +491,12 @@ const Payroll = () => {
   )}
   </td>
   <td className="py-6 text-right font-semibold text-xs text-gray-700 opacity-60 tabular-nums">
-  {businessProfile.currencySymbol}{Math.round(item.basePay).toLocaleString()}
+  {businessProfile?.currencySymbol || ''}{Math.round(item.basePay).toLocaleString()}
   </td>
   <td className="py-6 text-right">
   {item.payType === 'HOURLY' ? (
   <div className="text-sm font-semibold text-accent-signature-hover tabular-nums">
-  {businessProfile.currencySymbol}{Math.round(item.overtime).toLocaleString()}
+  {businessProfile?.currencySymbol || ''}{Math.round(item.overtime).toLocaleString()}
   </div>
   ) : (
   <input type="number" className="w-28 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.overtime} onChange={e => updatePayRunItem(item.employeeId, 'overtime', e.target.value)} />
@@ -509,7 +509,7 @@ const Payroll = () => {
   <input type="number" className="w-24 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-red-500 outline-none focus:ring-4 focus:ring-red-500/10 shadow-sm" value={item.deductions} onChange={e => updatePayRunItem(item.employeeId, 'deductions', e.target.value)} />
   </td>
   <td className="py-6 text-right font-semibold text-2xl text-ink-primary tabular-nums">
-  {businessProfile.currencySymbol}{Math.round(item.netPay).toLocaleString()}
+  {businessProfile?.currencySymbol || ''}{Math.round(item.netPay).toLocaleString()}
   </td>
   </tr>
   ))}
@@ -520,18 +520,18 @@ const Payroll = () => {
   <div className="p-6 bg-ink-primary flex justify-between items-center shadow-2xl relative">
   <div className="flex gap-16">
   <div>
-  <div className="text-sm font-semibold text-surface/40 mb-2 leading-none">Total Net Disbursement</div>
+  <div className="text-sm font-semibold text-surface/40 mb-2 leading-none">Total Payout</div>
   <div className="text-5xl font-semibold text-accent-signature">
-  {businessProfile.currencySymbol}{payRunItems.reduce((sum, i) => sum + i.netPay, 0).toLocaleString()}
+  {businessProfile?.currencySymbol || ''}{payRunItems.reduce((sum, i) => sum + i.netPay, 0).toLocaleString()}
   </div>
   </div>
   <div>
-  <div className="text-sm font-semibold text-surface/40 mb-2 leading-none">Authorization Count</div>
-  <div className="text-5xl font-semibold text-surface">{payRunItems.length} PERSONNEL</div>
+  <div className="text-sm font-semibold text-surface/40 mb-2 leading-none">Employees</div>
+  <div className="text-5xl font-semibold text-surface">{payRunItems.length}</div>
   </div>
   </div>
-  <button className="btn-signature !h-20 !px-16 !text-lg" onClick={handleProcessPayroll}>
-  AUTHORIZE PAYROLL
+  <button className="btn-signature !h-20 !px-16 !text-lg" onClick={handleProcessPayroll} disabled={isSaving}>
+  {isSaving ? 'PROCESSING...' : 'CONFIRM & PROCESS'}
   <div className="icon-nest !w-12 !h-12 ml-6">
   <Check size={28} />
   </div>

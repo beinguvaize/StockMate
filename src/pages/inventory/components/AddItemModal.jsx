@@ -9,7 +9,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   const [formData, setFormData] = useState({
     name: '', sku: '', category: productCategories[0]?.name || 'Other', unit: UNITS[0],
     costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
-    lowStockThreshold: 10
+    lowStockThreshold: 10, min_margin: 0
   });
   
   const [imageFile, setImageFile] = useState(null);
@@ -32,7 +32,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       setFormData({
         name: '', sku: '', category: productCategories[0]?.name || 'Other', unit: UNITS[0],
         costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
-        lowStockThreshold: 10
+        lowStockThreshold: 10, min_margin: 0
       });
       setImagePreview(null);
     }
@@ -137,15 +137,27 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               </div>
             </div>
 
-            {/* Margin indicator full-width below */}
-            {showMargin && (
-              <div className="flex items-center justify-between bg-canvas border border-black/5 rounded-xl px-4 py-2.5">
-                <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Margin</span>
-                <span className={`text-sm font-black tabular-nums ${marginColor}`}>
-                  {margin.toFixed(1)}%{margin < 0 ? ' · loss' : margin < 10 ? ' · low' : ''}
-                </span>
+            {/* Margin indicator + floor guard */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {showMargin && (
+                <div className="flex items-center justify-between bg-canvas border border-black/5 rounded-xl px-4 py-2.5">
+                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Current Margin</span>
+                  <span className={`text-sm font-black tabular-nums ${marginColor}`}>
+                    {margin.toFixed(1)}%{margin < 0 ? ' · loss' : margin < 10 ? ' · low' : ''}
+                  </span>
+                </div>
+              )}
+              <div>
+                <label className={labelCls}>Min Margin Floor (%)</label>
+                <div className="relative">
+                  <input type="number" step="1" min="0" max="100" className={inputCls} placeholder="e.g. 15"
+                    value={formData.min_margin}
+                    onChange={e => setFormData({ ...formData, min_margin: e.target.value })} />
+                  <Percent size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-1">POS warns / blocks if margin drops below this</p>
               </div>
-            )}
+            </div>
 
             <Button type="submit" disabled={uploading} icon={CheckCircle2} className="w-full !rounded-xl !h-12 shadow-xl">
               {uploading ? 'Saving...' : editingProduct ? 'Save Changes' : 'Save Product'}

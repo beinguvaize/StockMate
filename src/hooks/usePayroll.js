@@ -2,8 +2,25 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 
-const EMPLOYEE_NUMERIC = ['dailyRate', 'monthlySalary', 'balance'];
-const PAYROLL_NUMERIC = ['gross', 'net', 'deductions', 'bonus', 'days_worked'];
+const EMPLOYEE_NUMERIC = ['daily_rate', 'days_worked', 'amount_paid', 'salary'];
+const PAYROLL_NUMERIC  = ['gross', 'net', 'deductions', 'bonus', 'days_worked'];
+
+// Map camelCase form fields → snake_case DB columns
+const toEmployeeRow = (emp) => ({
+  name:         emp.name         ?? null,
+  email:        emp.email        ?? null,
+  phone:        emp.phone        ?? null,
+  department:   emp.department   ?? null,
+  position:     emp.position     ?? null,
+  status:       emp.status       ?? 'ACTIVE',
+  pay_type:     emp.payType      ?? emp.pay_type    ?? null,
+  salary:       emp.basePay      != null ? Number(emp.basePay)    : (emp.salary      != null ? Number(emp.salary)      : null),
+  daily_rate:   emp.dailyRate    != null ? Number(emp.dailyRate)  : (emp.daily_rate  != null ? Number(emp.daily_rate)  : null),
+  days_worked:  emp.daysWorked   != null ? Number(emp.daysWorked) : (emp.days_worked != null ? Number(emp.days_worked) : null),
+  amount_paid:  emp.amountPaid   != null ? Number(emp.amountPaid) : (emp.amount_paid != null ? Number(emp.amount_paid) : null),
+  bank_account: emp.bankAccount  ?? emp.bank_account ?? null,
+  notes:        emp.notes        ?? null,
+});
 
 export const usePayroll = (tenantId) => {
   const [employees, setEmployees] = useState([]);
@@ -44,15 +61,27 @@ export const usePayroll = (tenantId) => {
   }, [fetchPayrollData]);
 
   const addEmployee = async (employee) => {
-    const { data, error } = await supabase.from('employees').insert([{ ...employee, tenant_id: tenantId }]).select().single();
-    if (!error) setEmployees(prev => [...prev, data]);
+    const id = crypto.randomUUID();
+    const row = toEmployeeRow(employee);
+    const { data, error } = await supabase
+      .from('employees')
+      .insert([{ id, ...row, tenant_id: tenantId }])
+      .select().single();
+    if (error) console.error('addEmployee error:', error);
+    else await fetchPayrollData();
     return { success: !error, error };
   };
 
   const updateEmployee = async (employee) => {
-    const { id, ...updates } = employee;
-    const { error } = await supabase.from('employees').update(updates).eq('id', id).eq('tenant_id', tenantId);
-    if (!error) setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+    const { id } = employee;
+    const row = toEmployeeRow(employee);
+    const { error } = await supabase
+      .from('employees')
+      .update(row)
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
+    if (error) console.error('updateEmployee error:', error);
+    else await fetchPayrollData();
     return { success: !error, error };
   };
 
@@ -75,7 +104,7 @@ export const usePayroll = (tenantId) => {
   };
 
   const resetEmployeesDailyData = async () => {
-    const { error } = await supabase.from('employees').update({ daysWorked: 0 }).eq('tenant_id', tenantId);
+    const { error } = await supabase.from('employees').update({ days_worked: 0 }).eq('tenant_id', tenantId);
     if (!error) await fetchPayrollData();
     return { success: !error, error };
   };

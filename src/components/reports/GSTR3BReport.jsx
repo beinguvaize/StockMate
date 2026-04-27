@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useTenant } from '../../context/TenantContext';
 import useReportData from './useReportData';
 import ReportShell from './ReportShell';
 import {
@@ -20,7 +20,7 @@ import { buildGSTR3B } from '../../utils/gstReporting';
  *   Section 6.1: Tax payable vs Tax paid
  */
 const GSTR3BReport = () => {
-  const { businessProfile } = useAppContext();
+  const { businessProfile } = useTenant();
   const businessState = businessProfile?.state || businessProfile?.business_state || 'KERALA';
 
   const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: '*', dateColumn: 'date' });

@@ -8,7 +8,8 @@ import { supabase } from '../lib/supabase';
 import {
   ArrowLeft, Calendar, FileText,
   CheckCircle2, AlertCircle, Search, Clock, Receipt,
-  Wallet, CreditCard, Smartphone, Landmark, History
+  Wallet, CreditCard, Smartphone, Landmark, History, BookOpen,
+  TrendingUp, TrendingDown
 } from 'lucide-react';
 import { todayISOInAppTZ, formatDate, formatDateTime, formatCurrency } from '../lib/utils';
 
@@ -27,7 +28,7 @@ const ClientSettlement = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { clients, recordClientPayment, loading: peoLoading } = usePeople(currentTenantId);
-  const { invoices, loading: salesLoading } = useSales(currentTenantId);
+  const { invoices, sales, loading: salesLoading } = useSales(currentTenantId);
 
   const loading = peoLoading || salesLoading;
 
@@ -48,6 +49,7 @@ const ClientSettlement = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [paymentHistory, setPaymentHistory] = useState([]);
+  const [bottomTab, setBottomTab] = useState('HISTORY'); // HISTORY | STATEMENT
 
   // Fetch payment history for this client
   useEffect(() => {
@@ -59,8 +61,69 @@ const ClientSettlement = () => {
       .eq('tenant_id', currentTenantId)
       .order('created_at', { ascending: false })
       .limit(50)
-      .then(({ data }) => { if (data) setPaymentHistory(data); });
+      .then(({ data, error }) => {
+        if (error) console.error('client_payments fetch error:', error);
+        else if (data) setPaymentHistory(data);
+      });
   }, [id, currentTenantId, success]); // refetch after successful payment
+
+  // Full statement ledger: credit sales + invoices + payments, sorted by date, with running balance
+  const statementRows = useMemo(() => {
+    if (!client) return [];
+    const rows = [];
+
+    // Credit POS sales
+    (sales || [])
+      .filter(s => String(s.clientId) === String(client.id) && s.paymentMethod === 'CREDIT')
+      .forEach(s => rows.push({
+        id: s.id,
+        date: s.date || s.created_at?.slice(0, 10),
+        created_at: s.created_at,
+        description: `Credit Sale #${String(s.id).split('-').pop()}`,
+        debit: Number(s.totalAmount) || 0,
+        credit: 0,
+        type: 'SALE',
+      }));
+
+    // Invoices — debit row only; credit comes from client_payments entries
+    (invoices || [])
+      .filter(inv => String(inv.client_id) === String(client.id))
+      .forEach(inv => {
+        const num = String(inv.invoice_number || '').replace(/^#+/, '');
+        rows.push({
+          id: inv.id,
+          date: inv.invoice_date || inv.created_at?.slice(0, 10),
+          created_at: inv.created_at,
+          description: `Invoice #${num}`,
+          debit: Number(inv.grand_total) || 0,
+          credit: 0,
+          type: 'INVOICE',
+        });
+      });
+
+    // Payments
+    paymentHistory.forEach(p => rows.push({
+      id: p.id,
+      date: p.date,
+      created_at: p.created_at,
+      description: `Payment (${METHOD_LABEL[p.payment_method] || p.payment_method})${p.notes ? ' — ' + p.notes : ''}`,
+      debit: 0,
+      credit: Number(p.amount) || 0,
+      type: 'PAYMENT',
+    }));
+
+    rows.sort((a, b) => {
+      const da = a.date || a.created_at || '';
+      const db = b.date || b.created_at || '';
+      return da < db ? -1 : da > db ? 1 : 0;
+    });
+
+    let balance = 0;
+    return rows.map(r => {
+      balance += r.debit - r.credit;
+      return { ...r, balance };
+    });
+  }, [client, sales, invoices, paymentHistory]);
 
   const clientInvoices = useMemo(() => {
     if (!client) return [];
@@ -79,10 +142,10 @@ const ClientSettlement = () => {
       ? selectedInvoiceIds.filter(x => x !== inv.id)
       : [...selectedInvoiceIds, inv.id];
     const newAmt = isSelected
-      ? Math.max(0, (parseFloat(paymentData.amount) || 0) - inv.grand_total)
-      : (parseFloat(paymentData.amount) || 0) + inv.grand_total;
+      ? Math.max(0, Math.round(((parseFloat(paymentData.amount) || 0) - inv.grand_total) * 100) / 100)
+      : Math.round(((parseFloat(paymentData.amount) || 0) + inv.grand_total) * 100) / 100;
     setSelectedInvoiceIds(newSelection);
-    setPaymentData({ ...paymentData, amount: newAmt.toString() });
+    setPaymentData({ ...paymentData, amount: newAmt > 0 ? newAmt.toString() : '' });
   };
 
   const toggleAll = () => {
@@ -372,7 +435,7 @@ const ClientSettlement = () => {
                               <Receipt size={15} />
                             </div>
                             <div>
-                              <div className="text-sm font-bold text-ink-primary">#{inv.invoice_number}</div>
+                              <div className="text-sm font-bold text-ink-primary">#{String(inv.invoice_number || '').replace(/^#+/, '')}</div>
                               <div className="text-[10px] text-gray-400 font-semibold mt-0.5">
                                 {inv.payment_status === 'PARTIAL' ? 'Partial' : 'Unpaid'}
                               </div>
@@ -427,68 +490,146 @@ const ClientSettlement = () => {
         </div>
       </div>
 
-      {/* Payment History */}
+      {/* Bottom Tabs: Payment History + Statement */}
       <div className="mt-6">
         <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
-          <div className="px-5 py-4 border-b border-black/5 flex items-center gap-2">
-            <History size={15} className="text-gray-400" />
-            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Payment History</span>
-            <span className="ml-auto text-[10px] font-semibold text-gray-400">{paymentHistory.length} records</span>
+          {/* Tab switcher */}
+          <div className="px-5 py-3 border-b border-black/5 flex items-center gap-2">
+            {[
+              { id: 'HISTORY',   label: 'Payment History', icon: History },
+              { id: 'STATEMENT', label: 'Statement',        icon: BookOpen },
+            ].map(({ id: tid, label, icon: Icon }) => (
+              <button
+                key={tid}
+                onClick={() => setBottomTab(tid)}
+                className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                  bottomTab === tid
+                    ? 'bg-ink-primary text-accent-signature'
+                    : 'text-gray-400 hover:text-ink-primary hover:bg-canvas'
+                }`}
+              >
+                <Icon size={12} /> {label}
+              </button>
+            ))}
+            <span className="ml-auto text-[10px] font-semibold text-gray-400">
+              {bottomTab === 'HISTORY' ? `${paymentHistory.length} records` : `${statementRows.length} entries`}
+            </span>
           </div>
 
-          {paymentHistory.length === 0 ? (
-            <div className="py-10 text-center text-xs font-semibold text-gray-400">
-              No payments recorded yet
-            </div>
-          ) : (
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-canvas/50 border-b border-black/5">
-                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
-                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Method</th>
-                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Notes</th>
-                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
-                  <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Recorded</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black/5">
-                {paymentHistory.map(p => {
-                  const Icon = METHOD_ICON[p.payment_method] || Wallet;
-                  return (
-                    <tr key={p.id} className="hover:bg-canvas/40 transition-colors">
-                      <td className="py-3 px-4">
-                        <div className="text-sm font-semibold text-ink-primary">{formatDate(p.date)}</div>
-                        <div className="text-[10px] text-gray-400 mt-0.5">{new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                      </td>
+          {/* Payment History */}
+          {bottomTab === 'HISTORY' && (
+            paymentHistory.length === 0 ? (
+              <div className="py-10 text-center text-xs font-semibold text-gray-400">No payments recorded yet</div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-canvas/50 border-b border-black/5">
+                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Method</th>
+                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Notes</th>
+                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black/5">
+                  {paymentHistory.map(p => {
+                    const Icon = METHOD_ICON[p.payment_method] || Wallet;
+                    return (
+                      <tr key={p.id} className="hover:bg-canvas/40 transition-colors">
+                        <td className="py-3 px-4">
+                          <div className="text-sm font-semibold text-ink-primary">{formatDate(p.date)}</div>
+                          <div className="text-[10px] text-gray-400 mt-0.5">{new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <Icon size={13} className="text-gray-400" />
+                            <span className="text-xs font-semibold text-ink-primary">{METHOD_LABEL[p.payment_method] || p.payment_method}</span>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-xs text-gray-500 max-w-[200px] truncate">{p.notes || '—'}</td>
+                        <td className="py-3 px-4 text-right">
+                          <span className="text-sm font-black text-emerald-600 tabular-nums">{formatCurrency(p.amount)}</span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot className="border-t-2 border-black/10">
+                  <tr>
+                    <td colSpan="3" className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Total Collected</td>
+                    <td className="py-3 px-4 text-right">
+                      <span className="text-sm font-black text-emerald-600 tabular-nums">
+                        {formatCurrency(paymentHistory.reduce((s, p) => s + Number(p.amount), 0))}
+                      </span>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            )
+          )}
+
+          {/* Statement Ledger */}
+          {bottomTab === 'STATEMENT' && (
+            statementRows.length === 0 ? (
+              <div className="py-10 text-center text-xs font-semibold text-gray-400">No transactions on record</div>
+            ) : (
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-canvas/50 border-b border-black/5">
+                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Description</th>
+                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Debit</th>
+                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Credit</th>
+                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Balance</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black/5">
+                  {statementRows.map(row => (
+                    <tr key={row.id} className="hover:bg-canvas/40 transition-colors">
+                      <td className="py-3 px-4 text-sm font-semibold text-ink-primary whitespace-nowrap">{formatDate(row.date)}</td>
                       <td className="py-3 px-4">
                         <div className="flex items-center gap-2">
-                          <Icon size={13} className="text-gray-400" />
-                          <span className="text-xs font-semibold text-ink-primary">{METHOD_LABEL[p.payment_method] || p.payment_method}</span>
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${row.type === 'PAYMENT' ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                          <span className="text-xs font-semibold text-ink-primary">{row.description}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-xs text-gray-500 max-w-[200px] truncate">{p.notes || '—'}</td>
-                      <td className="py-3 px-4 text-right">
-                        <span className="text-sm font-black text-emerald-600 tabular-nums">{formatCurrency(p.amount)}</span>
+                      <td className="py-3 px-4 text-right text-sm font-semibold tabular-nums text-red-500">
+                        {row.debit > 0 ? formatCurrency(row.debit) : '—'}
                       </td>
-                      <td className="py-3 px-4 text-[10px] text-gray-400 font-semibold">
-                        {new Date(p.created_at).toLocaleDateString()}
+                      <td className="py-3 px-4 text-right text-sm font-semibold tabular-nums text-emerald-600">
+                        {row.credit > 0 ? formatCurrency(row.credit) : '—'}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <span className={`text-sm font-black tabular-nums ${row.balance > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                          {formatCurrency(Math.abs(row.balance))}
+                          {row.balance > 0 ? ' Dr' : row.balance < 0 ? ' Cr' : ''}
+                        </span>
                       </td>
                     </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot className="border-t-2 border-black/10">
-                <tr>
-                  <td colSpan="3" className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Total Collected</td>
-                  <td className="py-3 px-4 text-right">
-                    <span className="text-sm font-black text-emerald-600 tabular-nums">
-                      {formatCurrency(paymentHistory.reduce((s, p) => s + Number(p.amount), 0))}
-                    </span>
-                  </td>
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
+                  ))}
+                </tbody>
+                <tfoot className="border-t-2 border-black/10 bg-ink-primary">
+                  <tr>
+                    <td colSpan="2" className="py-3 px-4 text-xs font-bold text-white/60 uppercase tracking-widest">Closing Balance</td>
+                    <td className="py-3 px-4 text-right text-xs font-black text-red-300 tabular-nums">
+                      {formatCurrency(statementRows.reduce((s, r) => s + r.debit, 0))}
+                    </td>
+                    <td className="py-3 px-4 text-right text-xs font-black text-emerald-300 tabular-nums">
+                      {formatCurrency(statementRows.reduce((s, r) => s + r.credit, 0))}
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      {(() => {
+                        const last = statementRows[statementRows.length - 1];
+                        return (
+                          <span className={`text-sm font-black tabular-nums ${last.balance > 0 ? 'text-red-300' : 'text-emerald-300'}`}>
+                            {formatCurrency(Math.abs(last.balance))} {last.balance > 0 ? 'Dr' : 'Cr'}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            )
           )}
         </div>
       </div>

@@ -4,7 +4,7 @@ import {
   CheckCircle, Clock, AlertTriangle,
   Printer, Share2, Eye, Trash2, X,
   Calendar, Download, Zap, Package,
-  CheckCircle2, CreditCard, Wallet, Landmark
+  CheckCircle2, CreditCard, Wallet, Landmark, Truck
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -98,7 +98,7 @@ const TotalRow = ({ label, value, bold, tone }) => {
 const Invoices = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
-  const { invoices, createInvoice, markInvoicePaid } = useSales(currentTenantId);
+  const { invoices, createInvoice, markInvoicePaid, refetch: refetchInvoices } = useSales(currentTenantId);
   const { products } = useInventory(currentTenantId);
   const { clients }  = usePeople(currentTenantId);
 
@@ -284,10 +284,37 @@ const Invoices = () => {
           )}
         </td>
         <td className="px-4 py-4">
-          <StatusBadge status={status} />
+          <div className="flex flex-col gap-1">
+            <StatusBadge status={status} />
+            {inv.delivery_required && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ${
+                inv.delivery_status === 'DELIVERED'  ? 'bg-green-50 text-green-700' :
+                inv.delivery_status === 'IN_TRANSIT' ? 'bg-blue-50 text-blue-700'  :
+                'bg-orange-50 text-orange-700'
+              }`}>
+                <Truck size={9} />
+                {inv.delivery_status === 'DELIVERED' ? 'Delivered' : inv.delivery_status === 'IN_TRANSIT' ? 'In Transit' : 'Awaiting Dispatch'}
+              </span>
+            )}
+          </div>
         </td>
         <td className="px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+            {/* Delivery toggle */}
+            <button
+              onClick={async () => {
+                const { supabase } = await import('../lib/supabase');
+                const newRequired = !inv.delivery_required;
+                await supabase.from('invoices')
+                  .update({ delivery_required: newRequired, delivery_status: newRequired ? 'PENDING' : null })
+                  .eq('id', inv.id);
+                refetchInvoices?.();
+              }}
+              title={inv.delivery_required ? 'Remove delivery flag' : 'Mark as requires delivery'}
+              className={`p-2 rounded-lg transition-colors ${inv.delivery_required ? 'bg-blue-50 text-blue-600 hover:bg-blue-100' : 'hover:bg-blue-50 text-gray-400 hover:text-blue-600'}`}
+            >
+              <Truck size={15} />
+            </button>
             {status !== 'PAID' && (
               <button
                 onClick={() => { setDetailInv(inv); setSettleInput(String(out)); }}

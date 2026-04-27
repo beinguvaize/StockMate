@@ -52,9 +52,10 @@ const SalesPage = () => {
         payment_status: 'UNPAID',
       });
     }
+    if (!result.error) refetchInventory();
     return result;
   };
-  const { products, loading: productsLoading } = useInventory(currentTenantId);
+  const { products, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
   const { users: staff = [] } = usePeople(currentTenantId);
 
   const [activeTab, setActiveTab] = useState('pos'); // 'pos' or 'history'
@@ -104,7 +105,7 @@ const SalesPage = () => {
         </div>
       </div>
 
-      <div className="mt-2">
+<div className="mt-2">
         {activeTab === 'pos' ? (
           <InvoiceBuilder 
             products={products} 

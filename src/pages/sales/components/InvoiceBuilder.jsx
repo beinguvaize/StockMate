@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark } from 'lucide-react';
+import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle } from 'lucide-react';
 import Button from '../../../shared/Button';
 import Modal from '../../../shared/Modal';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { useNotifications } from '../../../context/NotificationContext';
+import { supabase } from '../../../lib/supabase';
 
 const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => {
   const { addNotification } = useNotifications();
@@ -13,6 +14,52 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // FIFO next-batch cost + real stock per product
+  const [fifoCosts, setFifoCosts] = useState({});
+  const [batchStock, setBatchStock] = useState({}); // { [productId]: totalQtyRemaining }
+
+  useEffect(() => {
+    if (!currentTenantId || !products.length) return;
+    supabase
+      .from('product_batches')
+      .select('product_id, unit_cost, qty_remaining, received_date, created_at')
+      .in('product_id', products.map(p => p.id))
+      .gt('qty_remaining', 0)
+      .order('received_date', { ascending: true })
+      .order('created_at', { ascending: true })
+      .then(({ data }) => {
+        if (!data) return;
+        const costs = {};
+        const stock = {};
+        data.forEach(b => {
+          // FIFO cost = first (oldest) open batch
+          if (!costs[b.product_id]) costs[b.product_id] = Number(b.unit_cost);
+          // Real stock = sum of all open batch qty
+          stock[b.product_id] = (stock[b.product_id] || 0) + Number(b.qty_remaining);
+        });
+        setFifoCosts(costs);
+        setBatchStock(stock);
+      });
+  }, [currentTenantId, products]);
+
+  // Compute floor-guard status per product
+  const marginStatus = useMemo(() => {
+    const out = {};
+    products.forEach(p => {
+      const cost = fifoCosts[p.id] ?? p.costPrice ?? 0;
+      const sell = p.sellingPrice ?? 0;
+      const floor = p.min_margin ?? 0;
+      const margin = sell > 0 ? ((sell - cost) / sell) * 100 : 100;
+      out[p.id] = {
+        cost,
+        margin,
+        belowFloor: floor > 0 && margin < floor,
+        isLoss: sell > 0 && cost > sell,
+        floor,
+      };
+    });
+    return out;
+  }, [products, fifoCosts]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(p => 
@@ -47,6 +94,23 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
       }
       return item;
     }).filter(item => item.quantity > 0));
+  };
+
+  const setQuantityDirect = (productId, val) => {
+    const qty = parseInt(val, 10);
+    if (isNaN(qty) || qty < 0) return;
+    if (qty === 0) {
+      setCart(prev => prev.filter(i => i.productId !== productId));
+    } else {
+      setCart(prev => prev.map(i => i.productId === productId ? { ...i, quantity: qty } : i));
+    }
+  };
+
+  const setItemPrice = (productId, val) => {
+    const price = parseFloat(val);
+    setCart(prev => prev.map(i =>
+      i.productId === productId ? { ...i, price: isNaN(price) ? i.price : price } : i
+    ));
   };
 
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
@@ -116,12 +180,25 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
         </div>
         
         <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pr-2 pb-4">
-          {filteredProducts.map(product => (
-            <div 
-              key={product.id} 
+          {filteredProducts.map(product => {
+            const ms = marginStatus[product.id] || {};
+            const hasWarning = ms.belowFloor || ms.isLoss;
+            return (
+            <div
+              key={product.id}
               onClick={() => addToCart(product)}
-              className="glass-panel !p-4 cursor-pointer hover:border-accent-signature/30 transition-all hover:shadow-lg group"
+              className={`glass-panel !p-4 cursor-pointer transition-all hover:shadow-lg group relative ${
+                ms.isLoss ? 'border-red-300 bg-red-50/30' : ms.belowFloor ? 'border-orange-200 bg-orange-50/20' : 'hover:border-accent-signature/30'
+              }`}
             >
+              {hasWarning && (
+                <div className={`absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                  ms.isLoss ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
+                }`}>
+                  <AlertTriangle size={9} />
+                  {ms.isLoss ? 'LOSS' : 'LOW MGN'}
+                </div>
+              )}
               <div className="aspect-square bg-canvas rounded-xl mb-3 flex items-center justify-center overflow-hidden border border-black/5">
                 {product.image ? (
                   <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
@@ -130,18 +207,29 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
                 )}
               </div>
               <div className="font-bold text-xs text-ink-primary line-clamp-2 mb-1 uppercase tracking-tight">{product.name}</div>
-              <div className="text-lg font-black text-emerald-600 leading-none">{formatCurrency(product.sellingPrice)}</div>
-              <div className="mt-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{product.stock} in stock</div>
+              <div className={`text-lg font-black leading-none ${ms.isLoss ? 'text-red-500' : 'text-emerald-600'}`}>
+                {formatCurrency(product.sellingPrice)}
+              </div>
+              {hasWarning && (
+                <div className={`text-[9px] font-bold mt-0.5 ${ms.isLoss ? 'text-red-500' : 'text-orange-500'}`}>
+                  Cost ₹{ms.cost?.toFixed(2)} · {ms.margin?.toFixed(1)}% margin
+                </div>
+              )}
+              <div className="mt-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                {batchStock[product.id] !== undefined ? batchStock[product.id] : product.stock} in stock
+              </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
       {/* Cart Area */}
-      <div className="w-full lg:w-96 glass-panel !p-0 flex flex-col overflow-hidden border-l border-black/5 shadow-2xl">
-        <div className="p-6 border-b border-black/5 flex justify-between items-center bg-canvas/30">
-          <div className="flex items-center gap-3">
-            <CartIcon size={20} className="text-accent-signature" />
+      <div className="w-full lg:w-[540px] glass-panel !p-0 flex flex-col overflow-hidden border-l border-black/5 shadow-2xl">
+        {/* Cart header */}
+        <div className="px-4 py-3 border-b border-black/5 flex justify-between items-center bg-canvas/30">
+          <div className="flex items-center gap-2">
+            <CartIcon size={18} className="text-accent-signature" />
             <h2 className="font-semibold text-sm text-ink-primary">Cart</h2>
           </div>
           <div className="bg-accent-signature text-button-text text-[10px] font-black px-2 py-1 rounded-pill ring-4 ring-accent-signature/10">
@@ -149,30 +237,93 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {cart.map(item => (
-            <div key={item.productId} className="flex justify-between items-center group">
-              <div className="flex-1">
-                <div className="text-xs font-bold text-ink-primary uppercase truncate pr-4">{item.name}</div>
-                <div className="text-gray-400 text-[10px] font-bold mt-1">{formatCurrency(item.price)} per unit</div>
-              </div>
-              <div className="flex items-center gap-3 bg-canvas p-1 rounded-pill">
-                <button 
-                  onClick={() => updateQuantity(item.productId, -1)}
-                  className="w-6 h-6 rounded-pill flex items-center justify-center hover:bg-white transition-all text-ink-primary"
+        {/* Column headers */}
+        {cart.length > 0 && (
+          <div className="grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-black/5">
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Product</span>
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Qty</span>
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Unit Price</span>
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Total</span>
+            <span />
+          </div>
+        )}
+
+        <div className="flex-1 overflow-y-auto">
+          {cart.map(item => {
+            const cost = fifoCosts[item.productId] ?? 0;
+            const belowCost = cost > 0 && item.price < cost;
+            return (
+              <div
+                key={item.productId}
+                className={`grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 items-center px-4 py-2.5 border-b border-black/5 last:border-0 transition-colors ${
+                  belowCost ? 'bg-red-50/60' : 'hover:bg-canvas/40'
+                }`}
+              >
+                {/* Product name + below-cost hint */}
+                <div className="min-w-0">
+                  <div className="text-[11px] font-bold text-ink-primary truncate uppercase">{item.name}</div>
+                  {belowCost && (
+                    <div className="text-[9px] font-bold text-red-500 mt-0.5">
+                      Min cost: {formatCurrency(cost)}
+                    </div>
+                  )}
+                </div>
+
+                {/* Qty stepper */}
+                <div className="flex items-center justify-center gap-0.5 bg-white border border-black/8 rounded-lg p-0.5">
+                  <button
+                    onClick={() => updateQuantity(item.productId, -1)}
+                    className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-ink-primary shrink-0"
+                  >
+                    <Minus size={9} strokeWidth={3} />
+                  </button>
+                  <input
+                    type="number"
+                    min="1"
+                    value={item.quantity}
+                    onChange={e => setQuantityDirect(item.productId, e.target.value)}
+                    className="w-8 text-center text-[11px] font-black text-ink-primary bg-transparent outline-none tabular-nums"
+                  />
+                  <button
+                    onClick={() => addToCart(products.find(p => p.id === item.productId))}
+                    className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-ink-primary shrink-0"
+                  >
+                    <Plus size={9} strokeWidth={3} />
+                  </button>
+                </div>
+
+                {/* Unit price input */}
+                <div className="relative">
+                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 font-bold pointer-events-none">₹</span>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={item.price}
+                    onChange={e => setItemPrice(item.productId, e.target.value)}
+                    className={`w-full pl-4 pr-1 py-1 text-[11px] font-bold bg-canvas rounded-lg outline-none focus:ring-1 tabular-nums border ${
+                      belowCost
+                        ? 'border-red-300 text-red-600 focus:ring-red-300/40'
+                        : 'border-black/8 text-ink-primary focus:ring-accent-signature/30'
+                    }`}
+                  />
+                </div>
+
+                {/* Line total */}
+                <div className="text-[11px] font-black text-ink-primary tabular-nums text-right">
+                  {formatCurrency(item.price * item.quantity)}
+                </div>
+
+                {/* Remove */}
+                <button
+                  onClick={() => setCart(prev => prev.filter(i => i.productId !== item.productId))}
+                  className="text-gray-300 hover:text-red-400 transition-colors flex items-center justify-center"
                 >
-                  <Minus size={12} strokeWidth={3} />
-                </button>
-                <span className="text-xs font-black min-w-[20px] text-center">{item.quantity}</span>
-                <button 
-                  onClick={() => addToCart(products.find(p => p.id === item.productId))}
-                  className="w-6 h-6 rounded-pill bg-white flex items-center justify-center hover:bg-accent-signature transition-all text-ink-primary shadow-sm"
-                >
-                  <Plus size={12} strokeWidth={3} />
+                  <X size={11} strokeWidth={2.5} />
                 </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {cart.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center opacity-30 pointer-events-none p-10 text-center">
               <Package size={48} className="mb-4" />
@@ -213,14 +364,45 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
             </div>
           </div>
           
-          <Button 
-            disabled={cart.length === 0}
-            onClick={() => setShowPaymentModal(true)}
-            className="w-full !rounded-xl !h-14 shadow-xl"
-            icon={ArrowRight}
-          >
-            Checkout
-          </Button>
+          {/* Below-cost hard block */}
+          {(() => {
+            const belowCostItems = cart.filter(item => {
+              const cost = fifoCosts[item.productId] ?? 0;
+              return cost > 0 && item.price < cost;
+            });
+            const hasFloorWarn = cart.some(item => {
+              const ms = marginStatus[item.productId];
+              return ms?.belowFloor && !ms?.isLoss;
+            });
+            return (
+              <>
+                {belowCostItems.length > 0 && (
+                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-50 border border-red-300 text-red-700 mb-2">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                    <p className="text-[10px] font-bold leading-snug">
+                      Cannot sell below purchase cost. Adjust price for: {belowCostItems.map(i => i.name).join(', ')}.
+                    </p>
+                  </div>
+                )}
+                {hasFloorWarn && belowCostItems.length === 0 && (
+                  <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 mb-2">
+                    <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                    <p className="text-[10px] font-bold leading-snug">
+                      Some items are below your minimum margin floor.
+                    </p>
+                  </div>
+                )}
+                <Button
+                  disabled={cart.length === 0 || belowCostItems.length > 0}
+                  onClick={() => setShowPaymentModal(true)}
+                  className="w-full !rounded-xl !h-14 shadow-xl"
+                  icon={ArrowRight}
+                >
+                  Checkout
+                </Button>
+              </>
+            );
+          })()}
         </div>
       </div>
 

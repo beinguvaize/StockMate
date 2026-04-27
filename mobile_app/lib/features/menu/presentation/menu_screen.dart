@@ -4,6 +4,7 @@ import 'package:mobile_app/core/widgets/glass_panel.dart';
 import 'package:mobile_app/features/finance/presentation/finance_screen.dart';
 import 'package:mobile_app/features/hr/presentation/hr_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart';
+import 'package:mobile_app/features/logistics/presentation/driver_route_screen.dart';
 import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -54,12 +55,23 @@ class MenuScreen extends StatelessWidget {
               
               _buildMenuCard(
                 context,
-                title: 'Logistics',
-                subtitle: 'Routes and vehicle tracking',
+                title: 'Fleet Management',
+                subtitle: 'Vehicles and route tracking',
                 icon: LucideIcons.truck,
                 color: AppColors.warning,
                 onTap: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const LogisticsScreen()));
+                },
+              ),
+
+              _buildMenuCard(
+                context,
+                title: 'My Route',
+                subtitle: 'Driver view — stops, van stock, van sales',
+                icon: LucideIcons.mapPin,
+                color: AppColors.accentSignature,
+                onTap: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverRouteScreen()));
                 },
               ),
               
