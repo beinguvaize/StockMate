@@ -11,20 +11,31 @@ const SalesReturnForm = ({ sale, clients, products = [], onSave, loading }) => {
   const items = useMemo(() => {
     if (!sale) return [];
     const raw = sale.items || [];
+
+    // Total qty across all items — used to distribute sale.totalAmount proportionally
+    // when per-item rate was not stored (legacy sales pre-fix).
+    const totalQty = raw.reduce((s, it) => s + (Number(it.quantity) || 0), 0);
+    const saleTotal = Number(sale.totalAmount ?? sale.total_amount ?? 0);
+
     return raw.map(it => {
       const pid = it.productId || it.id;
-      // Rate from stored item first; fallback to current product sellingPrice
       const storedRate = Number(it.rate ?? it.price ?? it.unitPrice ?? 0);
-      const productRate = products.find(p => p.id === pid)?.sellingPrice ?? 0;
+      const qty = Number(it.quantity) || 0;
+
+      // Derive rate from actual sale amount (proportional by qty share)
+      const derivedRate = (storedRate > 0)
+        ? storedRate
+        : (totalQty > 0 ? (saleTotal * (qty / totalQty)) / qty : 0);
+
       return {
         id:       pid,
         name:     it.name || it.productName || 'Item',
-        maxQty:   Number(it.quantity) || 0,
-        rate:     storedRate > 0 ? storedRate : Number(productRate),
+        maxQty:   qty,
+        rate:     Math.round(derivedRate * 100) / 100,
         returnQty: 0,
       };
     });
-  }, [sale, products]);
+  }, [sale]);
 
   const [returnItems, setReturnItems] = useState(
     () => items.map(it => ({ ...it, returnQty: '' }))
