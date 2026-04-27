@@ -151,6 +151,7 @@ const SalesPage = () => {
           <SalesReturnForm
             sale={returnSale}
             clients={clients}
+            products={products}
             onSave={handleSalesReturn}
             loading={returnLoading}
           />

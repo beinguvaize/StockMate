@@ -88,6 +88,7 @@ export const useSales = (tenantId) => {
       id: i.productId || i.id,
       quantity: i.quantity,
       name: i.name,
+      rate: i.price ?? i.rate ?? 0,
     }));
     const { error: rpcError } = await supabase.rpc('process_sale', {
       p_id: sale.id,
@@ -166,6 +167,7 @@ export const useSales = (tenantId) => {
         id: i.productId || i.id,
         quantity: i.quantity,
         name: i.name,
+        rate: i.price ?? i.rate ?? 0,   // preserve unit price for returns/reports
       }));
       const totalAmount = sale.totalAmount ?? 0;
       const paymentStatus = sale.status === 'COMPLETED' ? 'PAID' : (sale.status || 'PENDING');

@@ -7,19 +7,24 @@ import { formatCurrency, todayISOInAppTZ } from '../../../lib/utils';
  * SalesReturnForm — accepts a sale record and lets user pick
  * which items to return + how many.
  */
-const SalesReturnForm = ({ sale, clients, onSave, loading }) => {
+const SalesReturnForm = ({ sale, clients, products = [], onSave, loading }) => {
   const items = useMemo(() => {
     if (!sale) return [];
-    // items stored as JSONB array on sale; support both sale.items and sale.items
     const raw = sale.items || [];
-    return raw.map(it => ({
-      id:       it.productId || it.id,
-      name:     it.name || it.productName || 'Item',
-      maxQty:   Number(it.quantity) || 0,
-      rate:     Number(it.rate ?? it.price ?? it.unitPrice ?? 0),
-      returnQty: 0,
-    }));
-  }, [sale]);
+    return raw.map(it => {
+      const pid = it.productId || it.id;
+      // Rate from stored item first; fallback to current product sellingPrice
+      const storedRate = Number(it.rate ?? it.price ?? it.unitPrice ?? 0);
+      const productRate = products.find(p => p.id === pid)?.sellingPrice ?? 0;
+      return {
+        id:       pid,
+        name:     it.name || it.productName || 'Item',
+        maxQty:   Number(it.quantity) || 0,
+        rate:     storedRate > 0 ? storedRate : Number(productRate),
+        returnQty: 0,
+      };
+    });
+  }, [sale, products]);
 
   const [returnItems, setReturnItems] = useState(
     () => items.map(it => ({ ...it, returnQty: '' }))
