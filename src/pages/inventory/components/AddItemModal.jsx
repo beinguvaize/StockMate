@@ -5,9 +5,16 @@ import Button from '../../../shared/Button';
 import { TAX_SLABS, UNITS } from '../../../lib/constants';
 import { uploadProductImage } from '../../../lib/supabase';
 
+const DEFAULT_CATEGORIES = [
+  'Electronics', 'Clothing & Apparel', 'Food & Beverages', 'Pharmaceuticals',
+  'Hardware & Tools', 'Furniture', 'Stationery & Office', 'Raw Materials',
+  'Finished Goods', 'FMCG', 'Spare Parts', 'Packaging', 'Cosmetics & Beauty',
+  'Sports & Fitness', 'Automotive', 'Other'
+];
+
 const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories }) => {
   const [formData, setFormData] = useState({
-    name: '', sku: '', category: productCategories[0]?.name || 'Other', unit: UNITS[0],
+    name: '', sku: '', category: productCategories[0]?.name || DEFAULT_CATEGORIES[0], unit: UNITS[0],
     costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
     lowStockThreshold: 10, min_margin: 0
   });
@@ -30,7 +37,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       setImagePreview(editingProduct.image || null);
     } else {
       setFormData({
-        name: '', sku: '', category: productCategories[0]?.name || 'Other', unit: UNITS[0],
+        name: '', sku: '', category: productCategories[0]?.name || DEFAULT_CATEGORIES[0], unit: UNITS[0],
         costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
         lowStockThreshold: 10, min_margin: 0
       });
@@ -110,8 +117,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 <label className={labelCls}>Category</label>
                 <select className={inputCls} value={formData.category}
                   onChange={e => setFormData({ ...formData, category: e.target.value})}>
-                  {productCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                  {productCategories.length === 0 && <option value="Other">Other</option>}
+                  {productCategories.length > 0
+                    ? productCategories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)
+                    : DEFAULT_CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)
+                  }
                 </select>
               </div>
             </div>

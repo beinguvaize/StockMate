@@ -105,6 +105,17 @@ serve(async (req) => {
 
     if (settingsError) throw settingsError;
 
+    // 6. Seed default product categories
+    const defaultCategories = [
+      'Electronics', 'Clothing & Apparel', 'Food & Beverages', 'Pharmaceuticals',
+      'Hardware & Tools', 'Furniture', 'Stationery & Office', 'Raw Materials',
+      'Finished Goods', 'FMCG', 'Spare Parts', 'Packaging', 'Cosmetics & Beauty',
+      'Sports & Fitness', 'Automotive', 'Other'
+    ];
+    await supabaseAdmin.from("product_categories").insert(
+      defaultCategories.map(name => ({ name, tenant_id: tenant.id }))
+    );
+
     return new Response(
       JSON.stringify(tenant),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
