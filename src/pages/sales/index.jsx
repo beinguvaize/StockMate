@@ -5,14 +5,17 @@ import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { usePeople } from '../../hooks/usePeople';
 import { ShoppingCart, History, Plus, ReceiptText } from 'lucide-react';
+import { generateRef } from '../../lib/utils';
 import Button from '../../shared/Button';
+import Modal from '../../shared/Modal';
 import InvoiceBuilder from './components/InvoiceBuilder';
 import InvoiceList from './components/InvoiceList';
 import SalePrintDispatcher from './components/SalePrintDispatcher';
+import SalesReturnForm from './components/SalesReturnForm';
 
 const SalesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
-  const { sales, clients, placeSale, createInvoice, deleteSale: removeSale, settleSale, loading: salesLoading } = useSales(currentTenantId);
+  const { sales, clients, placeSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, loading: salesLoading } = useSales(currentTenantId);
 
   // Wrap placeSale: auto-create an UNPAID invoice for every credit sale so
   // the settlement page can show and settle it.
@@ -60,6 +63,16 @@ const SalesPage = () => {
 
   const [activeTab, setActiveTab] = useState('pos'); // 'pos' or 'history'
   const [printingSale, setPrintingSale] = useState(null);
+  const [returnSale, setReturnSale] = useState(null);
+  const [returnLoading, setReturnLoading] = useState(false);
+
+  const handleSalesReturn = async (payload) => {
+    setReturnLoading(true);
+    const { error } = await processSalesReturn({ ...payload, id: generateRef('CRN') });
+    setReturnLoading(false);
+    if (error) { alert('Return failed: ' + error.message); return; }
+    setReturnSale(null);
+  };
 
   const printSale = (sale) => setPrintingSale(sale);
   const printingClient = printingSale
@@ -122,9 +135,27 @@ const SalesPage = () => {
             onDelete={removeSale}
             onSettle={settleSale}
             onPrint={printSale}
+            onReturn={setReturnSale}
           />
         )}
       </div>
+
+      {/* Sales Return Modal */}
+      <Modal
+        isOpen={!!returnSale}
+        onClose={() => setReturnSale(null)}
+        title="Process Sales Return"
+        subtitle="Credit note — stock will be restocked"
+      >
+        {returnSale && (
+          <SalesReturnForm
+            sale={returnSale}
+            clients={clients}
+            onSave={handleSalesReturn}
+            loading={returnLoading}
+          />
+        )}
+      </Modal>
 
       {printingSale && (
         <SalePrintDispatcher

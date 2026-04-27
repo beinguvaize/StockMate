@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Search, Trash2, Printer, Receipt, Package, Wallet, CreditCard, Landmark,
-  Download, X, User, Clock, Calendar, CheckCircle2, AlertCircle
+  Download, X, User, Clock, Calendar, CheckCircle2, AlertCircle, RotateCcw
 } from 'lucide-react';
 import Table from '../../../shared/Table';
 import Modal from '../../../shared/Modal';
@@ -63,7 +63,7 @@ const downloadCSV = (rows, filename) => {
 // ------------------------------------------------------------------
 // Component
 // ------------------------------------------------------------------
-const InvoiceList = ({ sales, clients, staff = [], products = [], onDelete, onPrint, onSettle }) => {
+const InvoiceList = ({ sales, clients, staff = [], products = [], onDelete, onPrint, onSettle, onReturn }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | PAID | PENDING
   // Resolves cross-tenant cashier names (GLOBAL_ADMIN impersonation, etc.).
@@ -282,6 +282,15 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], onDelete, onPr
                 className="p-2 rounded-lg hover:bg-emerald-50 text-gray-400 hover:text-emerald-600 transition-colors"
               >
                 <CheckCircle2 size={15} />
+              </button>
+            )}
+            {onReturn && Array.isArray(sale.items) && sale.items.length > 0 && (
+              <button
+                onClick={() => onReturn(sale)}
+                title="Process Return"
+                className="p-2 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 transition-colors"
+              >
+                <RotateCcw size={15} />
               </button>
             )}
             <button onClick={() => onPrint(sale)} title="Print / View" className="p-2 rounded-lg hover:bg-white text-gray-500 hover:text-ink-primary transition-colors">

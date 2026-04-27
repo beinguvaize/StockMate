@@ -85,15 +85,36 @@ export const usePurchases = (tenantId) => {
     return { error };
   };
 
-  return { 
-    data, 
-    purchases: data, 
-    suppliers, 
-    loading, 
-    error, 
-    refetch: fetchPurchases, 
-    add, 
-    update, 
-    remove 
+  const addReturn = async (ret) => {
+    const { error: rpcErr } = await supabase.rpc('process_purchase_return', {
+      p_id:            ret.id,
+      p_tenant_id:     tenantId,
+      p_purchase_id:   ret.purchase_id,
+      p_supplier_id:   ret.supplier_id || null,
+      p_supplier_name: ret.supplier_name || null,
+      p_product_id:    ret.product_id,
+      p_product_name:  ret.product_name || null,
+      p_quantity:      ret.quantity,
+      p_unit_price:    ret.unit_price || null,
+      p_total_amount:  ret.total_amount,
+      p_reason:        ret.reason || null,
+      p_date:          ret.date,
+    });
+    if (rpcErr) return { error: rpcErr };
+    await fetchPurchases();
+    return { success: true };
+  };
+
+  return {
+    data,
+    purchases: data,
+    suppliers,
+    loading,
+    error,
+    refetch: fetchPurchases,
+    add,
+    update,
+    remove,
+    addReturn,
   };
 };

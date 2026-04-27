@@ -3,20 +3,23 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useInventory } from '../../hooks/useInventory';
-import { ShoppingBag, Plus, History, PackagePlus, ArrowDown } from 'lucide-react';
+import { Plus, RotateCcw } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
 import { formatCurrency, formatDate, generateRef } from '../../lib/utils';
 import PurchaseForm from './components/PurchaseForm';
+import PurchaseReturnForm from './components/PurchaseReturnForm';
 
 const PurchasesPage = () => {
   const { currentTenantId } = useTenant();
   const { currentUser } = useAuth();
-  const { purchases, suppliers, add: addPurchase, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, suppliers, add: addPurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
   const { products, loading: prodLoading, updateProduct } = useInventory(currentTenantId);
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [returnTarget, setReturnTarget] = useState(null); // purchase being returned
+  const [returnLoading, setReturnLoading] = useState(false);
 
   const handleSavePurchase = async (data) => {
     const payload = {
@@ -41,7 +44,6 @@ const PurchasesPage = () => {
       const newCost = denom > 0
         ? (oldStock * oldCost + qty * unitCost) / denom
         : unitCost;
-      // Round to 2 decimals
       const rounded = Math.round(newCost * 100) / 100;
       if (rounded !== oldCost) {
         await updateProduct(product.id, { costPrice: rounded });
@@ -51,12 +53,27 @@ const PurchasesPage = () => {
     setShowAddModal(false);
   };
 
+  const handleSaveReturn = async (data) => {
+    setReturnLoading(true);
+    const { error } = await addReturn({
+      ...data,
+      id: generateRef('PRN'), // Purchase Return Note
+    });
+    setReturnLoading(false);
+    if (error) {
+      alert('Failed to process return: ' + error.message);
+      return;
+    }
+    setReturnTarget(null);
+  };
+
   const headers = [
     { label: 'Date' },
     { label: 'Reference' },
     { label: 'Product / Supplier' },
     { label: 'Quantity', className: 'text-center' },
-    { label: 'Total', className: 'text-right' }
+    { label: 'Total', className: 'text-right' },
+    { label: '', className: 'text-right' },
   ];
 
   const renderRow = (pur) => {
@@ -80,6 +97,15 @@ const PurchasesPage = () => {
         </td>
         <td className="px-4 py-3 text-right">
           <div className="text-sm font-black text-ink-primary">{formatCurrency(pur.total_amount)}</div>
+        </td>
+        <td className="px-4 py-3 text-right">
+          <button
+            onClick={() => setReturnTarget({ purchase: pur, product, supplier })}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors ml-auto"
+          >
+            <RotateCcw size={11} />
+            Return
+          </button>
         </td>
       </tr>
     );
@@ -105,19 +131,38 @@ const PurchasesPage = () => {
         </div>
       </div>
 
-      <Table 
-        headers={headers} 
-        rows={purchases} 
-        renderRow={renderRow} 
+      <Table
+        headers={headers}
+        rows={purchases}
+        renderRow={renderRow}
         emptyMessage="No purchases recorded yet"
       />
 
+      {/* Add Purchase Modal */}
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Purchase" subtitle="Record stock received from a supplier">
-        <PurchaseForm 
-          products={products} 
-          suppliers={suppliers} 
-          onSave={handleSavePurchase} 
+        <PurchaseForm
+          products={products}
+          suppliers={suppliers}
+          onSave={handleSavePurchase}
         />
+      </Modal>
+
+      {/* Purchase Return Modal */}
+      <Modal
+        isOpen={!!returnTarget}
+        onClose={() => setReturnTarget(null)}
+        title="Return to Supplier"
+        subtitle="Debit note — stock will be deducted"
+      >
+        {returnTarget && (
+          <PurchaseReturnForm
+            purchase={returnTarget.purchase}
+            product={returnTarget.product}
+            supplier={returnTarget.supplier}
+            onSave={handleSaveReturn}
+            loading={returnLoading}
+          />
+        )}
       </Modal>
     </div>
   );

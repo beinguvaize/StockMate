@@ -244,6 +244,24 @@ export const useSales = (tenantId) => {
       setInvoices(prev => [inserted, ...prev]);
       return { success: true, data: inserted };
     },
+    processSalesReturn: async (ret) => {
+      if (!tenantId) return { error: new Error('processSalesReturn: no tenant') };
+      const { error: rpcErr } = await supabase.rpc('process_sales_return', {
+        p_id:           ret.id,
+        p_tenant_id:    tenantId,
+        p_sale_id:      ret.sale_id || null,
+        p_invoice_id:   ret.invoice_id || null,
+        p_client_id:    ret.client_id || null,
+        p_client_name:  ret.client_name || null,
+        p_items:        ret.items,
+        p_total_amount: ret.total_amount,
+        p_reason:       ret.reason || null,
+        p_date:         ret.date,
+      });
+      if (rpcErr) return { error: rpcErr };
+      await fetchSales();
+      return { success: true };
+    },
     markInvoicePaid: async (id) => {
       if (!id) return { error: new Error('markInvoicePaid: id required') };
       // Read grand_total first so paid_amount stays in sync with total.
