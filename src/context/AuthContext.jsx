@@ -109,22 +109,18 @@ export const AuthProvider = ({ children }) => {
     const roles = currentUser.roles || [];
     if (roles.includes('GLOBAL_ADMIN')) return true;
     if (roles.includes('OWNER')) return true;
-    // Dashboard always visible to any authenticated user
-    if (moduleKey === 'dashboard') return true;
     if (roles.includes('STAFF')) {
       if (action === 'view') return true;
       return ['sales', 'clients', 'daybook'].includes(moduleKey);
     }
-    // SALES template
+    // SALES template — no dashboard (privacy)
     if (roles.includes('SALES')) {
       const salesModules = ['sales', 'clients', 'daybook'];
-      if (action === 'view') return salesModules.includes(moduleKey);
       return salesModules.includes(moduleKey);
     }
-    // INVENTORY template
+    // INVENTORY template — no dashboard (privacy)
     if (roles.includes('INVENTORY')) {
       const invModules = ['inventory', 'purchases', 'suppliers'];
-      if (action === 'view') return invModules.includes(moduleKey);
       return invModules.includes(moduleKey);
     }
     // CUSTOM role (and any other): respect granular permissions object

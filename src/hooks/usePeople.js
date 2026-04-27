@@ -4,6 +4,7 @@ import { normalizeNumericRows } from '../lib/numeric';
 import { generateUUID } from '../lib/utils';
 
 const DEFAULT_PERMISSIONS = {
+  dashboard: { view: false, edit: false },
   inventory: { view: false, edit: false },
   sales:     { view: false, edit: false },
   purchases: { view: false, edit: false },

@@ -6,13 +6,14 @@ import { useNotifications } from '../context/NotificationContext';
 import { DEFAULT_PERMISSIONS, MODULES_CONFIG } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import { staffCreateSchema, passwordStrength } from '../lib/validation';
-import { 
- ShieldCheck, User, Plus, Trash2, Edit3, X, Check, 
+import {
+ ShieldCheck, User, Plus, Trash2, Edit3, X, Check,
  Eye, Save, Package, Truck, Lock, ShieldAlert,
- UserPlus, Mail, Fingerprint, Activity, ShoppingCart, ShoppingBag, Wallet, Users as UsersIcon, BarChart3, Banknote, Settings as SettingsIcon, BookOpen
+ UserPlus, Mail, Fingerprint, Activity, ShoppingCart, ShoppingBag, Wallet, Users as UsersIcon, BarChart3, Banknote, Settings as SettingsIcon, BookOpen, LayoutDashboard
 } from 'lucide-react';
 
 const MODULE_ICONS = {
+ dashboard: LayoutDashboard,
  inventory: Package,
  sales: ShoppingCart,
  purchases: ShoppingBag,
@@ -441,12 +442,14 @@ const Users = () => {
       }), {}),
       SALES: {
         ...DEFAULT_PERMISSIONS,
+        // No dashboard — privacy
         sales: { view: true, edit: true },
         clients: { view: true, edit: true },
         daybook: { view: true, edit: true }
       },
       INVENTORY: {
         ...DEFAULT_PERMISSIONS,
+        // No dashboard — privacy
         inventory: { view: true, edit: true },
         purchases: { view: true, edit: true },
         suppliers: { view: true, edit: true }
