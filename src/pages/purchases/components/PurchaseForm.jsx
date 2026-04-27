@@ -9,31 +9,62 @@ const PurchaseForm = ({ products, suppliers, onSave, loading }) => {
     linked_product_id: '',
     supplier_id: '',
     quantity: '',
+    unit_price: '',
     total_amount: '',
     payment_type: 'CASH',
     date: todayISOInAppTZ(),
     notes: ''
   });
 
-  const unitCost = useMemo(() => {
-    const q = parseFloat(formData.quantity);
-    const t = parseFloat(formData.total_amount);
-    if (!q || !t || q <= 0) return null;
-    return t / q;
-  }, [formData.quantity, formData.total_amount]);
-
   const selectedProduct = useMemo(
     () => products.find(p => p.id === formData.linked_product_id),
     [products, formData.linked_product_id]
   );
 
+  // Sync unit_price → total_amount
+  const handleUnitPriceChange = (val) => {
+    const q = parseFloat(formData.quantity);
+    const u = parseFloat(val);
+    const total = (!isNaN(q) && !isNaN(u) && q > 0) ? (u * q).toFixed(2) : '';
+    setFormData(f => ({ ...f, unit_price: val, total_amount: total }));
+  };
+
+  // Sync total_amount → unit_price
+  const handleTotalChange = (val) => {
+    const q = parseFloat(formData.quantity);
+    const t = parseFloat(val);
+    const unit = (!isNaN(q) && !isNaN(t) && q > 0) ? (t / q).toFixed(4) : '';
+    setFormData(f => ({ ...f, total_amount: val, unit_price: unit }));
+  };
+
+  // When quantity changes, re-derive total from unit_price if set, else unit_price from total
+  const handleQuantityChange = (val) => {
+    const q = parseFloat(val);
+    const u = parseFloat(formData.unit_price);
+    const t = parseFloat(formData.total_amount);
+    let update = { quantity: val };
+    if (!isNaN(q) && q > 0) {
+      if (!isNaN(u)) {
+        update.total_amount = (u * q).toFixed(2);
+      } else if (!isNaN(t)) {
+        update.unit_price = (t / q).toFixed(4);
+      }
+    }
+    setFormData(f => ({ ...f, ...update }));
+  };
+
+  const unitCost = parseFloat(formData.unit_price) || null;
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    const q = parseFloat(formData.quantity);
+    const t = parseFloat(formData.total_amount);
+    const u = unitCost ?? (q > 0 && t > 0 ? t / q : 0);
     onSave({
       ...formData,
-      quantity: parseFloat(formData.quantity),
-      total_amount: parseFloat(formData.total_amount),
-      unit_cost: unitCost
+      quantity: q,
+      total_amount: t,
+      unit_cost: u
     });
   };
 
@@ -66,14 +97,34 @@ const PurchaseForm = ({ products, suppliers, onSave, loading }) => {
         </div>
         <div>
           <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Quantity</label>
-          <input 
+          <input
             required
             type="number"
             className="w-full bg-canvas border border-black/5 rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
-            placeholder="0.00"
+            placeholder="0"
+            min="0"
             value={formData.quantity}
-            onChange={e => setFormData({ ...formData, quantity: e.target.value })}
+            onChange={e => handleQuantityChange(e.target.value)}
           />
+        </div>
+        <div>
+          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Unit Price</label>
+          <input
+            type="number"
+            className="w-full bg-canvas border border-black/5 rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            placeholder="0.00"
+            min="0"
+            step="0.01"
+            value={formData.unit_price}
+            onChange={e => handleUnitPriceChange(e.target.value)}
+          />
+          {unitCost !== null && selectedProduct?.costPrice > 0 && (
+            <div className="mt-1.5 text-[10px] font-bold">
+              <span className={unitCost > selectedProduct.costPrice ? 'text-amber-600' : 'text-emerald-600'}>
+                {unitCost > selectedProduct.costPrice ? '▲' : '▼'} vs last {formatCurrency(selectedProduct.costPrice)}
+              </span>
+            </div>
+          )}
         </div>
         <div>
           <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Total Amount</label>
@@ -82,17 +133,14 @@ const PurchaseForm = ({ products, suppliers, onSave, loading }) => {
             type="number"
             className="w-full bg-canvas border border-black/5 rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="0.00"
+            min="0"
+            step="0.01"
             value={formData.total_amount}
-            onChange={e => setFormData({ ...formData, total_amount: e.target.value })}
+            onChange={e => handleTotalChange(e.target.value)}
           />
           {unitCost !== null && (
-            <div className="mt-1.5 text-[10px] font-bold text-gray-500 flex gap-3">
-              <span>Unit cost: <span className="text-ink-primary">{formatCurrency(unitCost)}</span></span>
-              {selectedProduct?.costPrice > 0 && (
-                <span className={unitCost > selectedProduct.costPrice ? 'text-amber-600' : 'text-emerald-600'}>
-                  {unitCost > selectedProduct.costPrice ? '▲' : '▼'} vs last {formatCurrency(selectedProduct.costPrice)}
-                </span>
-              )}
+            <div className="mt-1.5 text-[10px] font-bold text-gray-500">
+              Unit cost: <span className="text-ink-primary">{formatCurrency(unitCost)}</span>
             </div>
           )}
         </div>
