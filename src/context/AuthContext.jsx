@@ -109,10 +109,15 @@ export const AuthProvider = ({ children }) => {
     const roles = currentUser.roles || [];
     if (roles.includes('GLOBAL_ADMIN')) return true;
     if (roles.includes('OWNER')) return true;
-    // Simplified: staff can view all but edit restricted to explicit cases (logic from AppContext)
     if (roles.includes('STAFF')) {
       if (action === 'view') return true;
       return ['sales', 'clients', 'daybook'].includes(moduleKey);
+    }
+    // CUSTOM role (and any other): respect granular permissions object
+    const perms = currentUser.permissions;
+    if (perms && typeof perms === 'object') {
+      const mod = perms[moduleKey];
+      if (mod && typeof mod === 'object') return !!mod[action];
     }
     return false;
   };
