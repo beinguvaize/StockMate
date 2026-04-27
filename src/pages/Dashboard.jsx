@@ -44,6 +44,11 @@ const Dashboard = () => {
  // Core Metrics Calculation
  const [datePreset, setDatePreset] = useState('Today');
  const [customRange, setCustomRange] = useState({ start: '', end: ''});
+ const [heroVisible, setHeroVisible] = useState(true);
+ useEffect(() => {
+   const t = setTimeout(() => setHeroVisible(false), 15000);
+   return () => clearTimeout(t);
+ }, []);
 
  const isWithinRange = (dateStr) => {
  if (!dateStr) return false;
@@ -351,7 +356,11 @@ const Dashboard = () => {
 
  return (
  <div className="animate-fade-in flex flex-col gap-5">
-  {/* Reference-Style Hero Section (Compressed Height) */}
+  {/* Reference-Style Hero Section (Compressed Height) — fades out after 15s */}
+  <div
+    style={{ transition: 'opacity 1s ease, max-height 1s ease, margin-bottom 1s ease' }}
+    className={heroVisible ? 'opacity-100 max-h-[500px]' : 'opacity-0 max-h-0 overflow-hidden !mb-0 pointer-events-none'}
+  >
   <div className="bg-white px-5 py-8 md:px-10 md:py-10 rounded-[2.5rem] shadow-premium border border-black/5 flex flex-col lg:flex-row items-center justify-between gap-10 relative overflow-hidden group">
     <div className="absolute top-0 right-0 w-64 h-64 bg-accent-signature/10 rounded-full blur-3xl -mr-32 -mt-32 transition-all group-hover:bg-accent-signature/20" />
     <div className="flex-1 space-y-5 relative z-10">
@@ -395,6 +404,7 @@ const Dashboard = () => {
       </div>
     </div>
   </div>
+  </div>{/* end hero fade wrapper */}
 
  {/* Financial Overview & Date Range Selector */}
  <div>
