@@ -1590,15 +1590,90 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
     // Find Vehicle Location
     const vehicleLoc = inventoryLocations.find(l => l.reference_id === route.vehicleId);
 
-    // 3. Formal Stock Return: Vehicle -> Warehouse
+    // Stock Return: Vehicle -> Warehouse
     for (const item of returnedStock) {
       if (item.quantity > 0) {
-        // Return to Warehouse
         await adjustStock(item.productId, item.quantity, `Returned from Route ${routeId}`, MAIN_WAREHOUSE_ID);
-        // Remove from Vehicle
         if (vehicleLoc) {
           await adjustLocationStock(item.productId, -item.quantity, vehicleLoc.id);
         }
+      }
+    }
+
+    // Cash Flow: record per-stop client payments + Day Book entry
+    if (isSupabaseConfigured && actualCash > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // 1. Fetch route stops with cash collected
+      const { data: stops, error: stopsErr } = await supabase
+        .from('route_stops')
+        .select('id, client_id, client_name, cash_collected')
+        .eq('route_id', routeId)
+        .eq('tenant_id', currentTenantId)
+        .gt('cash_collected', 0);
+
+      if (stopsErr) {
+        console.error('reconcileRoute: fetch stops error', stopsErr);
+      }
+
+      // 2. Insert client_payments for each stop
+      let totalCash = 0;
+      if (stops && stops.length > 0) {
+        const vehicleName = getVehicleName(route.vehicleId);
+        const paymentRows = stops.map(stop => ({
+          id: generateUUID(),
+          tenant_id: currentTenantId,
+          client_id: stop.client_id,
+          amount: Number(stop.cash_collected),
+          date: today,
+          payment_method: 'CASH',
+          notes: `Vehicle collection — ${vehicleName} — Route ${routeId}`,
+          recorded_by: user?.id || null,
+        }));
+        const { error: payErr } = await supabase.from('client_payments').insert(paymentRows);
+        if (payErr) console.error('reconcileRoute: client_payments insert error', payErr);
+        totalCash = stops.reduce((s, st) => s + Number(st.cash_collected), 0);
+      } else {
+        // No stops data — use actualCash as total
+        totalCash = Number(actualCash);
+      }
+
+      // 3. Update Day Book — add vehicle cash to total_sales for today
+      if (totalCash > 0) {
+        const { data: existingEntry } = await supabase
+          .from('day_book')
+          .select('*')
+          .eq('tenant_id', currentTenantId)
+          .eq('date', today)
+          .maybeSingle();
+
+        const vehicleName = getVehicleName(route.vehicleId);
+        if (existingEntry) {
+          const updated = {
+            ...existingEntry,
+            total_sales: (Number(existingEntry.total_sales) || 0) + totalCash,
+          };
+          const { error: dbErr } = await supabase.from('day_book').upsert(updated);
+          if (dbErr) console.error('reconcileRoute: day_book update error', dbErr);
+          else setDayBook(prev => prev.map(db => db.date === today ? updated : db));
+        } else {
+          const newEntry = {
+            id: generateUUID(),
+            tenant_id: currentTenantId,
+            date: today,
+            opening_balance: 0,
+            closing_balance: totalCash,
+            total_sales: totalCash,
+            total_expenses: 0,
+            is_closed: false,
+            created_at: new Date().toISOString(),
+          };
+          const { error: dbErr } = await supabase.from('day_book').insert(newEntry);
+          if (dbErr) console.error('reconcileRoute: day_book insert error', dbErr);
+          else setDayBook(prev => [newEntry, ...prev]);
+        }
+        addNotification(`₹${totalCash.toLocaleString()} vehicle cash posted to Day Book & client accounts.`, 'success');
       }
     }
 
