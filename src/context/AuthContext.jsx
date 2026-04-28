@@ -93,6 +93,38 @@ export const AuthProvider = ({ children }) => {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Realtime: watch own profile row for role/permission changes made by admin
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const channel = supabase
+      .channel(`user-profile-${currentUser.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'users',
+        filter: `id=eq.${currentUser.id}`,
+      }, async () => {
+        // Re-fetch fresh profile on any update
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+        if (profile) {
+          const { data: { session } } = await supabase.auth.getSession();
+          const userEmail = session?.user?.email?.toLowerCase();
+          const isSuperUser = userEmail === 'uvaize@hotmail.com' || userEmail === 'gladmin@ledgrpro.ca';
+          const enriched = { ...profile, email: session?.user?.email || currentUser.email };
+          if (isSuperUser && !enriched.roles?.includes('GLOBAL_ADMIN')) {
+            enriched.roles = [...(enriched.roles || []), 'GLOBAL_ADMIN', 'OWNER'];
+          }
+          setCurrentUser(enriched);
+        }
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [currentUser?.id]);
+
   const login = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { success: false, error: error.message };
