@@ -1,34 +1,37 @@
-import React from 'react';
+import React, { lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useTenant } from './context/TenantContext';
 import AppLayout from './components/AppLayout';
-import Login from './pages/Login';
-import Inventory from './pages/inventory/index.jsx';
-import Sales from './pages/sales/index.jsx';
-import Expenses from './pages/Expenses';
-import Dashboard from './pages/Dashboard';
-import Settings from './pages/Settings';
-import Vehicles from './pages/Vehicles';
-import Users from './pages/Users';
-import Clients from './pages/Clients';
-import Reports from './pages/Reports';
-import Orders from './pages/Orders';
-import Payroll from './pages/Payroll';
-import DayBook from './pages/DayBook';
-import Purchases from './pages/purchases';
-import Suppliers from './pages/Suppliers';
-import SupplierLedger from './pages/SupplierLedger';
-import Maintenance from './pages/Maintenance';
-import Invoices from './pages/Invoices';
-import ClientSettlement from './pages/ClientSettlement';
-import AdminPanel from './pages/AdminPanel';
-import TenantSetup from './pages/TenantSetup';
-import SuperAdminPortal from './pages/admin/SuperAdminPortal';
-import NoAccess from './pages/NoAccess';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalLoading from './components/GlobalLoading';
+
+// ── Eager (tiny, needed immediately) ────────────────────────────────────────
+import Login   from './pages/Login';
+import NoAccess from './pages/NoAccess';
+
+// ── Lazy (loaded only when route is visited) ─────────────────────────────────
+const Dashboard        = lazy(() => import('./pages/Dashboard'));
+const Inventory        = lazy(() => import('./pages/inventory/index.jsx'));
+const Sales            = lazy(() => import('./pages/sales/index.jsx'));
+const Expenses         = lazy(() => import('./pages/Expenses'));
+const Settings         = lazy(() => import('./pages/Settings'));
+const Vehicles         = lazy(() => import('./pages/Vehicles'));
+const Users            = lazy(() => import('./pages/Users'));
+const Clients          = lazy(() => import('./pages/Clients'));
+const Reports          = lazy(() => import('./pages/Reports'));
+const Orders           = lazy(() => import('./pages/Orders'));
+const Payroll          = lazy(() => import('./pages/Payroll'));
+const DayBook          = lazy(() => import('./pages/DayBook'));
+const Purchases        = lazy(() => import('./pages/purchases'));
+const Suppliers        = lazy(() => import('./pages/Suppliers'));
+const SupplierLedger   = lazy(() => import('./pages/SupplierLedger'));
+const Invoices         = lazy(() => import('./pages/Invoices'));
+const ClientSettlement = lazy(() => import('./pages/ClientSettlement'));
+const AdminPanel       = lazy(() => import('./pages/AdminPanel'));
+const TenantSetup      = lazy(() => import('./pages/TenantSetup'));
+const SuperAdminPortal = lazy(() => import('./pages/admin/SuperAdminPortal'));
 
 /**
  * GuestRoute: Redirects authenticated users away from the login page.
@@ -115,6 +118,7 @@ function AppRoutes() {
   if (authLoading || tenantLoading) return <GlobalLoading />;
 
   return (
+    <Suspense fallback={<GlobalLoading />}>
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
@@ -146,6 +150,7 @@ function AppRoutes() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }
 
