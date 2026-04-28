@@ -193,7 +193,7 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
           />
         </div>
         
-        <div className="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 overflow-y-auto pr-2 pb-4">
+        <div className="grid grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2 overflow-y-auto pr-2 pb-4">
           {filteredProducts.map(product => {
             const ms = marginStatus[product.id] || {};
             const hasWarning = ms.belowFloor || ms.isLoss;
@@ -201,30 +201,30 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
             <div
               key={product.id}
               onClick={() => addToCart(product)}
-              className={`glass-panel !p-3 cursor-pointer transition-all hover:shadow-lg group relative ${
+              className={`glass-panel !p-2 cursor-pointer transition-all hover:shadow-lg group relative ${
                 ms.isLoss ? 'border-red-300 bg-red-50/30' : ms.belowFloor ? 'border-orange-200 bg-orange-50/20' : 'hover:border-accent-signature/30'
               }`}
             >
               {hasWarning && (
-                <div className={`absolute top-1.5 right-1.5 flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[8px] font-black uppercase ${
+                <div className={`absolute top-1 right-1 flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[7px] font-black uppercase ${
                   ms.isLoss ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
                 }`}>
-                  <AlertTriangle size={8} />
+                  <AlertTriangle size={7} />
                   {ms.isLoss ? 'LOSS' : 'LOW'}
                 </div>
               )}
-              <div className="aspect-square bg-canvas rounded-xl mb-2 flex items-center justify-center overflow-hidden border border-black/5">
+              <div className="h-16 bg-canvas rounded-lg mb-1.5 flex items-center justify-center overflow-hidden border border-black/5">
                 {product.image ? (
                   <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                 ) : (
-                  <Package size={24} className="opacity-10" />
+                  <Package size={18} className="opacity-10" />
                 )}
               </div>
-              <div className="font-bold text-[10px] text-ink-primary line-clamp-2 mb-0.5 uppercase tracking-tight leading-tight">{product.name}</div>
-              <div className={`text-sm font-black leading-none ${ms.isLoss ? 'text-red-500' : 'text-emerald-600'}`}>
+              <div className="font-bold text-[9px] text-ink-primary line-clamp-2 mb-0.5 uppercase tracking-tight leading-tight">{product.name}</div>
+              <div className={`text-xs font-black leading-none ${ms.isLoss ? 'text-red-500' : 'text-emerald-600'}`}>
                 {formatCurrency(product.sellingPrice)}
               </div>
-              <div className="mt-0.5 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+              <div className="mt-0.5 text-[8px] font-bold text-gray-400 uppercase tracking-widest">
                 {batchStock[product.id] !== undefined ? batchStock[product.id] : product.stock} stk
               </div>
             </div>
