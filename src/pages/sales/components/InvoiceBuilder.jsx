@@ -6,7 +6,7 @@ import { formatCurrency, generateRef } from '../../../lib/utils';
 import { useNotifications } from '../../../context/NotificationContext';
 import { supabase } from '../../../lib/supabase';
 
-const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => {
+const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId }) => {
   const { addNotification } = useNotifications();
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -30,7 +30,6 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
   }, []);
   // FIFO next-batch cost + real stock per product
   const [fifoCosts, setFifoCosts] = useState({});
-  const [batchStock, setBatchStock] = useState({}); // { [productId]: totalQtyRemaining }
 
   useEffect(() => {
     if (!currentTenantId || !products.length) return;
@@ -44,17 +43,21 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
       .then(({ data }) => {
         if (!data) return;
         const costs = {};
-        const stock = {};
         data.forEach(b => {
-          // FIFO cost = first (oldest) open batch
           if (!costs[b.product_id]) costs[b.product_id] = Number(b.unit_cost);
-          // Real stock = sum of all open batch qty
-          stock[b.product_id] = (stock[b.product_id] || 0) + Number(b.qty_remaining);
         });
         setFifoCosts(costs);
-        setBatchStock(stock);
       });
   }, [currentTenantId, products]);
+
+  // Stock from inventory_balances (same source as Inventory page) — sum across all locations
+  const warehouseStock = useMemo(() => {
+    const out = {};
+    inventoryBalances.forEach(b => {
+      out[b.product_id] = (out[b.product_id] || 0) + Number(b.quantity || 0);
+    });
+    return out;
+  }, [inventoryBalances]);
 
   // Compute floor-guard status per product
   const marginStatus = useMemo(() => {
@@ -225,7 +228,7 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
                 {formatCurrency(product.sellingPrice)}
               </div>
               <div className="mt-0.5 text-[8px] font-bold text-gray-400 uppercase tracking-widest">
-                {batchStock[product.id] !== undefined ? batchStock[product.id] : product.stock} stk
+                {warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock} stk
               </div>
             </div>
             );

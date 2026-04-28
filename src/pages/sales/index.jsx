@@ -58,7 +58,7 @@ const SalesPage = () => {
     if (!result.error) refetchInventory();
     return result;
   };
-  const { products, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
+  const { products, inventoryBalances, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
   const { users: staff = [] } = usePeople(currentTenantId);
 
   const [activeTab, setActiveTab] = useState('pos'); // 'pos' or 'history'
@@ -122,6 +122,7 @@ const SalesPage = () => {
         {activeTab === 'pos' ? (
           <InvoiceBuilder
             products={products}
+            inventoryBalances={inventoryBalances}
             clients={clients}
             onPlaceSale={addSale}
             currentTenantId={currentTenantId}
