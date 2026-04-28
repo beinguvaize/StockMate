@@ -2,6 +2,7 @@ import React, { useState} from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
+import { useInventory } from '../hooks/useInventory';
 import { 
   Settings as SettingsIcon, Building, Shield, Bell, Save, 
   CheckCircle2, Lock, Globe, Coins, ShieldCheck, 
@@ -16,9 +17,12 @@ const Settings = () => {
     currentTenant, currentTenantId, businessProfile, 
     updateBusinessProfile, updateTenant 
   } = useTenant();
-  const { 
-    expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory 
+  const {
+    expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory
   } = useFinance(currentTenantId);
+  const {
+    productCategories, addProductCategory, updateProductCategory, deleteProductCategory
+  } = useInventory(currentTenantId);
 
   // Fallback for missing businessProfile during load
   const profile = businessProfile || {};
@@ -27,6 +31,9 @@ const Settings = () => {
  const [newCategory, setNewCategory] = useState('');
  const [editingCategory, setEditingCategory] = useState(null);
  const [editValue, setEditValue] = useState('');
+ const [newProductCategory, setNewProductCategory] = useState('');
+ const [editingProductCategory, setEditingProductCategory] = useState(null);
+ const [editProductValue, setEditProductValue] = useState('');
   const [showDataTools, setShowDataTools] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [workspaceSlug, setWorkspaceSlug] = useState(currentTenant?.slug || '');
@@ -485,6 +492,96 @@ const Settings = () => {
  )}
  </div>
  ))}
+ </div>
+ </div>
+ </div>
+
+ {/* Product Categories Management */}
+ <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+ <div className="bg-ink-primary p-6 flex items-center justify-between">
+ <div className="flex items-center gap-4">
+ <Tag size={20} className="text-accent-signature" />
+ <h2 className="text-base font-bold font-semibold text-surface">Product Categories</h2>
+ </div>
+ <div className="text-[9px] font-semibold text-accent-signature opacity-70">Manage Categories</div>
+ </div>
+ <div className="p-6 space-y-8">
+ <div className="flex gap-3">
+ <input
+ type="text"
+ placeholder="New Category..."
+ className="input-field !rounded-xl !py-2.5 font-bold text-sm bg-canvas border border-black/5 flex-1"
+ value={newProductCategory}
+ onChange={e => setNewProductCategory(e.target.value)}
+ onKeyPress={e => {
+ if (e.key === 'Enter' && newProductCategory.trim()) {
+ addProductCategory(newProductCategory.trim());
+ setNewProductCategory('');
+}
+}}
+ />
+ <button
+ className="btn-signature !px-6 !rounded-xl transition-all hover:shadow-lg"
+ onClick={() => {
+ if (newProductCategory.trim()) {
+ addProductCategory(newProductCategory.trim());
+ setNewProductCategory('');
+}
+}}
+ >
+ <Plus size={20} />
+ </button>
+ </div>
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+ {productCategories.map(cat => (
+ <div key={cat.id} className="group flex items-center justify-between p-4 rounded-xl bg-canvas border border-black/5 hover:border-accent-signature/30 transition-all">
+ {editingProductCategory === cat.id ? (
+ <div className="flex items-center gap-2 w-full">
+ <input
+ autoFocus
+ type="text"
+ className="bg-transparent border-none outline-none font-semibold text-sm text-ink-primary flex-1"
+ value={editProductValue}
+ onChange={e => setEditProductValue(e.target.value)}
+ onBlur={() => {
+ updateProductCategory({ id: cat.id, name: editProductValue });
+ setEditingProductCategory(null);
+}}
+ onKeyPress={e => {
+ if (e.key === 'Enter') {
+ updateProductCategory({ id: cat.id, name: editProductValue });
+ setEditingProductCategory(null);
+}
+}}
+ />
+ <button onClick={() => setEditingProductCategory(null)} className="text-gray-700 hover:text-ink-primary">
+ <X size={14} />
+ </button>
+ </div>
+ ) : (
+ <>
+ <span className="text-sm font-semibold text-ink-primary">{cat.name}</span>
+ <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+ <button
+ className="p-2 rounded-lg hover:bg-black/5 text-gray-700 hover:text-ink-primary transition-colors"
+ onClick={() => { setEditingProductCategory(cat.id); setEditProductValue(cat.name); }}
+ >
+ <Edit2 size={14} />
+ </button>
+ <button
+ className="p-2 rounded-lg hover:bg-red-50 text-gray-700 hover:text-red-500 transition-colors"
+ onClick={() => { if (window.confirm(`Delete category "${cat.name}"?`)) deleteProductCategory(cat.id); }}
+ >
+ <Trash2 size={14} />
+ </button>
+ </div>
+ </>
+ )}
+ </div>
+ ))}
+ {productCategories.length === 0 && (
+ <p className="text-sm text-gray-500 col-span-2">No product categories yet. Add one above.</p>
+ )}
  </div>
  </div>
  </div>
