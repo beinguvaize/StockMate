@@ -58,7 +58,7 @@ const SalesPage = () => {
     if (!result.error) refetchInventory();
     return result;
   };
-  const { products, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
+  const { products, loading: productsLoading, refetch: refetchInventory, updateProduct } = useInventory(currentTenantId);
   const { users: staff = [] } = usePeople(currentTenantId);
 
   const [activeTab, setActiveTab] = useState('pos'); // 'pos' or 'history'
@@ -120,10 +120,11 @@ const SalesPage = () => {
 
 <div className="mt-2">
         {activeTab === 'pos' ? (
-          <InvoiceBuilder 
-            products={products} 
-            clients={clients} 
+          <InvoiceBuilder
+            products={products}
+            clients={clients}
             onPlaceSale={addSale}
+            onUpdateProduct={updateProduct}
             currentTenantId={currentTenantId}
           />
         ) : (

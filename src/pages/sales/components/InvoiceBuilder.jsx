@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle } from 'lucide-react';
+import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Camera } from 'lucide-react';
 import Button from '../../../shared/Button';
 import Modal from '../../../shared/Modal';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { useNotifications } from '../../../context/NotificationContext';
-import { supabase } from '../../../lib/supabase';
+import { supabase, uploadProductImage } from '../../../lib/supabase';
 
-const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => {
+const InvoiceBuilder = ({ products, clients, onPlaceSale, onUpdateProduct, currentTenantId }) => {
   const { addNotification } = useNotifications();
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,6 +14,29 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [uploadingProductId, setUploadingProductId] = useState(null);
+  const photoInputRef = useRef(null);
+  const photoTargetRef = useRef(null); // which productId is being uploaded
+
+  const handlePhotoClick = (e, productId) => {
+    e.stopPropagation(); // don't add to cart
+    photoTargetRef.current = productId;
+    photoInputRef.current?.click();
+  };
+
+  const handlePhotoChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !photoTargetRef.current) return;
+    e.target.value = ''; // reset so same file can be re-selected
+    const productId = photoTargetRef.current;
+    setUploadingProductId(productId);
+    const { url, error } = await uploadProductImage(file);
+    if (!error && url && onUpdateProduct) {
+      await onUpdateProduct(productId, { image: url });
+    }
+    setUploadingProductId(null);
+  };
+
   const [clientSearch, setClientSearch]     = useState('');
   const [clientDropOpen, setClientDropOpen] = useState(false);
   const clientDropRef = useRef(null);
@@ -193,44 +216,64 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
           />
         </div>
         
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto pr-2 pb-4">
+        {/* hidden file input for photo upload */}
+        <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+
+        <div className="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 overflow-y-auto pr-2 pb-4">
           {filteredProducts.map(product => {
             const ms = marginStatus[product.id] || {};
             const hasWarning = ms.belowFloor || ms.isLoss;
+            const isUploading = uploadingProductId === product.id;
             return (
             <div
               key={product.id}
               onClick={() => addToCart(product)}
-              className={`glass-panel !p-4 cursor-pointer transition-all hover:shadow-lg group relative ${
+              className={`glass-panel !p-3 cursor-pointer transition-all hover:shadow-lg group relative ${
                 ms.isLoss ? 'border-red-300 bg-red-50/30' : ms.belowFloor ? 'border-orange-200 bg-orange-50/20' : 'hover:border-accent-signature/30'
               }`}
             >
               {hasWarning && (
-                <div className={`absolute top-2 right-2 flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                <div className={`absolute top-1.5 right-1.5 flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[8px] font-black uppercase ${
                   ms.isLoss ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
                 }`}>
-                  <AlertTriangle size={9} />
-                  {ms.isLoss ? 'LOSS' : 'LOW MGN'}
+                  <AlertTriangle size={8} />
+                  {ms.isLoss ? 'LOSS' : 'LOW'}
                 </div>
               )}
-              <div className="aspect-square bg-canvas rounded-xl mb-3 flex items-center justify-center overflow-hidden border border-black/5">
+
+              {/* Image with upload overlay */}
+              <div className="relative aspect-square bg-canvas rounded-xl mb-2 flex items-center justify-center overflow-hidden border border-black/5">
                 {product.image ? (
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform" />
+                  <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                 ) : (
-                  <Package size={32} className="opacity-10 group-hover:scale-110 transition-transform" />
+                  <Package size={24} className="opacity-10" />
                 )}
+
+                {/* Upload overlay — appears on hover */}
+                <button
+                  onClick={(e) => handlePhotoClick(e, product.id)}
+                  className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
+                  title="Upload photo"
+                >
+                  {isUploading ? (
+                    <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <>
+                      <Camera size={16} className="text-white mb-1" />
+                      <span className="text-[8px] font-bold text-white uppercase tracking-wide">
+                        {product.image ? 'Change' : 'Upload'}
+                      </span>
+                    </>
+                  )}
+                </button>
               </div>
-              <div className="font-bold text-xs text-ink-primary line-clamp-2 mb-1 uppercase tracking-tight">{product.name}</div>
-              <div className={`text-lg font-black leading-none ${ms.isLoss ? 'text-red-500' : 'text-emerald-600'}`}>
+
+              <div className="font-bold text-[10px] text-ink-primary line-clamp-2 mb-0.5 uppercase tracking-tight leading-tight">{product.name}</div>
+              <div className={`text-sm font-black leading-none ${ms.isLoss ? 'text-red-500' : 'text-emerald-600'}`}>
                 {formatCurrency(product.sellingPrice)}
               </div>
-              {hasWarning && (
-                <div className={`text-[9px] font-bold mt-0.5 ${ms.isLoss ? 'text-red-500' : 'text-orange-500'}`}>
-                  Cost ₹{ms.cost?.toFixed(2)} · {ms.margin?.toFixed(1)}% margin
-                </div>
-              )}
-              <div className="mt-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                {batchStock[product.id] !== undefined ? batchStock[product.id] : product.stock} in stock
+              <div className="mt-0.5 text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                {batchStock[product.id] !== undefined ? batchStock[product.id] : product.stock} stk
               </div>
             </div>
             );
