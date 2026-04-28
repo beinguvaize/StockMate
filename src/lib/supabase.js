@@ -88,28 +88,33 @@ export const uploadProductImage = async (file, tenantId) => {
  * @param {number} limit    - Max photos to return (default 24)
  */
 export const listTenantProductImages = async (tenantId, limit = 24) => {
-  if (!tenantId) return [];
+  if (!tenantId || !supabase) return [];
   const BUCKET = 'product-images';
   const prefix = tenantId;
 
-  const { data, error } = await supabase.storage
-    .from(BUCKET)
-    .list(prefix, {
-      limit,
-      sortBy: { column: 'created_at', ascending: false },
-    });
+  try {
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .list(prefix, {
+        limit,
+        sortBy: { column: 'updated_at', ascending: false },
+      });
 
-  if (error) {
-    console.error('Photo library list error:', error);
+    if (error) {
+      console.error('Photo library list error:', error);
+      return [];
+    }
+
+    return (data || [])
+      .filter(f => f.name && !f.name.endsWith('/'))
+      .map(f => {
+        const { data: urlData } = supabase.storage
+          .from(BUCKET)
+          .getPublicUrl(`${prefix}/${f.name}`);
+        return { name: f.name, url: urlData.publicUrl };
+      });
+  } catch (err) {
+    console.error('Photo library list threw:', err);
     return [];
   }
-
-  return (data || [])
-    .filter(f => f.name && !f.name.endsWith('/'))
-    .map(f => {
-      const { data: urlData } = supabase.storage
-        .from(BUCKET)
-        .getPublicUrl(`${prefix}/${f.name}`);
-      return { name: f.name, url: urlData.publicUrl };
-    });
 };

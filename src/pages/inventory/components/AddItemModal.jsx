@@ -31,11 +31,17 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   const [libLoading, setLibLoading]     = useState(false);
 
   const fetchLibPhotos = useCallback(async () => {
-    if (!tenantId) return;
+    if (!tenantId) { setLibLoading(false); return; }
     setLibLoading(true);
-    const photos = await listTenantProductImages(tenantId, 24);
-    setLibPhotos(photos);
-    setLibLoading(false);
+    try {
+      const photos = await listTenantProductImages(tenantId, 24);
+      setLibPhotos(photos);
+    } catch (err) {
+      console.error('fetchLibPhotos error:', err);
+      setLibPhotos([]);
+    } finally {
+      setLibLoading(false);
+    }
   }, [tenantId]);
 
   useEffect(() => {
