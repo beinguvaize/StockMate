@@ -28,7 +28,8 @@ import {
 } from 'recharts';
 
 const Dashboard = () => {
-  const { currentTenantId, businessProfile } = useTenant();
+  const { currentTenant, currentTenantId, businessProfile } = useTenant();
+  const slug = currentTenant?.slug || '';
   const { products } = useInventory(currentTenantId);
   const { sales } = useSales(currentTenantId);
   const { purchases } = usePurchases(currentTenantId);
@@ -374,7 +375,7 @@ const Dashboard = () => {
       </div>
       <div className="flex flex-wrap items-stretch gap-3">
         <button 
-          onClick={() => navigate('/inventory')}
+          onClick={() => navigate(`/${slug}/inventory`)}
           className="btn-signature pl-6 pr-2 py-2 rounded-full shadow-lg hover:shadow-accent-signature/20 text-[12px]"
         >
           <span>DEPLOY INVENTORY</span>
@@ -383,7 +384,7 @@ const Dashboard = () => {
           </div>
         </button>
         <button 
-          onClick={() => navigate('/reports')}
+          onClick={() => navigate(`/${slug}/reports`)}
           className="px-8 flex items-center justify-center rounded-full font-bold text-[11px] tracking-wide text-ink-primary bg-canvas border border-black/5 hover:bg-white hover:shadow-premium transition-all uppercase"
         >
           ANALYTICS BROWSER
@@ -945,7 +946,7 @@ const Dashboard = () => {
  </div>
  <p className="text-[10px] text-gray-700 font-mono">Current: <strong className="text-red-600">{item.stock || 0}</strong> / Min: {item.low_stock_threshold || 10}</p>
  </div>
- <button onClick={() => navigate('/purchases')} className="ml-3 shrink-0 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white transition-colors text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm">
+ <button onClick={() => navigate(`/${slug}/purchases`)} className="ml-3 shrink-0 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white transition-colors text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm">
  Restock
  </button>
  </div>
@@ -981,7 +982,7 @@ const Dashboard = () => {
  </div>
  <div className="flex items-center justify-between">
  <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Paid: ₹{paid.toLocaleString()} / Total: ₹{total.toLocaleString()}</p>
- <button onClick={() => navigate('/payroll')} className="shrink-0 bg-white border border-amber-200 text-amber-700 hover:bg-amber-600 hover:text-white transition-colors text-xs font-bold px-3 py-1 rounded-xl shadow-sm">
+ <button onClick={() => navigate(`/${slug}/payroll`)} className="shrink-0 bg-white border border-amber-200 text-amber-700 hover:bg-amber-600 hover:text-white transition-colors text-xs font-bold px-3 py-1 rounded-xl shadow-sm">
  Pay Now
  </button>
  </div>
@@ -1023,7 +1024,7 @@ const Dashboard = () => {
  <p className={`text-sm font-semibold font-mono ${colorClass}`}>
  ₹{Math.round(out).toLocaleString()}
  </p>
- <button onClick={() => navigate('/clients')} className="bg-white text-ink-primary hover:bg-ink-primary hover:text-white transition-colors text-[10px] font-semibold px-2.5 py-1.5 rounded-lg shadow-sm">
+ <button onClick={() => navigate(`/${slug}/clients`)} className="bg-white text-ink-primary hover:bg-ink-primary hover:text-white transition-colors text-[10px] font-semibold px-2.5 py-1.5 rounded-lg shadow-sm">
  Collect
  </button>
  </div>
