@@ -169,7 +169,10 @@ const Vehicles = () => {
     e.preventDefault();
     if (!dispatchForm.vehicleId) { setDispatchError('Select a vehicle.'); return; }
     if (!dispatchForm.driverId)  { setDispatchError('Select a driver.');  return; }
-    if (selectedInvoices.length === 0) { setDispatchError('Select at least 1 delivery.'); return; }
+    if (selectedInvoices.length === 0 && vanLoadItems.filter(i => i.qty > 0).length === 0) {
+      setDispatchError('Select at least 1 delivery or add van stock to load.');
+      return;
+    }
 
     setSubmitting(true);
     setDispatchError('');
@@ -353,7 +356,6 @@ const Vehicles = () => {
               <button
                 className="btn-signature w-full lg:w-auto px-8 !h-full !py-0 !rounded-pill !text-xs !font-bold flex items-center justify-center gap-3"
                 onClick={openDispatch}
-                disabled={pendingDeliveries.length === 0}
               >
                 DISPATCH
                 <div className="icon-nest !w-8 !h-8 shrink-0"><Play size={16} /></div>
