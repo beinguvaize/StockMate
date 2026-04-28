@@ -48,13 +48,18 @@ export const supabase = isSupabaseConfigured
 
 /**
  * Upload a product image to Supabase Storage.
- * Retained for backwards compatibility with the Inventory module.
+ * Images are stored under {tenantId}/{filename} for tenant isolation.
+ * Each tenant can only list/access photos under their own prefix.
+ *
+ * @param {File}   file     - The image file to upload
+ * @param {string} tenantId - The current tenant's ID (used as storage prefix)
  */
-export const uploadProductImage = async (file) => {
+export const uploadProductImage = async (file, tenantId) => {
   const BUCKET = 'product-images';
   const fileExt = file.name.split('.').pop();
   const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-  const filePath = `products/${fileName}`;
+  const prefix = tenantId || 'shared';
+  const filePath = `${prefix}/${fileName}`;
 
   const { data, error } = await supabase.storage
     .from(BUCKET)
@@ -73,4 +78,38 @@ export const uploadProductImage = async (file) => {
     .getPublicUrl(data.path);
 
   return { url: urlData.publicUrl, error: null };
+};
+
+/**
+ * List recent product images for a tenant from Supabase Storage.
+ * Returns array of { name, url } objects, newest first.
+ *
+ * @param {string} tenantId - The current tenant's ID
+ * @param {number} limit    - Max photos to return (default 24)
+ */
+export const listTenantProductImages = async (tenantId, limit = 24) => {
+  if (!tenantId) return [];
+  const BUCKET = 'product-images';
+  const prefix = tenantId;
+
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .list(prefix, {
+      limit,
+      sortBy: { column: 'created_at', ascending: false },
+    });
+
+  if (error) {
+    console.error('Photo library list error:', error);
+    return [];
+  }
+
+  return (data || [])
+    .filter(f => f.name && !f.name.endsWith('/'))
+    .map(f => {
+      const { data: urlData } = supabase.storage
+        .from(BUCKET)
+        .getPublicUrl(`${prefix}/${f.name}`);
+      return { name: f.name, url: urlData.publicUrl };
+    });
 };

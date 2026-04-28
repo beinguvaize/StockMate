@@ -1,9 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { ImagePlus, CheckCircle2, Percent } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { ImagePlus, CheckCircle2, Percent, Camera, Images, Upload, X, Loader2 } from 'lucide-react';
 import Modal from '../../../shared/Modal';
 import Button from '../../../shared/Button';
 import { TAX_SLABS, UNITS } from '../../../lib/constants';
-import { uploadProductImage } from '../../../lib/supabase';
+import { uploadProductImage, listTenantProductImages } from '../../../lib/supabase';
 
 const DEFAULT_CATEGORIES = [
   'Electronics', 'Clothing & Apparel', 'Food & Beverages', 'Pharmaceuticals',
@@ -12,18 +12,31 @@ const DEFAULT_CATEGORIES = [
   'Sports & Fitness', 'Automotive', 'Other'
 ];
 
-const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories }) => {
+const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId }) => {
   const [formData, setFormData] = useState({
     name: '', sku: '', category: productCategories[0]?.name || DEFAULT_CATEGORIES[0], unit: UNITS[0],
     costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
     lowStockThreshold: 10, min_margin: 0
   });
-  
-  const [imageFile, setImageFile] = useState(null);
+
+  const [imageFile, setImageFile]     = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [uploading, setUploading] = useState(false);
-  const [saveError, setSaveError] = useState(null);
+  const [uploading, setUploading]     = useState(false);
+  const [saveError, setSaveError]     = useState(null);
   const fileInputRef = useRef(null);
+
+  // Photo library state
+  const [showPhotoLib, setShowPhotoLib] = useState(false);
+  const [libPhotos, setLibPhotos]       = useState([]);
+  const [libLoading, setLibLoading]     = useState(false);
+
+  const fetchLibPhotos = useCallback(async () => {
+    if (!tenantId) return;
+    setLibLoading(true);
+    const photos = await listTenantProductImages(tenantId, 24);
+    setLibPhotos(photos);
+    setLibLoading(false);
+  }, [tenantId]);
 
   useEffect(() => {
     if (editingProduct) {
@@ -45,25 +58,49 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       setImagePreview(null);
     }
     setImageFile(null);
+    setShowPhotoLib(false);
   }, [editingProduct, productCategories, isOpen]);
 
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      setSaveError('Image must be under 5 MB');
+      return;
+    }
     setImageFile(file);
     const reader = new FileReader();
-    reader.onload = (e) => setImagePreview(e.target.result);
+    reader.onload = (ev) => setImagePreview(ev.target.result);
     reader.readAsDataURL(file);
+    setShowPhotoLib(false);
+  };
+
+  const openPhotoLib = async () => {
+    setShowPhotoLib(true);
+    await fetchLibPhotos();
+  };
+
+  const selectLibPhoto = (url) => {
+    setFormData(f => ({ ...f, image: url }));
+    setImagePreview(url);
+    setImageFile(null); // already uploaded — no re-upload needed
+    setShowPhotoLib(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setUploading(true);
+    setSaveError(null);
 
     let imageUrl = formData.image || '';
     if (imageFile) {
-      const { url, error } = await uploadProductImage(imageFile);
-      if (!error) imageUrl = url;
+      const { url, error } = await uploadProductImage(imageFile, tenantId);
+      if (error) {
+        setSaveError('Image upload failed: ' + error);
+        setUploading(false);
+        return;
+      }
+      imageUrl = url;
     }
 
     const parsedData = {
@@ -77,7 +114,6 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       tags: typeof formData.tags === 'string' ? formData.tags.split(',').map(t => t.trim()).filter(t => t) : formData.tags
     };
 
-    setSaveError(null);
     const result = await onSave(parsedData);
     setUploading(false);
     if (result?.error) {
@@ -172,6 +208,107 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 </div>
                 <p className="text-[10px] text-gray-400 mt-1">POS warns / blocks if margin drops below this</p>
               </div>
+            </div>
+
+            {/* ── Product Photo ──────────────────────────────────────── */}
+            <div>
+              <label className={labelCls}>Product Photo</label>
+              <div className="flex gap-3 items-start">
+                {/* Preview */}
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-canvas border border-black/5 flex-shrink-0 flex items-center justify-center">
+                  {imagePreview ? (
+                    <>
+                      <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => { setImagePreview(null); setImageFile(null); setFormData(f => ({ ...f, image: '' })); }}
+                        className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 text-white hover:bg-black"
+                      >
+                        <X size={10} />
+                      </button>
+                    </>
+                  ) : (
+                    <Camera size={20} className="text-gray-300" />
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col gap-2 flex-1">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-canvas border border-black/5 text-xs font-bold text-ink-primary hover:bg-accent-signature/5 transition-colors"
+                  >
+                    <Upload size={13} /> Upload New Photo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openPhotoLib}
+                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-canvas border border-black/5 text-xs font-bold text-ink-primary hover:bg-accent-signature/5 transition-colors"
+                  >
+                    <Images size={13} /> Choose from Library
+                  </button>
+                  <p className="text-[10px] text-gray-400">Max 5 MB · JPG, PNG, WEBP</p>
+                </div>
+
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleImageChange}
+                />
+              </div>
+
+              {/* ── Photo Library Panel ── */}
+              {showPhotoLib && (
+                <div className="mt-3 bg-canvas border border-black/5 rounded-xl p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Recent Photos</span>
+                    <button type="button" onClick={() => setShowPhotoLib(false)}>
+                      <X size={14} className="text-gray-400 hover:text-ink-primary" />
+                    </button>
+                  </div>
+                  {libLoading ? (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 size={18} className="animate-spin text-gray-400" />
+                    </div>
+                  ) : libPhotos.length === 0 ? (
+                    <div className="text-center py-6 text-xs text-gray-400">
+                      No photos uploaded yet. Upload your first photo above.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                      {libPhotos.map(photo => (
+                        <button
+                          key={photo.name}
+                          type="button"
+                          onClick={() => selectLibPhoto(photo.url)}
+                          className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all hover:opacity-90 ${
+                            formData.image === photo.url
+                              ? 'border-accent-signature ring-2 ring-accent-signature/30'
+                              : 'border-transparent'
+                          }`}
+                        >
+                          <img src={photo.url} alt={photo.name} className="w-full h-full object-cover" />
+                          {formData.image === photo.url && (
+                            <div className="absolute inset-0 bg-accent-signature/20 flex items-center justify-center">
+                              <CheckCircle2 size={16} className="text-accent-signature" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => { fileInputRef.current?.click(); setShowPhotoLib(false); }}
+                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-black/10 text-[10px] font-bold text-gray-500 hover:border-accent-signature hover:text-accent-signature transition-colors"
+                  >
+                    <Upload size={11} /> Upload new photo
+                  </button>
+                </div>
+              )}
             </div>
 
             {saveError && (

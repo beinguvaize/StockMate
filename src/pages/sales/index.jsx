@@ -58,7 +58,7 @@ const SalesPage = () => {
     if (!result.error) refetchInventory();
     return result;
   };
-  const { products, loading: productsLoading, refetch: refetchInventory, updateProduct } = useInventory(currentTenantId);
+  const { products, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
   const { users: staff = [] } = usePeople(currentTenantId);
 
   const [activeTab, setActiveTab] = useState('pos'); // 'pos' or 'history'
@@ -124,7 +124,6 @@ const SalesPage = () => {
             products={products}
             clients={clients}
             onPlaceSale={addSale}
-            onUpdateProduct={updateProduct}
             currentTenantId={currentTenantId}
           />
         ) : (

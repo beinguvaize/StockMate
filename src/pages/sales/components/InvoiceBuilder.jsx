@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Camera } from 'lucide-react';
+import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle } from 'lucide-react';
 import Button from '../../../shared/Button';
 import Modal from '../../../shared/Modal';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { useNotifications } from '../../../context/NotificationContext';
-import { supabase, uploadProductImage } from '../../../lib/supabase';
+import { supabase } from '../../../lib/supabase';
 
-const InvoiceBuilder = ({ products, clients, onPlaceSale, onUpdateProduct, currentTenantId }) => {
+const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => {
   const { addNotification } = useNotifications();
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -14,29 +14,6 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, onUpdateProduct, curre
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadingProductId, setUploadingProductId] = useState(null);
-  const photoInputRef = useRef(null);
-  const photoTargetRef = useRef(null); // which productId is being uploaded
-
-  const handlePhotoClick = (e, productId) => {
-    e.stopPropagation(); // don't add to cart
-    photoTargetRef.current = productId;
-    photoInputRef.current?.click();
-  };
-
-  const handlePhotoChange = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !photoTargetRef.current) return;
-    e.target.value = ''; // reset so same file can be re-selected
-    const productId = photoTargetRef.current;
-    setUploadingProductId(productId);
-    const { url, error } = await uploadProductImage(file);
-    if (!error && url && onUpdateProduct) {
-      await onUpdateProduct(productId, { image: url });
-    }
-    setUploadingProductId(null);
-  };
-
   const [clientSearch, setClientSearch]     = useState('');
   const [clientDropOpen, setClientDropOpen] = useState(false);
   const clientDropRef = useRef(null);
@@ -216,14 +193,10 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, onUpdateProduct, curre
           />
         </div>
         
-        {/* hidden file input for photo upload */}
-        <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
-
         <div className="grid grid-cols-3 md:grid-cols-4 xl:grid-cols-5 gap-3 overflow-y-auto pr-2 pb-4">
           {filteredProducts.map(product => {
             const ms = marginStatus[product.id] || {};
             const hasWarning = ms.belowFloor || ms.isLoss;
-            const isUploading = uploadingProductId === product.id;
             return (
             <div
               key={product.id}
@@ -240,34 +213,13 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, onUpdateProduct, curre
                   {ms.isLoss ? 'LOSS' : 'LOW'}
                 </div>
               )}
-
-              {/* Image with upload overlay */}
-              <div className="relative aspect-square bg-canvas rounded-xl mb-2 flex items-center justify-center overflow-hidden border border-black/5">
+              <div className="aspect-square bg-canvas rounded-xl mb-2 flex items-center justify-center overflow-hidden border border-black/5">
                 {product.image ? (
                   <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                 ) : (
                   <Package size={24} className="opacity-10" />
                 )}
-
-                {/* Upload overlay — appears on hover */}
-                <button
-                  onClick={(e) => handlePhotoClick(e, product.id)}
-                  className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-xl"
-                  title="Upload photo"
-                >
-                  {isUploading ? (
-                    <span className="w-5 h-5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <Camera size={16} className="text-white mb-1" />
-                      <span className="text-[8px] font-bold text-white uppercase tracking-wide">
-                        {product.image ? 'Change' : 'Upload'}
-                      </span>
-                    </>
-                  )}
-                </button>
               </div>
-
               <div className="font-bold text-[10px] text-ink-primary line-clamp-2 mb-0.5 uppercase tracking-tight leading-tight">{product.name}</div>
               <div className={`text-sm font-black leading-none ${ms.isLoss ? 'text-red-500' : 'text-emerald-600'}`}>
                 {formatCurrency(product.sellingPrice)}

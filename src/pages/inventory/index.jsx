@@ -121,6 +121,7 @@ const Inventory = () => {
         onSave={handleSaveProduct}
         editingProduct={editingProduct}
         productCategories={categories}
+        tenantId={currentTenantId}
       />
 
       <BatchesModal
