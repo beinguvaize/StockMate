@@ -85,19 +85,33 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     );
   }, [products, searchTerm]);
 
+  const getAvailableStock = (productId) =>
+    warehouseStock[productId] !== undefined
+      ? warehouseStock[productId]
+      : (products.find(p => p.id === productId)?.stock ?? 0);
+
   const addToCart = (product) => {
+    const available = getAvailableStock(product.id);
     setCart(prev => {
       const existing = prev.find(item => item.productId === product.id);
       if (existing) {
-        return prev.map(item => item.productId === product.id 
-          ? { ...item, quantity: item.quantity + 1 } 
+        if (existing.quantity >= available) {
+          addNotification(`Only ${available} units in stock`, 'error');
+          return prev;
+        }
+        return prev.map(item => item.productId === product.id
+          ? { ...item, quantity: item.quantity + 1 }
           : item
         );
       }
-      return [...prev, { 
-        productId: product.id, 
-        name: product.name, 
-        price: product.sellingPrice, 
+      if (available <= 0) {
+        addNotification(`${product.name} is out of stock`, 'error');
+        return prev;
+      }
+      return [...prev, {
+        productId: product.id,
+        name: product.name,
+        price: product.sellingPrice,
         quantity: 1,
         taxRate: product.taxRate || 0
       }];
@@ -105,9 +119,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   };
 
   const updateQuantity = (productId, delta) => {
+    const available = getAvailableStock(productId);
     setCart(prev => prev.map(item => {
       if (item.productId === productId) {
-        return { ...item, quantity: Math.max(0, item.quantity + delta) };
+        const next = Math.max(0, item.quantity + delta);
+        if (next > available) {
+          addNotification(`Only ${available} units in stock`, 'error');
+          return item;
+        }
+        return { ...item, quantity: next };
       }
       return item;
     }).filter(item => item.quantity > 0));
@@ -119,6 +139,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     if (qty === 0) {
       setCart(prev => prev.filter(i => i.productId !== productId));
     } else {
+      const available = getAvailableStock(productId);
+      if (qty > available) {
+        addNotification(`Only ${available} units in stock`, 'error');
+        setCart(prev => prev.map(i => i.productId === productId ? { ...i, quantity: available } : i));
+        return;
+      }
       setCart(prev => prev.map(i => i.productId === productId ? { ...i, quantity: qty } : i));
     }
   };
@@ -151,6 +177,19 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     }
     if (paymentMethod === 'CREDIT' && selectedClientId === 'WALKIN') {
       addNotification('Credit sale requires a client. Pick one or switch to Cash.', 'error');
+      return;
+    }
+    // Stock pre-flight — catches cases where stock changed since cart was built
+    const stockErrors = cart
+      .map(item => {
+        const available = getAvailableStock(item.productId);
+        return item.quantity > available
+          ? `${item.name}: need ${item.quantity}, only ${available} in stock`
+          : null;
+      })
+      .filter(Boolean);
+    if (stockErrors.length > 0) {
+      addNotification(`Stock issue: ${stockErrors.join('; ')}`, 'error');
       return;
     }
     setIsSubmitting(true);

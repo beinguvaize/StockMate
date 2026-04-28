@@ -496,7 +496,7 @@ const SaleDetail = ({
         ) : items.map((it, idx) => {
           const name = it.name || productNameOf(it.id || it.productId);
           const qty = Number(it.quantity) || 0;
-          const price = Number(it.price ?? it.unitPrice ?? 0);
+          const price = Number(it.rate ?? it.price ?? it.unitPrice ?? it.sellingPrice ?? 0);
           const total = qty * price;
           return (
             <div key={idx} className="px-4 py-2.5 text-sm grid grid-cols-12 gap-2 items-center border-t border-black/5">
