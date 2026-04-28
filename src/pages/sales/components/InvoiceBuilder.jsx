@@ -220,7 +220,7 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
                   <Package size={18} className="opacity-10" />
                 )}
               </div>
-              <div className="font-bold text-[9px] text-ink-primary line-clamp-2 mb-0.5 uppercase tracking-tight leading-tight">{product.name}</div>
+              <div className="font-bold text-[9px] text-ink-primary line-clamp-2 mb-0.5 tracking-tight leading-tight">{product.name}</div>
               <div className={`text-xs font-black leading-none ${ms.isLoss ? 'text-red-500' : 'text-emerald-600'}`}>
                 {formatCurrency(product.sellingPrice)}
               </div>
