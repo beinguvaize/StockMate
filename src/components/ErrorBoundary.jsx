@@ -7,13 +7,34 @@ class ErrorBoundary extends React.Component {
  this.state = { hasError: false, error: null};
 }
 
- static getDerivedStateFromError(error) {
- return { hasError: true, error};
-}
+ static isChunkError(error) {
+    const msg = error?.message || '';
+    return (
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Importing a module script failed') ||
+      msg.includes('error loading dynamically imported module') ||
+      error?.name === 'ChunkLoadError'
+    );
+  }
 
- componentDidCatch(error, errorInfo) {
- console.error("❌ App Crash Detected:", error, errorInfo);
-}
+  static getDerivedStateFromError(error) {
+    // Stale chunk after new deploy — reload once to fetch fresh assets
+    if (ErrorBoundary.isChunkError(error)) {
+      const key = 'chunk_reload_at';
+      const last = Number(sessionStorage.getItem(key) || 0);
+      const now = Date.now();
+      if (now - last > 30_000) {
+        sessionStorage.setItem(key, String(now));
+        window.location.reload();
+        return { hasError: false, error: null };
+      }
+    }
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("❌ App Crash Detected:", error, errorInfo);
+  }
 
  handleReload = () => {
  window.location.reload();
