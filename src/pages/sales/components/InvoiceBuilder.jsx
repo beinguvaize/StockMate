@@ -358,14 +358,22 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
               <button
                 type="button"
                 onClick={() => { setClientDropOpen(o => !o); setClientSearch(''); }}
-                className="w-full bg-white rounded-xl py-3 px-4 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/20 text-xs font-bold text-ink-primary uppercase tracking-tight text-left flex items-center justify-between"
+                className="w-full bg-white rounded-xl py-3 px-4 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/20 text-left flex items-center justify-between"
               >
-                <span>
-                  {selectedClientId === 'WALKIN'
-                    ? 'WALK-IN (CASH ONLY)'
-                    : ((clients || []).find(c => c.id === selectedClientId)?.name || 'Unknown').toUpperCase()}
-                </span>
-                <Search size={12} className="text-gray-400 shrink-0" />
+                {selectedClientId === 'WALKIN' ? (
+                  <span className="text-xs font-bold text-ink-primary uppercase tracking-tight">WALK-IN (CASH ONLY)</span>
+                ) : (() => {
+                  const sel = (clients || []).find(c => c.id === selectedClientId);
+                  return (
+                    <span className="flex flex-col min-w-0">
+                      <span className="text-xs font-bold text-ink-primary uppercase tracking-tight truncate">{(sel?.name || 'Unknown').toUpperCase()}</span>
+                      {(sel?.address || sel?.phone) && (
+                        <span className="text-[9px] text-gray-400 font-medium truncate">{sel?.address || sel?.phone}</span>
+                      )}
+                    </span>
+                  );
+                })()}
+                <Search size={12} className="text-gray-400 shrink-0 ml-2" />
               </button>
 
               {/* Dropdown */}
@@ -407,16 +415,29 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
 
                     {/* Filtered clients */}
                     {(clients || [])
-                      .filter(c => !clientSearch || (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()))
+                      .filter(c => !clientSearch ||
+                        (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
+                        (c.address || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
+                        (c.phone || '').toLowerCase().includes(clientSearch.toLowerCase())
+                      )
                       .map(c => (
                         <button
                           key={c.id}
                           type="button"
                           onClick={() => { setSelectedClientId(c.id); setClientDropOpen(false); setClientSearch(''); }}
-                          className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-tight flex items-center justify-between hover:bg-canvas transition-colors ${selectedClientId === c.id ? 'text-accent-signature bg-accent-signature/5' : 'text-ink-primary'}`}
+                          className={`w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-canvas transition-colors ${selectedClientId === c.id ? 'bg-accent-signature/5' : ''}`}
                         >
-                          <span className="truncate">{(c.name || 'Unnamed').toUpperCase()}</span>
-                          {selectedClientId === c.id && <Check size={12} className="shrink-0" />}
+                          <span className="flex flex-col min-w-0 flex-1">
+                            <span className={`text-xs font-bold uppercase tracking-tight truncate ${selectedClientId === c.id ? 'text-accent-signature' : 'text-ink-primary'}`}>
+                              {(c.name || 'Unnamed').toUpperCase()}
+                            </span>
+                            {(c.address || c.phone) && (
+                              <span className="text-[9px] text-gray-400 font-medium truncate mt-0.5">
+                                {c.address || c.phone}
+                              </span>
+                            )}
+                          </span>
+                          {selectedClientId === c.id && <Check size={12} className="shrink-0 text-accent-signature ml-2" />}
                         </button>
                       ))
                     }
