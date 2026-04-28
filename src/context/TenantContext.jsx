@@ -5,8 +5,6 @@ import { isModuleAvailable } from '../lib/tenancy';
 import { cacheClear as libCacheClear } from '../lib/cache';
 import { setAppTZ } from '../lib/utils';
 
-// Apply tenant's timezone/locale to the utils module so every formatDate /
-// todayISOInAppTZ call renders in the tenant's local wall-clock.
 const applyTZFromProfile = (profile) => {
   if (!profile) return;
   setAppTZ({
@@ -26,29 +24,32 @@ export const TenantProvider = ({ children }) => {
   const [businessProfile, setBusinessProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isMaintenance, setIsMaintenance] = useState(false);
+  // Track which user ID we last completed a load for.
+  // isSyncComplete is false until resolvedForUserId === currentUser?.id
+  // This prevents GuestRoute from seeing loading=false before the first
+  // initTenant has had a chance to run for the new user.
+  const [resolvedForUserId, setResolvedForUserId] = useState(undefined);
 
   const currentTenantId = currentTenant?.id || null;
 
   useEffect(() => {
     const initTenant = async () => {
-      setLoading(true); // reset loading whenever currentUser changes
+      setLoading(true);
       // 1. Priority: Impersonation
       const impersonated = sessionStorage.getItem('nexus_impersonated_tenant');
       if (impersonated) {
         const tenant = JSON.parse(impersonated);
         setCurrentTenant(tenant);
-        
-        // Fetch missing business profile to prevent crashes in modules
         const { data: profile } = await supabase.from('business_profile').select('*').eq('tenant_id', tenant.id).maybeSingle();
         if (profile) { setBusinessProfile(profile); applyTZFromProfile(profile); }
         else setBusinessProfile({ currencySymbol: '$' });
-
+        setResolvedForUserId(currentUser?.id || null);
         setLoading(false);
         return;
       }
 
       // 2. Load tenant by tenant_id, or fallback to membership lookup
-      let resolvedTenantId = currentUser?.tenant_id;
+      const resolvedTenantId = currentUser?.tenant_id;
 
       if (resolvedTenantId) {
         const [
@@ -61,7 +62,7 @@ export const TenantProvider = ({ children }) => {
         if (tenant) setCurrentTenant(tenant);
         if (profile) { setBusinessProfile(profile); applyTZFromProfile(profile); }
       } else {
-        // tenant_id missing from profile — use tenant_member_read policy to find it
+        // tenant_id missing from profile — use tenant_member_read RLS policy
         const { data: tenants } = await supabase.from('tenants').select('*').limit(1);
         const tenant = tenants?.[0] || null;
         if (tenant) {
@@ -71,12 +72,16 @@ export const TenantProvider = ({ children }) => {
           else setBusinessProfile({ currencySymbol: '$' });
         }
       }
+
+      setResolvedForUserId(currentUser?.id || null);
       setLoading(false);
     };
 
-    if (currentUser) initTenant();
-    else {
+    if (currentUser) {
+      initTenant();
+    } else {
       setCurrentTenant(null);
+      setResolvedForUserId(null);
       setLoading(false);
     }
   }, [currentUser]);
@@ -112,7 +117,6 @@ export const TenantProvider = ({ children }) => {
   };
 
   const isModuleAllowed = (moduleKey) => {
-    // Global Admins bypass all plan-based module gating
     if (currentUser?.roles?.includes('GLOBAL_ADMIN')) return true;
     if (!currentTenant) return true;
     return isModuleAvailable(currentTenant.plan || 'STARTER', moduleKey);
@@ -120,7 +124,6 @@ export const TenantProvider = ({ children }) => {
 
   const updateBusinessProfile = async (data) => {
     if (!currentTenantId) return { success: false, error: new Error('No tenant') };
-    // .select() forces row return; empty array = RLS blocked the update silently.
     const { data: rows, error } = await supabase
       .from('business_profile')
       .update(data)
@@ -145,6 +148,14 @@ export const TenantProvider = ({ children }) => {
     return { success: !error, error };
   };
 
+  // isSyncComplete is true only when:
+  // - no user (login screen) OR
+  // - tenant load has completed for the current user
+  // This prevents GuestRoute from redirecting to /no-access during the
+  // render cycle between setCurrentUser() and the initTenant() effect.
+  const currentUserId = currentUser?.id || null;
+  const isSyncComplete = !loading && resolvedForUserId === currentUserId;
+
   const value = {
     currentTenant,
     currentTenantId,
@@ -159,7 +170,7 @@ export const TenantProvider = ({ children }) => {
     isMaintenance,
     setIsMaintenance,
     cacheClear: libCacheClear,
-    isSyncComplete: !loading, // Simplified sync status
+    isSyncComplete,
     isImpersonating: sessionStorage.getItem('nexus_impersonating') === 'true'
   };
 
