@@ -47,17 +47,29 @@ export const TenantProvider = ({ children }) => {
         return;
       }
 
-      // 2. Fallback: User's owned tenant
-      if (currentUser?.tenant_id) {
+      // 2. Load tenant by tenant_id, or fallback to membership lookup
+      let resolvedTenantId = currentUser?.tenant_id;
+
+      if (resolvedTenantId) {
         const [
           { data: tenant },
           { data: profile }
         ] = await Promise.all([
-          supabase.from('tenants').select('*').eq('id', currentUser.tenant_id).maybeSingle(),
-          supabase.from('business_profile').select('*').eq('tenant_id', currentUser.tenant_id).maybeSingle()
+          supabase.from('tenants').select('*').eq('id', resolvedTenantId).maybeSingle(),
+          supabase.from('business_profile').select('*').eq('tenant_id', resolvedTenantId).maybeSingle()
         ]);
         if (tenant) setCurrentTenant(tenant);
         if (profile) { setBusinessProfile(profile); applyTZFromProfile(profile); }
+      } else {
+        // tenant_id missing from profile — use tenant_member_read policy to find it
+        const { data: tenants } = await supabase.from('tenants').select('*').limit(1);
+        const tenant = tenants?.[0] || null;
+        if (tenant) {
+          setCurrentTenant(tenant);
+          const { data: profile } = await supabase.from('business_profile').select('*').eq('tenant_id', tenant.id).maybeSingle();
+          if (profile) { setBusinessProfile(profile); applyTZFromProfile(profile); }
+          else setBusinessProfile({ currencySymbol: '$' });
+        }
       }
       setLoading(false);
     };
