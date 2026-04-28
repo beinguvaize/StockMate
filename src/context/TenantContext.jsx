@@ -31,6 +31,7 @@ export const TenantProvider = ({ children }) => {
 
   useEffect(() => {
     const initTenant = async () => {
+      setLoading(true); // reset loading whenever currentUser changes
       // 1. Priority: Impersonation
       const impersonated = sessionStorage.getItem('nexus_impersonated_tenant');
       if (impersonated) {
