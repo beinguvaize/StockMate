@@ -9,6 +9,7 @@ import {
   Navigation, Calendar, ShieldCheck, Save, History,
   CheckCircle2, Edit3, Trash2, Wrench, Activity,
   Fuel, Package, Check, XCircle, Clock, ChevronDown,
+  ShoppingCart, MinusCircle, PackagePlus,
 } from 'lucide-react';
 import { todayISOInAppTZ } from '../lib/utils';
 
@@ -47,10 +48,10 @@ const Vehicles = () => {
   const {
     vehicles, addVehicle, updateVehicle, deleteVehicle,
     routes, dispatchRoute, reconcileRoute,
-    deliveryInvoices, routeStops, updateStopStatus,
+    deliveryInvoices, routeStops, updateStopStatus, recordVanSale,
   } = useOperations(currentTenantId);
 
-  const { inventoryLocations, inventoryBalances } = useInventory(currentTenantId);
+  const { products, inventoryLocations, inventoryBalances } = useInventory(currentTenantId);
   const { employees } = usePeople(currentTenantId);
 
   // ── State ──────────────────────────────────────────────────────────────────
@@ -70,6 +71,20 @@ const Vehicles = () => {
   const [expandedInvoice, setExpandedInvoice] = useState(null);
   const [submitting,    setSubmitting]    = useState(false);
   const [dispatchError, setDispatchError] = useState('');
+
+  // Van Load (dispatch)
+  const [vanLoadItems, setVanLoadItems] = useState([]); // [{productId, productName, qty, sellingPrice, costPrice}]
+
+  // Van Sale modal
+  const [vanSaleRoute,    setVanSaleRoute]    = useState(null);
+  const [vanSaleItems,    setVanSaleItems]    = useState([]);   // [{productId, productName, qty, sellingPrice, costPrice}]
+  const [vanSaleClient,   setVanSaleClient]   = useState('Walk-in');
+  const [vanSaleMethod,   setVanSaleMethod]   = useState('CASH');
+  const [vanSaleError,    setVanSaleError]    = useState('');
+  const [vanSaleLoading,  setVanSaleLoading]  = useState(false);
+
+  // Reconcile returned stock (productId → returned qty)
+  const [reconcileReturned, setReconcileReturned] = useState({});
 
   // ── Derived ─────────────────────────────────────────────────────────────────
   const activeRoutes  = routes.filter(r => r.status === 'ACTIVE');
@@ -124,8 +139,26 @@ const Vehicles = () => {
     setDispatchForm({ vehicleId: vehicles[0]?.id || '', driverId: '', location: '' });
     setSelectedInvoices(pendingDeliveries.map(i => i.id)); // pre-select all
     setDispatchError('');
+    setVanLoadItems([]);
     setShowDispatchModal(true);
   };
+
+  // Van Load helpers
+  const addVanLoadRow = () => {
+    if (!products.length) return;
+    const p = products[0];
+    setVanLoadItems(prev => [...prev, { productId: p.id, productName: p.name, qty: 1, sellingPrice: p.sellingPrice || 0, costPrice: p.costPrice || 0 }]);
+  };
+  const removeVanLoadRow = (idx) => setVanLoadItems(prev => prev.filter((_, i) => i !== idx));
+  const updateVanLoadRow = (idx, field, value) =>
+    setVanLoadItems(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      if (field === 'productId') {
+        const p = products.find(pr => pr.id === value);
+        return p ? { ...item, productId: p.id, productName: p.name, sellingPrice: p.sellingPrice || 0, costPrice: p.costPrice || 0 } : item;
+      }
+      return { ...item, [field]: field === 'qty' ? Math.max(1, parseInt(value) || 1) : value };
+    }));
 
   const toggleInvoice = (id) =>
     setSelectedInvoices(prev =>
@@ -152,7 +185,12 @@ const Vehicles = () => {
           return s + (inv?.grand_total || 0);
         }, 0),
         assignedOrders:  selectedInvoices,
-        loadedStock:     [],
+        loadedStock:     vanLoadItems.filter(i => i.qty > 0).map(i => ({
+          productId:    i.productId,
+          quantity:     i.qty,
+          sellingPrice: i.sellingPrice,
+          costPrice:    i.costPrice,
+        })),
       });
 
       if (result?.error) {
@@ -170,15 +208,72 @@ const Vehicles = () => {
     }
   };
 
+  // Van Sale modal
+  const openVanSale = (route) => {
+    setVanSaleRoute(route);
+    setVanSaleClient('Walk-in');
+    setVanSaleMethod('CASH');
+    setVanSaleError('');
+    if (products.length) {
+      const p = products[0];
+      setVanSaleItems([{ productId: p.id, productName: p.name, qty: 1, sellingPrice: p.sellingPrice || 0, costPrice: p.costPrice || 0 }]);
+    } else {
+      setVanSaleItems([]);
+    }
+  };
+  const addVanSaleItem = () => {
+    if (!products.length) return;
+    const p = products[0];
+    setVanSaleItems(prev => [...prev, { productId: p.id, productName: p.name, qty: 1, sellingPrice: p.sellingPrice || 0, costPrice: p.costPrice || 0 }]);
+  };
+  const removeVanSaleItem = (idx) => setVanSaleItems(prev => prev.filter((_, i) => i !== idx));
+  const updateVanSaleItem = (idx, field, value) =>
+    setVanSaleItems(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      if (field === 'productId') {
+        const p = products.find(pr => pr.id === value);
+        return p ? { ...item, productId: p.id, productName: p.name, sellingPrice: p.sellingPrice || 0, costPrice: p.costPrice || 0 } : item;
+      }
+      return { ...item, [field]: field === 'qty' ? Math.max(1, parseInt(value) || 1) : field === 'sellingPrice' ? parseFloat(value) || 0 : value };
+    }));
+  const vanSaleTotal = vanSaleItems.reduce((s, i) => s + (i.sellingPrice * i.qty), 0);
+
+  const handleVanSaleSubmit = async (e) => {
+    e.preventDefault();
+    if (!vanSaleItems.length) { setVanSaleError('Add at least one product.'); return; }
+    setVanSaleLoading(true);
+    setVanSaleError('');
+    const vehicleLoc = inventoryLocations.find(l => l.reference_id === (vanSaleRoute.vehicleId || vanSaleRoute['vehicleId']));
+    const { success, error } = await recordVanSale(vanSaleRoute.id, vehicleLoc?.id, {
+      clientName:   vanSaleClient || 'Walk-in',
+      items:        vanSaleItems.map(i => ({ ...i, quantity: i.qty })),
+      totalAmount:  vanSaleTotal,
+      paymentMethod: vanSaleMethod,
+    });
+    setVanSaleLoading(false);
+    if (!success) { setVanSaleError(error?.message || 'Failed to record sale.'); return; }
+    setVanSaleRoute(null);
+  };
+
   // Reconcile (End Trip)
   const openReconcile = (route) => {
     setReconcileRoute(route);
     setReconcileCash('');
+    // Pre-populate returned stock from loaded_stock if available
+    const loaded = route.loaded_stock || [];
+    const initReturned = {};
+    loaded.forEach(item => { initReturned[item.productId] = item.quantity; });
+    setReconcileReturned(initReturned);
   };
 
   const handleReconcile = async (e) => {
     e.preventDefault();
-    await reconcileRoute(reconcileRoute_.id, 0, [], parseFloat(reconcileCash) || 0);
+    const loaded = reconcileRoute_.loaded_stock || [];
+    const returnedStock = loaded.map(item => ({
+      productId: item.productId,
+      quantity:  Math.max(0, Math.min(item.quantity, parseInt(reconcileReturned[item.productId] ?? item.quantity) || 0)),
+    }));
+    await reconcileRoute(reconcileRoute_.id, 0, returnedStock, parseFloat(reconcileCash) || 0);
     setReconcileRoute(null);
   };
 
@@ -457,7 +552,7 @@ const Vehicles = () => {
                             </div>
                           )}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                           {total > 0 && (
                             <button
                               onClick={() => setExpandedTrip(expanded ? null : route.id)}
@@ -466,6 +561,12 @@ const Vehicles = () => {
                               {expanded ? 'Hide' : `Stops (${total})`}
                             </button>
                           )}
+                          <button
+                            onClick={() => openVanSale(route)}
+                            className="px-3 py-1.5 rounded-pill border border-accent-signature/40 text-[10px] font-semibold text-accent-signature bg-accent-signature/5 hover:bg-accent-signature/10 transition-colors flex items-center gap-1"
+                          >
+                            <ShoppingCart size={10} /> Van Sale
+                          </button>
                           <button
                             onClick={() => openReconcile(route)}
                             className="px-4 py-2 rounded-pill bg-ink-primary text-surface text-[10px] font-bold hover:opacity-90 transition-opacity"
@@ -896,6 +997,51 @@ const Vehicles = () => {
                 </div>
               </div>
 
+              {/* Van Load */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[10px] font-semibold text-gray-500 flex items-center gap-1.5">
+                    <PackagePlus size={11} /> Van Stock Load (Optional)
+                  </label>
+                  <button type="button"
+                    className="text-[9px] font-bold text-accent-signature hover:underline flex items-center gap-1"
+                    onClick={addVanLoadRow}>
+                    + Add Product
+                  </button>
+                </div>
+                {vanLoadItems.length === 0 ? (
+                  <div className="py-4 text-center text-[10px] text-gray-400 border border-dashed border-black/10 rounded-xl">
+                    No van stock — driver will only deliver invoices
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {vanLoadItems.map((item, idx) => (
+                      <div key={idx} className="flex items-center gap-2 bg-canvas border border-black/8 rounded-xl px-3 py-2">
+                        <select
+                          className="flex-1 bg-transparent text-xs font-semibold outline-none"
+                          value={item.productId}
+                          onChange={e => updateVanLoadRow(idx, 'productId', e.target.value)}>
+                          {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                        </select>
+                        <input
+                          type="number" min="1"
+                          className="w-16 bg-white border border-black/8 rounded-lg px-2 py-1 text-xs font-bold text-center outline-none"
+                          value={item.qty}
+                          onChange={e => updateVanLoadRow(idx, 'qty', e.target.value)} />
+                        <span className="text-[9px] text-gray-400 shrink-0">pcs</span>
+                        <button type="button" onClick={() => removeVanLoadRow(idx)}
+                          className="text-red-400 hover:text-red-600 transition-colors shrink-0">
+                          <MinusCircle size={14} />
+                        </button>
+                      </div>
+                    ))}
+                    <div className="text-[9px] text-gray-400 text-right">
+                      {vanLoadItems.reduce((s, i) => s + i.qty, 0)} units · {sym}{vanLoadItems.reduce((s, i) => s + i.qty * i.sellingPrice, 0).toFixed(2)} retail value
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {dispatchError && (
                 <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
                   <AlertTriangle size={14} className="text-red-500 shrink-0" />
@@ -906,7 +1052,7 @@ const Vehicles = () => {
               {/* Summary + confirm */}
               <div className="pt-2 border-t border-black/5">
                 <div className="flex items-center justify-between mb-4 text-[10px] text-gray-400">
-                  <span>{selectedInvoices.length} deliveries · {todayISOInAppTZ()}</span>
+                  <span>{selectedInvoices.length} deliveries · {vanLoadItems.length > 0 ? `${vanLoadItems.reduce((s,i)=>s+i.qty,0)} van units · ` : ''}{todayISOInAppTZ()}</span>
                   <span className="font-black text-ink-primary tabular-nums">
                     Total: {sym}{selectedInvoices.reduce((s, id) => {
                       const inv = deliveryInvoices.find(i => i.id === id);
@@ -980,9 +1126,49 @@ const Vehicles = () => {
             })()}
 
             <form onSubmit={handleReconcile} className="space-y-4">
+              {/* Returned Stock */}
+              {(() => {
+                const loaded = reconcileRoute_.loaded_stock || [];
+                if (loaded.length === 0) return null;
+                return (
+                  <div>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Van Stock — Returned Qty</p>
+                    <div className="space-y-2">
+                      {loaded.map(item => {
+                        const returned = parseInt(reconcileReturned[item.productId] ?? item.quantity) || 0;
+                        const sold = Math.max(0, item.quantity - returned);
+                        const prod = products.find(p => p.id === item.productId);
+                        return (
+                          <div key={item.productId} className="flex items-center gap-3 bg-canvas border border-black/8 rounded-xl px-3 py-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-xs font-bold text-ink-primary truncate">{prod?.name || item.productId}</div>
+                              <div className="text-[9px] text-gray-400">Loaded: {item.quantity} · Sold: <span className="text-green-600 font-bold">{sold}</span></div>
+                            </div>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[9px] text-gray-400">Return:</span>
+                              <input
+                                type="number" min="0" max={item.quantity}
+                                className="w-14 bg-white border border-black/10 rounded-lg px-2 py-1 text-xs font-bold text-center outline-none focus:ring-2 focus:ring-accent-signature/20"
+                                value={returned}
+                                onChange={e => setReconcileReturned(prev => ({ ...prev, [item.productId]: e.target.value }))}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="text-[9px] text-gray-400 mt-1.5 text-right">
+                      Van sold: <span className="font-bold text-green-600">
+                        {loaded.reduce((s, item) => s + Math.max(0, item.quantity - (parseInt(reconcileReturned[item.productId] ?? item.quantity) || 0)), 0)} units
+                      </span>
+                    </div>
+                  </div>
+                );
+              })()}
+
               <div>
                 <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">
-                  Cash Collected ({sym})
+                  Total Cash Collected ({sym})
                 </label>
                 <input
                   type="number" step="0.01" min="0"
@@ -992,6 +1178,7 @@ const Vehicles = () => {
                   onChange={e => setReconcileCash(e.target.value)}
                   autoFocus
                 />
+                <p className="text-[9px] text-gray-400 mt-1">Includes invoice collections + van sales cash</p>
               </div>
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button type="button"
@@ -1000,6 +1187,125 @@ const Vehicles = () => {
                 <button type="submit" className="btn-signature !h-12 !text-sm flex items-center justify-center gap-3 px-6 !rounded-pill">
                   END TRIP
                   <div className="icon-nest !w-8 !h-8"><CheckCircle2 size={18} /></div>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ── VAN SALE MODAL ─────────────────────────────────────────────────────── */}
+      {vanSaleRoute && (
+        <div className="modal-overlay">
+          <div className="glass-modal !max-w-lg">
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h1 className="text-3xl font-black font-sora text-ink-primary leading-none tracking-tight uppercase">
+                  VAN SALE<span className="text-accent-signature">.</span>
+                </h1>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mt-1">
+                  {vehicles.find(v => v.id === (vanSaleRoute.vehicleId || vanSaleRoute['vehicleId']))?.name || 'Vehicle'}
+                  {vanSaleRoute.location ? ` · ${vanSaleRoute.location}` : ''}
+                </p>
+              </div>
+              <button className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
+                onClick={() => setVanSaleRoute(null)}>
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleVanSaleSubmit} className="space-y-4">
+              {/* Client + Payment */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Customer</label>
+                  <input type="text"
+                    className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                    placeholder="Walk-in / Client name"
+                    value={vanSaleClient}
+                    onChange={e => setVanSaleClient(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Payment</label>
+                  <select
+                    className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none"
+                    value={vanSaleMethod}
+                    onChange={e => setVanSaleMethod(e.target.value)}>
+                    <option value="CASH">Cash</option>
+                    <option value="UPI">UPI</option>
+                    <option value="CREDIT">Credit</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Items */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-[10px] font-semibold text-gray-500">Items</label>
+                  <button type="button"
+                    className="text-[9px] font-bold text-accent-signature hover:underline flex items-center gap-1"
+                    onClick={addVanSaleItem}>
+                    + Add Item
+                  </button>
+                </div>
+                <div className="space-y-2">
+                  {vanSaleItems.map((item, idx) => (
+                    <div key={idx} className="flex items-center gap-2 bg-canvas border border-black/8 rounded-xl px-3 py-2">
+                      <select
+                        className="flex-1 bg-transparent text-xs font-semibold outline-none min-w-0"
+                        value={item.productId}
+                        onChange={e => updateVanSaleItem(idx, 'productId', e.target.value)}>
+                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <input type="number" min="1"
+                          className="w-12 bg-white border border-black/8 rounded-lg px-1 py-1 text-xs font-bold text-center outline-none"
+                          value={item.qty}
+                          onChange={e => updateVanSaleItem(idx, 'qty', e.target.value)} />
+                        <span className="text-[9px] text-gray-400">×</span>
+                        <input type="number" min="0" step="0.01"
+                          className="w-16 bg-white border border-black/8 rounded-lg px-1 py-1 text-xs font-bold text-center outline-none"
+                          value={item.sellingPrice}
+                          onChange={e => updateVanSaleItem(idx, 'sellingPrice', e.target.value)} />
+                      </div>
+                      <span className="text-[10px] font-bold text-ink-primary tabular-nums shrink-0 w-16 text-right">
+                        {sym}{(item.qty * item.sellingPrice).toFixed(2)}
+                      </span>
+                      <button type="button" onClick={() => removeVanSaleItem(idx)}
+                        className="text-red-400 hover:text-red-600 shrink-0">
+                        <MinusCircle size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Total */}
+              <div className="flex justify-between items-center px-4 py-3 bg-ink-primary rounded-xl">
+                <span className="text-xs font-bold text-white/60">TOTAL</span>
+                <span className="text-lg font-black text-accent-signature tabular-nums">{sym}{vanSaleTotal.toFixed(2)}</span>
+              </div>
+
+              {vanSaleError && (
+                <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
+                  <AlertTriangle size={14} className="text-red-500 shrink-0" />
+                  <span className="text-xs font-semibold text-red-600">{vanSaleError}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button type="button"
+                  className="px-6 py-3 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all"
+                  onClick={() => setVanSaleRoute(null)}>Cancel</button>
+                <button type="submit" disabled={vanSaleLoading}
+                  className="btn-signature !h-12 !text-sm flex items-center justify-center gap-3 px-6 !rounded-pill">
+                  {vanSaleLoading ? (
+                    <span className="flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-ink-primary/30 border-t-ink-primary rounded-full animate-spin" />
+                      Saving…
+                    </span>
+                  ) : (
+                    <><ShoppingCart size={16} /> RECORD SALE</>
+                  )}
                 </button>
               </div>
             </form>

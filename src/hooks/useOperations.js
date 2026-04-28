@@ -210,6 +210,53 @@ export const useOperations = (tenantId) => {
     return { success: true, error: null };
   };
 
+  // ── Van Sale ─────────────────────────────────────────────────────────
+  // Records a direct cash/credit sale made from vehicle inventory.
+  // vehicleLocId: inventory_locations.id for the vehicle (caller resolves it)
+  const recordVanSale = async (routeId, vehicleLocId, { clientName, items, totalAmount, paymentMethod }) => {
+    const today = new Date().toISOString().split('T')[0];
+    const saleId = crypto.randomUUID();
+
+    // 1. Insert sale record (same shape as POS sales)
+    const { error: saleErr } = await supabase.from('sales').insert({
+      id: saleId,
+      shopId: null,
+      items: items.map(i => ({
+        productId:   i.productId,
+        name:        i.productName,
+        quantity:    i.quantity,
+        sellingPrice: i.sellingPrice,
+        costPrice:   i.costPrice || 0,
+        taxRate:     0,
+      })),
+      totalAmount,
+      paymentMethod: paymentMethod || 'CASH',
+      paymentStatus: 'PAID',
+      date: today,
+      bookedBy: null,
+      tenant_id: tenantId,
+      notes: `Van Sale — Route ${routeId}`,
+    });
+    if (saleErr) { console.error('recordVanSale sale insert error:', saleErr); return { success: false, error: saleErr }; }
+
+    // 2. Deduct each item from vehicle location inventory
+    if (vehicleLocId) {
+      for (const item of items) {
+        const { error: adjErr } = await supabase.rpc('adjust_inventory_atomic', {
+          p_product_id: item.productId,
+          p_location_id: vehicleLocId,
+          p_delta: -item.quantity,
+          p_reason: `Van Sale — Route ${routeId}`,
+          p_tenant_id: tenantId,
+        });
+        if (adjErr) console.warn('recordVanSale inventory adjust error:', adjErr);
+      }
+    }
+
+    await fetchOperationsData();
+    return { success: true, error: null };
+  };
+
   return {
     routes,
     routeStops,
@@ -225,5 +272,6 @@ export const useOperations = (tenantId) => {
     dispatchRoute,
     reconcileRoute,
     updateStopStatus,
+    recordVanSale,
   };
 };
