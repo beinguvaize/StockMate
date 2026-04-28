@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle } from 'lucide-react';
 import Button from '../../../shared/Button';
 import Modal from '../../../shared/Modal';
@@ -14,6 +14,20 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [clientSearch, setClientSearch]     = useState('');
+  const [clientDropOpen, setClientDropOpen] = useState(false);
+  const clientDropRef = useRef(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (clientDropRef.current && !clientDropRef.current.contains(e.target)) {
+        setClientDropOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
   // FIFO next-batch cost + real stock per product
   const [fifoCosts, setFifoCosts] = useState({});
   const [batchStock, setBatchStock] = useState({}); // { [productId]: totalQtyRemaining }
@@ -338,16 +352,83 @@ const InvoiceBuilder = ({ products, clients, onPlaceSale, currentTenantId }) => 
             <label className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
               <User size={12} /> Client
             </label>
-            <select
-              value={selectedClientId}
-              onChange={(e) => setSelectedClientId(e.target.value)}
-              className="w-full bg-white rounded-xl py-3 px-4 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/20 text-xs font-bold text-ink-primary uppercase tracking-tight"
-            >
-              <option value="WALKIN">WALK-IN (Cash only)</option>
-              {(clients || []).map(c => (
-                <option key={c.id} value={c.id}>{(c.name || 'Unnamed').toUpperCase()}</option>
-              ))}
-            </select>
+            {/* Searchable client picker */}
+            <div ref={clientDropRef} className="relative">
+              {/* Trigger */}
+              <button
+                type="button"
+                onClick={() => { setClientDropOpen(o => !o); setClientSearch(''); }}
+                className="w-full bg-white rounded-xl py-3 px-4 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/20 text-xs font-bold text-ink-primary uppercase tracking-tight text-left flex items-center justify-between"
+              >
+                <span>
+                  {selectedClientId === 'WALKIN'
+                    ? 'WALK-IN (CASH ONLY)'
+                    : ((clients || []).find(c => c.id === selectedClientId)?.name || 'Unknown').toUpperCase()}
+                </span>
+                <Search size={12} className="text-gray-400 shrink-0" />
+              </button>
+
+              {/* Dropdown */}
+              {clientDropOpen && (
+                <div className="absolute z-50 bottom-full mb-1 left-0 right-0 bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden">
+                  {/* Search input */}
+                  <div className="p-2 border-b border-black/5">
+                    <div className="flex items-center gap-2 bg-canvas rounded-lg px-3 py-2">
+                      <Search size={12} className="text-gray-400 shrink-0" />
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Search client..."
+                        className="flex-1 bg-transparent text-xs font-semibold outline-none text-ink-primary placeholder:text-gray-400"
+                        value={clientSearch}
+                        onChange={e => setClientSearch(e.target.value)}
+                      />
+                      {clientSearch && (
+                        <button onClick={() => setClientSearch('')} className="text-gray-400 hover:text-gray-600">
+                          <X size={10} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Options list */}
+                  <div className="max-h-52 overflow-y-auto">
+                    {/* Walk-in option */}
+                    {!clientSearch && (
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedClientId('WALKIN'); setClientDropOpen(false); }}
+                        className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-tight flex items-center justify-between hover:bg-canvas transition-colors ${selectedClientId === 'WALKIN' ? 'text-accent-signature bg-accent-signature/5' : 'text-ink-primary'}`}
+                      >
+                        WALK-IN (CASH ONLY)
+                        {selectedClientId === 'WALKIN' && <Check size={12} />}
+                      </button>
+                    )}
+
+                    {/* Filtered clients */}
+                    {(clients || [])
+                      .filter(c => !clientSearch || (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()))
+                      .map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => { setSelectedClientId(c.id); setClientDropOpen(false); setClientSearch(''); }}
+                          className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-tight flex items-center justify-between hover:bg-canvas transition-colors ${selectedClientId === c.id ? 'text-accent-signature bg-accent-signature/5' : 'text-ink-primary'}`}
+                        >
+                          <span className="truncate">{(c.name || 'Unnamed').toUpperCase()}</span>
+                          {selectedClientId === c.id && <Check size={12} className="shrink-0" />}
+                        </button>
+                      ))
+                    }
+
+                    {/* Empty state */}
+                    {clientSearch && (clients || []).filter(c => (c.name || '').toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
+                      <div className="px-4 py-6 text-center text-[10px] text-gray-400">No clients match "{clientSearch}"</div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
           <div className="space-y-2 mb-6">
             <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
