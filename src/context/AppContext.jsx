@@ -433,7 +433,13 @@ export const AppProvider = ({ children}) => {
 
         if (invokeError) {
           console.error("❌ Staff Creation Failed:", invokeError);
-          const errorMessage = invokeError.message || JSON.stringify(invokeError);
+          // invokeError.message is always generic "Edge Function returned a non-2xx status code"
+          // The real error is in the response body — extract it if possible
+          let errorMessage = invokeError.message;
+          try {
+            const body = result || (await invokeError.context?.json?.());
+            if (body?.error) errorMessage = body.error;
+          } catch (_) {}
           addNotification(`Staff creation failed: ${errorMessage}`, "error");
           return false;
         }
