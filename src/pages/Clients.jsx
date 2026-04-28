@@ -145,18 +145,27 @@ const Clients = () => {
      return;
    }
    setSaving(true);
-   const data = { ...formData };
-   const { error } = editingClient
-     ? await updateClient({ ...editingClient, ...data })
-     : await addClient(data);
-   setSaving(false);
-   if (error) {
-     setFormError(error.message || 'Failed to save client. Please try again.');
-     return;
+   try {
+     const data = { ...formData };
+     const timeoutPromise = new Promise((_, reject) =>
+       setTimeout(() => reject(new Error('Request timed out. Check your connection.')), 15000)
+     );
+     const savePromise = editingClient
+       ? updateClient({ ...editingClient, ...data })
+       : addClient(data);
+     const { error } = await Promise.race([savePromise, timeoutPromise]);
+     if (error) {
+       setFormError(error.message || 'Failed to save client. Please try again.');
+       return;
+     }
+     setIsAdding(false);
+     setEditingClient(null);
+     setFormData(EMPTY_FORM);
+   } catch (err) {
+     setFormError(err.message || 'An unexpected error occurred.');
+   } finally {
+     setSaving(false);
    }
-   setIsAdding(false);
-   setEditingClient(null);
-   setFormData(EMPTY_FORM);
  };
 
  const toggleStatus = (client) => {

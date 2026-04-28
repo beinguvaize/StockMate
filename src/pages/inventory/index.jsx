@@ -53,9 +53,11 @@ const Inventory = () => {
 
   const handleSaveProduct = async (data) => {
     if (editingProduct) {
-      await updateProduct(editingProduct.id, data);
+      const { error } = await updateProduct(editingProduct.id, data);
+      return { error };
     } else {
-      await addProduct(data);
+      const { error } = await addProduct(data);
+      return { error };
     }
   };
 

@@ -71,12 +71,13 @@ export const useInventory = (tenantId) => {
   }, [fetchInventory]);
 
   const add = async (product) => {
+    const id = product.id || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const { data: newProd, error } = await supabase
       .from('products')
-      .insert({ ...product, tenant_id: tenantId })
+      .insert({ ...product, id, tenant_id: tenantId })
       .select()
       .single();
-    if (!error) await fetchInventory();
+    if (!error) fetchInventory().catch(e => console.error('add product refetch error:', e));
     return { data: newProd, error };
   };
 
@@ -86,7 +87,7 @@ export const useInventory = (tenantId) => {
       .update(updates)
       .eq('id', id)
       .eq('tenant_id', tenantId);
-    if (!error) await fetchInventory();
+    if (!error) fetchInventory().catch(e => console.error('update product refetch error:', e));
     return { error };
   };
 
@@ -96,7 +97,7 @@ export const useInventory = (tenantId) => {
       .delete()
       .eq('id', id)
       .eq('tenant_id', tenantId);
-    if (!error) await fetchInventory();
+    if (!error) fetchInventory().catch(e => console.error('remove product refetch error:', e));
     return { error };
   };
 

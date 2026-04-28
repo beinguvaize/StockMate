@@ -22,6 +22,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [saveError, setSaveError] = useState(null);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -76,8 +77,13 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       tags: typeof formData.tags === 'string' ? formData.tags.split(',').map(t => t.trim()).filter(t => t) : formData.tags
     };
 
-    await onSave(parsedData);
+    setSaveError(null);
+    const result = await onSave(parsedData);
     setUploading(false);
+    if (result?.error) {
+      setSaveError(result.error.message || 'Failed to save product');
+      return;
+    }
     onClose();
   };
 
@@ -168,6 +174,11 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               </div>
             </div>
 
+            {saveError && (
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs font-bold text-red-600">
+                {saveError}
+              </div>
+            )}
             <Button type="submit" disabled={uploading} icon={CheckCircle2} className="w-full !rounded-xl !h-12 shadow-xl">
               {uploading ? 'Saving...' : editingProduct ? 'Save Changes' : 'Save Product'}
             </Button>

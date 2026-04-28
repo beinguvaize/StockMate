@@ -100,8 +100,12 @@ export const usePeople = (tenantId) => {
     const { error } = await supabase
       .from('clients')
       .insert({ id, ...toClientRow(client), tenant_id: tenantId });
-    if (error) console.error('addClient error:', error);
-    else await fetchPeopleData();
+    if (error) {
+      console.error('addClient error:', error);
+    } else {
+      // Fire refetch in background — don't block caller
+      fetchPeopleData().catch(e => console.error('addClient refetch error:', e));
+    }
     return { success: !error, error };
   };
 
@@ -113,13 +117,13 @@ export const usePeople = (tenantId) => {
       .eq('id', id)
       .eq('tenant_id', tenantId);
     if (error) console.error('updateClient error:', error);
-    else await fetchPeopleData();
+    else fetchPeopleData().catch(e => console.error('updateClient refetch error:', e));
     return { success: !error, error };
   };
 
   const deleteClient = async (id) => {
     const { error } = await supabase.from('clients').delete().eq('id', id).eq('tenant_id', tenantId);
-    if (!error) await fetchPeopleData();
+    if (!error) fetchPeopleData().catch(e => console.error('deleteClient refetch error:', e));
     return { success: !error, error };
   };
 
