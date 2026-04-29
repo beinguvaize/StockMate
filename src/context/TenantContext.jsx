@@ -136,21 +136,19 @@ export const TenantProvider = ({ children }) => {
 
   const updateBusinessProfile = async (data) => {
     if (!currentTenantId) return { success: false, error: new Error('No tenant') };
+    // Use upsert so it works even if no row exists yet (e.g. fresh tenant setup)
     const { data: rows, error } = await supabase
       .from('business_profile')
-      .update(data)
-      .eq('tenant_id', currentTenantId)
+      .upsert({ ...data, tenant_id: currentTenantId }, { onConflict: 'tenant_id' })
       .select();
     if (error) return { success: false, error };
-    if (!rows || rows.length === 0) {
-      return { success: false, error: new Error('Update blocked (RLS / no row matched)') };
-    }
+    const saved = rows?.[0] || data;
     setBusinessProfile(prev => {
-      const next = { ...prev, ...rows[0] };
+      const next = { ...prev, ...saved };
       applyTZFromProfile(next);
       return next;
     });
-    return { success: true, data: rows[0] };
+    return { success: true, data: saved };
   };
 
   const updateTenant = async (data) => {
