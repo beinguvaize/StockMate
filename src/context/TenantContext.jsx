@@ -142,7 +142,7 @@ export const TenantProvider = ({ children }) => {
     // Use upsert so it works even if no row exists yet (e.g. fresh tenant setup)
     const { data: rows, error } = await supabase
       .from('business_profile')
-      .upsert({ id, ...data, tenant_id: currentTenantId }, { onConflict: 'tenant_id' })
+      .upsert({ ...data, id, tenant_id: currentTenantId }, { onConflict: 'tenant_id' })
       .select();
     if (error) return { success: false, error };
     const saved = rows?.[0] || data;
