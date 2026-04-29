@@ -14,7 +14,7 @@ const DEFAULT_CATEGORIES = [
 
 const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId }) => {
   const [formData, setFormData] = useState({
-    name: '', sku: '', category: productCategories[0]?.name || '', unit: UNITS[0],
+    name: '', sku: '', category: '', unit: UNITS[0],
     costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
     lowStockThreshold: 10, min_margin: 0
   });
@@ -57,7 +57,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       setImagePreview(editingProduct.image || null);
     } else {
       setFormData({
-        name: '', sku: '', category: productCategories[0]?.name || '', unit: UNITS[0],
+        name: '', sku: '', category: '', unit: UNITS[0],
         costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
         lowStockThreshold: 10, min_margin: 0
       });
