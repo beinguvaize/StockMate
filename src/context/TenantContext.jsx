@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { isModuleAvailable } from '../lib/tenancy';
@@ -29,10 +29,21 @@ export const TenantProvider = ({ children }) => {
   // This prevents GuestRoute from seeing loading=false before the first
   // initTenant has had a chance to run for the new user.
   const [resolvedForUserId, setResolvedForUserId] = useState(undefined);
+  // Keep a ref to the latest currentUser so initTenant can read it
+  // without being listed as an effect dependency (avoids re-trigger on
+  // same-user object reference changes e.g. after TOKEN_REFRESHED).
+  const currentUserRef = useRef(currentUser);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
 
   const currentTenantId = currentTenant?.id || null;
 
+  // Depend only on user ID — not the full object — so that TOKEN_REFRESHED
+  // (which creates a new currentUser reference with same ID) does not trigger
+  // a full tenant re-load and loading screen flash.
+  const currentUserId = currentUser?.id ?? null;
+
   useEffect(() => {
+    const cu = currentUserRef.current;
     const initTenant = async () => {
       setLoading(true);
       // 1. Priority: Impersonation
@@ -43,13 +54,13 @@ export const TenantProvider = ({ children }) => {
         const { data: profile } = await supabase.from('business_profile').select('*').eq('tenant_id', tenant.id).maybeSingle();
         if (profile) { setBusinessProfile(profile); applyTZFromProfile(profile); }
         else setBusinessProfile({ currencySymbol: '$' });
-        setResolvedForUserId(currentUser?.id || null);
+        setResolvedForUserId(cu?.id || null);
         setLoading(false);
         return;
       }
 
       // 2. Load tenant by tenant_id, or fallback to membership lookup
-      const resolvedTenantId = currentUser?.tenant_id;
+      const resolvedTenantId = cu?.tenant_id;
 
       if (resolvedTenantId) {
         const [
@@ -73,18 +84,19 @@ export const TenantProvider = ({ children }) => {
         }
       }
 
-      setResolvedForUserId(currentUser?.id || null);
+      setResolvedForUserId(cu?.id || null);
       setLoading(false);
     };
 
-    if (currentUser) {
+    if (cu) {
       initTenant();
     } else {
       setCurrentTenant(null);
       setResolvedForUserId(null);
       setLoading(false);
     }
-  }, [currentUser]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId]);
 
   const resolveTenantBySlug = async (slug) => {
     if (!slug) return null;
@@ -153,7 +165,6 @@ export const TenantProvider = ({ children }) => {
   // - tenant load has completed for the current user
   // This prevents GuestRoute from redirecting to /no-access during the
   // render cycle between setCurrentUser() and the initTenant() effect.
-  const currentUserId = currentUser?.id || null;
   const isSyncComplete = !loading && resolvedForUserId === currentUserId;
 
   const value = {

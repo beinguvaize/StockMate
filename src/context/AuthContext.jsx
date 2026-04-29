@@ -57,20 +57,26 @@ export const AuthProvider = ({ children }) => {
     // 2. Auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       setSession(session);
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+
+      if (event === 'TOKEN_REFRESHED') {
+        // JWT rotated but user identity unchanged — do NOT re-fetch profile.
+        // Re-fetching would create a new currentUser object reference which
+        // triggers TenantContext to setLoading(true) and show the loading screen.
+        return;
+      }
+
+      if (event === 'SIGNED_IN') {
         if (session?.user) {
           const userEmail = session.user.email?.toLowerCase();
-        const isSuperUser = userEmail === 'uvaize@hotmail.com' || userEmail === 'gladmin@ledgrpro.ca';
+          const isSuperUser = userEmail === 'uvaize@hotmail.com' || userEmail === 'gladmin@ledgrpro.ca';
           const { data: profile } = await supabase
             .from('users')
             .select('*')
             .eq('id', session.user.id)
             .maybeSingle();
-            
+
           if (profile) {
-            // Merge session email to guarantee bypass logic functionality
             const enrichedProfile = { ...profile, email: session.user.email };
-            
             if (isSuperUser && !enrichedProfile.roles?.includes('GLOBAL_ADMIN')) {
               enrichedProfile.roles = [...(enrichedProfile.roles || []), 'GLOBAL_ADMIN', 'OWNER'];
             }
@@ -183,10 +189,6 @@ export const AuthProvider = ({ children }) => {
     isOwner: currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN'),
     isSyncComplete: !loading
   };
-
-  if (!loading) {
-    console.log('AuthContext State:', { user: currentUser?.email, roles: currentUser?.roles, isAdmin: value.isAdmin });
-  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
