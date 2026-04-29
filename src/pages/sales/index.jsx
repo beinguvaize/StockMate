@@ -4,6 +4,7 @@ import { useTenant } from '../../context/TenantContext';
 import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { usePeople } from '../../hooks/usePeople';
+import { useNotifications } from '../../context/NotificationContext';
 import { ShoppingCart, History, Plus, ReceiptText } from 'lucide-react';
 import { generateRef } from '../../lib/utils';
 import Button from '../../shared/Button';
@@ -14,6 +15,7 @@ import SalePrintDispatcher from './components/SalePrintDispatcher';
 import SalesReturnForm from './components/SalesReturnForm';
 
 const SalesPage = () => {
+  const { addNotification } = useNotifications();
   const { currentTenantId, businessProfile } = useTenant();
   const { sales, clients, placeSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, loading: salesLoading } = useSales(currentTenantId);
 
@@ -70,8 +72,9 @@ const SalesPage = () => {
     setReturnLoading(true);
     const { error } = await processSalesReturn({ ...payload, id: generateRef('CRN') });
     setReturnLoading(false);
-    if (error) { alert('Return failed: ' + error.message); return; }
+    if (error) { addNotification('Return failed: ' + error.message, 'error'); return; }
     setReturnSale(null);
+    addNotification('Return processed — stock restored.', 'success');
   };
 
   const printSale = (sale) => setPrintingSale(sale);
