@@ -136,10 +136,13 @@ export const TenantProvider = ({ children }) => {
 
   const updateBusinessProfile = async (data) => {
     if (!currentTenantId) return { success: false, error: new Error('No tenant') };
+    // Ensure id is always present — required NOT NULL column.
+    // Reuse existing row id if known, otherwise generate a stable UUID.
+    const id = businessProfile?.id || crypto.randomUUID();
     // Use upsert so it works even if no row exists yet (e.g. fresh tenant setup)
     const { data: rows, error } = await supabase
       .from('business_profile')
-      .upsert({ ...data, tenant_id: currentTenantId }, { onConflict: 'tenant_id' })
+      .upsert({ id, ...data, tenant_id: currentTenantId }, { onConflict: 'tenant_id' })
       .select();
     if (error) return { success: false, error };
     const saved = rows?.[0] || data;
