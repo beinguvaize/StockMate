@@ -141,18 +141,31 @@ export const usePeople = (tenantId) => {
 
     if (userData.password) {
       try {
-        const { data: result, error: invokeError } = await supabase.functions.invoke('dynamic-service', {
-          body: {
+        // Use direct fetch instead of supabase.functions.invoke to avoid
+        // potential token-refresh hang in Supabase JS client
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token || '';
+        const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/dynamic-service`;
+
+        const res = await fetch(fnUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+          },
+          body: JSON.stringify({
             email: userData.email,
             password: userData.password,
             name: userData.name,
             roles: userData.roles || ['STAFF'],
             permissions: userData.permissions || { ...DEFAULT_PERMISSIONS },
             tenant_id: tenantId,
-          },
+          }),
         });
-        if (invokeError) throw invokeError;
-        if (result?.error) throw new Error(result.error);
+
+        const result = await res.json();
+        if (!res.ok || result?.error) throw new Error(result?.error || `HTTP ${res.status}`);
         await fetchPeopleData();
         return true;
       } catch (err) {
