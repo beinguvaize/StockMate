@@ -5,7 +5,7 @@
  * Reads from the `audit_log` table populated by the `log_audit_event` RPC.
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { AUDIT_ACTIONS } from '../lib/auditLog';
 import {
@@ -69,7 +69,7 @@ const relativeTime = (iso) => {
 
 /* ═══════════════════════════════════════════════════════════════ */
 const AuditLog = () => {
-  const { hasRole, currentUser } = useAppContext();
+  const { currentUser } = useAuth();
 
   /* ── access gate ── */
   const roles = currentUser?.roles || (currentUser?.role ? [currentUser.role] : []);
