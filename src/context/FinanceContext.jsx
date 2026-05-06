@@ -39,16 +39,15 @@ export const FinanceProvider = ({ children }) => {
     };
 
     if (isSupabaseConfigured) {
-      setSyncStatus('SYNCING');
       const { error } = await supabase.from('expenses').upsert(newExpense);
       if (error) {
         console.error('Error adding expense to Supabase:', error);
         setSyncStatus('ERROR');
-        addNotification('Cloud Sync Delayed: Expense saved locally', 'warning');
-      } else {
-        setSyncStatus('SYNCED');
-        setLastSyncedAt(new Date().toISOString());
+        addNotification(`Cloud Sync Failed: ${error.message}`, "error");
+        return; // STOP
       }
+      setSyncStatus('SYNCED');
+      setLastSyncedAt(new Date().toISOString());
     }
 
     setExpenses((prev) => [newExpense, ...prev]);
@@ -57,18 +56,15 @@ export const FinanceProvider = ({ children }) => {
 
   const updateExpense = async (updatedExpense) => {
     if (isSupabaseConfigured) {
-      setSyncStatus('SYNCING');
-      const { error } = await supabase
-        .from('expenses')
-        .upsert({ ...updatedExpense, tenant_id: currentTenantId });
+      const { error } = await supabase.from('expenses').upsert(updatedExpense);
       if (error) {
         console.error('Error updating expense in Supabase:', error);
         setSyncStatus('ERROR');
-        addNotification('Cloud Sync Delayed: Expense updated locally', 'warning');
-      } else {
-        setSyncStatus('SYNCED');
-        setLastSyncedAt(new Date().toISOString());
+        addNotification(`Update failed: ${error.message}`, "error");
+        return; // STOP
       }
+      setSyncStatus('SYNCED');
+      setLastSyncedAt(new Date().toISOString());
     }
     setExpenses((prev) => prev.map((e) => (e.id === updatedExpense.id ? updatedExpense : e)));
     addNotification(`Expense updated: ${updatedExpense.amount}`, 'success');
@@ -76,20 +72,15 @@ export const FinanceProvider = ({ children }) => {
 
   const deleteExpense = async (expenseId) => {
     if (isSupabaseConfigured) {
-      setSyncStatus('SYNCING');
-      const { error } = await supabase
-        .from('expenses')
-        .delete()
-        .eq('id', expenseId)
-        .eq('tenant_id', currentTenantId);
+      const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
       if (error) {
         console.error('Error deleting expense from Supabase:', error);
         setSyncStatus('ERROR');
-        addNotification('Cloud Sync Delayed: Expense removed locally', 'warning');
-      } else {
-        setSyncStatus('SYNCED');
-        setLastSyncedAt(new Date().toISOString());
+        addNotification(`Delete failed: ${error.message}`, "error");
+        return; // STOP
       }
+      setSyncStatus('SYNCED');
+      setLastSyncedAt(new Date().toISOString());
     }
     setExpenses((prev) => prev.filter((e) => e.id !== expenseId));
     addNotification('Expense record removed', 'success');
@@ -106,7 +97,8 @@ export const FinanceProvider = ({ children }) => {
         .upsert({ key: 'expense_categories', value: newCategories, tenant_id: currentTenantId });
       if (error) {
         console.error('Error adding expense category to Supabase:', error);
-        addNotification('Cloud Sync Delayed: Category added locally', 'warning');
+        addNotification(`Category sync failed: ${error.message}`, "error");
+        return; // STOP
       }
     }
 
@@ -124,7 +116,8 @@ export const FinanceProvider = ({ children }) => {
         .upsert({ key: 'expense_categories', value: newCategories, tenant_id: currentTenantId });
       if (error) {
         console.error('Error updating expense category in Supabase:', error);
-        addNotification('Cloud Sync Delayed: Category updated locally', 'warning');
+        addNotification(`Category sync failed: ${error.message}`, "error");
+        return; // STOP
       }
     }
 

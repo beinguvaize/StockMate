@@ -11,7 +11,7 @@
 -- journal aborts the transaction rather than corrupting the ledger.
 --
 -- Actual column names verified against live DEV schema:
---   sales          : "totalAmount","totalCogs","paymentStatus","status"
+--   sales          : total_amount, total_cogs, payment_status, status
 --   expenses       : amount, category, note
 --   purchases      : total_amount, payment_type
 --   client_payments: amount
@@ -115,10 +115,10 @@ BEGIN
   -- DELETE: nothing more to post.
   IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
 
-  v_total     := COALESCE(NEW."totalAmount", 0);
-  v_cogs      := COALESCE(NEW."totalCogs", 0);
-  v_paystatus := COALESCE(NEW."paymentStatus", 'UNPAID');
-  v_status    := COALESCE(NEW."status", '');
+  v_total     := COALESCE(NEW.total_amount, 0);
+  v_cogs      := COALESCE(NEW.total_cogs, 0);
+  v_paystatus := COALESCE(NEW.payment_status, 'UNPAID');
+  v_status    := COALESCE(NEW.status, '');
 
   -- Skip posting for cancelled or zero-amount sales.
   IF upper(v_status) = 'CANCELLED' OR v_total = 0 THEN

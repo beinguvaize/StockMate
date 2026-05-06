@@ -1,105 +1,204 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { isLocked, recordFailure, recordSuccess, timeRemaining } from '../lib/loginThrottle';
-import { cacheClear } from '../lib/cache';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
-// Bootstrap allowlist for first-login auto-provisioning.
-const BOOTSTRAP_ADMIN_EMAILS = new Set(
-  (import.meta.env.VITE_BOOTSTRAP_ADMIN_EMAILS || '')
-    .split(',')
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean)
-);
-
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
-  const [authSession, setAuthSession] = useState(null);
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const login = async (email, password) => {
-    if (isLocked(email)) {
-      const remaining = timeRemaining(email);
-      return { success: false, error: `Too many failed attempts. Try again in ${remaining}.` };
-    }
+  useEffect(() => {
+    // 1. Initial Session check
+    const initSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
 
-    if (isSupabaseConfigured) {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        recordFailure(email);
-        return { success: false, error: error.message };
-      }
+      if (session?.user) {
+        const userEmail = session.user.email?.toLowerCase();
+        const isSuperUser = userEmail === 'uvaize@hotmail.com' || userEmail === 'gladmin@ledgrpro.ca';
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .maybeSingle();
 
-      recordSuccess(email);
+        if (profile) {
+          // Merge session email into profile to ensure bypass logic always has the data
+          const enrichedProfile = { ...profile, email: session.user.email };
 
-      const { data: profile } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', data.user.id)
-        .maybeSingle();
-        
-      if (profile) {
-        setCurrentUser(profile);
-      } else {
-        const metaRoles = data.user.user_metadata?.roles || [];
-        if (metaRoles.length > 0) {
-          const synthesizedUser = {
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.user_metadata?.name || data.user.email.split('@')[0],
-            roles: metaRoles,
+          // Ensure bootstrap admins always have their roles in state even if DB is out of sync
+          if (isSuperUser && !enrichedProfile.roles?.includes('GLOBAL_ADMIN')) {
+             enrichedProfile.roles = [...(enrichedProfile.roles || []), 'GLOBAL_ADMIN', 'OWNER'];
+          }
+          setCurrentUser(enrichedProfile);
+        } else {
+          // Provision superuser if match
+          const newUserProfile = {
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.email.split('@')[0],
+            roles: isSuperUser ? ['GLOBAL_ADMIN', 'OWNER'] : ['STAFF'],
             status: 'ACTIVE'
           };
-          setCurrentUser(synthesizedUser);
-          return { success: true, user: synthesizedUser };
+          setCurrentUser(newUserProfile);
+          if (isSuperUser) {
+            await supabase.from('users').upsert(newUserProfile);
+          }
         }
       }
-      
-      return { success: true, user: profile || data.user };
-    }
-
-    return {
-      success: false,
-      error: 'Authentication unavailable — Supabase is not configured. Contact your administrator.',
+      setLoading(false);
     };
+
+    initSession();
+
+    // 2. Auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      setSession(session);
+
+      if (event === 'TOKEN_REFRESHED') {
+        // JWT rotated but user identity unchanged — do NOT re-fetch profile.
+        // Re-fetching would create a new currentUser object reference which
+        // triggers TenantContext to setLoading(true) and show the loading screen.
+        return;
+      }
+
+      if (event === 'SIGNED_IN') {
+        if (session?.user) {
+          const userEmail = session.user.email?.toLowerCase();
+          const isSuperUser = userEmail === 'uvaize@hotmail.com' || userEmail === 'gladmin@ledgrpro.ca';
+          const { data: profile } = await supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle();
+
+          if (profile) {
+            const enrichedProfile = { ...profile, email: session.user.email };
+            if (isSuperUser && !enrichedProfile.roles?.includes('GLOBAL_ADMIN')) {
+              enrichedProfile.roles = [...(enrichedProfile.roles || []), 'GLOBAL_ADMIN', 'OWNER'];
+            }
+            setCurrentUser(enrichedProfile);
+          } else {
+            setCurrentUser({
+              id: session.user.id,
+              email: session.user.email,
+              name: session.user.email.split('@')[0],
+              roles: isSuperUser ? ['GLOBAL_ADMIN', 'OWNER'] : ['STAFF'],
+              status: 'ACTIVE'
+            });
+          }
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setCurrentUser(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Realtime: watch own profile row for role/permission changes made by admin
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    const channel = supabase
+      .channel(`user-profile-${currentUser.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'users',
+        filter: `id=eq.${currentUser.id}`,
+      }, async () => {
+        // Re-fetch fresh profile on any update
+        const { data: profile } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+        if (profile) {
+          const { data: { session } } = await supabase.auth.getSession();
+          const userEmail = session?.user?.email?.toLowerCase();
+          const isSuperUser = userEmail === 'uvaize@hotmail.com' || userEmail === 'gladmin@ledgrpro.ca';
+          const enriched = { ...profile, email: session?.user?.email || currentUser.email };
+          if (isSuperUser && !enriched.roles?.includes('GLOBAL_ADMIN')) {
+            enriched.roles = [...(enriched.roles || []), 'GLOBAL_ADMIN', 'OWNER'];
+          }
+          setCurrentUser(enriched);
+        }
+      })
+      .subscribe();
+    return () => supabase.removeChannel(channel);
+  }, [currentUser?.id]);
+
+  const updateAvatar = async (avatarUrl) => {
+    if (!currentUser?.id) return { error: 'Not logged in' };
+    const { error } = await supabase
+      .from('users')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', currentUser.id);
+    if (!error) setCurrentUser(prev => ({ ...prev, avatar_url: avatarUrl }));
+    return { error: error?.message || null };
+  };
+
+  const login = async (email, password) => {
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return { success: false, error: error.message };
+    return { success: true, user: data.user };
   };
 
   const logout = async () => {
-    try {
-      setLoading(true);
-      cacheClear();
-      if (isSupabaseConfigured) {
-        await supabase.auth.signOut();
-      }
-    } catch (e) {
-      console.error("Logout error:", e);
-    } finally {
-      setCurrentUser(null);
-      setAuthSession(null);
-      setLoading(false);
-      if (typeof window !== 'undefined') {
-        window.location.href = '/login';
-      }
-    }
+    await supabase.auth.signOut();
+    setCurrentUser(null);
   };
 
-  const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN');
-  const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.role?.toLowerCase() === 'staff';
+  const hasPermission = (moduleKey, action = 'view') => {
+    if (!currentUser) return false;
+    const roles = currentUser.roles || [];
+    if (roles.includes('GLOBAL_ADMIN')) return true;
+    if (roles.includes('OWNER')) return true;
+    if (roles.includes('STAFF')) {
+      if (action === 'view') return true;
+      return ['sales', 'clients', 'daybook'].includes(moduleKey);
+    }
+    // SALES template — no dashboard (privacy)
+    if (roles.includes('SALES')) {
+      const salesModules = ['sales', 'clients', 'daybook'];
+      return salesModules.includes(moduleKey);
+    }
+    // INVENTORY template — no dashboard (privacy)
+    if (roles.includes('INVENTORY')) {
+      const invModules = ['inventory', 'purchases', 'suppliers'];
+      return invModules.includes(moduleKey);
+    }
+    // CUSTOM role (and any other): respect granular permissions object
+    const perms = currentUser.permissions;
+    if (perms && typeof perms === 'object') {
+      const mod = perms[moduleKey];
+      if (mod && typeof mod === 'object') return !!mod[action];
+    }
+    return false;
+  };
+
+  const hasRole = (role) => {
+    if (!currentUser) return false;
+    const roles = currentUser.roles || [];
+    if (roles.includes('GLOBAL_ADMIN')) return true;
+    return roles.includes(role);
+  };
 
   const value = {
     currentUser,
-    setCurrentUser,
-    session: authSession || currentUser,
-    setAuthSession,
-    isOwner,
-    isStaff,
+    session,
+    loading,
     login,
     logout,
-    loading,
-    BOOTSTRAP_ADMIN_EMAILS
+    updateAvatar,
+    hasPermission,
+    hasRole,
+    isAdmin: currentUser?.roles?.includes('GLOBAL_ADMIN'),
+    isOwner: currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN'),
+    isSyncComplete: !loading
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

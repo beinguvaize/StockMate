@@ -1,57 +1,74 @@
 import React, { useState} from 'react';
-import { useAppContext} from '../context/AppContext';
+import { useNavigate, useParams } from 'react-router-dom';
+import ThemePicker from '../components/ThemePicker';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { useFinance } from '../hooks/useFinance';
+import { useInventory } from '../hooks/useInventory';
 import { 
   Settings as SettingsIcon, Building, Shield, Bell, Save, 
   CheckCircle2, Lock, Globe, Coins, ShieldCheck, 
   Database, RotateCcw, ChevronRight, Zap, Tag, Plus, Edit2, Trash2, X, FileUp, FileDown,
   Sparkles, Mail
 } from 'lucide-react';
-import DataTools from '../components/DataTools';
 
 const Settings = () => {
+  const navigate = useNavigate();
+  const { tenantSlug } = useParams();
+  const { currentUser, hasPermission, isOwner } = useAuth();
   const { 
-    businessProfile, updateBusinessProfile, currentUser, hasPermission, 
-    expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory,
-    currentTenant, updateTenant 
-  } = useAppContext();
+    currentTenant, currentTenantId, businessProfile, 
+    updateBusinessProfile, updateTenant 
+  } = useTenant();
+  const {
+    expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory
+  } = useFinance(currentTenantId);
+  const {
+    productCategories, addProductCategory, updateProductCategory, deleteProductCategory
+  } = useInventory(currentTenantId);
 
-  const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN');
+  // Fallback for missing businessProfile during load
+  const profile = businessProfile || {};
 
 
  const [newCategory, setNewCategory] = useState('');
  const [editingCategory, setEditingCategory] = useState(null);
  const [editValue, setEditValue] = useState('');
-  const [showDataTools, setShowDataTools] = useState(false);
+ const [newProductCategory, setNewProductCategory] = useState('');
+ const [editingProductCategory, setEditingProductCategory] = useState(null);
+ const [editProductValue, setEditProductValue] = useState('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [workspaceSlug, setWorkspaceSlug] = useState(currentTenant?.slug || '');
   const [isUpdatingSlug, setIsUpdatingSlug] = useState(false);
 
- const [profileData, setProfileData] = useState({
- name: businessProfile.name || '',
- country: businessProfile.country || '',
- currency: businessProfile.currency || 'USD',
- currencySymbol: businessProfile.currencySymbol || '$',
- lowStockThreshold: businessProfile.lowStockThreshold || 20,
- pan_no: businessProfile.pan_no || '',
- gst_no: businessProfile.gst_no || '',
- bank_name: businessProfile.bank_name || '',
- account_no: businessProfile.account_no || '',
- ifsc_code: businessProfile.ifsc_code || '',
- upi_id: businessProfile.upi_id || '',
- email: businessProfile.email || '',
- website: businessProfile.website || '',
- phone: businessProfile.phone || '',
- address: businessProfile.address || ''
-});
+  const [profileData, setProfileData] = useState({
+    name: profile.name || '',
+    country: profile.country || '',
+    currency: profile.currency || 'USD',
+    currencySymbol: profile.currencySymbol || '$',
+    lowStockThreshold: profile.lowStockThreshold || 20,
+    pan_no: profile.pan_no || '',
+    gst_no: profile.gst_no || '',
+    bank_name: profile.bank_name || '',
+    account_no: profile.account_no || '',
+    ifsc_code: profile.ifsc_code || '',
+    upi_id: profile.upi_id || '',
+    email: profile.email || '',
+    website: profile.website || '',
+    phone: profile.phone || '',
+    address: profile.address || ''
+  });
 
  const [savedStatus, setSavedStatus] = useState(false);
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    const success = await updateBusinessProfile(profileData);
+    const { success, error } = await updateBusinessProfile(profileData);
     if (success) {
       setSavedStatus(true);
       setTimeout(() => setSavedStatus(false), 3000);
+    } else {
+      alert('Save failed: ' + (error?.message || 'Unknown error'));
     }
   };
 
@@ -271,11 +288,21 @@ const Settings = () => {
  </div>
 
  <div className="flex gap-4 pt-8 border-t border-black/5">
- <button type="submit" className="btn-signature w-full !rounded-lg !py-6 !text-base">
- SAVE SETTINGS
- <div className="icon-nest">
- <Save size={24} />
- </div>
+ <button
+   type="submit"
+   disabled={savedStatus}
+   className={`btn-signature w-full !rounded-lg !py-6 !text-base transition-all duration-500 ${
+     savedStatus
+       ? '!bg-emerald-500 !text-white scale-[0.98] shadow-emerald-500/40 shadow-lg'
+       : ''
+   }`}
+ >
+   <span className={`transition-transform duration-300 ${savedStatus ? 'scale-105' : ''}`}>
+     {savedStatus ? 'SAVED' : 'SAVE SETTINGS'}
+   </span>
+   <div className={`icon-nest transition-transform duration-500 ${savedStatus ? 'rotate-[360deg] bg-white/20' : ''}`}>
+     {savedStatus ? <CheckCircle2 size={24} className="animate-in zoom-in duration-300" /> : <Save size={24} />}
+   </div>
  </button>
  </div>
  </form>
@@ -303,16 +330,33 @@ const Settings = () => {
               <span className="text-xs font-bold text-gray-700 uppercase">Current Plan</span>
               <Sparkles size={16} className="text-accent-signature" />
             </div>
-            <h3 className="text-3xl font-black text-ink-primary mb-2 uppercase tracking-tight">{currentTenant?.plan || 'STARTER'}</h3>
-            <p className="text-[10px] font-semibold text-gray-600 opacity-70 mb-6 leading-relaxed uppercase">
-              {currentTenant?.plan === 'STARTER' ? 'The foundational ledger for growing teams.' : 'Enterprise governance and advanced logistics active.'}
-            </p>
-            <button 
-              onClick={() => setShowUpgradeModal(true)}
-              className="w-full h-12 bg-ink-primary text-surface rounded-xl text-xs font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
-            >
-              UPGRADE WORKSPACE <ChevronRight size={14} className="text-accent-signature" />
-            </button>
+            {(() => {
+              const plan = (currentTenant?.plan || 'STARTER').toUpperCase();
+              const isTop = plan === 'ENTERPRISE';
+              const blurb = plan === 'STARTER'
+                ? 'The foundational ledger for growing teams.'
+                : plan === 'PRO'
+                ? 'Advanced operations and pipeline tooling.'
+                : 'Enterprise governance and advanced logistics active.';
+              return (
+                <>
+                  <h3 className="text-3xl font-black text-ink-primary mb-2 uppercase tracking-tight">{plan}</h3>
+                  <p className="text-[10px] font-semibold text-gray-600 opacity-70 mb-6 leading-relaxed uppercase">{blurb}</p>
+                  {isTop ? (
+                    <div className="w-full h-12 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                      <CheckCircle2 size={14} /> TOP TIER — ALL MODULES UNLOCKED
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setShowUpgradeModal(true)}
+                      className="w-full h-12 bg-ink-primary text-surface rounded-xl text-xs font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                    >
+                      UPGRADE WORKSPACE <ChevronRight size={14} className="text-accent-signature" />
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
 
@@ -454,6 +498,96 @@ const Settings = () => {
  </div>
  </div>
 
+ {/* Product Categories Management */}
+ <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+ <div className="bg-ink-primary p-6 flex items-center justify-between">
+ <div className="flex items-center gap-4">
+ <Tag size={20} className="text-accent-signature" />
+ <h2 className="text-base font-bold font-semibold text-surface">Product Categories</h2>
+ </div>
+ <div className="text-[9px] font-semibold text-accent-signature opacity-70">Manage Categories</div>
+ </div>
+ <div className="p-6 space-y-8">
+ <div className="flex gap-3">
+ <input
+ type="text"
+ placeholder="New Category..."
+ className="input-field !rounded-xl !py-2.5 font-bold text-sm bg-canvas border border-black/5 flex-1"
+ value={newProductCategory}
+ onChange={e => setNewProductCategory(e.target.value)}
+ onKeyPress={e => {
+ if (e.key === 'Enter' && newProductCategory.trim()) {
+ addProductCategory(newProductCategory.trim());
+ setNewProductCategory('');
+}
+}}
+ />
+ <button
+ className="btn-signature !px-6 !rounded-xl transition-all hover:shadow-lg"
+ onClick={() => {
+ if (newProductCategory.trim()) {
+ addProductCategory(newProductCategory.trim());
+ setNewProductCategory('');
+}
+}}
+ >
+ <Plus size={20} />
+ </button>
+ </div>
+ <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+ {productCategories.map(cat => (
+ <div key={cat.id} className="group flex items-center justify-between p-4 rounded-xl bg-canvas border border-black/5 hover:border-accent-signature/30 transition-all">
+ {editingProductCategory === cat.id ? (
+ <div className="flex items-center gap-2 w-full">
+ <input
+ autoFocus
+ type="text"
+ className="bg-transparent border-none outline-none font-semibold text-sm text-ink-primary flex-1"
+ value={editProductValue}
+ onChange={e => setEditProductValue(e.target.value)}
+ onBlur={() => {
+ updateProductCategory({ id: cat.id, name: editProductValue });
+ setEditingProductCategory(null);
+}}
+ onKeyPress={e => {
+ if (e.key === 'Enter') {
+ updateProductCategory({ id: cat.id, name: editProductValue });
+ setEditingProductCategory(null);
+}
+}}
+ />
+ <button onClick={() => setEditingProductCategory(null)} className="text-gray-700 hover:text-ink-primary">
+ <X size={14} />
+ </button>
+ </div>
+ ) : (
+ <>
+ <span className="text-sm font-semibold text-ink-primary">{cat.name}</span>
+ <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+ <button
+ className="p-2 rounded-lg hover:bg-black/5 text-gray-700 hover:text-ink-primary transition-colors"
+ onClick={() => { setEditingProductCategory(cat.id); setEditProductValue(cat.name); }}
+ >
+ <Edit2 size={14} />
+ </button>
+ <button
+ className="p-2 rounded-lg hover:bg-red-50 text-gray-700 hover:text-red-500 transition-colors"
+ onClick={() => { if (window.confirm(`Delete category "${cat.name}"?`)) deleteProductCategory(cat.id); }}
+ >
+ <Trash2 size={14} />
+ </button>
+ </div>
+ </>
+ )}
+ </div>
+ ))}
+ {productCategories.length === 0 && (
+ <p className="text-sm text-gray-500 col-span-2">No product categories yet. Add one above.</p>
+ )}
+ </div>
+ </div>
+ </div>
+
  {/* Threat Intelligence / Stock Alerts */}
  <div className="glass-panel !rounded-bento p-6 border border-black/5 flex flex-col md:flex-row items-center gap-4 bg-surface shadow-premium">
  <div className="w-24 h-24 rounded-pill bg-orange-50 text-orange-500 flex items-center justify-center shrink-0 shadow-sm">
@@ -474,6 +608,9 @@ const Settings = () => {
  </div>
  </div>
 
+ {/* Theme Picker — owner only */}
+ {isOwner && <ThemePicker />}
+
  {/* Data Import / Export */}
  <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
  <div className="bg-ink-primary p-6 flex items-center justify-between">
@@ -489,7 +626,7 @@ const Settings = () => {
  </p>
  <button
  className="btn-signature w-full !rounded-xl !py-5 !text-xs flex items-center justify-center gap-3"
- onClick={() => setShowDataTools(true)}
+ onClick={() => navigate(`/${tenantSlug}/data-tools`)}
  >
  <FileDown size={18} />
  OPEN DATA TOOLS
@@ -536,8 +673,7 @@ const Settings = () => {
  </div>
  </div>
 
- {/* DataTools Modal */}
- <DataTools isOpen={showDataTools} onClose={() => setShowDataTools(false)} />
+
 
  {/* Upgrade Modal */}
  {showUpgradeModal && (

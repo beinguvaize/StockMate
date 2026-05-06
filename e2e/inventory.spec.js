@@ -9,8 +9,8 @@ const AUTH_FILE = path.join(__dirname, '.auth/user.json');
 async function gotoTenant(page, route) {
   await page.goto(`/${TENANT_SLUG}/${route}`);
   await page.waitForFunction(
-    () => !document.querySelector('.animate-spin'),
-    { timeout: 12_000 }
+    () => !document.querySelector('.animate-spin') && !document.querySelector('[data-testid="global-loading"]'),
+    { timeout: 15_000 }
   );
 }
 

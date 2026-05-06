@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useTenant } from '../../context/TenantContext';
 import useReportData from './useReportData';
 import ReportShell from './ReportShell';
 import {
@@ -18,7 +18,7 @@ import { buildGSTR1 } from '../../utils/gstReporting';
  * Compatible with GST Portal JSON schema (can be exported and uploaded).
  */
 const GSTR1Report = () => {
-  const { businessProfile } = useAppContext();
+  const { businessProfile } = useTenant();
   const businessState = businessProfile?.state || businessProfile?.business_state || 'KERALA';
 
   const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: '*', dateColumn: 'date' });

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useAppContext } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
+import { useTenant } from '../../context/TenantContext';
+import { useNotifications } from '../../hooks/useNotifications';
 import { supabase } from '../../lib/supabase';
 import { 
   Shield, Users, Building, Activity, 
@@ -10,7 +12,9 @@ import {
 import ErrorDiagnosticsPanel from '../../components/admin/ErrorDiagnosticsPanel';
 
 const SuperAdminPortal = () => {
-  const { currentUser, impersonateTenant, addNotification, isMaintenance, setIsMaintenance, cacheClear } = useAppContext();
+  const { currentUser } = useAuth();
+  const { impersonateTenant, isMaintenance, setIsMaintenance, cacheClear } = useTenant();
+  const { addNotification } = useNotifications();
   const [tenants, setTenants] = useState([]);
   const [globalStats, setGlobalStats] = useState({
     totalTenants: 0,

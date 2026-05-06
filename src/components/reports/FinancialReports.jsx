@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import { DollarSign, TrendingUp, CreditCard, PieChart as PieChartIcon, ArrowUpRight, ArrowDownRight, Download} from 'lucide-react';
 import { downloadCSV} from '../../utils/csvExport';
+import { parseLocalDate } from '../../lib/utils';
 
 const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
   const navigate = useNavigate();
@@ -23,7 +24,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
 }
 
  sales.forEach(sale => {
- const d = new Date(sale.date);
+ const d = parseLocalDate(sale.date);
  const monthKey = d.toLocaleString('default', { month: 'short', year: '2-digit'});
  if (monthlyData[monthKey]) {
  monthlyData[monthKey].revenue += sale.totalAmount;
@@ -31,7 +32,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
 });
 
  expenses.forEach(exp => {
- const d = new Date(exp.date);
+ const d = parseLocalDate(exp.date);
  const monthKey = d.toLocaleString('default', { month: 'short', year: '2-digit'});
  if (monthlyData[monthKey]) {
  monthlyData[monthKey].expenses += exp.amount;

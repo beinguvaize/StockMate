@@ -1,15 +1,16 @@
 import React, { useMemo} from 'react';
-import { 
- TrendingUp, Award, BarChart3, PieChart, Target, 
+import {
+ TrendingUp, Award, BarChart3, PieChart, Target,
  ArrowUpRight, ArrowDownRight, Zap, ShoppingBag
 } from 'lucide-react';
+import { parseLocalDate } from '../../lib/utils';
 
 const ReportPerformance = ({ sales, products, businessProfile}) => {
  const performanceData = useMemo(() => {
  const now = new Date();
  const thirtyDaysAgo = new Date(now.setDate(now.getDate() - 30));
  
- const recentSales = (sales || []).filter(s => new Date(s.date) >= thirtyDaysAgo);
+ const recentSales = (sales || []).filter(s => parseLocalDate(s.date) >= thirtyDaysAgo);
  const totalRevenue = recentSales.reduce((sum, s) => sum + s.totalAmount, 0);
  
  // Product performance

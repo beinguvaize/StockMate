@@ -1,11 +1,14 @@
 import React from 'react';
 import { Navigate, useLocation, useParams } from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
 import { ShieldAlert, Lock, Sparkles } from 'lucide-react';
 import { getRequiredPlan, PLANS } from '../lib/tenancy';
 
-export function ProtectedRoute({ children, requireGlobalAdmin = false }) {
- const { session, currentUser, loading, hasPermission, currentTenant, isModuleAllowed } = useAppContext();
+export function ProtectedRoute({ children, requireGlobalAdmin = false, requireOwner = false }) {
+  const { session, currentUser, hasPermission, isOwner, loading: authLoading } = useAuth();
+  const { currentTenant, isModuleAllowed, loading: tenantLoading } = useTenant();
+  const loading = authLoading || tenantLoading;
  const location = useLocation();
  const { tenantSlug } = useParams();
 
@@ -20,10 +23,35 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false }) {
  );
  }
 
- // Authentication Guard
- if (!session && !currentUser) {
- return <Navigate to="/login" state={{ from: location }} replace />;
- }
+  // Authentication Guard
+  if (!session && !currentUser) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // GLOBAL ADMIN BYPASS: Complete platform sovereignty
+  if (currentUser?.roles?.includes('GLOBAL_ADMIN')) return children;
+
+  // Owner-only guard
+  if (requireOwner && !isOwner) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[80vh] p-5 animate-in fade-in zoom-in duration-500">
+        <div className="glass-panel max-w-[500px] w-full text-center p-6 border-red-500/10">
+          <div className="flex justify-center mb-8">
+            <div className="bg-red-500/5 p-5 rounded-full text-red-500">
+              <Lock size={64} strokeWidth={2.5} />
+            </div>
+          </div>
+          <h2 className="text-4xl font-semibold text-[#111] mb-4 leading-none">Owner Only</h2>
+          <p className="text-[10px] font-semibold text-[#747576] opacity-70 mb-10 leading-relaxed max-w-[300px] mx-auto">
+            Only the account owner can import data.
+          </p>
+          <button className="btn-signature w-full h-16 !bg-ink-primary !text-white" onClick={() => window.history.back()}>
+            GO BACK
+          </button>
+        </div>
+      </div>
+    );
+  }
 
  // Global Admin route guard
  if (requireGlobalAdmin) {
@@ -66,16 +94,16 @@ export function ProtectedRoute({ children, requireGlobalAdmin = false }) {
  'orders': 'sales', // Pipeline is part of sales
  'expenses': 'expenses',
  'clients': 'clients',
- 'suppliers': 'suppliers',
- 'payroll': 'payroll',
- 'daybook': 'daybook',
- 'vehicles': 'vehicles',
- 'reports': 'reports',
- 'users': 'users',
- 'settings': 'settings',
- 'invoices': 'invoices',   // STARTER+ (all plans); ensures route is gated, not bypassed
- 'audit-log': 'audit-log', // ENTERPRISE-only
- };
+  'suppliers': 'suppliers',
+  'payroll': 'payroll',
+  'daybook': 'daybook',
+  'vehicles': 'vehicles',
+  'reports': 'reports',
+  'users': 'users',
+  'settings': 'settings',
+  'invoices': 'invoices',   // STARTER+ (all plans); ensures route is gated, not bypassed
+  'audit-log': 'audit-log', // ENTERPRISE-only
+  };
 
  const moduleKey = moduleMap[path];
 

@@ -1,11 +1,26 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAppContext } from '../context/AppContext';
-import { ShieldAlert, LogOut, Mail, ArrowLeft } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { ShieldAlert, LogOut, Mail, RefreshCcw } from 'lucide-react';
 
 const NoAccess = () => {
-  const { logout, currentUser } = useAppContext();
+  const { logout, currentUser, isAdmin } = useAuth();
   const navigate = useNavigate();
+
+  // Self-rescue for Global Admins
+  React.useEffect(() => {
+    const userEmail = currentUser?.email?.toLowerCase();
+    const isGlobalAdmin = isAdmin || 
+                         userEmail === 'uvaize@hotmail.com' || 
+                         userEmail === 'gladmin@ledgrpro.ca';
+                         
+    console.log('NoAccess: Auth State:', { userEmail, isAdmin, isGlobalAdmin });
+                         
+    if (isGlobalAdmin) {
+      console.log('NoAccess: Global Admin detected, redirecting to Nexus...');
+      navigate('/nexus-hq', { replace: true });
+    }
+  }, [currentUser, isAdmin, navigate]);
 
   return (
     <div className="min-h-screen bg-[#141c1a] flex items-center justify-center p-4 relative overflow-hidden font-inter">
@@ -44,12 +59,25 @@ const NoAccess = () => {
             <span className="text-sm tracking-tight uppercase">Switch Account / Sign Out</span>
           </button>
 
+          <button 
+            onClick={async () => {
+              console.log('Hard Reset Triggered');
+              localStorage.clear();
+              sessionStorage.clear();
+              await logout();
+              window.location.href = '/login';
+            }}
+            className="w-full h-16 bg-accent-signature/10 border border-accent-signature/20 text-accent-signature font-bold font-sora rounded-2xl hover:bg-accent-signature/20 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
+          >
+            <RefreshCcw className="w-5 h-5 animate-spin" />
+            <span className="text-sm tracking-tight uppercase">Emergency Platform Sync</span>
+          </button>
+
           <a 
             href="mailto:support@ledgr.pro"
-            className="w-full h-16 bg-black/40 border border-white/10 text-white font-bold font-sora rounded-2xl hover:bg-black/60 transition-all flex items-center justify-center gap-3"
+            className="w-full py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest hover:text-white transition-all text-center"
           >
-            <Mail className="w-5 h-5 text-[#38e0a0]" />
-            <span className="text-sm tracking-tight uppercase">Contact Support</span>
+            Infrastructure Support
           </a>
         </div>
 

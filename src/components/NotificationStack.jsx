@@ -1,9 +1,9 @@
 import React from 'react';
-import { useAppContext} from '../context/AppContext';
+import { useNotifications } from '../context/NotificationContext';
 import { CheckCircle2, AlertCircle, ShoppingCart, DollarSign, X} from 'lucide-react';
 
 const NotificationStack = () => {
- const { notifications} = useAppContext();
+  const { notifications, removeNotification } = useNotifications();
 
  if (notifications.length === 0) return null;
 

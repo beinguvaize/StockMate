@@ -33,38 +33,54 @@ export const INITIAL_BUSINESS = {
 
 export const INITIAL_EXPENSE_CATEGORIES = ['General', 'Inventory', 'Logistics', 'Payroll', 'Utilities', 'Marketing', 'Rent', 'Other'];
 
+export const AVAILABLE_ROLES = ['OWNER', 'SALES', 'INVENTORY', 'STAFF', 'GLOBAL_ADMIN'];
+
+export const MODULES_CONFIG = [
+  { key: 'inventory', label: 'Inventory' },
+  { key: 'sales', label: 'Sales' },
+  { key: 'purchases', label: 'Purchases' },
+  { key: 'expenses', label: 'Expenses' },
+  { key: 'clients', label: 'Clients' },
+  { key: 'suppliers', label: 'Suppliers' },
+  { key: 'vehicles', label: 'Vehicles' },
+  { key: 'reports', label: 'Reports' },
+  { key: 'payroll', label: 'Payroll' },
+  { key: 'users', label: 'Users' },
+  { key: 'settings', label: 'Settings' },
+  { key: 'daybook', label: 'Day Book' }
+];
+
 export const DEFAULT_PERMISSIONS = {
-  inventory: { view: true, edit: false },
-  sales: { view: true, edit: true },
-  purchases: { view: true, edit: false },
-  expenses: { view: true, edit: false },
-  clients: { view: true, edit: true },
-  suppliers: { view: true, edit: false },
-  vehicles: { view: true, edit: false },
+  dashboard: { view: false, edit: false },
+  inventory: { view: false, edit: false },
+  sales: { view: false, edit: false },
+  purchases: { view: false, edit: false },
+  expenses: { view: false, edit: false },
+  clients: { view: false, edit: false },
+  suppliers: { view: false, edit: false },
+  vehicles: { view: false, edit: false },
   reports: { view: false, edit: false },
   payroll: { view: false, edit: false },
   users: { view: false, edit: false },
   settings: { view: false, edit: false },
-  daybook: { view: true, edit: true }
+  daybook: { view: false, edit: false }
 };
 
-export const MODULES_CONFIG = [
-  { key: 'inventory', label: 'Inventory Management', icon: 'Package' },
-  { key: 'sales', label: 'Sales & Invoicing', icon: 'ShoppingCart' },
-  { key: 'purchases', label: 'Purchases (Stock-In)', icon: 'ShoppingBag' },
-  { key: 'expenses', label: 'Expense Tracking', icon: 'Wallet' },
-  { key: 'clients', label: 'Client Directory', icon: 'Users' },
-  { key: 'suppliers', label: 'Supplier Network', icon: 'Truck' },
-  { key: 'vehicles', label: 'Fleet Management', icon: 'Truck' },
-  { key: 'reports', label: 'Business Intelligence', icon: 'BarChart3' },
-  { key: 'payroll', label: 'HR & Payroll', icon: 'Banknote' },
-  { key: 'users', label: 'Personnel & Permissions', icon: 'UserPlus' },
-  { key: 'settings', label: 'Global Settings', icon: 'Settings' },
-  { key: 'daybook', label: 'Day Book', icon: 'BookOpen' }
+export const GST_RATES = [0, 5, 12, 18, 28];
+export const CURRENCIES = [
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee' },
+  { code: 'AED', symbol: 'AED', name: 'UAE Dirham' },
+  { code: 'USD', symbol: '$', name: 'US Dollar' },
+  { code: 'EUR', symbol: '€', name: 'Euro' },
+  { code: 'GBP', symbol: '£', name: 'British Pound' }
 ];
 
-export const AVAILABLE_ROLES = [
-  { id: 'GLOBAL_ADMIN', label: 'Global Admin', color: 'bg-purple-100 text-purple-700' },
-  { id: 'OWNER', label: 'Owner/Manager', color: 'bg-blue-100 text-blue-700' },
-  { id: 'STAFF', label: 'Staff/Operator', color: 'bg-gray-100 text-gray-700' }
+export const TAX_SLABS = [
+  { label: '0%', value: 0 },
+  { label: '5%', value: 5 },
+  { label: '12%', value: 12 },
+  { label: '18%', value: 18 },
+  { label: '28%', value: 28 }
 ];
+
+export const UNITS = ['PCS', 'KG', 'LITRE', 'BOX', 'PACK', 'DOZEN', 'SET', 'BAG', 'SQFT', 'MSTR'];

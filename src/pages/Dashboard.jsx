@@ -1,8 +1,16 @@
 import React, { useMemo, useState, useEffect} from 'react';
-import { useAppContext} from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { useInventory } from '../hooks/useInventory';
+import { useSales } from '../hooks/useSales';
+import { usePurchases } from '../hooks/usePurchases';
+import { useFinance } from '../hooks/useFinance';
+import { usePeople } from '../hooks/usePeople';
+import { useOperations } from '../hooks/useOperations';
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, LayoutDashboard, Activity, Users, Calendar} from 'lucide-react';
 import { useNavigate} from 'react-router-dom';
 import DailyRevenueTrendChart from '../components/DailyRevenueTrendChart';
+import { todayISOInAppTZ, formatDate, parseLocalDate } from '../lib/utils';
 import { 
  ResponsiveContainer, 
  AreaChart, 
@@ -20,16 +28,28 @@ import {
 } from 'recharts';
 
 const Dashboard = () => {
- const { 
- sales, purchases, expenses, products, businessProfile, routes, 
- movementLog, clients, employees, payrollRecords, clientPayments, dayBook,
- inventoryBalances, inventoryLocations
-} = useAppContext();
+  const { currentTenant, currentTenantId, businessProfile } = useTenant();
+  const slug = currentTenant?.slug || '';
+  const { products } = useInventory(currentTenantId);
+  const { sales } = useSales(currentTenantId);
+  const { purchases } = usePurchases(currentTenantId);
+  const { expenses, dayBook } = useFinance(currentTenantId);
+  const { clients, employees } = usePeople(currentTenantId);
+  const { routes, movementLog } = useOperations(currentTenantId);
+
+  // Placeholders for remaining data
+  const payrollRecords = [];
+  const clientPayments = [];
  const navigate = useNavigate();
 
  // Core Metrics Calculation
  const [datePreset, setDatePreset] = useState('Today');
  const [customRange, setCustomRange] = useState({ start: '', end: ''});
+ const [heroVisible, setHeroVisible] = useState(true);
+ useEffect(() => {
+   const t = setTimeout(() => setHeroVisible(false), 15000);
+   return () => clearTimeout(t);
+ }, []);
 
  const isWithinRange = (dateStr) => {
  if (!dateStr) return false;
@@ -66,7 +86,7 @@ const Dashboard = () => {
  const rangeExpenses = (expenses || []).filter(e => isWithinRange(e.date)).reduce((sum, e) => sum + (e.amount || 0), 0);
   const rangePurchases = (purchases || []).filter(p => isWithinRange(p.date)).reduce((sum, p) => sum + (p.total_cost || p.total_amount || 0), 0);
  
- const todayStr = new Date().toISOString().split('T')[0];
+ const todayStr = todayISOInAppTZ();
  const todaysDayBook = (dayBook || []).find(db => db.date === todayStr);
  const currentCashBalance = todaysDayBook ? (todaysDayBook.closing_balance || 0) : 0;
  
@@ -173,7 +193,7 @@ const Dashboard = () => {
  const txs = [];
  (sales || []).forEach(s => txs.push({ id: `sale-${s.id}`, time: s.date, type: 'Sale', desc: `Sale to ${s.customerName || 'Walk-in'}`, amount: s.totalAmount, isPositive: true}));
  (expenses || []).forEach(e => txs.push({ id: `exp-${e.id}`, time: e.date, type: 'Expense', desc: e.description || e.category, amount: e.amount, isPositive: false}));
- return txs.sort((a, b) => new Date(b.time) - new Date(a.time)).slice(0, 10);
+ return txs.sort((a, b) => (b.time > a.time ? 1 : b.time < a.time ? -1 : 0)).slice(0, 10);
 }, [sales, expenses]);
 
  // Operational Metrics
@@ -229,7 +249,7 @@ const Dashboard = () => {
  
  return events
  .filter(e => e.date && !isNaN(new Date(e.date).getTime()))
- .sort((a, b) => new Date(b.date) - new Date(a.date))
+ .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0))
  .slice(0, 10);
 }, [sales, routes, movementLog, businessProfile]);
 
@@ -266,7 +286,7 @@ const Dashboard = () => {
  // Process Sales (Income)
  (sales || []).forEach(s => {
  if (!s.date) return;
- const dateStr = new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'});
+ const dateStr = parseLocalDate(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'});
  if (dataMap[dateStr]) {
  dataMap[dateStr].income += (s.totalAmount || 0);
 }
@@ -275,7 +295,7 @@ const Dashboard = () => {
  // Process Expenses (Expense)
  (expenses || []).forEach(exp => {
  if (!exp.date) return;
- const dateStr = new Date(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'});
+ const dateStr = parseLocalDate(exp.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric'});
  if (dataMap[dateStr]) {
  dataMap[dateStr].expense += (exp.amount || 0);
 }
@@ -294,7 +314,7 @@ const Dashboard = () => {
  const last7Days = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
  (sales || []).forEach(o => {
- const oDate = new Date(o.date);
+ const oDate = parseLocalDate(o.date);
  if (oDate >= last7Days && !isNaN(oDate.getTime())) {
  const dayName = days[oDate.getDay()];
  dayMap[dayName] += (o.totalAmount || 0);
@@ -335,9 +355,9 @@ const Dashboard = () => {
  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
 
- const currentWeekSales = (sales || []).filter(o => new Date(o.date) >= sevenDaysAgo).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+ const currentWeekSales = (sales || []).filter(o => parseLocalDate(o.date) >= sevenDaysAgo).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
  const previousWeekSales = (sales || []).filter(o => {
- const d = new Date(o.date);
+ const d = parseLocalDate(o.date);
  return d >= fourteenDaysAgo && d < sevenDaysAgo;
 }).reduce((sum, o) => sum + (o.totalAmount || 0), 0);
 
@@ -347,7 +367,11 @@ const Dashboard = () => {
 
  return (
  <div className="animate-fade-in flex flex-col gap-5">
-  {/* Reference-Style Hero Section (Compressed Height) */}
+  {/* Reference-Style Hero Section (Compressed Height) — fades out after 15s */}
+  <div
+    style={{ transition: 'opacity 1s ease, max-height 1s ease, margin-bottom 1s ease' }}
+    className={heroVisible ? 'opacity-100 max-h-[500px]' : 'opacity-0 max-h-0 overflow-hidden !mb-0 pointer-events-none'}
+  >
   <div className="bg-white px-5 py-8 md:px-10 md:py-10 rounded-[2.5rem] shadow-premium border border-black/5 flex flex-col lg:flex-row items-center justify-between gap-10 relative overflow-hidden group">
     <div className="absolute top-0 right-0 w-64 h-64 bg-accent-signature/10 rounded-full blur-3xl -mr-32 -mt-32 transition-all group-hover:bg-accent-signature/20" />
     <div className="flex-1 space-y-5 relative z-10">
@@ -361,7 +385,7 @@ const Dashboard = () => {
       </div>
       <div className="flex flex-wrap items-stretch gap-3">
         <button 
-          onClick={() => navigate('/inventory')}
+          onClick={() => navigate(`/${slug}/inventory`)}
           className="btn-signature pl-6 pr-2 py-2 rounded-full shadow-lg hover:shadow-accent-signature/20 text-[12px]"
         >
           <span>DEPLOY INVENTORY</span>
@@ -370,7 +394,7 @@ const Dashboard = () => {
           </div>
         </button>
         <button 
-          onClick={() => navigate('/reports')}
+          onClick={() => navigate(`/${slug}/reports`)}
           className="px-8 flex items-center justify-center rounded-full font-bold text-[11px] tracking-wide text-ink-primary bg-canvas border border-black/5 hover:bg-white hover:shadow-premium transition-all uppercase"
         >
           ANALYTICS BROWSER
@@ -391,6 +415,7 @@ const Dashboard = () => {
       </div>
     </div>
   </div>
+  </div>{/* end hero fade wrapper */}
 
  {/* Financial Overview & Date Range Selector */}
  <div>
@@ -931,7 +956,7 @@ const Dashboard = () => {
  </div>
  <p className="text-[10px] text-gray-700 font-mono">Current: <strong className="text-red-600">{(inventoryBalances || []).filter(b => b.product_id === item.id).reduce((s, b) => s + b.quantity, 0)}</strong> / Min: {item.low_stock_threshold || 10}</p>
  </div>
- <button onClick={() => navigate('/purchases')} className="ml-3 shrink-0 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white transition-colors text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm">
+ <button onClick={() => navigate(`/${slug}/purchases`)} className="ml-3 shrink-0 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white transition-colors text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm">
  Restock
  </button>
  </div>
@@ -967,7 +992,7 @@ const Dashboard = () => {
  </div>
  <div className="flex items-center justify-between">
  <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Paid: ₹{paid.toLocaleString()} / Total: ₹{total.toLocaleString()}</p>
- <button onClick={() => navigate('/payroll')} className="shrink-0 bg-white border border-amber-200 text-amber-700 hover:bg-amber-600 hover:text-white transition-colors text-xs font-bold px-3 py-1 rounded-xl shadow-sm">
+ <button onClick={() => navigate(`/${slug}/payroll`)} className="shrink-0 bg-white border border-amber-200 text-amber-700 hover:bg-amber-600 hover:text-white transition-colors text-xs font-bold px-3 py-1 rounded-xl shadow-sm">
  Pay Now
  </button>
  </div>
@@ -1009,7 +1034,7 @@ const Dashboard = () => {
  <p className={`text-sm font-semibold font-mono ${colorClass}`}>
  ₹{Math.round(out).toLocaleString()}
  </p>
- <button onClick={() => navigate('/clients')} className="bg-white text-ink-primary hover:bg-ink-primary hover:text-white transition-colors text-[10px] font-semibold px-2.5 py-1.5 rounded-lg shadow-sm">
+ <button onClick={() => navigate(`/${slug}/clients`)} className="bg-white text-ink-primary hover:bg-ink-primary hover:text-white transition-colors text-[10px] font-semibold px-2.5 py-1.5 rounded-lg shadow-sm">
  Collect
  </button>
  </div>
@@ -1054,7 +1079,7 @@ const Dashboard = () => {
  <tr key={tx.id} className="hover:bg-gray-50/50 transition-colors group">
  <td className="py-2 pl-4">
  <p className="text-sm font-bold text-ink-primary">
- {new Date(tx.time).toLocaleDateString([], { month: 'short', day: 'numeric'})}
+ {formatDate(tx.time)}
  </p>
  <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">
  {new Date(tx.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit'})}

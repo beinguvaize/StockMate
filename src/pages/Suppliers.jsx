@@ -1,22 +1,33 @@
 import React, { useState, useMemo} from 'react';
-import { useAppContext} from '../context/AppContext';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { usePeople } from '../hooks/usePeople';
+import { usePurchases } from '../hooks/usePurchases';
+import { useInventory } from '../hooks/useInventory';
 import { 
- Plus, Search, Phone, Mail, MapPin, Building2, 
- Trash2, Edit3, X, Save, ArrowLeft, ArrowUpRight,
- Package, CreditCard, History, User2, Check, Box
+  Plus, Search, Phone, Mail, MapPin, Building2, 
+  Trash2, Edit3, X, Save, ArrowLeft, ArrowUpRight,
+  Package, CreditCard, History, User2, Check, Box
 } from 'lucide-react';
+import { parseLocalDate } from '../lib/utils';
 
 const Suppliers = () => {
+  const { hasPermission } = useAuth();
+  const { currentTenantId, businessProfile } = useTenant();
   const { 
-    suppliers, addSupplier, updateSupplier, deleteSupplier, 
-    purchases, products, businessProfile,
-    isViewOnly, hasPermission, addNotification 
-  } = useAppContext();
+    suppliers, addSupplier, updateSupplier, deleteSupplier 
+  } = usePeople(currentTenantId);
+  const { purchases } = usePurchases(currentTenantId);
+  
+  const isViewOnly = () => false;
+  const addNotification = (msg, type) => console.log(msg, type);
 
- const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useNavigate();
+  const { tenantSlug } = useParams();
+  const [searchTerm, setSearchTerm] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [viewingSupplier, setViewingSupplier] = useState(null);
   const [editingSupplier, setEditingSupplier] = useState(null);
  const [formData, setFormData] = useState({
  name: '',
@@ -28,22 +39,24 @@ const Suppliers = () => {
 });
 
  const filteredSuppliers = useMemo(() => {
- return suppliers.filter(s => 
- s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
- s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
+ return suppliers.filter(s =>  s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
  );
 }, [suppliers, searchTerm]);
 
  const getSupplierStats = (supplierId) => {
  const supplier = suppliers.find(s => s.id === supplierId);
- const supplierPurchases = purchases.filter(p => 
+ const supplierPurchases = purchases.filter(p =>
  p.supplier_id === supplierId || p.supplier_name === supplier?.name
  );
- 
+ const amt = (p) => Number(p.total_amount ?? p.total_cost ?? 0);
+ const isCredit = (pt) => ['CREDIT','UDHAAR','POST-CAPITAL'].includes(String(pt || '').toUpperCase());
+
  return {
- totalProcured: supplierPurchases.reduce((sum, p) => sum + (p.total_cost || 0), 0),
+ totalProcured: supplierPurchases.reduce((sum, p) => sum + amt(p), 0),
+ creditDue: Number(supplier?.balance ?? supplier?.outstanding_balance ?? supplierPurchases.filter(p => isCredit(p.payment_type)).reduce((s,p) => s + amt(p), 0)),
  purchaseCount: supplierPurchases.length,
- lastPurchase: supplierPurchases.sort((a,b) => new Date(b.date) - new Date(a.date))[0]?.date
+ lastPurchase: supplierPurchases.sort((a,b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0))[0]?.date
 };
 };
 
@@ -82,13 +95,13 @@ const Suppliers = () => {
 
   // Lock body scroll when modal is open
   React.useEffect(() => {
-    if (isAdding || viewingSupplier || editingSupplier) {
+    if (isAdding || editingSupplier) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => { document.body.style.overflow = 'unset'; };
-  }, [isAdding, viewingSupplier, editingSupplier]);
+  }, [isAdding, editingSupplier]);
 
   const handleDelete = async (id) => {
     // Explicitly check for ID
@@ -97,7 +110,11 @@ const Suppliers = () => {
       return;
     }
 
-    // Force call for debugging (removing window.confirm to rule out browser blocks)
+    // Restoration of window.confirm for standard UX
+    if (!window.confirm("Delete this supplier? Purchase history will be kept but the supplier record will be removed.")) {
+      return;
+    }
+
     console.log(`[Suppliers] Triggering delete flow for ID: ${id}`);
     
     try {
@@ -121,16 +138,20 @@ const Suppliers = () => {
  {/* Header */}
  <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-6 border-b border-black/5">
  <div>
- <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">SUPPLIERS<span className="text-accent-signature">.</span></h1>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">GLOBAL PROCUREMENT & PARTNER NETWORK</p>
+ <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2">Suppliers<span className="text-accent-signature">.</span></h1>
+ <p className="text-xs font-semibold text-gray-600 opacity-80 mb-6">Manage suppliers and purchase history</p>
  </div>
  {!isViewOnly() && (
- <button className="btn-signature h-14 !px-6 !rounded-pill flex items-center justify-between gap-4 group transition-all" onClick={() => setIsAdding(true)}>
- <span className="text-xs font-semibold px-2">ONBOARD PARTNER</span>
- <div className="icon-nest !w-10 !h-10 bg-black shadow-lg">
- <Plus size={20} className="text-accent-signature" />
- </div>
- </button>
+  <button 
+    data-testid="onboard-partner-btn"
+    className="btn-signature h-14 !px-6 !rounded-pill flex items-center justify-between gap-4 group transition-all" 
+    onClick={() => setIsAdding(true)}
+  >
+  <span className="text-xs font-semibold px-2">Add Supplier</span>
+  <div className="icon-nest !w-10 !h-10 bg-black shadow-lg">
+  <Plus size={20} className="text-accent-signature" />
+  </div>
+  </button>
  )}
  </div>
 
@@ -141,9 +162,9 @@ const Suppliers = () => {
   <Building2 size={40} strokeWidth={2} />
   </div>
   <div className="relative z-10 flex flex-col">
-  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Active Partners</span>
+  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Suppliers</span>
   <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-  {suppliers.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">VENDORS</span>
+  {suppliers.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">TOTAL</span>
   </div>
   </div>
   </div>
@@ -153,10 +174,10 @@ const Suppliers = () => {
   <ArrowUpRight size={40} strokeWidth={2} />
   </div>
   <div className="relative z-10 flex flex-col">
-  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Procurement Volume</span>
+  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Total Purchased</span>
   <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
   <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
-  {purchases.reduce((sum, p) => sum + (p.total_cost || 0), 0).toLocaleString()}
+  {purchases.reduce((sum, p) => sum + Number(p.total_amount ?? p.total_cost ?? 0), 0).toLocaleString()}
   </div>
   </div>
   </div>
@@ -166,9 +187,9 @@ const Suppliers = () => {
   <Box size={40} strokeWidth={2} />
   </div>
   <div className="relative z-10 flex flex-col">
-  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Logistics Inflows</span>
+  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Purchase Orders</span>
   <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-  {purchases.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">ORDERS</span>
+  {purchases.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">TOTAL</span>
   </div>
   </div>
   </div>
@@ -181,9 +202,10 @@ const Suppliers = () => {
   <div className="flex-1 w-full relative group h-[56px]">
   <Search size={22} strokeWidth={2.5} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-30 group-focus-within:opacity-100 transition-opacity" />
   <input 
+  data-testid="search-suppliers-input"
   type="text" 
   className="w-full h-full pl-16 pr-6 bg-canvas border border-black/5 rounded-pill text-[13px] font-bold text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all placeholder:text-gray-400 uppercase tracking-wide" 
-  placeholder="SEARCH VENDORS, CONTACTS OR IDS..." 
+  placeholder="Search suppliers or contacts..."
   value={searchTerm}
   onChange={e => setSearchTerm(e.target.value)}
   />
@@ -194,7 +216,7 @@ const Suppliers = () => {
  {filteredSuppliers.map(s => {
  const stats = getSupplierStats(s.id);
  return (
- <div key={s.id} className="glass-panel !p-0 !rounded-[2.5rem] border border-black/5 bg-white hover:shadow-premium transition-all overflow-hidden group">
+  <div key={s.id} data-testid="supplier-row" className="glass-panel !p-0 !rounded-[2.5rem] border border-black/5 bg-white hover:shadow-premium transition-all overflow-hidden group">
  <div className="p-6">
  <div className="flex justify-between items-start mb-6">
  <div className="flex items-center gap-4">
@@ -207,14 +229,22 @@ const Suppliers = () => {
  </div>
  </div>
  <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
- <button onClick={() => openEditModal(s)} className="p-2 rounded-xl border border-black/5 hover:bg-canvas transition-colors text-gray-700">
- <Edit3 size={14} />
- </button>
- {!isViewOnly() && (
- <button onClick={() => handleDelete(s.id)} className="p-2 rounded-xl border border-black/5 hover:bg-red-50 hover:text-red-500 transition-colors text-gray-700">
- <Trash2 size={14} />
- </button>
- )}
+  <button 
+    data-testid="edit-supplier-btn"
+    onClick={() => openEditModal(s)} 
+    className="p-2 rounded-xl border border-black/5 hover:bg-canvas transition-colors text-gray-700"
+  >
+  <Edit3 size={14} />
+  </button>
+  {!isViewOnly() && (
+  <button 
+    data-testid="delete-supplier-btn"
+    onClick={() => handleDelete(s.id)} 
+    className="p-2 rounded-xl border border-black/5 hover:bg-red-50 hover:text-red-500 transition-colors text-gray-700"
+  >
+  <Trash2 size={14} />
+  </button>
+  )}
  </div>
  </div>
 
@@ -229,11 +259,17 @@ const Suppliers = () => {
  </div>
  </div>
 
- <div className="grid grid-cols-2 gap-2">
+ <div className="grid grid-cols-3 gap-2">
  <div className="bg-canvas p-3 rounded-lg border border-black/5">
  <p className="text-[8px] font-semibold text-gray-700 opacity-70 mb-1">Procured</p>
  <p className="text-xs font-semibold text-ink-primary truncate">
  {businessProfile?.currencySymbol || '₹'}{stats.totalProcured.toLocaleString()}
+ </p>
+ </div>
+ <div className={`p-3 rounded-lg border ${stats.creditDue > 0 ? 'bg-red-50 border-red-100' : 'bg-canvas border-black/5'}`}>
+ <p className="text-[8px] font-semibold text-gray-700 opacity-70 mb-1">You Owe</p>
+ <p className={`text-xs font-semibold truncate ${stats.creditDue > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+ {businessProfile?.currencySymbol || '₹'}{stats.creditDue.toLocaleString()}
  </p>
  </div>
  <div className="bg-canvas p-3 rounded-lg border border-black/5">
@@ -246,10 +282,10 @@ const Suppliers = () => {
  </div>
  
  <button 
- onClick={() => setViewingSupplier(s)}
+ onClick={() => navigate(`/${tenantSlug}/suppliers/ledger/${s.id}`)}
  className="w-full py-2 bg-ink-primary text-surface text-[10px] font-semibold hover:bg-ink-primary/95 transition-all flex items-center justify-center gap-3"
  >
- View Activity Log
+ View Transactions
  <ArrowUpRight size={14} className="text-accent-signature" />
  </button>
  </div>
@@ -265,8 +301,8 @@ const Suppliers = () => {
  <div className="glass-modal !max-w-xl">
  <div className="flex justify-between items-start mb-3 border-b border-black/5 pb-3">
  <div>
- <h1 className="text-lg font-semibold text-ink-primary leading-none mb-1">PARTNER ONBOARDING.</h1>
- <p className="text-[9px] font-semibold text-gray-700 opacity-60">Register new supply vector</p>
+ <h1 className="text-lg font-semibold text-ink-primary leading-none mb-1">Add Supplier</h1>
+ <p className="text-[10px] font-semibold text-gray-700 opacity-60">Register a new supplier</p>
  </div>
  <button className="w-7 h-7 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer" onClick={() => setIsAdding(false)}>
  <X size={14} />
@@ -276,7 +312,7 @@ const Suppliers = () => {
  <form onSubmit={handleSubmit} className="space-y-2.5 mt-2">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
  <div className="md:col-span-2">
- <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Entity Name</label>
+ <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Supplier Name</label>
  <input required type="text" className="w-full bg-canvas border-none rounded-lg p-2.5 font-semibold text-base text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
  </div>
 
@@ -302,7 +338,7 @@ const Suppliers = () => {
  </div>
 
  <button type="submit" disabled={loading} className="w-full btn-signature !h-10 !text-xs flex items-center justify-center !rounded-pill mt-2">
- {loading ? 'INITIALIZING...' : 'INITIALIZE PARTNERSHIP'}
+ {loading ? 'Saving...' : 'Add Supplier'}
  <Check size={16} className="ml-2" />
  </button>
  </form>
@@ -316,8 +352,8 @@ const Suppliers = () => {
       <div className="glass-modal !max-w-xl">
         <div className="flex justify-between items-start mb-3 border-b border-black/5 pb-3">
           <div>
-            <h1 className="text-lg font-semibold text-ink-primary leading-none mb-1">EDIT PARTNER.</h1>
-            <p className="text-[9px] font-semibold text-gray-700 opacity-60">Update supply vector details</p>
+            <h1 className="text-lg font-semibold text-ink-primary leading-none mb-1">Edit Supplier</h1>
+            <p className="text-[10px] font-semibold text-gray-700 opacity-60">Update supplier details</p>
           </div>
           <button 
             className="w-7 h-7 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer" 
@@ -333,7 +369,7 @@ const Suppliers = () => {
         <form onSubmit={handleEditSubmit} className="space-y-2.5 mt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             <div className="md:col-span-2">
-              <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Entity Name</label>
+              <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Supplier Name</label>
               <input required type="text" className="w-full bg-canvas border-none rounded-lg p-2.5 font-semibold text-base text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
             </div>
 
@@ -367,67 +403,6 @@ const Suppliers = () => {
     </div>
   )}
 
-  {/* Activity Log Modal */}
-  {viewingSupplier && (
-    <div className="modal-overlay">
-      <div className="glass-modal !max-w-3xl !p-0 overflow-hidden flex flex-col max-h-[85vh]">
-        <div className="p-6 border-b border-black/5 flex justify-between items-center bg-canvas/30">
-          <div>
-            <h2 className="text-xl font-bold text-ink-primary flex items-center gap-2">
-              <History size={20} className="text-accent-signature" />
-              PARTNER HISTORY
-            </h2>
-            <p className="text-[10px] font-semibold text-gray-500 uppercase mt-1">
-              {viewingSupplier.name} | Procurement Log
-            </p>
-          </div>
-          <button 
-            onClick={() => setViewingSupplier(null)}
-            className="w-8 h-8 flex items-center justify-center hover:bg-black/5 rounded-full transition-colors opacity-60 hover:opacity-100"
-          >
-            <X size={16} />
-          </button>
-        </div>
-        
-        <div className="p-6 overflow-y-auto custom-scrollbar flex-1 bg-surface space-y-4">
-          {purchases.filter(p => p.supplier_id === viewingSupplier.id || p.supplier_name === viewingSupplier.name).length === 0 ? (
-            <div className="py-12 flex flex-col items-center justify-center text-center opacity-50">
-              <Box size={48} className="mb-4 text-gray-300" strokeWidth={1} />
-              <p className="text-sm font-semibold text-ink-primary">No procurement history found</p>
-              <p className="text-[10px] uppercase mt-1">Generate a purchase order to begin tracking</p>
-            </div>
-          ) : (
-            purchases
-              .filter(p => p.supplier_id === viewingSupplier.id || p.supplier_name === viewingSupplier.name)
-              .sort((a,b) => new Date(b.date) - new Date(a.date))
-              .map(p => (
-                <div key={p.id} className="p-4 bg-white border border-black/5 rounded-xl shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-black/5 text-ink-primary">
-                        ORD-{p.id.split('-')[1]?.substring(0,6) || p.id.substring(0,8)}
-                      </span>
-                      <span className="text-xs font-medium text-gray-500">
-                        {new Date(p.date).toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
-                    <p className="text-sm font-semibold text-ink-primary">
-                      {p.quantity} Unit{p.quantity > 1 ? 's' : ''} procured
-                    </p>
-                  </div>
-                  <div className="flex flex-col md:items-end">
-                    <span className="text-lg font-bold text-ink-primary tracking-tight">
-                      {businessProfile?.currencySymbol || '₹'}{(p.total_cost || 0).toLocaleString()}
-                    </span>
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase mt-0.5">Total Value</span>
-                  </div>
-                </div>
-              ))
-          )}
-        </div>
-      </div>
-    </div>
-  )}
   </>
   );
 };

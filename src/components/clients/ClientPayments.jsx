@@ -1,111 +1,173 @@
-import React, { useMemo, useState} from 'react';
-import { Search, CreditCard, Calendar, Download, Trash2, CheckCircle2} from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Search, CreditCard, Download, Wallet, Smartphone, Landmark, TrendingUp, Users, Calendar } from 'lucide-react';
+import { formatDate, formatCurrency } from '../../lib/utils';
 
-const ClientPayments = ({ clientPayments, clients, businessProfile}) => {
- const [searchTerm, setSearchTerm] = useState('');
+const METHOD_ICON = { CASH: Wallet, CARD: CreditCard, UPI: Smartphone, BANK: Landmark, CHEQUE: Landmark };
+const METHOD_LABEL = { CASH: 'Cash', CARD: 'Card', UPI: 'UPI', BANK: 'Bank Transfer', CHEQUE: 'Cheque' };
+const METHOD_COLOR = {
+  CASH:   'bg-emerald-50 text-emerald-700 border-emerald-100',
+  CARD:   'bg-blue-50   text-blue-700   border-blue-100',
+  UPI:    'bg-purple-50 text-purple-700 border-purple-100',
+  BANK:   'bg-sky-50    text-sky-700    border-sky-100',
+  CHEQUE: 'bg-amber-50  text-amber-700  border-amber-100',
+};
 
- const filteredPayments = useMemo(() => {
- return (clientPayments || [])
- .map(p => {
- const client = (clients || []).find(c => c.id === p.client_id);
- return { ...p, client_name: client ? client.name : 'Unknown Client'};
-})
- .filter(p => 
- p.client_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
- p.notes?.toLowerCase().includes(searchTerm.toLowerCase()) ||
- p.id.toLowerCase().includes(searchTerm.toLowerCase())
- )
- .sort((a, b) => new Date(b.date) - new Date(a.date));
-}, [clientPayments, clients, searchTerm]);
+const ClientPayments = ({ clientPayments, clients, businessProfile }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const sym = businessProfile?.currencySymbol || '₹';
 
- return (
- <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
- {/* Payment Controls */}
- <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-surface/80 backdrop-blur-xl border border-black/5 rounded-xl p-4 shadow-premium">
- <div className="flex items-center gap-4 w-full md:w-auto">
- <div className="w-12 h-12 rounded-lg bg-accent-signature/10 flex items-center justify-center text-accent-signature border border-accent-signature/20 shrink-0">
- <CreditCard size={24} />
- </div>
- <div>
- <h3 className="text-xl font-semibold leading-none">Payment Ledger</h3>
- <p className="text-[9px] font-semibold opacity-[0.85] mt-1">Transaction History</p>
- </div>
- </div>
- 
- <div className="flex flex-1 w-full md:w-auto items-center gap-3 justify-end">
- <div className="relative group w-full md:w-64 max-w-sm">
- <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary opacity-20 group-focus-within:opacity-100 transition-opacity" />
- <input 
- type="text" 
- placeholder="Search payments..." 
- className="input-field !pl-10 !h-12 !py-0 !rounded-lg bg-canvas border border-black/5 shadow-inner text-[10px] font-bold"
- value={searchTerm}
- onChange={e => setSearchTerm(e.target.value)}
- />
- </div>
- <button className="flex items-center gap-2 px-6 py-3 bg-ink-primary text-accent-signature rounded-lg text-[10px] font-semibold hover:scale-105 transition-all shrink-0">
- <Download size={14} /> Export CSV
- </button>
- </div>
- </div>
+  const enriched = useMemo(() => {
+    return (clientPayments || []).map(p => {
+      const client = (clients || []).find(c => String(c.id) === String(p.client_id));
+      return { ...p, client_name: client?.name || 'Unknown Client' };
+    });
+  }, [clientPayments, clients]);
 
- {/* Payments List */}
- <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
- {filteredPayments.length === 0 ? (
- <div className="col-span-full py-24 text-center glass-panel rounded-[3rem] border-dashed border-2">
- <div className="flex justify-center mb-6 opacity-20">
- <CreditCard size={48} />
- </div>
- <h3 className="text-2xl font-semibold mb-1">No Payments Logged</h3>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Try adjusting your search filters</p>
- </div>
- ) : (
- filteredPayments.map(payment => (
- <div key={payment.id} className="glass-panel !p-5 rounded-xl border border-black/5 hover:border-accent-signature/30 transition-all group flex flex-col relative overflow-hidden bg-white/50">
- <div className="absolute top-0 right-0 w-24 h-24 bg-accent-signature/5 -mr-12 -mt-12 rounded-full blur-2xl group-hover:bg-accent-signature/10 transition-colors" />
- 
- <div className="flex justify-between items-start mb-4 relative z-10">
- <div className="flex flex-col">
- <span className="text-[8px] font-semibold text-gray-700 opacity-[0.85] mb-0.5">Payment ID</span>
- <span className="text-[10px] font-semibold text-ink-primary">#{payment.id.split('-').pop()}</span>
- </div>
- <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-green-50 text-green-600 border border-green-100">
- <CheckCircle2 size={10} />
- <span className="text-[8px] font-semibold">Confirmed</span>
- </div>
- </div>
+  const filtered = useMemo(() => {
+    const q = searchTerm.toLowerCase();
+    return enriched.filter(p =>
+      p.client_name.toLowerCase().includes(q) ||
+      (p.notes || '').toLowerCase().includes(q) ||
+      (METHOD_LABEL[p.payment_method] || '').toLowerCase().includes(q)
+    );
+  }, [enriched, searchTerm]);
 
- <div className="mb-4 relative z-10">
- <h4 className="text-lg font-semibold text-ink-primary leading-tight group-hover:text-accent-signature transition-colors truncate">
- {payment.client_name}
- </h4>
- <div className="flex items-center gap-1 text-[9px] font-bold text-gray-700 opacity-60">
- <Calendar size={9} /> {new Date(payment.date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric'})}
- </div>
- </div>
+  const totalCollected = enriched.reduce((s, p) => s + Number(p.amount), 0);
+  const uniqueClients  = new Set(enriched.map(p => p.client_id)).size;
 
- <div className="mt-auto pt-4 border-t border-dashed border-black/10 flex justify-between items-end relative z-10">
- <div className="flex flex-col">
- <span className="text-[8px] font-semibold text-gray-700 opacity-[0.85] mb-1">Received Amount</span>
- <div className="text-2xl font-semibold text-ink-primary tabular-nums flex items-baseline gap-1 leading-none">
- <span className="text-xs opacity-[0.85]">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(payment.amount).toLocaleString()}
- </div>
- </div>
- {payment.notes && (
- <div className="max-w-[120px] text-right">
- <p className="text-[8px] font-bold text-gray-700 opacity-70 italic truncate" title={payment.notes}>
-"{payment.notes}"
- </p>
- </div>
- )}
- </div>
- </div>
- ))
- )}
- </div>
- </div>
- );
+  const exportCSV = () => {
+    const rows = [
+      ['Date', 'Client', 'Method', 'Amount', 'Notes', 'Recorded At'],
+      ...filtered.map(p => [
+        p.date,
+        p.client_name,
+        METHOD_LABEL[p.payment_method] || p.payment_method,
+        p.amount,
+        p.notes || '',
+        p.created_at ? new Date(p.created_at).toLocaleString() : '',
+      ])
+    ];
+    const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'payment-history.csv'; a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+      {/* Summary KPIs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {[
+          { label: 'Total Collected', value: `${sym}${Math.round(totalCollected).toLocaleString()}`, icon: <TrendingUp size={32} strokeWidth={1.5} />, color: 'text-emerald-500' },
+          { label: 'Transactions',    value: enriched.length,                                         icon: <CreditCard size={32} strokeWidth={1.5} />,  color: 'text-accent-signature' },
+          { label: 'Clients Paid',    value: uniqueClients,                                           icon: <Users size={32} strokeWidth={1.5} />,        color: 'text-blue-400' },
+        ].map((m, i) => (
+          <div key={i} className="bg-white rounded-[1.5rem] border border-black/5 shadow-sm p-5 flex flex-col justify-center relative overflow-hidden group hover:border-black/10 transition-all">
+            <div className={`absolute top-4 right-4 opacity-[0.07] group-hover:opacity-[0.13] transition-opacity pointer-events-none ${m.color}`}>{m.icon}</div>
+            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-1">{m.label}</span>
+            <div className="text-2xl font-black text-ink-primary tabular-nums">{m.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Toolbar */}
+      <div className="flex flex-wrap lg:flex-nowrap items-center justify-between bg-white border border-black/5 rounded-[2rem] shadow-sm p-2 gap-2">
+        <div className="relative group flex-1 max-w-xs ml-2">
+          <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by client, method, notes…"
+            className="w-full h-11 pl-9 pr-4 rounded-pill bg-canvas border border-black/5 text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-black/20 focus:bg-white transition-all"
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <button
+          onClick={exportCSV}
+          className="btn-signature h-11 !rounded-pill !pl-5 !pr-2 flex items-center gap-3 shrink-0"
+        >
+          <span className="text-xs font-bold tracking-wide">EXPORT CSV</span>
+          <div className="w-8 h-8 rounded-full bg-ink-primary flex items-center justify-center">
+            <Download size={14} className="text-accent-signature" />
+          </div>
+        </button>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-[2rem] border border-black/5 shadow-sm overflow-hidden">
+        {filtered.length === 0 ? (
+          <div className="py-24 text-center">
+            <CreditCard size={48} className="mx-auto mb-4 opacity-10" strokeWidth={1} />
+            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No Payments Logged</p>
+            <p className="text-xs text-gray-400 mt-1">Record a client payment from the Settle Account page.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-canvas/60 border-b border-black/5">
+                  <th className="py-3.5 px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
+                  <th className="py-3.5 px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Client</th>
+                  <th className="py-3.5 px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Method</th>
+                  <th className="py-3.5 px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest">Notes</th>
+                  <th className="py-3.5 px-5 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/5">
+                {filtered.map(p => {
+                  const Icon = METHOD_ICON[p.payment_method] || Wallet;
+                  const badge = METHOD_COLOR[p.payment_method] || 'bg-gray-50 text-gray-600 border-gray-100';
+                  return (
+                    <tr key={p.id} className="hover:bg-canvas/50 transition-colors group">
+                      <td className="py-4 px-5">
+                        <div className="text-sm font-semibold text-ink-primary">{formatDate(p.date)}</div>
+                        <div className="text-[10px] text-gray-400 mt-0.5">
+                          {p.created_at ? new Date(p.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                        </div>
+                      </td>
+                      <td className="py-4 px-5">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-accent-signature/10 border border-accent-signature/20 flex items-center justify-center text-xs font-black text-ink-primary shrink-0">
+                            {p.client_name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-sm font-bold text-ink-primary">{p.client_name}</span>
+                        </div>
+                      </td>
+                      <td className="py-4 px-5">
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[10px] font-bold ${badge}`}>
+                          <Icon size={10} />
+                          {METHOD_LABEL[p.payment_method] || p.payment_method}
+                        </span>
+                      </td>
+                      <td className="py-4 px-5 text-xs text-gray-500 max-w-[200px] truncate">{p.notes || '—'}</td>
+                      <td className="py-4 px-5 text-right">
+                        <span className="text-sm font-black text-emerald-600 tabular-nums">{formatCurrency(p.amount)}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot className="border-t-2 border-black/10 bg-canvas/30">
+                <tr>
+                  <td colSpan="4" className="py-3 px-5 text-xs font-bold text-gray-500 uppercase tracking-widest">
+                    {filtered.length} {filtered.length === 1 ? 'transaction' : 'transactions'}
+                  </td>
+                  <td className="py-3 px-5 text-right">
+                    <span className="text-sm font-black text-emerald-600 tabular-nums">
+                      {formatCurrency(filtered.reduce((s, p) => s + Number(p.amount), 0))}
+                    </span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 };
 
 export default ClientPayments;

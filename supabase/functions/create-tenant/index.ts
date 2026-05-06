@@ -67,14 +67,18 @@ serve(async (req) => {
 
     if (tenantError) throw tenantError;
 
-    // 3. Update User Profile with tenant_id
+    // 3. Upsert User Profile with tenant_id
+    // Use upsert so it works even when public.users row doesn't exist yet
+    // (e.g. after a DB wipe that cleared public.users but kept auth.users)
     const { error: profileError } = await supabaseAdmin
       .from("users")
-      .update({ 
-        tenant_id: tenant.id, 
-        roles: ["OWNER", "STAFF"]
-      })
-      .eq("id", user.id);
+      .upsert({
+        id: user.id,
+        email: user.email,
+        tenant_id: tenant.id,
+        roles: ["OWNER", "STAFF"],
+        name: user.user_metadata?.full_name || user.email?.split('@')[0] || 'Owner',
+      }, { onConflict: 'id' });
 
     if (profileError) throw profileError;
 
@@ -100,6 +104,7 @@ serve(async (req) => {
       ]);
 
     if (settingsError) throw settingsError;
+
 
     return new Response(
       JSON.stringify(tenant),

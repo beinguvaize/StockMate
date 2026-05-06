@@ -48,13 +48,18 @@ export const supabase = isSupabaseConfigured
 
 /**
  * Upload a product image to Supabase Storage.
- * Retained for backwards compatibility with the Inventory module.
+ * Images are stored under {tenantId}/{filename} for tenant isolation.
+ * Each tenant can only list/access photos under their own prefix.
+ *
+ * @param {File}   file     - The image file to upload
+ * @param {string} tenantId - The current tenant's ID (used as storage prefix)
  */
-export const uploadProductImage = async (file) => {
+export const uploadProductImage = async (file, tenantId) => {
   const BUCKET = 'product-images';
   const fileExt = file.name.split('.').pop();
   const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-  const filePath = `products/${fileName}`;
+  const prefix = tenantId || 'shared';
+  const filePath = `${prefix}/${fileName}`;
 
   const { data, error } = await supabase.storage
     .from(BUCKET)
@@ -72,5 +77,68 @@ export const uploadProductImage = async (file) => {
     .from(BUCKET)
     .getPublicUrl(data.path);
 
+  return { url: urlData.publicUrl, error: null };
+};
+
+/**
+ * List recent product images for a tenant from Supabase Storage.
+ * Returns array of { name, url } objects, newest first.
+ *
+ * @param {string} tenantId - The current tenant's ID
+ * @param {number} limit    - Max photos to return (default 24)
+ */
+export const listTenantProductImages = async (tenantId, limit = 24) => {
+  if (!tenantId || !supabase) return [];
+  const BUCKET = 'product-images';
+  const prefix = tenantId;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from(BUCKET)
+      .list(prefix, {
+        limit,
+        sortBy: { column: 'updated_at', ascending: false },
+      });
+
+    if (error) {
+      console.error('Photo library list error:', error);
+      return [];
+    }
+
+    return (data || [])
+      .filter(f => f.name && !f.name.endsWith('/'))
+      .map(f => {
+        const { data: urlData } = supabase.storage
+          .from(BUCKET)
+          .getPublicUrl(`${prefix}/${f.name}`);
+        return { name: f.name, url: urlData.publicUrl };
+      });
+  } catch (err) {
+    console.error('Photo library list threw:', err);
+    return [];
+  }
+};
+
+/**
+ * Generate a DiceBear avatar URL (cartoon style, unique per seed).
+ */
+export const getDefaultAvatar = (seed = 'user', style = 'personas') => {
+  const bg = ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf', 'f0f4d8', 'b5ead7'];
+  const color = bg[Math.abs([...seed].reduce((h, c) => h * 31 + c.charCodeAt(0), 0)) % bg.length];
+  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${color}&radius=50`;
+};
+
+/**
+ * Upload a user avatar to Supabase Storage.
+ */
+export const uploadAvatar = async (file, userId) => {
+  const BUCKET = 'avatars';
+  const ext = file.name.split('.').pop();
+  const path = `${userId}/avatar-${Date.now()}.${ext}`;
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, file, { cacheControl: '3600', upsert: true });
+  if (error) return { url: null, error: error.message };
+  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
   return { url: urlData.publicUrl, error: null };
 };

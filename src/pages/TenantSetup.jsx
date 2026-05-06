@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { Building2, Sparkles, ArrowRight, Loader2, ShieldCheck, ChevronLeft } from 'lucide-react';
-import { useAppContext } from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
 
 const TenantSetup = () => {
   const [businessName, setBusinessName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
-  const { currentUser } = useAppContext();
+  const { currentUser } = useAuth();
   const navigate = useNavigate();
 
   const isGlobalAdmin = currentUser?.roles?.includes('GLOBAL_ADMIN');

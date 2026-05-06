@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
 import ReportShell from './ReportShell';
+import { parseLocalDate } from '../../lib/utils';
 import { 
   DollarSign, TrendingUp, CreditCard, PieChart as PieChartIcon, 
   ArrowUpRight, ArrowDownRight, Download, Activity, Target
@@ -41,12 +42,12 @@ const FinancialReport = () => {
     }
 
     sales.forEach(s => {
-      const key = new Date(s.date).toLocaleString('default', { month: 'short', year: '2-digit' });
+      const key = parseLocalDate(s.date).toLocaleString('default', { month: 'short', year: '2-digit' });
       if (months[key]) months[key].revenue += s.totalAmount || 0;
     });
 
     expenses.forEach(e => {
-      const key = new Date(e.date).toLocaleString('default', { month: 'short', year: '2-digit' });
+      const key = parseLocalDate(e.date).toLocaleString('default', { month: 'short', year: '2-digit' });
       if (months[key]) months[key].expenses += e.amount || 0;
     });
 

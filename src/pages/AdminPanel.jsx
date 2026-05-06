@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useAppContext } from '../context/AppContext';
+import { useNotifications } from '../hooks/useNotifications';
 import { supabase } from '../lib/supabase';
 import { PLANS, TENANT_STATUS, getPlanBadge } from '../lib/tenancy';
 import { 
@@ -10,7 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 
 const AdminPanel = () => {
-  const { addNotification } = useAppContext();
+  const { addNotification } = useNotifications();
   const navigate = useNavigate();
   const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);

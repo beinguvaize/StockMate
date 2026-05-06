@@ -30,7 +30,7 @@ import { isLocked, recordFailure, recordSuccess, timeRemaining } from '../lib/lo
 import { isModuleAvailable, getRequiredPlan, PLANS } from '../lib/tenancy';
 import { logError } from '../lib/errorLogger';
 import { logAuditEvent, AUDIT_ACTIONS, diffRoles } from '../lib/auditLog';
-import { generateUUID } from '../lib/utils';
+import { generateUUID, generateRef, todayISOInAppTZ } from '../lib/utils';
 
 // Domain Hooks
 import { AuthProvider, useAuth } from './AuthContext';
@@ -177,7 +177,13 @@ const AppProviderInner = ({ children }) => {
 
         if (invokeError) {
           console.error("❌ Staff Creation Failed:", invokeError);
-          const errorMessage = invokeError.message || JSON.stringify(invokeError);
+          // invokeError.message is always generic "Edge Function returned a non-2xx status code"
+          // The real error is in the response body — extract it if possible
+          let errorMessage = invokeError.message;
+          try {
+            const body = result || (await invokeError.context?.json?.());
+            if (body?.error) errorMessage = body.error;
+          } catch (_) {}
           addNotification(`Staff creation failed: ${errorMessage}`, "error");
           return false;
         }
@@ -206,10 +212,11 @@ const AppProviderInner = ({ children }) => {
       }
       setSyncStatus('SYNCED');
       setLastSyncedAt(new Date().toISOString());
+      return true;
     }
 
     setUsers(prev => [...prev, newUser]);
-    addNotification(`${userData.name} added locally.`, "warning");
+    addNotification(`${userData.name} added!`, "success");
     return true;
   };
 
@@ -224,8 +231,8 @@ const AppProviderInner = ({ children }) => {
  if (error) {
  console.error("Error updating user in Supabase:", error);
  setSyncStatus('ERROR');
- addNotification("Cloud Sync Delayed: Profile updated locally","warning");
- // Fall through
+ addNotification(`Cloud sync failed: ${error.message}`, "error");
+ return;
 } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
@@ -274,8 +281,8 @@ const AppProviderInner = ({ children }) => {
 }
 }
 
- setUsers(users.filter(u => u.id !== userId));
- addNotification('Staff record removed from system', 'success');
+    setUsers(users.filter(u => u.id !== userId));
+    addNotification('Staff record removed from system', 'success');
 };
 
  // addClient/updateClient/deleteClient moved to SalesContext
@@ -327,10 +334,509 @@ const AppProviderInner = ({ children }) => {
 
   // createInvoice/markInvoicePaid moved to SalesContext
 
-  // updateSale/deleteSale/settleSale moved to SalesContext
+
+ if (clientDeltas.size > 0) {
+ setClients(prev => prev.map(c => {
+ const delta = clientDeltas.get(c.id);
+ return delta ? { ...c, outstanding_balance: Math.max(0, (c.outstanding_balance || 0) + delta)} : c;
+}));
+}
+
+ // Persistence
+ if (isSupabaseConfigured) {
+ for (const [prodId, pDelta] of productDeltas) {
+   await supabase.from('products').update({ stock: Math.max(0, (products.find(p => p.id === prodId)?.stock || 0) + pDelta) }).eq('id', prodId);
+ }
+ for (const [clId, cDelta] of clientDeltas) {
+   const currentClient = clients.find(c => c.id === clId);
+   if (currentClient) {
+     await supabase.from('clients').update({ outstanding_balance: Math.max(0, (currentClient.outstanding_balance || 0) + cDelta)}).eq('id', clId);
+   }
+ }
+ }
+};
+
+ const placeSale = async (clientId, cartItems, subtotal, discount, tax, totalAmount, customerInfo, paymentType = 'cash', routeId = null, status = 'COMPLETED', scheduledDate = null, salesmanNote = '', manualLocationId = null) => {
+    const val = saleSchema.safeParse({ clientId, items: cartItems, totalAmount, paymentMethod: paymentType});
+    if (!val.success) {
+      addNotification("Sale Validation failed:" + val.error.errors[0].message,"error");
+      return;
+    }
+    
+    let totalCogs = 0;
+    const updatedProducts = [...products];
+    
+    // Determine which location to deduct from
+    let locationId = manualLocationId || MAIN_WAREHOUSE_ID;
+    if (routeId && !manualLocationId) {
+      const route = routes.find(r => r.id === routeId);
+      if (route) {
+        // Find vehicle location
+        const loc = inventoryLocations.find(l => l.reference_id === route.vehicleId || l.name.includes(route.vehicleId));
+        if (loc) locationId = loc.id;
+      }
+    }
+
+    const stockAdjustments = [];
+    cartItems.forEach(item => {
+      const pIndex = updatedProducts.findIndex(p => p.id === item.productId);
+      if (pIndex > -1) {
+        if (status === 'COMPLETED') {
+          stockAdjustments.push(adjustLocationStock(item.productId, -item.quantity, locationId));
+          
+          // Legacy check: if warehouse sale, update the products.stock column
+          if (locationId === MAIN_WAREHOUSE_ID) {
+            updatedProducts[pIndex].stock -= item.quantity;
+          }
+        }
+        item.cogs = (updatedProducts[pIndex].costPrice || 0) * item.quantity;
+        totalCogs += item.cogs;
+      }
+    });
+
+    if (stockAdjustments.length > 0) {
+      await Promise.all(stockAdjustments);
+    }
+
+ const newSale = {
+ id: generateRef('SAL'),
+ date: new Date().toISOString(),
+ clientId,
+ items: cartItems,
+ subtotal,
+ discount,
+ tax,
+ totalAmount,
+ totalCogs,
+ customerInfo,
+ paymentMethod: paymentType.charAt(0).toUpperCase() + paymentType.slice(1), // Normalize to 'Cash'/'Credit' for RPC
+ paymentStatus: paymentType === 'cash' ? 'PAID' : 'PENDING',
+ status,
+ routeId,
+ scheduledDate,
+ salesmanNote,
+ bookedBy: currentUser?.id
+};
+
+ if (isSupabaseConfigured) {
+ setSyncStatus('SYNCING');
+ // Priority 2: Atomic Transaction via RPC
+ // RPC reads jsonb items as (id text, quantity numeric, name text). The
+ // POS carries {productId, ...} so we remap here — otherwise the stock
+ // deduction loop sees NULL ids, RPC errors out, and we fall through to
+ // the "Failed to save sale" fallback.
+ const rpcItems = (cartItems || []).map(i => ({
+   id: i.productId || i.id,
+   quantity: i.quantity,
+   name: i.name,
+ }));
+ // Walk-in sale => no client record. Pass NULL, not any of the literal
+ // walk-in sentinels ('WALKIN', 'POS-WALKIN') used upstream — those have
+ // no matching row in clients and the RPC's UPDATE-by-id would break or
+ // silently no-op depending on column types.
+ const isWalkIn = !clientId || ['WALKIN','POS-WALKIN','walk-in','WALK-IN'].includes(clientId);
+ const rpcShopId = isWalkIn ? null : clientId;
+ const { error: rpcError} = await supabase.rpc('process_sale', {
+ p_id: newSale.id,
+ p_shop_id: rpcShopId,
+ p_items: rpcItems,
+ p_total_amount: totalAmount,
+ p_payment_method: newSale.paymentMethod,
+ p_payment_status: newSale.paymentStatus,
+ p_date: newSale.date,
+ p_user_id: currentUser?.id,
+ // Impersonation-safe: GLOBAL_ADMIN override honored server-side only for
+ // admins; non-admins always get their own tenant regardless of payload.
+ p_tenant_id: currentTenantId || null
+});
+
+ if (rpcError) {
+ console.error("❌ Atomic Sale Failed:", rpcError);
+ // Fallback direct insert. Column names match the sales table (camelCase
+ // quoted identifiers), not snake_case. The previous dbSale shape used
+ // total_amount/payment_method/shop_id — none of which exist on the
+ // table — so the fallback always failed alongside the RPC.
+ const dbSale = {
+ id: newSale.id,
+ shopId: rpcShopId,
+ items: rpcItems,
+ totalAmount: totalAmount,
+ paymentMethod: newSale.paymentMethod,
+ paymentStatus: newSale.paymentStatus,
+ date: newSale.date,
+ bookedBy: currentUser?.id,
+ tenant_id: currentTenantId
+};
+
+ const { error: insertError} = await supabase.from('sales').insert(dbSale);
+  if (insertError) {
+  console.error("Error creating sale fallback:", insertError);
+  logError({
+    module: 'Sales',
+    action: 'Place Sale (Fallback)',
+    error_code: insertError.code,
+    error_message: insertError.message,
+    severity: 'High'
+  });
+  setSyncStatus('ERROR');
+  addNotification(`Critical: Failed to save sale. Please check connection.`,"error");
+  return null;
+ }
+ addNotification(`Warning: Atomic sync failed, used legacy fallback.`,"warning");
+}
+ setSyncStatus('SYNCED');
+ setLastSyncedAt(new Date().toISOString());
+}
+
+ // OPTIMISTIC LOCAL UPDATES (Keep UI snappy)
+ setSales(prev => [newSale, ...prev]);
+ 
+ // Update outstanding balance locally (for immediate UI reflect)
+ if (paymentType.toLowerCase() === 'credit') {
+ setClients(prev => prev.map(c => 
+ c.id === clientId 
+ ? { ...c, outstanding_balance: (c.outstanding_balance || 0) + totalAmount}
+ : c
+ ));
+}
+
+ // Update Day Book Cash locally if Cash
+ if (paymentType.toLowerCase() === 'cash') {
+ const today = todayISOInAppTZ();
+ setDayBook(prev => prev.map(db => 
+ db.date === today 
+ ? { ...db, total_sales: (db.total_sales || 0) + totalAmount}
+ : db
+ ));
+}
+
+ // Update local products stock
+ if (status === 'COMPLETED' && locationId === MAIN_WAREHOUSE_ID) {
+      setProducts(updatedProducts);
+    }
+
+    const locName = inventoryLocations.find(l => l.id === locationId)?.name || 'HQ';
+    addNotification(`Sale Processed from ${locName}: ${businessProfile?.currencySymbol || ''}${totalAmount}`, 'success');
+    return newSale.id;
+  };
+
+  const createInvoice = async (invoiceData) => {
+    if (!isSupabaseConfigured) return;
+    setSyncStatus('SYNCING');
+    
+    // 1. Get atomic invoice number via RPC
+    const { data: invNumber, error: rpcError } = await supabase.rpc('get_next_invoice_number');
+    if (rpcError) {
+      console.error("Error getting invoice number:", rpcError);
+      addNotification("Numbering system failure", "error");
+      return;
+    }
+
+    const newInvoice = {
+      ...invoiceData,
+      id: generateUUID(),
+      invoice_number: invNumber,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      tenant_id: currentTenantId
+    };
+
+    // 2. Persist to Supabase
+    const { error } = await supabase.from('invoices').insert(newInvoice);
+    if (error) {
+      console.error("Error creating invoice:", error);
+      logError({
+        module: 'Invoices',
+        action: 'Create Invoice',
+        error_code: error.code,
+        error_message: error.message,
+        severity: 'High'
+      });
+      setSyncStatus('ERROR');
+      addNotification("Failed to save invoice to cloud", "error");
+      return;
+    }
+
+    setInvoices(prev => [newInvoice, ...prev]);
+    cacheSet('invoices', [newInvoice, ...invoices]);
+
+    // 3. Update local client balance optimistically.
+    // The on_invoice_payment_sync DB trigger already recomputed the authoritative
+    // value in clients.outstanding_balance. We mirror that locally so the UI
+    // updates immediately without a full refetch.
+    if (newInvoice.client_id && newInvoice.payment_status !== 'PAID') {
+      const owed = Math.max(0, Number(newInvoice.grand_total) - Number(newInvoice.paid_amount || 0));
+      setClients(prev => prev.map(c =>
+        c.id === newInvoice.client_id
+          ? { ...c, outstanding_balance: (c.outstanding_balance || 0) + owed }
+          : c
+      ));
+    }
+
+    setSyncStatus('SYNCED');
+    addNotification(`Invoice ${invNumber} generated!`, 'success');
+    return newInvoice;
+  };
+
+  const markInvoicePaid = async (invoiceId) => {
+    if (!isSupabaseConfigured) return;
+    
+    // Find invoice to get amount and client info
+    const inv = invoices.find(i => i.id === invoiceId);
+    if (!inv) return;
+
+    setSyncStatus('SYNCING');
+    
+    // 1. Update Invoice Status
+    const { error } = await supabase
+      .from('invoices')
+      .update({ payment_status: 'PAID' })
+      .eq('id', invoiceId)
+      .eq('tenant_id', currentTenantId);
+      
+    if (error) {
+       console.error("Error marking invoice paid:", error);
+       logError({
+         module: 'Invoices',
+         action: 'Mark Invoice Paid',
+         error_code: error.code,
+         error_message: error.message,
+         severity: 'Medium'
+       });
+       setSyncStatus('ERROR');
+       return;
+    }
+
+    // 2. If it's a client invoice, record the payment against their account
+    if (inv.client_id && inv.client_id !== 'POS-WALKIN' && inv.client_id !== 'WALKIN') {
+      await recordClientPayment(
+        inv.client_id, 
+        inv.grand_total, 
+        new Date().toISOString(), 
+        `Payment for Invoice #${inv.invoice_number}`,
+        [invoiceId]
+      );
+    }
+
+    setInvoices(prev => prev.map(item => 
+      item.id === invoiceId ? { ...item, payment_status: 'PAID' } : item
+    ));
+    setSyncStatus('SYNCED');
+    addNotification(`Invoice ${inv.invoice_number} settled successfully`, "success");
+  };
+
+  const updateSale = async (updatedSale) => {
+ // Use functional state to get the absolutely latest old sale version
+ let oldSale;
+ setSales(prev => {
+ oldSale = prev.find(s => s.id === updatedSale.id);
+ return prev;
+});
+
+ // Reconcile based on the detected change
+ await reconcileSaleEffects(oldSale, updatedSale);
+
+ if (isSupabaseConfigured) {
+ setSyncStatus('SYNCING');
+ const { status: saleStatus, clientId, salesmanNote, ...rest} = updatedSale;
+ const dbSale = { 
+ ...rest, 
+ shopId: clientId || updatedSale.shopId, 
+ status: saleStatus,
+ note: salesmanNote || updatedSale.note,
+ tenant_id: currentTenantId
+};
+ 
+ // Cleanup fields that don't exist in the DB schema
+ delete dbSale.clientId; 
+ delete dbSale.salesmanNote;
+
+ const { error} = await supabase.from('sales').upsert(dbSale);
+  if (error) {
+  console.error("Error updating sale in Supabase:", error);
+  logError({
+    module: 'Sales',
+    action: 'Update Sale',
+    error_code: error.code,
+    error_message: error.message,
+    severity: 'Medium'
+  });
+  setSyncStatus('ERROR');
+  addNotification("Failed to update sale in cloud","error");
+  return;
+ } else {
+ setSyncStatus('SYNCED');
+ setLastSyncedAt(new Date().toISOString());
+}
+}
+ setSales(prev => prev.map(s => s.id === updatedSale.id ? updatedSale : s));
+ addNotification(`Sale #${updatedSale.id.split('-').pop()} synchronized`, 'success');
+};
+
+ const deleteSale = async (saleId) => {
+ // Get the latest version of the sale from current state
+ let sale;
+ setSales(prev => {
+ sale = prev.find(s => s.id === saleId);
+ return prev;
+});
+
+ if (!sale) return;
+
+ if (window.confirm("Are you sure you want to PERMANENTLY delete this sale? Stock and balances will be reversed.")) {
+ await reconcileSaleEffects(sale, null);
+
+ if (isSupabaseConfigured) {
+  const { error} = await supabase.from('sales').delete().eq('id', saleId).eq('tenant_id', currentTenantId);
+  if (error) {
+  console.error("Error deleting sale from Supabase:", error);
+  logError({
+    module: 'Sales',
+    action: 'Delete Sale',
+    error_code: error.code,
+    error_message: error.message,
+    severity: 'Medium'
+  });
+  addNotification("Failed to delete sale from cloud","error");
+  return;
+ }
+ // Audit: deleting a sale reverses stock + balances — treat as a refund/void.
+ logAuditEvent({
+   action: AUDIT_ACTIONS.SALE_DELETE,
+   entityType: 'sale',
+   entityId: saleId,
+   summary: `Deleted sale #${saleId.split('-').pop()} (stock & balances reversed)`,
+   metadata: {
+     client_id: sale?.clientId || sale?.client_id || null,
+     total: sale?.total ?? sale?.totalAmount ?? null,
+     payment_type: sale?.paymentType || sale?.payment_type || null,
+     items_count: Array.isArray(sale?.items) ? sale.items.length : 0,
+   },
+ });
+}
+ setSales(prev => prev.filter(s => s.id !== saleId));
+ addNotification("Sale deleted and stock reversed","success");
+}
+};
+
+ const settleSale = async (saleId, amount) => {
+ const sale = sales.find(s => s.id === saleId);
+ if (!sale) return;
+
+ const updatedSale = {
+ ...sale,
+ paidAmount: (sale.paidAmount || 0) + amount,
+ paymentStatus: ((sale.paidAmount || 0) + amount >= sale.totalAmount) ? 'PAID' : 'PARTIAL',
+ lastPaymentDate: new Date().toISOString()
+};
+
+  if (isSupabaseConfigured) {
+    const { error } = await supabase.from('sales').upsert({ ...updatedSale, tenant_id: currentTenantId });
+    if (error) {
+      console.error("Error settling sale in Supabase:", error);
+      logError({
+        module: 'Sales',
+        action: 'Settle Sale (Payment)',
+        error_code: error.code,
+        error_message: error.message,
+        severity: 'Medium'
+      });
+      addNotification("Cloud Sync Delayed: Payment recorded locally", "warning");
+      // Fall through
+    }
+  }
+
+ // Also update client persistent balance if it was a credit sale
+ if (sale.paymentMethod === 'CREDIT' || sale.paymentMethod === 'credit') {
+ const client = clients.find(c => c.id === sale.clientId || c.id === sale.shopId);
+ if (client) {
+ const newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
+ await updateClient({ ...client, outstanding_balance: newBalance});
+}
+}
+
+ setSales(sales.map(s => s.id === saleId ? updatedSale : s));
+ addNotification(`Payment of ${businessProfile?.currencySymbol || ''}${amount} received for Sale #${saleId.split('-').pop()}`, 'success');
+};
 
  // Task 4: Mark as Paid for Client (Enhanced with Invoice Selection)
-  // recordClientPayment moved to SalesContext
+  const recordClientPayment = async (clientId, amount, paymentDate, notes, selectedInvoiceIds = []) => {
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return { success: false, error: 'Client not found'};
+
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+
+      // Update selected invoices. Each update fires on_invoice_payment_sync trigger
+      // which recomputes clients.outstanding_balance automatically — no manual
+      // balance decrement needed.
+      if (selectedInvoiceIds.length > 0) {
+        for (const invId of selectedInvoiceIds) {
+          const inv = invoices.find(i => i.id === invId);
+          if (inv) {
+            await supabase
+              .from('invoices')
+              .update({
+                payment_status: 'PAID',
+                paid_amount: inv.grand_total
+              })
+              .eq('id', invId)
+              .eq('tenant_id', currentTenantId);
+          }
+        }
+      }
+    }
+
+    // Re-read the trigger-computed balance from DB so local state is accurate
+    let newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
+    if (isSupabaseConfigured) {
+      const { data: freshClient } = await supabase
+        .from('clients')
+        .select('outstanding_balance')
+        .eq('id', clientId)
+        .eq('tenant_id', currentTenantId)
+        .single();
+      if (freshClient) newBalance = Number(freshClient.outstanding_balance) || 0;
+    }
+    const updatedClient = { ...client, outstanding_balance: newBalance };
+
+    const paymentRecord = {
+      id: `CPAY-${Date.now()}`,
+      client_id: clientId,
+      amount: amount,
+      date: paymentDate || new Date().toISOString(),
+      notes: notes || '',
+      tenant_id: currentTenantId
+    };
+    
+    if (isSupabaseConfigured) {
+      const { error: payErr } = await supabase.from('client_payments').insert(paymentRecord);
+      if (payErr) {
+        console.error("Error inserting client payment record:", payErr);
+        logError({
+          module: 'Clients',
+          action: 'Record Client Payment (History Insert)',
+          error_code: payErr.code,
+          error_message: payErr.message,
+          severity: 'Medium'
+        });
+      }
+    }
+
+    // Update Local Invoices State
+    if (selectedInvoiceIds.length > 0) {
+      setInvoices(prev => prev.map(inv => 
+        selectedInvoiceIds.includes(inv.id) ? { ...inv, payment_status: 'PAID' } : inv
+      ));
+    }
+
+    setClients(clients.map(c => c.id === clientId ? updatedClient : c));
+    setClientPayments(prev => [paymentRecord, ...prev]);
+    addNotification(`Recorded payment of ${businessProfile?.currencySymbol || ''}${amount} from ${client.name}`,"success");
+    setSyncStatus('SYNCED');
+    return { success: true};
+  };
+
 
   const addProductCategory = async (categoryName) => {
     if (isSupabaseConfigured) {
@@ -429,7 +935,8 @@ const AppProviderInner = ({ children }) => {
     severity: 'Medium'
   });
   setSyncStatus('ERROR');
-  addNotification(`Cloud Sync Delayed: ${error.message}. Local changes saved.`,"warning");
+  addNotification(`Cloud Sync Failed: ${error.message}`, "error");
+  return;
 } else {
  setSyncStatus('SYNCED');
  setLastSyncedAt(new Date().toISOString());
@@ -439,21 +946,21 @@ const AppProviderInner = ({ children }) => {
 };
 
  const deleteProduct = async (id) => {
-  if (isSupabaseConfigured) {
-    const { error } = await supabase.from('products').delete().eq('id', id).eq('tenant_id', currentTenantId);
-    if (error) {
-      console.error("Error deleting product from Supabase:", error);
-      logError({
-        module: 'Inventory',
-        action: 'Delete Product',
-        error_code: error.code,
-        error_message: error.message,
-        severity: 'Medium'
-      });
-      addNotification(`Cloud Sync Delayed: Product removed locally`, "warning");
-      // Fall through
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('products').delete().eq('id', id).eq('tenant_id', currentTenantId);
+      if (error) {
+        console.error("Error deleting product from Supabase:", error);
+        logError({
+          module: 'Inventory',
+          action: 'Delete Product',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'Medium'
+        });
+        addNotification(`Cloud Delete Failed: ${error.message}`, "error");
+        return; // STOP
+      }
     }
-  }
  setProducts(prev => prev.filter(p => p.id !== id));
  setMovementLog(prev => prev.filter(l => l.productId !== id));
 };
@@ -569,11 +1076,12 @@ const AppProviderInner = ({ children }) => {
  const { error} = await supabase.from('vehicles').upsert(newVehicle);
  if (error) {
  console.error("Error adding vehicle to Supabase:", error);
- addNotification("Cloud Sync Delayed: Vehicle saved locally","warning");
- // Fall through
+ addNotification(`Cloud Sync Failed: ${error.message}`, "error");
+ return; // STOP
 }
 }
  setVehicles([...vehicles, newVehicle]);
+ addNotification(`${vehicle.name} registered and synced`, "success");
 };
 
  const updateVehicle = async (updated) => {
@@ -581,8 +1089,8 @@ const AppProviderInner = ({ children }) => {
  const { error} = await supabase.from('vehicles').upsert({ ...updated, tenant_id: currentTenantId });
  if (error) {
  console.error("Error updating vehicle in Supabase:", error);
- addNotification("Cloud Sync Delayed: Changes saved locally","warning");
- // Fall through
+ addNotification(`Cloud Sync Failed: ${error.message}`, "error");
+ return; // STOP
 }
 }
  setVehicles(vehicles.map(v => v.id === updated.id ? updated : v));
@@ -670,15 +1178,90 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
     // Find Vehicle Location
     const vehicleLoc = inventoryLocations.find(l => l.reference_id === route.vehicleId);
 
-    // 3. Formal Stock Return: Vehicle -> Warehouse
+    // Stock Return: Vehicle -> Warehouse
     for (const item of returnedStock) {
       if (item.quantity > 0) {
-        // Return to Warehouse
         await adjustStock(item.productId, item.quantity, `Returned from Route ${routeId}`, MAIN_WAREHOUSE_ID);
-        // Remove from Vehicle
         if (vehicleLoc) {
           await adjustLocationStock(item.productId, -item.quantity, vehicleLoc.id);
         }
+      }
+    }
+
+    // Cash Flow: record per-stop client payments + Day Book entry
+    if (isSupabaseConfigured && actualCash > 0) {
+      const today = new Date().toISOString().split('T')[0];
+      const { data: { user } } = await supabase.auth.getUser();
+
+      // 1. Fetch route stops with cash collected
+      const { data: stops, error: stopsErr } = await supabase
+        .from('route_stops')
+        .select('id, client_id, client_name, cash_collected')
+        .eq('route_id', routeId)
+        .eq('tenant_id', currentTenantId)
+        .gt('cash_collected', 0);
+
+      if (stopsErr) {
+        console.error('reconcileRoute: fetch stops error', stopsErr);
+      }
+
+      // 2. Insert client_payments for each stop
+      let totalCash = 0;
+      if (stops && stops.length > 0) {
+        const vehicleName = getVehicleName(route.vehicleId);
+        const paymentRows = stops.map(stop => ({
+          id: generateUUID(),
+          tenant_id: currentTenantId,
+          client_id: stop.client_id,
+          amount: Number(stop.cash_collected),
+          date: today,
+          payment_method: 'CASH',
+          notes: `Vehicle collection — ${vehicleName} — Route ${routeId}`,
+          recorded_by: user?.id || null,
+        }));
+        const { error: payErr } = await supabase.from('client_payments').insert(paymentRows);
+        if (payErr) console.error('reconcileRoute: client_payments insert error', payErr);
+        totalCash = stops.reduce((s, st) => s + Number(st.cash_collected), 0);
+      } else {
+        // No stops data — use actualCash as total
+        totalCash = Number(actualCash);
+      }
+
+      // 3. Update Day Book — add vehicle cash to total_sales for today
+      if (totalCash > 0) {
+        const { data: existingEntry } = await supabase
+          .from('day_book')
+          .select('*')
+          .eq('tenant_id', currentTenantId)
+          .eq('date', today)
+          .maybeSingle();
+
+        const vehicleName = getVehicleName(route.vehicleId);
+        if (existingEntry) {
+          const updated = {
+            ...existingEntry,
+            total_sales: (Number(existingEntry.total_sales) || 0) + totalCash,
+          };
+          const { error: dbErr } = await supabase.from('day_book').upsert(updated);
+          if (dbErr) console.error('reconcileRoute: day_book update error', dbErr);
+          else setDayBook(prev => prev.map(db => db.date === today ? updated : db));
+        } else {
+          const newEntry = {
+            id: generateUUID(),
+            tenant_id: currentTenantId,
+            date: today,
+            opening_balance: 0,
+            closing_balance: totalCash,
+            total_sales: totalCash,
+            total_expenses: 0,
+            is_closed: false,
+            created_at: new Date().toISOString(),
+          };
+          const { error: dbErr } = await supabase.from('day_book').insert(newEntry);
+          if (dbErr) console.error('reconcileRoute: day_book insert error', dbErr);
+          else setDayBook(prev => [newEntry, ...prev]);
+        }
+        addNotification(`₹${totalCash.toLocaleString()} vehicle cash posted to Day Book & client accounts.`, 'success');
       }
     }
 
@@ -694,7 +1277,345 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
 
   // addSupplier / updateSupplier / deleteSupplier moved to PurchasesContext
 
-  // deleteEmployee / processPayroll / deletePayrollRecord moved to HRContext
+
+ const resetEmployeesDailyData = async () => {
+ if (!isSupabaseConfigured) {
+ setEmployees(prev => prev.map(emp => ({ ...emp, daysWorked: 0, days_worked: 0})));
+ addNotification("Days worked reset locally","success");
+ return true;
+}
+
+ setSyncStatus('SYNCING');
+ const { error} = await supabase
+ .from('employees')
+ .update({ days_worked: 0})
+ .eq('status', 'ACTIVE');
+
+ if (error) {
+ console.error("Error resetting employee data:", error);
+ setSyncStatus('ERROR');
+ addNotification("Failed to reset daily data in cloud","error");
+ return false;
+}
+
+ setEmployees(prev => prev.map(emp => emp.status === 'ACTIVE' ? { ...emp, daysWorked: 0, days_worked: 0} : emp));
+ setSyncStatus('SYNCED');
+ addNotification("All active staff days worked reset","success");
+ return true;
+};
+
+ // Task 6: Purchases & Stock Integration (State moved to top)
+
+ const addPurchase = async (purchase) => {
+ const val = purchaseSchema.safeParse(purchase);
+ if (!val.success) {
+ addNotification("Validation failed:" + val.error.errors[0].message,"error");
+ return false;
+}
+
+ const newPurchase = {
+ id: generateRef('PUR'),
+ date: purchase.date || todayISOInAppTZ(),
+ linked_product_id: purchase.linked_product_id || null,
+ quantity: Number(purchase.quantity) || 0,
+ unit_cost: Number(purchase.unit_cost) || 0,
+ total_cost: (Number(purchase.quantity) || 0) * (Number(purchase.unit_cost) || 0),
+ supplier_id: purchase.supplier_id || null,
+ supplier_name: purchase.supplier_name || 'Unspecified',
+ payment_type: purchase.payment_type || 'cash',
+ notes: purchase.notes || '',
+ created_at: new Date().toISOString(),
+ tenant_id: currentTenantId
+};
+
+ if (isSupabaseConfigured) {
+ // Priority 4: Atomic Purchase via RPC
+ const { error: rpcError} = await supabase.rpc('process_purchase', {
+ p_id: newPurchase.id,
+ p_product_id: newPurchase.linked_product_id,
+ p_quantity: newPurchase.quantity,
+ p_total_amount: newPurchase.total_cost,
+ p_supplier_id: newPurchase.supplier_id || newPurchase.supplier_name,
+ p_payment_type: newPurchase.payment_type,
+ p_date: newPurchase.date,
+ p_notes: newPurchase.notes,
+ p_user_id: currentUser?.id,
+ p_tenant_id: currentTenantId
+});
+
+  if (rpcError) {
+    console.error("❌ Atomic Purchase Failed:", rpcError);
+    // Fallback to legacy insert
+    const { error: insertError } = await supabase.from('purchases').insert({
+      id: newPurchase.id,
+      product_id: newPurchase.linked_product_id,
+      quantity: newPurchase.quantity,
+      total_amount: newPurchase.total_cost,
+      date: newPurchase.date,
+      supplier_id: newPurchase.supplier_id,
+      supplier_name: newPurchase.supplier_name,
+      payment_type: newPurchase.payment_type,
+      notes: newPurchase.notes,
+      tenant_id: currentTenantId
+    });
+    
+    if (insertError) {
+      console.error("Error creating purchase fallback:", insertError);
+      logError({
+        module: 'Inventory',
+        action: 'Add Purchase (Fallback)',
+        error_code: insertError.code,
+        error_message: insertError.message,
+        severity: 'High'
+      });
+      addNotification("Failed to record purchase", "error");
+      return false;
+    }
+  }
+}
+
+ // OPTIMISTIC UPDATE
+ setPurchases(prev => [newPurchase, ...prev]);
+ 
+ if (newPurchase.linked_product_id) {
+ setProducts(prev => prev.map(p => 
+ p.id === newPurchase.linked_product_id 
+ ? { ...p, stock: (p.stock || 0) + newPurchase.quantity}
+ : p
+ ));
+ addNotification(`Stock updated: +${newPurchase.quantity} units`,"success");
+} else {
+ addNotification("Purchase recorded","success");
+}
+
+ return true;
+};
+
+  const addSupplier = async (supplier) => {
+    const id = `SUP-${Date.now()}`;
+    const newSupplier = { ...supplier, id, created_at: new Date().toISOString(), tenant_id: currentTenantId };
+    
+    if (isSupabaseConfigured) {
+      // CLEAN DB OBJECT
+      const dbSupplier = {
+        id,
+        name: supplier.name,
+        contact_person: supplier.contact_person,
+        phone: supplier.phone,
+        email: supplier.email,
+        address: supplier.address,
+        notes: supplier.notes || '',
+        created_at: new Date().toISOString(),
+        tenant_id: currentTenantId
+      };
+      
+      const { error } = await supabase.from('suppliers').insert(dbSupplier);
+      if (error) {
+        console.error("Error adding supplier:", error);
+        logError({
+          module: 'Suppliers',
+          action: 'Add Supplier',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'High'
+        });
+        addNotification("Failed to save supplier to cloud", "error");
+        return false;
+      }
+    }
+    setSuppliers(prev => [newSupplier, ...prev]);
+    return true;
+  };
+
+  const updateSupplier = async (updatedSupplier) => {
+    if (isSupabaseConfigured) {
+      const dbSupplier = {
+        name: updatedSupplier.name,
+        contact_person: updatedSupplier.contact_person,
+        phone: updatedSupplier.phone,
+        email: updatedSupplier.email,
+        address: updatedSupplier.address,
+        notes: updatedSupplier.notes || '',
+        tenant_id: currentTenantId
+      };
+      
+      const { error } = await supabase.from('suppliers')
+        .update(dbSupplier)
+        .eq('id', updatedSupplier.id)
+        .eq('tenant_id', currentTenantId);
+
+      if (error) {
+        console.error("Error updating supplier:", error);
+        logError({
+          module: 'Suppliers',
+          action: 'Update Supplier',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'High'
+        });
+        addNotification(`Failed to update supplier: ${error.message}`, "error");
+        return false;
+      }
+    }
+    setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? { ...s, ...updatedSupplier } : s));
+    return true;
+  };
+
+  const deleteSupplier = async (supplierId) => {
+   // DIAGNOSTIC LOG
+   console.log(`[Suppliers] Intent: Delete. ID: ${supplierId}, Tenant: ${currentTenantId}`);
+   
+   if (isSupabaseConfigured) {
+     const { error, count } = await supabase.from('suppliers')
+        .delete({ count: 'exact' })
+        .eq('id', supplierId)
+        .eq('tenant_id', currentTenantId);
+
+     if (error) {
+       console.error("❌ Supplier Deletion REJECTED:", error);
+       logError({
+         module: 'Suppliers',
+         action: 'Delete Supplier',
+         error_code: error.code,
+         error_message: error.message,
+         severity: 'High'
+       });
+       return { success: false, error: error.message };
+     }
+     
+     if (count === 0) {
+       console.warn(`[Suppliers] Silent Fail: Row not found or RLS blocked. ID: ${supplierId}`);
+       logError({
+         module: 'Suppliers',
+         action: 'Delete Supplier (Silent Fail)',
+         error_code: 'ERR_ZERO_ROWS',
+         error_message: `Database returned success but 0 rows were deleted. This usually means the row exists but RLS blocked the operation for Tenant: ${currentTenantId}`,
+         severity: 'High'
+       });
+       return { success: false, error: "Deletion blocked or record not found." };
+     }
+   }
+   
+   setSuppliers(prev => prev.filter(s => s.id !== supplierId));
+   return { success: true };
+ };
+
+  const deleteEmployee = async (empId) => {
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('employees')
+        .delete()
+        .eq('id', empId)
+        .eq('tenant_id', currentTenantId);
+
+      if (error) {
+        console.error("Error deleting employee from Supabase:", error);
+        logError({
+          module: 'Employees',
+          action: 'Delete Employee',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'Medium'
+        });
+        addNotification("Failed to delete employee from cloud", "error");
+        return;
+      }
+    }
+    setEmployees(employees.filter(e => e.id !== empId));
+  };
+
+  const processPayroll = async (payRun) => {
+    const timestamp = new Date().toISOString();
+    const newRecord = {
+      ...payRun,
+      id: payRun.id || `PAY-${Date.now()}`,
+      processed_at: timestamp,
+      processedAt: timestamp,
+      processed_by: currentUser?.id
+    };
+    
+    if (isSupabaseConfigured) {
+      setSyncStatus('SYNCING');
+      const payrollInserts = payRun.items.map(item => ({
+        id: `PRL-${Date.now()}-${item.employeeId}`,
+        employeeId: item.employeeId,
+        amount: item.netPay,
+        month: payRun.period,
+        processed_at: timestamp,
+        processed_by: currentUser?.id,
+        tenant_id: currentTenantId
+      }));
+      
+      const { error } = await supabase.from('payroll').insert(payrollInserts);
+      if (error) {
+        console.error("Error processing payroll in Supabase:", error);
+        logError({
+          module: 'Payroll',
+          action: 'Process Payroll',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'High'
+        });
+        setSyncStatus('ERROR');
+        addNotification("Failed to process payroll in cloud", "error");
+        return false;
+      }
+      setSyncStatus('SYNCED');
+
+      // Audit: payroll run authorized. Capture totals + headcount, not individual amounts.
+      const totalNet = payrollInserts.reduce((s, r) => s + Number(r.amount || 0), 0);
+      logAuditEvent({
+        action: AUDIT_ACTIONS.PAYROLL_PROCESS,
+        entityType: 'payroll',
+        entityId: newRecord.id,
+        summary: `Processed payroll for ${payRun.period}: ${payrollInserts.length} employee(s), net ${totalNet.toFixed(2)}`,
+        metadata: {
+          period: payRun.period,
+          employee_count: payrollInserts.length,
+          total_net: totalNet,
+        },
+      });
+    }
+    
+    setPayrollRecords(prev => [newRecord, ...prev]);
+    addNotification(`Payroll for ${payRun.period} authorized`, "success");
+    return true;
+  };
+
+  const deletePayrollRecord = async (recordId) => {
+    const target = payrollRecords.find(r => r.id === recordId) || null;
+
+    if (isSupabaseConfigured) {
+      const { error } = await supabase.from('payroll')
+        .delete()
+        .eq('id', recordId)
+        .eq('tenant_id', currentTenantId);
+
+      if (error) {
+        console.error("Error deleting payroll record from Supabase:", error);
+        logError({
+          module: 'Payroll',
+          action: 'Delete Payroll',
+          error_code: error.code,
+          error_message: error.message,
+          severity: 'Medium'
+        });
+        addNotification("Cloud Sync Delayed: Record removed locally", "warning");
+      } else {
+        logAuditEvent({
+          action: AUDIT_ACTIONS.PAYROLL_DELETE,
+          entityType: 'payroll',
+          entityId: recordId,
+          summary: `Deleted payroll record ${recordId}${target?.period ? ` (${target.period})` : ''}`,
+          metadata: {
+            period: target?.period || target?.month || null,
+            employee_count: Array.isArray(target?.items) ? target.items.length : null,
+          },
+        });
+      }
+    }
+    setPayrollRecords(payrollRecords.filter(r => r.id !== recordId));
+  };
+
 
 
  // updateDayBook / getDayBookForDate moved to FinanceContext

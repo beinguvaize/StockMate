@@ -1,37 +1,37 @@
 import React, { useState, useMemo, useEffect} from 'react';
-import { useAppContext} from '../context/AppContext';
-import { 
- Plus, Search, Filter, ArrowUpRight, ArrowDownRight, 
- Calendar, Tag, FileText, X, Check, Save, TrendingDown,
- DollarSign, Briefcase, CreditCard, Layers
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { useFinance } from '../hooks/useFinance';
+import {
+  Plus, Search, Calendar, FileText, X, Save, TrendingDown,
+  DollarSign, Briefcase, Layers
 } from 'lucide-react';
+import { todayISOInAppTZ } from '../lib/utils';
 
 const Expenses = () => {
- const { 
- expenses, addExpense, updateExpense, deleteExpense, 
- businessProfile, hasPermission, isViewOnly,
- expenseCategories 
-} = useAppContext();
+  const { hasPermission } = useAuth();
+  const { currentTenantId, businessProfile } = useTenant();
+  const { 
+    expenses, addExpense, updateExpense, deleteExpense, 
+    expenseCategories, loading 
+  } = useFinance(currentTenantId);
+  
+  const isViewOnly = false; // Placeholder for legacy view mode
  
  const [searchTerm, setSearchTerm] = useState('');
  const [filterType, setFilterType] = useState('all'); // 'all', 'today', 'yesterday', 'custom'
  const [filterDate, setFilterDate] = useState('');
  const [isAdding, setIsAdding] = useState(false);
  const [editingExpense, setEditingExpense] = useState(null);
+ const [saving, setSaving] = useState(false);
+ const [formError, setFormError] = useState('');
  const [formData, setFormData] = useState({
- title: '',
- amount: '',
- category: 'Other',
- date: new Date().toISOString().split('T')[0],
- notes: '',
- splitType: 'Company'
-});
+   note: '',
+   amount: '',
+   category: 'Other',
+   date: todayISOInAppTZ(),
+ });
 
- const uniqueTitles = useMemo(() => {
- if (!Array.isArray(expenses)) return [];
- const titles = expenses.map(e => e.title || '');
- return [...new Set(titles)].filter(t => t);
-}, [expenses]);
 
  const filteredExpenses = useMemo(() => {
  if (!Array.isArray(expenses)) return [];
@@ -68,7 +68,7 @@ const Expenses = () => {
  
  return matchesSearch && matchesDate;
 })
- .sort((a, b) => new Date(b.date) - new Date(a.date));
+ .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
 }, [expenses, searchTerm, filterType, filterDate]);
 
  const totalExpenses = useMemo(() => {
@@ -84,61 +84,59 @@ const Expenses = () => {
  const getFilterLabel = () => {
  if (filterType === 'today') return"Today's Expenses";
  if (filterType === 'yesterday') return"Yesterday's Expenses";
- if (filterType === 'custom' && filterDate) return `Expenses for ${new Date(filterDate).toLocaleDateString()}`;
+ if (filterType === 'custom' && filterDate) {
+   const [y, m, d] = filterDate.split('-');
+   return `Expenses for ${new Date(+y, +m - 1, +d).toLocaleDateString()}`;
+ }
  return"Total Expenses";
 };
 
- const handleSubmit = (e) => {
+ const handleSubmit = async (e) => {
  e.preventDefault();
- const expenseData = {
- ...formData,
- amount: parseFloat(formData.amount) || 0
-};
+ setFormError('');
 
- if (editingExpense) {
- updateExpense({ ...expenseData, id: editingExpense.id});
- setEditingExpense(null);
-} else {
- addExpense(expenseData);
-}
- 
+ const amount = parseFloat(formData.amount);
+ if (!amount || amount <= 0) {
+   setFormError('Amount must be greater than 0.');
+   return;
+ }
+ const expenseData = { ...formData, amount };
+
+ setSaving(true);
+ const { error } = editingExpense
+   ? await updateExpense({ ...expenseData, id: editingExpense.id })
+   : await addExpense(expenseData);
+ setSaving(false);
+
+ if (error) {
+   setFormError(error.message || 'Failed to save expense. Please try again.');
+   return;
+ }
+
  setIsAdding(false);
- setFormData({
- title: '',
- amount: '',
- category: 'Other',
- date: new Date().toISOString().split('T')[0],
- notes: '',
- splitType: 'Company'
-});
+ setEditingExpense(null);
+ setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ() });
 };
 
  const handleEdit = (expense) => {
- if (!expense) return;
- setEditingExpense(expense);
- setFormData({
- title: expense.title || '',
- amount: (expense.amount || 0).toString(),
- category: expense.category || 'Other',
- date: expense.date ? expense.date.split('T')[0] : new Date().toISOString().split('T')[0],
- notes: expense.notes || '',
- splitType: expense.split_type || expense.splitType || 'Company'
-});
- setIsAdding(true);
-};
+   if (!expense) return;
+   setEditingExpense(expense);
+   setFormData({
+     note: expense.note || '',
+     amount: (expense.amount || 0).toString(),
+     category: expense.category || 'Other',
+     date: expense.date ? expense.date.split('T')[0] : todayISOInAppTZ(),
+   });
+   setIsAdding(true);
+ };
 
  const handleCloseModal = () => {
- setIsAdding(false);
- setEditingExpense(null);
- setFormData({
- title: '',
- amount: '',
- category: 'Other',
- date: new Date().toISOString().split('T')[0],
- notes: '',
- splitType: 'Company'
-});
-};
+   setIsAdding(false);
+   setEditingExpense(null);
+   setFormError('');
+   setSaving(false);
+   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ() });
+ };
 
  useEffect(() => {
  if (isAdding) {
@@ -288,14 +286,8 @@ const Expenses = () => {
  {filteredExpenses.map(expense => (
  <tr key={expense.id} className="group hover:bg-canvas transition-colors">
  <td className="p-1.5 pl-8">
- <div className="flex flex-col">
- <div className="text-xs font-semibold text-ink-primary flex items-center gap-2">
- {expense.title}
- <span className="px-2 py-0.5 rounded-full bg-gray-100 text-[#747576] text-[8px] font-semibold border border-gray-200">
- {expense.splitType || expense.split_type || 'Company'}
- </span>
- </div>
- <div className="text-sm font-bold text-ink-primary opacity-70 mt-0.5">{expense.notes}</div>
+ <div className="text-xs font-semibold text-ink-primary">
+   {expense.note || '—'}
  </div>
  </td>
  <td className="p-1.5 text-center">
@@ -317,7 +309,10 @@ const Expenses = () => {
  <td className="p-1.5 text-center">
  <div className="flex items-center justify-center gap-2 text-[10px] font-bold text-gray-700">
  <Calendar size={10} className="opacity-60" />
- {new Date(expense.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric'})}
+ {expense.date ? (() => {
+   const [y, m, d] = (expense.date.split('T')[0]).split('-');
+   return new Date(+y, +m - 1, +d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+ })() : '—'}
  </div>
  </td>
  <td className="p-1.5 text-right">
@@ -388,21 +383,15 @@ const Expenses = () => {
  <form onSubmit={handleSubmit} className="space-y-5">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  <div className="md:col-span-2">
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Expense Title</label>
- <input 
- required 
- type="text" 
- list="expense-titles"
- placeholder="VENDOR OR SERVICE NAME..."
- className="w-full bg-canvas border-none rounded-lg p-5 font-medium text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
- value={formData.title} 
- onChange={e => setFormData({...formData, title: e.target.value})} 
- />
- <datalist id="expense-titles">
- {uniqueTitles.map(title => (
- <option key={title} value={title} />
- ))}
- </datalist>
+   <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Description / Notes</label>
+   <textarea
+     required
+     rows={3}
+     placeholder="E.g. Fuel for delivery van, rent payment, office supplies..."
+     className="w-full bg-canvas border-none rounded-lg p-5 font-medium text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all resize-none"
+     value={formData.note}
+     onChange={e => setFormData({...formData, note: e.target.value})}
+   />
  </div>
  
  <div>
@@ -412,10 +401,11 @@ const Expenses = () => {
  {businessProfile?.currencySymbol || '₹'}
  </div>
  <input 
- required 
- type="number" 
+ required
+ type="number"
  step="0.01"
- className="w-full bg-canvas border-none rounded-lg p-5 pl-14 font-semibold text-2xl text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums" 
+ min="0.01"
+ className="w-full bg-canvas border-none rounded-lg p-5 pl-14 font-semibold text-2xl text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums"
  value={formData.amount} 
  onChange={e => setFormData({...formData, amount: e.target.value})} 
  />
@@ -452,38 +442,19 @@ const Expenses = () => {
  />
  </div>
 
- <div>
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Split Type</label>
- <select 
- className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer" 
- value={formData.splitType} 
- onChange={e => setFormData({...formData, splitType: e.target.value})}
- >
- <option value="Company">COMPANY (DEFAULT)</option>
- <option value="Akbar">AKBAR</option>
- <option value="Nadar">NADAR</option>
- <option value="Narshik">NARSHIK</option>
- </select>
  </div>
 
- <div className="md:col-span-2">
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Notes (Internal Record)</label>
- <textarea 
- className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all min-h-[80px] resize-none" 
- placeholder="ADD DETAILS FOR THIS EXPENDITURE..."
- value={formData.notes} 
- onChange={e => setFormData({...formData, notes: e.target.value})} 
- />
- </div>
- </div>
+ {formError && (
+   <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
+     {formError}
+   </div>
+ )}
 
  <div className="grid grid-cols-2 gap-4 pt-4">
- <button type="button" className="px-8 py-2 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all cursor-pointer" onClick={handleCloseModal}>Cancel</button>
- <button type="submit" className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill">
- {editingExpense ? 'SAVE CHANGES' : 'LOG EXPENSE'}
- <div className="icon-nest !w-10 !h-10 ml-4">
- <Save size={22} />
- </div>
+ <button type="button" className="px-8 py-2 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all cursor-pointer" onClick={handleCloseModal} disabled={saving}>Cancel</button>
+ <button type="submit" disabled={saving} className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill disabled:opacity-60 disabled:cursor-not-allowed">
+   {saving ? 'SAVING...' : (editingExpense ? 'SAVE CHANGES' : 'LOG EXPENSE')}
+   {!saving && <div className="icon-nest !w-10 !h-10 ml-4"><Save size={22} /></div>}
  </button>
  </div>
  </form>

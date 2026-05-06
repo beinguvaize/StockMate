@@ -57,7 +57,9 @@ export const amountToWords = (amount) => {
  * Returns all tax components and summaries for an invoice.
  */
 export const calculateGST = (items = [], businessState = '', clientState = '') => {
-  const isInterstate = businessState.toLowerCase() !== clientState.toLowerCase() && clientState !== '';
+  const safeBusinessState = typeof businessState === 'string' ? businessState.toLowerCase() : '';
+  const safeClientState = typeof clientState === 'string' ? clientState.toLowerCase() : '';
+  const isInterstate = safeBusinessState !== safeClientState && safeClientState !== '';
   
   let subtotal = 0;
   let totalDiscount = 0;

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { useTenant } from '../../context/TenantContext';
 
 /**
  * useReportData - Custom hook for premium report data fetching with Database Sync (Realtime)
@@ -16,22 +17,36 @@ const useReportData = ({
   filters = {},
   dateColumn = 'date',
   params = {}, // Additional static equality params
-  nullFilters = {} // Columns that must be NULL e.g. { deleted_at: null }
+  nullFilters = {}, // Columns that must be NULL e.g. { deleted_at: null }
+  skipTenantFilter = false // Opt-out for global/admin reports
 }) => {
+  const { currentTenantId } = useTenant();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdated, setLastUpdated] = useState(null);
-  
+
   // Ref to track if component is mounted to prevent state updates on unmount
   const isMounted = useRef(true);
 
   const fetchData = useCallback(async (isSilent = false) => {
+    // Wait for tenant context to resolve before firing any query. Skipping
+    // this guard lets the report briefly fetch across all tenants before
+    // RLS kicks in — a defence-in-depth regression we avoid here.
+    if (!skipTenantFilter && !currentTenantId) {
+      if (isMounted.current) setLoading(false);
+      return;
+    }
     if (!isSilent) setLoading(true);
     if (isMounted.current) setError(null);
 
     try {
       let query = supabase.from(table).select(select);
+
+      // Tenant scoping (defence-in-depth; RLS still enforces at DB level).
+      if (!skipTenantFilter && currentTenantId) {
+        query = query.eq('tenant_id', currentTenantId);
+      }
 
       // 1. Date Range Filtering (Absolute Logic)
       if (filters.dateRange) {
@@ -75,7 +90,7 @@ const useReportData = ({
         setLoading(false);
       }
     }
-  }, [table, select, JSON.stringify(filters), dateColumn, JSON.stringify(params), JSON.stringify(nullFilters)]);
+  }, [table, select, JSON.stringify(filters), dateColumn, JSON.stringify(params), JSON.stringify(nullFilters), currentTenantId, skipTenantFilter]);
 
   // Initial Fetch on Perspective Change
   useEffect(() => {
@@ -85,7 +100,7 @@ const useReportData = ({
     return () => {
       isMounted.current = false;
     };
-  }, [table, select, JSON.stringify(filters), JSON.stringify(params), JSON.stringify(nullFilters)]);
+  }, [table, select, JSON.stringify(filters), JSON.stringify(params), JSON.stringify(nullFilters), currentTenantId, skipTenantFilter]);
 
   // --- STRICT DATABASE SYNC (Realtime) ---
   useEffect(() => {

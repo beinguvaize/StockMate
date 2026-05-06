@@ -1,339 +1,644 @@
-import React, { useState, useMemo, useEffect} from 'react';
-import { useAppContext} from '../context/AppContext';
-import { 
-  Calendar, Save, ArrowUpRight, ArrowDownRight, 
-  Calculator, BookOpen, Clock, AlertCircle, TrendingUp, TrendingDown, RefreshCcw, Eye
+import React, { useState, useMemo, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { useFinance } from '../hooks/useFinance';
+import { useSales } from '../hooks/useSales';
+import {
+  Calendar, Save, ChevronLeft, ChevronRight,
+  ArrowUpRight, ArrowDownRight, RefreshCcw,
+  FileText, ShieldCheck, Lock, Unlock,
+  Banknote, CreditCard, Building2, Receipt,
+  TrendingUp, TrendingDown, Clock, AlertTriangle,
+  Users, ShoppingCart, CheckCircle2
 } from 'lucide-react';
 import DailyLedgerDetail from '../components/reports/DailyLedgerDetail';
+import { todayISOInAppTZ } from '../lib/utils';
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+const fmt = (n) =>
+  (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+const addDays = (dateStr, n) => {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+const displayDate = (dateStr) => {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+};
+
+// ── Method Badge ─────────────────────────────────────────────────────────────
+const MethodBadge = ({ method = '' }) => {
+  const m = (method || '').toUpperCase();
+  if (m === 'CREDIT')
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[8px] font-bold uppercase tracking-wider"><CreditCard size={9} />Credit</span>;
+  if (['BANK','UPI','TRANSFER','NEFT','RTGS'].includes(m))
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-violet-50 text-violet-600 border border-violet-100 text-[8px] font-bold uppercase tracking-wider"><Building2 size={9} />{m === 'UPI' ? 'UPI' : 'Bank'}</span>;
+  return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-canvas text-gray-500 border border-black/5 text-[8px] font-bold uppercase tracking-wider"><Banknote size={9} />Cash</span>;
+};
+
+// ── KPI Card ──────────────────────────────────────────────────────────────────
+const KpiCard = ({ label, value, sub, icon, color = 'default', cy }) => {
+  const styles = {
+    default:  'bg-white border-black/5 text-ink-primary',
+    green:    'bg-emerald-50 border-emerald-100 text-emerald-600',
+    red:      'bg-red-50 border-red-100 text-red-600',
+    dark:     'bg-ink-primary border-transparent text-accent-signature',
+    darkred:  'bg-red-600 border-transparent text-white',
+  };
+  const labelColor = { default: 'text-gray-400', green: 'text-emerald-500/70', red: 'text-red-500/70', dark: 'text-white/40', darkred: 'text-red-200' };
+  const isDark = color === 'dark' || color === 'darkred';
+  return (
+    <div className={`p-5 rounded-2xl border flex flex-col gap-2 ${styles[color]}`}>
+      <div className="flex items-center justify-between">
+        <p className={`text-[9px] font-bold uppercase tracking-widest ${labelColor[color]}`}>{label}</p>
+        {icon && <span className={isDark ? 'opacity-40' : 'opacity-60'}>{icon}</span>}
+      </div>
+      <p className="text-2xl font-black tabular-nums leading-none">
+        <span className="text-xs opacity-40 mr-0.5">{cy}</span>
+        {value}
+      </p>
+      {sub && <p className={`text-[9px] font-bold ${isDark ? 'opacity-50' : 'opacity-60'}`}>{sub}</p>}
+    </div>
+  );
+};
+
+// ── Main Component ────────────────────────────────────────────────────────────
 const DayBook = () => {
- const { 
- sales, expenses, dayBook, updateDayBook, getDayBookForDate,
- businessProfile, hasPermission, loading, isViewOnly
-} = useAppContext();
- 
- const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
- const [manualOpeningBalance, setManualOpeningBalance] = useState('');
- const [isSaving, setIsSaving] = useState(false);
- const [message, setMessage] = useState(null);
- const [showDetailDate, setShowDetailDate] = useState(null);
+  const { hasPermission } = useAuth();
+  const { currentTenantId, businessProfile } = useTenant();
+  const {
+    expenses, dayBook, clientPayments, cashPurchases,
+    loading: finLoading, updateDayBook, getDayBookForDate, getPrevDayBook,
+  } = useFinance(currentTenantId);
+  const { sales, loading: salesLoading } = useSales(currentTenantId);
 
- // Get previous day's record to get closing balance
- const previousDayRecord = useMemo(() => {
- if (!dayBook || dayBook.length === 0) return null;
- const sorted = [...dayBook].sort((a, b) => new Date(b.date) - new Date(a.date));
- return sorted.find(db => new Date(db.date) < new Date(selectedDate));
-}, [dayBook, selectedDate]);
+  const cy = businessProfile?.currencySymbol || '₹';
+  const today = todayISOInAppTZ();
 
- // Current metrics for selected date
- const dailyMetrics = useMemo(() => {
- const dateStr = selectedDate;
- const getLocalDate = (d) => new Date(d).toISOString().split('T')[0];
+  const [selectedDate,  setSelectedDate]  = useState(today);
+  const [openingInput,  setOpeningInput]  = useState('');
+  const [physicalCash,  setPhysicalCash]  = useState('');
+  const [isSaving,      setIsSaving]      = useState(false);
+  const [isClosing,     setIsClosing]     = useState(false);
+  const [showReport,    setShowReport]    = useState(false);
 
- // Sales objects use `paymentMethod` (e.g. 'Cash'/'Credit'). `payment_type` is the
- // purchases-side convention; accept either so legacy rows still match.
- const isCashSale = (o) => {
-   const m = (o.paymentMethod || o.payment_type || '').toString().toLowerCase();
-   return m === 'cash';
- };
- const cashSales = (sales || [])
- .filter(o => getLocalDate(o.date) === dateStr && o.status !== 'CANCELLED' && isCashSale(o))
- .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
- 
- const cost = (expenses || [])
- .filter(e => getLocalDate(e.date) === dateStr)
- .reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
- 
- return { sales: cashSales, cost};
-}, [sales, expenses, selectedDate]);
+  // ── Ledger computation ────────────────────────────────────────────────────
+  const ledger = useMemo(() => {
+    const daySales      = (sales          || []).filter(s => s.date === selectedDate);
+    const dayExpenses   = (expenses       || []).filter(e => e.date === selectedDate);
+    const dayCollect    = (clientPayments || []).filter(p => p.date === selectedDate);
+    const dayPurchases  = (cashPurchases  || []).filter(p => p.date === selectedDate);
 
- // Check if we have an existing record for today
- const existingRecord = useMemo(() => {
- return getDayBookForDate(selectedDate);
-}, [getDayBookForDate, selectedDate]);
+    // ── Receipts ─────────────────────────────────────────────────────────────
+    const cashSales  = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CASH')
+                               .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
+    const bankSales  = daySales.filter(s => ['BANK','UPI','TRANSFER'].includes((s.paymentMethod || '').toUpperCase()))
+                               .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
+    const creditSales = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CREDIT')
+                                .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
+    const cashCollect = dayCollect.filter(p => (p.payment_method || '').toUpperCase() === 'CASH')
+                                  .reduce((t, p) => t + (Number(p.amount) || 0), 0);
+    const bankCollect = dayCollect.filter(p => ['BANK','UPI','TRANSFER','NEFT','RTGS'].includes((p.payment_method || '').toUpperCase()))
+                                  .reduce((t, p) => t + (Number(p.amount) || 0), 0);
+    const totalReceipts = cashSales + bankSales + cashCollect + bankCollect;
 
- // Logic for opening balance
- const openingBalance = useMemo(() => {
- if (manualOpeningBalance !== '') return parseFloat(manualOpeningBalance) || 0;
- if (existingRecord) return existingRecord.opening_balance;
- return previousDayRecord ? (previousDayRecord.closing_balance || 0) : 0;
-}, [existingRecord, manualOpeningBalance, previousDayRecord]);
+    // ── Payments ─────────────────────────────────────────────────────────────
+    const totalExpenses  = dayExpenses.reduce((t, e) => t + (Number(e.amount) || 0), 0);
+    const totalPurchPaid = dayPurchases.reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
+    const totalPayments  = totalExpenses + totalPurchPaid;
 
- const closingBalance = useMemo(() => {
- return openingBalance + dailyMetrics.sales - dailyMetrics.cost;
-}, [openingBalance, dailyMetrics]);
+    // ── Balances ─────────────────────────────────────────────────────────────
+    const record      = getDayBookForDate(selectedDate);
+    const prevRecord  = getPrevDayBook(selectedDate);
+    const openingBal  = Number(record?.opening_balance) || 0;
+    const closingBal  = openingBal + totalReceipts - totalPayments;
+    const isLocked    = !!record?.is_closed;
+    const hasOpening  = !!record?.id;
 
- const handleSave = async (lock = false) => {
- setIsSaving(true);
- const record = {
- ...existingRecord,
- date: selectedDate,
- opening_balance: openingBalance,
- closing_balance: closingBalance,
- total_sales: dailyMetrics.sales,
- total_expenses: dailyMetrics.cost,
- is_closed: lock || (existingRecord?.is_closed || false)
-};
- 
- const result = await updateDayBook(record);
- if (result) {
- setMessage({ type: 'success', text: lock ? 'Day closed and locked.' : 'Day Book synchronized successfully.'});
- setTimeout(() => setMessage(null), 3000);
-} else {
- setMessage({ type: 'error', text: 'Failed to sync Day Book.'});
-}
- setIsSaving(false);
-};
+    // ── Transaction log ───────────────────────────────────────────────────────
+    const entries = [
+      ...daySales.map(s => ({
+        id:        s.id,
+        type:      (s.paymentMethod || '').toUpperCase() === 'CREDIT' ? 'CREDIT_SALE' : 'INCOME',
+        category:  'Sale',
+        title:     s.customerInfo?.name ? `Sale — ${s.customerInfo.name}` : 'Sale (Walk-in)',
+        note:      s.items?.map(i => i.name || i.productName).filter(Boolean).slice(0,3).join(', ') || '',
+        method:    s.paymentMethod || 'CASH',
+        amount:    Number(s.totalAmount) || 0,
+        createdAt: s.created_at || selectedDate,
+      })),
+      ...dayCollect.map(p => ({
+        id:        p.id,
+        type:      'INCOME',
+        category:  'Collection',
+        title:     'Client Collection',
+        note:      p.notes || '',
+        method:    p.payment_method || 'CASH',
+        amount:    Number(p.amount) || 0,
+        createdAt: p.created_at || selectedDate,
+      })),
+      ...dayExpenses.map(e => ({
+        id:        e.id,
+        type:      'EXPENSE',
+        category:  e.category || 'Expense',
+        title:     e.category || 'Expense',
+        note:      e.note || '',
+        method:    'CASH',
+        amount:    Number(e.amount) || 0,
+        createdAt: e.created_at || selectedDate,
+      })),
+      ...dayPurchases.map(p => ({
+        id:        p.id,
+        type:      'EXPENSE',
+        category:  'Purchase',
+        title:     'Purchase Payment',
+        note:      `Supplier payment`,
+        method:    p.payment_type || 'CASH',
+        amount:    Number(p.total_amount) || 0,
+        createdAt: p.created_at || selectedDate,
+      })),
+    ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
- if (loading) return <div className="p-20 text-center animate-pulse font-semibold opacity-60">Synchronizing Ledger...</div>;
+    // Running balance (credit sales don't move cash)
+    let running = openingBal;
+    const entriesWithBal = entries.map(e => {
+      if (e.type !== 'CREDIT_SALE') {
+        running = e.type === 'INCOME' ? running + e.amount : running - e.amount;
+      }
+      return { ...e, runningBalance: running };
+    });
 
- return (
- <>
- <div className="animate-fade-in flex flex-col gap-4 pb-20">
- {/* Header */}
- <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-4 border-b border-black/5">
- <div>
- <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">DAY BOOK<span className="text-accent-signature">.</span></h1>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">DAILY FINANCIAL BALANCE & LEDGER</p>
- </div>
- 
- <div className="flex items-center gap-4 bg-surface p-1.5 rounded-pill border border-black/5 shadow-premium">
- <div className="flex items-center gap-3 px-4 py-2 border-r border-black/5">
- <Calendar size={16} className="text-accent-signature" />
- <input 
- type="date" 
- className="bg-transparent font-semibold text-xs text-ink-primary outline-none"
- value={selectedDate}
- onChange={(e) => {
- setSelectedDate(e.target.value);
- setManualOpeningBalance('');
-}}
- />
- </div>
- {existingRecord?.is_closed ? (
- <div className="flex items-center gap-3 px-6 py-2 bg-red-50 text-red-600 rounded-pill border border-red-100 font-semibold text-[10px]">
- <Clock size={14} /> Day Locked
- </div>
- ) : (
- <div className="flex gap-2">
- <button 
- onClick={() => handleSave(false)}
- disabled={isSaving || isViewOnly()}
- className={`h-10 px-6 rounded-pill text-[10px] font-semibold border border-black/10 hover:bg-black/5 transition-all ${isSaving ? 'opacity-[0.85]' : ''}`}
- >
- SAVE DRAFT
- </button>
- <button 
- onClick={() => handleSave(true)}
- disabled={isSaving || isViewOnly()}
- className={`btn-signature !h-10 !px-6 !rounded-pill !text-[10px] flex items-center gap-3 ${isSaving ? 'opacity-[0.85] grayscale' : ''}`}
- >
- {isSaving ? 'CLOSING...' : 'CLOSE DAY'}
- <div className="icon-nest !w-6 !h-6">
- <Save size={12} className={isSaving ? 'animate-spin' : ''} />
- </div>
- </button>
- </div>
- )}
- </div>
- </div>
+    return {
+      openingBal, closingBal, isLocked, hasOpening,
+      cashSales, bankSales, creditSales,
+      cashCollect, bankCollect,
+      totalReceipts, totalExpenses, totalPurchPaid, totalPayments,
+      entries: entriesWithBal,
+      sales: daySales, expenses: dayExpenses,
+      txCount: entries.filter(e => e.type !== 'CREDIT_SALE').length,
+      prevClosing: Number(prevRecord?.closing_balance) || null,
+      expenseCount: dayExpenses.length,
+      collectCount: dayCollect.length,
+    };
+  }, [sales, expenses, clientPayments, cashPurchases, selectedDate, getDayBookForDate, getPrevDayBook]);
 
- {message && (
- <div className={`p-4 rounded-lg flex items-center gap-4 border animate-scale-in ${message.type === 'success' ? 'bg-green-50 border-green-100 text-green-700' : 'bg-red-50 border-red-100 text-red-700'}`}>
- <AlertCircle size={18} />
- <span className="text-xs font-semibold">{message.text}</span>
- </div>
- )}
+  const isDeficit  = ledger.closingBal < 0;
+  const variance   = physicalCash !== '' ? (parseFloat(physicalCash) || 0) - ledger.closingBal : null;
+  const isFuture   = selectedDate > today;
 
- <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
- {/* Main Ledger Card */}
- <div className="lg:col-span-8 space-y-6">
- <div className="glass-panel border-black/5 bg-white shadow-premium !p-5 relative overflow-hidden">
- <div className="absolute top-0 right-0 p-5 opacity-[0.03] rotate-12 pointer-events-none">
- <BookOpen size={200} />
- </div>
+  // ── Actions ───────────────────────────────────────────────────────────────
+  const handleSaveOpening = async () => {
+    if (isSaving || !openingInput) return;
+    setIsSaving(true);
+    const { error } = await updateDayBook({
+      date: selectedDate,
+      opening_balance: parseFloat(openingInput),
+    });
+    if (error) console.error('Save opening error:', error);
+    setOpeningInput('');
+    setIsSaving(false);
+  };
 
- {/* Opening Balance Section */}
- <div className="mb-12 border-b border-black/5 pb-8">
- <div className="flex justify-between items-start mb-6">
- <div>
- <h2 className="text-sm font-semibold text-ink-primary mb-1">Opening Balance</h2>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Cash in hand from previous session</p>
- </div>
- {!existingRecord?.is_closed && (
- <button 
- onClick={() => setManualOpeningBalance(openingBalance.toString())}
- className="text-[9px] font-semibold text-accent-signature-hover bg-accent-signature/10 px-3 py-1.5 rounded-pill border border-accent-signature/20 hover:bg-accent-signature/20 transition-all"
- >
- Edit Manually
- </button>
- )}
- </div>
+  const handleUseYesterdayClosing = async () => {
+    if (!ledger.prevClosing) return;
+    setIsSaving(true);
+    const { error } = await updateDayBook({
+      date: selectedDate,
+      opening_balance: ledger.prevClosing,
+    });
+    if (error) console.error('Carry forward error:', error);
+    setIsSaving(false);
+  };
 
- <div className="flex items-center gap-4">
- <div className="text-3xl md:text-6xl font-semibold text-ink-primary tabular-nums flex items-center">
- <span className="text-3xl opacity-20 mr-2">{businessProfile?.currencySymbol || '₹'}</span>
- {manualOpeningBalance !== '' ? (
- <input 
- type="number"
- className="bg-canvas rounded-lg px-6 py-2 w-64 outline-none focus:ring-4 focus:ring-accent-signature/20"
- value={manualOpeningBalance}
- onChange={(e) => setManualOpeningBalance(e.target.value)}
- autoFocus
- />
- ) : (
- openingBalance.toLocaleString()
- )}
- </div>
- {previousDayRecord && !existingRecord && manualOpeningBalance === '' && (
- <div className="flex flex-col">
- <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-2 py-1 rounded border border-green-100 italic">
- Auto-fetched from {new Date(previousDayRecord.date).toLocaleDateString()}
- </span>
- </div>
- )}
- </div>
- </div>
+  const handleCloseDay = async () => {
+    if (isClosing || !window.confirm(`Close ${displayDate(selectedDate)}? This locks the ledger.`)) return;
+    setIsClosing(true);
+    const { error } = await updateDayBook({
+      date:             selectedDate,
+      opening_balance:  ledger.openingBal,
+      closing_balance:  ledger.closingBal,
+      total_sales:      ledger.cashSales + ledger.bankSales,
+      total_expenses:   ledger.totalPayments,
+      is_closed:        true,
+    });
+    if (error) console.error('Close day error:', error);
+    setIsClosing(false);
+  };
 
- {/* Dynamic Activity */}
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-12">
- <div className="space-y-4">
- <div className="flex items-center gap-3">
- <div className="w-8 h-8 rounded-full bg-green-50 text-green-500 flex items-center justify-center border border-green-100">
- <ArrowUpRight size={16} />
- </div>
- <span className="text-[10px] font-semibold text-gray-700 opacity-70">Total Collections (Sales)</span>
- </div>
- <div className="text-4xl font-semibold text-ink-primary tabular-nums">
- <span className="text-xl opacity-20 mr-1">+</span>
- {businessProfile?.currencySymbol || '₹'}{dailyMetrics.sales.toLocaleString()}
- </div>
- <p className="text-[9px] font-bold text-gray-700 opacity-70 leading-relaxed italic">
- Includes all cash, credit, and digital payments recorded for this date.
- </p>
- </div>
+  if (finLoading || salesLoading) return (
+    <div className="flex items-center justify-center py-20">
+      <div className="w-10 h-10 border-4 border-accent-signature/30 border-t-accent-signature rounded-full animate-spin" />
+    </div>
+  );
 
- <div className="space-y-4">
- <div className="flex items-center gap-3">
- <div className="w-8 h-8 rounded-full bg-red-50 text-red-500 flex items-center justify-center border border-red-100">
- <ArrowDownRight size={16} />
- </div>
- <span className="text-[10px] font-semibold text-gray-700 opacity-70">Total Expenditure (Expenses)</span>
- </div>
- <div className="text-4xl font-semibold text-ink-primary tabular-nums">
- <span className="text-xl opacity-20 mr-1">-</span>
- {businessProfile?.currencySymbol || '₹'}{dailyMetrics.cost.toLocaleString()}
- </div>
- <p className="text-[9px] font-bold text-gray-700 opacity-70 leading-relaxed italic">
- Operational costs, partner splits, and miscellaneous daily overhead.
- </p>
- </div>
- </div>
+  return (
+    <div className="animate-fade-in flex flex-col gap-6 pb-20">
 
- {/* Closing Balance Footer */}
- <div className="bg-ink-primary rounded-xl p-5 text-surface shadow-2xl relative overflow-hidden">
- <div className="absolute top-0 right-0 p-5 opacity-10">
- <Calculator size={64} />
- </div>
- <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-5">
- <div>
- <h2 className="text-[10px] font-semibold text-surface/40 mb-2 leading-none">Net Closing Balance</h2>
- <div className="text-3xl md:text-6xl font-semibold text-accent-signature tabular-nums flex items-baseline">
- <span className="text-2xl mr-2 text-surface/20">{businessProfile?.currencySymbol || '₹'}</span>
- {closingBalance.toLocaleString()}
- </div>
- </div>
- <div className="flex flex-col items-end gap-3">
- <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-pill font-semibold text-[10px] ${closingBalance >= openingBalance ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
- {closingBalance >= openingBalance ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
- {closingBalance >= openingBalance ? 'Daily Surplus' : 'Daily Deficit'}
- </div>
- <button 
- onClick={() => setShowDetailDate(selectedDate)}
- className="w-full px-6 py-2 bg-white/10 hover:bg-white/20 border border-white/10 rounded-pill text-[9px] font-bold text-surface transition-all flex items-center justify-center gap-2"
- >
- <Eye size={12} /> VIEW BREAKDOWN
- </button>
- </div>
- </div>
- </div>
- </div>
- </div>
+      {/* ── Header ───────────────────────────────────────────────────────────── */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-6 border-b border-black/5">
+        <div>
+          <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2">
+            Day Book<span className="text-accent-signature">.</span>
+          </h1>
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
+            Cash & transaction ledger
+          </p>
+        </div>
 
- {/* Sidebar History */}
- <div className="lg:col-span-4 flex flex-col gap-4">
- <div className="glass-panel border-black/5 bg-surface/50 shadow-premium !p-6 !rounded-bento">
- <div className="flex items-center gap-3 mb-6">
- <Clock size={16} className="text-ink-primary opacity-60" />
- <h3 className="text-sm font-semibold text-ink-primary">Recent Logs</h3>
- </div>
- 
- <div className="space-y-3">
- {dayBook.slice(0, 5).map(log => (
- <div 
- key={log.id} 
- className={`p-4 rounded-lg border bg-white cursor-pointer transition-all hover:scale-[1.02] relative group ${selectedDate === log.date ? 'border-accent-signature ring-1 ring-accent-signature' : 'border-black/5 hover:border-black/10'}`}
- onClick={() => setSelectedDate(log.date)}
- >
- <div className="flex justify-between items-start mb-2">
- <span className="text-[10px] font-semibold text-ink-primary">{new Date(log.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric'})}</span>
- <span className={`text-[8px] font-semibold px-2 py-0.5 rounded-full ${log.closing_balance >= log.opening_balance ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
- {log.closing_balance >= log.opening_balance ? '+' : '-'}{Math.abs(log.closing_balance - log.opening_balance).toLocaleString()}
- </span>
- </div>
- <div className="text-lg font-semibold text-ink-primary flex justify-between items-end">
- <span>{businessProfile?.currencySymbol || '₹'}{log.closing_balance?.toLocaleString()}</span>
- <button 
- onClick={(e) => { e.stopPropagation(); setShowDetailDate(log.date); }}
- className="w-7 h-7 bg-canvas rounded-lg flex items-center justify-center text-gray-400 hover:text-ink-primary border border-black/5 opacity-0 group-hover:opacity-100 transition-all"
- >
- <Eye size={14} />
- </button>
- </div>
- </div>
- ))}
- 
- {dayBook.length === 0 && (
- <div className="py-12 text-center opacity-20 italic text-sm font-semibold">
- No ledger history
- </div>
- )}
- </div>
- </div>
- 
- <div className="glass-panel border-black/5 shadow-premium !p-5 bg-accent-signature text-black !rounded-bento">
- <h4 className="text-xs font-semibold mb-4">Account Note.</h4>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">
- The Day Book serves as a master record for physical cash reconciliation. Ensure all POS transactions are verified before syncing the ledger for the day.
- </p>
- </div>
- </div>
- </div>
- </div>
+        {/* Date nav */}
+        <div className="flex items-center gap-2 no-print">
+          <button onClick={() => setSelectedDate(d => addDays(d, -1))}
+            className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-full hover:bg-canvas transition-all text-ink-primary shadow-sm">
+            <ChevronLeft size={16} />
+          </button>
+          <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-black/5 shadow-sm min-w-[200px] justify-center">
+            <Calendar size={13} className="text-gray-400" />
+            <input type="date"
+              className="bg-transparent border-none text-xs font-black outline-none cursor-pointer text-ink-primary"
+              value={selectedDate}
+              onChange={e => setSelectedDate(e.target.value)}
+            />
+          </div>
+          <button onClick={() => setSelectedDate(d => addDays(d, 1))}
+            disabled={selectedDate >= today}
+            className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-full hover:bg-canvas transition-all text-ink-primary shadow-sm disabled:opacity-30">
+            <ChevronRight size={16} />
+          </button>
+          {selectedDate !== today && (
+            <button onClick={() => setSelectedDate(today)}
+              className="px-3 h-9 text-[9px] font-black uppercase tracking-widest bg-canvas border border-black/5 rounded-full hover:bg-white transition-all text-gray-500">
+              Today
+            </button>
+          )}
+          <button onClick={() => setShowReport(true)}
+            className="flex items-center gap-2 px-4 h-9 bg-ink-primary text-white text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-black transition-all shadow-sm">
+            <FileText size={12} />
+            Report
+          </button>
+        </div>
+      </div>
 
- {/* Detailed Report Modal Participation */}
- {showDetailDate && (
- <DailyLedgerDetail 
- date={showDetailDate}
- openingBalance={
- dayBook.find(db => db.date === showDetailDate)?.opening_balance || 
- (showDetailDate === selectedDate ? openingBalance : 0)
-}
- closingBalance={
- dayBook.find(db => db.date === showDetailDate)?.closing_balance || 
- (showDetailDate === selectedDate ? closingBalance : 0)
-}
- sales={(sales || []).filter(s => {
-   const m = (s.paymentMethod || s.payment_type || '').toString().toLowerCase();
-   return new Date(s.date).toISOString().split('T')[0] === showDetailDate && m === 'cash';
- })}
- expenses={(expenses || []).filter(e => new Date(e.date).toISOString().split('T')[0] === showDetailDate)}
- businessProfile={businessProfile}
- onClose={() => setShowDetailDate(null)}
- />
- )}
- </>
- );
+      {/* ── Date label + status ───────────────────────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <span className="text-sm font-black text-ink-primary">{displayDate(selectedDate)}</span>
+        {ledger.isLocked && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[9px] font-black uppercase tracking-widest">
+            <Lock size={10} /> Closed
+          </span>
+        )}
+        {!ledger.hasOpening && !isFuture && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[9px] font-black uppercase tracking-widest">
+            <AlertTriangle size={10} /> Opening not set
+          </span>
+        )}
+        {isFuture && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-canvas text-gray-400 border border-black/5 rounded-full text-[9px] font-black uppercase tracking-widest">
+            Future date
+          </span>
+        )}
+      </div>
+
+      {/* ── Balance strip ─────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <KpiCard label="Opening Balance" cy={cy} value={fmt(ledger.openingBal)}
+          icon={<Banknote size={14} />} color="default" />
+        <KpiCard label="Total Receipts" cy={cy} value={fmt(ledger.totalReceipts)}
+          sub={`${ledger.txCount} transactions`}
+          icon={<ArrowUpRight size={14} />} color="green" />
+        <KpiCard label="Total Payments" cy={cy} value={fmt(ledger.totalPayments)}
+          sub={`${ledger.expenseCount} expenses · ${ledger.entries.filter(e=>e.category==='Purchase').length} purchases`}
+          icon={<ArrowDownRight size={14} />} color="red" />
+        <KpiCard label="Closing Balance" cy={cy}
+          value={`${isDeficit ? '−' : ''}${fmt(Math.abs(ledger.closingBal))}`}
+          sub={isDeficit ? 'Cash deficit' : ledger.isLocked ? 'Day closed' : 'Estimated'}
+          icon={isDeficit ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
+          color={isDeficit ? 'darkred' : 'dark'} />
+      </div>
+
+      {/* ── Main content ─────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* ── Transaction log ───────────────────────────────────────────────── */}
+        <div className="lg:col-span-2 bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
+
+          {/* Table header */}
+          <div className="px-6 py-4 border-b border-black/5 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Receipt size={14} className="text-accent-signature" />
+              <span className="text-xs font-black text-ink-primary uppercase tracking-widest">
+                Transaction Log
+              </span>
+              <span className="bg-canvas border border-black/5 text-[9px] font-black text-gray-400 px-2 py-0.5 rounded-full">
+                {ledger.txCount}
+              </span>
+            </div>
+            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
+              ledger.totalReceipts >= ledger.totalPayments
+                ? 'bg-emerald-50 text-emerald-600'
+                : 'bg-red-50 text-red-600'
+            }`}>
+              {ledger.totalReceipts >= ledger.totalPayments
+                ? <TrendingUp size={11} />
+                : <TrendingDown size={11} />}
+              Net {cy}{fmt(Math.abs(ledger.totalReceipts - ledger.totalPayments))}
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-canvas/60 border-b border-black/[0.04]">
+                  {['Time', 'Description', 'Type', 'Method', 'In (+)', 'Out (−)', 'Balance'].map(h => (
+                    <th key={h} className="py-3 px-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap last:text-right">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-black/[0.04]">
+                {ledger.entries.length === 0 && (
+                  <tr>
+                    <td colSpan="7" className="py-16 text-center">
+                      <div className="flex flex-col items-center opacity-20">
+                        <Receipt size={32} strokeWidth={1.5} />
+                        <span className="text-[10px] font-bold uppercase tracking-widest mt-3">
+                          No transactions for this date
+                        </span>
+                      </div>
+                    </td>
+                  </tr>
+                )}
+                {ledger.entries.map((tx, i) => {
+                  const isCreditSale = tx.type === 'CREDIT_SALE';
+                  const isIncome     = tx.type === 'INCOME';
+                  const catColor = {
+                    Sale:       'bg-emerald-50 text-emerald-600',
+                    Collection: 'bg-blue-50 text-blue-600',
+                    Purchase:   'bg-orange-50 text-orange-600',
+                  }[tx.category] || 'bg-gray-50 text-gray-500';
+
+                  return (
+                    <tr key={tx.id || i}
+                      className={`hover:bg-canvas/30 transition-colors ${isCreditSale ? 'opacity-50' : ''}`}>
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-1">
+                          <Clock size={9} className="text-gray-300" />
+                          <span className="text-[9px] font-black font-mono tabular-nums text-ink-primary">
+                            {new Date(tx.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 max-w-[160px]">
+                        <div className="flex items-center gap-2">
+                          <div className={`w-5 h-5 rounded-md flex items-center justify-center flex-shrink-0 ${
+                            isIncome ? 'bg-emerald-50 text-emerald-500' : 'bg-red-50 text-red-500'
+                          } ${isCreditSale ? 'opacity-40' : ''}`}>
+                            {isIncome ? <ArrowUpRight size={10} /> : <ArrowDownRight size={10} />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] font-black text-ink-primary leading-none truncate">{tx.title}</p>
+                            {tx.note && <p className="text-[9px] text-gray-400 mt-0.5 truncate">{tx.note}</p>}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[8px] font-bold uppercase tracking-wider ${catColor}`}>
+                          {isCreditSale ? 'Credit' : tx.category}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4"><MethodBadge method={tx.method} /></td>
+                      <td className="py-3 px-4">
+                        {isIncome && !isCreditSale
+                          ? <span className="text-[11px] font-black text-emerald-600 tabular-nums">{cy}{fmt(tx.amount)}</span>
+                          : isCreditSale
+                            ? <span className="text-[9px] font-bold text-gray-300 tabular-nums italic">{cy}{fmt(tx.amount)}</span>
+                            : <span className="text-gray-200">—</span>}
+                      </td>
+                      <td className="py-3 px-4">
+                        {!isIncome && !isCreditSale
+                          ? <span className="text-[11px] font-black text-red-600 tabular-nums">{cy}{fmt(tx.amount)}</span>
+                          : <span className="text-gray-200">—</span>}
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        {isCreditSale
+                          ? <span className="text-gray-200 text-xs">—</span>
+                          : <span className={`text-[11px] font-black tabular-nums ${tx.runningBalance < 0 ? 'text-red-500' : 'text-ink-primary'}`}>
+                              {tx.runningBalance < 0 ? '−' : ''}{cy}{fmt(Math.abs(tx.runningBalance))}
+                            </span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Credit sales footnote */}
+          {ledger.creditSales > 0 && (
+            <div className="px-6 py-3 border-t border-black/[0.04] bg-blue-50/40 flex items-center gap-2">
+              <CreditCard size={11} className="text-blue-400" />
+              <span className="text-[9px] font-bold text-blue-500">
+                {cy}{fmt(ledger.creditSales)} in credit sales (receivable — not included in cash flow)
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* ── Right sidebar ──────────────────────────────────────────────────── */}
+        <div className="space-y-4">
+
+          {/* ── Authorize / Opening Balance ───────────────────────────────── */}
+          <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
+            <h2 className="text-[10px] font-black text-ink-primary mb-4 uppercase tracking-widest flex items-center gap-2">
+              <Lock size={12} className="text-accent-signature" /> Opening Balance
+            </h2>
+
+            {/* Equation */}
+            <div className="space-y-2 mb-4 pb-4 border-b border-black/5">
+              {[
+                { label: 'Opening',    val: ledger.openingBal,    color: 'text-ink-primary', sign: '' },
+                { label: '+ Receipts', val: ledger.totalReceipts, color: 'text-emerald-600', sign: '+' },
+                { label: '− Payments', val: ledger.totalPayments, color: 'text-red-500',     sign: '−' },
+              ].map(({ label, val, color }) => (
+                <div key={label} className="flex justify-between text-[10px] font-bold text-gray-400">
+                  <span>{label}</span>
+                  <span className={`font-black tabular-nums ${color}`}>{cy}{fmt(val)}</span>
+                </div>
+              ))}
+              <div className="flex justify-between text-xs font-black pt-2 border-t border-black/5">
+                <span className="text-ink-primary">= Closing</span>
+                <span className={`tabular-nums ${isDeficit ? 'text-red-600' : 'text-ink-primary'}`}>
+                  {isDeficit ? '−' : ''}{cy}{fmt(Math.abs(ledger.closingBal))}
+                </span>
+              </div>
+            </div>
+
+            {ledger.isLocked ? (
+              <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center gap-3">
+                <ShieldCheck size={16} className="text-emerald-500 flex-shrink-0" />
+                <div>
+                  <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">Day Closed & Locked</p>
+                  <p className="text-[9px] font-bold text-emerald-500 mt-0.5">No further edits allowed</p>
+                </div>
+              </div>
+            ) : hasPermission('finance', 'edit') ? (
+              <div className="space-y-2">
+                {/* Carry forward button */}
+                {ledger.prevClosing !== null && !ledger.hasOpening && (
+                  <button onClick={handleUseYesterdayClosing} disabled={isSaving}
+                    className="w-full h-10 flex items-center justify-center gap-2 bg-canvas border border-black/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-600 hover:bg-black/5 transition-all">
+                    <ChevronRight size={12} />
+                    Use prev. closing ({cy}{fmt(ledger.prevClosing)})
+                  </button>
+                )}
+                <div className="relative">
+                  <input type="number" placeholder="Enter opening amount"
+                    className="w-full h-11 bg-canvas border border-black/5 rounded-xl px-4 pr-10 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                    value={openingInput}
+                    onChange={e => setOpeningInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSaveOpening()}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-black text-gray-300">{cy}</span>
+                </div>
+                <button onClick={handleSaveOpening} disabled={isSaving || !openingInput}
+                  className="w-full h-11 bg-ink-primary text-white font-black text-[9px] uppercase tracking-widest rounded-xl hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-40">
+                  {isSaving ? <RefreshCcw className="animate-spin" size={13} /> : <Save size={13} />}
+                  Save Opening Balance
+                </button>
+              </div>
+            ) : (
+              <p className="text-[9px] font-bold text-gray-400 text-center uppercase tracking-widest">View-only</p>
+            )}
+          </div>
+
+          {/* ── Receipts breakdown ────────────────────────────────────────── */}
+          <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
+            <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <TrendingUp size={11} className="text-emerald-500" /> Receipts Breakdown
+            </h3>
+            <div className="space-y-2.5">
+              {[
+                { label: 'Cash Sales',        val: ledger.cashSales,   icon: <Banknote size={10} />,  color: 'text-emerald-600' },
+                { label: 'Bank / UPI Sales',  val: ledger.bankSales,   icon: <Building2 size={10} />, color: 'text-violet-600'  },
+                { label: 'Credit Sales',      val: ledger.creditSales, icon: <CreditCard size={10} />,color: 'text-blue-400', muted: true },
+                { label: 'Cash Collections',  val: ledger.cashCollect, icon: <Users size={10} />,     color: 'text-emerald-600' },
+                { label: 'Bank Collections',  val: ledger.bankCollect, icon: <Users size={10} />,     color: 'text-violet-600'  },
+              ].map(({ label, val, icon, color, muted }) => (
+                <div key={label} className={`flex items-center justify-between ${muted ? 'opacity-50' : ''}`}>
+                  <div className={`flex items-center gap-1.5 text-[9px] font-bold text-gray-500 ${color}`}>
+                    {icon} <span className="text-gray-500">{label}</span>
+                    {muted && <span className="text-[8px] text-gray-400">(excl.)</span>}
+                  </div>
+                  <span className={`text-[10px] font-black tabular-nums ${val > 0 ? color : 'text-gray-300'}`}>
+                    {cy}{fmt(val)}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between pt-2 border-t border-black/5 text-[10px] font-black">
+                <span className="text-ink-primary">Total Cash In</span>
+                <span className="text-emerald-600 tabular-nums">{cy}{fmt(ledger.totalReceipts)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Payments breakdown ────────────────────────────────────────── */}
+          <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
+            <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <TrendingDown size={11} className="text-red-500" /> Payments Breakdown
+            </h3>
+            <div className="space-y-2.5">
+              {[
+                { label: 'Expenses',          val: ledger.totalExpenses,  icon: <Receipt size={10} />,     color: 'text-red-500' },
+                { label: 'Purchase Payments', val: ledger.totalPurchPaid, icon: <ShoppingCart size={10} />, color: 'text-orange-500' },
+              ].map(({ label, val, icon, color }) => (
+                <div key={label} className="flex items-center justify-between">
+                  <div className={`flex items-center gap-1.5 text-[9px] font-bold ${color}`}>
+                    {icon} <span className="text-gray-500">{label}</span>
+                  </div>
+                  <span className={`text-[10px] font-black tabular-nums ${val > 0 ? color : 'text-gray-300'}`}>
+                    {cy}{fmt(val)}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between pt-2 border-t border-black/5 text-[10px] font-black">
+                <span className="text-ink-primary">Total Cash Out</span>
+                <span className="text-red-600 tabular-nums">{cy}{fmt(ledger.totalPayments)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Physical cash reconciliation ─────────────────────────────── */}
+          <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
+            <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Banknote size={11} className="text-amber-500" /> Cash Reconciliation
+            </h3>
+            <div className="space-y-3">
+              <div className="flex justify-between text-[10px] font-bold text-gray-400">
+                <span>Book Balance</span>
+                <span className={`font-black tabular-nums ${isDeficit ? 'text-red-600' : 'text-ink-primary'}`}>
+                  {cy}{fmt(ledger.closingBal)}
+                </span>
+              </div>
+              <div className="relative">
+                <input type="number" placeholder="Enter physical cash count"
+                  className="w-full h-10 bg-canvas border border-black/5 rounded-xl px-3 pr-8 text-xs font-black outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                  value={physicalCash}
+                  onChange={e => setPhysicalCash(e.target.value)}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-300">{cy}</span>
+              </div>
+              {variance !== null && (
+                <div className={`flex items-center justify-between p-3 rounded-xl text-[10px] font-black ${
+                  Math.abs(variance) < 0.01
+                    ? 'bg-emerald-50 border border-emerald-100 text-emerald-700'
+                    : variance > 0
+                      ? 'bg-blue-50 border border-blue-100 text-blue-700'
+                      : 'bg-red-50 border border-red-100 text-red-700'
+                }`}>
+                  <span>{Math.abs(variance) < 0.01 ? '✓ Balanced' : variance > 0 ? 'Cash Over' : 'Cash Short'}</span>
+                  <span className="tabular-nums">
+                    {Math.abs(variance) < 0.01 ? 'Exact match' : `${variance > 0 ? '+' : '−'}${cy}${fmt(Math.abs(variance))}`}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Close Day ────────────────────────────────────────────────── */}
+          {!ledger.isLocked && ledger.hasOpening && hasPermission('finance', 'edit') && !isFuture && (
+            <button onClick={handleCloseDay} disabled={isClosing}
+              className="w-full h-12 flex items-center justify-center gap-2 bg-ink-primary text-white font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-black transition-all shadow-sm disabled:opacity-40">
+              {isClosing ? <RefreshCcw className="animate-spin" size={14} /> : <Lock size={14} />}
+              Close & Lock Day
+            </button>
+          )}
+          {ledger.isLocked && (
+            <div className="flex items-center justify-center gap-2 p-3 bg-emerald-50 border border-emerald-100 rounded-2xl">
+              <ShieldCheck size={14} className="text-emerald-500" />
+              <span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest">Day Closed</span>
+            </div>
+          )}
+
+        </div>
+      </div>
+
+      {/* ── Report modal ─────────────────────────────────────────────────────── */}
+      {showReport && (
+        <DailyLedgerDetail
+          date={selectedDate}
+          sales={ledger.sales}
+          expenses={ledger.expenses}
+          openingBalance={ledger.openingBal}
+          closingBalance={ledger.closingBal}
+          businessProfile={businessProfile}
+          onClose={() => setShowReport(false)}
+        />
+      )}
+    </div>
+  );
 };
 
 export default DayBook;

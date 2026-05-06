@@ -1,9 +1,15 @@
 import React, { useState, useRef} from 'react';
-import { useAppContext} from '../context/AppContext';
 import { 
- Download, Upload, FileSpreadsheet, FileJson, 
- X, CheckCircle2, AlertCircle, ChevronDown, Eye
+  X, Download, Upload, FileJson, Eye, 
+  CheckCircle2, AlertCircle, Check, FileSpreadsheet 
 } from 'lucide-react';
+import { useInventory } from '../hooks/useInventory';
+import { usePeople } from '../hooks/usePeople';
+import { useSales } from '../hooks/useSales';
+import { useFinance } from '../hooks/useFinance';
+import { usePayroll } from '../hooks/usePayroll';
+import { useNotifications } from '../hooks/useNotifications';
+import { useTenant } from '../context/TenantContext';
 
 const MODULES = [
  { key: 'products', label: 'Products', fields: ['id','sku','name','category','unit','costPrice','sellingPrice','stock','taxRate','tags','image']},
@@ -66,12 +72,13 @@ const parseCSV = (text) => {
 };
 
 const DataTools = ({ isOpen, onClose}) => {
- const { 
- products, shops, orders, expenses, employees,
- addProduct, updateProduct, addShop, updateShop,
- addExpense, addEmployee, updateEmployee,
- addNotification
-} = useAppContext();
+ const { currentTenantId } = useTenant();
+ const { products, addProduct, updateProduct } = useInventory(currentTenantId);
+ const { clients: shops, addClient: addShop, updateClient: updateShop } = usePeople(currentTenantId);
+ const { sales: orders } = useSales(currentTenantId);
+ const { expenses, addExpense } = useFinance(currentTenantId);
+ const { employees, addEmployee, updateEmployee } = usePayroll(currentTenantId);
+ const { addNotification } = useNotifications();
 
  const [activeTab, setActiveTab] = useState('export');
  const [selectedModule, setSelectedModule] = useState('products');

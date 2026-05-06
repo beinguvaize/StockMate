@@ -1,15 +1,39 @@
 import React, { useState, useEffect} from 'react';
-import { 
- Printer, X, Edit3, Check, Calendar, 
- CreditCard, Building2, MapPin, Phone, 
+import {
+ Printer, X, Edit3, Check, Calendar,
+ CreditCard, Building2, MapPin, Phone,
  Mail, Globe, ShieldCheck, Download
 } from 'lucide-react';
+import { formatDate } from '../../lib/utils';
 
 const PremiumInvoice = ({ order, business, onClose}) => {
  const [isEditMode, setIsEditMode] = useState(false);
+
+ useEffect(() => {
+   const style = document.createElement('style');
+   style.id = 'simple-invoice-print-css';
+   style.textContent = `
+     @media print {
+       @page { size: A4; margin: 10mm; }
+       html, body { background: white !important; margin: 0 !important; padding: 0 !important;
+         -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+       /* visibility technique works for nested elements (display:none on body children kills nested too) */
+       body * { visibility: hidden !important; }
+       #premium-invoice-content, #premium-invoice-content * { visibility: visible !important; }
+       #premium-invoice-content {
+         position: absolute !important; left: 0 !important; top: 0 !important;
+         width: 100% !important; background: white !important;
+         box-shadow: none !important; max-width: none !important;
+       }
+       #premium-invoice-content .print-hidden { display: none !important; }
+     }
+   `;
+   document.head.appendChild(style);
+   return () => { const el = document.getElementById('simple-invoice-print-css'); if (el) el.remove(); };
+ }, []);
  const [editedOrder, setEditedOrder] = useState({
  invoiceNo: order.id ? String(order.id).split('-').pop() : 'NEW',
- date: order.date ? new Date(order.date).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN'),
+ date: order.date ? formatDate(order.date) : new Date().toLocaleDateString('en-IN'),
  dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toLocaleDateString('en-IN'),
  remarks: order.salesmanNote || 'Thanks for your business!',
  paymentMethod: order.paymentMethod || 'CASH'
@@ -36,10 +60,10 @@ const PremiumInvoice = ({ order, business, onClose}) => {
 };
 
  return (
- <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto no-scrollbar print:p-0 print:block print:bg-white print:static">
+ <div id="premium-invoice-wrapper" className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 overflow-y-auto no-scrollbar print:p-0 print:block print:bg-white print:static">
  
  {/* Toolbar - Hidden on Print */}
- <div className="fixed top-6 right-6 flex gap-3 z-[110] print:hidden">
+ <div className="print-hidden fixed top-6 right-6 flex gap-3 z-[110] print:hidden">
  <button 
  onClick={() => setIsEditMode(!isEditMode)}
  className={`flex items-center gap-3 px-6 py-3 rounded-pill font-bold text-sm transition-all ${
@@ -65,7 +89,7 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  </div>
 
  {/* Invoice Container */}
- <div className="bg-white w-full max-w-[850px] min-h-[1100px] shadow-2xl relative overflow-hidden print:shadow-none print:max-w-none print:w-full">
+ <div id="premium-invoice-content" className="bg-white w-full max-w-[850px] min-h-[1100px] shadow-2xl relative overflow-hidden print:shadow-none print:max-w-none print:w-full">
  
  {/* Header Decoration */}
  <div className="absolute top-0 right-0 w-32 h-32 bg-[#C8F135] opacity-10 rounded-bl-[100px] print:hidden"></div>

@@ -93,10 +93,10 @@ export const HRProvider = ({ children }) => {
           severity: 'High',
         });
         setSyncStatus('ERROR');
-        addNotification(`Cloud Sync Delayed: ${error.message}`, 'warning');
-      } else {
-        setSyncStatus('SYNCED');
+        addNotification(`Cloud sync failed: ${error.message}`, "error");
+        return; // STOP
       }
+      setSyncStatus('SYNCED');
     }
 
     const fullEmployee = {
@@ -201,8 +201,8 @@ export const HRProvider = ({ children }) => {
           severity: 'High',
         });
         setSyncStatus('ERROR');
-        addNotification('Failed to process payroll in cloud', 'error');
-        return false;
+        addNotification(`Payroll sync failed: ${error.message}`, "error");
+        return false; // STOP
       }
       setSyncStatus('SYNCED');
 
@@ -244,19 +244,19 @@ export const HRProvider = ({ children }) => {
           error_message: error.message,
           severity: 'Medium',
         });
-        addNotification('Cloud Sync Delayed: Record removed locally', 'warning');
-      } else {
-        logAuditEvent({
-          action: AUDIT_ACTIONS.PAYROLL_DELETE,
-          entityType: 'payroll',
-          entityId: recordId,
-          summary: `Deleted payroll record ${recordId}${target?.period ? ` (${target.period})` : ''}`,
-          metadata: {
-            period: target?.period || target?.month || null,
-            employee_count: Array.isArray(target?.items) ? target.items.length : null,
-          },
-        });
+        addNotification(`Cloud delete failed: ${error.message}`, "error");
+        return; // STOP
       }
+      logAuditEvent({
+        action: AUDIT_ACTIONS.PAYROLL_DELETE,
+        entityType: 'payroll',
+        entityId: recordId,
+        summary: `Deleted payroll record ${recordId}${target?.period ? ` (${target.period})` : ''}`,
+        metadata: {
+          period: target?.period || target?.month || null,
+          employee_count: Array.isArray(target?.items) ? target.items.length : null,
+        },
+      });
     }
     setPayrollRecords((prev) => prev.filter((r) => r.id !== recordId));
   };

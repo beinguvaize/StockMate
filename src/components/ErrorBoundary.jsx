@@ -7,13 +7,34 @@ class ErrorBoundary extends React.Component {
  this.state = { hasError: false, error: null};
 }
 
- static getDerivedStateFromError(error) {
- return { hasError: true, error};
-}
+ static isChunkError(error) {
+    const msg = error?.message || '';
+    return (
+      msg.includes('Failed to fetch dynamically imported module') ||
+      msg.includes('Importing a module script failed') ||
+      msg.includes('error loading dynamically imported module') ||
+      error?.name === 'ChunkLoadError'
+    );
+  }
 
- componentDidCatch(error, errorInfo) {
- console.error("❌ App Crash Detected:", error, errorInfo);
-}
+  static getDerivedStateFromError(error) {
+    // Stale chunk after new deploy — reload once to fetch fresh assets
+    if (ErrorBoundary.isChunkError(error)) {
+      const key = 'chunk_reload_at';
+      const last = Number(sessionStorage.getItem(key) || 0);
+      const now = Date.now();
+      if (now - last > 30_000) {
+        sessionStorage.setItem(key, String(now));
+        window.location.reload();
+        return { hasError: false, error: null };
+      }
+    }
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("❌ App Crash Detected:", error, errorInfo);
+  }
 
  handleReload = () => {
  window.location.reload();
@@ -77,6 +98,15 @@ class ErrorBoundary extends React.Component {
  {this.state.error?.name || 'GENERIC_RUNTIME_EXCEPTION'}
  </span>
  </p>
+ {/* Surface the runtime message + stack in dev so the boundary stops
+     swallowing bug signal. In production this section still renders, but
+     the information is what would otherwise require opening DevTools. */}
+ {this.state.error?.message && (
+   <pre className="mt-4 text-left text-[10px] font-mono text-red-600 whitespace-pre-wrap break-words bg-red-50/50 p-3 rounded-lg max-h-48 overflow-auto">
+     {this.state.error.message}
+     {this.state.error.stack ? '\n\n' + this.state.error.stack : ''}
+   </pre>
+ )}
  </div>
  </div>
  </div>

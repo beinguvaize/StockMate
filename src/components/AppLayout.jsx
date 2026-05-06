@@ -1,9 +1,13 @@
 import React, { useState, useRef} from 'react';
 import { NavLink, Outlet, Navigate, useParams} from 'react-router-dom';
-import { useAppContext} from '../context/AppContext';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload} from 'lucide-react';
+import { useTheme } from '../hooks/useTheme';
+import { getDefaultAvatar } from '../lib/supabase';
 import NotificationStack from './NotificationStack';
 import GlobalLoading from './GlobalLoading';
+import AvatarPicker from './AvatarPicker';
 
 const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  const config = {
@@ -60,11 +64,14 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
 };
 
 const Navbar = () => {
- const { 
-   currentUser, logout, businessProfile, isMaintenance, hasPermission, 
-   syncStatus, lastSyncedAt, isOnline, currentTenant, isModuleAllowed, hasRole,
-   isImpersonating, stopImpersonating
- } = useAppContext();
+  const {
+    currentUser, logout, hasPermission, hasRole
+  } = useAuth();
+  const [showAvatarPicker, setShowAvatarPicker] = React.useState(false);
+  const {
+    currentTenant, isModuleAllowed, isImpersonating, stopImpersonating,
+    isOnline = true, syncStatus = 'SYNCED', lastSyncedAt = new Date().toISOString()
+  } = useTenant();
  const { tenantSlug } = useParams();
  const [isUserMenuOpen, setIsUserMenuOpen] = React.useState(false);
  const [isMoreMenuOpen, setIsMoreMenuOpen] = React.useState(false);
@@ -252,48 +259,79 @@ const Navbar = () => {
  <CloudStatus status={syncStatus} lastSyncedAt={lastSyncedAt} isOnline={isOnline} />
 
  <div className="relative" ref={dropdownRef}>
- <button 
- onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
- className="flex items-center gap-3 px-3 py-1.5 rounded-full bg-white border border-black/5 shadow-sm hover:shadow-md transition-all group"
+ <button
+   onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+   className="flex items-center gap-3 px-3 py-1.5 rounded-full bg-white border border-black/5 shadow-sm hover:shadow-md transition-all group"
  >
- <div className="w-8 h-8 rounded-full bg-accent-signature flex items-center justify-center text-ink-primary text-xs font-bold ring-2 ring-black/5">
- {currentUser?.name?.charAt(0).toUpperCase() || <User size={14} />}
- </div>
- <span className="hidden sm:block text-sm font-medium text-ink-primary">{currentUser?.name?.split(' ')[0] || 'Member'}</span>
+   <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-black/5 flex-shrink-0">
+     <img
+       src={currentUser?.avatar_url || getDefaultAvatar(currentUser?.name || currentUser?.email || 'user')}
+       alt={currentUser?.name || 'avatar'}
+       className="w-full h-full object-cover"
+     />
+   </div>
+   <span className="hidden sm:block text-sm font-medium text-ink-primary">{currentUser?.name?.split(' ')[0] || 'Member'}</span>
  </button>
 
  {isUserMenuOpen && (
- <div className="absolute top-full right-0 mt-3 w-64 bg-surface rounded-[2rem] border border-black/5 shadow-2xl p-4 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 z-[100]">
- <div className="mb-4 pb-4 border-b border-black/5">
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">WORKSPACE PORTAL</p>
- <div className="space-y-1">
- {adminItems.filter(i => !i.hidden).map(item => (
- <NavLink
- key={item.path}
- to={item.path}
- onClick={() => setIsUserMenuOpen(false)}
- className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink-primary hover:bg-canvas rounded-xl transition-all"
- >
- {item.label}
- </NavLink>
- ))}
- {isGlobalAdmin && (
-   <NavLink
-     to="/nexus-hq"
-     onClick={() => setIsUserMenuOpen(false)}
-     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
-   >
-     <Shield size={16} />
-     The Nexus Console
-   </NavLink>
+   <div className="absolute top-full right-0 mt-3 w-64 bg-surface rounded-[2rem] border border-black/5 shadow-2xl p-4 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-300 z-[100]">
+     {/* User identity card */}
+     <div className="flex items-center gap-3 mb-4 pb-4 border-b border-black/5">
+       <button
+         onClick={() => { setIsUserMenuOpen(false); setShowAvatarPicker(true); }}
+         className="relative group flex-shrink-0"
+         title="Edit avatar"
+       >
+         <div className="w-12 h-12 rounded-full overflow-hidden ring-2 ring-black/5">
+           <img
+             src={currentUser?.avatar_url || getDefaultAvatar(currentUser?.name || currentUser?.email || 'user')}
+             alt={currentUser?.name || 'avatar'}
+             className="w-full h-full object-cover"
+           />
+         </div>
+         <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+           <Upload size={12} className="text-white" />
+         </div>
+       </button>
+       <div className="min-w-0">
+         <p className="text-sm font-bold text-ink-primary truncate">{currentUser?.name || 'Member'}</p>
+         <p className="text-[10px] text-gray-500 truncate">{currentUser?.email}</p>
+       </div>
+     </div>
+
+     <div className="mb-4 pb-4 border-b border-black/5">
+       <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-2 uppercase px-1">Workspace Portal</p>
+       <div className="space-y-1">
+         {adminItems.filter(i => !i.hidden).map(item => (
+           <NavLink
+             key={item.path}
+             to={item.path}
+             onClick={() => setIsUserMenuOpen(false)}
+             className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-ink-primary hover:bg-canvas rounded-xl transition-all"
+           >
+             {item.label}
+           </NavLink>
+         ))}
+         {isGlobalAdmin && (
+           <NavLink
+             to="/nexus-hq"
+             onClick={() => setIsUserMenuOpen(false)}
+             className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium text-purple-600 hover:bg-purple-50 rounded-xl transition-all"
+           >
+             <Shield size={16} />
+             The Nexus Console
+           </NavLink>
+         )}
+       </div>
+     </div>
+     <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-all">
+       <LogOut size={16} /> Logout
+     </button>
+   </div>
  )}
- </div>
- </div>
- <button onClick={logout} className="w-full flex items-center gap-3 p-3 text-sm font-medium text-red-500 hover:bg-red-50 rounded-xl transition-all">
- <LogOut size={16} /> Logout
- </button>
- </div>
- )}
+
+ {/* AvatarPicker modal — rendered here to stay inside dropdownRef scope but outside the dropdown div */}
+ {showAvatarPicker && <AvatarPicker onClose={() => setShowAvatarPicker(false)} />}
  </div>
  </div>
  </div>
@@ -407,13 +445,30 @@ const Navbar = () => {
  </nav>
  
  {/* Drawer Footer */}
- <div className="p-4 border-t border-black/5">
- <button 
- onClick={() => { logout(); setIsMobileMenuOpen(false);}} 
- className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 rounded-xl transition-all"
- >
- <LogOut size={18} /> Logout
- </button>
+ <div className="p-4 border-t border-black/5 space-y-2">
+   {/* Mobile avatar row */}
+   <button
+     onClick={() => { setIsMobileMenuOpen(false); setShowAvatarPicker(true); }}
+     className="w-full flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-canvas transition-all"
+   >
+     <div className="w-8 h-8 rounded-full overflow-hidden ring-2 ring-black/5 flex-shrink-0">
+       <img
+         src={currentUser?.avatar_url || getDefaultAvatar(currentUser?.name || currentUser?.email || 'user')}
+         alt="avatar"
+         className="w-full h-full object-cover"
+       />
+     </div>
+     <div className="flex-1 text-left">
+       <p className="text-sm font-bold text-ink-primary truncate">{currentUser?.name || 'Member'}</p>
+       <p className="text-[10px] text-gray-500">Edit Avatar</p>
+     </div>
+   </button>
+   <button
+     onClick={() => { logout(); setIsMobileMenuOpen(false);}}
+     className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 rounded-xl transition-all"
+   >
+     <LogOut size={18} /> Logout
+   </button>
  </div>
  </div>
  </div>
@@ -423,24 +478,35 @@ const Navbar = () => {
 };
 
 const AppLayout = () => {
-  const { currentUser, loading, isImpersonating, stopImpersonating, currentTenant } = useAppContext();
+  const { currentUser, loading: authLoading } = useAuth();
+  const { currentTenant, isImpersonating, stopImpersonating, loading: tenantLoading } = useTenant();
+  // Apply saved theme on every page load
+  useTheme();
 
-  if (loading) {
+  if (authLoading || tenantLoading) {
     return <GlobalLoading />;
   }
 
   return (
     <div className="min-h-screen bg-canvas font-inter selection:bg-accent-signature/30 flex flex-col relative">
       {isImpersonating && (
-        <div className="bg-amber-500 text-white px-4 py-2 text-center text-[10px] font-black uppercase tracking-[0.2em] flex items-center justify-center gap-4 sticky top-0 z-[200] shadow-xl">
-          <Shield size={14} className="animate-pulse" />
-          <span>Operations Bridge: {currentTenant?.name}</span>
-          <button 
-            onClick={stopImpersonating}
-            className="bg-white text-amber-600 px-3 py-1 rounded-lg hover:bg-amber-50 transition-all shadow-sm active:scale-[0.98] font-black border border-amber-600/20"
-          >
-            Terminal Management
-          </button>
+        <div className="group fixed top-0 left-0 right-0 z-[200] h-2.5 print:hidden">
+          {/* 10px hover trigger (wrapper height = 10px so nothing below gets blocked) */}
+          {/* Always-visible pill, no pointer events */}
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-0.5 rounded-b-md shadow-md opacity-80 group-hover:opacity-0 transition-opacity duration-200 pointer-events-none flex items-center gap-1">
+            <Shield size={10} /> Impersonating
+          </div>
+          {/* Banner absolute — out of flow, slides down on hover */}
+          <div className="absolute top-0 left-0 right-0 bg-amber-500 text-white px-4 py-2 text-center text-xs font-semibold flex items-center justify-center gap-4 shadow-xl -translate-y-full group-hover:translate-y-0 transition-transform duration-200 ease-out pointer-events-auto">
+            <Shield size={14} className="animate-pulse" />
+            <span>Viewing as: {currentTenant?.name}</span>
+            <button
+              onClick={stopImpersonating}
+              className="bg-white text-amber-600 px-3 py-1 rounded-lg hover:bg-amber-50 transition-all shadow-sm active:scale-[0.98] font-semibold border border-amber-600/20"
+            >
+              Exit View
+            </button>
+          </div>
         </div>
       )}
       <Navbar />

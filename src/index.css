@@ -8,6 +8,12 @@
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@100..800&family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
+/* Global blur strip — no backdrop-filter anywhere */
+*, *::before, *::after {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
 body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     -webkit-font-smoothing: antialiased;
@@ -127,6 +133,142 @@ body {
         width: 100% !important;
         padding: 3rem !important;
     }
+}
+
+/* ── Theme overrides ─────────────────────────────────────────────────────── */
+/* Applied via data-theme="X" on <html>. Default (signature) needs no attr.  */
+
+[data-theme="white"] {
+  --color-canvas: #FFFFFF;
+  --color-surface: #F9F9F9;
+  --color-ink-primary: #111111;
+  --color-ink-secondary: #444444;
+  --color-ink-tertiary: #888888;
+  --color-accent-signature: #111111;
+  --color-accent-signature-hover: #333333;
+  --bg-color: #FFFFFF;
+  --accent-lime: #111111;
+  --accent-lime-hover: #333333;
+  --border-color: rgba(0,0,0,0.08);
+}
+
+/* White theme: Inter font — clean professional */
+[data-theme="white"] body,
+[data-theme="white"] * {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  letter-spacing: -0.01em;
+}
+[data-theme="white"] h1,
+[data-theme="white"] h2,
+[data-theme="white"] h3 {
+  font-family: 'Inter', sans-serif !important;
+  letter-spacing: -0.03em;
+}
+
+/* Page hero titles — uppercase, reduced size, tight tracking like command center */
+[data-theme="white"] .font-sora,
+[data-theme="white"] .text-7xl,
+[data-theme="white"] .text-6xl,
+[data-theme="white"] .text-5xl,
+[data-theme="white"] .text-4xl.font-black {
+  text-transform: uppercase !important;
+  letter-spacing: -0.04em !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 4rem !important;
+  line-height: 1 !important;
+}
+
+/* White theme: any element with black bg must show white text */
+[data-theme="white"] .bg-ink-primary { color: #FFFFFF; }
+[data-theme="white"] .bg-ink-primary * { color: #FFFFFF; }
+[data-theme="white"] .bg-ink-primary .text-accent-signature { color: #C8F135; }
+[data-theme="white"] .bg-ink-primary .text-gray-400,
+[data-theme="white"] .bg-ink-primary .text-gray-500,
+[data-theme="white"] .bg-ink-primary .text-gray-600 { color: rgba(255,255,255,0.55); }
+[data-theme="white"] .btn-signature { color: #FFFFFF; }
+[data-theme="white"] .btn-signature * { color: #FFFFFF; }
+/* Nav bar dark bg */
+[data-theme="white"] nav .text-ink-primary { color: #FFFFFF; }
+[data-theme="white"] [class*="bg-[#111]"] { color: #FFFFFF; }
+[data-theme="white"] [class*="bg-gray-900"] { color: #FFFFFF; }
+[data-theme="white"] [class*="bg-gray-900"] * { color: #FFFFFF; }
+
+[data-theme="ocean"] {
+  --color-canvas: #F0F4FF;
+  --color-surface: #FFFFFF;
+  --color-ink-primary: #0F172A;
+  --color-ink-secondary: #334155;
+  --color-ink-tertiary: #64748B;
+  --color-accent-signature: #3B82F6;
+  --color-accent-signature-hover: #2563EB;
+  --bg-color: #F0F4FF;
+  --accent-lime: #3B82F6;
+  --accent-lime-hover: #2563EB;
+}
+
+[data-theme="rose"] {
+  --color-canvas: #FFF5F7;
+  --color-surface: #FFFFFF;
+  --color-ink-primary: #1A0A0F;
+  --color-ink-secondary: #4A2535;
+  --color-ink-tertiary: #9F6882;
+  --color-accent-signature: #F43F5E;
+  --color-accent-signature-hover: #E11D48;
+  --bg-color: #FFF5F7;
+  --accent-lime: #F43F5E;
+  --accent-lime-hover: #E11D48;
+}
+
+[data-theme="amber"] {
+  --color-canvas: #FFFBF0;
+  --color-surface: #FFFFFF;
+  --color-ink-primary: #1C1208;
+  --color-ink-secondary: #4A3010;
+  --color-ink-tertiary: #92692A;
+  --color-accent-signature: #F59E0B;
+  --color-accent-signature-hover: #D97706;
+  --bg-color: #FFFBF0;
+  --accent-lime: #F59E0B;
+  --accent-lime-hover: #D97706;
+}
+
+[data-theme="slate"] {
+  --color-canvas: #F1F5F9;
+  --color-surface: #FFFFFF;
+  --color-ink-primary: #0F172A;
+  --color-ink-secondary: #334155;
+  --color-ink-tertiary: #64748B;
+  --color-accent-signature: #6366F1;
+  --color-accent-signature-hover: #4F46E5;
+  --bg-color: #F1F5F9;
+  --accent-lime: #6366F1;
+  --accent-lime-hover: #4F46E5;
+}
+
+[data-theme="dark"] {
+  --color-canvas: #0F0F0F;
+  --color-surface: #1A1A1A;
+  --color-ink-primary: #F5F5F0;
+  --color-ink-secondary: #A3A3A3;
+  --color-ink-tertiary: #737373;
+  --color-accent-signature: #C8F135;
+  --color-accent-signature-hover: #b8e224;
+  --bg-color: #0F0F0F;
+  --accent-lime: #C8F135;
+  --accent-lime-hover: #b8e224;
+  --text-main: #F5F5F0;
+  --surface: #1A1A1A;
+  --border-color: rgba(255,255,255,0.08);
+}
+
+[data-theme="dark"] body {
+  background: #0F0F0F;
+  color: #F5F5F0;
+}
+
+[data-theme="dark"] .glass-panel {
+  background: #1A1A1A;
+  border-color: rgba(255,255,255,0.06);
 }
 
 /* LOCKET THEME: DO NOT MODIFY BRAND TOKENS */
@@ -254,15 +396,18 @@ body {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* Very subtle white wash keeps focus on modal without the old dark dim. */
+  background: rgba(255, 255, 255, 0.55);
   z-index: 9999;
   display: flex;
-  flex-direction: column;
-  padding: 0.5rem; /* Ultra-low padding for viewport fit */
-  overflow-y: auto;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
   animation: fadeIn 0.2s ease-out forwards;
+}
+@media (min-width: 768px) {
+  .modal-overlay { padding: 1rem; }
 }
 
 .glass-modal {
@@ -271,8 +416,8 @@ body {
   padding: 1rem 1.25rem; /* Reduced vertical padding */
   width: 100%;
   max-width: 500px;
-  margin: auto;
-  min-height: min-content;
+  margin: 0;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   position: relative;

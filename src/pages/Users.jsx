@@ -1,15 +1,19 @@
-import React, { useState} from 'react';
-import { useAppContext} from '../context/AppContext';
-import { AVAILABLE_ROLES, DEFAULT_PERMISSIONS, MODULES_CONFIG } from '../lib/constants';
+import React, { useState } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+import { usePeople } from '../hooks/usePeople';
+import { useNotifications } from '../context/NotificationContext';
+import { DEFAULT_PERMISSIONS, MODULES_CONFIG } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import { staffCreateSchema, passwordStrength } from '../lib/validation';
-import { 
- ShieldCheck, User, Plus, Trash2, Edit3, X, Check, 
+import {
+ ShieldCheck, User, Plus, Trash2, Edit3, X, Check,
  Eye, Save, Package, Truck, Lock, ShieldAlert,
- UserPlus, Mail, Fingerprint, Activity, ShoppingCart, ShoppingBag, Wallet, Users as UsersIcon, BarChart3, Banknote, Settings as SettingsIcon, BookOpen
+ UserPlus, Mail, Fingerprint, Activity, ShoppingCart, ShoppingBag, Wallet, Users as UsersIcon, BarChart3, Banknote, Settings as SettingsIcon, BookOpen, LayoutDashboard
 } from 'lucide-react';
 
 const MODULE_ICONS = {
+ dashboard: LayoutDashboard,
  inventory: Package,
  sales: ShoppingCart,
  purchases: ShoppingBag,
@@ -46,7 +50,10 @@ const INTERNAL_ROLES = [
 ];
 
 const Users = () => {
- const { users, addUser, updateUser, deleteUser, currentUser, hasPermission, addNotification} = useAppContext();
+  const { currentUser, hasPermission } = useAuth();
+  const { currentTenantId } = useTenant();
+  const { users, addUser, updateUser, deleteUser, loading } = usePeople(currentTenantId);
+  const { addNotification } = useNotifications();
  const [isAdding, setIsAdding] = useState(false);
  const [editingUser, setEditingUser] = useState(null);
  const [formData, setFormData] = useState({ name: '', email: '', roles: ['STAFF'], permissions: { ...DEFAULT_PERMISSIONS}});
@@ -435,12 +442,14 @@ const Users = () => {
       }), {}),
       SALES: {
         ...DEFAULT_PERMISSIONS,
+        // No dashboard — privacy
         sales: { view: true, edit: true },
         clients: { view: true, edit: true },
         daybook: { view: true, edit: true }
       },
       INVENTORY: {
         ...DEFAULT_PERMISSIONS,
+        // No dashboard — privacy
         inventory: { view: true, edit: true },
         purchases: { view: true, edit: true },
         suppliers: { view: true, edit: true }

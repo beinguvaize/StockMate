@@ -1,9 +1,11 @@
 import React from 'react';
 import { Hammer, Cog, ShieldAlert, ArrowLeft} from 'lucide-react';
-import { useAppContext} from '../context/AppContext';
+import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
 
 const Maintenance = () => {
- const { logout, businessProfile} = useAppContext();
+    const { logout } = useAuth();
+    const { businessProfile } = useTenant();
 
  return (
  <div className="min-h-screen bg-canvas flex items-center justify-center p-6 relative overflow-hidden font-inter">

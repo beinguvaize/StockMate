@@ -4,6 +4,7 @@ import {
  Tooltip, Legend, PieChart, Pie, Cell, LineChart, Line
 } from 'recharts';
 import { Package, TrendingDown, ClipboardList, Database, AlertCircle, ArrowRight, Layers, Download} from 'lucide-react';
+import { parseLocalDate } from '../../lib/utils';
 import { exportInventoryCSV, downloadCSV} from '../../utils/csvExport';
 
 const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
@@ -39,7 +40,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
  return products.filter(p => {
  // Check if there are any sales for this product since the threshold date
  const hasSales = sales.some(s => {
- const isAfterThreshold = new Date(s.date) >= thresholdDate;
+ const isAfterThreshold = parseLocalDate(s.date) >= thresholdDate;
  const includesProduct = s.items?.some(item => item.productId === p.id);
  return isAfterThreshold && includesProduct;
 });

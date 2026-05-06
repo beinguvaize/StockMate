@@ -352,10 +352,11 @@ const BudgetVsActualReport = () => {
       key: 'variancePct', label: 'Δ %', align: 'right', sortable: true, width: 100,
       render: (val, row) => {
         if (!row.budget) return <span className="text-gray-300">—</span>;
+        if (val == null) return <span className="text-gray-300">—</span>;
         const good = (row.type === 'EXPENSE' && val <= 0) || (row.type === 'REVENUE' && val >= 0);
         const cls = good ? 'text-emerald-600' : 'text-rose-500';
         const prefix = val > 0 ? '+' : '';
-        return <span className={`font-black ${cls}`}>{prefix}{val.toFixed(1)}%</span>;
+        return <span className={`font-black ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
       },
     },
     {
