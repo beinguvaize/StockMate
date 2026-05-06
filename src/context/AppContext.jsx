@@ -329,43 +329,21 @@ const AppProviderInner = ({ children }) => {
 };
 
  // reconcileSaleEffects moved to SalesContext
+ // placeSale moved to SalesContext
+ // createInvoice/markInvoicePaid moved to SalesContext
 
  // placeSale moved to SalesContext
-
-  // createInvoice/markInvoicePaid moved to SalesContext
-
-
- if (clientDeltas.size > 0) {
- setClients(prev => prev.map(c => {
- const delta = clientDeltas.get(c.id);
- return delta ? { ...c, outstanding_balance: Math.max(0, (c.outstanding_balance || 0) + delta)} : c;
-}));
-}
-
- // Persistence
- if (isSupabaseConfigured) {
- for (const [prodId, pDelta] of productDeltas) {
-   await supabase.from('products').update({ stock: Math.max(0, (products.find(p => p.id === prodId)?.stock || 0) + pDelta) }).eq('id', prodId);
- }
- for (const [clId, cDelta] of clientDeltas) {
-   const currentClient = clients.find(c => c.id === clId);
-   if (currentClient) {
-     await supabase.from('clients').update({ outstanding_balance: Math.max(0, (currentClient.outstanding_balance || 0) + cDelta)}).eq('id', clId);
-   }
- }
- }
-};
-
- const placeSale = async (clientId, cartItems, subtotal, discount, tax, totalAmount, customerInfo, paymentType = 'cash', routeId = null, status = 'COMPLETED', scheduledDate = null, salesmanNote = '', manualLocationId = null) => {
+ /* DEAD CODE BLOCK START — kept for reference during migration
+ const placeSale_DEAD = async (clientId, cartItems, subtotal, discount, tax, totalAmount, customerInfo, paymentType = 'cash', routeId = null, status = 'COMPLETED', scheduledDate = null, salesmanNote = '', manualLocationId = null) => {
     const val = saleSchema.safeParse({ clientId, items: cartItems, totalAmount, paymentMethod: paymentType});
     if (!val.success) {
       addNotification("Sale Validation failed:" + val.error.errors[0].message,"error");
       return;
     }
-    
+
     let totalCogs = 0;
     const updatedProducts = [...products];
-    
+
     // Determine which location to deduct from
     let locationId = manualLocationId || MAIN_WAREHOUSE_ID;
     if (routeId && !manualLocationId) {
@@ -383,7 +361,7 @@ const AppProviderInner = ({ children }) => {
       if (pIndex > -1) {
         if (status === 'COMPLETED') {
           stockAdjustments.push(adjustLocationStock(item.productId, -item.quantity, locationId));
-          
+
           // Legacy check: if warehouse sale, update the products.stock column
           if (locationId === MAIN_WAREHOUSE_ID) {
             updatedProducts[pIndex].stock -= item.quantity;
@@ -759,83 +737,7 @@ const AppProviderInner = ({ children }) => {
  addNotification(`Payment of ${businessProfile?.currencySymbol || ''}${amount} received for Sale #${saleId.split('-').pop()}`, 'success');
 };
 
- // Task 4: Mark as Paid for Client (Enhanced with Invoice Selection)
-  const recordClientPayment = async (clientId, amount, paymentDate, notes, selectedInvoiceIds = []) => {
-    const client = clients.find(c => c.id === clientId);
-    if (!client) return { success: false, error: 'Client not found'};
-
-    if (isSupabaseConfigured) {
-      setSyncStatus('SYNCING');
-
-      // Update selected invoices. Each update fires on_invoice_payment_sync trigger
-      // which recomputes clients.outstanding_balance automatically — no manual
-      // balance decrement needed.
-      if (selectedInvoiceIds.length > 0) {
-        for (const invId of selectedInvoiceIds) {
-          const inv = invoices.find(i => i.id === invId);
-          if (inv) {
-            await supabase
-              .from('invoices')
-              .update({
-                payment_status: 'PAID',
-                paid_amount: inv.grand_total
-              })
-              .eq('id', invId)
-              .eq('tenant_id', currentTenantId);
-          }
-        }
-      }
-    }
-
-    // Re-read the trigger-computed balance from DB so local state is accurate
-    let newBalance = Math.max(0, (client.outstanding_balance || 0) - amount);
-    if (isSupabaseConfigured) {
-      const { data: freshClient } = await supabase
-        .from('clients')
-        .select('outstanding_balance')
-        .eq('id', clientId)
-        .eq('tenant_id', currentTenantId)
-        .single();
-      if (freshClient) newBalance = Number(freshClient.outstanding_balance) || 0;
-    }
-    const updatedClient = { ...client, outstanding_balance: newBalance };
-
-    const paymentRecord = {
-      id: `CPAY-${Date.now()}`,
-      client_id: clientId,
-      amount: amount,
-      date: paymentDate || new Date().toISOString(),
-      notes: notes || '',
-      tenant_id: currentTenantId
-    };
-    
-    if (isSupabaseConfigured) {
-      const { error: payErr } = await supabase.from('client_payments').insert(paymentRecord);
-      if (payErr) {
-        console.error("Error inserting client payment record:", payErr);
-        logError({
-          module: 'Clients',
-          action: 'Record Client Payment (History Insert)',
-          error_code: payErr.code,
-          error_message: payErr.message,
-          severity: 'Medium'
-        });
-      }
-    }
-
-    // Update Local Invoices State
-    if (selectedInvoiceIds.length > 0) {
-      setInvoices(prev => prev.map(inv => 
-        selectedInvoiceIds.includes(inv.id) ? { ...inv, payment_status: 'PAID' } : inv
-      ));
-    }
-
-    setClients(clients.map(c => c.id === clientId ? updatedClient : c));
-    setClientPayments(prev => [paymentRecord, ...prev]);
-    addNotification(`Recorded payment of ${businessProfile?.currencySymbol || ''}${amount} from ${client.name}`,"success");
-    setSyncStatus('SYNCED');
-    return { success: true};
-  };
+ // recordClientPayment moved to SalesContext
 
 
   const addProductCategory = async (categoryName) => {
@@ -1278,343 +1180,13 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
   // addSupplier / updateSupplier / deleteSupplier moved to PurchasesContext
 
 
- const resetEmployeesDailyData = async () => {
- if (!isSupabaseConfigured) {
- setEmployees(prev => prev.map(emp => ({ ...emp, daysWorked: 0, days_worked: 0})));
- addNotification("Days worked reset locally","success");
- return true;
-}
+ // resetEmployeesDailyData moved to HRContext
 
- setSyncStatus('SYNCING');
- const { error} = await supabase
- .from('employees')
- .update({ days_worked: 0})
- .eq('status', 'ACTIVE');
+ // addPurchase, addSupplier, updateSupplier, deleteSupplier moved to PurchasesContext
 
- if (error) {
- console.error("Error resetting employee data:", error);
- setSyncStatus('ERROR');
- addNotification("Failed to reset daily data in cloud","error");
- return false;
-}
+ // deleteEmployee + processPayroll moved to HRContext
 
- setEmployees(prev => prev.map(emp => emp.status === 'ACTIVE' ? { ...emp, daysWorked: 0, days_worked: 0} : emp));
- setSyncStatus('SYNCED');
- addNotification("All active staff days worked reset","success");
- return true;
-};
-
- // Task 6: Purchases & Stock Integration (State moved to top)
-
- const addPurchase = async (purchase) => {
- const val = purchaseSchema.safeParse(purchase);
- if (!val.success) {
- addNotification("Validation failed:" + val.error.errors[0].message,"error");
- return false;
-}
-
- const newPurchase = {
- id: generateRef('PUR'),
- date: purchase.date || todayISOInAppTZ(),
- linked_product_id: purchase.linked_product_id || null,
- quantity: Number(purchase.quantity) || 0,
- unit_cost: Number(purchase.unit_cost) || 0,
- total_cost: (Number(purchase.quantity) || 0) * (Number(purchase.unit_cost) || 0),
- supplier_id: purchase.supplier_id || null,
- supplier_name: purchase.supplier_name || 'Unspecified',
- payment_type: purchase.payment_type || 'cash',
- notes: purchase.notes || '',
- created_at: new Date().toISOString(),
- tenant_id: currentTenantId
-};
-
- if (isSupabaseConfigured) {
- // Priority 4: Atomic Purchase via RPC
- const { error: rpcError} = await supabase.rpc('process_purchase', {
- p_id: newPurchase.id,
- p_product_id: newPurchase.linked_product_id,
- p_quantity: newPurchase.quantity,
- p_total_amount: newPurchase.total_cost,
- p_supplier_id: newPurchase.supplier_id || newPurchase.supplier_name,
- p_payment_type: newPurchase.payment_type,
- p_date: newPurchase.date,
- p_notes: newPurchase.notes,
- p_user_id: currentUser?.id,
- p_tenant_id: currentTenantId
-});
-
-  if (rpcError) {
-    console.error("❌ Atomic Purchase Failed:", rpcError);
-    // Fallback to legacy insert
-    const { error: insertError } = await supabase.from('purchases').insert({
-      id: newPurchase.id,
-      product_id: newPurchase.linked_product_id,
-      quantity: newPurchase.quantity,
-      total_amount: newPurchase.total_cost,
-      date: newPurchase.date,
-      supplier_id: newPurchase.supplier_id,
-      supplier_name: newPurchase.supplier_name,
-      payment_type: newPurchase.payment_type,
-      notes: newPurchase.notes,
-      tenant_id: currentTenantId
-    });
-    
-    if (insertError) {
-      console.error("Error creating purchase fallback:", insertError);
-      logError({
-        module: 'Inventory',
-        action: 'Add Purchase (Fallback)',
-        error_code: insertError.code,
-        error_message: insertError.message,
-        severity: 'High'
-      });
-      addNotification("Failed to record purchase", "error");
-      return false;
-    }
-  }
-}
-
- // OPTIMISTIC UPDATE
- setPurchases(prev => [newPurchase, ...prev]);
- 
- if (newPurchase.linked_product_id) {
- setProducts(prev => prev.map(p => 
- p.id === newPurchase.linked_product_id 
- ? { ...p, stock: (p.stock || 0) + newPurchase.quantity}
- : p
- ));
- addNotification(`Stock updated: +${newPurchase.quantity} units`,"success");
-} else {
- addNotification("Purchase recorded","success");
-}
-
- return true;
-};
-
-  const addSupplier = async (supplier) => {
-    const id = `SUP-${Date.now()}`;
-    const newSupplier = { ...supplier, id, created_at: new Date().toISOString(), tenant_id: currentTenantId };
-    
-    if (isSupabaseConfigured) {
-      // CLEAN DB OBJECT
-      const dbSupplier = {
-        id,
-        name: supplier.name,
-        contact_person: supplier.contact_person,
-        phone: supplier.phone,
-        email: supplier.email,
-        address: supplier.address,
-        notes: supplier.notes || '',
-        created_at: new Date().toISOString(),
-        tenant_id: currentTenantId
-      };
-      
-      const { error } = await supabase.from('suppliers').insert(dbSupplier);
-      if (error) {
-        console.error("Error adding supplier:", error);
-        logError({
-          module: 'Suppliers',
-          action: 'Add Supplier',
-          error_code: error.code,
-          error_message: error.message,
-          severity: 'High'
-        });
-        addNotification("Failed to save supplier to cloud", "error");
-        return false;
-      }
-    }
-    setSuppliers(prev => [newSupplier, ...prev]);
-    return true;
-  };
-
-  const updateSupplier = async (updatedSupplier) => {
-    if (isSupabaseConfigured) {
-      const dbSupplier = {
-        name: updatedSupplier.name,
-        contact_person: updatedSupplier.contact_person,
-        phone: updatedSupplier.phone,
-        email: updatedSupplier.email,
-        address: updatedSupplier.address,
-        notes: updatedSupplier.notes || '',
-        tenant_id: currentTenantId
-      };
-      
-      const { error } = await supabase.from('suppliers')
-        .update(dbSupplier)
-        .eq('id', updatedSupplier.id)
-        .eq('tenant_id', currentTenantId);
-
-      if (error) {
-        console.error("Error updating supplier:", error);
-        logError({
-          module: 'Suppliers',
-          action: 'Update Supplier',
-          error_code: error.code,
-          error_message: error.message,
-          severity: 'High'
-        });
-        addNotification(`Failed to update supplier: ${error.message}`, "error");
-        return false;
-      }
-    }
-    setSuppliers(prev => prev.map(s => s.id === updatedSupplier.id ? { ...s, ...updatedSupplier } : s));
-    return true;
-  };
-
-  const deleteSupplier = async (supplierId) => {
-   // DIAGNOSTIC LOG
-   console.log(`[Suppliers] Intent: Delete. ID: ${supplierId}, Tenant: ${currentTenantId}`);
-   
-   if (isSupabaseConfigured) {
-     const { error, count } = await supabase.from('suppliers')
-        .delete({ count: 'exact' })
-        .eq('id', supplierId)
-        .eq('tenant_id', currentTenantId);
-
-     if (error) {
-       console.error("❌ Supplier Deletion REJECTED:", error);
-       logError({
-         module: 'Suppliers',
-         action: 'Delete Supplier',
-         error_code: error.code,
-         error_message: error.message,
-         severity: 'High'
-       });
-       return { success: false, error: error.message };
-     }
-     
-     if (count === 0) {
-       console.warn(`[Suppliers] Silent Fail: Row not found or RLS blocked. ID: ${supplierId}`);
-       logError({
-         module: 'Suppliers',
-         action: 'Delete Supplier (Silent Fail)',
-         error_code: 'ERR_ZERO_ROWS',
-         error_message: `Database returned success but 0 rows were deleted. This usually means the row exists but RLS blocked the operation for Tenant: ${currentTenantId}`,
-         severity: 'High'
-       });
-       return { success: false, error: "Deletion blocked or record not found." };
-     }
-   }
-   
-   setSuppliers(prev => prev.filter(s => s.id !== supplierId));
-   return { success: true };
- };
-
-  const deleteEmployee = async (empId) => {
-    if (isSupabaseConfigured) {
-      const { error } = await supabase.from('employees')
-        .delete()
-        .eq('id', empId)
-        .eq('tenant_id', currentTenantId);
-
-      if (error) {
-        console.error("Error deleting employee from Supabase:", error);
-        logError({
-          module: 'Employees',
-          action: 'Delete Employee',
-          error_code: error.code,
-          error_message: error.message,
-          severity: 'Medium'
-        });
-        addNotification("Failed to delete employee from cloud", "error");
-        return;
-      }
-    }
-    setEmployees(employees.filter(e => e.id !== empId));
-  };
-
-  const processPayroll = async (payRun) => {
-    const timestamp = new Date().toISOString();
-    const newRecord = {
-      ...payRun,
-      id: payRun.id || `PAY-${Date.now()}`,
-      processed_at: timestamp,
-      processedAt: timestamp,
-      processed_by: currentUser?.id
-    };
-    
-    if (isSupabaseConfigured) {
-      setSyncStatus('SYNCING');
-      const payrollInserts = payRun.items.map(item => ({
-        id: `PRL-${Date.now()}-${item.employeeId}`,
-        employeeId: item.employeeId,
-        amount: item.netPay,
-        month: payRun.period,
-        processed_at: timestamp,
-        processed_by: currentUser?.id,
-        tenant_id: currentTenantId
-      }));
-      
-      const { error } = await supabase.from('payroll').insert(payrollInserts);
-      if (error) {
-        console.error("Error processing payroll in Supabase:", error);
-        logError({
-          module: 'Payroll',
-          action: 'Process Payroll',
-          error_code: error.code,
-          error_message: error.message,
-          severity: 'High'
-        });
-        setSyncStatus('ERROR');
-        addNotification("Failed to process payroll in cloud", "error");
-        return false;
-      }
-      setSyncStatus('SYNCED');
-
-      // Audit: payroll run authorized. Capture totals + headcount, not individual amounts.
-      const totalNet = payrollInserts.reduce((s, r) => s + Number(r.amount || 0), 0);
-      logAuditEvent({
-        action: AUDIT_ACTIONS.PAYROLL_PROCESS,
-        entityType: 'payroll',
-        entityId: newRecord.id,
-        summary: `Processed payroll for ${payRun.period}: ${payrollInserts.length} employee(s), net ${totalNet.toFixed(2)}`,
-        metadata: {
-          period: payRun.period,
-          employee_count: payrollInserts.length,
-          total_net: totalNet,
-        },
-      });
-    }
-    
-    setPayrollRecords(prev => [newRecord, ...prev]);
-    addNotification(`Payroll for ${payRun.period} authorized`, "success");
-    return true;
-  };
-
-  const deletePayrollRecord = async (recordId) => {
-    const target = payrollRecords.find(r => r.id === recordId) || null;
-
-    if (isSupabaseConfigured) {
-      const { error } = await supabase.from('payroll')
-        .delete()
-        .eq('id', recordId)
-        .eq('tenant_id', currentTenantId);
-
-      if (error) {
-        console.error("Error deleting payroll record from Supabase:", error);
-        logError({
-          module: 'Payroll',
-          action: 'Delete Payroll',
-          error_code: error.code,
-          error_message: error.message,
-          severity: 'Medium'
-        });
-        addNotification("Cloud Sync Delayed: Record removed locally", "warning");
-      } else {
-        logAuditEvent({
-          action: AUDIT_ACTIONS.PAYROLL_DELETE,
-          entityType: 'payroll',
-          entityId: recordId,
-          summary: `Deleted payroll record ${recordId}${target?.period ? ` (${target.period})` : ''}`,
-          metadata: {
-            period: target?.period || target?.month || null,
-            employee_count: Array.isArray(target?.items) ? target.items.length : null,
-          },
-        });
-      }
-    }
-    setPayrollRecords(payrollRecords.filter(r => r.id !== recordId));
-  };
+ // deletePayrollRecord moved to HRContext
 
 
 
