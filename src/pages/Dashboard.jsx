@@ -30,7 +30,7 @@ import {
 const Dashboard = () => {
   const { currentTenant, currentTenantId, businessProfile } = useTenant();
   const slug = currentTenant?.slug || '';
-  const { products } = useInventory(currentTenantId);
+  const { products, inventoryBalances } = useInventory(currentTenantId);
   const { sales } = useSales(currentTenantId);
   const { purchases } = usePurchases(currentTenantId);
   const { expenses, dayBook } = useFinance(currentTenantId);
