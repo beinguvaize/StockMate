@@ -51,7 +51,7 @@ const Login = () => {
       
       if (isGlobalAdmin) {
         navigate('/nexus-hq');
-      } else if (user?.tenant_id) {
+      } else if (user?.user_metadata?.tenant_id) {
         navigate('/');
       } else {
         // Successful auth but NO tenant association
