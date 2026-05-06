@@ -247,17 +247,16 @@ export const HRProvider = ({ children }) => {
         addNotification(`Cloud delete failed: ${error.message}`, "error");
         return; // STOP
       }
-        logAuditEvent({
-          action: AUDIT_ACTIONS.PAYROLL_DELETE,
-          entityType: 'payroll',
-          entityId: recordId,
-          summary: `Deleted payroll record ${recordId}${target?.period ? ` (${target.period})` : ''}`,
-          metadata: {
-            period: target?.period || target?.month || null,
-            employee_count: Array.isArray(target?.items) ? target.items.length : null,
-          },
-        });
-      }
+      logAuditEvent({
+        action: AUDIT_ACTIONS.PAYROLL_DELETE,
+        entityType: 'payroll',
+        entityId: recordId,
+        summary: `Deleted payroll record ${recordId}${target?.period ? ` (${target.period})` : ''}`,
+        metadata: {
+          period: target?.period || target?.month || null,
+          employee_count: Array.isArray(target?.items) ? target.items.length : null,
+        },
+      });
     }
     setPayrollRecords((prev) => prev.filter((r) => r.id !== recordId));
   };

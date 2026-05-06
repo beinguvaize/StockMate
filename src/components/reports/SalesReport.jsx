@@ -17,7 +17,8 @@ const SalesReport = () => {
 
   const { data: clients, loading: clientsLoading } = useReportData({
     table: 'clients',
-    select: '*'
+    select: '*',
+    nullFilters: { deleted_at: null },
   });
 
   const loading = salesLoading || clientsLoading;

@@ -2,7 +2,7 @@ import React, { useState, useRef} from 'react';
 import { NavLink, Outlet, Navigate, useParams} from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, Upload} from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload} from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { getDefaultAvatar } from '../lib/supabase';
 import NotificationStack from './NotificationStack';
@@ -118,6 +118,7 @@ const Navbar = () => {
  const adminItems = [
    navItem('Personnel Portal', '/users', <UsersIcon size={18} />, 'users'),
    navItem('Workspace Settings', '/settings', <SettingsIcon size={18} />, 'settings'),
+   ...(isOwner ? [{ label: 'Audit Log', path: `${basePath}/audit-log`, icon: <ScrollText size={18} />, hidden: false, locked: false }] : []),
  ];
 
  React.useEffect(() => {

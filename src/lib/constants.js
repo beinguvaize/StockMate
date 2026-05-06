@@ -1,3 +1,38 @@
+// Application constants and defaults
+// Moved here to resolve Vite/React Fast Refresh compatibility issues in Context files.
+
+export const INITIAL_PRODUCTS = [];
+export const INITIAL_USERS = [];
+export const INITIAL_CLIENTS = [];
+export const INITIAL_EXPENSES = [];
+export const INITIAL_VEHICLES = [];
+export const INITIAL_SHOPS = [];
+export const INITIAL_EMPLOYEES = [];
+
+export const INITIAL_BUSINESS = {
+  name: 'Ledgr ERP',
+  country: 'India',
+  currency: 'INR',
+  currencySymbol: '₹',
+  lowStockThreshold: 10,
+  pan_no: '',
+  gst_no: '',
+  bank_name: '',
+  account_no: '',
+  ifsc_code: '',
+  upi_id: '',
+  email: '',
+  website: '',
+  phone: '',
+  address: '',
+  city: '',
+  state: '',
+  pincode: '',
+  logo_url: ''
+};
+
+export const INITIAL_EXPENSE_CATEGORIES = ['General', 'Inventory', 'Logistics', 'Payroll', 'Utilities', 'Marketing', 'Rent', 'Other'];
+
 export const AVAILABLE_ROLES = ['OWNER', 'SALES', 'INVENTORY', 'STAFF', 'GLOBAL_ADMIN'];
 
 export const MODULES_CONFIG = [

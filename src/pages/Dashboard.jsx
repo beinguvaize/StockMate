@@ -36,7 +36,7 @@ const Dashboard = () => {
   const { expenses, dayBook } = useFinance(currentTenantId);
   const { clients, employees } = usePeople(currentTenantId);
   const { routes, movementLog } = useOperations(currentTenantId);
-  
+
   // Placeholders for remaining data
   const payrollRecords = [];
   const clientPayments = [];
@@ -97,7 +97,11 @@ const Dashboard = () => {
  return sum + Math.max(0, earned - (e.amountPaid ?? e.amount_paid ?? 0));
 }, 0);
 
- const lowStockProducts = (products || []).filter(p => p.stock <= (p.low_stock_threshold || 10));
+  const lowStockProducts = (products || []).filter(p => {
+    const threshold = p.lowStockThreshold || 10;
+    const totalQty = (inventoryBalances || []).filter(b => b.product_id === p.id).reduce((s, b) => s + b.quantity, 0);
+    return totalQty <= threshold;
+  });
  const pendingSalaryAlerts = (employees || []).filter(e => ((e.dailyRate ?? e.daily_rate ?? 500) * (e.daysWorked ?? e.days_worked ?? 0)) > (e.amountPaid ?? e.amount_paid ?? 0));
 
  // Chart 1: Daily Sales This Week
@@ -161,7 +165,10 @@ const Dashboard = () => {
  const today = new Date();
  return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
 }).forEach(s => {
- if (s.payment_type === 'cash' || s.paymentMethod === 'CASH') cash += (s.totalAmount || 0);
+ // Sales objects use `paymentMethod: 'Cash'/'Credit'`. Normalize to lowercase and
+ // accept either convention to handle legacy rows.
+ const method = (s.paymentMethod || s.payment_type || '').toString().toLowerCase();
+ if (method === 'cash') cash += (s.totalAmount || 0);
  else credit += (s.totalAmount || 0);
 });
  return [
@@ -329,7 +336,10 @@ const Dashboard = () => {
  const completedRoutes = (routes || []).filter(r => r.status === 'COMPLETED').length;
  const totalRoutes = (routes || []).length || 1;
  
- const totalStock = (products || []).reduce((sum, p) => sum + (p.stock || 0), 0) || 1;
+  const totalStock = (products || []).reduce((sum, p) => {
+    const productTotal = (inventoryBalances || []).filter(b => b.product_id === p.id).reduce((s, b) => s + b.quantity, 0);
+    return sum + productTotal;
+  }, 0) || 1;
  const totalMovedOut = (movementLog || []).filter(m => m.type === 'OUT').reduce((sum, m) => sum + (m.quantity || 0), 0);
  
  return [
@@ -337,7 +347,7 @@ const Dashboard = () => {
  { label: 'Route Coverage', value: Math.round((completedRoutes / totalRoutes) * 100), color: 'bg-blue-500'},
  { label: 'Stock Turnover', value: Math.min(100, Math.round((totalMovedOut / totalStock) * 100)), color: 'bg-purple-500'}
  ];
-}, [routes, products, movementLog, activeRoutes]);
+}, [routes, products, movementLog, activeRoutes, inventoryBalances]);
 
  // Real Growth Calculation (This 7 days vs Previous 7 days)
  const growthPercent = useMemo(() => {
@@ -944,7 +954,7 @@ const Dashboard = () => {
  <p className="font-bold text-ink-primary truncate text-sm">{item.name}</p>
  <span className="bg-red-500 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded shadow-sm shrink-0">Low</span>
  </div>
- <p className="text-[10px] text-gray-700 font-mono">Current: <strong className="text-red-600">{item.stock || 0}</strong> / Min: {item.low_stock_threshold || 10}</p>
+ <p className="text-[10px] text-gray-700 font-mono">Current: <strong className="text-red-600">{(inventoryBalances || []).filter(b => b.product_id === item.id).reduce((s, b) => s + b.quantity, 0)}</strong> / Min: {item.low_stock_threshold || 10}</p>
  </div>
  <button onClick={() => navigate(`/${slug}/purchases`)} className="ml-3 shrink-0 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white transition-colors text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm">
  Restock

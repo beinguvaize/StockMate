@@ -349,24 +349,11 @@ const SuperAdminPortal = () => {
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-accent-signature/20 text-ink-primary"><Plus size={16} /></div>
                     <div className="text-left">
-                      <p className="text-xs font-bold text-ink-primary uppercase">Provision New Tenant</p>
-                      <p className="text-[8px] text-gray-500 font-bold uppercase tracking-wide">Automated Workspace Deployment</p>
+                      <p className="text-xs font-bold text-ink-primary uppercase">Provision Workspace</p>
+                      <p className="text-[8px] text-gray-500 font-bold uppercase tracking-wide">Automated Database Orchestration</p>
                     </div>
                   </div>
                   <ChevronRight size={16} className="text-gray-400 group-hover:text-accent-signature transition-colors" />
-                </button>
-
-                <button 
-                  onClick={() => window.location.href = '/setup'}
-                  className="w-full flex items-center justify-between p-4 rounded-xl bg-canvas hover:bg-gray-100 border border-black/5 transition-all group">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600"><Globe size={16} /></div>
-                    <div className="text-left">
-                      <p className="text-xs font-bold text-ink-primary uppercase">Legacy Onboarding Flow</p>
-                      <p className="text-[8px] text-gray-500 font-bold uppercase tracking-wide">Standalone Tenant Provisioning Page</p>
-                    </div>
-                  </div>
-                  <ChevronRight size={16} className="text-gray-400 group-hover:text-emerald-600 transition-colors" />
                 </button>
 
                 <button 

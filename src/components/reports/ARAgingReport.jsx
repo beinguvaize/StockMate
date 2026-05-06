@@ -27,6 +27,7 @@ const ARAgingReport = () => {
   const { data: clients, loading: cliLoading } = useReportData({
     table: 'clients',
     select: '*',
+    nullFilters: { deleted_at: null },
   });
 
   const loading = invLoading || cliLoading;

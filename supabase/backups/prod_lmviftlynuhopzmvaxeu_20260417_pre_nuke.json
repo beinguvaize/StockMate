@@ -1,0 +1,40 @@
+{
+  "exported_at": "2026-04-17T23:07:18.311875+00:00",
+  "project_id": "lmviftlynuhopzmvaxeu",
+  "project_name": "LedgeproProd",
+  "reason": "Pre-nuke snapshot before Path A rebaseline from DEV migration history. PROD was 26 migrations behind DEV, lacked multi-tenant baseline. See commit log for context.",
+  "purchases": [
+    {"date": "2026-03-31", "supplier_name": "Prime Paper Mills", "payment_type": "CASH", "notes": null, "id": "6018a33c-4a4a-4970-b276-78a4ede24b00", "business_id": null, "quantity": 100, "total_amount": 1500, "created_at": null, "product_id": null, "linked_product_id": null, "supplier_id": null},
+    {"date": "2026-03-31", "supplier_name": "Eco Plast", "payment_type": "CREDIT", "notes": null, "id": "f27d4af0-8516-4b2b-a9bc-f0da2510cb06", "business_id": null, "quantity": 50, "total_amount": 850, "created_at": null, "product_id": null, "linked_product_id": null, "supplier_id": null},
+    {"date": "2026-03-31", "supplier_name": "Prime Paper Mills", "payment_type": "CASH", "notes": null, "id": "ada4e82a-6998-4e8e-acaf-4853b31fa6ac", "business_id": null, "quantity": 200, "total_amount": 4200, "created_at": null, "product_id": null, "linked_product_id": null, "supplier_id": null}
+  ],
+  "users": [
+    {"id": "6f54cd71-8785-48fe-8146-3301f4337793", "email": "akbarsha@ledgrpro.ca", "name": "Akbarsha", "created_at": "2026-03-30 00:09:44.571837+00", "status": "ACTIVE", "roles": ["OWNER"], "permissions": {"sales": {"edit": true, "view": true}, "users": {"edit": true, "view": true}, "clients": {"edit": true, "view": true}, "daybook": {"edit": true, "view": true}, "payroll": {"edit": true, "view": true}, "reports": {"edit": true, "view": true}, "expenses": {"edit": true, "view": true}, "settings": {"edit": false, "view": false}, "vehicles": {"edit": true, "view": true}, "inventory": {"edit": true, "view": true}, "purchases": {"edit": true, "view": true}, "suppliers": {"edit": true, "view": true}}},
+    {"id": "b405d93b-f4f3-487d-86b1-92c05c37e139", "email": "uvaize@hotmail.com", "name": "Uvaize", "created_at": "2026-03-30 00:09:44.571837+00", "status": "ACTIVE", "roles": ["GLOBAL_ADMIN", "OWNER"], "permissions": {}}
+  ],
+  "day_book": [
+    {"id": "66f8d02d-3c05-4a11-bd49-24755422a0fd", "total_expenses": 4600, "opening_balance": 45000, "date": "2026-03-31", "created_at": null, "closing_balance": 52400, "total_sales": 12000, "is_closed": true}
+  ],
+  "vehicles": [
+    {"year": null, "id": "VEH-001", "name": "Tata Ace", "created_at": null, "capacity": null, "color": null, "fuelType": null, "status": "ACTIVE", "plate": "DL-1L-8832", "nextServiceDate": null, "lastServiceDate": null, "type": "Mini Truck"}
+  ],
+  "routes": [
+    {"date": "2026-03-31", "status": "ACTIVE", "initialOdometer": null, "location": null, "driverId": null, "vehicleId": "VEH-001", "id": "RT-SEED-001", "created_at": null, "actual_cash": null, "loadedStock": null, "assignedOrders": null, "reconciled_at": null, "final_odometer": null}
+  ],
+  "business_profile": [
+    {"name": "AK Trading", "id": "current", "address": "29 Dentith Rd, Halifax, B3R 1T5", "phone": "9029191716", "email": "uvaize@hotmail.com", "website": "", "country": "India", "currency": "INR", "currencySymbol": "\u20b9", "taxId": null, "logo": null, "lowStockThreshold": 10, "pan_no": "YT19919", "bank_name": "BANK OF INDIA", "account_no": "8188181882010", "ifsc_code": "YTAUI10001", "upi_id": "uvaize@upi.com", "gst_no": "11TT377189198"}
+  ],
+  "settings": [],
+  "inventory_locations": [
+    {"id": "00000000-0000-0000-0000-000000000001", "name": "Main Warehouse", "type": "WAREHOUSE", "reference_id": null, "created_at": "2026-03-31T14:38:40.42512+00:00"}
+  ],
+  "suppliers": [],
+  "product_categories": [
+    {"id": "07f882fd-0abd-4ea2-9e1a-ebecc1772906", "name": "Electronics", "created_at": "2026-03-31T04:14:13.134677+00:00"},
+    {"id": "02f80e1c-b016-452d-bf20-830fb7b88917", "name": "Accessories", "created_at": "2026-03-31T04:14:13.134677+00:00"},
+    {"id": "391db035-9797-48af-b561-3540c143e005", "name": "Furniture", "created_at": "2026-03-31T04:14:13.134677+00:00"},
+    {"id": "55325787-65e9-441b-a8d7-a34644826ab3", "name": "Clothing", "created_at": "2026-03-31T04:14:13.134677+00:00"},
+    {"id": "b97de388-ab6a-4b3c-82d9-0bd495b27e3c", "name": "Other", "created_at": "2026-03-31T04:14:13.134677+00:00"}
+  ],
+  "mechanic_payments": []
+}

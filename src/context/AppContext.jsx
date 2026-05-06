@@ -1,3 +1,20 @@
+/**
+ * ─── NOTE: PARTIAL REFACTOR IN FLIGHT (ARCH-01) ──────────────────────────────
+ * This file is mid-migration. The plan is to split its ~2400 lines into the
+ * domain contexts imported below (Auth/Tenant/Sync/Inventory/Sales/etc.).
+ *
+ * Current structure:
+ *   - `AppProviderInner`  : consumes each domain context via useAuth/useTenant/…
+ *                           and still owns the bulk of the business logic.
+ *   - `AppProvider`       : exported wrapper that nests all domain providers
+ *                           around `AppProviderInner`, so `App.jsx` only
+ *                           mounts `<AppProvider>`.
+ *
+ * Until the split is complete, `useAppContext()` remains the single public
+ * hook — do NOT reach into the domain hooks directly from components yet,
+ * or you'll have two sources of truth.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
 import React, { createContext, useContext, useState, useEffect, useRef} from 'react';
 import { supabase, isSupabaseConfigured} from '../lib/supabase';
 import { 
@@ -5,11 +22,26 @@ import {
  employeeSchema, clientSchema, dayBookSchema 
 } from '../lib/validation';
 import { cacheSet, cacheGet, cacheClear} from '../lib/cache';
+import { 
+  AVAILABLE_ROLES, MODULES_CONFIG, DEFAULT_PERMISSIONS, 
+  INITIAL_BUSINESS, INITIAL_EXPENSE_CATEGORIES 
+} from '../lib/constants';
 import { isLocked, recordFailure, recordSuccess, timeRemaining } from '../lib/loginThrottle';
 import { isModuleAvailable, getRequiredPlan, PLANS } from '../lib/tenancy';
 import { logError } from '../lib/errorLogger';
 import { logAuditEvent, AUDIT_ACTIONS, diffRoles } from '../lib/auditLog';
-import { generateRef, todayISOInAppTZ } from '../lib/utils';
+import { generateUUID, generateRef, todayISOInAppTZ } from '../lib/utils';
+
+// Domain Hooks
+import { AuthProvider, useAuth } from './AuthContext';
+import { TenantProvider, useTenant } from './TenantContext';
+import { SyncProvider, useSync } from './SyncContext';
+import { InventoryProvider, useInventory } from './InventoryContext';
+import { NotificationProvider, useNotifications } from './NotificationContext';
+import { SalesProvider, useSales } from './SalesContext';
+import { PurchasesProvider, usePurchases } from './PurchasesContext';
+import { FinanceProvider, useFinance } from './FinanceContext';
+import { HRProvider, useHR } from './HRContext';
 
 // Bootstrap allowlist for first-login auto-provisioning. Parsed once from env.
 // NOT a permission gate — only decides what roles to stamp on a brand-new user
@@ -36,365 +68,77 @@ const INITIAL_VEHICLES = [];
 const INITIAL_SHOPS = [];
 const INITIAL_EMPLOYEES = [];
 
-const INITIAL_BUSINESS = {
- name: 'Ledgr ERP',
- country: 'India',
- currency: 'INR',
- currencySymbol: '₹',
- lowStockThreshold: 10,
- pan_no: '',
- gst_no: '',
- bank_name: '',
- account_no: '',
- ifsc_code: '',
- upi_id: '',
- email: '',
- website: '',
- phone: '',
- address: '',
- city: '',
- state: '',
- pincode: '',
- logo_url: ''
-};
-
-const INITIAL_EXPENSE_CATEGORIES = ['General', 'Inventory', 'Logistics', 'Payroll', 'Utilities', 'Marketing', 'Rent', 'Other'];
-
-// Available role definitions
-export const DEFAULT_PERMISSIONS = {
- inventory: { view: true, edit: false},
- sales: { view: true, edit: true},
- purchases: { view: true, edit: false},
- expenses: { view: true, edit: false},
- clients: { view: true, edit: true},
- suppliers: { view: true, edit: false},
- vehicles: { view: true, edit: false},
- reports: { view: false, edit: false},
- payroll: { view: false, edit: false},
- users: { view: false, edit: false},
- settings: { view: false, edit: false},
- daybook: { view: true, edit: true}
-};
-
-export const MODULES_CONFIG = [
- { key: 'inventory', label: 'Inventory Management', icon: 'Package'},
- { key: 'sales', label: 'Sales & Invoicing', icon: 'ShoppingCart'},
- { key: 'purchases', label: 'Purchases (Stock-In)', icon: 'ShoppingBag'},
- { key: 'expenses', label: 'Expense Tracking', icon: 'Wallet'},
- { key: 'clients', label: 'Client Directory', icon: 'Users'},
- { key: 'suppliers', label: 'Supplier Network', icon: 'Truck'},
- { key: 'vehicles', label: 'Fleet Management', icon: 'Truck'},
- { key: 'reports', label: 'Business Intelligence', icon: 'BarChart3'},
- { key: 'payroll', label: 'HR & Payroll', icon: 'Banknote'},
- { key: 'users', label: 'Personnel & Permissions', icon: 'UserPlus'},
- { key: 'settings', label: 'Global Settings', icon: 'Settings'},
- { key: 'daybook', label: 'Day Book', icon: 'BookOpen'}
-];
-
-export const AVAILABLE_ROLES = [
- { id: 'GLOBAL_ADMIN', label: 'Global Admin', color: 'bg-purple-100 text-purple-700'},
- { id: 'OWNER', label: 'Owner/Manager', color: 'bg-blue-100 text-blue-700'},
- { id: 'STAFF', label: 'Staff/Operator', color: 'bg-gray-100 text-gray-700'}
-];
-
-export const generateUUID = () => {
- if (typeof crypto !== 'undefined' && crypto.randomUUID) {
- return crypto.randomUUID();
-}
- return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
- var r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
- return v.toString(16);
-});
-};
-
-export const AppProvider = ({ children}) => {
- const [loading, setLoading] = useState(true);
- const [isSyncComplete, setIsSyncComplete] = useState(false);
- const [initError, setInitError] = useState(null);
- 
- // Auth Session — relies entirely on Supabase auth, no local persistence
- const [currentUser, setCurrentUser] = useState(null);
-
- // Multi-Tenancy State
- const [currentTenant, setCurrentTenant] = useState(() => {
-   try {
-     const stored = sessionStorage.getItem('nexus_impersonated_tenant');
-     return stored ? JSON.parse(stored) : null;
-   } catch { return null; }
- });
- const [isImpersonating, setIsImpersonating] = useState(sessionStorage.getItem('nexus_impersonating') === 'true');
- const currentTenantId = currentTenant?.id || null;
-
- const impersonateTenant = (tenant) => {
-   cacheClear();
-   setCurrentTenant(tenant);
-   setIsImpersonating(true);
-   sessionStorage.setItem('nexus_impersonating', 'true');
-   sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(tenant));
-   window.location.href = `/${tenant.slug}/dashboard`;
- };
-
- const stopImpersonating = () => {
-   setIsImpersonating(false);
-   sessionStorage.removeItem('nexus_impersonating');
-   sessionStorage.removeItem('nexus_impersonated_tenant');
-   cacheClear();
-   window.location.href = '/nexus-hq';
- };
-
- // Core Data States (100% Cloud - No Local Initializers)
- const [users, setUsers] = useState([]);
- const [businessProfile, setBusinessProfile] = useState({});
- const [products, setProducts] = useState([]);
- const [productCategories, setProductCategories] = useState([]);
- const [clients, setClients] = useState([]);
- const [clientPayments, setClientPayments] = useState([]);
- const [sales, setSales] = useState([]);
- const [expenses, setExpenses] = useState([]);
- const [isMaintenance, setIsMaintenance] = useState(false);
- const [maintenanceMessage, setMaintenanceMessage] = useState('');
- const [movementLog, setMovementLog] = useState([]);
- const [vehicles, setVehicles] = useState([]);
- const [routes, setRoutes] = useState([]);
- const [employees, setEmployees] = useState([]);
- const [payrollRecords, setPayrollRecords] = useState([]);
- const [purchases, setPurchases] = useState([]);
- const [suppliers, setSuppliers] = useState([]);
- const [dayBook, setDayBook] = useState([]);
- const [expenseCategories, setExpenseCategories] = useState(['Petrol', 'Food', 'Salary', 'Rent', 'Electricity', 'Water', 'Maintenance', 'Stationery', 'Travel', 'Marketing', 'Tax', 'Others']);
- const [inventoryLocations, setInventoryLocations] = useState([]);
-  const [inventoryBalances, setInventoryBalances] = useState([]);
-  const [invoices, setInvoices] = useState([]);
+const AppProviderInner = ({ children }) => {
+  // --- 1. Consume Modular Contexts ---
+  const {
+    currentUser, setCurrentUser, session, isOwner, isStaff, login, logout, loading: authLoading
+  } = useAuth();
   
- const MAIN_WAREHOUSE_ID = '00000000-0000-0000-0000-000000000001';
- 
- // --- Sync & Connectivity States ---
- const [syncStatus, setSyncStatus] = useState('SYNCED'); // 'SYNCED', 'SYNCING', 'ERROR', 'OFFLINE'
- const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
- const [lastSyncedAt, setLastSyncedAt] = useState(new Date().toISOString());
+  const { 
+    currentTenant, currentTenantId, setCurrentTenant, isImpersonating, impersonateTenant, stopImpersonating,
+    resolveTenant, resolveTenantBySlug, isModuleAllowed
+  } = useTenant();
 
- // Monitor Online/Offline status
- useEffect(() => {
- const handleOnline = () => {
- setIsOnline(true);
- setSyncStatus(prev => prev === 'OFFLINE' ? 'SYNCED' : prev);
-};
- const handleOffline = () => {
- setIsOnline(false);
- setSyncStatus('OFFLINE');
-};
+  const {
+    syncStatus, setSyncStatus, isOnline, lastSyncedAt, setLastSyncedAt, initializingRef, appInitialized 
+  } = useSync();
 
- window.addEventListener('online', handleOnline);
- window.addEventListener('offline', handleOffline);
- return () => {
- window.removeEventListener('online', handleOnline);
- window.removeEventListener('offline', handleOffline);
-};
-}, []);
+  const {
+    products, setProducts, productCategories, setProductCategories,
+    inventoryLocations, setInventoryLocations, inventoryBalances, setInventoryBalances,
+    movementLog, setMovementLog, MAIN_WAREHOUSE_ID,
+    vehicles, setVehicles, routes, setRoutes,
+    adjustLocationStock, adjustStock, transferStock
+  } = useInventory();
 
-  const adjustLocationStock = async (productId, amount, locationId = MAIN_WAREHOUSE_ID) => {
-    if (!productId || !locationId) return;
+  const {
+    notifications, addNotification
+  } = useNotifications();
 
-    setInventoryBalances(prev => {
-      const existing = prev.find(b => b.product_id === productId && b.location_id === locationId);
-      if (existing) {
-        return prev.map(b => (b.product_id === productId && b.location_id === locationId) 
-          ? { ...b, quantity: Math.max(0, b.quantity + amount), updated_at: new Date().toISOString() } 
-          : b
-        );
-      } else {
-        return [...prev, { 
-          id: generateUUID(), 
-          product_id: productId, 
-          location_id: locationId, 
-          quantity: Math.max(0, amount), 
-          updated_at: new Date().toISOString() 
-        }];
-      }
-    });
+  const {
+    sales, setSales, clients, setClients, clientPayments, setClientPayments, invoices, setInvoices,
+    addClient, updateClient, deleteClient,
+    recordClientPayment,
+    createInvoice, markInvoicePaid,
+    reconcileSaleEffects, placeSale, updateSale, deleteSale, settleSale
+  } = useSales();
 
-    if (isSupabaseConfigured) {
-      const { data: current } = await supabase
-        .from('inventory_balances')
-        .select('quantity')
-        .eq('product_id', productId)
-        .eq('location_id', locationId)
-        .maybeSingle();
-      
-      const newQty = Math.max(0, (current?.quantity || 0) + amount);
-      const { error } = await supabase
-        .from('inventory_balances')
-        .upsert({ 
-          product_id: productId, 
-          location_id: locationId, 
-          quantity: newQty,
-          updated_at: new Date().toISOString(),
-          tenant_id: currentTenantId
-        }, { onConflict: 'product_id,location_id' });
-        
-      if (error) {
-        console.error("Error adjusting location stock:", error);
-        logError({
-          module: 'Inventory',
-          action: 'Adjust Location Stock',
-          error_code: error.code,
-          error_message: error.message,
-          severity: 'Medium'
-        });
-      }
-    }
-  };
+  const {
+    purchases, setPurchases, suppliers, setSuppliers,
+    addPurchase,
+    addSupplier, updateSupplier, deleteSupplier,
+  } = usePurchases();
 
-  const adjustStock = async (productId, amount, reason, locationId = MAIN_WAREHOUSE_ID) => {
-    const product = products.find(p => p.id === productId);
-    if (!product) return;
+  const {
+    expenses, setExpenses, expenseCategories, setExpenseCategories, dayBook, setDayBook,
+    addExpense, updateExpense, deleteExpense,
+    addExpenseCategory, updateExpenseCategory, deleteExpenseCategory,
+    updateDayBook, getDayBookForDate,
+  } = useFinance();
 
-    await adjustLocationStock(productId, amount, locationId);
-    
-    if (locationId === MAIN_WAREHOUSE_ID) {
-      const updatedProduct = { ...product, stock: Math.max(0, (product.stock || 0) + amount)};
-      setProducts(prev => prev.map(p => p.id === productId ? updatedProduct : p));
-      if (isSupabaseConfigured) {
-        const { error } = await supabase
-          .from('products')
-          .update({ stock: updatedProduct.stock })
-          .eq('id', productId)
-          .eq('tenant_id', currentTenantId);
+  const {
+    employees, setEmployees, payrollRecords, setPayrollRecords,
+    addEmployee, updateEmployee, deleteEmployee, resetEmployeesDailyData,
+    processPayroll, deletePayrollRecord,
+  } = useHR();
 
-        if (error) {
-          console.error("Error adjusting product stock in Supabase:", error);
-          logError({
-            module: 'Inventory',
-            action: 'Adjust Stock',
-            error_code: error.code,
-            error_message: error.message,
-            severity: 'Medium'
-          });
-        }
-      }
-    }
+  // --- 2. Remaining Facade State (to be moved in later phases) ---
+  const [loading, setLoading] = useState(true);
+  const [isSyncComplete, setIsSyncComplete] = useState(false);
+  const [initError, setInitError] = useState(null);
+   // --- 3. Persistence States (Cloud only) ---
+  const [users, setUsers] = useState([]);
+  const [businessProfile, setBusinessProfile] = useState({});
+  const [isMaintenance, setIsMaintenance] = useState(false);
+  const [maintenanceMessage, setMaintenanceMessage] = useState('');
+  // vehicles/routes state moved to InventoryContext
 
-    const type = amount > 0 ? 'IN' : 'OUT';
-    const locName = inventoryLocations.find(l => l.id === locationId)?.name || 'Storage';
-    logMovement(productId, product.name, type, Math.abs(amount), `${reason} [Loc: ${locName}]`, currentUser?.id);
-  };
+  const [authSession, setAuthSession] = useState(null);
 
- // Heartbeat check for Supabase connectivity
- useEffect(() => {
- if (!isSupabaseConfigured || !isOnline) return;
-
- const interval = setInterval(async () => {
- try {
- const { error} = await supabase.from('settings').select('key').limit(1);
- if (error) throw error;
- setSyncStatus(prev => prev === 'ERROR' ? 'SYNCED' : prev);
-} catch (err) {
- console.warn("Supabase heartbeat failed:", err);
- setSyncStatus('ERROR');
-}
-}, 30000); // Every 30 seconds
-
- return () => clearInterval(interval);
-}, [isOnline]);
 
  // Aliases
  const orders = sales;
  const setOrders = setSales;
-
- const [notifications, setNotifications] = useState([]);
-
- const addNotification = (message, type = 'success') => {
- const id = `NOTIF-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
- setNotifications(prev => [{ id, message, type, date: new Date().toISOString()}, ...prev].slice(0, 5));
- 
- // Auto-remove after 5 seconds
- setTimeout(() => {
- setNotifications(prev => prev.filter(n => n.id !== id));
-}, 5000);
-};
-
- // Data Persistence (100% CLOUD — No Local Storage)
-
- const initializingRef = useRef(false);
- const appInitialized = useRef(false);
-
-
- // Data Actions (LOCAL ONLY)
- const login = async (email, password) => {
-    // Client-side progressive backoff — check lockout before hitting Supabase.
-    if (isLocked(email)) {
-      const remaining = timeRemaining(email);
-      return { success: false, error: `Too many failed attempts. Try again in ${remaining}.` };
-    }
-
-    if (isSupabaseConfigured) {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        recordFailure(email);
-        return { success: false, error: error.message };
-      }
-
-      // Successful auth — clear the failure counter.
-      recordSuccess(email);
-
-      // Fetch profile to get roles immediately for redirection
-      const { data: profile } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', data.user.id)
-        .maybeSingle();
-        
-      if (profile) {
-        setCurrentUser(profile);
-      } else {
-        // Fallback: If no profile exists, check for roles in metadata (crucial for new admins)
-        const metaRoles = data.user.user_metadata?.roles || [];
-        if (metaRoles.length > 0) {
-          const synthesizedUser = {
-            id: data.user.id,
-            email: data.user.email,
-            name: data.user.user_metadata?.name || data.user.email.split('@')[0],
-            roles: metaRoles,
-            status: 'ACTIVE'
-          };
-          setCurrentUser(synthesizedUser);
-          return { success: true, user: synthesizedUser };
-        }
-      }
-      
-      return { success: true, user: profile || data.user };
-    }
-
-    // SECURITY: No offline/mock credential fallback. Previously this block
-    // accepted `password` / `admin123` against any in-memory user — a weak-
-    // password backdoor that ran whenever Supabase env vars were missing.
-    // Auth now requires a configured Supabase client; misconfigured deploys
-    // fail loudly instead of silently granting access.
-    return {
-      success: false,
-      error: 'Authentication unavailable — Supabase is not configured. Contact your administrator.',
-    };
-};
-
- const logout = async () => {
- try {
- setLoading(true);
- cacheClear(); // Immediate clear
- if (isSupabaseConfigured) {
- await supabase.auth.signOut();
-}
-} catch (e) {
- console.error("Logout error:", e);
-} finally {
- setCurrentUser(null);
- appInitialized.current = false;
- setLoading(false);
- if (typeof window !== 'undefined') {
- window.location.href = '/login';
-}
-}
-};
-
 
   const addUser = async (userData) => {
     // Fallback: If currentTenantId is missing but we are in a tenant-scoped route, try to resolve it from the URL
@@ -482,6 +226,7 @@ export const AppProvider = ({ children}) => {
 
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
+ updatedUser.tenant_id = currentTenantId;
  const { error} = await supabase.from('users').upsert(updatedUser);
  if (error) {
  console.error("Error updating user in Supabase:", error);
@@ -517,7 +262,7 @@ export const AppProvider = ({ children}) => {
 
  if (isSupabaseConfigured) {
  setSyncStatus('SYNCING');
- const { error} = await supabase.from('users').delete().eq('id', userId);
+ const { error} = await supabase.from('users').delete().eq('id', userId).eq('tenant_id', currentTenantId);
  if (error) {
  console.error("Error deleting user from Supabase:", error);
  setSyncStatus('ERROR');
@@ -540,143 +285,9 @@ export const AppProvider = ({ children}) => {
     addNotification('Staff record removed from system', 'success');
 };
 
- const addClient = async (client) => {
- const val = clientSchema.safeParse(client);
- if (!val.success) {
- addNotification("Validation failed:" + val.error.errors[0].message,"error");
- return;
-}
- const newClient = { 
- ...client, 
- id: client.id || `CLI-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
- outstanding_balance: client.outstanding_balance || 0,
- tenant_id: currentTenantId
-};
- 
- const { status, ...dbClient} = newClient;
+ // addClient/updateClient/deleteClient moved to SalesContext
 
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('clients').upsert(dbClient);
- if (error) {
- console.error("Error adding client to Supabase:", error);
- setSyncStatus('ERROR');
- addNotification(`Cloud Sync Delayed: Client saved locally`,"warning");
- // Fall through
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
- setClients([newClient, ...clients]);
-};
-
- const updateClient = async (updatedClient) => {
- const { status, ...dbClient} = updatedClient;
-
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('clients').upsert(dbClient);
- if (error) {
- console.error("Error updating client in Supabase:", error);
- setSyncStatus('ERROR');
- addNotification("Failed to update client in cloud","error");
- return;
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
- setClients(clients.map(c => c.id === updatedClient.id ? updatedClient : c));
-};
-
- const deleteClient = async (clientId) => {
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('clients').delete().eq('id', clientId);
- if (error) {
- console.error("Error deleting client from Supabase:", error);
- setSyncStatus('ERROR');
- addNotification("Cloud Sync Delayed: Client removed locally","warning");
- // Fall through
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
- setClients(clients.filter(c => c.id !== clientId));
-};
-
- const addExpense = async (expense) => {
- const val = expenseSchema.safeParse(expense);
- if (!val.success) {
- addNotification("Validation failed:" + val.error.errors[0].message,"error");
- return;
-}
- const { title, date, routeId, splitType, notes, ...restExpense} = expense;
- const newExpense = { 
- ...restExpense, 
- id: expense.id || `EXP-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, 
- date: date || new Date().toISOString(),
- route_id: routeId,
- split_type: splitType || null,
- note: title || notes || '',
- tenant_id: currentTenantId
-};
- 
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('expenses').upsert(newExpense);
- if (error) {
- console.error("Error adding expense to Supabase:", error);
- setSyncStatus('ERROR');
- addNotification(`Cloud Sync Delayed: Expense saved locally`,"warning");
- // Fall through
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
-
- setExpenses([newExpense, ...expenses]);
- addNotification(`Expense recorded: ${businessProfile?.currencySymbol || ''}${expense.amount}`, 'expense');
-};
-
- const updateExpense = async (updatedExpense) => {
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('expenses').upsert(updatedExpense);
- if (error) {
- console.error("Error updating expense in Supabase:", error);
- setSyncStatus('ERROR');
- addNotification("Cloud Sync Delayed: Expense updated locally","warning");
- // Fall through
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
- setExpenses(expenses.map(e => e.id === updatedExpense.id ? updatedExpense : e));
- addNotification(`Expense updated: ${businessProfile?.currencySymbol || ''}${updatedExpense.amount}`, 'success');
-};
-
- const deleteExpense = async (expenseId) => {
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('expenses').delete().eq('id', expenseId);
- if (error) {
- console.error("Error deleting expense from Supabase:", error);
- setSyncStatus('ERROR');
- addNotification("Cloud Sync Delayed: Expense removed locally","warning");
- // Fall through
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
- setExpenses(expenses.filter(e => e.id !== expenseId));
- addNotification('Expense record removed', 'success');
-};
+ // addExpense/updateExpense/deleteExpense moved to FinanceContext
 
  const logMovement = async (productId, productName, type, quantity, reason, userId) => {
  const newLog = {
@@ -700,12 +311,13 @@ export const AppProvider = ({ children}) => {
  const dbLog = {
  id: newLog.id,
  date: newLog.date,
- product_id: productId, 
- product_name: productName, 
- type, 
- quantity, 
- reason, 
- user_id: userId
+ product_id: productId,
+ product_name: productName,
+ type,
+ quantity,
+ reason,
+ user_id: userId,
+ tenant_id: currentTenantId
 };
  const { error} = await supabase.from('movement_log').insert(dbLog);
  if (error) {
@@ -716,43 +328,12 @@ export const AppProvider = ({ children}) => {
  setMovementLog(prev => [newLog, ...prev]);
 };
 
- const reconcileSaleEffects = async (oldSale, newSale) => {
- const productDeltas = new Map();
- 
- if (oldSale?.status === 'COMPLETED') {
- oldSale.items.forEach(i => productDeltas.set(i.productId, (productDeltas.get(i.productId) || 0) + i.quantity));
-}
- if (newSale?.status === 'COMPLETED') {
- newSale.items.forEach(i => {
- productDeltas.set(i.productId, (productDeltas.get(i.productId) || 0) - i.quantity);
- 
- // Recalculate COGS in the new sale using current product cost
- const product = products.find(p => p.id === i.productId);
- if (product) {
- i.cogs = (product.costPrice || 0) * i.quantity;
-}
-});
- // Update totalCogs
- newSale.totalCogs = newSale.items.reduce((sum, i) => sum + (i.cogs || 0), 0);
-}
+ // reconcileSaleEffects moved to SalesContext
 
- const clientDeltas = new Map();
- if (oldSale?.paymentMethod?.toLowerCase() === 'credit') {
- const id = oldSale.clientId || oldSale.shopId;
- clientDeltas.set(id, (clientDeltas.get(id) || 0) - oldSale.totalAmount);
-}
- if (newSale?.paymentMethod?.toLowerCase() === 'credit') {
- const id = newSale.clientId || newSale.shopId;
- clientDeltas.set(id, (clientDeltas.get(id) || 0) + newSale.totalAmount);
-}
+ // placeSale moved to SalesContext
 
- // Apply Deltas to Local State
- if (productDeltas.size > 0) {
- setProducts(prev => prev.map(p => {
- const delta = productDeltas.get(p.id);
- return delta ? { ...p, stock: Math.max(0, p.stock + delta)} : p;
-}));
-}
+  // createInvoice/markInvoicePaid moved to SalesContext
+
 
  if (clientDeltas.size > 0) {
  setClients(prev => prev.map(c => {
@@ -1256,10 +837,11 @@ export const AppProvider = ({ children}) => {
     return { success: true};
   };
 
+
   const addProductCategory = async (categoryName) => {
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      const { data, error } = await supabase.from('product_categories').insert({ name: categoryName }).select();
+      const { data, error } = await supabase.from('product_categories').insert({ name: categoryName, tenant_id: currentTenantId }).select();
       if (error) {
         console.error("Error adding category:", error);
         setSyncStatus('ERROR');
@@ -1278,7 +860,7 @@ export const AppProvider = ({ children}) => {
   const updateProductCategory = async (updatedCategory) => {
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      const { error } = await supabase.from('product_categories').update({ name: updatedCategory.name }).eq('id', updatedCategory.id);
+      const { error } = await supabase.from('product_categories').update({ name: updatedCategory.name }).eq('id', updatedCategory.id).eq('tenant_id', currentTenantId);
       if (error) {
         setSyncStatus('ERROR');
         addNotification("Failed to update category: " + error.message, "error");
@@ -1292,7 +874,7 @@ export const AppProvider = ({ children}) => {
   const deleteProductCategory = async (categoryId) => {
     if (isSupabaseConfigured) {
       setSyncStatus('SYNCING');
-      const { error } = await supabase.from('product_categories').delete().eq('id', categoryId);
+      const { error } = await supabase.from('product_categories').delete().eq('id', categoryId).eq('tenant_id', currentTenantId);
       if (error) {
         setSyncStatus('ERROR');
         addNotification("Failed to delete category: " + error.message, "error");
@@ -1504,7 +1086,7 @@ export const AppProvider = ({ children}) => {
 
  const updateVehicle = async (updated) => {
  if (isSupabaseConfigured) {
- const { error} = await supabase.from('vehicles').upsert(updated);
+ const { error} = await supabase.from('vehicles').upsert({ ...updated, tenant_id: currentTenantId });
  if (error) {
  console.error("Error updating vehicle in Supabase:", error);
  addNotification(`Cloud Sync Failed: ${error.message}`, "error");
@@ -1516,7 +1098,7 @@ export const AppProvider = ({ children}) => {
 
  const deleteVehicle = async (vehicleId) => {
  if (isSupabaseConfigured) {
- const { error} = await supabase.from('vehicles').delete().eq('id', vehicleId);
+ const { error} = await supabase.from('vehicles').delete().eq('id', vehicleId).eq('tenant_id', currentTenantId);
  if (error) {
  console.error("Error deleting vehicle from Supabase:", error);
 }
@@ -1539,7 +1121,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
       const vName = getVehicleName(routeData.vehicleId);
       const { data, error } = await supabase
         .from('inventory_locations')
-        .insert({ name: vName, type: 'VEHICLE', reference_id: routeData.vehicleId })
+        .insert({ name: vName, type: 'VEHICLE', reference_id: routeData.vehicleId, tenant_id: currentTenantId })
         .select()
         .single();
       
@@ -1550,7 +1132,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
     }
 
     if (isSupabaseConfigured) {
-      const { error: routeError} = await supabase.from('routes').upsert(newRoute);
+      const { error: routeError} = await supabase.from('routes').upsert({ ...newRoute, tenant_id: currentTenantId });
       if (routeError) {
         console.error("Error dispatching route:", routeError);
         return;
@@ -1688,97 +1270,13 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
   };
 
  // ========== PAYROLL ==========
- const addEmployee = async (emp) => {
- const val = employeeSchema.safeParse(emp);
- if (!val.success) {
- addNotification("Validation failed:" + val.error.errors[0].message,"error");
- return false;
-}
- const newEmp = {
- id: emp.id || `EMP-${Date.now()}`,
- name: emp.name,
- email: emp.email || null,
- phone: emp.phone || null,
- position: emp.position || null,
- status: 'ACTIVE',
- created_at: new Date().toISOString(),
- salary: emp.basePay || 0,
- role: emp.department,
- department: emp.department,
- pay_type: emp.payType || 'MONTHLY',
- bank_account: emp.bankAccount || null,
- notes: emp.notes || null,
- daily_rate: emp.dailyRate || 0,
- days_worked: emp.daysWorked || 0,
- amount_paid: emp.amountPaid || 0,
- tenant_id: currentTenantId
-};
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('employees').upsert(newEmp);
- if (error) {
- console.error("Error adding employee to Supabase:", error);
- addNotification("Failed to save employee to cloud:" + error.message,"error");
- return false;
-}
-}
- setEmployees(prev => [...prev, newEmp]);
- addNotification(`${emp.name} added successfully`,"success");
- return true;
-};
+ // addEmployee / updateEmployee / resetEmployeesDailyData moved to HRContext
 
-  const updateEmployee = async (updated) => {
-    // Prepare database-ready object (snake_case)
-    const dbData = {
-      id: updated.id,
-      name: updated.name,
-      email: updated.email !== undefined ? updated.email : null,
-      phone: updated.phone !== undefined ? updated.phone : null,
-      position: updated.position !== undefined ? updated.position : null,
-      status: updated.status || 'ACTIVE',
-      salary: updated.basePay !== undefined ? updated.basePay : (updated.salary || 0),
-      department: updated.department || updated.role,
-      role: updated.department || updated.role,
-      pay_type: updated.payType || updated.pay_type || 'MONTHLY',
-      bank_account: updated.bankAccount || updated.bank_account || null,
-      notes: updated.notes !== undefined ? updated.notes : null,
-      daily_rate: updated.dailyRate !== undefined ? updated.dailyRate : (updated.daily_rate || 0),
-      days_worked: updated.daysWorked !== undefined ? updated.daysWorked : (updated.days_worked || 0),
-      amount_paid: updated.amountPaid !== undefined ? updated.amountPaid : (updated.amount_paid || 0),
-      tenant_id: currentTenantId
-    };
+ // Task 6: Purchases & Stock Integration
+ // addPurchase moved to PurchasesContext
 
-    if (isSupabaseConfigured) {
-      setSyncStatus('SYNCING');
-      const { error } = await supabase.from('employees').upsert(dbData);
-      if (error) {
-        console.error("Error updating employee in Supabase:", error);
-        logError({
-          module: 'Employees',
-          action: 'Update Employee',
-          error_code: error.code,
-          error_message: error.message,
-          severity: 'High'
-        });
-        setSyncStatus('ERROR');
-        addNotification(`Cloud Sync Delayed: ${error.message}`, "warning");
-      } else {
-        setSyncStatus('SYNCED');
-      }
-    }
- 
- // Update local state with the mapped object (keep both for compatibility)
- const fullEmployee = {
- ...dbData,
- basePay: dbData.salary,
- payType: dbData.pay_type,
- bankAccount: dbData.bank_account,
- dailyRate: dbData.daily_rate,
- daysWorked: dbData.days_worked,
- amountPaid: dbData.amount_paid
-};
- 
- setEmployees(prev => prev.map(e => e.id === updated.id ? fullEmployee : e));
-};
+  // addSupplier / updateSupplier / deleteSupplier moved to PurchasesContext
+
 
  const resetEmployeesDailyData = async () => {
  if (!isSupabaseConfigured) {
@@ -2119,40 +1617,8 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
   };
 
 
- const updateDayBook = async (record) => {
- const val = dayBookSchema.safeParse(record);
- if (!val.success) {
- addNotification("Validation failed:" + val.error.errors[0].message,"error");
- return null;
-}
- const payload = {
- ...record,
- id: record.id || generateUUID(),
- created_at: record.created_at || new Date().toISOString(),
- tenant_id: currentTenantId
-};
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('day_book').upsert(payload);
- if (error) {
- console.error("Error updating Day Book in Supabase:", error);
- addNotification("Failed to sync Day Book to cloud","error");
- return null;
-}
-}
- 
- setDayBook(prev => {
- const exists = prev.find(db => db.date === payload.date);
- if (exists) {
- return prev.map(db => db.date === payload.date ? payload : db);
-}
- return [payload, ...prev];
-});
- return payload.id;
-};
 
- const getDayBookForDate = (date) => {
- return dayBook.find(db => db.date === date);
-};
+ // updateDayBook / getDayBookForDate moved to FinanceContext
 
  // Redundant migration removed
 
@@ -2180,103 +1646,15 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
     }
   };
 
- const addExpenseCategory = async (name) => {
- if (!name || expenseCategories.includes(name)) return;
- const newCategories = [...expenseCategories, name];
- 
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories});
- if (error) {
- console.error("Error adding expense category to Supabase:", error);
- addNotification("Cloud Sync Delayed: Category added locally","warning");
- // Fall through
-}
-}
+ // addExpenseCategory / updateExpenseCategory / deleteExpenseCategory moved to FinanceContext
 
- setExpenseCategories(newCategories);
- addNotification(`Category added: ${name}`, 'success');
-};
 
- const updateExpenseCategory = async (oldName, newName) => {
- if (!newName || expenseCategories.includes(newName)) return;
- const newCategories = expenseCategories.map(c => c === oldName ? newName : c);
- 
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories});
- if (error) {
- console.error("Error updating expense category in Supabase:", error);
- addNotification("Cloud Sync Delayed: Category updated locally","warning");
- // Fall through
-}
-}
-
- setExpenseCategories(newCategories);
- setExpenses(expenses.map(e => e.category === oldName ? { ...e, category: newName} : e));
- addNotification(`Category updated: ${newName}`, 'success');
-};
-
-  const deleteExpenseCategory = async (name) => {
-    const newCategories = expenseCategories.filter(c => c !== name);
-    
-    if (isSupabaseConfigured) {
-      const { error} = await supabase.from('settings').upsert({ key: 'expense_categories', value: newCategories});
-      if (error) {
-        console.error("Error deleting expense category from Supabase:", error);
-        addNotification("Failed to delete category from cloud","error");
-        return;
-      }
-    }
-
-    setExpenseCategories(newCategories);
-    addNotification(`Category removed: ${name}`, 'success');
-  };
-
-  const transferStock = async (fromLocId, toLocId, productId, qty, reason = 'Internal Transfer') => {
-    if (!fromLocId || !toLocId || !productId || qty <= 0) return;
-    
-    // 1. Deduct from Source
-    await adjustLocationStock(productId, -qty, fromLocId);
-    
-    // 2. Add to Destination
-    await adjustLocationStock(productId, qty, toLocId);
-    
-    // 3. Special Case: If moving TO/FROM Warehouse, update the legacy 'stock' column
-    if (fromLocId === MAIN_WAREHOUSE_ID || toLocId === MAIN_WAREHOUSE_ID) {
-      const product = products.find(p => p.id === productId);
-      if (product) {
-        const delta = fromLocId === MAIN_WAREHOUSE_ID ? -qty : qty;
-        const updatedStock = Math.max(0, (product.stock || 0) + delta);
-        setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: updatedStock } : p));
-        if (isSupabaseConfigured) {
-          const { error } = await supabase
-            .from('products')
-            .update({ stock: updatedStock })
-            .eq('id', productId)
-            .eq('tenant_id', currentTenantId);
-
-          if (error) {
-            console.error("Error updating main stock during transfer:", error);
-            logError({
-              module: 'Inventory',
-              action: 'Transfer Stock (Sync Main)',
-              error_code: error.code,
-              error_message: error.message,
-              severity: 'Medium'
-            });
-          }
-        }
-      }
-    }
-
-    const fromName = inventoryLocations.find(l => l.id === fromLocId)?.name || 'Source';
-    const toName = inventoryLocations.find(l => l.id === toLocId)?.name || 'Destination';
-    logMovement(productId, products.find(p => p.id === productId)?.name || 'Product', 'IN/OUT', qty, `${reason} (${fromName} -> ${toName})`, currentUser?.id);
-    addNotification(`Asset Transfer: ${qty} units moved to ${toName}`, "success");
-  };
 
  // Silent background refresh that updates state and cache without loading screens
  const refreshInBackground = async (userId) => {
  if (!isSupabaseConfigured) return;
+ const targetTenantId = currentTenantId;
+ if (!targetTenantId) { console.warn('[refreshInBackground] No tenant — skipping'); return; }
  try {
     console.log("🔄 Running silent background refresh...");
     const [
@@ -2302,7 +1680,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
       { data: invoicesData}
     ] = await Promise.all([
       supabase.from('products').select('*').eq('tenant_id', targetTenantId),
-      supabase.from('clients').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('clients').select('*').eq('tenant_id', targetTenantId).is('deleted_at', null),
       supabase.from('sales').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
       supabase.from('expenses').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
       supabase.from('employees').select('*').eq('tenant_id', targetTenantId),
@@ -2431,72 +1809,61 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  const cExpCategories = cacheGet('expense_categories'); if (cExpCategories) setExpenseCategories(cExpCategories);
  const cLocations = cacheGet('inventory_locations'); if (cLocations) setInventoryLocations(cLocations);
  const cBalances = cacheGet('inventory_balances'); if (cBalances) setInventoryBalances(cBalances);
- const cInvoices = cacheGet('invoices'); if (cInvoices) setInvoices(cInvoices);
-  
-  // --- BACKGROUND REFRESH & SEEDING ---
-  await refreshInBackground();
+ const cInvoices = cacheGet('invoices');       console.log("Restoring from cache, then refreshing in background...");
+      await refreshInBackground();
 
-  // Ensurance IDempotent Seeding for WAREHOUSE
-  setInventoryLocations(current => {
-    if (!current.find(l => l.id === MAIN_WAREHOUSE_ID)) {
-      const warehouse = { id: MAIN_WAREHOUSE_ID, name: 'Main Warehouse', type: 'WAREHOUSE' };
-      supabase.from('inventory_locations').upsert(warehouse).then(() => {}); 
-      return [warehouse, ...current];
+      setLoading(false);
+      initializingRef.current = false;
+      appInitialized.current = true;
+      return;
     }
-    return current;
-  });
 
-  setLoading(false);
-  initializingRef.current = false;
-  appInitialized.current = true;
-  return;
-}
-
- // --- FULL FETCH (Cache Miss or Forced) ---
- if (!isSilentSync) setLoading(true);
- 
- try {
- console.log(force ?"🚀 Force-Initializing App Data..." :"🚀 Initializing App (Full Fetch)...");
- 
- const [
- { data: productsData},
- { data: categoriesData},
- { data: clientsData},
- { data: salesData},
- { data: expensesData},
- { data: employeesData},
- { data: payrollData},
- { data: businessData},
- { data: dayBookData},
- { data: settingsData},
- { data: paymentsData},
- { data: usersData},
- { data: vehiclesData},
- { data: movementData},
- { data: routesData},
-  { data: purchasesData},
-  { data: suppliersData},
-  { data: invoicesData}
- ] = await Promise.all([
- supabase.from('products').select('*'),
- supabase.from('product_categories').select('*').order('name'),
- supabase.from('clients').select('*'),
- supabase.from('sales').select('*').order('date', { ascending: false}).limit(500),
- supabase.from('expenses').select('*').order('date', { ascending: false}).limit(500),
- supabase.from('employees').select('*'),
- supabase.from('payroll').select('*').order('processed_at', { ascending: false}).limit(100),
- supabase.from('business_profile').select('*').maybeSingle(),
- supabase.from('day_book').select('*').order('date', { ascending: false}).limit(31),
- supabase.from('settings').select('*'),
- supabase.from('client_payments').select('*').order('date', { ascending: false}).limit(500),
- supabase.from('users').select('*'),
- supabase.from('vehicles').select('*'),
- supabase.from('movement_log').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('routes').select('*').order('date', { ascending: false}).limit(100),
- supabase.from('purchases').select('*').order('date', { ascending: false}).limit(200),
- supabase.from('suppliers').select('*').order('name', { ascending: true}),
- supabase.from('invoices').select('*').order('created_at', { ascending: false})
- ]);
+    const targetTenantId = typeof force === 'string' ? force : currentTenantId;
+    try {
+      console.log("Initializing app for tenant (Full Fetch):", targetTenantId);
+      const [
+        { data: productsData },
+        { data: categoriesData },
+        { data: clientsData },
+        { data: salesData },
+        { data: expensesData },
+        { data: employeesData },
+        { data: payrollData },
+        { data: businessData },
+        { data: dayBookData },
+        { data: settingsData },
+        { data: paymentsData },
+        { data: usersData },
+        { data: vehiclesData },
+        { data: movementData },
+        { data: routesData },
+        { data: purchasesData },
+        { data: suppliersData },
+        { data: locationsData },
+        { data: balancesData },
+        { data: invoicesData }
+      ] = await Promise.all([
+        supabase.from('products').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('product_categories').select('*').eq('tenant_id', targetTenantId).order('name'),
+        supabase.from('clients').select('*').eq('tenant_id', targetTenantId).is('deleted_at', null),
+        supabase.from('sales').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+        supabase.from('expenses').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+        supabase.from('employees').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('payroll').select('*').eq('tenant_id', targetTenantId).order('processed_at', { ascending: false }).limit(100),
+        supabase.from('business_profile').select('*').eq('tenant_id', targetTenantId).maybeSingle(),
+        supabase.from('day_book').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(31),
+        supabase.from('settings').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('client_payments').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+        supabase.from('users').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('vehicles').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('movement_log').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+        supabase.from('routes').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(100),
+        supabase.from('purchases').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+        supabase.from('suppliers').select('*').eq('tenant_id', targetTenantId).order('name', { ascending: true }),
+        supabase.from('inventory_locations').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('inventory_balances').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('invoices').select('*').eq('tenant_id', targetTenantId).order('created_at', { ascending: false })
+      ]);
  
  if (productsData) setProducts(productsData);
  if (categoriesData) setProductCategories(categoriesData);
@@ -2511,6 +1878,9 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
     setInvoices(invoicesData);
     cacheSet('invoices', invoicesData);
   }
+
+  if (locationsData) setInventoryLocations(locationsData);
+  if (balancesData) setInventoryBalances(balancesData);
 
  
  if (employeesData) {
@@ -2580,91 +1950,75 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
 };
 
 
- const [authSession, setAuthSession] = useState(null);
 
- // Resolve tenant from user profile (skip if impersonating another tenant)
-  const resolveTenant = async (userProfile) => {
-    if (!userProfile?.tenant_id) return;
-    // Do not override the impersonated tenant if the admin is bridging
-    if (sessionStorage.getItem("nexus_impersonating") === "true") return;
-    try {
-      const { data: tenant } = await supabase
-        .from('tenants')
-        .select('*')
-        .eq('id', userProfile.tenant_id)
-        .maybeSingle();
-      if (tenant) {
-        setCurrentTenant(tenant);
-      }
-    } catch (err) {
-      console.error('Failed to resolve tenant:', err);
-    }
-  };
 
-  // Resolve tenant by slug (for Global Admin auto-bridging)
-  const resolveTenantBySlug = async (slug) => {
-    if (!slug || !isSupabaseConfigured) return;
-    try {
-      const { data: tenant } = await supabase
-        .from('tenants')
-        .select('*')
-        .eq('slug', slug)
-        .maybeSingle();
-      
-      if (tenant) {
-        setCurrentTenant(tenant);
-        return tenant;
-      }
-    } catch (err) {
-      console.error('Failed to resolve tenant by slug:', err);
-    }
-    return null;
-  };
-
- // Plan-based module check
- const isModuleAllowed = (moduleKey) => {
-   if (!currentTenant) return true;
-   return isModuleAvailable(currentTenant.plan, moduleKey);
- };
 
  // Initial Session Resolver & Visibility Handler
- useEffect(() => {
- if (!isSupabaseConfigured) return;
+  useEffect(() => {
+    if (!isSupabaseConfigured) {
+      setIsSyncComplete(true);
+      return;
+    }
 
  // 1. Resolve session immediately on mount
  const initSession = async () => {
- const { data: { session}} = await supabase.auth.getSession();
- if (session) {
- setAuthSession(session);
- const { data: profile} = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
- if (profile) {
-   setCurrentUser(profile);
-   
-   // Check if we are impersonating - if so, re-fetch the tenant to ensure we have the LATEST plan/status
-   const impersonated = sessionStorage.getItem('nexus_impersonated_tenant');
-   if (impersonated) {
+     console.log("🕵️ [initSession] Primary initialization sequence started.");
      try {
-       const tObj = JSON.parse(impersonated);
-       const { data: latestTenant } = await supabase.from('tenants').select('*').eq('id', tObj.id).maybeSingle();
-       if (latestTenant) {
-         setCurrentTenant(latestTenant);
-         sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(latestTenant));
-       } else {
-         setCurrentTenant(tObj);
-       }
-     } catch (e) {
-       console.warn("Nexus Sync Failed, using cache:", e);
-     }
-   } else {
-     await resolveTenant(profile);
-   }
- }
-  await initializeApp();
-} else {
- setLoading(false);
-}
- setIsSyncComplete(true);
-};
+       const { data: { session}} = await supabase.auth.getSession();
+       console.log("🔑 [initSession] Auth session resolved:", session ? "FOUND" : "NOT FOUND");
+      if (session) {
+        setAuthSession(session);
+        const { data: profile} = await supabase.from('users').select('*').eq('id', session.user.id).maybeSingle();
+        if (profile) {
+          setCurrentUser(profile);
+          
+          let tenantToInit = null;
+          // Check if we are impersonating - if so, re-fetch the tenant to ensure we have the LATEST plan/status
+          const impersonated = sessionStorage.getItem('nexus_impersonated_tenant');
+          if (impersonated) {
+            try {
+              const tObj = JSON.parse(impersonated);
+              tenantToInit = tObj;
+              const { data: latestTenant } = await supabase.from('tenants').select('*').eq('id', tObj.id).maybeSingle();
+              if (latestTenant) {
+                setCurrentTenant(latestTenant);
+                tenantToInit = latestTenant;
+                sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(latestTenant));
+              } else {
+                setCurrentTenant(tObj);
+              }
+            } catch (e) {
+              console.warn("Nexus Sync Failed, using cache:", e);
+            }
+          } else {
+            const resolved = await resolveTenant(profile);
+            tenantToInit = resolved;
+          }
+           // Pass resolved tenant ID directly to initializeApp to avoid stale state closure issues
+          if (tenantToInit?.id) {
+            console.log("🏭 [initSession] Launching app initialization for tenant:", tenantToInit.id);
+            await initializeApp(tenantToInit.id);
+          } else {
+            console.warn("⚠️ [initSession] Profile found but no tenant association.");
+            setLoading(false);
+          }
+        } else {
+          console.warn("⚠️ [initSession] Session found but no profile entry.");
+          setLoading(false);
+        }
+      } else {
+        console.log("👋 [initSession] No active session, skipping app init.");
+        setLoading(false);
+      }
+    } catch (err) {
+      console.error("❌ Session Init Error:", err);
+      setInitError("Critical initialization failed. Please check your connection.");
+    } finally {
+      console.log("🏁 [initSession] Initialization complete. isSyncComplete -> true");
+      setIsSyncComplete(true);
+      setLoading(false);
+    }
+ };
  initSession();
 
  // 2. Handle Document Visibility (Silent Sync)
@@ -2751,8 +2105,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  // Initial load removed (handled in auth useEffect above)
 
 
- const isOwner = currentUser?.roles?.includes('OWNER') || currentUser?.roles?.includes('GLOBAL_ADMIN');
- const isStaff = currentUser?.roles?.includes('STAFF') || currentUser?.role?.toLowerCase() === 'staff';
+
 
  const value = {
  currentUser, session: authSession || currentUser, isOwner, isStaff, login, logout,
@@ -2778,7 +2131,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  users, addUser, updateUser, deleteUser,
  hasRole, hasPermission, isViewOnly,
  getUserName, getVehicleName, getClientName, getShopName: getClientName, getEmployeeName,
- employees, addEmployee, updateEmployee, deleteEmployee,
+ employees, addEmployee, updateEmployee, deleteEmployee, resetEmployeesDailyData,
  payrollRecords, processPayroll, deletePayrollRecord,
  purchases, addPurchase,
  suppliers, addSupplier, updateSupplier, deleteSupplier,
@@ -2792,4 +2145,26 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
 
  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
+
+export const AppProvider = ({ children }) => (
+  <AuthProvider>
+    <TenantProvider>
+      <SyncProvider>
+        <NotificationProvider>
+          <InventoryProvider>
+            <FinanceProvider>
+              <SalesProvider>
+                <HRProvider>
+                  <PurchasesProvider>
+                    <AppProviderInner>{children}</AppProviderInner>
+                  </PurchasesProvider>
+                </HRProvider>
+              </SalesProvider>
+            </FinanceProvider>
+          </InventoryProvider>
+        </NotificationProvider>
+      </SyncProvider>
+    </TenantProvider>
+  </AuthProvider>
+);
 

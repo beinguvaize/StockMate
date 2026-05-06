@@ -7,14 +7,14 @@
 export const PLANS = {
   STARTER: {
     label: 'Starter',
-    modules: ['dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook'],
+    modules: ['dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices'],
     maxUsers: 3,
     color: 'bg-gray-100 text-gray-600'
   },
   PRO: {
     label: 'Pro',
     modules: [
-      'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook',
+      'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports'
     ],
     maxUsers: 25,
@@ -23,9 +23,9 @@ export const PLANS = {
   ENTERPRISE: {
     label: 'Enterprise',
     modules: [
-      'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook',
+      'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports',
-      'users', 'settings'
+      'users', 'settings', 'audit-log'
     ],
     features: ['multi_location_inventory', 'api_access', 'white_label'],
     maxUsers: -1, // Unlimited

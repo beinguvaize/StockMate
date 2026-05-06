@@ -15,7 +15,7 @@ export const AuthProvider = ({ children }) => {
     const initSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       setSession(session);
-      
+
       if (session?.user) {
         const userEmail = session.user.email?.toLowerCase();
         const isSuperUser = userEmail === 'uvaize@hotmail.com' || userEmail === 'gladmin@ledgrpro.ca';
@@ -24,11 +24,11 @@ export const AuthProvider = ({ children }) => {
           .select('*')
           .eq('id', session.user.id)
           .maybeSingle();
-          
+
         if (profile) {
           // Merge session email into profile to ensure bypass logic always has the data
           const enrichedProfile = { ...profile, email: session.user.email };
-          
+
           // Ensure bootstrap admins always have their roles in state even if DB is out of sync
           if (isSuperUser && !enrichedProfile.roles?.includes('GLOBAL_ADMIN')) {
              enrichedProfile.roles = [...(enrichedProfile.roles || []), 'GLOBAL_ADMIN', 'OWNER'];

@@ -1,11 +1,9 @@
-import React, { useMemo } from 'react';
-import useReportData from './useReportData';
+import React, { useState, useEffect, useMemo } from 'react';
 import ReportShell from './ReportShell';
 import { Scale, CheckCircle2, AlertTriangle, Receipt, Landmark } from 'lucide-react';
-import {
-  formatINR, round2, computeVirtualLedger, NORMAL_BALANCE,
-  DEFAULT_CHART_OF_ACCOUNTS
-} from '../../utils/financialCalculations';
+import { formatINR, round2 } from '../../utils/financialCalculations';
+import { supabase } from '../../lib/supabase';
+import { useAppContext } from '../../context/AppContext';
 
 /**
  * Trial Balance Report
@@ -14,56 +12,42 @@ import {
  * Total Debits MUST equal Total Credits (double-entry invariant).
  */
 const TrialBalanceReport = () => {
-  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, totalCogs, date', dateColumn: 'date' });
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, date', dateColumn: 'date' });
-  const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: 'amount, processed_at', dateColumn: 'processed_at' });
-  const { data: clients, loading: l4 } = useReportData({ table: 'clients', select: '*' });
-  const { data: products, loading: l5 } = useReportData({ table: 'products', select: '*' });
-  const { data: purchases, loading: l6 } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date' });
-  const { data: vehicles, loading: l7 } = useReportData({ table: 'vehicles', select: '*' });
+  const { currentTenantId } = useAppContext();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const loading = l1 || l2 || l3 || l4 || l5 || l6 || l7;
-
-  const gl = useMemo(() => computeVirtualLedger({
-    sales, expenses, payroll, clients, products, purchases, vehicles
-  }), [sales, expenses, payroll, clients, products, purchases, vehicles]);
-
-  // Map each account from COA to its balance
-  const accountBalances = {
-    '1000': gl.cash,
-    '1100': gl.accountsReceivable,
-    '1200': gl.inventory,
-    '1500': gl.fixedAssets,
-    '2000': gl.accountsPayable,
-    '2100': gl.accruedPayroll,
-    '2200': gl.taxPayable,
-    '3000': gl.ownerEquity,
-    '3100': gl.retainedEarnings,
-    '4000': gl.revenue,
-    '5000': gl.cogs,
-    '5100': gl.payroll,
-    '5200': gl.opex,
-    '5300': 0,
-  };
-
-  const rows = useMemo(() => {
-    return DEFAULT_CHART_OF_ACCOUNTS.map((acc) => {
-      const balance = accountBalances[acc.code] || 0;
-      const normal = NORMAL_BALANCE[acc.type];
-      // Positive balance placed on its normal side
-      const debit = normal === 'DEBIT' ? Math.max(balance, 0) : Math.max(-balance, 0);
-      const credit = normal === 'CREDIT' ? Math.max(balance, 0) : Math.max(-balance, 0);
-
-      return {
-        code: acc.code,
-        name: acc.name,
-        type: acc.type,
-        category: acc.category,
-        debit: round2(debit),
-        credit: round2(credit),
-      };
-    });
-  }, [gl]);
+  useEffect(() => {
+    const fetchGL = async () => {
+      if (!currentTenantId) return;
+      setLoading(true);
+      
+      const { data, error } = await supabase.rpc('get_gl_balances', { p_tenant_id: currentTenantId });
+      
+      if (!error && data) {
+         const mappedRows = data.map(acc => {
+            const balance = Number(acc.balance) || 0;
+            const normal = acc.normal_balance;
+            
+            const debit = normal === 'DEBIT' ? Math.max(balance, 0) : Math.max(-balance, 0);
+            const credit = normal === 'CREDIT' ? Math.max(balance, 0) : Math.max(-balance, 0);
+            
+            return {
+               code: acc.code,
+               name: acc.name,
+               type: acc.type,
+               category: acc.category,
+               debit: round2(debit),
+               credit: round2(credit)
+            };
+         });
+         setRows(mappedRows);
+      } else {
+         console.error("Failed to fetch GL balances:", error);
+      }
+      setLoading(false);
+    };
+    fetchGL();
+  }, [currentTenantId]);
 
   const totals = useMemo(() => {
     const totalDebit = rows.reduce((a, r) => a + r.debit, 0);

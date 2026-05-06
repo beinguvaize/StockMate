@@ -11,12 +11,13 @@ import { useTenant } from '../../context/TenantContext';
  * @param {Object} options.filters - Current filter state { dateRange, client, status, etc. }
  * @param {string} options.dateColumn - The column name for date filtering
  */
-const useReportData = ({ 
-  table, 
-  select = '*', 
-  filters = {}, 
+const useReportData = ({
+  table,
+  select = '*',
+  filters = {},
   dateColumn = 'date',
-  params = {}, // Additional static params
+  params = {}, // Additional static equality params
+  nullFilters = {}, // Columns that must be NULL e.g. { deleted_at: null }
   skipTenantFilter = false // Opt-out for global/admin reports
 }) => {
   const { currentTenantId } = useTenant();
@@ -65,6 +66,11 @@ const useReportData = ({
         query = query.eq(key, value);
       });
 
+      // 4. Null Filters (e.g. soft-delete: deleted_at IS NULL)
+      Object.keys(nullFilters).forEach((key) => {
+        query = query.is(key, null);
+      });
+
       const { data: result, error: fetchError } = await query;
 
       if (fetchError) throw fetchError;
@@ -84,17 +90,17 @@ const useReportData = ({
         setLoading(false);
       }
     }
-  }, [table, select, JSON.stringify(filters), dateColumn, JSON.stringify(params), currentTenantId, skipTenantFilter]);
+  }, [table, select, JSON.stringify(filters), dateColumn, JSON.stringify(params), JSON.stringify(nullFilters), currentTenantId, skipTenantFilter]);
 
   // Initial Fetch on Perspective Change
   useEffect(() => {
     isMounted.current = true;
     fetchData();
-    
+
     return () => {
       isMounted.current = false;
     };
-  }, [table, select, JSON.stringify(filters), JSON.stringify(params), currentTenantId, skipTenantFilter]);
+  }, [table, select, JSON.stringify(filters), JSON.stringify(params), JSON.stringify(nullFilters), currentTenantId, skipTenantFilter]);
 
   // --- STRICT DATABASE SYNC (Realtime) ---
   useEffect(() => {

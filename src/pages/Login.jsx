@@ -9,7 +9,7 @@ const Login = () => {
   const [markSpin, setMarkSpin] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const [lastClickTime, setLastClickTime] = useState(0);
-  const { login, loading} = useAuth();
+  const { login, logout, loading} = useAuth();
   const navigate = useNavigate();
 
   const handleLogoClick = () => {
@@ -28,34 +28,40 @@ const Login = () => {
     setLastClickTime(currentTime);
   };
 
- const handleSubmit = async (e) => {
- e.preventDefault();
- 
- // Trigger button animation with React"reflow" trick
- setBtnClicked(false);
- setMarkSpin(false);
- setTimeout(() => {
- setBtnClicked(true);
- setMarkSpin(true);
-}, 0);
- setTimeout(() => {
- setBtnClicked(false);
- setMarkSpin(false);
-}, 500);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    setBtnClicked(false);
+    setMarkSpin(false);
+    setTimeout(() => {
+      setBtnClicked(true);
+      setMarkSpin(true);
+    }, 0);
+    setTimeout(() => {
+      setBtnClicked(false);
+      setMarkSpin(false);
+    }, 500);
 
- setError('');
- const result = await login(credentials.email, credentials.password);
-  if (result.success) {
-    // If we have role data immediately, use it, otherwise let RootRedirect handle it
-    if (result.user?.roles?.includes('GLOBAL_ADMIN') || result.user?.user_metadata?.roles?.includes('GLOBAL_ADMIN')) {
-      navigate('/nexus-hq');
+    setError('');
+    const result = await login(credentials.email, credentials.password);
+    
+    if (result.success) {
+      const user = result.user;
+      const isGlobalAdmin = user?.roles?.includes('GLOBAL_ADMIN') || user?.user_metadata?.roles?.includes('GLOBAL_ADMIN');
+      
+      if (isGlobalAdmin) {
+        navigate('/nexus-hq');
+      } else if (user?.tenant_id) {
+        navigate('/');
+      } else {
+        // Successful auth but NO tenant association
+        await logout(); // Ensure session is cleared
+        setError('Access Restricted: Your account is not associated with an active workspace. Please contact support.');
+      }
     } else {
-      navigate('/');
+      setError(result.error || 'Invalid email or password');
     }
-  } else {
-    setError(result.error || 'Invalid email or password');
-  }
-};
+  };
 
  return (
  <div className="flex w-full h-screen overflow-hidden bg-[#141c1a] font-inter select-none">
@@ -130,9 +136,18 @@ const Login = () => {
  </span>
  </div>
 
- {error && (
- <div className="text-red-500 text-xs text-center mb-4">{error}</div>
- )}
+          {error && (
+            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="shrink-0 w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center">
+                <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <p className="text-[11px] font-bold text-red-500/90 uppercase tracking-tight leading-tight">
+                {error}
+              </p>
+            </div>
+          )}
 
  <button 
  type="submit"

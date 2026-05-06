@@ -96,64 +96,6 @@ export const DEFAULT_CHART_OF_ACCOUNTS = [
 
 // Compute GL balances from operational tables (virtual GL)
 // Assumes clean operational data; in a real ERP this would be replaced by journal_entries table.
-export const computeVirtualLedger = ({ sales = [], expenses = [], payroll = [], clients = [], products = [], purchases = [], vehicles = [] }) => {
-  // Revenue side
-  const totalRevenue = sales.reduce((a, s) => a + (Number(s.totalAmount) || 0), 0);
-  const totalCogs = sales.reduce((a, s) => a + (Number(s.totalCogs) || 0), 0);
-
-  // Expenses
-  const totalOpex = expenses.reduce((a, e) => a + (Number(e.amount) || 0), 0);
-  const totalPayroll = payroll.reduce((a, p) => a + (Number(p.amount) || 0), 0);
-
-  // AR — outstanding client balances
-  const totalAR = clients.reduce((a, c) => a + (Number(c.balance) || 0), 0);
-
-  // AP — unpaid purchase obligations (field name may vary)
-  const totalAP = purchases.reduce((a, p) => {
-    if (p.payment_status === 'PAID' || p.paid === true) return a;
-    return a + (Number(p.total_amount ?? p.amount) || 0);
-  }, 0);
-
-  // Inventory on hand = stock × cost price
-  const totalInventory = products.reduce((a, p) => {
-    const qty = Number(p.stock ?? p.quantity ?? 0);
-    const cost = Number(p.costPrice ?? p.cost_price ?? 0);
-    return a + qty * cost;
-  }, 0);
-
-  // Fixed assets — vehicles
-  const totalFixedAssets = vehicles.reduce((a, v) => a + (Number(v.book_value ?? v.cost ?? 0)), 0);
-
-  // Cash derived from: Sales - Expenses - Payroll - AR (unpaid) - Inventory purchase
-  // Simplified: net collected cash = revenue collected - all cash expenses
-  const cashCollected = totalRevenue - totalAR; // revenue that's been paid
-  const cashPaid = totalOpex + totalPayroll;
-  const cashBalance = cashCollected - cashPaid;
-
-  const netProfit = totalRevenue - totalCogs - totalOpex - totalPayroll;
-
-  return {
-    // Assets
-    cash: round2(cashBalance),
-    accountsReceivable: round2(totalAR),
-    inventory: round2(totalInventory),
-    fixedAssets: round2(totalFixedAssets),
-    totalAssets: round2(cashBalance + totalAR + totalInventory + totalFixedAssets),
-    // Liabilities
-    accountsPayable: round2(totalAP),
-    accruedPayroll: 0, // placeholder — no unpaid payroll tracking yet
-    taxPayable: round2(totalRevenue * 0.18), // assumed GST 18%
-    totalLiabilities: round2(totalAP + totalRevenue * 0.18),
-    // Equity
-    ownerEquity: 0, // placeholder
-    retainedEarnings: round2(netProfit),
-    totalEquity: round2(netProfit),
-    // Income Statement
-    revenue: round2(totalRevenue),
-    cogs: round2(totalCogs),
-    grossProfit: round2(totalRevenue - totalCogs),
-    opex: round2(totalOpex),
-    payroll: round2(totalPayroll),
-    netProfit: round2(netProfit),
-  };
-};
+//
+// computeVirtualLedger has been deprecated. Reports now fetch directly from 
+// PostgreSQL via RPC (`get_gl_balances`) representing the immutable Double-Entry Ledger.

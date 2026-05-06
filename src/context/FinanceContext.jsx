@@ -54,6 +54,7 @@ export const FinanceProvider = ({ children }) => {
     addNotification(`Expense recorded: ${expense.amount}`, 'expense');
   };
 
+  const updateExpense = async (updatedExpense) => {
     if (isSupabaseConfigured) {
       const { error } = await supabase.from('expenses').upsert(updatedExpense);
       if (error) {
@@ -69,6 +70,7 @@ export const FinanceProvider = ({ children }) => {
     addNotification(`Expense updated: ${updatedExpense.amount}`, 'success');
   };
 
+  const deleteExpense = async (expenseId) => {
     if (isSupabaseConfigured) {
       const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
       if (error) {

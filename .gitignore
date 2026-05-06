@@ -31,9 +31,13 @@ dist-ssr
 
 # Scratch
 scratch/
-
-# Test artifacts
-playwright-report/
+e2e/.auth/
 test-results/
+
+# Generated test artifacts
+playwright-report/
+server_log.txt
 build_log.txt
 full_build_log.txt
+.claude/
+supabase/backups/dev_schema_dump.sql
