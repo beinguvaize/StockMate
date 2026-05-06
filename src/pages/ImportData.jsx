@@ -80,6 +80,18 @@ const parseSheet = (file, cols) =>
         const wb = XLSX.read(e.target.result, { type: 'array' });
         const ws = wb.Sheets[wb.SheetNames[0]];
         const raw = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+        // ── Header validation ──────────────────────────────────────────
+        const requiredLabels = cols.filter(c => c.required).map(c => c.label.toLowerCase());
+        const fileHeaders = raw.length > 0
+          ? Object.keys(raw[0]).map(k => k.trim().toLowerCase())
+          : [];
+        const missing = requiredLabels.filter(l => !fileHeaders.includes(l));
+        if (missing.length > 0) {
+          reject(new Error(`HEADER_MISMATCH:${missing.map(m => `"${m}"`).join(', ')}`));
+          return;
+        }
+
         // normalise keys: match by label (case-insensitive)
         const labelToKey = {};
         cols.forEach(c => { labelToKey[c.label.toLowerCase()] = c.key; });
@@ -184,7 +196,12 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
       setValidated(validate(rows, cols));
       setStatus('previewing');
     } catch (err) {
-      setErrorMsg('Could not parse file. Make sure it is .xlsx or .xls');
+      if (err.message?.startsWith('HEADER_MISMATCH:')) {
+        const missing = err.message.replace('HEADER_MISMATCH:', '');
+        setErrorMsg(`Wrong template. Missing required columns: ${missing}. Download the correct template and try again.`);
+      } else {
+        setErrorMsg('Could not parse file. Make sure it is .xlsx or .xls');
+      }
       setStatus('error');
     }
   };
@@ -230,11 +247,11 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           stock: Number(row.stock) || 0,
           taxRate: Number(row.taxRate) || 0,
           unit: String(row.unit || '').trim() || null,
-          hsn: String(row.hsn || '').trim() || null,
-          mrp: Number(row.mrp) || 0,
+          hsn_code: String(row.hsn || '').trim() || null,
         };
         const { error } = await supabase.from('products').insert(payload);
-        error ? failed++ : inserted++;
+        if (error) { console.error('Product import error:', error.message, payload); failed++; }
+        else inserted++;
       }
     }
 
