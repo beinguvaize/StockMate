@@ -230,6 +230,8 @@ const Users = () => {
  {users.map(user => {
  const userRoles = user.roles || [user.role || 'SALES'];
  const primaryRole = userRoles[0];
+ const isGlobalAdminUser = userRoles.includes('GLOBAL_ADMIN');
+ const canManage = !isGlobalAdminUser || currentUser?.roles?.includes('GLOBAL_ADMIN');
  return (
  <tr key={user.id} className={`group hover:bg-canvas transition-colors ${user.status !== 'ACTIVE' ? 'opacity-70 grayscale' : ''}`}>
  <td className="px-8 py-5">
@@ -262,14 +264,16 @@ const Users = () => {
  </td>
  <td className="px-8 py-5 text-right">
  <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-all duration-500 translate-x-2 group-hover:translate-x-0">
- <button 
+ {canManage ? (
+ <>
+ <button
  className="w-9 h-9 rounded-xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-ink-primary hover:bg-accent-signature transition-all"
  onClick={() => openEdit(user)}
  title="Edit Permissions"
  >
  <Edit3 size={16} />
  </button>
- <button 
+ <button
  className={`w-9 h-9 rounded-xl bg-surface border border-black/5 shadow-premium flex items-center justify-center transition-all ${user.status === 'ACTIVE' ? 'text-red-500 hover:bg-red-50' : 'text-green-500 hover:bg-green-50'}`}
  onClick={() => toggleStatus(user)}
  disabled={user.id === currentUser.id}
@@ -278,12 +282,16 @@ const Users = () => {
  <Activity size={16} />
  </button>
  {user.id !== currentUser.id && (
- <button 
+ <button
  className="w-9 h-9 rounded-xl bg-surface border border-black/5 shadow-premium flex items-center justify-center text-red-500 hover:bg-red-50 transition-all"
  onClick={() => { if(window.confirm('Remove staff record?')) handleDelete(user.id);}}
  >
  <Trash2 size={16} />
  </button>
+ )}
+ </>
+ ) : (
+ <span className="text-[9px] font-semibold text-gray-400 uppercase tracking-wide px-2">Platform Admin</span>
  )}
  </div>
  </td>

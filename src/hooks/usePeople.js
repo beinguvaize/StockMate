@@ -187,6 +187,8 @@ export const usePeople = (tenantId) => {
   };
 
   const updateUser = async (updatedUser) => {
+    // Never allow stripping GLOBAL_ADMIN role via tenant UI
+    if (updatedUser.roles?.includes('GLOBAL_ADMIN')) return;
     const { error } = await supabase
       .from('users')
       .upsert(updatedUser);
@@ -195,6 +197,9 @@ export const usePeople = (tenantId) => {
   };
 
   const deleteUser = async (userId) => {
+    // Prevent deletion of GLOBAL_ADMIN accounts
+    const target = users.find(u => u.id === userId);
+    if (target?.roles?.includes('GLOBAL_ADMIN')) return;
     const { error } = await supabase
       .from('users')
       .delete()
