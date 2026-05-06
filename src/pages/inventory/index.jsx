@@ -9,9 +9,10 @@ import StockTable from './components/StockTable';
 import AddItemModal from './components/AddItemModal';
 import BatchesModal from './components/BatchesModal';
 import PriceListsModal from './components/PriceListsModal';
+import StockAdjustModal from './components/StockAdjustModal';
 
 const Inventory = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, isOwner } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { 
     products, 
@@ -30,6 +31,8 @@ const Inventory = () => {
   const [editingProduct,  setEditingProduct]  = useState(null);
   const [batchesFor,      setBatchesFor]      = useState(null);
   const [showPriceLists,  setShowPriceLists]  = useState(false);
+  const [adjustingProduct, setAdjustingProduct] = useState(null);
+  const [adjustSaving,     setAdjustSaving]     = useState(false);
 
   const kpis = useMemo(() => {
     const stockValue   = products.reduce((s, p) => s + (p.costPrice || 0) * (p.stock || 0), 0);
@@ -49,6 +52,20 @@ const Inventory = () => {
   const openEditModal = (p) => {
     setEditingProduct(p);
     setShowAddModal(true);
+  };
+
+  const getStock = (product) => {
+    const fromBalances = balances
+      .filter(b => b.product_id === product.id)
+      .reduce((s, b) => s + Number(b.quantity), 0);
+    return fromBalances || Number(product.stock) || 0;
+  };
+
+  const handleAdjust = async (productId, delta, reason) => {
+    setAdjustSaving(true);
+    const result = await adjustStock(productId, delta, reason, null);
+    setAdjustSaving(false);
+    return result;
   };
 
   const handleSaveProduct = async (data) => {
@@ -111,7 +128,7 @@ const Inventory = () => {
         inventoryBalances={balances}
         onEdit={openEditModal}
         onDelete={(id) => { if (window.confirm('Delete this product?')) deleteProduct(id); }}
-        onAdjust={adjustStock}
+        onAdjust={isOwner ? (product) => setAdjustingProduct(product) : null}
         onBatches={setBatchesFor}
       />
 
@@ -140,6 +157,16 @@ const Inventory = () => {
         onDelete={deletePrice}
         currencySymbol={businessProfile?.currencySymbol || ''}
       />
+
+      {adjustingProduct && (
+        <StockAdjustModal
+          product={adjustingProduct}
+          currentStock={getStock(adjustingProduct)}
+          onConfirm={handleAdjust}
+          onClose={() => setAdjustingProduct(null)}
+          saving={adjustSaving}
+        />
+      )}
     </div>
   );
 };

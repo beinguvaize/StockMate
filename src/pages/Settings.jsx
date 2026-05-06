@@ -1,4 +1,6 @@
 import React, { useState} from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import ThemePicker from '../components/ThemePicker';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
@@ -9,9 +11,10 @@ import {
   Database, RotateCcw, ChevronRight, Zap, Tag, Plus, Edit2, Trash2, X, FileUp, FileDown,
   Sparkles, Mail
 } from 'lucide-react';
-import DataTools from '../components/DataTools';
 
 const Settings = () => {
+  const navigate = useNavigate();
+  const { tenantSlug } = useParams();
   const { currentUser, hasPermission, isOwner } = useAuth();
   const { 
     currentTenant, currentTenantId, businessProfile, 
@@ -34,7 +37,6 @@ const Settings = () => {
  const [newProductCategory, setNewProductCategory] = useState('');
  const [editingProductCategory, setEditingProductCategory] = useState(null);
  const [editProductValue, setEditProductValue] = useState('');
-  const [showDataTools, setShowDataTools] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [workspaceSlug, setWorkspaceSlug] = useState(currentTenant?.slug || '');
   const [isUpdatingSlug, setIsUpdatingSlug] = useState(false);
@@ -606,6 +608,9 @@ const Settings = () => {
  </div>
  </div>
 
+ {/* Theme Picker — owner only */}
+ {isOwner && <ThemePicker />}
+
  {/* Data Import / Export */}
  <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
  <div className="bg-ink-primary p-6 flex items-center justify-between">
@@ -621,7 +626,7 @@ const Settings = () => {
  </p>
  <button
  className="btn-signature w-full !rounded-xl !py-5 !text-xs flex items-center justify-center gap-3"
- onClick={() => setShowDataTools(true)}
+ onClick={() => navigate(`/${tenantSlug}/data-tools`)}
  >
  <FileDown size={18} />
  OPEN DATA TOOLS
@@ -668,8 +673,7 @@ const Settings = () => {
  </div>
  </div>
 
- {/* DataTools Modal */}
- <DataTools isOpen={showDataTools} onClose={() => setShowDataTools(false)} />
+
 
  {/* Upgrade Modal */}
  {showUpgradeModal && (

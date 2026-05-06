@@ -243,6 +243,15 @@ const Invoices = () => {
       notes: '', terms: businessProfile?.invoice_terms || '', paymentMethod: 'Cash' });
   };
 
+  // ── live GST preview ─────────────────────────────────────────────
+  const draftClient = useMemo(() => clients.find(c => c.id === draft.clientId), [clients, draft.clientId]);
+  const draftGST = useMemo(() => {
+    if (!draft.items.length) return null;
+    const sellerState = businessProfile?.state || '';
+    const buyerState  = draftClient?.state || sellerState;
+    return calculateGST(draft.items, sellerState, buyerState);
+  }, [draft.items, draftClient, businessProfile]);
+
   // ── table definition ──────────────────────────────────────────────
   const headers = [
     { label: 'Date' },
@@ -555,109 +564,260 @@ const Invoices = () => {
       {/* Creator modal */}
       {showCreator && (
         <div className="modal-overlay">
-          <div className="glass-modal max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-0">
-            <div className="p-6 border-b border-black/5 bg-white/40 flex justify-between items-center">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-5xl w-full max-h-[92vh] overflow-hidden flex flex-col">
+
+            {/* ── Header ── */}
+            <div className="flex items-center justify-between px-8 py-5 border-b border-black/5">
               <div>
-                <h2 className="text-2xl font-black font-sora text-ink-primary tracking-tight uppercase">New Invoice</h2>
-                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">GST compliant billing</p>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">GST Compliant Billing</p>
+                <h2 className="text-xl font-black text-ink-primary tracking-tight">New Invoice</h2>
               </div>
-              <button onClick={() => setShowCreator(false)} className="w-10 h-10 rounded-xl bg-canvas border border-black/5 flex items-center justify-center text-ink-primary hover:bg-rose-50 hover:text-rose-500 transition-all">
-                <X size={18} />
+              <button onClick={() => setShowCreator(false)} className="w-9 h-9 rounded-xl bg-canvas border border-black/5 flex items-center justify-center text-gray-400 hover:bg-rose-50 hover:text-rose-500 transition-all">
+                <X size={16} />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 bg-canvas/30 space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-2">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Client</label>
-                  <select
-                    className="w-full bg-white border border-black/5 rounded-xl p-3 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
-                    value={draft.clientId}
-                    onChange={(e) => setDraft({ ...draft, clientId: e.target.value })}
-                  >
-                    <option value="">Select client…</option>
-                    {clients.map(c => <option key={c.id} value={c.id}>{c.name} ({c.gstin || c.gst_no || 'URD'})</option>)}
-                  </select>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Invoice Date</label>
-                    <input type="date" className="w-full bg-white border border-black/5 rounded-xl p-3 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+            {/* ── Body: left form + right summary ── */}
+            <div className="flex flex-1 overflow-hidden">
+
+              {/* Left: form */}
+              <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+
+                {/* Row 1: Client + Dates */}
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="col-span-1 space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Bill To</label>
+                    <select
+                      className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-ink-primary/10 transition"
+                      value={draft.clientId}
+                      onChange={(e) => setDraft({ ...draft, clientId: e.target.value })}
+                    >
+                      <option value="">Select client…</option>
+                      {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                    </select>
+                    {draftClient && (
+                      <div className="flex items-center gap-2 mt-1.5">
+                        <span className="px-2 py-0.5 rounded-md bg-canvas text-[10px] font-bold text-gray-500 border border-black/5">
+                          {draftClient.gstin || draftClient.gst_no || 'URD'}
+                        </span>
+                        {draftClient.state && (
+                          <span className="px-2 py-0.5 rounded-md bg-canvas text-[10px] font-bold text-gray-500 border border-black/5">
+                            {draftClient.state}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Invoice Date</label>
+                    <input type="date"
+                      className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-ink-primary/10 transition"
                       value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Due Date</label>
-                    <input type="date" className="w-full bg-white border border-black/5 rounded-xl p-3 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Due Date</label>
+                    <input type="date"
+                      className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-ink-primary/10 transition"
                       value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} />
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Line Items</label>
-                  <button
-                    onClick={() => setDraft({ ...draft, items: [...draft.items, { productId: '', name: '', qty: 1, rate: 0, taxRate: 18, hsn: '' }] })}
-                    className="flex items-center gap-1.5 text-[10px] font-black text-button-text bg-accent-signature px-4 py-2 rounded-full hover:scale-105 transition-all shadow-sm uppercase tracking-widest"
-                  >
-                    <Plus size={12} /> Add Item
-                  </button>
-                </div>
-                {draft.items.map((item, index) => (
-                  <div key={index} className="bg-white rounded-xl p-4 border border-black/5 flex flex-col md:flex-row gap-3 items-end">
-                    <div className="flex-1 space-y-1">
-                      <span className="text-[9px] font-bold text-gray-400 uppercase">Product</span>
-                      <select
-                        className="w-full bg-canvas border-none rounded-lg p-2.5 text-xs font-bold text-ink-primary outline-none"
-                        value={item.productId}
-                        onChange={(e) => {
-                          const p = products.find(prod => prod.id === e.target.value);
-                          const newItems = [...draft.items];
-                          newItems[index] = { ...item, productId: p.id, name: p.name, rate: p.sellingPrice, taxRate: p.taxRate || 0, hsn: p.hsn_code || '' };
-                          setDraft({ ...draft, items: newItems });
-                        }}
-                      >
-                        <option value="">Select product…</option>
-                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                    </div>
-                    <div className="w-20 space-y-1">
-                      <span className="text-[9px] font-bold text-gray-400 uppercase">Qty</span>
-                      <input type="number" className="w-full bg-canvas border-none rounded-lg p-2.5 text-xs font-bold text-center"
-                        value={item.qty} onChange={(e) => { const n = [...draft.items]; n[index].qty = e.target.value; setDraft({ ...draft, items: n }); }} />
-                    </div>
-                    <div className="w-28 space-y-1">
-                      <span className="text-[9px] font-bold text-gray-400 uppercase">Rate</span>
-                      <input type="number" className="w-full bg-canvas border-none rounded-lg p-2.5 text-xs font-bold text-right"
-                        value={item.rate} onChange={(e) => { const n = [...draft.items]; n[index].rate = e.target.value; setDraft({ ...draft, items: n }); }} />
-                    </div>
+                {/* Line items table */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Line Items</label>
                     <button
-                      onClick={() => setDraft({ ...draft, items: draft.items.filter((_, i) => i !== index) })}
-                      className="w-9 h-9 rounded-lg bg-rose-50 text-rose-500 flex items-center justify-center border border-rose-100 hover:bg-rose-500 hover:text-white transition-all"
+                      onClick={() => setDraft({ ...draft, items: [...draft.items, { productId: '', name: '', qty: 1, rate: 0, taxRate: 18, hsn: '' }] })}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ink-primary text-white text-[10px] font-black uppercase tracking-widest hover:opacity-90 transition"
                     >
-                      <Trash2 size={14} />
+                      <Plus size={11} /> Add Item
                     </button>
                   </div>
-                ))}
-                {draft.items.length === 0 && (
-                  <div className="text-center py-8 text-gray-400 text-xs font-semibold bg-white rounded-xl border border-black/5">
-                    No items added yet
-                  </div>
-                )}
-              </div>
-            </div>
 
-            <div className="p-6 border-t border-black/5 bg-white/40 flex justify-end gap-3">
-              <button onClick={() => setShowCreator(false)} className="px-6 py-3 rounded-xl font-bold text-xs text-gray-500 hover:bg-canvas transition-all border border-black/5">
-                Cancel
-              </button>
-              <button
-                onClick={handleCreate}
-                className="btn-signature px-8 py-3 !rounded-xl flex items-center gap-2 font-black text-xs uppercase tracking-widest"
-                disabled={!draft.clientId || draft.items.length === 0}
-              >
-                <CheckCircle size={14} /> Create Invoice
-              </button>
+                  {/* Table */}
+                  <div className="border border-black/8 rounded-2xl overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-canvas border-b border-black/5">
+                          <th className="px-4 py-2.5 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider">Item</th>
+                          <th className="px-3 py-2.5 text-left text-[10px] font-bold text-gray-400 uppercase tracking-wider w-24">HSN</th>
+                          <th className="px-3 py-2.5 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider w-20">Qty</th>
+                          <th className="px-3 py-2.5 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider w-28">Rate (₹)</th>
+                          <th className="px-3 py-2.5 text-center text-[10px] font-bold text-gray-400 uppercase tracking-wider w-20">GST %</th>
+                          <th className="px-3 py-2.5 text-right text-[10px] font-bold text-gray-400 uppercase tracking-wider w-28">Amount</th>
+                          <th className="w-10" />
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-black/5">
+                        {draft.items.length === 0 && (
+                          <tr>
+                            <td colSpan={7} className="px-4 py-8 text-center text-xs font-semibold text-gray-400">
+                              No items — click Add Item to begin
+                            </td>
+                          </tr>
+                        )}
+                        {draft.items.map((item, index) => {
+                          const lineAmt = Number(item.qty || 0) * Number(item.rate || 0);
+                          return (
+                            <tr key={index} className="hover:bg-canvas/50 transition-colors">
+                              <td className="px-4 py-2">
+                                <select
+                                  className="w-full bg-transparent text-xs font-semibold text-ink-primary outline-none"
+                                  value={item.productId}
+                                  onChange={(e) => {
+                                    const p = products.find(prod => prod.id === e.target.value);
+                                    if (!p) return;
+                                    const n = [...draft.items];
+                                    n[index] = { ...item, productId: p.id, name: p.name, rate: p.sellingPrice, taxRate: p.taxRate || 18, hsn: p.hsn_code || '' };
+                                    setDraft({ ...draft, items: n });
+                                  }}
+                                >
+                                  <option value="">Select product…</option>
+                                  {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                </select>
+                              </td>
+                              <td className="px-3 py-2">
+                                <input
+                                  className="w-full bg-transparent text-xs font-mono text-gray-500 outline-none"
+                                  placeholder="—"
+                                  value={item.hsn}
+                                  onChange={(e) => { const n = [...draft.items]; n[index].hsn = e.target.value; setDraft({ ...draft, items: n }); }}
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input type="number" min="1"
+                                  className="w-full bg-transparent text-xs font-bold text-center text-ink-primary outline-none"
+                                  value={item.qty}
+                                  onChange={(e) => { const n = [...draft.items]; n[index].qty = e.target.value; setDraft({ ...draft, items: n }); }}
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <input type="number" min="0"
+                                  className="w-full bg-transparent text-xs font-bold text-right text-ink-primary outline-none"
+                                  value={item.rate}
+                                  onChange={(e) => { const n = [...draft.items]; n[index].rate = e.target.value; setDraft({ ...draft, items: n }); }}
+                                />
+                              </td>
+                              <td className="px-3 py-2">
+                                <select
+                                  className="w-full bg-transparent text-xs font-semibold text-center text-gray-600 outline-none"
+                                  value={item.taxRate}
+                                  onChange={(e) => { const n = [...draft.items]; n[index].taxRate = Number(e.target.value); setDraft({ ...draft, items: n }); }}
+                                >
+                                  {[0,5,12,18,28].map(r => <option key={r} value={r}>{r}%</option>)}
+                                </select>
+                              </td>
+                              <td className="px-3 py-2 text-right text-xs font-bold text-ink-primary tabular-nums">
+                                ₹{lineAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              </td>
+                              <td className="px-2 py-2">
+                                <button onClick={() => setDraft({ ...draft, items: draft.items.filter((_, i) => i !== index) })}
+                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-300 hover:bg-rose-50 hover:text-rose-500 transition-all">
+                                  <Trash2 size={13} />
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Notes */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Notes (optional)</label>
+                  <textarea
+                    rows={2}
+                    placeholder="Payment instructions, bank details, thank you note…"
+                    className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-xs font-medium text-ink-primary outline-none focus:ring-2 focus:ring-ink-primary/10 transition resize-none"
+                    value={draft.notes}
+                    onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {/* Right: live summary */}
+              <div className="w-64 border-l border-black/5 bg-canvas flex flex-col">
+                <div className="flex-1 px-5 py-6 space-y-4">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Summary</p>
+
+                  {/* GST breakdown */}
+                  {draftGST ? (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-gray-500 font-medium">Subtotal</span>
+                        <span className="font-bold text-ink-primary tabular-nums">₹{draftGST.subtotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      {draftGST.isInterstate ? (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500 font-medium">IGST</span>
+                          <span className="font-semibold text-ink-primary tabular-nums">₹{draftGST.igst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-500 font-medium">CGST</span>
+                            <span className="font-semibold text-ink-primary tabular-nums">₹{draftGST.cgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between text-xs">
+                            <span className="text-gray-500 font-medium">SGST</span>
+                            <span className="font-semibold text-ink-primary tabular-nums">₹{draftGST.sgst.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </>
+                      )}
+                      {draftGST.roundOff !== 0 && (
+                        <div className="flex justify-between text-xs">
+                          <span className="text-gray-500 font-medium">Round off</span>
+                          <span className="font-semibold text-gray-500 tabular-nums">{draftGST.roundOff > 0 ? '+' : ''}{draftGST.roundOff.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="h-px bg-black/8 my-1" />
+                      <div className="flex justify-between">
+                        <span className="text-sm font-bold text-ink-primary">Total</span>
+                        <span className="text-base font-black text-ink-primary tabular-nums">₹{draftGST.grandTotal.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                      </div>
+                      {draftGST.isInterstate && (
+                        <p className="text-[10px] text-blue-500 font-semibold">Interstate — IGST applied</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-gray-400 font-medium py-4 text-center">Add items to see totals</div>
+                  )}
+
+                  <div className="h-px bg-black/5" />
+
+                  {/* Payment method */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Payment</label>
+                    <div className="space-y-1">
+                      {['Cash','Card','UPI','Bank Transfer','Credit'].map(m => (
+                        <button key={m}
+                          onClick={() => setDraft({ ...draft, paymentMethod: m })}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all ${draft.paymentMethod === m ? 'bg-ink-primary text-white' : 'bg-white text-gray-600 hover:bg-white/80 border border-black/5'}`}
+                        >
+                          {m}
+                          {draft.paymentMethod === m && <CheckCircle2 size={12} />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Create button */}
+                <div className="px-5 py-5 border-t border-black/5 space-y-2">
+                  <button
+                    onClick={handleCreate}
+                    disabled={!draft.clientId || draft.items.length === 0}
+                    className="w-full bg-ink-primary text-white rounded-xl py-3 text-xs font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:opacity-90 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                  >
+                    <CheckCircle size={14} /> Create Invoice
+                  </button>
+                  <button onClick={() => setShowCreator(false)} className="w-full py-2 text-xs font-semibold text-gray-400 hover:text-gray-600 transition">
+                    Cancel
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

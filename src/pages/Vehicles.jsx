@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useOperations } from '../hooks/useOperations';
@@ -9,9 +9,11 @@ import {
   Navigation, Calendar, ShieldCheck, Save, History,
   CheckCircle2, Edit3, Trash2, Wrench, Activity,
   Fuel, Package, Check, XCircle, Clock, ChevronDown,
-  ShoppingCart, MinusCircle, PackagePlus,
+  ShoppingCart, MinusCircle, PackagePlus, Map,
 } from 'lucide-react';
 import { todayISOInAppTZ } from '../lib/utils';
+
+const VehicleLiveMap = lazy(() => import('../components/VehicleLiveMap'));
 
 // ── Constants ────────────────────────────────────────────────────────────────
 const VEHICLE_TYPES    = ['VAN', 'TRUCK', 'BIKE', 'CAR', 'OTHER'];
@@ -87,7 +89,7 @@ const Vehicles = () => {
   const [reconcileReturned, setReconcileReturned] = useState({});
 
   // ── Derived ─────────────────────────────────────────────────────────────────
-  const activeRoutes  = routes.filter(r => r.status === 'ACTIVE');
+  const activeRoutes  = routes.filter(r => r.status === 'ACTIVE' || r.status === 'IN_TRANSIT');
   const pastRoutes    = routes
     .filter(r => r.status === 'RECONCILED' || r.status === 'COMPLETED')
     .sort((a, b) => new Date(b.reconciled_at || 0) - new Date(a.reconciled_at || 0))
@@ -335,6 +337,7 @@ const Vehicles = () => {
             {[
               { id: 'DELIVERIES', label: 'Deliveries', icon: Package   },
               { id: 'FLEET',      label: 'Fleet',      icon: Truck     },
+              { id: 'LIVE',       label: 'Live Map',   icon: Map       },
             ].map(tab => (
               <button
                 key={tab.id}
@@ -1312,6 +1315,25 @@ const Vehicles = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
+
+      {/* ── LIVE MAP TAB ─────────────────────────────────────────────────────── */}
+      {activeTab === 'LIVE' && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-3">
+            <div className="w-2 h-8 bg-accent-signature rounded-pill" />
+            <h2 className="text-base font-bold text-ink-primary">Live Vehicle Map</h2>
+            <span className="text-[11px] text-gray-400">Auto-tracked via LedgrPOS driver app</span>
+          </div>
+
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-64 rounded-3xl bg-canvas border border-black/5">
+              <div className="text-sm text-gray-400">Loading map…</div>
+            </div>
+          }>
+            <VehicleLiveMap vehicles={vehicles} tenantId={currentTenantId} />
+          </Suspense>
         </div>
       )}
     </>

@@ -131,6 +131,16 @@ export const AuthProvider = ({ children }) => {
     return () => supabase.removeChannel(channel);
   }, [currentUser?.id]);
 
+  const updateAvatar = async (avatarUrl) => {
+    if (!currentUser?.id) return { error: 'Not logged in' };
+    const { error } = await supabase
+      .from('users')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', currentUser.id);
+    if (!error) setCurrentUser(prev => ({ ...prev, avatar_url: avatarUrl }));
+    return { error: error?.message || null };
+  };
+
   const login = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { success: false, error: error.message };
@@ -183,6 +193,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     login,
     logout,
+    updateAvatar,
     hasPermission,
     hasRole,
     isAdmin: currentUser?.roles?.includes('GLOBAL_ADMIN'),

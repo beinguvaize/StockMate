@@ -118,3 +118,27 @@ export const listTenantProductImages = async (tenantId, limit = 24) => {
     return [];
   }
 };
+
+/**
+ * Generate a DiceBear avatar URL (cartoon style, unique per seed).
+ */
+export const getDefaultAvatar = (seed = 'user', style = 'personas') => {
+  const bg = ['b6e3f4', 'c0aede', 'd1d4f9', 'ffd5dc', 'ffdfbf', 'f0f4d8', 'b5ead7'];
+  const color = bg[Math.abs([...seed].reduce((h, c) => h * 31 + c.charCodeAt(0), 0)) % bg.length];
+  return `https://api.dicebear.com/9.x/${style}/svg?seed=${encodeURIComponent(seed)}&backgroundColor=${color}&radius=50`;
+};
+
+/**
+ * Upload a user avatar to Supabase Storage.
+ */
+export const uploadAvatar = async (file, userId) => {
+  const BUCKET = 'avatars';
+  const ext = file.name.split('.').pop();
+  const path = `${userId}/avatar-${Date.now()}.${ext}`;
+  const { data, error } = await supabase.storage
+    .from(BUCKET)
+    .upload(path, file, { cacheControl: '3600', upsert: true });
+  if (error) return { url: null, error: error.message };
+  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(data.path);
+  return { url: urlData.publicUrl, error: null };
+};

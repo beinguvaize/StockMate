@@ -1,5 +1,5 @@
 import React from 'react';
-import { PackagePlus, Tag as TagIcon, Pencil, Trash2, Plus, Percent, Layers } from 'lucide-react';
+import { PackagePlus, Tag as TagIcon, Pencil, Trash2, SlidersHorizontal, Layers } from 'lucide-react';
 import Table from '../../../shared/Table';
 
 // Numeric columns from supabase-js arrive as strings (Postgres `numeric` has no
@@ -62,7 +62,9 @@ const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, o
             )}
             <button onClick={() => onEdit(product)} className="w-8 h-8 rounded-pill bg-white border border-black/5 flex items-center justify-center hover:bg-ink-primary hover:text-white transition-all"><Pencil size={12} /></button>
             <button onClick={() => onDelete(product.id)} className="w-8 h-8 rounded-pill bg-white border border-red-100 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all text-red-500"><Trash2 size={12} /></button>
-            <button onClick={() => onAdjust(product.id, 1)} className="w-8 h-8 rounded-pill bg-accent-signature flex items-center justify-center hover:scale-110 active:scale-95 transition-all"><Plus size={14} strokeWidth={4} /></button>
+            {onAdjust && (
+              <button onClick={() => onAdjust(product)} title="Adjust stock" className="w-8 h-8 rounded-pill bg-accent-signature flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-white"><SlidersHorizontal size={13} strokeWidth={2.5} /></button>
+            )}
           </div>
         </td>
       </tr>

@@ -32,6 +32,7 @@ const ClientSettlement = lazy(() => import('./pages/ClientSettlement'));
 const AdminPanel       = lazy(() => import('./pages/AdminPanel'));
 const TenantSetup      = lazy(() => import('./pages/TenantSetup'));
 const SuperAdminPortal = lazy(() => import('./pages/admin/SuperAdminPortal'));
+const DataToolsPage    = lazy(() => import('./pages/DataToolsPage'));
 
 /**
  * GuestRoute: Redirects authenticated users away from the login page.
@@ -146,6 +147,7 @@ function AppRoutes() {
         <Route path="suppliers/ledger/:id" element={<ProtectedRoute><SupplierLedger /></ProtectedRoute>} />
         <Route path="invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
         <Route path="clients/settle/:id" element={<ProtectedRoute><ClientSettlement /></ProtectedRoute>} />
+        <Route path="data-tools" element={<ProtectedRoute><DataToolsPage /></ProtectedRoute>} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
