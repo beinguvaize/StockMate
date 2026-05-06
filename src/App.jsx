@@ -33,6 +33,7 @@ const AdminPanel       = lazy(() => import('./pages/AdminPanel'));
 const TenantSetup      = lazy(() => import('./pages/TenantSetup'));
 const SuperAdminPortal = lazy(() => import('./pages/admin/SuperAdminPortal'));
 const DataToolsPage    = lazy(() => import('./pages/DataToolsPage'));
+const AuditLog         = lazy(() => import('./pages/AuditLog'));
 
 /**
  * GuestRoute: Redirects authenticated users away from the login page.
