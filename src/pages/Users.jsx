@@ -104,11 +104,11 @@ const Users = () => {
     
     setIsSaving(true);
     
-    // Safety timeout: If request takes > 15s, release the button
+    // Safety timeout: auth.admin.createUser (bcrypt) can take 20-30s on cold start
     const timeout = setTimeout(() => {
       setIsSaving(false);
       addNotification("Request timed out. Please check your connection or try again.", "warning");
-    }, 15000);
+    }, 45000);
 
     try {
       if (editingUser) {
