@@ -99,37 +99,37 @@ const SalesPage = () => {
   );
 
   return (
-    <div className="animate-fade-in flex flex-col gap-6">
-      <div className="flex justify-between items-end pb-6 border-b border-black/5 text-ink-primary">
-        <div>
-          <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2">
+    <div className="animate-fade-in flex flex-col gap-2">
+      <div className="flex justify-between items-center py-2 border-b border-black/5">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
             {activeTab === 'pos' ? 'Sales' : 'History'}<span className="text-accent-signature">.</span>
           </h1>
-          <p className="text-xs font-semibold text-gray-600 opacity-80 mb-6">
+          <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">
             {activeTab === 'pos' ? 'Record sales and manage cart' : 'Past sales and invoices'}
-          </p>
+          </span>
         </div>
-        <div className="flex gap-2 bg-canvas p-1 rounded-pill mb-4 shadow-inner">
+        <div className="flex gap-1 bg-canvas p-1 rounded-pill shadow-inner">
           <button
             onClick={() => setActiveTab('pos')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-pill text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-bold transition-all ${
               activeTab === 'pos' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-gray-400 hover:text-ink-primary'
             }`}
           >
-            <ShoppingCart size={14} /> New Sale
+            <ShoppingCart size={13} /> New Sale
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex items-center gap-2 px-6 py-2.5 rounded-pill text-xs font-bold transition-all ${
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-bold transition-all ${
               activeTab === 'history' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-gray-400 hover:text-ink-primary'
             }`}
           >
-            <History size={14} /> History
+            <History size={13} /> History
           </button>
         </div>
       </div>
 
-<div className="mt-2">
+<div>
         {activeTab === 'pos' ? (
           <InvoiceBuilder
             products={products}

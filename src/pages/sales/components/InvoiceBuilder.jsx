@@ -221,7 +221,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   };
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 h-[calc(100vh-200px)]">
+    <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-130px)]">
       {/* Product Selection Area */}
       <div className="flex-1 flex flex-col gap-4 overflow-hidden">
         <div className="relative">
