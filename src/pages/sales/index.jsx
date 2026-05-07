@@ -19,45 +19,57 @@ const SalesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const { sales, clients, placeSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, loading: salesLoading } = useSales(currentTenantId);
 
-  // Wrap placeSale: auto-create an UNPAID invoice for every credit sale so
-  // the settlement page can show and settle it.
+  // Wrap placeSale: auto-create invoice for credit sales (settlement) and
+  // delivery sales (van dispatch queue), or both when combined.
   const addSale = async (saleData) => {
     const result = await placeSale(saleData);
-    if (!result.error && saleData.paymentMethod === 'CREDIT' && saleData.clientId && saleData.clientId !== 'WALKIN') {
+    if (result?.error) return result;
+
+    const isCredit   = saleData.paymentMethod === 'CREDIT';
+    const isDelivery = saleData.fulfillmentType === 'DELIVERY';
+    const hasClient  = saleData.clientId && saleData.clientId !== 'WALKIN';
+
+    // Build invoice items (shared for credit + delivery paths)
+    const needsInvoice = (isCredit && hasClient) || isDelivery;
+    if (needsInvoice) {
       const client = clients.find(c => c.id === saleData.clientId);
       const invoiceItems = (saleData.items || []).map(i => ({
-        name: i.name,
-        qty: i.quantity,
-        rate: i.price,
-        taxRate: i.taxRate || 0,
-        total: (i.price || 0) * (i.quantity || 1) * (1 + (i.taxRate || 0) / 100),
-        sku: i.sku || '',
+        name:     i.name,
+        qty:      i.quantity,
+        rate:     i.price,
+        taxRate:  i.taxRate || 0,
+        total:    (i.price || 0) * (i.quantity || 1) * (1 + (i.taxRate || 0) / 100),
+        sku:      i.sku || '',
         hsn_code: i.hsn_code || '',
-        unit: i.unit || 'PCS',
+        unit:     i.unit || 'PCS',
       }));
-      // Calculate tax breakdown from line items
-      const taxableAmt = invoiceItems.reduce((sum, i) => sum + i.rate * i.qty, 0);
-      const totalTax   = invoiceItems.reduce((sum, i) => sum + i.rate * i.qty * (i.taxRate / 100), 0);
+      const taxableAmt   = invoiceItems.reduce((sum, i) => sum + i.rate * i.qty, 0);
+      const totalTax     = invoiceItems.reduce((sum, i) => sum + i.rate * i.qty * (i.taxRate / 100), 0);
       const isInterstate = client?.state && businessProfile?.state
         ? client.state.trim().toLowerCase() !== businessProfile.state.trim().toLowerCase()
         : false;
+
       await createInvoice({
-        sale_id: result.id,
-        client_id: saleData.clientId,
-        client_name: client?.name || 'Unknown',
-        items: invoiceItems,
-        grand_total: saleData.totalAmount,
-        taxable_amount: taxableAmt,
-        tax_total: totalTax,
-        cgst_amount: isInterstate ? 0 : totalTax / 2,
-        sgst_amount: isInterstate ? 0 : totalTax / 2,
-        igst_amount: isInterstate ? totalTax : 0,
-        is_interstate: isInterstate,
-        paid_amount: 0,
-        payment_status: 'UNPAID',
+        sale_id:         result.id,
+        client_id:       saleData.clientId,
+        client_name:     client?.name || 'Walk-in',
+        items:           invoiceItems,
+        grand_total:     saleData.totalAmount,
+        taxable_amount:  taxableAmt,
+        tax_total:       totalTax,
+        cgst_amount:     isInterstate ? 0 : totalTax / 2,
+        sgst_amount:     isInterstate ? 0 : totalTax / 2,
+        igst_amount:     isInterstate ? totalTax : 0,
+        is_interstate:   isInterstate,
+        paid_amount:     isCredit ? 0 : saleData.totalAmount,
+        payment_status:  isCredit ? 'UNPAID' : 'PAID',
+        // Delivery tracking
+        delivery_required: isDelivery,
+        delivery_status:   isDelivery ? 'PENDING' : null,
       });
     }
-    if (!result.error) refetchInventory();
+
+    refetchInventory();
     return result;
   };
   const { products, inventoryBalances, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
