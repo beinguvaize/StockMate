@@ -33,6 +33,7 @@ const ROLE_ICONS = {
   SALES: User,
   INVENTORY: Package,
   STAFF: Fingerprint,
+  DRIVER: Truck,
 };
 
 const ROLE_COLORS = {
@@ -40,12 +41,14 @@ const ROLE_COLORS = {
   SALES: { bg: 'rgba(16, 185, 129, 0.05)', color: '#10b981'},
   INVENTORY: { bg: 'rgba(79, 70, 229, 0.05)', color: '#4f46e5'},
   STAFF: { bg: 'rgba(116, 117, 118, 0.05)', color: '#747576'},
+  DRIVER: { bg: 'rgba(245, 158, 11, 0.05)', color: '#f59e0b'},
 };
 
 const INTERNAL_ROLES = [
   { id: 'OWNER', label: 'Owner of Tenant', description: 'Full access to all modules'},
   { id: 'SALES', label: 'Sales Template', description: 'Sales, Clients & Day Book'},
   { id: 'INVENTORY', label: 'Inventory Template', description: 'Inventory, Purchases & Suppliers'},
+  { id: 'DRIVER', label: 'Driver', description: 'Van sales & operations only'},
   { id: 'CUSTOM', label: 'Custom Template', description: 'Manual permission mapping'},
 ];
 
@@ -458,6 +461,12 @@ const Users = () => {
         inventory: { view: true, edit: true },
         purchases: { view: true, edit: true },
         suppliers: { view: true, edit: true }
+      },
+      DRIVER: {
+        ...DEFAULT_PERMISSIONS,
+        // Van sales + route operations only
+        vehicles: { view: true, edit: true },
+        sales: { view: true, edit: true },
       },
       CUSTOM: { ...DEFAULT_PERMISSIONS }
     };

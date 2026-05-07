@@ -171,6 +171,11 @@ export const AuthProvider = ({ children }) => {
       const invModules = ['inventory', 'purchases', 'suppliers'];
       return invModules.includes(moduleKey);
     }
+    // DRIVER — van sales + operations only
+    if (roles.includes('DRIVER')) {
+      const driverModules = ['vehicles', 'sales'];
+      return driverModules.includes(moduleKey);
+    }
     // CUSTOM role (and any other): respect granular permissions object
     const perms = currentUser.permissions;
     if (perms && typeof perms === 'object') {

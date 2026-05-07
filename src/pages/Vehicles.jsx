@@ -44,7 +44,7 @@ const serviceStatus = (d) => {
 
 // ── Component ────────────────────────────────────────────────────────────────
 const Vehicles = () => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, hasRole } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const sym = businessProfile?.currencySymbol || '';
 
@@ -725,12 +725,14 @@ const Vehicles = () => {
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
-                            <button
-                              onClick={() => openVanSale(route)}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/8 text-[10px] font-semibold text-gray-600 hover:bg-canvas transition-colors"
-                            >
-                              <ShoppingCart size={11} /> Van Sale
-                            </button>
+                            {(hasRole('DRIVER') || hasRole('OWNER') || hasRole('GLOBAL_ADMIN')) && (
+                              <button
+                                onClick={() => openVanSale(route)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/8 text-[10px] font-semibold text-gray-600 hover:bg-canvas transition-colors"
+                              >
+                                <ShoppingCart size={11} /> Van Sale
+                              </button>
+                            )}
                             <button
                               onClick={() => openReconcile(route)}
                               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ink-primary text-surface text-[10px] font-bold hover:opacity-90 transition-opacity"
@@ -1442,8 +1444,8 @@ const Vehicles = () => {
           </div>
         </div>
       )}
-      {/* ── VAN SALE MODAL — tap-to-sell ──────────────────────────────────────── */}
-      {vanSaleRoute && (() => {
+      {/* ── VAN SALE MODAL — tap-to-sell (DRIVER / OWNER only) ───────────────── */}
+      {vanSaleRoute && (hasRole('DRIVER') || hasRole('OWNER') || hasRole('GLOBAL_ADMIN')) && (() => {
         const activeItems = vanSaleItems.filter(i => i.qty > 0);
         const saleTotal   = activeItems.reduce((s, i) => s + i.sellingPrice * i.qty, 0);
         const vanName     = vehicles.find(v => v.id === (vanSaleRoute.vehicleId || vanSaleRoute['vehicleId']))?.name || 'Vehicle';
