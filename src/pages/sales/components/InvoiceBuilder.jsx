@@ -79,9 +79,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   }, [products, fifoCosts]);
 
   const filteredProducts = useMemo(() => {
-    return products.filter(p => 
-      p.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      p.sku.toLowerCase().includes(searchTerm.toLowerCase())
+    const q = searchTerm.toLowerCase();
+    return products.filter(p =>
+      (p.name || '').toLowerCase().includes(q) ||
+      (p.sku || '').toLowerCase().includes(q)
     );
   }, [products, searchTerm]);
 
