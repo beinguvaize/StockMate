@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store } from 'lucide-react';
+import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign } from 'lucide-react';
 import Button from '../../../shared/Button';
-import Modal from '../../../shared/Modal';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { useNotifications } from '../../../context/NotificationContext';
 import { supabase } from '../../../lib/supabase';
@@ -11,7 +10,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClientId, setSelectedClientId] = useState('WALKIN');
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [fulfillmentType, setFulfillmentType] = useState('PICKUP'); // PICKUP | DELIVERY
   const [deliveryDetails, setDeliveryDetails] = useState({
@@ -175,6 +174,16 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     }
   }, [selectedClientId, paymentMethod]);
 
+  // Auto-fill delivery address from client record when delivery selected
+  useEffect(() => {
+    if (fulfillmentType !== 'DELIVERY') return;
+    if (selectedClientId === 'WALKIN') return;
+    const client = clients.find(c => c.id === selectedClientId);
+    if (client?.address && !deliveryDetails.address) {
+      setDeliveryDetails(p => ({ ...p, address: client.address }));
+    }
+  }, [fulfillmentType, selectedClientId, clients]); // eslint-disable-line
+
   const handleCompleteSale = async () => {
     if (isSubmitting) return;
     if (cart.length === 0) {
@@ -231,7 +240,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       setCart([]);
       setFulfillmentType('PICKUP');
       setDeliveryDetails({ address: '', zone: '', date: '', notes: '', fee: '' });
-      setShowPaymentModal(false);
+      setShowCheckout(false);
     } catch (err) {
       addNotification(`Checkout error: ${err.message || err}`, 'error');
     } finally {
@@ -579,7 +588,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 )}
                 <Button
                   disabled={cart.length === 0 || belowCostItems.length > 0}
-                  onClick={() => setShowPaymentModal(true)}
+                  onClick={() => setShowCheckout(true)}
                   className="w-full !rounded-xl !h-14 shadow-xl"
                   icon={ArrowRight}
                 >
@@ -591,174 +600,263 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         </div>
       </div>
 
-      <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} title="Complete Sale" subtitle="Select fulfillment & payment method">
-        {/* Fulfillment Type */}
-        <div className="grid grid-cols-2 gap-3 mt-4">
-          {[
-            { key: 'PICKUP', label: 'Store Pickup', icon: <Store size={24} />, desc: 'Customer collects from store' },
-            { key: 'DELIVERY', label: 'Delivery', icon: <Truck size={24} />, desc: 'Add to van delivery queue' },
-          ].map(({ key, label, icon, desc }) => (
-            <div
-              key={key}
-              onClick={() => setFulfillmentType(key)}
-              className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center gap-2 ${
-                fulfillmentType === key
-                  ? 'border-accent-signature bg-accent-signature/5 shadow-premium'
-                  : 'border-black/5 hover:border-black/10'
-              }`}
-            >
-              <div className={`p-2.5 rounded-xl ${fulfillmentType === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
-                {icon}
-              </div>
-              <span className="text-xs font-black uppercase tracking-widest">{label}</span>
-              <span className="text-[9px] text-gray-400 font-semibold text-center">{desc}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Delivery Details — shown only when DELIVERY selected */}
-        {fulfillmentType === 'DELIVERY' && (
-          <div className="mt-4 p-4 bg-canvas rounded-2xl border border-black/8 space-y-3">
-            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Delivery Details</p>
-            <div>
-              <label className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Address *</label>
-              <input
-                type="text"
-                placeholder="Delivery address…"
-                value={deliveryDetails.address}
-                onChange={e => setDeliveryDetails(p => ({ ...p, address: e.target.value }))}
-                className="w-full bg-white border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Zone / Area</label>
-                <input
-                  type="text"
-                  placeholder="e.g. North Zone"
-                  value={deliveryDetails.zone}
-                  onChange={e => setDeliveryDetails(p => ({ ...p, zone: e.target.value }))}
-                  className="w-full bg-white border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-                />
-              </div>
-              <div>
-                <label className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Delivery Date</label>
-                <input
-                  type="date"
-                  value={deliveryDetails.date}
-                  min={new Date().toISOString().split('T')[0]}
-                  onChange={e => setDeliveryDetails(p => ({ ...p, date: e.target.value }))}
-                  className="w-full bg-white border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Delivery Fee (₹)</label>
-                <input
-                  type="number"
-                  placeholder="0"
-                  min="0"
-                  value={deliveryDetails.fee}
-                  onChange={e => setDeliveryDetails(p => ({ ...p, fee: e.target.value }))}
-                  className="w-full bg-white border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-                />
-              </div>
-              <div>
-                <label className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Notes</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Call before arriving"
-                  value={deliveryDetails.notes}
-                  onChange={e => setDeliveryDetails(p => ({ ...p, notes: e.target.value }))}
-                  className="w-full bg-white border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-                />
-              </div>
-            </div>
-          </div>
-        )}
-
-        <div className="border-t border-black/5 mt-4 pt-4">
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Payment Method</p>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          {[
-            { key: 'CASH',   label: 'Cash',   icon: <Banknote size={28} /> },
-            { key: 'CARD',   label: 'Card',   icon: <CreditCard size={28} /> },
-            { key: 'UPI',    label: 'UPI',    icon: <Smartphone size={28} /> },
-            { key: 'BANK',   label: 'Bank Transfer', icon: <Landmark size={28} /> },
-          ].map(({ key, label, icon }) => (
-            <div
-              key={key}
-              onClick={() => setPaymentMethod(key)}
-              className={`p-6 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center gap-3 ${
-                paymentMethod === key
-                  ? 'border-accent-signature bg-accent-signature/5 shadow-premium'
-                  : 'border-black/5 hover:border-black/10'
-              }`}
-            >
-              <div className={`p-3 rounded-xl ${paymentMethod === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
-                {icon}
-              </div>
-              <span className="text-xs font-black uppercase tracking-widest">{label}</span>
-            </div>
-          ))}
-
-          {/* Credit — client required */}
-          <div
-            onClick={() => {
-              if (selectedClientId === 'WALKIN') {
-                addNotification('Select a client before choosing Credit.', 'info');
-                return;
-              }
-              setPaymentMethod('CREDIT');
-            }}
-            className={`p-6 rounded-2xl border-2 transition-all flex flex-col items-center gap-3 col-span-2 ${
-              selectedClientId === 'WALKIN'
-                ? 'opacity-40 cursor-not-allowed border-black/5'
-                : paymentMethod === 'CREDIT'
-                ? 'border-accent-signature bg-accent-signature/5 shadow-premium cursor-pointer'
-                : 'border-black/5 hover:border-black/10 cursor-pointer'
-            }`}
-          >
-            <div className={`p-3 rounded-xl ${paymentMethod === 'CREDIT' ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
-              <CreditCard size={28} />
-            </div>
-            <span className="text-xs font-black uppercase tracking-widest">Client Credit</span>
-            {selectedClientId === 'WALKIN' && (
-              <span className="text-[9px] text-gray-400 font-semibold">Select a client first</span>
-            )}
-          </div>
-        </div>
-        <div className="mt-8 bg-canvas rounded-2xl p-6 border border-black/5">
-          {deliveryFeeAmt > 0 && (
-            <div className="flex justify-between items-center mb-1">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Items</span>
-              <span className="text-xs font-semibold text-ink-primary">{formatCurrency(subtotal + tax)}</span>
-            </div>
-          )}
-          {deliveryFeeAmt > 0 && (
-            <div className="flex justify-between items-center mb-2">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1"><Truck size={10} /> Delivery Fee</span>
-              <span className="text-xs font-semibold text-ink-primary">+ {formatCurrency(deliveryFeeAmt)}</span>
-            </div>
-          )}
-          <div className="flex justify-between items-center mb-1">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Amount Due</span>
-            <span className="text-sm font-black text-ink-primary">{formatCurrency(total)}</span>
-          </div>
-          <p className="text-[9px] text-gray-400 italic">Verify amount before finalizing the sale.</p>
-        </div>
-        <Button
-          onClick={handleCompleteSale}
-          disabled={isSubmitting || cart.length === 0}
-          className="w-full !mt-8 !h-14 !rounded-xl"
-          icon={Check}
-        >
-          {isSubmitting ? 'Saving...' : `Confirm & Pay ${formatCurrency(total)}`}
-        </Button>
-      </Modal>
     </div>
+
+    {/* ── Full-page Checkout ─────────────────────────────────────────────────── */}
+    {showCheckout && (
+      <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
+        {/* Header */}
+        <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-black/5 shrink-0">
+          <button
+            onClick={() => setShowCheckout(false)}
+            className="flex items-center gap-2 text-xs font-black text-gray-500 hover:text-ink-primary transition-colors"
+          >
+            <ChevronLeft size={16} /> Back to Cart
+          </button>
+          <div className="flex-1" />
+          <h1 className="text-base font-black font-sora uppercase text-ink-primary">
+            Checkout<span className="text-accent-signature">.</span>
+          </h1>
+          <div className="flex-1" />
+          <span className="text-xs font-semibold text-gray-400">{cart.length} item{cart.length !== 1 ? 's' : ''}</span>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-5xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6">
+
+            {/* ── Left: Order Summary ── */}
+            <div className="space-y-4">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order Summary</p>
+              <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
+                {cart.map((item, idx) => (
+                  <div key={item.productId} className={`flex items-center gap-4 px-5 py-3.5 ${idx !== cart.length - 1 ? 'border-b border-black/5' : ''}`}>
+                    <div className="w-8 h-8 rounded-lg bg-canvas border border-black/8 flex items-center justify-center shrink-0">
+                      <Package size={14} className="text-gray-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold text-ink-primary truncate">{item.name}</div>
+                      <div className="text-[10px] text-gray-400 font-medium">{formatCurrency(item.price)} × {item.quantity}</div>
+                    </div>
+                    <div className="text-sm font-black text-ink-primary tabular-nums shrink-0">
+                      {formatCurrency(item.price * item.quantity)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Totals */}
+              <div className="bg-white rounded-2xl border border-black/5 p-5 space-y-2">
+                <div className="flex justify-between text-xs font-semibold text-gray-500">
+                  <span>Subtotal</span><span className="tabular-nums">{formatCurrency(subtotal)}</span>
+                </div>
+                {tax > 0 && (
+                  <div className="flex justify-between text-xs font-semibold text-gray-500">
+                    <span>Tax</span><span className="tabular-nums">{formatCurrency(tax)}</span>
+                  </div>
+                )}
+                {deliveryFeeAmt > 0 && (
+                  <div className="flex justify-between text-xs font-semibold text-gray-500 items-center">
+                    <span className="flex items-center gap-1"><Truck size={11} /> Delivery Fee</span>
+                    <span className="tabular-nums">+ {formatCurrency(deliveryFeeAmt)}</span>
+                  </div>
+                )}
+                <div className="border-t border-black/8 pt-2 flex justify-between text-base font-black text-ink-primary">
+                  <span>Total</span><span className="tabular-nums">{formatCurrency(total)}</span>
+                </div>
+              </div>
+
+              {/* Client info summary */}
+              {selectedClientId !== 'WALKIN' && (() => {
+                const client = clients.find(c => c.id === selectedClientId);
+                return client ? (
+                  <div className="bg-white rounded-2xl border border-black/5 p-4 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-accent-signature/10 border border-accent-signature/20 flex items-center justify-center text-sm font-black text-ink-primary shrink-0">
+                      {client.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-ink-primary">{client.name}</div>
+                      {client.phone && <div className="text-[10px] text-gray-400 font-medium">{client.phone}</div>}
+                    </div>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+
+            {/* ── Right: Fulfillment + Payment ── */}
+            <div className="space-y-4">
+
+              {/* Fulfillment */}
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Fulfillment</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: 'PICKUP',   label: 'Store Pickup', icon: <Store size={20} />,  desc: 'Collect from store' },
+                    { key: 'DELIVERY', label: 'Delivery',     icon: <Truck size={20} />,  desc: 'Van delivery' },
+                  ].map(({ key, label, icon, desc }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => setFulfillmentType(key)}
+                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                        fulfillmentType === key
+                          ? 'border-accent-signature bg-accent-signature/5'
+                          : 'border-black/8 bg-white hover:border-black/15'
+                      }`}
+                    >
+                      <div className={`p-2 rounded-xl ${fulfillmentType === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
+                        {icon}
+                      </div>
+                      <span className="text-xs font-black uppercase tracking-widest">{label}</span>
+                      <span className="text-[9px] text-gray-400">{desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Delivery Details */}
+              {fulfillmentType === 'DELIVERY' && (
+                <div className="bg-white rounded-2xl border border-black/5 p-4 space-y-3">
+                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Delivery Details</p>
+
+                  {/* Address — pre-filled from client, user can pick or override */}
+                  <div>
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1">
+                      <MapPin size={9} /> Delivery Address
+                    </label>
+                    {/* Client address shortcut */}
+                    {selectedClientId !== 'WALKIN' && (() => {
+                      const client = clients.find(c => c.id === selectedClientId);
+                      return client?.address && deliveryDetails.address !== client.address ? (
+                        <button
+                          type="button"
+                          onClick={() => setDeliveryDetails(p => ({ ...p, address: client.address }))}
+                          className="w-full mb-2 flex items-center gap-2 p-2.5 rounded-xl bg-accent-signature/5 border border-accent-signature/20 text-left hover:bg-accent-signature/10 transition-all"
+                        >
+                          <MapPin size={11} className="text-accent-signature shrink-0" />
+                          <div className="min-w-0">
+                            <div className="text-[8px] font-black text-accent-signature uppercase tracking-wider">Use client address</div>
+                            <div className="text-[10px] font-semibold text-ink-primary truncate">{client.address}</div>
+                          </div>
+                          <Check size={11} className="text-accent-signature shrink-0 ml-auto" />
+                        </button>
+                      ) : null;
+                    })()}
+                    <textarea
+                      rows={2}
+                      placeholder="Full delivery address…"
+                      value={deliveryDetails.address}
+                      onChange={e => setDeliveryDetails(p => ({ ...p, address: e.target.value }))}
+                      className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 resize-none"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1.5">Zone / Area</label>
+                      <input type="text" placeholder="e.g. North Zone"
+                        value={deliveryDetails.zone}
+                        onChange={e => setDeliveryDetails(p => ({ ...p, zone: e.target.value }))}
+                        className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1"><Calendar size={9} /> Date</label>
+                      <input type="date"
+                        value={deliveryDetails.date}
+                        min={new Date().toISOString().split('T')[0]}
+                        onChange={e => setDeliveryDetails(p => ({ ...p, date: e.target.value }))}
+                        className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1"><DollarSign size={9} /> Delivery Fee</label>
+                      <input type="number" placeholder="0" min="0"
+                        value={deliveryDetails.fee}
+                        onChange={e => setDeliveryDetails(p => ({ ...p, fee: e.target.value }))}
+                        className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1"><MessageSquare size={9} /> Notes</label>
+                      <input type="text" placeholder="e.g. Call before"
+                        value={deliveryDetails.notes}
+                        onChange={e => setDeliveryDetails(p => ({ ...p, notes: e.target.value }))}
+                        className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Method */}
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Payment Method</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { key: 'CASH', label: 'Cash',          icon: <Banknote size={22} /> },
+                    { key: 'CARD', label: 'Card',          icon: <CreditCard size={22} /> },
+                    { key: 'UPI',  label: 'UPI',           icon: <Smartphone size={22} /> },
+                    { key: 'BANK', label: 'Bank Transfer', icon: <Landmark size={22} /> },
+                  ].map(({ key, label, icon }) => (
+                    <button key={key} type="button"
+                      onClick={() => setPaymentMethod(key)}
+                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                        paymentMethod === key
+                          ? 'border-accent-signature bg-accent-signature/5'
+                          : 'border-black/8 bg-white hover:border-black/15'
+                      }`}
+                    >
+                      <div className={`p-2 rounded-xl ${paymentMethod === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
+                        {icon}
+                      </div>
+                      <span className="text-xs font-black uppercase tracking-widest">{label}</span>
+                    </button>
+                  ))}
+
+                  {/* Credit — client required */}
+                  <button type="button"
+                    onClick={() => {
+                      if (selectedClientId === 'WALKIN') { addNotification('Select a client before choosing Credit.', 'info'); return; }
+                      setPaymentMethod('CREDIT');
+                    }}
+                    className={`col-span-2 p-4 rounded-2xl border-2 transition-all flex items-center justify-center gap-3 ${
+                      selectedClientId === 'WALKIN'
+                        ? 'opacity-40 cursor-not-allowed border-black/8 bg-white'
+                        : paymentMethod === 'CREDIT'
+                        ? 'border-accent-signature bg-accent-signature/5'
+                        : 'border-black/8 bg-white hover:border-black/15'
+                    }`}
+                  >
+                    <div className={`p-2 rounded-xl ${paymentMethod === 'CREDIT' ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
+                      <CreditCard size={22} />
+                    </div>
+                    <div className="text-left">
+                      <div className="text-xs font-black uppercase tracking-widest">Client Credit</div>
+                      {selectedClientId === 'WALKIN' && <div className="text-[9px] text-gray-400">Select a client first</div>}
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Confirm */}
+              <Button
+                onClick={handleCompleteSale}
+                disabled={isSubmitting || cart.length === 0}
+                className="w-full !h-14 !rounded-2xl !text-sm"
+                icon={Check}
+              >
+                {isSubmitting ? 'Processing…' : `Confirm & Pay ${formatCurrency(total)}`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
   );
 };
 
