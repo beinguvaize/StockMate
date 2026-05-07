@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle } from 'lucide-react';
+import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store } from 'lucide-react';
 import Button from '../../../shared/Button';
 import Modal from '../../../shared/Modal';
 import { formatCurrency, generateRef } from '../../../lib/utils';
@@ -13,6 +13,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [selectedClientId, setSelectedClientId] = useState('WALKIN');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [fulfillmentType, setFulfillmentType] = useState('PICKUP'); // PICKUP | DELIVERY
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clientSearch, setClientSearch]     = useState('');
   const [clientDropOpen, setClientDropOpen] = useState(false);
@@ -204,6 +205,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         paidAmount: isCreditSale ? 0 : total,
         paymentMethod,
         status: isCreditSale ? 'PENDING' : 'COMPLETED',
+        fulfillmentType,
       };
       const result = await onPlaceSale(saleData);
       if (result && result.error) {
@@ -211,8 +213,14 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         addNotification(`Checkout failed: ${msg}`, 'error');
         return; // keep cart + modal so user can retry
       }
-      addNotification(`Sale recorded: ${formatCurrency(total)}`, 'success');
+      addNotification(
+        fulfillmentType === 'DELIVERY'
+          ? `Sale recorded — added to delivery queue.`
+          : `Sale recorded: ${formatCurrency(total)}`,
+        'success'
+      );
       setCart([]);
+      setFulfillmentType('PICKUP');
       setShowPaymentModal(false);
     } catch (err) {
       addNotification(`Checkout error: ${err.message || err}`, 'error');
@@ -573,8 +581,35 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         </div>
       </div>
 
-      <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} title="Complete Sale" subtitle="Select payment method">
+      <Modal isOpen={showPaymentModal} onClose={() => setShowPaymentModal(false)} title="Complete Sale" subtitle="Select fulfillment & payment method">
+        {/* Fulfillment Type */}
         <div className="grid grid-cols-2 gap-3 mt-4">
+          {[
+            { key: 'PICKUP', label: 'Store Pickup', icon: <Store size={24} />, desc: 'Customer collects from store' },
+            { key: 'DELIVERY', label: 'Delivery', icon: <Truck size={24} />, desc: 'Add to van delivery queue' },
+          ].map(({ key, label, icon, desc }) => (
+            <div
+              key={key}
+              onClick={() => setFulfillmentType(key)}
+              className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center gap-2 ${
+                fulfillmentType === key
+                  ? 'border-accent-signature bg-accent-signature/5 shadow-premium'
+                  : 'border-black/5 hover:border-black/10'
+              }`}
+            >
+              <div className={`p-2.5 rounded-xl ${fulfillmentType === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
+                {icon}
+              </div>
+              <span className="text-xs font-black uppercase tracking-widest">{label}</span>
+              <span className="text-[9px] text-gray-400 font-semibold text-center">{desc}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-black/5 mt-4 pt-4">
+          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Payment Method</p>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
           {[
             { key: 'CASH',   label: 'Cash',   icon: <Banknote size={28} /> },
             { key: 'CARD',   label: 'Card',   icon: <CreditCard size={28} /> },
