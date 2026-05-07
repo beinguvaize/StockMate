@@ -85,8 +85,8 @@ const AdminPanel = () => {
   };
 
   const filteredTenants = tenants.filter(t => {
-    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          t.slug.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesSearch = (t.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (t.slug || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPlan = selectedPlan === 'ALL' || t.plan === selectedPlan;
     return matchesSearch && matchesPlan;
   });

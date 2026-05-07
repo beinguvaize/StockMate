@@ -276,7 +276,7 @@ const SuperAdminPortal = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-black/5">
-                    {tenants.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()) || t.slug.includes(searchQuery.toLowerCase())).map((tenant) => (
+                    {tenants.filter(t => (t.name || '').toLowerCase().includes(searchQuery.toLowerCase()) || (t.slug || '').toLowerCase().includes(searchQuery.toLowerCase())).map((tenant) => (
                       <tr key={tenant.id} className="hover:bg-gray-50 transition-colors group">
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
