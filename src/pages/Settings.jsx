@@ -63,12 +63,17 @@ const Settings = () => {
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    const { success, error } = await updateBusinessProfile(profileData);
-    if (success) {
-      setSavedStatus(true);
-      setTimeout(() => setSavedStatus(false), 3000);
-    } else {
-      alert('Save failed: ' + (error?.message || 'Unknown error'));
+    try {
+      const { success, error } = await updateBusinessProfile(profileData);
+      if (success) {
+        setSavedStatus(true);
+        setTimeout(() => setSavedStatus(false), 3000);
+      } else {
+        alert('Save failed: ' + (error?.message || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('handleSaveProfile threw:', err);
+      alert('Save failed: ' + (err?.message || 'Unexpected error'));
     }
   };
 
