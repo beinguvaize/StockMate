@@ -219,9 +219,23 @@ const Vehicles = () => {
     setVanSaleClient('Walk-in');
     setVanSaleMethod('CASH');
     setVanSaleError('');
-    if (products.length) {
+    // Pre-populate from loaded van stock, qty starts at 0
+    const loaded = route.loaded_stock || [];
+    if (loaded.length > 0) {
+      setVanSaleItems(loaded.map(item => {
+        const prod = products.find(p => p.id === item.productId);
+        return {
+          productId:    item.productId,
+          productName:  prod?.name || item.productId,
+          qty:          0,
+          sellingPrice: item.sellingPrice || prod?.sellingPrice || 0,
+          costPrice:    item.costPrice    || prod?.costPrice    || 0,
+          maxQty:       item.quantity,
+        };
+      }));
+    } else if (products.length) {
       const p = products[0];
-      setVanSaleItems([{ productId: p.id, productName: p.name, qty: 1, sellingPrice: p.sellingPrice || 0, costPrice: p.costPrice || 0 }]);
+      setVanSaleItems([{ productId: p.id, productName: p.name, qty: 0, sellingPrice: p.sellingPrice || 0, costPrice: p.costPrice || 0, maxQty: null }]);
     } else {
       setVanSaleItems([]);
     }
@@ -245,14 +259,15 @@ const Vehicles = () => {
 
   const handleVanSaleSubmit = async (e) => {
     e.preventDefault();
-    if (!vanSaleItems.length) { setVanSaleError('Add at least one product.'); return; }
+    const activeItems = vanSaleItems.filter(i => i.qty > 0);
+    if (!activeItems.length) { setVanSaleError('Select at least one product.'); return; }
     setVanSaleLoading(true);
     setVanSaleError('');
     const vehicleLoc = inventoryLocations.find(l => l.reference_id === (vanSaleRoute.vehicleId || vanSaleRoute['vehicleId']));
     const { success, error } = await recordVanSale(vanSaleRoute.id, vehicleLoc?.id, {
       clientName:   vanSaleClient || 'Walk-in',
-      items:        vanSaleItems.map(i => ({ ...i, quantity: i.qty })),
-      totalAmount:  vanSaleTotal,
+      items:        activeItems.map(i => ({ ...i, quantity: i.qty })),
+      totalAmount:  activeItems.reduce((s, i) => s + i.sellingPrice * i.qty, 0),
       paymentMethod: vanSaleMethod,
     });
     setVanSaleLoading(false);
@@ -290,114 +305,122 @@ const Vehicles = () => {
     <>
       <div className="animate-fade-in flex flex-col gap-4 pb-12">
 
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-6 border-b border-black/5">
-          <div>
-            <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">
-              FLEET<span className="text-accent-signature">.</span>
+        {/* ── Header bar ── */}
+        <div className="flex justify-between items-center py-2 border-b border-black/5">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
+              Fleet<span className="text-accent-signature">.</span>
             </h1>
-            <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">
-              Vehicle Management &amp; Delivery Operations
-            </p>
-          </div>
-        </div>
-
-        {/* KPI cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-          {[
-            { label: 'Pending Deliveries', value: pendingDeliveries.length, icon: Package,    accent: pendingDeliveries.length > 0 },
-            { label: 'Active Trips',        value: activeRoutes.length,     icon: Navigation, accent: activeRoutes.length > 0      },
-            { label: 'Completed Trips',     value: pastRoutes.length,       icon: History,    accent: false                        },
-            { label: 'Service Alerts',      value: serviceAlerts.length,    icon: Wrench,     accent: serviceAlerts.length > 0     },
-          ].map(({ label, value, icon: Icon, accent }) => (
-            <div key={label} className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
-              <div className={`absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none ${accent ? 'text-accent-signature' : 'text-ink-primary'}`}>
-                <Icon size={38} strokeWidth={2} />
+            {/* KPI chips */}
+            <div className="hidden sm:flex items-center gap-1.5">
+              {pendingDeliveries.length > 0 && (
+                <div className="flex items-center gap-1 bg-amber-50 border border-amber-100 text-amber-700 px-2 py-1 rounded-lg">
+                  <Package size={10} />
+                  <span className="text-[10px] font-black">{pendingDeliveries.length}</span>
+                  <span className="text-[9px] font-medium opacity-60">pending</span>
+                </div>
+              )}
+              {activeRoutes.length > 0 && (
+                <div className="flex items-center gap-1 bg-blue-50 border border-blue-100 text-blue-700 px-2 py-1 rounded-lg">
+                  <Navigation size={10} />
+                  <span className="text-[10px] font-black">{activeRoutes.length}</span>
+                  <span className="text-[9px] font-medium opacity-60">on road</span>
+                </div>
+              )}
+              {serviceAlerts.length > 0 && (
+                <div className="flex items-center gap-1 bg-red-50 border border-red-100 text-red-600 px-2 py-1 rounded-lg">
+                  <Wrench size={10} />
+                  <span className="text-[10px] font-black">{serviceAlerts.length}</span>
+                  <span className="text-[9px] font-medium opacity-60">service due</span>
+                </div>
+              )}
+              <div className="flex items-center gap-1 bg-canvas border border-black/5 text-gray-500 px-2 py-1 rounded-lg">
+                <Truck size={10} className="opacity-40" />
+                <span className="text-[10px] font-black">{vehicles.length}</span>
+                <span className="text-[9px] font-medium text-gray-400">vehicles</span>
               </div>
-              <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">{label}</span>
-              <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">{value}</div>
             </div>
-          ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Tab switcher */}
+            <div className="flex gap-0.5 bg-canvas p-1 rounded-xl border border-black/5">
+              {[
+                { id: 'DELIVERIES', label: 'Deliveries', icon: Package },
+                { id: 'FLEET',      label: 'Fleet',      icon: Truck   },
+                { id: 'LIVE',       label: 'Live Map',   icon: Map     },
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    activeTab === tab.id
+                      ? 'bg-ink-primary text-surface shadow-sm'
+                      : 'text-gray-400 hover:text-ink-primary'
+                  }`}
+                >
+                  <tab.icon size={12} />
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Primary actions — always visible */}
+            {hasPermission('MANAGE_FLEET') && (
+              <button
+                className="!h-8 !rounded-lg !px-3 !text-xs font-bold flex items-center gap-1.5 border border-black/10 bg-white text-ink-primary hover:bg-canvas transition-all"
+                onClick={() => { setEditingVehicle(null); setVehicleForm(EMPTY_VEHICLE_FORM); setShowVehicleModal(true); }}
+              >
+                <Plus size={12} /> Vehicle
+              </button>
+            )}
+            {activeTab === 'DELIVERIES' && (
+              <button
+                className="btn-signature !h-8 !rounded-lg !px-4 !text-xs !font-bold flex items-center gap-2"
+                onClick={openDispatch}
+              >
+                <Play size={12} /> Dispatch
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Service alert banner */}
         {serviceAlerts.length > 0 && (
-          <div className="flex items-center gap-3 px-5 py-3 bg-yellow-50 border border-yellow-200 rounded-2xl mb-2">
-            <Wrench size={16} className="text-yellow-600 shrink-0" />
+          <div className="flex items-center gap-3 px-4 py-2.5 bg-yellow-50 border border-yellow-200 rounded-xl">
+            <Wrench size={13} className="text-yellow-600 shrink-0" />
             <span className="text-xs font-semibold text-yellow-800">
-              {serviceAlerts.length} vehicle{serviceAlerts.length > 1 ? 's' : ''} due for service:{' '}
-              {serviceAlerts.map(v => v.name).join(', ')}
+              Service due: <span className="font-bold">{serviceAlerts.map(v => v.name).join(', ')}</span>
             </span>
           </div>
         )}
-
-        {/* Tab bar */}
-        <div className="flex flex-wrap lg:flex-nowrap items-center justify-between bg-white border border-black/5 rounded-[2rem] shadow-sm p-2 min-h-[72px] gap-2 mb-4">
-          <div className="flex-1 flex gap-1 bg-canvas p-1.5 rounded-pill border border-black/5 shadow-inner h-[56px]">
-            {[
-              { id: 'DELIVERIES', label: 'Deliveries', icon: Package   },
-              { id: 'FLEET',      label: 'Fleet',      icon: Truck     },
-              { id: 'LIVE',       label: 'Live Map',   icon: Map       },
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 h-full rounded-pill text-[11px] font-bold tracking-wider transition-all flex items-center justify-center gap-2 ${
-                  activeTab === tab.id
-                    ? 'bg-ink-primary text-surface shadow-md'
-                    : 'bg-transparent text-gray-500 hover:text-ink-primary hover:bg-black/5'
-                }`}
-              >
-                <tab.icon size={16} />
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="flex shrink-0 h-[56px] lg:ml-1 w-full lg:w-auto mt-2 lg:mt-0">
-            {activeTab === 'DELIVERIES' ? (
-              <button
-                className="btn-signature w-full lg:w-auto px-8 !h-full !py-0 !rounded-pill !text-xs !font-bold flex items-center justify-center gap-3"
-                onClick={openDispatch}
-              >
-                DISPATCH
-                <div className="icon-nest !w-8 !h-8 shrink-0"><Play size={16} /></div>
-              </button>
-            ) : (
-              hasPermission('MANAGE_FLEET') && (
-                <button
-                  className="btn-signature w-full lg:w-auto px-8 !h-full !py-0 !rounded-pill !text-xs !font-bold flex items-center justify-center gap-3"
-                  onClick={() => { setEditingVehicle(null); setVehicleForm(EMPTY_VEHICLE_FORM); setShowVehicleModal(true); }}
-                >
-                  ADD VEHICLE
-                  <div className="icon-nest !w-8 !h-8 shrink-0"><Plus size={16} /></div>
-                </button>
-              )
-            )}
-          </div>
-        </div>
 
         {/* ── DELIVERIES TAB ──────────────────────────────────────────────────── */}
         {activeTab === 'DELIVERIES' && (
           <div className="space-y-4">
 
-            {/* Sub-tab pills */}
-            <div className="flex gap-2">
+            {/* Sub-tab bar */}
+            <div className="flex border-b border-black/5">
               {[
-                { id: 'PENDING', label: `Pending (${pendingDeliveries.length})` },
-                { id: 'ACTIVE',  label: `Active Trips (${activeRoutes.length})` },
-                { id: 'HISTORY', label: 'History' },
+                { id: 'PENDING', label: 'Pending', count: pendingDeliveries.length },
+                { id: 'ACTIVE',  label: 'Active Trips', count: activeRoutes.length },
+                { id: 'HISTORY', label: 'History', count: null },
               ].map(t => (
                 <button
                   key={t.id}
                   onClick={() => setDeliverySubTab(t.id)}
-                  className={`px-4 py-2 rounded-pill text-[11px] font-bold transition-all ${
+                  className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold border-b-2 transition-all -mb-px ${
                     deliverySubTab === t.id
-                      ? 'bg-ink-primary text-surface'
-                      : 'bg-white border border-black/8 text-gray-500 hover:text-ink-primary'
+                      ? 'border-ink-primary text-ink-primary'
+                      : 'border-transparent text-gray-400 hover:text-gray-600'
                   }`}
                 >
                   {t.label}
+                  {t.count !== null && t.count > 0 && (
+                    <span className={`text-[9px] font-black px-1.5 py-0.5 rounded-full ${
+                      deliverySubTab === t.id ? 'bg-ink-primary text-surface' : 'bg-black/5 text-gray-500'
+                    }`}>{t.count}</span>
+                  )}
                 </button>
               ))}
             </div>
@@ -520,117 +543,131 @@ const Vehicles = () => {
 
                   return (
                     <div key={route.id} className="bg-white border border-black/5 rounded-2xl overflow-hidden shadow-sm">
-                      {/* Trip header */}
-                      <div className="flex items-center gap-4 p-5">
-                        <div className="w-12 h-12 rounded-2xl bg-ink-primary text-accent-signature flex items-center justify-center shrink-0">
-                          <Truck size={20} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-sm font-black text-ink-primary">{vehicle?.name || 'Vehicle'}</span>
-                            <span className="text-[9px] font-semibold text-gray-400 bg-canvas border border-black/8 px-2 py-0.5 rounded-pill">
-                              {vehicle?.plate}
-                            </span>
-                            {route.location && (
-                              <span className="text-[9px] font-semibold text-blue-600 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-pill">
-                                {route.location}
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                            <span className="text-[10px] text-gray-400">
-                              Driver: <span className="font-semibold text-ink-primary">{driverName}</span>
-                            </span>
-                            {total > 0 && (
-                              <span className="text-[10px] text-gray-400">
-                                <span className="font-semibold text-green-600">{delivered}/{total}</span> delivered
-                              </span>
-                            )}
-                          </div>
-                          {/* Progress bar */}
-                          {total > 0 && (
-                            <div className="mt-2 h-1.5 w-full max-w-xs bg-black/5 rounded-full overflow-hidden">
-                              <div
-                                className="h-full bg-green-500 rounded-full transition-all"
-                                style={{ width: `${progress}%` }}
-                              />
+                      {/* Trip header — Amazon order style */}
+                      <div className="px-5 py-4 border-b border-black/5">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center shrink-0">
+                              <Truck size={16} className="text-blue-600" />
                             </div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
-                          {total > 0 && (
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-bold text-ink-primary">{vehicle?.name || 'Vehicle'}</span>
+                                {vehicle?.plate && (
+                                  <span className="text-[9px] font-black text-gray-400 bg-canvas border border-black/8 px-2 py-0.5 rounded font-mono tracking-widest">
+                                    {vehicle.plate}
+                                  </span>
+                                )}
+                                <span className="flex items-center gap-1 text-[9px] font-bold bg-blue-50 text-blue-600 border border-blue-100 px-2 py-0.5 rounded-full">
+                                  <Activity size={7} /> IN TRANSIT
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 mt-1 text-[10px] text-gray-400">
+                                <span className="flex items-center gap-1"><Navigation size={9} /> {route.location || 'En route'}</span>
+                                <span>·</span>
+                                <span>Driver: <span className="font-semibold text-ink-primary">{driverName}</span></span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
                             <button
-                              onClick={() => setExpandedTrip(expanded ? null : route.id)}
-                              className="px-3 py-1.5 rounded-pill border border-black/10 text-[10px] font-semibold text-gray-600 hover:bg-canvas transition-colors"
+                              onClick={() => openVanSale(route)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/8 text-[10px] font-semibold text-gray-600 hover:bg-canvas transition-colors"
                             >
-                              {expanded ? 'Hide' : `Stops (${total})`}
+                              <ShoppingCart size={11} /> Van Sale
                             </button>
-                          )}
-                          <button
-                            onClick={() => openVanSale(route)}
-                            className="px-3 py-1.5 rounded-pill border border-accent-signature/40 text-[10px] font-semibold text-accent-signature bg-accent-signature/5 hover:bg-accent-signature/10 transition-colors flex items-center gap-1"
-                          >
-                            <ShoppingCart size={10} /> Van Sale
-                          </button>
-                          <button
-                            onClick={() => openReconcile(route)}
-                            className="px-4 py-2 rounded-pill bg-ink-primary text-surface text-[10px] font-bold hover:opacity-90 transition-opacity"
-                          >
-                            END TRIP
-                          </button>
+                            <button
+                              onClick={() => openReconcile(route)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ink-primary text-surface text-[10px] font-bold hover:opacity-90 transition-opacity"
+                            >
+                              End Trip
+                            </button>
+                          </div>
                         </div>
+
+                        {/* Progress bar + stats */}
+                        {total > 0 && (
+                          <div className="mt-4">
+                            <div className="flex items-center justify-between mb-1.5">
+                              <span className="text-[10px] font-semibold text-gray-400">
+                                <span className="text-green-600 font-bold">{delivered}</span> of {total} stops delivered
+                              </span>
+                              <span className="text-[10px] font-black text-ink-primary">{progress}%</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden">
+                              <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                            </div>
+                          </div>
+                        )}
                       </div>
 
-                      {/* Stops panel */}
+                      {/* Stop toggle */}
+                      {total > 0 && (
+                        <button
+                          onClick={() => setExpandedTrip(expanded ? null : route.id)}
+                          className="w-full flex items-center justify-between px-5 py-2.5 text-[10px] font-bold text-gray-400 hover:bg-canvas/50 transition-colors"
+                        >
+                          <span className="uppercase tracking-widest">{expanded ? 'Hide stops' : `View ${total} stops`}</span>
+                          <ChevronDown size={12} className={`transition-transform ${expanded ? 'rotate-180' : ''}`} />
+                        </button>
+                      )}
+
+                      {/* Stops: timeline style */}
                       {expanded && stops.length > 0 && (
-                        <div className="border-t border-black/5 bg-canvas/50 px-5 py-4 space-y-2">
-                          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Delivery Stops</p>
-                          {stops.map(stop => {
+                        <div className="border-t border-black/5 px-5 py-3 space-y-0">
+                          {stops.map((stop, si) => {
                             const done = stop.status !== 'PENDING';
+                            const isDelivered = stop.status === 'DELIVERED';
+                            const isNoSale = stop.status === 'NO_SALE';
                             return (
-                              <div key={stop.id} className="flex items-center gap-3 bg-white rounded-xl px-4 py-3 border border-black/5">
-                                <div className={`w-2 h-2 rounded-full shrink-0 ${
-                                  stop.status === 'DELIVERED' ? 'bg-green-500' :
-                                  stop.status === 'NO_SALE'   ? 'bg-red-500'   :
-                                  'bg-gray-300'
-                                }`} />
-                                <div className="flex-1 min-w-0">
-                                  <div className="text-xs font-bold text-ink-primary truncate">
-                                    {stop.client_name || 'Client'}
+                              <div key={stop.id} className="flex gap-3 py-2.5">
+                                {/* Timeline connector */}
+                                <div className="flex flex-col items-center shrink-0 pt-0.5">
+                                  <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${
+                                    isDelivered ? 'bg-green-500 border-green-500' :
+                                    isNoSale    ? 'bg-red-400 border-red-400' :
+                                    'bg-white border-gray-200'
+                                  }`}>
+                                    {isDelivered && <Check size={8} className="text-white" />}
+                                    {isNoSale && <XCircle size={8} className="text-white" />}
                                   </div>
-                                  {stop.invoice_id && (
-                                    <div className="text-[9px] text-gray-400 mt-0.5">
-                                      {(stop.invoice_id).replace(/^INV-/, '#')}
-                                    </div>
+                                  {si < stops.length - 1 && (
+                                    <div className={`w-px flex-1 mt-1 min-h-[16px] ${isDelivered ? 'bg-green-200' : 'bg-gray-100'}`} />
                                   )}
                                 </div>
-                                {stop.cash_collected > 0 && (
-                                  <span className="text-[10px] font-bold text-green-600 shrink-0">
-                                    {sym}{Number(stop.cash_collected).toLocaleString()}
-                                  </span>
-                                )}
-                                {!done ? (
-                                  <div className="flex items-center gap-1 shrink-0">
-                                    <button
-                                      onClick={() => markStop(stop.id, 'DELIVERED')}
-                                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-50 border border-green-200 text-[9px] font-bold text-green-700 hover:bg-green-100 transition-colors"
-                                    >
-                                      <Check size={10} /> Delivered
-                                    </button>
-                                    <button
-                                      onClick={() => markStop(stop.id, 'NO_SALE')}
-                                      className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-red-50 border border-red-200 text-[9px] font-bold text-red-600 hover:bg-red-100 transition-colors"
-                                    >
-                                      <XCircle size={10} /> No Sale
-                                    </button>
+
+                                {/* Stop content */}
+                                <div className="flex-1 flex items-start justify-between min-w-0 pb-1">
+                                  <div className="min-w-0">
+                                    <div className="text-xs font-semibold text-ink-primary truncate">{stop.client_name || 'Client'}</div>
+                                    {stop.invoice_id && (
+                                      <div className="text-[9px] text-gray-400 font-mono">{stop.invoice_id.replace(/^INV-/, '#')}</div>
+                                    )}
                                   </div>
-                                ) : (
-                                  <span className={`text-[9px] font-bold px-2 py-1 rounded-lg shrink-0 ${
-                                    stop.status === 'DELIVERED' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
-                                  }`}>
-                                    {stop.status === 'DELIVERED' ? 'Delivered' : 'No Sale'}
-                                  </span>
-                                )}
+                                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                                    {stop.cash_collected > 0 && (
+                                      <span className="text-[10px] font-bold text-green-600">{sym}{Number(stop.cash_collected).toLocaleString()}</span>
+                                    )}
+                                    {!done ? (
+                                      <div className="flex items-center gap-1">
+                                        <button onClick={() => markStop(stop.id, 'DELIVERED')}
+                                          className="px-2 py-0.5 rounded bg-green-50 border border-green-200 text-[9px] font-bold text-green-700 hover:bg-green-100">
+                                          ✓ Delivered
+                                        </button>
+                                        <button onClick={() => markStop(stop.id, 'NO_SALE')}
+                                          className="px-2 py-0.5 rounded bg-red-50 border border-red-200 text-[9px] font-bold text-red-600 hover:bg-red-100">
+                                          ✕ No Sale
+                                        </button>
+                                      </div>
+                                    ) : (
+                                      <span className={`text-[9px] font-bold px-2 py-0.5 rounded ${
+                                        isDelivered ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-500'
+                                      }`}>
+                                        {isDelivered ? 'Delivered' : 'No Sale'}
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             );
                           })}
@@ -899,23 +936,23 @@ const Vehicles = () => {
       {/* ── DISPATCH MODAL ─────────────────────────────────────────────────────── */}
       {showDispatchModal && (
         <div className="modal-overlay">
-          <div className="glass-modal !max-w-2xl">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h1 className="text-4xl font-black font-sora text-ink-primary leading-none tracking-tight uppercase">
-                  DISPATCH<span className="text-accent-signature">.</span>
-                </h1>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mt-1">
-                  Assign vehicle · driver · deliveries
-                </p>
+          <div className="glass-modal !max-w-2xl !p-0 overflow-hidden flex flex-col max-h-[90vh]">
+            {/* Compact header */}
+            <div className="flex justify-between items-center px-6 py-4 border-b border-black/5 shrink-0">
+              <div className="flex items-center gap-3">
+                <h2 className="text-base font-black font-sora text-ink-primary leading-none uppercase">
+                  Dispatch<span className="text-accent-signature">.</span>
+                </h2>
+                <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Assign vehicle · driver · deliveries</span>
               </div>
-              <button className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
+              <button className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
                 onClick={() => setShowDispatchModal(false)}>
-                <X size={18} />
+                <X size={15} />
               </button>
             </div>
 
-            <form onSubmit={handleDispatch} className="space-y-5">
+            <form onSubmit={handleDispatch} className="flex flex-col flex-1 min-h-0">
+            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
               {/* Vehicle */}
               <div>
                 <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Vehicle</label>
@@ -1047,16 +1084,17 @@ const Vehicles = () => {
                 )}
               </div>
 
-              {dispatchError && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
-                  <AlertTriangle size={14} className="text-red-500 shrink-0" />
-                  <span className="text-xs font-semibold text-red-600">{dispatchError}</span>
-                </div>
-              )}
+            </div>{/* end scroll area */}
 
-              {/* Summary + confirm */}
-              <div className="pt-2 border-t border-black/5">
-                <div className="flex items-center justify-between mb-4 text-[10px] text-gray-400">
+              {/* Sticky footer */}
+              <div className="px-6 py-4 border-t border-black/5 shrink-0 bg-white space-y-3">
+                {dispatchError && (
+                  <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
+                    <AlertTriangle size={14} className="text-red-500 shrink-0" />
+                    <span className="text-xs font-semibold text-red-600">{dispatchError}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-[10px] text-gray-400">
                   <span>{selectedInvoices.length} deliveries · {vanLoadItems.length > 0 ? `${vanLoadItems.reduce((s,i)=>s+i.qty,0)} van units · ` : ''}{todayISOInAppTZ()}</span>
                   <span className="font-black text-ink-primary tabular-nums">
                     Total: {sym}{selectedInvoices.reduce((s, id) => {
@@ -1068,7 +1106,7 @@ const Vehicles = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="btn-signature w-full !h-14 !text-sm flex items-center justify-center gap-3 !rounded-2xl"
+                  className="btn-signature w-full !h-12 !text-sm flex items-center justify-center gap-3 !rounded-xl"
                 >
                   {submitting ? (
                     <span className="flex items-center gap-2">
@@ -1198,125 +1236,146 @@ const Vehicles = () => {
           </div>
         </div>
       )}
-      {/* ── VAN SALE MODAL ─────────────────────────────────────────────────────── */}
-      {vanSaleRoute && (
-        <div className="modal-overlay">
-          <div className="glass-modal !max-w-lg">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h1 className="text-3xl font-black font-sora text-ink-primary leading-none tracking-tight uppercase">
-                  VAN SALE<span className="text-accent-signature">.</span>
-                </h1>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mt-1">
-                  {vehicles.find(v => v.id === (vanSaleRoute.vehicleId || vanSaleRoute['vehicleId']))?.name || 'Vehicle'}
-                  {vanSaleRoute.location ? ` · ${vanSaleRoute.location}` : ''}
-                </p>
-              </div>
-              <button className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
-                onClick={() => setVanSaleRoute(null)}>
-                <X size={18} />
-              </button>
-            </div>
+      {/* ── VAN SALE MODAL — tap-to-sell ──────────────────────────────────────── */}
+      {vanSaleRoute && (() => {
+        const activeItems = vanSaleItems.filter(i => i.qty > 0);
+        const saleTotal   = activeItems.reduce((s, i) => s + i.sellingPrice * i.qty, 0);
+        const vanName     = vehicles.find(v => v.id === (vanSaleRoute.vehicleId || vanSaleRoute['vehicleId']))?.name || 'Vehicle';
+        return (
+          <div className="modal-overlay">
+            <div className="glass-modal !max-w-md !p-0 overflow-hidden flex flex-col max-h-[90vh]">
 
-            <form onSubmit={handleVanSaleSubmit} className="space-y-4">
-              {/* Client + Payment */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
                 <div>
-                  <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Customer</label>
-                  <input type="text"
-                    className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-                    placeholder="Walk-in / Client name"
-                    value={vanSaleClient}
-                    onChange={e => setVanSaleClient(e.target.value)} />
+                  <div className="text-base font-black text-ink-primary">Van Sale</div>
+                  <div className="text-[10px] text-gray-400 font-medium mt-0.5">{vanName}{vanSaleRoute.location ? ` · ${vanSaleRoute.location}` : ''}</div>
                 </div>
-                <div>
-                  <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Payment</label>
-                  <select
-                    className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none"
-                    value={vanSaleMethod}
-                    onChange={e => setVanSaleMethod(e.target.value)}>
-                    <option value="CASH">Cash</option>
-                    <option value="UPI">UPI</option>
-                    <option value="CREDIT">Credit</option>
-                  </select>
-                </div>
+                <button className="w-8 h-8 rounded-lg border border-black/8 flex items-center justify-center hover:bg-canvas transition-all"
+                  onClick={() => setVanSaleRoute(null)}>
+                  <X size={15} />
+                </button>
               </div>
 
-              {/* Items */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-[10px] font-semibold text-gray-500">Items</label>
-                  <button type="button"
-                    className="text-[9px] font-bold text-accent-signature hover:underline flex items-center gap-1"
-                    onClick={addVanSaleItem}>
-                    + Add Item
-                  </button>
-                </div>
-                <div className="space-y-2">
-                  {vanSaleItems.map((item, idx) => (
-                    <div key={idx} className="flex items-center gap-2 bg-canvas border border-black/8 rounded-xl px-3 py-2">
-                      <select
-                        className="flex-1 bg-transparent text-xs font-semibold outline-none min-w-0"
-                        value={item.productId}
-                        onChange={e => updateVanSaleItem(idx, 'productId', e.target.value)}>
-                        {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <input type="number" min="1"
-                          className="w-12 bg-white border border-black/8 rounded-lg px-1 py-1 text-xs font-bold text-center outline-none"
-                          value={item.qty}
-                          onChange={e => updateVanSaleItem(idx, 'qty', e.target.value)} />
-                        <span className="text-[9px] text-gray-400">×</span>
-                        <input type="number" min="0" step="0.01"
-                          className="w-16 bg-white border border-black/8 rounded-lg px-1 py-1 text-xs font-bold text-center outline-none"
-                          value={item.sellingPrice}
-                          onChange={e => updateVanSaleItem(idx, 'sellingPrice', e.target.value)} />
-                      </div>
-                      <span className="text-[10px] font-bold text-ink-primary tabular-nums shrink-0 w-16 text-right">
-                        {sym}{(item.qty * item.sellingPrice).toFixed(2)}
-                      </span>
-                      <button type="button" onClick={() => removeVanSaleItem(idx)}
-                        className="text-red-400 hover:text-red-600 shrink-0">
-                        <MinusCircle size={14} />
-                      </button>
-                    </div>
+              {/* Customer + payment — compact row */}
+              <div className="flex gap-2 px-5 py-3 border-b border-black/5 shrink-0">
+                <input type="text"
+                  className="flex-1 bg-canvas border border-black/8 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                  placeholder="Customer name"
+                  value={vanSaleClient}
+                  onChange={e => setVanSaleClient(e.target.value)} />
+                <div className="flex gap-1">
+                  {['CASH', 'UPI', 'CREDIT'].map(m => (
+                    <button key={m} type="button"
+                      onClick={() => setVanSaleMethod(m)}
+                      className={`px-2.5 py-2 rounded-lg text-[9px] font-black transition-all ${
+                        vanSaleMethod === m
+                          ? 'bg-ink-primary text-surface'
+                          : 'bg-canvas border border-black/8 text-gray-400 hover:text-ink-primary'
+                      }`}>
+                      {m}
+                    </button>
                   ))}
                 </div>
               </div>
 
-              {/* Total */}
-              <div className="flex justify-between items-center px-4 py-3 bg-ink-primary rounded-xl">
-                <span className="text-xs font-bold text-white/60">TOTAL</span>
-                <span className="text-lg font-black text-accent-signature tabular-nums">{sym}{vanSaleTotal.toFixed(2)}</span>
-              </div>
+              {/* Product tap grid */}
+              <div className="flex-1 overflow-y-auto px-5 py-4">
+                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Van Stock — Tap to sell</p>
+                <div className="space-y-2">
+                  {vanSaleItems.map((item, idx) => {
+                    const selected = item.qty > 0;
+                    return (
+                      <div key={item.productId}
+                        className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
+                          selected
+                            ? 'bg-ink-primary border-ink-primary shadow-sm'
+                            : 'bg-white border-black/5 hover:border-black/10'
+                        }`}>
+                        {/* Name + price */}
+                        <div className="flex-1 min-w-0">
+                          <div className={`text-sm font-semibold truncate ${selected ? 'text-surface' : 'text-ink-primary'}`}>
+                            {item.productName}
+                          </div>
+                          <div className={`text-[10px] font-bold mt-0.5 ${selected ? 'text-accent-signature' : 'text-gray-400'}`}>
+                            {sym}{Number(item.sellingPrice).toFixed(2)}
+                            {item.maxQty != null && (
+                              <span className={`ml-2 font-medium ${selected ? 'text-white/40' : 'text-gray-300'}`}>
+                                max {item.maxQty}
+                              </span>
+                            )}
+                          </div>
+                        </div>
 
-              {vanSaleError && (
-                <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
-                  <AlertTriangle size={14} className="text-red-500 shrink-0" />
-                  <span className="text-xs font-semibold text-red-600">{vanSaleError}</span>
+                        {/* Qty stepper */}
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button type="button"
+                            onClick={() => updateVanSaleItem(idx, 'qty', Math.max(0, item.qty - 1))}
+                            className={`w-8 h-8 rounded-lg font-black text-base flex items-center justify-center transition-all ${
+                              selected
+                                ? 'bg-white/10 text-surface hover:bg-white/20'
+                                : 'bg-canvas border border-black/8 text-gray-400 hover:text-ink-primary'
+                            }`}>
+                            −
+                          </button>
+                          <span className={`w-8 text-center text-sm font-black tabular-nums ${selected ? 'text-surface' : 'text-gray-300'}`}>
+                            {item.qty}
+                          </span>
+                          <button type="button"
+                            onClick={() => updateVanSaleItem(idx, 'qty', item.maxQty != null ? Math.min(item.maxQty, item.qty + 1) : item.qty + 1)}
+                            className={`w-8 h-8 rounded-lg font-black text-base flex items-center justify-center transition-all ${
+                              selected
+                                ? 'bg-accent-signature text-ink-primary hover:opacity-90'
+                                : 'bg-accent-signature/10 border border-accent-signature/20 text-accent-signature hover:bg-accent-signature/20'
+                            }`}>
+                            +
+                          </button>
+                        </div>
+
+                        {/* Line total */}
+                        {selected && (
+                          <div className="text-sm font-black text-accent-signature tabular-nums shrink-0 w-16 text-right">
+                            {sym}{(item.qty * item.sellingPrice).toFixed(2)}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                <button type="button"
-                  className="px-6 py-3 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all"
-                  onClick={() => setVanSaleRoute(null)}>Cancel</button>
-                <button type="submit" disabled={vanSaleLoading}
-                  className="btn-signature !h-12 !text-sm flex items-center justify-center gap-3 px-6 !rounded-pill">
-                  {vanSaleLoading ? (
-                    <span className="flex items-center gap-2">
-                      <span className="w-4 h-4 border-2 border-ink-primary/30 border-t-ink-primary rounded-full animate-spin" />
-                      Saving…
-                    </span>
-                  ) : (
-                    <><ShoppingCart size={16} /> RECORD SALE</>
-                  )}
-                </button>
               </div>
-            </form>
+
+              {/* Footer — total + confirm */}
+              <div className="px-5 py-4 border-t border-black/5 shrink-0 space-y-3">
+                {vanSaleError && (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertTriangle size={12} className="text-red-500 shrink-0" />
+                    <span className="text-[10px] font-semibold text-red-600">{vanSaleError}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                      {activeItems.length} item{activeItems.length !== 1 ? 's' : ''} selected
+                    </div>
+                    <div className="text-2xl font-black text-ink-primary tabular-nums leading-tight">
+                      {sym}{saleTotal.toFixed(2)}
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleVanSaleSubmit}
+                    disabled={vanSaleLoading || activeItems.length === 0}
+                    className="btn-signature !h-12 !px-8 !rounded-xl !text-sm flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+                    {vanSaleLoading
+                      ? <span className="w-4 h-4 border-2 border-ink-primary/30 border-t-ink-primary rounded-full animate-spin" />
+                      : <><ShoppingCart size={15} /> Confirm Sale</>
+                    }
+                  </button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ── LIVE MAP TAB ─────────────────────────────────────────────────────── */}
       {activeTab === 'LIVE' && (

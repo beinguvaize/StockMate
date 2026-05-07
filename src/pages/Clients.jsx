@@ -182,14 +182,14 @@ const Clients = () => {
  <>
  <div className="animate-fade-in flex flex-col gap-4 pb-12">
  {/* Header Section */}
- <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-2">
- <div>
- <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">CLIENTS<span className="text-accent-signature">.</span></h1>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">CUSTOMER NETWORK & ACCOUNTS</p>
+ <div className="flex justify-between items-center py-2 border-b border-black/5">
+ <div className="flex items-center gap-3">
+ <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Clients<span className="text-accent-signature">.</span></h1>
+ <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Customer network & accounts</span>
  </div>
- 
+
  {/* Tab Navigation */}
- <div className="flex bg-canvas border border-black/5 rounded-lg p-1 shadow-sm w-full md:w-auto overflow-x-auto no-scrollbar">
+ <div className="flex bg-canvas border border-black/5 rounded-lg p-1 shadow-sm overflow-x-auto no-scrollbar">
  {[
  { id: 'DIRECTORY', label: 'Directory', icon: <Users size={14} />},
  { id: 'AGING', label: 'Aging Report', icon: <History size={14} />},

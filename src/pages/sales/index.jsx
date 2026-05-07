@@ -5,8 +5,8 @@ import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { usePeople } from '../../hooks/usePeople';
 import { useNotifications } from '../../context/NotificationContext';
-import { ShoppingCart, History, Plus, ReceiptText } from 'lucide-react';
-import { generateRef } from '../../lib/utils';
+import { ShoppingCart, History, Plus, ReceiptText, TrendingUp, Receipt, BarChart2 } from 'lucide-react';
+import { generateRef, formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import InvoiceBuilder from './components/InvoiceBuilder';
@@ -84,6 +84,16 @@ const SalesPage = () => {
 
   const isLoading = salesLoading || productsLoading;
 
+  // Today's stats
+  const todayStats = React.useMemo(() => {
+    const today = todayISOInAppTZ();
+    const todaySales = (sales || []).filter(s => (s.created_at || '').startsWith(today));
+    const revenue = todaySales.reduce((sum, s) => sum + (s.totalAmount || 0), 0);
+    const count = todaySales.length;
+    const avg = count > 0 ? revenue / count : 0;
+    return { revenue, count, avg };
+  }, [sales]);
+
   // Timeout guard: if loading for >10s, break out and render with whatever data is available
   const [loadTimeout, setLoadTimeout] = React.useState(false);
   React.useEffect(() => {
@@ -101,13 +111,30 @@ const SalesPage = () => {
   return (
     <div className="animate-fade-in flex flex-col gap-2">
       <div className="flex justify-between items-center py-2 border-b border-black/5">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
             {activeTab === 'pos' ? 'Sales' : 'History'}<span className="text-accent-signature">.</span>
           </h1>
-          <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">
-            {activeTab === 'pos' ? 'Record sales and manage cart' : 'Past sales and invoices'}
-          </span>
+          {/* Today's live stats */}
+          <div className="hidden sm:flex items-center gap-1.5">
+            <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-100 text-emerald-700 px-2 py-1 rounded-lg">
+              <TrendingUp size={10} />
+              <span className="text-[10px] font-black">{formatCurrency(todayStats.revenue)}</span>
+              <span className="text-[9px] font-medium opacity-60">today</span>
+            </div>
+            <div className="flex items-center gap-1 bg-canvas border border-black/5 text-ink-primary px-2 py-1 rounded-lg">
+              <Receipt size={10} className="opacity-40" />
+              <span className="text-[10px] font-black">{todayStats.count}</span>
+              <span className="text-[9px] font-medium text-gray-400">txns</span>
+            </div>
+            {todayStats.count > 0 && (
+              <div className="flex items-center gap-1 bg-canvas border border-black/5 text-ink-primary px-2 py-1 rounded-lg">
+                <BarChart2 size={10} className="opacity-40" />
+                <span className="text-[10px] font-black">{formatCurrency(todayStats.avg)}</span>
+                <span className="text-[9px] font-medium text-gray-400">avg</span>
+              </div>
+            )}
+          </div>
         </div>
         <div className="flex gap-1 bg-canvas p-1 rounded-pill shadow-inner">
           <button

@@ -196,16 +196,13 @@ const Users = () => {
  <>
  <div className="animate-fade-in flex flex-col gap-10 pb-20">
  {/* Header Section */}
- <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-6 border-b border-black/5">
- <div>
- <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">STAFF<span className="text-accent-signature">.</span></h1>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">PERSONNEL & ACCESS CONTROL</p>
+ <div className="flex justify-between items-center py-2 border-b border-black/5">
+ <div className="flex items-center gap-3">
+ <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Staff<span className="text-accent-signature">.</span></h1>
+ <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Personnel & access control</span>
  </div>
- <button className="btn-signature h-14 !text-sm" onClick={openAdd}>
- ADD STAFF MEMBER
- <div className="icon-nest ml-4">
- <UserPlus size={20} />
- </div>
+ <button className="btn-signature !h-8 !rounded-lg !px-4 !text-xs !font-bold flex items-center gap-2" onClick={openAdd}>
+ <UserPlus size={12} /> Add Staff
  </button>
  </div>
 

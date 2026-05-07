@@ -220,6 +220,28 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               </div>
             </div>
 
+            {/* Tax Slab */}
+            <div>
+              <label className={labelCls}>GST Tax Slab</label>
+              <div className="flex gap-2 flex-wrap">
+                {TAX_SLABS.map(slab => (
+                  <button
+                    key={slab.value}
+                    type="button"
+                    onClick={() => setFormData({ ...formData, taxRate: slab.value })}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-black border transition-all ${
+                      Number(formData.taxRate) === slab.value
+                        ? 'bg-accent-signature text-button-text border-accent-signature shadow'
+                        : 'bg-canvas border-black/10 text-gray-500 hover:border-accent-signature/40'
+                    }`}
+                  >
+                    {slab.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-gray-400 mt-1">Applied on invoice & POS checkout</p>
+            </div>
+
             {/* ── Product Photo ──────────────────────────────────────── */}
             <div>
               <label className={labelCls}>Product Photo</label>

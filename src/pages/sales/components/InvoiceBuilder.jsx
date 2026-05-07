@@ -235,40 +235,67 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           />
         </div>
         
-        <div className="grid grid-cols-4 md:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2 overflow-y-auto pr-2 pb-4">
+        <div className="flex flex-col gap-px overflow-y-auto pr-1 pb-4">
           {filteredProducts.map(product => {
             const ms = marginStatus[product.id] || {};
-            const hasWarning = ms.belowFloor || ms.isLoss;
+            const stock = warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock;
+            const outOfStock = stock <= 0;
             return (
             <div
               key={product.id}
-              onClick={() => addToCart(product)}
-              className={`glass-panel !p-2 cursor-pointer transition-all hover:shadow-lg group relative ${
-                ms.isLoss ? 'border-red-300 bg-red-50/30' : ms.belowFloor ? 'border-orange-200 bg-orange-50/20' : 'hover:border-accent-signature/30'
+              onClick={() => !outOfStock && addToCart(product)}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all border group ${
+                outOfStock
+                  ? 'opacity-40 cursor-not-allowed border-transparent'
+                  : ms.isLoss
+                  ? 'border-red-200 bg-red-50/40 hover:bg-red-50/70'
+                  : ms.belowFloor
+                  ? 'border-orange-200 bg-orange-50/30 hover:bg-orange-50/60'
+                  : 'border-transparent bg-white/60 hover:bg-white hover:border-accent-signature/20 hover:shadow-sm'
               }`}
             >
-              {hasWarning && (
-                <div className={`absolute top-1 right-1 flex items-center gap-0.5 px-1 py-0.5 rounded-full text-[7px] font-black uppercase ${
+              {/* Thumbnail / initial */}
+              <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden bg-canvas border border-black/5">
+                {product.image
+                  ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                  : <span className="text-[11px] font-black text-ink-primary/30 uppercase">{(product.name || '?').slice(0, 2)}</span>
+                }
+              </div>
+
+              {/* Name + SKU */}
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold text-ink-primary truncate leading-tight">{product.name}</div>
+                {product.sku && <div className="text-[9px] font-medium text-gray-400 truncate">{product.sku}</div>}
+              </div>
+
+              {/* Price + stock + tax */}
+              <div className="text-right flex-shrink-0">
+                <div className="flex items-center justify-end gap-1.5">
+                  <div className={`text-xs font-black leading-none ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>
+                    {formatCurrency(product.sellingPrice)}
+                  </div>
+                  {product.taxRate > 0 && (
+                    <span className="text-[8px] font-black px-1 py-0.5 rounded bg-blue-50 text-blue-500 border border-blue-100">
+                      {product.taxRate}%
+                    </span>
+                  )}
+                </div>
+                <div className={`text-[9px] font-semibold mt-0.5 ${
+                  outOfStock ? 'text-red-400' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-gray-400'
+                }`}>
+                  {outOfStock ? 'OUT' : `${stock} stk`}
+                </div>
+              </div>
+
+              {/* Warning badge */}
+              {(ms.isLoss || ms.belowFloor) && !outOfStock && (
+                <div className={`flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[7px] font-black uppercase ${
                   ms.isLoss ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
                 }`}>
                   <AlertTriangle size={7} />
                   {ms.isLoss ? 'LOSS' : 'LOW'}
                 </div>
               )}
-              <div className="h-16 bg-canvas rounded-lg mb-1.5 flex items-center justify-center overflow-hidden border border-black/5">
-                {product.image ? (
-                  <img src={product.image} alt={product.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                ) : (
-                  <Package size={18} className="opacity-10" />
-                )}
-              </div>
-              <div className="font-bold text-[9px] text-ink-primary line-clamp-2 mb-0.5 tracking-tight leading-tight">{product.name}</div>
-              <div className={`text-xs font-black leading-none ${ms.isLoss ? 'text-red-500' : 'text-emerald-600'}`}>
-                {formatCurrency(product.sellingPrice)}
-              </div>
-              <div className="mt-0.5 text-[8px] font-bold text-gray-400 uppercase tracking-widest">
-                {warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock} stk
-              </div>
             </div>
             );
           })}

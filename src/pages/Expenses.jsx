@@ -151,24 +151,18 @@ const Expenses = () => {
  <>
  <div className="animate-fade-in flex flex-col gap-4 pb-12">
  {/* Header Section */}
- <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-4 border-b border-black/5">
- <div>
- <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">EXPENSES<span className="text-accent-signature">.</span></h1>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">OPERATING COSTS & EXPENDITURE</p>
+ <div className="flex justify-between items-center py-2 border-b border-black/5">
+ <div className="flex items-center gap-3">
+ <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Expenses<span className="text-accent-signature">.</span></h1>
+ <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Operating costs & expenditure</span>
+ <span className="hidden md:flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-canvas border border-black/5 px-2 py-1 rounded-lg">
+   {getFilterLabel()}: <span className="text-ink-primary font-black ml-1">{businessProfile?.currencySymbol || '₹'}{totalExpenses.toLocaleString()}</span>
+ </span>
  </div>
- <div className="flex items-center gap-4">
- <div className="text-right mr-4">
- <div className="text-sm font-semibold text-gray-700 opacity-70 mb-1">{getFilterLabel()}</div>
- <div className="text-2xl font-semibold text-ink-primary">
- {businessProfile?.currencySymbol || '₹'}{totalExpenses.toLocaleString()}
- </div>
- </div>
+ <div className="flex items-center gap-2">
  {hasPermission('ADD_EXPENSE') && (
- <button className="btn-signature h-12 !px-5 !rounded-pill flex items-center justify-between gap-4 group transition-all duration-500 hover:shadow-[0_0_20px_rgba(200,241,53,0.3)]" onClick={() => setIsAdding(true)}>
- <span className="text-xs font-semibold px-2">ADD EXPENSE</span>
- <div className="icon-nest !w-8 !h-8 bg-black shadow-lg">
- <Plus size={16} className="text-accent-signature" />
- </div>
+ <button className="btn-signature !h-8 !rounded-lg !px-4 !text-xs !font-bold flex items-center gap-2" onClick={() => setIsAdding(true)}>
+ <Plus size={12} /> Add Expense
  </button>
  )}
  </div>

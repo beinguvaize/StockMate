@@ -104,14 +104,14 @@ const Settings = () => {
  return (
  <div className="animate-fade-in flex flex-col gap-5 pb-12">
  {/* Header Section */}
- <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-8 border-b border-black/5">
- <div>
- <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">SETTINGS<span className="text-accent-signature">.</span></h1>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">SYSTEM CONFIGURATION & PREFERENCES</p>
+ <div className="flex justify-between items-center py-2 border-b border-black/5">
+ <div className="flex items-center gap-3">
+ <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Settings<span className="text-accent-signature">.</span></h1>
+ <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">System configuration & preferences</span>
  </div>
  {savedStatus && (
- <div className="bg-accent-signature/10 text-ink-primary px-8 py-2 rounded-pill text-[10px] font-semibold border border-accent-signature/20 flex items-center gap-3 animate-in slide-in-from-right-6 duration-500">
- <CheckCircle2 size={18} className="text-accent-signature" /> SYNC COMPLETED
+ <div className="bg-accent-signature/10 text-ink-primary px-4 py-1.5 rounded-lg text-[10px] font-semibold border border-accent-signature/20 flex items-center gap-2 animate-in slide-in-from-right-4 duration-300">
+ <CheckCircle2 size={12} className="text-accent-signature" /> Saved
  </div>
  )}
  </div>

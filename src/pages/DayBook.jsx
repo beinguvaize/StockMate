@@ -238,14 +238,12 @@ const DayBook = () => {
     <div className="animate-fade-in flex flex-col gap-6 pb-20">
 
       {/* ── Header ───────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-6 border-b border-black/5">
-        <div>
-          <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2">
+      <div className="flex justify-between items-center py-2 border-b border-black/5">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
             Day Book<span className="text-accent-signature">.</span>
           </h1>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">
-            Cash & transaction ledger
-          </p>
+          <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Cash & transaction ledger</span>
         </div>
 
         {/* Date nav */}

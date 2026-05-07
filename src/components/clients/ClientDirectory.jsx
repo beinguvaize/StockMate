@@ -138,144 +138,115 @@ const ClientDirectory = ({
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
-          {filteredClients.map(client => {
+        <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+          {/* Table header */}
+          <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 px-5 py-2.5 bg-canvas border-b border-black/5">
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Client</span>
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Contact</span>
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Revenue</span>
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Outstanding</span>
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</span>
+          </div>
+
+          {filteredClients.map((client, idx) => {
             const stats = clientStats[client.id] || { totalSales: 0, orderCount: 0 };
             const outstanding = client.outstanding_balance || 0;
             const cleared = outstanding <= 0;
-            const collected = stats.totalSales > 0
-              ? Math.max(0, Math.min(100, (stats.totalSales - outstanding) / stats.totalSales * 100))
-              : 100;
 
             return (
               <div
                 key={client.id}
-                className="bg-white rounded-[2rem] border border-black/5 hover:border-black/10 hover:shadow-lg transition-all duration-300 flex flex-col overflow-hidden shadow-sm"
+                className={`grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 items-center px-5 py-3.5 border-b border-black/5 last:border-0 hover:bg-canvas/60 transition-colors group ${idx % 2 === 0 ? '' : 'bg-black/[0.01]'}`}
               >
-                {/* Card Header */}
-                <div className="p-5 pb-4 border-b border-black/5">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-full bg-accent-signature/15 border border-accent-signature/25 flex items-center justify-center text-lg font-black text-ink-primary shrink-0">
-                        {client.name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <h3 className="text-base font-bold text-ink-primary leading-tight">{client.name}</h3>
-                        <div className="text-[10px] font-semibold text-gray-400 font-mono tracking-wide mt-0.5">
-                          {stats.orderCount} {stats.orderCount === 1 ? 'order' : 'orders'}
-                        </div>
-                      </div>
+                {/* Name + meta */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-8 h-8 rounded-lg bg-accent-signature/10 border border-accent-signature/20 flex items-center justify-center text-xs font-black text-ink-primary shrink-0">
+                    {client.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-ink-primary truncate leading-tight">{client.name}</div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[9px] font-semibold text-gray-400">{stats.orderCount} orders</span>
+                      {client.gstin && (
+                        <span className="flex items-center gap-0.5 text-[8px] font-bold text-blue-500 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
+                          <ShieldCheck size={7} /> GST
+                        </span>
+                      )}
+                      {client.state && (
+                        <span className="text-[9px] text-gray-400 font-medium">{client.state}</span>
+                      )}
                     </div>
-                    {hasPermission('clients', 'edit') && (
-                      <button
-                        onClick={() => openEdit(client)}
-                        className="p-2 rounded-full bg-canvas border border-black/5 hover:bg-black/5 text-gray-400 hover:text-ink-primary transition-all"
-                        title="Edit"
-                      >
-                        <Edit3 size={13} />
-                      </button>
-                    )}
                   </div>
                 </div>
 
-                {/* Contact Info */}
-                <div className="px-5 py-4 flex flex-col gap-2 border-b border-black/5">
-                  {/* Contact + Phone grid */}
-                  {(client.contact || client.phone) && (
-                    <div className="grid grid-cols-2 gap-2">
-                      {client.contact && (
-                        <div className="bg-canvas rounded-xl p-3">
-                          <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
-                            <UserCircle size={10} /> Contact
-                          </div>
-                          <div className="text-xs font-bold text-ink-primary truncate">{client.contact}</div>
-                        </div>
-                      )}
-                      {client.phone && (
-                        <div className="bg-canvas rounded-xl p-3">
-                          <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1">
-                            <Phone size={10} /> Phone
-                          </div>
-                          <div className="text-xs font-bold text-ink-primary tabular-nums">{client.phone}</div>
-                        </div>
-                      )}
+                {/* Contact */}
+                <div className="min-w-0">
+                  {client.phone && (
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-ink-primary">
+                      <Phone size={10} className="text-gray-400 shrink-0" />
+                      <span className="tabular-nums truncate">{client.phone}</span>
                     </div>
                   )}
-                  {/* Email */}
                   {client.email && (
-                    <div className="flex items-center gap-2 text-[11px] font-semibold text-gray-500">
-                      <Mail size={11} className="opacity-60 shrink-0" />
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-400 mt-0.5">
+                      <Mail size={9} className="shrink-0" />
                       <span className="truncate">{client.email}</span>
                     </div>
                   )}
-                  {/* Address */}
-                  {client.address && (
-                    <div className="flex items-start gap-2 text-[11px] font-semibold text-gray-500">
-                      <MapPin size={11} className="opacity-60 shrink-0 mt-0.5" />
-                      <span className="line-clamp-2">{client.address}</span>
+                  {client.address && !client.phone && !client.email && (
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
+                      <MapPin size={9} className="shrink-0" />
+                      <span className="truncate">{client.address}</span>
                     </div>
                   )}
-                  {/* GST badge */}
-                  {client.gstin && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 border border-blue-100 text-[9px] font-bold text-blue-600 tracking-wider uppercase">
-                        <ShieldCheck size={10} /> GST · {client.gstin}
-                      </span>
-                      {client.state && (
-                        <span className="text-[10px] font-semibold text-gray-400">{client.state}{client.state_code ? ` (${client.state_code})` : ''}</span>
-                      )}
-                    </div>
-                  )}
-                  {!client.contact && !client.phone && !client.email && !client.address && (
-                    <p className="text-[11px] text-gray-400 font-semibold">No contact info on record.</p>
+                  {!client.phone && !client.email && !client.address && (
+                    <span className="text-[10px] text-gray-300 font-medium">—</span>
                   )}
                 </div>
 
-                {/* Financials */}
-                <div className="px-5 py-4 flex-1">
-                  <div className="flex justify-between items-end mb-3">
-                    <div>
-                      <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Lifetime Revenue</div>
-                      <div className="text-2xl font-black text-ink-primary tabular-nums leading-none">
-                        {sym}{Math.round(stats.totalSales).toLocaleString()}
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Outstanding</div>
-                      <div className={`text-2xl font-black tabular-nums leading-none ${cleared ? 'text-green-500' : 'text-red-500'}`}>
-                        {sym}{Math.round(outstanding).toLocaleString()}
-                      </div>
-                      <div className={`text-[9px] font-bold mt-1 flex items-center justify-end gap-1 ${cleared ? 'text-green-600' : 'text-red-500'}`}>
-                        {cleared ? <><Check size={10} /> Cleared</> : <><AlertCircle size={10} /> Unpaid</>}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Collection progress bar */}
-                  <div className="h-1.5 bg-black/5 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full transition-all duration-500 ${cleared ? 'bg-green-400' : 'bg-accent-signature'}`}
-                      style={{ width: `${collected}%` }}
-                    />
+                {/* Revenue */}
+                <div className="text-right">
+                  <div className="text-sm font-bold text-ink-primary tabular-nums">
+                    {sym}{Math.round(stats.totalSales).toLocaleString()}
                   </div>
                 </div>
 
-                {/* Footer Actions */}
-                <div className="px-5 pb-5 pt-2 flex items-center gap-2">
+                {/* Outstanding */}
+                <div className="text-right">
+                  <div className={`text-sm font-bold tabular-nums ${cleared ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {sym}{Math.round(outstanding).toLocaleString()}
+                  </div>
+                  <div className={`text-[9px] font-semibold mt-0.5 flex items-center justify-end gap-0.5 ${cleared ? 'text-emerald-500' : 'text-red-400'}`}>
+                    {cleared ? <><Check size={8} /> Cleared</> : <><AlertCircle size={8} /> Unpaid</>}
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
                   <button
                     onClick={() => goToSettle(client.id)}
-                    className="flex-1 py-3 px-4 rounded-xl bg-ink-primary text-accent-signature text-[11px] font-black uppercase tracking-widest hover:opacity-90 transition-all flex items-center justify-center gap-2"
+                    title="Settle Account"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ink-primary text-accent-signature text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
                   >
-                    <Receipt size={13} /> Settle Account
+                    <Receipt size={10} /> Settle
                   </button>
                   {hasPermission('clients', 'edit') && (
-                    <button
-                      onClick={() => { if (window.confirm('Delete this client permanently?')) handleDelete(client.id); }}
-                      className="w-10 h-10 rounded-xl border border-red-200 bg-red-50 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all shrink-0"
-                      title="Delete"
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                    <>
+                      <button
+                        onClick={() => openEdit(client)}
+                        className="w-7 h-7 rounded-lg border border-black/5 bg-canvas flex items-center justify-center hover:bg-ink-primary hover:text-white text-gray-400 transition-all"
+                        title="Edit"
+                      >
+                        <Edit3 size={11} />
+                      </button>
+                      <button
+                        onClick={() => { if (window.confirm('Delete this client permanently?')) handleDelete(client.id); }}
+                        className="w-7 h-7 rounded-lg border border-red-100 bg-red-50 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"
+                        title="Delete"
+                      >
+                        <Trash2 size={11} />
+                      </button>
+                    </>
                   )}
                 </div>
               </div>

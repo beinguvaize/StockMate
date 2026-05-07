@@ -298,22 +298,18 @@ const Orders = () => {
     <div className="animate-fade-in flex flex-col gap-6 pb-16">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-6 border-b border-black/5">
-        <div>
-          <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight uppercase">
-            ORDERS<span className="text-accent-signature">.</span>
+      <div className="flex justify-between items-center py-2 border-b border-black/5">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
+            Orders<span className="text-accent-signature">.</span>
           </h1>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mt-2">
-            B2B &amp; B2C order pipeline
-          </p>
+          <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">B2B & B2C order pipeline</span>
         </div>
         <button
           onClick={openNew}
-          className="btn-signature px-8 !h-14 !rounded-pill !text-xs !font-black flex items-center gap-3 shrink-0"
+          className="btn-signature !h-8 !rounded-lg !px-4 !text-xs !font-bold flex items-center gap-2 shrink-0"
         >
-          NEW ORDER
-          <div className="icon-nest !w-8 !h-8 shrink-0"><Plus size={16} /></div>
-        </button>
+          <Plus size={12} /> New Order</button>
       </div>
 
       {/* ── KPI row ─────────────────────────────────────────────────────── */}

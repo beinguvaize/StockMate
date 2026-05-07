@@ -13,6 +13,7 @@ const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, o
     { label: 'Product' },
     { label: 'Category', className: 'hidden md:table-cell' },
     { label: 'Cost / Sell Price', className: 'text-right' },
+    { label: 'Tax', className: 'text-center hidden md:table-cell' },
     { label: 'Stock', className: 'text-center hidden sm:table-cell' },
     { label: 'Actions', className: 'text-right' }
   ];
@@ -48,6 +49,15 @@ const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, o
             <span className="mx-2 opacity-10 text-ink-primary">/</span>
             <span className="text-emerald-500">{currencySymbol}{toNum(product.sellingPrice).toFixed(2)}</span>
           </div>
+        </td>
+        <td className="px-4 py-2 text-center hidden md:table-cell">
+          {toNum(product.taxRate) > 0 ? (
+            <span className="text-[10px] font-black px-2 py-1 rounded-lg bg-blue-50 text-blue-500 border border-blue-100">
+              {toNum(product.taxRate)}% GST
+            </span>
+          ) : (
+            <span className="text-[10px] font-semibold text-gray-300">Exempt</span>
+          )}
         </td>
         <td className="px-4 py-2 text-center hidden sm:table-cell">
           <div className="text-lg font-bold text-ink-primary">

@@ -119,14 +119,14 @@ const PurchasesPage = () => {
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
-      <div className="flex justify-between items-end pb-6 border-b border-black/5 text-ink-primary">
-        <div>
-          <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2">
+      <div className="flex justify-between items-center py-2 border-b border-black/5">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
             Purchases<span className="text-accent-signature">.</span>
           </h1>
-          <p className="text-xs font-semibold text-gray-600 opacity-80 mb-6">Record stock purchases from suppliers</p>
+          <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Record stock purchases from suppliers</span>
         </div>
-        <div className="flex gap-4 items-center mb-4">
+        <div className="flex gap-2 items-center">
           <Button icon={Plus} onClick={() => setShowAddModal(true)}>Add Purchase</Button>
         </div>
       </div>

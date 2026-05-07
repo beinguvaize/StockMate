@@ -136,21 +136,18 @@ const Suppliers = () => {
  <>
  <div className="animate-fade-in flex flex-col gap-4 pb-12">
  {/* Header */}
- <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 pb-6 border-b border-black/5">
- <div>
- <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2">Suppliers<span className="text-accent-signature">.</span></h1>
- <p className="text-xs font-semibold text-gray-600 opacity-80 mb-6">Manage suppliers and purchase history</p>
+ <div className="flex justify-between items-center py-2 border-b border-black/5">
+ <div className="flex items-center gap-3">
+ <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Suppliers<span className="text-accent-signature">.</span></h1>
+ <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Manage suppliers and purchase history</span>
  </div>
  {!isViewOnly() && (
-  <button 
+  <button
     data-testid="onboard-partner-btn"
-    className="btn-signature h-14 !px-6 !rounded-pill flex items-center justify-between gap-4 group transition-all" 
+    className="btn-signature !h-8 !rounded-lg !px-4 !text-xs !font-bold flex items-center gap-2"
     onClick={() => setIsAdding(true)}
   >
-  <span className="text-xs font-semibold px-2">Add Supplier</span>
-  <div className="icon-nest !w-10 !h-10 bg-black shadow-lg">
-  <Plus size={20} className="text-accent-signature" />
-  </div>
+  <Plus size={12} /> Add Supplier
   </button>
  )}
  </div>

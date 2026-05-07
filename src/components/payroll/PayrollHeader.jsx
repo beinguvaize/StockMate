@@ -21,17 +21,15 @@ const PayrollHeader = ({
   return (
     <div className="flex flex-col gap-6 mb-6">
       {/* Title */}
-      <div className="flex justify-between items-end pb-6 border-b border-black/5">
-        <div>
-          <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">
-            PAYROLL<span className="text-accent-signature">.</span>
+      <div className="flex justify-between items-center py-2 border-b border-black/5">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
+            Payroll<span className="text-accent-signature">.</span>
           </h1>
-          <p className="text-[10px] font-semibold text-gray-600 opacity-80 uppercase tracking-widest">
-            Staff Salaries &amp; Pay Runs
-          </p>
+          <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Staff salaries & pay runs</span>
         </div>
-        <div className="hidden md:block text-right text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-          {new Date().toLocaleString('default', { month: 'long', year: 'numeric' }).toUpperCase()}
+        <div className="text-[10px] font-semibold text-gray-400">
+          {new Date().toLocaleString('default', { month: 'long', year: 'numeric' })}
         </div>
       </div>
 

@@ -358,20 +358,18 @@ const Invoices = () => {
     <div className="animate-fade-in flex flex-col gap-6 pb-16">
 
       {/* Header */}
-      <div className="flex items-end justify-between">
-        <div>
-          <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight uppercase">
-            INVOICES<span className="text-accent-signature">.</span>
+      <div className="flex justify-between items-center py-2 border-b border-black/5">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
+            Invoices<span className="text-accent-signature">.</span>
           </h1>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mt-2">
-            GST billing & settlement
-          </p>
+          <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">GST billing & settlement</span>
         </div>
         <button
           onClick={() => setShowCreator(true)}
-          className="btn-signature h-12 !rounded-2xl px-6 flex items-center gap-2 uppercase font-black tracking-widest text-[10px]"
+          className="btn-signature !h-8 !rounded-lg !px-4 !text-xs !font-bold flex items-center gap-2"
         >
-          <Plus size={16} /> New Invoice
+          <Plus size={12} /> New Invoice
         </button>
       </div>
 
