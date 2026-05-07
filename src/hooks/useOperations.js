@@ -28,7 +28,7 @@ export const useOperations = (tenantId) => {
         supabase.from('movement_log').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(200),
         supabase.from('vehicles').select('*').eq('tenant_id', tenantId).order('name'),
         supabase.from('invoices')
-          .select('id, invoice_number, client_name, client_id, grand_total, paid_amount, payment_status, items, delivery_status, delivery_required, vehicle_route_id')
+          .select('id, invoice_number, client_name, client_id, grand_total, paid_amount, payment_status, items, delivery_status, delivery_required, vehicle_route_id, delivery_address, delivery_zone, delivery_date, delivery_notes, delivery_fee, created_at')
           .eq('tenant_id', tenantId)
           .eq('delivery_required', true)
           .in('delivery_status', ['PENDING', 'IN_TRANSIT'])
@@ -257,6 +257,36 @@ export const useOperations = (tenantId) => {
     return { success: true, error: null };
   };
 
+  // ── Failed Delivery ────────────────────────────────────────────────────
+  // Marks an invoice as FAILED, stores reason, resets to PENDING for re-queue.
+  const markFailedDelivery = async (invoiceId, reason) => {
+    const { error } = await supabase
+      .from('invoices')
+      .update({
+        delivery_status:          'PENDING',          // re-queue for next dispatch
+        failed_delivery_reason:   reason || 'Customer unavailable',
+        vehicle_route_id:         null,               // detach from current route
+      })
+      .eq('id', invoiceId)
+      .eq('tenant_id', tenantId);
+    if (!error) await fetchOperationsData();
+    return { success: !error, error };
+  };
+
+  // ── Proof of Delivery ──────────────────────────────────────────────────
+  const markDeliveredWithProof = async (invoiceId, proof) => {
+    const { error } = await supabase
+      .from('invoices')
+      .update({
+        delivery_status:  'DELIVERED',
+        delivery_proof:   proof || 'Confirmed by driver',
+      })
+      .eq('id', invoiceId)
+      .eq('tenant_id', tenantId);
+    if (!error) await fetchOperationsData();
+    return { success: !error, error };
+  };
+
   return {
     routes,
     routeStops,
@@ -273,5 +303,7 @@ export const useOperations = (tenantId) => {
     reconcileRoute,
     updateStopStatus,
     recordVanSale,
+    markFailedDelivery,
+    markDeliveredWithProof,
   };
 };

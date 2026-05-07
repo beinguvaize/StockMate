@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Search, Trash2, Printer, Receipt, Package, Wallet, CreditCard, Landmark,
-  Download, X, User, Clock, Calendar, CheckCircle2, AlertCircle, RotateCcw
+  Download, X, User, Clock, Calendar, CheckCircle2, AlertCircle, RotateCcw, Truck
 } from 'lucide-react';
 import Table from '../../../shared/Table';
 import Modal from '../../../shared/Modal';
@@ -63,7 +63,14 @@ const downloadCSV = (rows, filename) => {
 // ------------------------------------------------------------------
 // Component
 // ------------------------------------------------------------------
-const InvoiceList = ({ sales, clients, staff = [], products = [], onDelete, onPrint, onSettle, onReturn }) => {
+const DELIVERY_BADGE = {
+  PENDING:    { bg: 'bg-amber-50',   text: 'text-amber-700',   ring: 'ring-amber-200/60',   dot: 'bg-amber-400',   label: 'Awaiting Dispatch' },
+  IN_TRANSIT: { bg: 'bg-blue-50',    text: 'text-blue-700',    ring: 'ring-blue-200/60',    dot: 'bg-blue-500',    label: 'In Transit'        },
+  DELIVERED:  { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200/60', dot: 'bg-emerald-500', label: 'Delivered'         },
+  FAILED:     { bg: 'bg-red-50',     text: 'text-red-700',     ring: 'ring-red-200/60',     dot: 'bg-red-400',     label: 'Failed'            },
+};
+
+const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [], onDelete, onPrint, onSettle, onReturn }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | PAID | PENDING
   // Resolves cross-tenant cashier names (GLOBAL_ADMIN impersonation, etc.).
@@ -224,6 +231,10 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], onDelete, onPr
     const qty = itemCount(sale);
     const outstanding = outstandingOf(sale);
     const cashier = getCashier(sale);
+    // Delivery status from linked invoice
+    const linkedInvoice = invoices.find(i => i.sale_id === sale.id && i.delivery_required);
+    const deliveryStatus = linkedInvoice?.delivery_status?.toUpperCase();
+    const deliveryBadge = deliveryStatus ? DELIVERY_BADGE[deliveryStatus] : null;
 
     return (
       <tr
@@ -264,14 +275,22 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], onDelete, onPr
           )}
         </td>
         <td className="px-4 py-4 text-center">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-            paid
-              ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60'
-              : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/60'
-          }`}>
-            <span className={`w-1.5 h-1.5 rounded-full ${paid ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-            {paid ? 'Paid' : 'Pending'}
-          </span>
+          <div className="flex flex-col items-center gap-1">
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+              paid
+                ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60'
+                : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/60'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${paid ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              {paid ? 'Paid' : 'Pending'}
+            </span>
+            {deliveryBadge && (
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ring-1 ${deliveryBadge.bg} ${deliveryBadge.text} ${deliveryBadge.ring}`}>
+                <Truck size={9} />
+                {deliveryBadge.label}
+              </span>
+            )}
+          </div>
         </td>
         <td className="px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">

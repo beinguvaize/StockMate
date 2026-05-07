@@ -4,7 +4,7 @@ import { useTenant } from '../../context/TenantContext';
 import {
   UserCircle, Plus, Edit3, Trash2, Check,
   Phone, AlertCircle, Search, TrendingUp, Users, CreditCard, Clock,
-  Mail, Receipt, MapPin, ShieldCheck, FileText
+  Mail, Receipt, MapPin, ShieldCheck, FileText, Truck
 } from 'lucide-react';
 
 const ClientDirectory = ({
@@ -21,6 +21,7 @@ const ClientDirectory = ({
   handleDelete,
   hasPermission,
   onViewStatement,
+  clientDeliveries = [],
 }) => {
   const navigate = useNavigate();
   const { tenantSlug } = useParams();
@@ -152,6 +153,8 @@ const ClientDirectory = ({
             const stats = clientStats[client.id] || { totalSales: 0, orderCount: 0 };
             const outstanding = client.outstanding_balance || 0;
             const cleared = outstanding <= 0;
+            const pendingDelivCount = clientDeliveries.filter(d => d.client_id === client.id && d.delivery_status === 'PENDING').length;
+            const inTransitCount   = clientDeliveries.filter(d => d.client_id === client.id && d.delivery_status === 'IN_TRANSIT').length;
 
             return (
               <div
@@ -165,8 +168,18 @@ const ClientDirectory = ({
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-ink-primary truncate leading-tight">{client.name}</div>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                       <span className="text-[9px] font-semibold text-gray-400">{stats.orderCount} orders</span>
+                      {inTransitCount > 0 && (
+                        <span className="flex items-center gap-0.5 text-[8px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-pill">
+                          <Truck size={7} /> {inTransitCount} in transit
+                        </span>
+                      )}
+                      {pendingDelivCount > 0 && (
+                        <span className="flex items-center gap-0.5 text-[8px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-pill">
+                          <Truck size={7} /> {pendingDelivCount} pending
+                        </span>
+                      )}
                       {client.gstin && (
                         <span className="flex items-center gap-0.5 text-[8px] font-bold text-blue-500 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
                           <ShieldCheck size={7} /> GST

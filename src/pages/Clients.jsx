@@ -25,6 +25,7 @@ const Clients = () => {
   } = usePeople(currentTenantId);
   const { sales } = useSales(currentTenantId);
   const [clientPayments, setClientPayments] = useState([]);
+  const [clientDeliveries, setClientDeliveries] = useState([]);
 
   useEffect(() => {
     if (!currentTenantId) return;
@@ -38,6 +39,14 @@ const Clients = () => {
         if (error) console.error('clientPayments fetch error:', error);
         else if (data) setClientPayments(data);
       });
+
+    supabase
+      .from('invoices')
+      .select('id, client_id, delivery_status, delivery_date, delivery_address, delivery_zone')
+      .eq('tenant_id', currentTenantId)
+      .eq('delivery_required', true)
+      .in('delivery_status', ['PENDING', 'IN_TRANSIT'])
+      .then(({ data }) => { if (data) setClientDeliveries(data); });
   }, [currentTenantId]);
  const [activeTab, setActiveTab] = useState('DIRECTORY'); // DIRECTORY, AGING, PAYMENTS, STATEMENTS
  const [searchTerm, setSearchTerm] = useState('');
@@ -214,7 +223,7 @@ const Clients = () => {
  {/* Sub-Module Content */}
  <div className="min-h-[500px]">
   {activeTab === 'DIRECTORY' && (
-    <ClientDirectory 
+    <ClientDirectory
       filteredClients={filteredClients}
       clientStats={clientStats}
       topMetrics={topMetrics}
@@ -228,6 +237,7 @@ const Clients = () => {
       toggleStatus={toggleStatus}
       handleDelete={handleDelete}
       hasPermission={hasPermission}
+      clientDeliveries={clientDeliveries}
     />
   )}
 

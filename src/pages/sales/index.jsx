@@ -17,7 +17,7 @@ import SalesReturnForm from './components/SalesReturnForm';
 const SalesPage = () => {
   const { addNotification } = useNotifications();
   const { currentTenantId, businessProfile } = useTenant();
-  const { sales, clients, placeSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, loading: salesLoading } = useSales(currentTenantId);
+  const { sales, clients, invoices, placeSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, loading: salesLoading } = useSales(currentTenantId);
 
   // Wrap placeSale: auto-create invoice for credit sales (settlement) and
   // delivery sales (van dispatch queue), or both when combined.
@@ -66,6 +66,11 @@ const SalesPage = () => {
         // Delivery tracking
         delivery_required: isDelivery,
         delivery_status:   isDelivery ? 'PENDING' : null,
+        delivery_address:  isDelivery ? (saleData.deliveryAddress || null) : null,
+        delivery_zone:     isDelivery ? (saleData.deliveryZone    || null) : null,
+        delivery_date:     isDelivery ? (saleData.deliveryDate    || null) : null,
+        delivery_notes:    isDelivery ? (saleData.deliveryNotes   || null) : null,
+        delivery_fee:      isDelivery ? (saleData.deliveryFee     || 0)    : 0,
       });
     }
 
@@ -183,6 +188,7 @@ const SalesPage = () => {
             clients={clients}
             staff={staff}
             products={products}
+            invoices={invoices}
             onDelete={removeSale}
             onSettle={settleSale}
             onPrint={printSale}
