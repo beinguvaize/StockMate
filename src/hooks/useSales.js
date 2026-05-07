@@ -233,6 +233,15 @@ export const useSales = (tenantId) => {
         invoice_date: draft.invoice_date ?? (draft.date || todayISOInAppTZ()),
         due_date: draft.due_date ?? draft.dueDate ?? null,
         date: draft.date ?? new Date().toISOString(),
+        // Delivery tracking
+        delivery_required: draft.delivery_required ?? false,
+        delivery_status:   draft.delivery_status   ?? null,
+        delivery_address:  draft.delivery_address  ?? null,
+        delivery_zone:     draft.delivery_zone      ?? null,
+        delivery_date:     draft.delivery_date      ?? null,
+        delivery_notes:    draft.delivery_notes     ?? null,
+        delivery_fee:      draft.delivery_fee       ?? 0,
+        is_interstate:     draft.is_interstate      ?? false,
       };
       const { data: inserted, error: insErr } = await supabase
         .from('invoices')
