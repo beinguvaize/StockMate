@@ -938,111 +938,109 @@ const Dashboard = () => {
  {/* Actionable Alerts Section */}
  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
  {/* Low Stock Alerts */}
- <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 flex flex-col h-[400px]">
- <h3 className="text-xl font-bold mb-4 flex items-center justify-between text-ink-primary">
- <span className="flex items-center gap-2"><AlertCircle className="w-5 h-5 text-red-500" /> Low Stock</span>
- <span className="bg-red-100 text-red-700 text-[10px] font-semibold px-2 py-1 rounded-full">{lowStockProducts.length}</span>
- </h3>
- <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
- {lowStockProducts.length === 0 ? (
- <div className="h-full flex items-center justify-center text-gray-700 italic text-sm">All products are stocked.</div>
- ) : (
- lowStockProducts.map(item => (
- <div key={item.id} className="flex items-center justify-between p-4 rounded-lg bg-red-50 border border-red-100/30">
- <div className="flex-1 min-w-0">
- <div className="flex items-center gap-2 mb-1">
- <p className="font-bold text-ink-primary truncate text-sm">{item.name}</p>
- <span className="bg-red-500 text-white text-[9px] font-semibold px-1.5 py-0.5 rounded shadow-sm shrink-0">Low</span>
- </div>
- <p className="text-[10px] text-gray-700 font-mono">Current: <strong className="text-red-600">{(inventoryBalances || []).filter(b => b.product_id === item.id).reduce((s, b) => s + b.quantity, 0)}</strong> / Min: {item.low_stock_threshold || 10}</p>
- </div>
- <button onClick={() => navigate(`/${slug}/purchases`)} className="ml-3 shrink-0 bg-white border border-red-200 text-red-600 hover:bg-red-600 hover:text-white transition-colors text-xs font-bold px-3 py-1.5 rounded-xl shadow-sm">
- Restock
- </button>
- </div>
- ))
- )}
- </div>
+ <div className="bg-white rounded-[1.5rem] border border-black/5 shadow-sm flex flex-col h-[400px] overflow-hidden">
+   <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
+     <div className="flex items-center gap-2">
+       <AlertCircle size={13} className="text-red-500" />
+       <span className="text-xs font-black text-ink-primary uppercase tracking-wide">Low Stock</span>
+     </div>
+     <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-lg">{lowStockProducts.length}</span>
+   </div>
+   <div className="flex-1 overflow-y-auto divide-y divide-black/5">
+     {lowStockProducts.length === 0 ? (
+       <div className="h-full flex items-center justify-center text-[11px] text-gray-400 font-semibold">All products stocked</div>
+     ) : (
+       lowStockProducts.map(item => (
+         <div key={item.id} className="flex items-center justify-between px-5 py-3 hover:bg-canvas transition-colors">
+           <div className="flex-1 min-w-0">
+             <p className="text-xs font-bold text-ink-primary truncate">{item.name}</p>
+             <p className="text-[10px] text-gray-400 mt-0.5">
+               Stock: <strong className="text-red-500">{(inventoryBalances || []).filter(b => b.product_id === item.id).reduce((s, b) => s + b.quantity, 0)}</strong> / Min: {item.low_stock_threshold || 10}
+             </p>
+           </div>
+           <button onClick={() => navigate(`/${slug}/purchases`)} className="ml-3 shrink-0 text-[9px] font-black uppercase tracking-widest text-red-600 bg-red-50 border border-red-100 hover:bg-red-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+             Restock
+           </button>
+         </div>
+       ))
+     )}
+   </div>
  </div>
 
  {/* Salary Pending Alerts */}
- <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 flex flex-col h-[400px]">
- <h3 className="text-xl font-bold mb-4 flex items-center justify-between text-ink-primary">
- <span className="flex items-center gap-2"><Users className="w-5 h-5 text-amber-500" /> Salary Dues</span>
- <span className="bg-amber-100 text-amber-700 text-[10px] font-semibold px-2 py-1 rounded-full">{pendingSalaryAlerts.length}</span>
- </h3>
- <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
- {pendingSalaryAlerts.length === 0 ? (
- <div className="h-full flex items-center justify-center text-gray-700 italic text-sm">All salaries cleared.</div>
- ) : (
- pendingSalaryAlerts.map(emp => {
- const rate = emp.dailyRate ?? emp.daily_rate ?? 500;
- const days = emp.daysWorked ?? emp.days_worked ?? 0;
- const total = rate * days;
- const paid = emp.amountPaid ?? emp.amount_paid ?? 0;
- const pending = Math.max(0, total - paid);
- return (
- <div key={emp.id} className="flex flex-col p-4 rounded-lg bg-amber-50 border border-amber-100/30 gap-3">
- <div className="flex items-start justify-between">
- <div className="min-w-0 flex-1">
- <p className="font-bold text-ink-primary truncate text-sm">{emp.name}</p>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">{days} days × ₹{rate}</p>
- </div>
- <span className="bg-amber-500 text-white text-[10px] font-semibold px-2 py-1 rounded-lg shadow-sm shrink-0">₹{pending.toLocaleString()} Due</span>
- </div>
- <div className="flex items-center justify-between">
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Paid: ₹{paid.toLocaleString()} / Total: ₹{total.toLocaleString()}</p>
- <button onClick={() => navigate(`/${slug}/payroll`)} className="shrink-0 bg-white border border-amber-200 text-amber-700 hover:bg-amber-600 hover:text-white transition-colors text-xs font-bold px-3 py-1 rounded-xl shadow-sm">
- Pay Now
- </button>
- </div>
- </div>
- );
-})
- )}
- </div>
+ <div className="bg-white rounded-[1.5rem] border border-black/5 shadow-sm flex flex-col h-[400px] overflow-hidden">
+   <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
+     <div className="flex items-center gap-2">
+       <Users size={13} className="text-amber-500" />
+       <span className="text-xs font-black text-ink-primary uppercase tracking-wide">Salary Dues</span>
+     </div>
+     <span className="text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-lg">{pendingSalaryAlerts.length}</span>
+   </div>
+   <div className="flex-1 overflow-y-auto divide-y divide-black/5">
+     {pendingSalaryAlerts.length === 0 ? (
+       <div className="h-full flex items-center justify-center text-[11px] text-gray-400 font-semibold">All salaries cleared</div>
+     ) : (
+       pendingSalaryAlerts.map(emp => {
+         const rate = emp.dailyRate ?? emp.daily_rate ?? 500;
+         const days = emp.daysWorked ?? emp.days_worked ?? 0;
+         const total = rate * days;
+         const paid = emp.amountPaid ?? emp.amount_paid ?? 0;
+         const pending = Math.max(0, total - paid);
+         return (
+           <div key={emp.id} className="flex items-center justify-between px-5 py-3 hover:bg-canvas transition-colors">
+             <div className="flex-1 min-w-0">
+               <p className="text-xs font-bold text-ink-primary truncate">{emp.name}</p>
+               <p className="text-[10px] text-gray-400 mt-0.5">{days}d × ₹{rate} · paid ₹{paid.toLocaleString()}</p>
+             </div>
+             <div className="flex items-center gap-2 shrink-0 ml-3">
+               <span className="text-xs font-black text-amber-600 tabular-nums">₹{pending.toLocaleString()}</span>
+               <button onClick={() => navigate(`/${slug}/payroll`)} className="text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+                 Pay
+               </button>
+             </div>
+           </div>
+         );
+       })
+     )}
+   </div>
  </div>
 
  {/* Top Outstanding Clients */}
- <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 flex flex-col h-[400px]">
- <h3 className="text-xl font-bold mb-4 flex items-center justify-between text-ink-primary">
- <span className="flex items-center gap-2"><Activity className="w-5 h-5 text-indigo-500" /> Top Debtors</span>
- </h3>
- <div className="flex-1 overflow-y-auto space-y-3 pr-2 custom-scrollbar">
- {(!clients || clients.filter(c => c.outstanding_balance > 0).length === 0) ? (
- <div className="h-full flex items-center justify-center text-gray-700 italic text-sm">No outstanding balances.</div>
- ) : (
- [...(clients || [])]
- .filter(c => c.outstanding_balance > 0)
- .sort((a,b) => (b.outstanding_balance || 0) - (a.outstanding_balance || 0))
- .slice(0, 5)
- .map((client, idx) => {
- const out = client.outstanding_balance || 0;
- const colorClass = out > 5000 ? 'text-red-600' : out >= 1000 ? 'text-orange-600' : 'text-green-600';
- const bgClass = out > 5000 ? 'bg-red-50' : out >= 1000 ? 'bg-orange-50' : 'bg-green-50';
- const borderClass = out > 5000 ? 'border-red-100' : out >= 1000 ? 'border-orange-100' : 'border-green-100';
- 
- return (
- <div key={client.id} className={`flex items-center justify-between p-4 rounded-lg ${bgClass} border cursor-pointer border-opacity-[0.85] ${borderClass}`}>
- <div className="flex items-center gap-3 min-w-0">
- <div className="w-6 h-6 shrink-0 rounded-full bg-white text-ink-primary font-semibold text-sm flex items-center justify-center shadow-sm">
- #{idx + 1}
- </div>
- <p className="font-bold text-ink-primary text-sm truncate">{client.name}</p>
- </div>
- <div className="flex items-center gap-4 shrink-0">
- <p className={`text-sm font-semibold font-mono ${colorClass}`}>
- ₹{Math.round(out).toLocaleString()}
- </p>
- <button onClick={() => navigate(`/${slug}/clients`)} className="bg-white text-ink-primary hover:bg-ink-primary hover:text-white transition-colors text-[10px] font-semibold px-2.5 py-1.5 rounded-lg shadow-sm">
- Collect
- </button>
- </div>
- </div>
- );
-})
- )}
- </div>
+ <div className="bg-white rounded-[1.5rem] border border-black/5 shadow-sm flex flex-col h-[400px] overflow-hidden">
+   <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
+     <div className="flex items-center gap-2">
+       <Activity size={13} className="text-indigo-500" />
+       <span className="text-xs font-black text-ink-primary uppercase tracking-wide">Top Debtors</span>
+     </div>
+   </div>
+   <div className="flex-1 overflow-y-auto divide-y divide-black/5">
+     {(!clients || clients.filter(c => c.outstanding_balance > 0).length === 0) ? (
+       <div className="h-full flex items-center justify-center text-[11px] text-gray-400 font-semibold">No outstanding balances</div>
+     ) : (
+       [...(clients || [])]
+         .filter(c => c.outstanding_balance > 0)
+         .sort((a,b) => (b.outstanding_balance || 0) - (a.outstanding_balance || 0))
+         .slice(0, 5)
+         .map((client, idx) => {
+           const out = client.outstanding_balance || 0;
+           const amtColor = out > 5000 ? 'text-red-600' : out >= 1000 ? 'text-orange-500' : 'text-green-600';
+           return (
+             <div key={client.id} className="flex items-center justify-between px-5 py-3 hover:bg-canvas transition-colors cursor-pointer">
+               <div className="flex items-center gap-3 min-w-0">
+                 <span className="text-[9px] font-black text-gray-400 shrink-0 w-4 text-center">{idx + 1}</span>
+                 <p className="text-xs font-bold text-ink-primary truncate">{client.name}</p>
+               </div>
+               <div className="flex items-center gap-2 shrink-0 ml-3">
+                 <span className={`text-xs font-black tabular-nums ${amtColor}`}>₹{Math.round(out).toLocaleString()}</span>
+                 <button onClick={() => navigate(`/${slug}/clients`)} className="text-[9px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 border border-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+                   Collect
+                 </button>
+               </div>
+             </div>
+           );
+         })
+     )}
+   </div>
  </div>
  </div>
 
