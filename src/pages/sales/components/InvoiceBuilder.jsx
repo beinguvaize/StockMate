@@ -14,6 +14,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [fulfillmentType, setFulfillmentType] = useState('PICKUP'); // PICKUP | DELIVERY
+  const [deliveryDetails, setDeliveryDetails] = useState({
+    address: '', zone: '', date: '', notes: '', fee: '',
+  });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [clientSearch, setClientSearch]     = useState('');
   const [clientDropOpen, setClientDropOpen] = useState(false);
@@ -160,7 +163,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   const tax = cart.reduce((acc, item) => acc + (item.price * item.quantity * (item.taxRate / 100)), 0);
-  const total = subtotal + tax;
+  const deliveryFeeAmt = fulfillmentType === 'DELIVERY' ? (parseFloat(deliveryDetails.fee) || 0) : 0;
+  const total = subtotal + tax + deliveryFeeAmt;
 
   // Credit sales require a real client (so outstanding_balance has a target).
   // Block the CREDIT button when the cart is attached to WALKIN — auto-revert
@@ -206,6 +210,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         paymentMethod,
         status: isCreditSale ? 'PENDING' : 'COMPLETED',
         fulfillmentType,
+        deliveryAddress: deliveryDetails.address || null,
+        deliveryZone:    deliveryDetails.zone    || null,
+        deliveryDate:    deliveryDetails.date    || null,
+        deliveryNotes:   deliveryDetails.notes   || null,
+        deliveryFee:     parseFloat(deliveryDetails.fee) || 0,
       };
       const result = await onPlaceSale(saleData);
       if (result && result.error) {
@@ -221,6 +230,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       );
       setCart([]);
       setFulfillmentType('PICKUP');
+      setDeliveryDetails({ address: '', zone: '', date: '', notes: '', fee: '' });
       setShowPaymentModal(false);
     } catch (err) {
       addNotification(`Checkout error: ${err.message || err}`, 'error');
@@ -606,6 +616,68 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           ))}
         </div>
 
+        {/* Delivery Details — shown only when DELIVERY selected */}
+        {fulfillmentType === 'DELIVERY' && (
+          <div className="mt-4 p-4 bg-canvas rounded-2xl border border-black/8 space-y-3">
+            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Delivery Details</p>
+            <div>
+              <label className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Address *</label>
+              <input
+                type="text"
+                placeholder="Delivery address…"
+                value={deliveryDetails.address}
+                onChange={e => setDeliveryDetails(p => ({ ...p, address: e.target.value }))}
+                className="w-full bg-white border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Zone / Area</label>
+                <input
+                  type="text"
+                  placeholder="e.g. North Zone"
+                  value={deliveryDetails.zone}
+                  onChange={e => setDeliveryDetails(p => ({ ...p, zone: e.target.value }))}
+                  className="w-full bg-white border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Delivery Date</label>
+                <input
+                  type="date"
+                  value={deliveryDetails.date}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={e => setDeliveryDetails(p => ({ ...p, date: e.target.value }))}
+                  className="w-full bg-white border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Delivery Fee (₹)</label>
+                <input
+                  type="number"
+                  placeholder="0"
+                  min="0"
+                  value={deliveryDetails.fee}
+                  onChange={e => setDeliveryDetails(p => ({ ...p, fee: e.target.value }))}
+                  className="w-full bg-white border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                />
+              </div>
+              <div>
+                <label className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Notes</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Call before arriving"
+                  value={deliveryDetails.notes}
+                  onChange={e => setDeliveryDetails(p => ({ ...p, notes: e.target.value }))}
+                  className="w-full bg-white border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="border-t border-black/5 mt-4 pt-4">
           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Payment Method</p>
         </div>
@@ -659,6 +731,18 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           </div>
         </div>
         <div className="mt-8 bg-canvas rounded-2xl p-6 border border-black/5">
+          {deliveryFeeAmt > 0 && (
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Items</span>
+              <span className="text-xs font-semibold text-ink-primary">{formatCurrency(subtotal + tax)}</span>
+            </div>
+          )}
+          {deliveryFeeAmt > 0 && (
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1"><Truck size={10} /> Delivery Fee</span>
+              <span className="text-xs font-semibold text-ink-primary">+ {formatCurrency(deliveryFeeAmt)}</span>
+            </div>
+          )}
           <div className="flex justify-between items-center mb-1">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Amount Due</span>
             <span className="text-sm font-black text-ink-primary">{formatCurrency(total)}</span>

@@ -1,4 +1,4 @@
-import React, { useState, lazy, Suspense } from 'react';
+import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useOperations } from '../hooks/useOperations';
@@ -10,6 +10,7 @@ import {
   CheckCircle2, Edit3, Trash2, Wrench, Activity,
   Fuel, Package, Check, XCircle, Clock, ChevronDown,
   ShoppingCart, MinusCircle, PackagePlus, Map,
+  MapPin, AlertOctagon, Filter, RotateCcw,
 } from 'lucide-react';
 import { todayISOInAppTZ } from '../lib/utils';
 
@@ -51,6 +52,7 @@ const Vehicles = () => {
     vehicles, addVehicle, updateVehicle, deleteVehicle,
     routes, dispatchRoute, reconcileRoute,
     deliveryInvoices, routeStops, updateStopStatus, recordVanSale,
+    markFailedDelivery, markDeliveredWithProof,
   } = useOperations(currentTenantId);
 
   const { products, inventoryLocations, inventoryBalances } = useInventory(currentTenantId);
@@ -88,6 +90,14 @@ const Vehicles = () => {
   // Reconcile returned stock (productId → returned qty)
   const [reconcileReturned, setReconcileReturned] = useState({});
 
+  // Failed delivery
+  const [failedInvoiceId,   setFailedInvoiceId]   = useState(null);
+  const [failedReason,      setFailedReason]       = useState('');
+  const [failedSubmitting,  setFailedSubmitting]   = useState(false);
+
+  // Zone filter for pending deliveries
+  const [zoneFilter, setZoneFilter] = useState('ALL');
+
   // ── Derived ─────────────────────────────────────────────────────────────────
   const activeRoutes  = routes.filter(r => r.status === 'ACTIVE' || r.status === 'IN_TRANSIT');
   const pastRoutes    = routes
@@ -96,6 +106,20 @@ const Vehicles = () => {
     .slice(0, 30);
 
   const pendingDeliveries = deliveryInvoices.filter(i => i.delivery_status === 'PENDING');
+
+  // Zone grouping
+  const deliveryZones = useMemo
+    ? ['ALL', ...Array.from(new Set(pendingDeliveries.map(i => i.delivery_zone || 'Unzoned'))).sort()]
+    : ['ALL'];
+  const filteredPending = zoneFilter === 'ALL'
+    ? pendingDeliveries
+    : pendingDeliveries.filter(i => (i.delivery_zone || 'Unzoned') === zoneFilter);
+  const pendingByZone = pendingDeliveries.reduce((acc, inv) => {
+    const z = inv.delivery_zone || 'Unzoned';
+    if (!acc[z]) acc[z] = [];
+    acc[z].push(inv);
+    return acc;
+  }, {});
   const serviceAlerts     = vehicles.filter(v => serviceStatus(v.nextServiceDate));
 
   const getEmployeeName = (id) =>
@@ -433,20 +457,50 @@ const Vehicles = () => {
                     <Package size={36} className="text-gray-300 mx-auto mb-3" />
                     <p className="text-sm font-bold text-gray-400">No pending deliveries</p>
                     <p className="text-[10px] text-gray-300 mt-1">
-                      Go to Invoices and mark invoices as "Requires Delivery"
+                      Sales marked for delivery appear here automatically
                     </p>
                   </div>
                 ) : (
                   <>
-                    {pendingDeliveries.map(inv => {
+                    {/* Zone filter tabs */}
+                    {deliveryZones.length > 2 && (
+                      <div className="flex gap-1.5 flex-wrap">
+                        {deliveryZones.map(z => (
+                          <button
+                            key={z}
+                            onClick={() => setZoneFilter(z)}
+                            className={`flex items-center gap-1.5 px-3 py-1 rounded-pill text-[9px] font-black border transition-all ${
+                              zoneFilter === z
+                                ? 'bg-ink-primary text-accent-signature border-ink-primary'
+                                : 'bg-white border-black/8 text-gray-500 hover:border-black/20'
+                            }`}
+                          >
+                            {z !== 'ALL' && <MapPin size={9} />}{z === 'ALL' ? `All (${pendingDeliveries.length})` : `${z} (${(pendingByZone[z] || []).length})`}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {filteredPending.map(inv => {
                       const isExpanded = expandedInvoice === inv.id;
                       const items = Array.isArray(inv.items) ? inv.items : [];
+                      const hasFailed = !!inv.failed_delivery_reason;
                       return (
                         <div
                           key={inv.id}
-                          className="bg-white border border-black/5 rounded-2xl overflow-hidden hover:border-black/10 transition-all"
+                          className={`bg-white border rounded-2xl overflow-hidden hover:border-black/10 transition-all ${hasFailed ? 'border-amber-200' : 'border-black/5'}`}
                         >
-                          {/* Header row — click to expand */}
+                          {/* Failed re-queue banner */}
+                          {hasFailed && (
+                            <div className="flex items-center gap-2 px-5 py-2 bg-amber-50 border-b border-amber-100">
+                              <RotateCcw size={11} className="text-amber-600 shrink-0" />
+                              <span className="text-[9px] font-bold text-amber-700">
+                                Re-queued · Previous: {inv.failed_delivery_reason}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Header row */}
                           <button
                             type="button"
                             className="w-full flex items-center gap-4 px-5 py-4 text-left"
@@ -460,13 +514,22 @@ const Vehicles = () => {
                                 <span className="text-sm font-bold text-ink-primary">
                                   {(inv.invoice_number || inv.id).replace(/^#+/, '')}
                                 </span>
-                                <span className="text-[9px] font-semibold bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-pill">
-                                  INVOICE
-                                </span>
+                                {inv.delivery_zone && (
+                                  <span className="text-[9px] font-black bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-pill flex items-center gap-1">
+                                    <MapPin size={8} />{inv.delivery_zone}
+                                  </span>
+                                )}
+                                {inv.delivery_date && (
+                                  <span className="text-[9px] font-semibold bg-canvas border border-black/8 text-gray-600 px-2 py-0.5 rounded-pill">
+                                    {new Date(inv.delivery_date).toLocaleDateString('en-IN', { day:'numeric', month:'short' })}
+                                  </span>
+                                )}
                               </div>
-                              <div className="text-[10px] text-gray-400 mt-0.5 font-medium">
+                              <div className="text-[10px] text-gray-400 mt-0.5 font-medium flex items-center gap-1">
                                 {inv.client_name || '—'}
-                                {items.length ? ` · ${items.length} item${items.length > 1 ? 's' : ''}` : ''}
+                                {inv.delivery_address && (
+                                  <><span className="text-gray-300">·</span><MapPin size={9} className="shrink-0" /><span className="truncate max-w-[140px]">{inv.delivery_address}</span></>
+                                )}
                               </div>
                             </div>
                             <div className="flex items-center gap-3 shrink-0">
@@ -480,10 +543,33 @@ const Vehicles = () => {
                             </div>
                           </button>
 
-                          {/* Expandable items list */}
-                          {isExpanded && items.length > 0 && (
-                            <div className="border-t border-black/5 px-5 pb-4 pt-3 space-y-2">
-                              {items.map((item, idx) => (
+                          {/* Expandable detail */}
+                          {isExpanded && (
+                            <div className="border-t border-black/5 px-5 pb-4 pt-3 space-y-3">
+                              {/* Delivery meta */}
+                              {(inv.delivery_address || inv.delivery_notes || inv.delivery_fee > 0) && (
+                                <div className="bg-canvas rounded-xl p-3 space-y-1.5 text-[10px]">
+                                  {inv.delivery_address && (
+                                    <div className="flex gap-2 text-gray-600">
+                                      <MapPin size={11} className="shrink-0 mt-0.5 text-gray-400" />
+                                      <span className="font-medium">{inv.delivery_address}</span>
+                                    </div>
+                                  )}
+                                  {inv.delivery_notes && (
+                                    <div className="flex gap-2 text-gray-600">
+                                      <span className="text-gray-300">📝</span>
+                                      <span className="font-medium italic">{inv.delivery_notes}</span>
+                                    </div>
+                                  )}
+                                  {inv.delivery_fee > 0 && (
+                                    <div className="text-gray-600 font-semibold">
+                                      Delivery fee: {sym}{Number(inv.delivery_fee).toFixed(2)}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                              {/* Items */}
+                              {items.length > 0 && items.map((item, idx) => (
                                 <div key={item.id || idx} className="flex items-center justify-between gap-3">
                                   <div className="flex items-center gap-2 min-w-0">
                                     <div className="w-1.5 h-1.5 rounded-full bg-black/20 shrink-0" />
@@ -499,11 +585,18 @@ const Vehicles = () => {
                                   </div>
                                 </div>
                               ))}
-                            </div>
-                          )}
-                          {isExpanded && items.length === 0 && (
-                            <div className="border-t border-black/5 px-5 py-3 text-[11px] text-gray-400">
-                              No item details available.
+                              {items.length === 0 && (
+                                <p className="text-[11px] text-gray-400">No item details.</p>
+                              )}
+                              {/* Failed delivery button */}
+                              {hasPermission('OWNER') && (
+                                <button
+                                  onClick={() => { setFailedInvoiceId(inv.id); setFailedReason(''); }}
+                                  className="flex items-center gap-1.5 text-[9px] font-black text-red-500 border border-red-200 bg-red-50 px-3 py-1.5 rounded-xl hover:bg-red-100 transition-all"
+                                >
+                                  <AlertOctagon size={11} /> Mark Failed / Re-queue
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -514,7 +607,7 @@ const Vehicles = () => {
                         onClick={openDispatch}
                         className="btn-signature w-full !h-12 !text-xs flex items-center justify-center gap-3 !rounded-2xl"
                       >
-                        DISPATCH ALL {pendingDeliveries.length} DELIVERIES
+                        DISPATCH {filteredPending.length} DELIVERIES{zoneFilter !== 'ALL' ? ` · ${zoneFilter}` : ''}
                         <div className="icon-nest !w-8 !h-8"><Play size={16} /></div>
                       </button>
                     </div>
@@ -1026,9 +1119,24 @@ const Vehicles = () => {
                           <div className={`text-xs font-bold ${checked ? 'text-surface' : 'text-ink-primary'}`}>
                             {(inv.invoice_number || inv.id).replace(/^#+/, '')}
                           </div>
-                          <div className={`text-[9px] ${checked ? 'text-white/60' : 'text-gray-400'}`}>
-                            {inv.client_name}
+                          <div className={`text-[9px] flex items-center gap-1.5 flex-wrap ${checked ? 'text-white/60' : 'text-gray-400'}`}>
+                            <span>{inv.client_name}</span>
+                            {inv.delivery_zone && (
+                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${checked ? 'bg-white/10 text-white/80' : 'bg-blue-50 text-blue-600'}`}>
+                                {inv.delivery_zone}
+                              </span>
+                            )}
+                            {inv.delivery_date && (
+                              <span className={`text-[8px] ${checked ? 'text-white/50' : 'text-gray-400'}`}>
+                                {new Date(inv.delivery_date).toLocaleDateString('en-IN', { day:'numeric', month:'short' })}
+                              </span>
+                            )}
                           </div>
+                          {inv.delivery_address && (
+                            <div className={`text-[8px] mt-0.5 flex items-center gap-1 truncate ${checked ? 'text-white/40' : 'text-gray-300'}`}>
+                              <MapPin size={8} className="shrink-0" />{inv.delivery_address}
+                            </div>
+                          )}
                         </div>
                         <span className={`text-xs font-black tabular-nums shrink-0 ${checked ? 'text-accent-signature' : 'text-ink-primary'}`}>
                           {sym}{Number(inv.grand_total || 0).toFixed(2)}
@@ -1393,6 +1501,65 @@ const Vehicles = () => {
           }>
             <VehicleLiveMap vehicles={vehicles} tenantId={currentTenantId} />
           </Suspense>
+        </div>
+      )}
+
+      {/* ── Failed Delivery Modal ───────────────────────────────────────── */}
+      {failedInvoiceId && (
+        <div className="modal-overlay" onClick={() => setFailedInvoiceId(null)}>
+          <div className="glass-modal !max-w-md" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h2 className="text-base font-black font-sora text-ink-primary uppercase">
+                  Failed Delivery<span className="text-red-500">.</span>
+                </h2>
+                <p className="text-[10px] text-gray-400 mt-0.5">Order will be re-queued for next dispatch</p>
+              </div>
+              <button onClick={() => setFailedInvoiceId(null)} className="w-8 h-8 rounded-pill border border-black/10 flex items-center justify-center hover:bg-canvas">
+                <X size={14} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest block mb-1.5">Reason</label>
+                <select
+                  value={failedReason}
+                  onChange={e => setFailedReason(e.target.value)}
+                  className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-red-200"
+                >
+                  <option value="">Select reason…</option>
+                  <option value="Customer unavailable">Customer unavailable</option>
+                  <option value="Wrong address">Wrong address</option>
+                  <option value="Customer refused delivery">Customer refused delivery</option>
+                  <option value="Payment issue">Payment issue</option>
+                  <option value="Damaged goods">Damaged goods</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              {failedReason === 'Other' && (
+                <input
+                  type="text"
+                  placeholder="Describe reason…"
+                  className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-red-200"
+                  onChange={e => setFailedReason(e.target.value)}
+                />
+              )}
+              <button
+                disabled={!failedReason || failedSubmitting}
+                onClick={async () => {
+                  setFailedSubmitting(true);
+                  await markFailedDelivery(failedInvoiceId, failedReason);
+                  setFailedSubmitting(false);
+                  setFailedInvoiceId(null);
+                  setFailedReason('');
+                }}
+                className="w-full h-11 rounded-xl bg-red-500 text-white text-xs font-black hover:bg-red-600 disabled:opacity-40 transition-all flex items-center justify-center gap-2"
+              >
+                <RotateCcw size={14} />
+                {failedSubmitting ? 'Re-queuing…' : 'Confirm & Re-queue'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>
