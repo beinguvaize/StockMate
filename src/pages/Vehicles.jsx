@@ -567,78 +567,81 @@ const Vehicles = () => {
                           {/* Expanded detail */}
                           {isExpanded && (
                             <div className="border-t border-black/5">
-                              {/* Delivery meta strip */}
+
+                              {/* Delivery meta strip — full-width single row */}
                               {(inv.delivery_address || inv.delivery_notes || inv.delivery_fee > 0) && (
-                                <div className="px-5 py-3 bg-gray-50 border-b border-black/5 space-y-1.5">
-                                  {inv.delivery_address && (
-                                    <div className="flex items-start gap-2">
+                                <div className="px-5 py-3 bg-gray-50 border-b border-black/5">
+                                  <div className="flex items-start justify-between gap-4">
+                                    {/* Left: address + notes */}
+                                    <div className="flex items-start gap-2 min-w-0">
                                       <MapPin size={12} className="text-gray-400 shrink-0 mt-0.5" />
-                                      <span className="text-[11px] font-medium text-gray-700">{inv.delivery_address}</span>
+                                      <div className="min-w-0">
+                                        {inv.delivery_address && (
+                                          <p className="text-[11px] font-semibold text-gray-700">{inv.delivery_address}</p>
+                                        )}
+                                        {inv.delivery_notes && (
+                                          <p className="text-[10px] font-medium text-gray-500 italic mt-0.5">{inv.delivery_notes}</p>
+                                        )}
+                                      </div>
                                     </div>
-                                  )}
-                                  {inv.delivery_notes && (
-                                    <div className="flex items-start gap-2">
-                                      <span className="text-gray-400 text-[11px] shrink-0 mt-0.5">📝</span>
-                                      <span className="text-[11px] font-medium text-gray-600 italic">{inv.delivery_notes}</span>
-                                    </div>
-                                  )}
-                                  {inv.delivery_fee > 0 && (
-                                    <div className="flex items-center justify-between text-[11px]">
-                                      <span className="text-gray-500 font-medium">Delivery fee</span>
-                                      <span className="font-bold text-gray-700 tabular-nums">{sym}{Number(inv.delivery_fee).toFixed(2)}</span>
-                                    </div>
-                                  )}
+                                    {/* Right: delivery fee */}
+                                    {inv.delivery_fee > 0 && (
+                                      <div className="shrink-0 text-right">
+                                        <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Delivery Fee</p>
+                                        <p className="text-[12px] font-black text-gray-700 tabular-nums">{sym}{Number(inv.delivery_fee).toFixed(2)}</p>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
                               )}
 
-                              {/* Item list */}
-                              <div className="px-5 py-3 space-y-0">
-                                {/* Column headers */}
+                              {/* Item table — 4-column grid uses full width */}
+                              <div className="px-5 pt-3 pb-2">
                                 {items.length > 0 && (
-                                  <div className="flex items-center justify-between pb-2 mb-1 border-b border-black/5">
+                                  <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-6 pb-2 border-b border-black/5 mb-0.5">
                                     <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Item</span>
-                                    <div className="flex items-center gap-8">
-                                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Qty</span>
-                                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest w-16 text-right">Amount</span>
-                                    </div>
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-right w-20">Unit Price</span>
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-center w-10">Qty</span>
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest text-right w-20">Amount</span>
                                   </div>
                                 )}
                                 {items.length > 0 ? items.map((item, idx) => {
                                   const qty   = item.quantity ?? item.qty ?? 1;
-                                  const rate  = item.rate ?? item.price ?? item.unit_price ?? 0;
+                                  const rate  = Number(item.rate ?? item.price ?? item.unit_price ?? 0);
                                   const total = Number(item.total ?? (rate * qty));
                                   return (
                                     <div
                                       key={item.id || idx}
-                                      className={`flex items-center justify-between gap-3 py-2.5 ${idx !== items.length - 1 ? 'border-b border-black/4' : ''}`}
+                                      className={`grid grid-cols-[1fr_auto_auto_auto] gap-x-6 items-center py-2.5 ${idx !== items.length - 1 ? 'border-b border-black/4' : ''}`}
                                     >
                                       <span className="text-[12px] font-semibold text-ink-primary truncate">
                                         {item.name || item.product_name || item.productName || '—'}
                                       </span>
-                                      <div className="flex items-center gap-8 shrink-0">
-                                        <span className="text-[11px] font-medium text-gray-400 tabular-nums">×{qty}</span>
-                                        <span className="text-[12px] font-bold text-ink-primary tabular-nums w-16 text-right">
-                                          {sym}{total.toFixed(2)}
-                                        </span>
-                                      </div>
+                                      <span className="text-[11px] text-gray-400 tabular-nums text-right w-20">
+                                        {rate > 0 ? `${sym}${rate.toFixed(2)}` : '—'}
+                                      </span>
+                                      <span className="text-[11px] font-medium text-gray-500 tabular-nums text-center w-10">×{qty}</span>
+                                      <span className="text-[12px] font-bold text-ink-primary tabular-nums text-right w-20">
+                                        {sym}{total.toFixed(2)}
+                                      </span>
                                     </div>
                                   );
                                 }) : (
-                                  <p className="text-[11px] text-gray-400 py-2">No item details available.</p>
+                                  <p className="text-[11px] text-gray-400 py-3">No item details available.</p>
                                 )}
 
-                                {/* Total row */}
+                                {/* Order total row */}
                                 {items.length > 0 && (
-                                  <div className="flex items-center justify-between pt-3 mt-1 border-t border-black/8">
-                                    <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Order Total</span>
+                                  <div className="grid grid-cols-[1fr_auto] gap-x-6 items-center pt-3 mt-1 border-t border-black/8">
+                                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Order Total</span>
                                     <span className="text-sm font-black text-ink-primary tabular-nums">{sym}{grandTotal.toFixed(2)}</span>
                                   </div>
                                 )}
                               </div>
 
-                              {/* Actions */}
-                              {hasPermission('OWNER') && (
-                                <div className="px-5 pb-4 pt-1">
+                              {/* Actions row — space-between */}
+                              <div className="px-5 pb-4 pt-2 flex items-center justify-between gap-4">
+                                {hasPermission('OWNER') ? (
                                   <button
                                     onClick={() => { setFailedInvoiceId(inv.id); setFailedReason(''); }}
                                     className="flex items-center gap-2 text-[10px] font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-xl transition-all"
@@ -646,8 +649,16 @@ const Vehicles = () => {
                                     <AlertOctagon size={12} />
                                     Mark Failed / Re-queue
                                   </button>
-                                </div>
-                              )}
+                                ) : <span />}
+                                {/* Payment status pill */}
+                                <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border ${
+                                  inv.payment_status === 'PAID'
+                                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                                }`}>
+                                  {inv.payment_status === 'PAID' ? '✓ Paid' : 'Unpaid — Collect on Delivery'}
+                                </span>
+                              </div>
                             </div>
                           )}
                         </div>
