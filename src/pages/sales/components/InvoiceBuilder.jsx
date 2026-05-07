@@ -602,7 +602,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
     </div>
 
-    {/* ── Full-page Checkout ─────────────────────────────────────────────────── */}
+    {/* Full-page Checkout */}
     {showCheckout && (
       <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
         {/* Header */}
