@@ -92,7 +92,7 @@ const PayrollHeader = ({
           )}
           {!viewOnly && (
             <button
-              className="h-12 btn-signature rounded-xl shadow-lg flex items-center justify-center gap-3"
+              className="btn-signature flex items-center gap-3 text-xs font-black"
               onClick={openAdd}
             >
               <span className="text-xs font-black uppercase tracking-tight">ADD EMPLOYEE</span>

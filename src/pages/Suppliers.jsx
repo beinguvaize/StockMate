@@ -144,7 +144,7 @@ const Suppliers = () => {
  {!isViewOnly() && (
   <button
     data-testid="onboard-partner-btn"
-    className="btn-signature !h-8 !rounded-lg !px-4 !text-xs !font-bold flex items-center gap-2"
+    className="btn-signature flex items-center gap-2 text-xs font-black"
     onClick={() => setIsAdding(true)}
   >
   <Plus size={12} /> Add Supplier

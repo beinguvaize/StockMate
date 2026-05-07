@@ -115,7 +115,7 @@ const ClientDirectory = ({
           {hasPermission('clients', 'edit') && (
             <button
               onClick={openAdd}
-              className="btn-signature h-11 !rounded-pill !pl-5 !pr-2 flex items-center gap-3 shrink-0"
+              className="btn-signature flex items-center gap-3 text-xs font-black shrink-0"
             >
               <span className="text-xs font-bold tracking-wide">NEW CLIENT</span>
               <div className="w-8 h-8 rounded-full bg-ink-primary flex items-center justify-center">
@@ -132,7 +132,7 @@ const ClientDirectory = ({
           <UserCircle size={56} className="mx-auto mb-4 opacity-10" strokeWidth={1} />
           <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No clients found</p>
           {hasPermission('clients', 'edit') && (
-            <button onClick={openAdd} className="mt-6 btn-signature !h-11 !rounded-pill !px-8 text-xs font-bold">
+            <button onClick={openAdd} className="mt-6 btn-signature text-xs font-bold">
               ADD FIRST CLIENT
             </button>
           )}

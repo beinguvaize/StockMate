@@ -201,7 +201,7 @@ const Users = () => {
  <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Staff<span className="text-accent-signature">.</span></h1>
  <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Personnel & access control</span>
  </div>
- <button className="btn-signature !h-8 !rounded-lg !px-4 !text-xs !font-bold flex items-center gap-2" onClick={openAdd}>
+ <button className="btn-signature flex items-center gap-2 text-xs font-black" onClick={openAdd}>
  <UserPlus size={12} /> Add Staff
  </button>
  </div>

@@ -307,7 +307,7 @@ const Orders = () => {
         </div>
         <button
           onClick={openNew}
-          className="btn-signature !h-8 !rounded-lg !px-4 !text-xs !font-bold flex items-center gap-2 shrink-0"
+          className="btn-signature flex items-center gap-2 text-xs font-black shrink-0"
         >
           <Plus size={12} /> New Order</button>
       </div>

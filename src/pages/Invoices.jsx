@@ -367,7 +367,7 @@ const Invoices = () => {
         </div>
         <button
           onClick={() => setShowCreator(true)}
-          className="btn-signature !h-8 !rounded-lg !px-4 !text-xs !font-bold flex items-center gap-2"
+          className="btn-signature flex items-center gap-2 text-xs font-black"
         >
           <Plus size={12} /> New Invoice
         </button>

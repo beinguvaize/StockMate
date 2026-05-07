@@ -368,7 +368,7 @@ const Vehicles = () => {
             {/* Primary actions — always visible */}
             {hasPermission('MANAGE_FLEET') && (
               <button
-                className="!h-8 !rounded-lg !px-3 !text-xs font-bold flex items-center gap-1.5 border border-black/10 bg-white text-ink-primary hover:bg-canvas transition-all"
+                className="h-9 rounded-xl px-3 text-xs font-bold flex items-center gap-1.5 border border-black/10 bg-white text-ink-primary hover:bg-canvas transition-all shrink-0"
                 onClick={() => { setEditingVehicle(null); setVehicleForm(EMPTY_VEHICLE_FORM); setShowVehicleModal(true); }}
               >
                 <Plus size={12} /> Vehicle
@@ -376,7 +376,7 @@ const Vehicles = () => {
             )}
             {activeTab === 'DELIVERIES' && (
               <button
-                className="btn-signature !h-8 !rounded-lg !px-4 !text-xs !font-bold flex items-center gap-2"
+                className="btn-signature flex items-center gap-2 text-xs font-black"
                 onClick={openDispatch}
               >
                 <Play size={12} /> Dispatch

@@ -161,7 +161,7 @@ const Expenses = () => {
  </div>
  <div className="flex items-center gap-2">
  {hasPermission('ADD_EXPENSE') && (
- <button className="btn-signature !h-8 !rounded-lg !px-4 !text-xs !font-bold flex items-center gap-2" onClick={() => setIsAdding(true)}>
+ <button className="btn-signature flex items-center gap-2 text-xs font-black" onClick={() => setIsAdding(true)}>
  <Plus size={12} /> Add Expense
  </button>
  )}
