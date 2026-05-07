@@ -100,9 +100,9 @@ const Clients = () => {
 
  const filteredClients = useMemo(() => {
  return (clients || []).filter(client => {
- const matchesSearch = client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
- client.contact?.toLowerCase().includes(searchTerm.toLowerCase()) ||
- client.id.toLowerCase().includes(searchTerm.toLowerCase());
+ const matchesSearch = (client.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+ (client.contact || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+ String(client.id || '').toLowerCase().includes(searchTerm.toLowerCase());
  
  const matchesStatus = statusFilter === 'ALL' || client.status === statusFilter;
  

@@ -22,9 +22,9 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
 })
  .filter(log => {
  const matchesSearch = 
- log.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
- log.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
- log.notes?.toLowerCase().includes(searchTerm.toLowerCase());
+ (log.productName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+ (log.userName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+ (log.notes || '').toLowerCase().includes(searchTerm.toLowerCase());
  
  const matchesType = typeFilter === 'ALL' || log.type === typeFilter;
  

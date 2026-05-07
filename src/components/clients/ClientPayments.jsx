@@ -26,7 +26,7 @@ const ClientPayments = ({ clientPayments, clients, businessProfile }) => {
   const filtered = useMemo(() => {
     const q = searchTerm.toLowerCase();
     return enriched.filter(p =>
-      p.client_name.toLowerCase().includes(q) ||
+      (p.client_name || '').toLowerCase().includes(q) ||
       (p.notes || '').toLowerCase().includes(q) ||
       (METHOD_LABEL[p.payment_method] || '').toLowerCase().includes(q)
     );

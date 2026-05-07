@@ -55,7 +55,7 @@ const ClientReports = ({ clients, sales, businessProfile}) => {
  // 4c. Filtered Clients for Statement Search
  const filteredClients = useMemo(() => {
  return clients.filter(c => 
- c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+ (c.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
  (c.phone && c.phone.includes(searchTerm))
  ).slice(0, 5);
 }, [clients, searchTerm]);
