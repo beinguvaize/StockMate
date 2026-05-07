@@ -1,5 +1,5 @@
 import React, { useState, useRef} from 'react';
-import { NavLink, Outlet, Navigate, useParams} from 'react-router-dom';
+import { NavLink, Outlet, Navigate, useParams, useLocation} from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload} from 'lucide-react';
@@ -477,6 +477,23 @@ const Navbar = () => {
  );
 };
 
+const MainContent = () => {
+  const location = useLocation();
+  const isSales = location.pathname.endsWith('/sales');
+  return (
+    <main
+      key={location.pathname}
+      className={`flex-1 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out ${
+        isSales
+          ? 'px-4 sm:px-6 lg:px-8 py-2 md:py-4'
+          : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-2 md:py-6'
+      }`}
+    >
+      <Outlet />
+    </main>
+  );
+};
+
 const AppLayout = () => {
   const { currentUser, loading: authLoading } = useAuth();
   const { currentTenant, isImpersonating, stopImpersonating, loading: tenantLoading } = useTenant();
@@ -511,13 +528,8 @@ const AppLayout = () => {
       )}
       <Navbar />
       <NotificationStack />
-      
-      <main 
-        key={window.location.pathname}
-        className="flex-1 max-w-[1800px] w-full mx-auto px-4 sm:px-6 lg:px-12 py-2 md:py-6 animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out"
-      >
-        <Outlet />
-      </main>
+
+      <MainContent />
     </div>
   );
 };

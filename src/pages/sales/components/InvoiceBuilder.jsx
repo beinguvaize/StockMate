@@ -235,7 +235,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           />
         </div>
         
-        <div className="grid grid-cols-4 md:grid-cols-5 xl:grid-cols-6 gap-2 overflow-y-auto pr-2 pb-4">
+        <div className="grid grid-cols-4 md:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-2 overflow-y-auto pr-2 pb-4">
           {filteredProducts.map(product => {
             const ms = marginStatus[product.id] || {};
             const hasWarning = ms.belowFloor || ms.isLoss;
@@ -276,7 +276,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       </div>
 
       {/* Cart Area */}
-      <div className="w-full lg:w-[540px] glass-panel !p-0 flex flex-col overflow-hidden border-l border-black/5 shadow-2xl">
+      <div className="w-full lg:w-[580px] xl:w-[640px] glass-panel !p-0 flex flex-col overflow-hidden border-l border-black/5 shadow-2xl">
         {/* Cart header */}
         <div className="px-4 py-3 border-b border-black/5 flex justify-between items-center bg-canvas/30">
           <div className="flex items-center gap-2">
