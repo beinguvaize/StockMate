@@ -1088,211 +1088,247 @@ const Vehicles = () => {
         </div>
       )}
 
-      {/* ── DISPATCH MODAL ─────────────────────────────────────────────────────── */}
+      {/* ── DISPATCH FULL-PAGE OVERLAY ─────────────────────────────────────────── */}
       {showDispatchModal && (
-        <div className="modal-overlay">
-          <div className="glass-modal !max-w-2xl !p-0 overflow-hidden flex flex-col max-h-[90vh]">
-            {/* Compact header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-black/5 shrink-0">
-              <div className="flex items-center gap-3">
-                <h2 className="text-base font-black font-sora text-ink-primary leading-none uppercase">
-                  Dispatch<span className="text-accent-signature">.</span>
-                </h2>
-                <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Assign vehicle · driver · deliveries</span>
-              </div>
-              <button className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
-                onClick={() => setShowDispatchModal(false)}>
+        <div className="fixed inset-0 z-50 bg-canvas flex flex-col animate-fade-in">
+          {/* Header bar */}
+          <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-black/5 bg-white/80 backdrop-blur-sm">
+            <button
+              onClick={() => setShowDispatchModal(false)}
+              className="flex items-center gap-2 text-xs font-bold text-gray-400 hover:text-ink-primary transition-colors group"
+            >
+              <div className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center group-hover:bg-black/5 transition-all">
                 <X size={15} />
-              </button>
+              </div>
+              <span className="hidden sm:block">Cancel</span>
+            </button>
+
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-black font-sora text-ink-primary leading-none uppercase tracking-tight">
+                Dispatch<span className="text-accent-signature">.</span>
+              </h2>
+              <span className="hidden sm:block text-[10px] font-semibold text-gray-400">Assign vehicle · driver · deliveries</span>
             </div>
 
-            <form onSubmit={handleDispatch} className="flex flex-col flex-1 min-h-0">
-            <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
-              {/* Vehicle */}
-              <div>
-                <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Vehicle</label>
-                <select
-                  className="w-full bg-canvas border border-black/8 rounded-xl px-4 py-3.5 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30 appearance-none"
-                  value={dispatchForm.vehicleId}
-                  onChange={e => setDispatchForm({ ...dispatchForm, vehicleId: e.target.value })}>
-                  <option value="">Select vehicle...</option>
-                  {vehicles.map(v => <option key={v.id} value={v.id}>{v.name} — {v.plate}</option>)}
-                </select>
-              </div>
-
-              {/* Driver */}
-              <div>
-                <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Driver *</label>
-                <select
-                  className="w-full bg-canvas border border-black/8 rounded-xl px-4 py-3.5 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30 appearance-none"
-                  value={dispatchForm.driverId}
-                  onChange={e => setDispatchForm({ ...dispatchForm, driverId: e.target.value })}>
-                  <option value="">Select driver...</option>
-                  {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}{emp.position ? ` — ${emp.position}` : ''}</option>)}
-                </select>
-              </div>
-
-              {/* Route */}
-              <div>
-                <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Route / Area</label>
-                <input type="text"
-                  className="w-full bg-canvas border border-black/8 rounded-xl px-4 py-3 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30"
-                  placeholder="e.g. North Zone"
-                  value={dispatchForm.location}
-                  onChange={e => setDispatchForm({ ...dispatchForm, location: e.target.value })} />
-              </div>
-
-              {/* Deliveries */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-[10px] font-semibold text-gray-500">
-                    Select Deliveries ({selectedInvoices.length} of {pendingDeliveries.length})
-                  </label>
-                  <button type="button"
-                    className="text-[9px] font-bold text-accent-signature hover:underline"
-                    onClick={() => setSelectedInvoices(
-                      selectedInvoices.length === pendingDeliveries.length ? [] : pendingDeliveries.map(i => i.id)
-                    )}>
-                    {selectedInvoices.length === pendingDeliveries.length ? 'Deselect All' : 'Select All'}
-                  </button>
-                </div>
-                <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
-                  {pendingDeliveries.length === 0 ? (
-                    <div className="py-6 text-center text-[10px] text-gray-400">No pending deliveries</div>
-                  ) : pendingDeliveries.map(inv => {
-                    const checked = selectedInvoices.includes(inv.id);
-                    return (
-                      <button
-                        key={inv.id}
-                        type="button"
-                        onClick={() => toggleInvoice(inv.id)}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border text-left transition-all ${
-                          checked
-                            ? 'bg-ink-primary border-ink-primary'
-                            : 'bg-white border-black/8 hover:border-black/15'
-                        }`}
-                      >
-                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center shrink-0 ${
-                          checked ? 'bg-accent-signature border-accent-signature' : 'border-black/20'
-                        }`}>
-                          {checked && <Check size={10} className="text-ink-primary" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className={`text-xs font-bold ${checked ? 'text-surface' : 'text-ink-primary'}`}>
-                            {(inv.invoice_number || inv.id).replace(/^#+/, '')}
-                          </div>
-                          <div className={`text-[9px] flex items-center gap-1.5 flex-wrap ${checked ? 'text-white/60' : 'text-gray-400'}`}>
-                            <span>{inv.client_name}</span>
-                            {inv.delivery_zone && (
-                              <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${checked ? 'bg-white/10 text-white/80' : 'bg-blue-50 text-blue-600'}`}>
-                                {inv.delivery_zone}
-                              </span>
-                            )}
-                            {inv.delivery_date && (
-                              <span className={`text-[8px] ${checked ? 'text-white/50' : 'text-gray-400'}`}>
-                                {new Date(inv.delivery_date).toLocaleDateString('en-IN', { day:'numeric', month:'short' })}
-                              </span>
-                            )}
-                          </div>
-                          {inv.delivery_address && (
-                            <div className={`text-[8px] mt-0.5 flex items-center gap-1 truncate ${checked ? 'text-white/40' : 'text-gray-300'}`}>
-                              <MapPin size={8} className="shrink-0" />{inv.delivery_address}
-                            </div>
-                          )}
-                        </div>
-                        <span className={`text-xs font-black tabular-nums shrink-0 ${checked ? 'text-accent-signature' : 'text-ink-primary'}`}>
-                          {sym}{Number(inv.grand_total || 0).toFixed(2)}
-                        </span>
-                      </button>
-                    );
-                  })}
+            <div className="flex items-center gap-3">
+              <div className="text-right hidden sm:block">
+                <div className="text-[10px] font-semibold text-gray-400">{selectedInvoices.length} of {pendingDeliveries.length} deliveries</div>
+                <div className="text-sm font-black text-ink-primary tabular-nums">
+                  {sym}{selectedInvoices.reduce((s, id) => {
+                    const inv = deliveryInvoices.find(i => i.id === id);
+                    return s + (inv?.grand_total || 0);
+                  }, 0).toFixed(2)}
                 </div>
               </div>
+            </div>
+          </div>
 
-              {/* Van Load */}
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-[10px] font-semibold text-gray-500 flex items-center gap-1.5">
-                    <PackagePlus size={11} /> Van Stock Load (Optional)
-                  </label>
-                  <button type="button"
-                    className="text-[9px] font-bold text-accent-signature hover:underline flex items-center gap-1"
-                    onClick={addVanLoadRow}>
-                    + Add Product
-                  </button>
-                </div>
-                {vanLoadItems.length === 0 ? (
-                  <div className="py-4 text-center text-[10px] text-gray-400 border border-dashed border-black/10 rounded-xl">
-                    No van stock — driver will only deliver invoices
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {vanLoadItems.map((item, idx) => (
-                      <div key={idx} className="flex items-center gap-2 bg-canvas border border-black/8 rounded-xl px-3 py-2">
+          {/* Scrollable body */}
+          <form onSubmit={handleDispatch} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 overflow-y-auto">
+              <div className="max-w-5xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+
+                {/* ── LEFT COLUMN: Config ── */}
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">Route Configuration</h3>
+
+                    {/* Vehicle */}
+                    <div className="space-y-4">
+                      <div>
+                        <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Vehicle</label>
                         <select
-                          className="flex-1 bg-transparent text-xs font-semibold outline-none"
-                          value={item.productId}
-                          onChange={e => updateVanLoadRow(idx, 'productId', e.target.value)}>
-                          {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          className="w-full bg-white border border-black/8 rounded-xl px-4 py-3.5 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30 appearance-none"
+                          value={dispatchForm.vehicleId}
+                          onChange={e => setDispatchForm({ ...dispatchForm, vehicleId: e.target.value })}>
+                          <option value="">Select vehicle...</option>
+                          {vehicles.map(v => <option key={v.id} value={v.id}>{v.name} — {v.plate}</option>)}
                         </select>
-                        <input
-                          type="number" min="1"
-                          className="w-16 bg-white border border-black/8 rounded-lg px-2 py-1 text-xs font-bold text-center outline-none"
-                          value={item.qty}
-                          onChange={e => updateVanLoadRow(idx, 'qty', e.target.value)} />
-                        <span className="text-[9px] text-gray-400 shrink-0">pcs</span>
-                        <button type="button" onClick={() => removeVanLoadRow(idx)}
-                          className="text-red-400 hover:text-red-600 transition-colors shrink-0">
-                          <MinusCircle size={14} />
-                        </button>
                       </div>
-                    ))}
-                    <div className="text-[9px] text-gray-400 text-right">
-                      {vanLoadItems.reduce((s, i) => s + i.qty, 0)} units · {sym}{vanLoadItems.reduce((s, i) => s + i.qty * i.sellingPrice, 0).toFixed(2)} retail value
+
+                      {/* Driver */}
+                      <div>
+                        <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Driver *</label>
+                        <select
+                          className="w-full bg-white border border-black/8 rounded-xl px-4 py-3.5 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30 appearance-none"
+                          value={dispatchForm.driverId}
+                          onChange={e => setDispatchForm({ ...dispatchForm, driverId: e.target.value })}>
+                          <option value="">Select driver...</option>
+                          {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name}{emp.position ? ` — ${emp.position}` : ''}</option>)}
+                        </select>
+                      </div>
+
+                      {/* Route */}
+                      <div>
+                        <label className="text-[10px] font-semibold text-gray-500 block mb-1.5">Route / Area</label>
+                        <input type="text"
+                          className="w-full bg-white border border-black/8 rounded-xl px-4 py-3 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30"
+                          placeholder="e.g. North Zone"
+                          value={dispatchForm.location}
+                          onChange={e => setDispatchForm({ ...dispatchForm, location: e.target.value })} />
+                      </div>
                     </div>
                   </div>
-                )}
+
+                  {/* Van Load */}
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <PackagePlus size={11} /> Van Stock Load
+                        <span className="font-medium normal-case text-gray-300">(optional)</span>
+                      </h3>
+                      <button type="button"
+                        className="text-[9px] font-bold text-accent-signature hover:underline flex items-center gap-1"
+                        onClick={addVanLoadRow}>
+                        + Add Product
+                      </button>
+                    </div>
+                    {vanLoadItems.length === 0 ? (
+                      <div className="py-8 text-center text-[10px] text-gray-400 border border-dashed border-black/10 rounded-xl">
+                        No van stock — driver will only deliver invoices
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {vanLoadItems.map((item, idx) => (
+                          <div key={idx} className="flex items-center gap-2 bg-white border border-black/8 rounded-xl px-3 py-2.5">
+                            <select
+                              className="flex-1 bg-transparent text-xs font-semibold outline-none"
+                              value={item.productId}
+                              onChange={e => updateVanLoadRow(idx, 'productId', e.target.value)}>
+                              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                            </select>
+                            <input
+                              type="number" min="1"
+                              className="w-16 bg-canvas border border-black/8 rounded-lg px-2 py-1 text-xs font-bold text-center outline-none"
+                              value={item.qty}
+                              onChange={e => updateVanLoadRow(idx, 'qty', e.target.value)} />
+                            <span className="text-[9px] text-gray-400 shrink-0">pcs</span>
+                            <button type="button" onClick={() => removeVanLoadRow(idx)}
+                              className="text-red-400 hover:text-red-600 transition-colors shrink-0">
+                              <MinusCircle size={14} />
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex justify-between text-[9px] text-gray-400 px-1">
+                          <span>{vanLoadItems.reduce((s, i) => s + i.qty, 0)} units total</span>
+                          <span className="font-bold text-ink-primary">{sym}{vanLoadItems.reduce((s, i) => s + i.qty * i.sellingPrice, 0).toFixed(2)} retail value</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── RIGHT COLUMN: Deliveries ── */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                      Deliveries ({selectedInvoices.length} of {pendingDeliveries.length})
+                    </h3>
+                    <button type="button"
+                      className="text-[9px] font-bold text-accent-signature hover:underline"
+                      onClick={() => setSelectedInvoices(
+                        selectedInvoices.length === pendingDeliveries.length ? [] : pendingDeliveries.map(i => i.id)
+                      )}>
+                      {selectedInvoices.length === pendingDeliveries.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  </div>
+                  <div className="space-y-2">
+                    {pendingDeliveries.length === 0 ? (
+                      <div className="py-12 text-center text-[10px] text-gray-400 border border-dashed border-black/10 rounded-xl">No pending deliveries</div>
+                    ) : pendingDeliveries.map(inv => {
+                      const checked = selectedInvoices.includes(inv.id);
+                      return (
+                        <button
+                          key={inv.id}
+                          type="button"
+                          onClick={() => toggleInvoice(inv.id)}
+                          className={`w-full flex items-center gap-3 px-4 py-3.5 rounded-xl border text-left transition-all ${
+                            checked
+                              ? 'bg-ink-primary border-ink-primary'
+                              : 'bg-white border-black/8 hover:border-black/15'
+                          }`}
+                        >
+                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
+                            checked ? 'bg-accent-signature border-accent-signature' : 'border-black/20'
+                          }`}>
+                            {checked && <Check size={11} className="text-ink-primary" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className={`text-xs font-bold ${checked ? 'text-surface' : 'text-ink-primary'}`}>
+                              {(inv.invoice_number || inv.id).replace(/^#+/, '')}
+                              <span className={`ml-1.5 font-medium ${checked ? 'text-white/60' : 'text-gray-400'}`}>· {inv.client_name}</span>
+                            </div>
+                            <div className={`text-[9px] flex items-center gap-1.5 flex-wrap mt-0.5 ${checked ? 'text-white/50' : 'text-gray-400'}`}>
+                              {inv.delivery_zone && (
+                                <span className={`px-1.5 py-0.5 rounded text-[8px] font-black ${checked ? 'bg-white/10 text-white/80' : 'bg-blue-50 text-blue-600'}`}>
+                                  {inv.delivery_zone}
+                                </span>
+                              )}
+                              {inv.delivery_date && (
+                                <span>{new Date(inv.delivery_date).toLocaleDateString('en-IN', { day:'numeric', month:'short' })}</span>
+                              )}
+                              {inv.delivery_address && (
+                                <span className="flex items-center gap-0.5 truncate">
+                                  <MapPin size={8} className="shrink-0" />{inv.delivery_address}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <span className={`text-sm font-black tabular-nums shrink-0 ${checked ? 'text-accent-signature' : 'text-ink-primary'}`}>
+                            {sym}{Number(inv.grand_total || 0).toFixed(2)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
               </div>
+            </div>
 
-            </div>{/* end scroll area */}
-
-              {/* Sticky footer */}
-              <div className="px-6 py-4 border-t border-black/5 shrink-0 bg-white space-y-3">
+            {/* Sticky footer */}
+            <div className="shrink-0 border-t border-black/5 bg-white/90 backdrop-blur-sm px-6 py-4">
+              <div className="max-w-5xl mx-auto space-y-3">
                 {dispatchError && (
                   <div className="flex items-center gap-2 px-4 py-3 bg-red-50 border border-red-200 rounded-xl">
                     <AlertTriangle size={14} className="text-red-500 shrink-0" />
                     <span className="text-xs font-semibold text-red-600">{dispatchError}</span>
                   </div>
                 )}
-                <div className="flex items-center justify-between text-[10px] text-gray-400">
-                  <span>{selectedInvoices.length} deliveries · {vanLoadItems.length > 0 ? `${vanLoadItems.reduce((s,i)=>s+i.qty,0)} van units · ` : ''}{todayISOInAppTZ()}</span>
-                  <span className="font-black text-ink-primary tabular-nums">
-                    Total: {sym}{selectedInvoices.reduce((s, id) => {
-                      const inv = deliveryInvoices.find(i => i.id === id);
-                      return s + (inv?.grand_total || 0);
-                    }, 0).toFixed(2)}
-                  </span>
-                </div>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="btn-signature w-full !h-12 !text-sm flex items-center justify-center gap-3 !rounded-xl"
-                >
-                  {submitting ? (
-                    <span className="flex items-center gap-2">
-                      <span className="w-4 h-4 border-2 border-ink-primary/30 border-t-ink-primary rounded-full animate-spin" />
-                      Dispatching…
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 flex items-center gap-4 text-[10px] text-gray-400">
+                    <span className="font-semibold">{selectedInvoices.length} deliveries</span>
+                    {vanLoadItems.length > 0 && <span>{vanLoadItems.reduce((s,i)=>s+i.qty,0)} van units</span>}
+                    <span className="text-gray-300">·</span>
+                    <span>{todayISOInAppTZ()}</span>
+                    <span className="ml-auto font-black text-sm text-ink-primary tabular-nums">
+                      Total: {sym}{selectedInvoices.reduce((s, id) => {
+                        const inv = deliveryInvoices.find(i => i.id === id);
+                        return s + (inv?.grand_total || 0);
+                      }, 0).toFixed(2)}
                     </span>
-                  ) : (
-                    <>
-                      CONFIRM DISPATCH
-                      <div className="icon-nest !w-8 !h-8"><CheckCircle2 size={18} /></div>
-                    </>
-                  )}
-                </button>
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="btn-signature !h-12 !px-10 !text-sm flex items-center justify-center gap-3 !rounded-xl shrink-0"
+                  >
+                    {submitting ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-4 h-4 border-2 border-ink-primary/30 border-t-ink-primary rounded-full animate-spin" />
+                        Dispatching…
+                      </span>
+                    ) : (
+                      <>
+                        CONFIRM DISPATCH
+                        <div className="icon-nest !w-8 !h-8"><CheckCircle2 size={18} /></div>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
-            </form>
-          </div>
+            </div>
+          </form>
         </div>
       )}
 
