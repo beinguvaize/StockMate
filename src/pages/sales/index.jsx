@@ -84,7 +84,15 @@ const SalesPage = () => {
 
   const isLoading = salesLoading || productsLoading;
 
-  if (isLoading) return (
+  // Timeout guard: if loading for >10s, break out and render with whatever data is available
+  const [loadTimeout, setLoadTimeout] = React.useState(false);
+  React.useEffect(() => {
+    if (!isLoading) { setLoadTimeout(false); return; }
+    const t = setTimeout(() => setLoadTimeout(true), 10000);
+    return () => clearTimeout(t);
+  }, [isLoading]);
+
+  if (isLoading && !loadTimeout) return (
     <div className="flex items-center justify-center p-20">
       <div className="text-sm font-bold opacity-50 animate-pulse">Loading sales...</div>
     </div>
