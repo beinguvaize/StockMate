@@ -98,9 +98,12 @@ const Dashboard = () => {
 }, 0);
 
   const lowStockProducts = (products || []).filter(p => {
-    const threshold = p.lowStockThreshold || 10;
-    const totalQty = (inventoryBalances || []).filter(b => b.product_id === p.id).reduce((s, b) => s + b.quantity, 0);
-    return totalQty <= threshold;
+    const threshold = p.low_stock_threshold ?? p.lowStockThreshold ?? 10;
+    const balances = (inventoryBalances || []).filter(b => b.product_id === p.id);
+    const totalQty = balances.length > 0
+      ? balances.reduce((s, b) => s + b.quantity, 0)
+      : (p.stock ?? 0);
+    return totalQty < threshold;
   });
  const pendingSalaryAlerts = (employees || []).filter(e => ((e.dailyRate ?? e.daily_rate ?? 500) * (e.daysWorked ?? e.days_worked ?? 0)) > (e.amountPaid ?? e.amount_paid ?? 0));
 
@@ -955,7 +958,12 @@ const Dashboard = () => {
            <div className="flex-1 min-w-0">
              <p className="text-xs font-bold text-ink-primary truncate">{item.name}</p>
              <p className="text-[10px] text-gray-400 mt-0.5">
-               Stock: <strong className="text-red-500">{(inventoryBalances || []).filter(b => b.product_id === item.id).reduce((s, b) => s + b.quantity, 0)}</strong> / Min: {item.low_stock_threshold || 10}
+               {(() => {
+                 const bal = (inventoryBalances || []).filter(b => b.product_id === item.id);
+                 const qty = bal.length > 0 ? bal.reduce((s, b) => s + b.quantity, 0) : (item.stock ?? 0);
+                 const min = item.low_stock_threshold ?? item.lowStockThreshold ?? 10;
+                 return <> Stock: <strong className="text-red-500">{qty}</strong> / Min: {min} </>;
+               })()}
              </p>
            </div>
            <button onClick={() => navigate(`/${slug}/purchases`)} className="ml-3 shrink-0 text-[9px] font-black uppercase tracking-widest text-red-600 bg-red-50 border border-red-100 hover:bg-red-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
