@@ -12,11 +12,31 @@ import { useNotifications } from '../hooks/useNotifications';
 import { useTenant } from '../context/TenantContext';
 
 const MODULES = [
- { key: 'products', label: 'Products', fields: ['id','sku','name','category','unit','costPrice','sellingPrice','stock','taxRate','tags','image']},
- { key: 'shops', label: 'Clients / Shops', fields: ['id','name','contact','phone','address']},
- { key: 'orders', label: 'Orders', fields: ['id','shopId','date','totalAmount','totalCogs','paymentMethod','paymentStatus','status']},
- { key: 'expenses', label: 'Expenses', fields: ['id','category','amount','note','date']},
- { key: 'employees', label: 'Employees', fields: ['id','name','role','status','salary']},
+ { key: 'products', label: 'Products',
+   fields: ['id','sku','name','category','unit','costPrice','sellingPrice','stock','taxRate','tags','image'],
+   requiredFields: ['name','costPrice','sellingPrice'],
+   signatureFields: ['costPrice','sellingPrice','stock','taxRate'],
+ },
+ { key: 'shops', label: 'Clients / Shops',
+   fields: ['id','name','contact','phone','address'],
+   requiredFields: ['name'],
+   signatureFields: ['contact','phone','address'],
+ },
+ { key: 'orders', label: 'Orders',
+   fields: ['id','shopId','date','totalAmount','totalCogs','paymentMethod','paymentStatus','status'],
+   requiredFields: ['shopId','totalAmount','date'],
+   signatureFields: ['shopId','totalAmount','paymentMethod','paymentStatus'],
+ },
+ { key: 'expenses', label: 'Expenses',
+   fields: ['id','category','amount','note','date'],
+   requiredFields: ['category','amount','date'],
+   signatureFields: ['category','amount','note'],
+ },
+ { key: 'employees', label: 'Employees',
+   fields: ['id','name','role','status','salary'],
+   requiredFields: ['name','salary'],
+   signatureFields: ['role','salary'],
+ },
 ];
 
 /**
@@ -174,6 +194,48 @@ const DataTools = ({ isOpen, onClose}) => {
  setImportResult({ success: false, message: 'No records found in file'});
  return;
 }
+
+ // ── Header validation ──────────────────────────────────────────
+ const fileHeaders = Object.keys(records[0]);
+ const mod = MODULES.find(m => m.key === selectedModule);
+
+ // 1. Check required fields all present
+ const missingRequired = mod.requiredFields.filter(f => !fileHeaders.includes(f));
+ if (missingRequired.length > 0) {
+   // Check if it matches a different module (wrong file selected)
+   const matchedMod = MODULES.find(m =>
+     m.key !== selectedModule &&
+     m.signatureFields.some(f => fileHeaders.includes(f))
+   );
+   const hint = matchedMod
+     ? ` This looks like a ${matchedMod.label} file.`
+     : '';
+   setImportResult({
+     success: false,
+     message: `Wrong file for "${mod.label}". Missing required fields: ${missingRequired.join(', ')}.${hint} Select the correct module or fix the file.`,
+   });
+   setImportData(null);
+   setImportPreview([]);
+   return;
+ }
+
+ // 2. Check signature overlap — detect completely wrong entity
+ const sigMatches = mod.signatureFields.filter(f => fileHeaders.includes(f));
+ if (sigMatches.length === 0) {
+   const matchedMod = MODULES.find(m =>
+     m.key !== selectedModule &&
+     m.signatureFields.some(f => fileHeaders.includes(f))
+   );
+   const hint = matchedMod ? ` Looks like a "${matchedMod.label}" file.` : '';
+   setImportResult({
+     success: false,
+     message: `File headers don't match "${mod.label}" format.${hint} Expected: ${mod.signatureFields.join(', ')}.`,
+   });
+   setImportData(null);
+   setImportPreview([]);
+   return;
+ }
+ // ─────────────────────────────────────────────────────────────
 
  setImportData(records);
  setImportPreview(records.slice(0, 5));
@@ -364,6 +426,9 @@ const DataTools = ({ isOpen, onClose}) => {
  {importFileName || 'Click to select CSV or JSON file'}
  </span>
  <span className="text-[8px] font-bold text-gray-700/20">Accepts .csv and .json files</span>
+ <span className="text-[8px] font-bold text-gray-700/30 text-center px-4">
+   Required: {MODULES.find(m => m.key === selectedModule)?.requiredFields.join(', ')}
+ </span>
  </div>
 
  {/* Preview */}
