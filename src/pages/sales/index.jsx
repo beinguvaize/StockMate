@@ -117,19 +117,19 @@ const SalesPage = () => {
           </h1>
           {/* Today's live stats */}
           <div className="hidden sm:flex items-center gap-1.5">
-            <div className="flex items-center gap-1 bg-emerald-50 border border-emerald-100 text-emerald-700 px-2 py-1 rounded-lg">
-              <TrendingUp size={10} />
+            <div className="flex items-center gap-1.5 bg-white border border-black/8 text-ink-primary px-2.5 py-1 rounded-lg h-7">
+              <TrendingUp size={10} className="text-emerald-500 shrink-0" />
               <span className="text-[10px] font-black">{formatCurrency(todayStats.revenue)}</span>
-              <span className="text-[9px] font-medium opacity-60">today</span>
+              <span className="text-[9px] font-medium text-gray-400">today</span>
             </div>
-            <div className="flex items-center gap-1 bg-canvas border border-black/5 text-ink-primary px-2 py-1 rounded-lg">
-              <Receipt size={10} className="opacity-40" />
+            <div className="flex items-center gap-1.5 bg-white border border-black/8 text-ink-primary px-2.5 py-1 rounded-lg h-7">
+              <Receipt size={10} className="opacity-40 shrink-0" />
               <span className="text-[10px] font-black">{todayStats.count}</span>
               <span className="text-[9px] font-medium text-gray-400">txns</span>
             </div>
             {todayStats.count > 0 && (
-              <div className="flex items-center gap-1 bg-canvas border border-black/5 text-ink-primary px-2 py-1 rounded-lg">
-                <BarChart2 size={10} className="opacity-40" />
+              <div className="flex items-center gap-1.5 bg-white border border-black/8 text-ink-primary px-2.5 py-1 rounded-lg h-7">
+                <BarChart2 size={10} className="opacity-40 shrink-0" />
                 <span className="text-[10px] font-black">{formatCurrency(todayStats.avg)}</span>
                 <span className="text-[9px] font-medium text-gray-400">avg</span>
               </div>
