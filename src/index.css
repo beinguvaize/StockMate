@@ -167,7 +167,6 @@ body {
 }
 
 /* Page hero titles — uppercase, reduced size, tight tracking like command center */
-[data-theme="white"] .font-sora,
 [data-theme="white"] .text-7xl,
 [data-theme="white"] .text-6xl,
 [data-theme="white"] .text-5xl,
