@@ -146,6 +146,7 @@ body {
   --color-ink-tertiary: #888888;
   --color-accent-signature: #111111;
   --color-accent-signature-hover: #333333;
+  --color-button-text: #FFFFFF;
   --bg-color: #FFFFFF;
   --accent-lime: #111111;
   --accent-lime-hover: #333333;
@@ -201,6 +202,7 @@ body {
   --color-ink-tertiary: #64748B;
   --color-accent-signature: #3B82F6;
   --color-accent-signature-hover: #2563EB;
+  --color-button-text: #FFFFFF;
   --bg-color: #F0F4FF;
   --accent-lime: #3B82F6;
   --accent-lime-hover: #2563EB;
@@ -214,6 +216,7 @@ body {
   --color-ink-tertiary: #9F6882;
   --color-accent-signature: #F43F5E;
   --color-accent-signature-hover: #E11D48;
+  --color-button-text: #FFFFFF;
   --bg-color: #FFF5F7;
   --accent-lime: #F43F5E;
   --accent-lime-hover: #E11D48;
@@ -227,6 +230,7 @@ body {
   --color-ink-tertiary: #92692A;
   --color-accent-signature: #F59E0B;
   --color-accent-signature-hover: #D97706;
+  --color-button-text: #111111;
   --bg-color: #FFFBF0;
   --accent-lime: #F59E0B;
   --accent-lime-hover: #D97706;
@@ -240,6 +244,7 @@ body {
   --color-ink-tertiary: #64748B;
   --color-accent-signature: #6366F1;
   --color-accent-signature-hover: #4F46E5;
+  --color-button-text: #FFFFFF;
   --bg-color: #F1F5F9;
   --accent-lime: #6366F1;
   --accent-lime-hover: #4F46E5;
@@ -253,6 +258,7 @@ body {
   --color-ink-tertiary: #737373;
   --color-accent-signature: #C8F135;
   --color-accent-signature-hover: #b8e224;
+  --color-button-text: #111111;
   --bg-color: #0F0F0F;
   --accent-lime: #C8F135;
   --accent-lime-hover: #b8e224;
@@ -280,6 +286,7 @@ body {
   --color-ink-tertiary: #6B7280;
   --color-accent-signature: #C8F135;
   --color-accent-signature-hover: #b8e224;
+  --color-button-text: #111111;
 
   --radius-bento: 2rem;
   --radius-pill: 9999px;
