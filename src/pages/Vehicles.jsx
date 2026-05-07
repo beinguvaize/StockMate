@@ -485,117 +485,168 @@ const Vehicles = () => {
                       const isExpanded = expandedInvoice === inv.id;
                       const items = Array.isArray(inv.items) ? inv.items : [];
                       const hasFailed = !!inv.failed_delivery_reason;
+                      const itemCount = items.length;
+                      const grandTotal = Number(inv.grand_total || 0);
                       return (
                         <div
                           key={inv.id}
-                          className={`bg-white border rounded-2xl overflow-hidden hover:border-black/10 transition-all ${hasFailed ? 'border-amber-200' : 'border-black/5'}`}
+                          className={`bg-white border rounded-2xl overflow-hidden transition-all ${
+                            hasFailed ? 'border-amber-300 shadow-sm shadow-amber-100' : 'border-black/8 hover:border-black/15 hover:shadow-sm'
+                          }`}
                         >
-                          {/* Failed re-queue banner */}
+                          {/* Re-queue banner */}
                           {hasFailed && (
-                            <div className="flex items-center gap-2 px-5 py-2 bg-amber-50 border-b border-amber-100">
-                              <RotateCcw size={11} className="text-amber-600 shrink-0" />
-                              <span className="text-[9px] font-bold text-amber-700">
-                                Re-queued · Previous: {inv.failed_delivery_reason}
+                            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200">
+                              <RotateCcw size={10} className="text-amber-600 shrink-0" />
+                              <span className="text-[9px] font-bold text-amber-700 uppercase tracking-wide">
+                                Re-queued — Prior failure: {inv.failed_delivery_reason}
                               </span>
                             </div>
                           )}
 
-                          {/* Header row */}
+                          {/* Header */}
                           <button
                             type="button"
-                            className="w-full flex items-center gap-4 px-5 py-4 text-left"
+                            className="w-full flex items-center gap-4 px-5 py-4 text-left group"
                             onClick={() => setExpandedInvoice(isExpanded ? null : inv.id)}
                           >
-                            <div className="w-10 h-10 rounded-xl bg-canvas border border-black/8 flex items-center justify-center shrink-0">
-                              <Package size={16} className="text-ink-primary" />
+                            {/* Icon */}
+                            <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                              hasFailed ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-100'
+                            }`}>
+                              <Package size={16} className={hasFailed ? 'text-amber-600' : 'text-blue-600'} />
                             </div>
+
+                            {/* Main info */}
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-bold text-ink-primary">
+                              {/* Row 1: invoice ref + badges */}
+                              <div className="flex items-center gap-2 flex-wrap mb-1">
+                                <span className="text-sm font-black text-ink-primary tracking-tight">
                                   {(inv.invoice_number || inv.id).replace(/^#+/, '')}
                                 </span>
+                                {inv.delivery_date && (
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-canvas border border-black/8 text-gray-500 px-2 py-0.5 rounded-md">
+                                    <Calendar size={8} />
+                                    {new Date(inv.delivery_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                  </span>
+                                )}
                                 {inv.delivery_zone && (
-                                  <span className="text-[9px] font-black bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-pill flex items-center gap-1">
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-md">
                                     <MapPin size={8} />{inv.delivery_zone}
                                   </span>
                                 )}
-                                {inv.delivery_date && (
-                                  <span className="text-[9px] font-semibold bg-canvas border border-black/8 text-gray-600 px-2 py-0.5 rounded-pill">
-                                    {new Date(inv.delivery_date).toLocaleDateString('en-IN', { day:'numeric', month:'short' })}
-                                  </span>
-                                )}
                               </div>
-                              <div className="text-[10px] text-gray-400 mt-0.5 font-medium flex items-center gap-1">
-                                {inv.client_name || '—'}
+                              {/* Row 2: client + address */}
+                              <div className="flex items-center gap-1 text-[11px] text-gray-500 font-medium min-w-0">
+                                <span className="font-semibold text-gray-700 shrink-0">{inv.client_name || '—'}</span>
                                 {inv.delivery_address && (
-                                  <><span className="text-gray-300">·</span><MapPin size={9} className="shrink-0" /><span className="truncate max-w-[140px]">{inv.delivery_address}</span></>
+                                  <>
+                                    <span className="text-gray-300 mx-1">·</span>
+                                    <MapPin size={9} className="text-gray-400 shrink-0" />
+                                    <span className="truncate">{inv.delivery_address}</span>
+                                  </>
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-3 shrink-0">
-                              <div className="text-sm font-black text-ink-primary tabular-nums">
-                                {sym}{Number(inv.grand_total || 0).toFixed(2)}
-                              </div>
-                              <ChevronDown
-                                size={14}
-                                className={`text-gray-400 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                              />
+
+                            {/* Right: total + item count + chevron */}
+                            <div className="flex flex-col items-end gap-1 shrink-0">
+                              <span className="text-base font-black text-ink-primary tabular-nums">
+                                {sym}{grandTotal.toFixed(2)}
+                              </span>
+                              <span className="text-[9px] text-gray-400 font-medium">
+                                {itemCount} item{itemCount !== 1 ? 's' : ''}
+                              </span>
                             </div>
+                            <ChevronDown
+                              size={14}
+                              className={`text-gray-400 transition-transform duration-200 shrink-0 ml-1 ${isExpanded ? 'rotate-180' : ''}`}
+                            />
                           </button>
 
-                          {/* Expandable detail */}
+                          {/* Expanded detail */}
                           {isExpanded && (
-                            <div className="border-t border-black/5 px-5 pb-4 pt-3 space-y-3">
-                              {/* Delivery meta */}
+                            <div className="border-t border-black/5">
+                              {/* Delivery meta strip */}
                               {(inv.delivery_address || inv.delivery_notes || inv.delivery_fee > 0) && (
-                                <div className="bg-canvas rounded-xl p-3 space-y-1.5 text-[10px]">
+                                <div className="px-5 py-3 bg-gray-50 border-b border-black/5 space-y-1.5">
                                   {inv.delivery_address && (
-                                    <div className="flex gap-2 text-gray-600">
-                                      <MapPin size={11} className="shrink-0 mt-0.5 text-gray-400" />
-                                      <span className="font-medium">{inv.delivery_address}</span>
+                                    <div className="flex items-start gap-2">
+                                      <MapPin size={12} className="text-gray-400 shrink-0 mt-0.5" />
+                                      <span className="text-[11px] font-medium text-gray-700">{inv.delivery_address}</span>
                                     </div>
                                   )}
                                   {inv.delivery_notes && (
-                                    <div className="flex gap-2 text-gray-600">
-                                      <span className="text-gray-300">📝</span>
-                                      <span className="font-medium italic">{inv.delivery_notes}</span>
+                                    <div className="flex items-start gap-2">
+                                      <span className="text-gray-400 text-[11px] shrink-0 mt-0.5">📝</span>
+                                      <span className="text-[11px] font-medium text-gray-600 italic">{inv.delivery_notes}</span>
                                     </div>
                                   )}
                                   {inv.delivery_fee > 0 && (
-                                    <div className="text-gray-600 font-semibold">
-                                      Delivery fee: {sym}{Number(inv.delivery_fee).toFixed(2)}
+                                    <div className="flex items-center justify-between text-[11px]">
+                                      <span className="text-gray-500 font-medium">Delivery fee</span>
+                                      <span className="font-bold text-gray-700 tabular-nums">{sym}{Number(inv.delivery_fee).toFixed(2)}</span>
                                     </div>
                                   )}
                                 </div>
                               )}
-                              {/* Items */}
-                              {items.length > 0 && items.map((item, idx) => (
-                                <div key={item.id || idx} className="flex items-center justify-between gap-3">
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-black/20 shrink-0" />
-                                    <span className="text-[11px] font-semibold text-ink-primary truncate">
-                                      {item.name || item.product_name || item.productName || '—'}
-                                    </span>
+
+                              {/* Item list */}
+                              <div className="px-5 py-3 space-y-0">
+                                {/* Column headers */}
+                                {items.length > 0 && (
+                                  <div className="flex items-center justify-between pb-2 mb-1 border-b border-black/5">
+                                    <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Item</span>
+                                    <div className="flex items-center gap-8">
+                                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Qty</span>
+                                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest w-16 text-right">Amount</span>
+                                    </div>
                                   </div>
-                                  <div className="flex items-center gap-4 shrink-0 text-[11px] text-gray-400 font-medium tabular-nums">
-                                    <span>×{item.quantity ?? item.qty ?? 1}</span>
-                                    <span className="text-ink-primary font-bold">
-                                      {sym}{Number(item.total ?? ((item.rate ?? item.price ?? item.unit_price ?? 0) * (item.quantity ?? item.qty ?? 1))).toFixed(2)}
-                                    </span>
+                                )}
+                                {items.length > 0 ? items.map((item, idx) => {
+                                  const qty   = item.quantity ?? item.qty ?? 1;
+                                  const rate  = item.rate ?? item.price ?? item.unit_price ?? 0;
+                                  const total = Number(item.total ?? (rate * qty));
+                                  return (
+                                    <div
+                                      key={item.id || idx}
+                                      className={`flex items-center justify-between gap-3 py-2.5 ${idx !== items.length - 1 ? 'border-b border-black/4' : ''}`}
+                                    >
+                                      <span className="text-[12px] font-semibold text-ink-primary truncate">
+                                        {item.name || item.product_name || item.productName || '—'}
+                                      </span>
+                                      <div className="flex items-center gap-8 shrink-0">
+                                        <span className="text-[11px] font-medium text-gray-400 tabular-nums">×{qty}</span>
+                                        <span className="text-[12px] font-bold text-ink-primary tabular-nums w-16 text-right">
+                                          {sym}{total.toFixed(2)}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  );
+                                }) : (
+                                  <p className="text-[11px] text-gray-400 py-2">No item details available.</p>
+                                )}
+
+                                {/* Total row */}
+                                {items.length > 0 && (
+                                  <div className="flex items-center justify-between pt-3 mt-1 border-t border-black/8">
+                                    <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Order Total</span>
+                                    <span className="text-sm font-black text-ink-primary tabular-nums">{sym}{grandTotal.toFixed(2)}</span>
                                   </div>
-                                </div>
-                              ))}
-                              {items.length === 0 && (
-                                <p className="text-[11px] text-gray-400">No item details.</p>
-                              )}
-                              {/* Failed delivery button */}
+                                )}
+                              </div>
+
+                              {/* Actions */}
                               {hasPermission('OWNER') && (
-                                <button
-                                  onClick={() => { setFailedInvoiceId(inv.id); setFailedReason(''); }}
-                                  className="flex items-center gap-1.5 text-[9px] font-black text-red-500 border border-red-200 bg-red-50 px-3 py-1.5 rounded-xl hover:bg-red-100 transition-all"
-                                >
-                                  <AlertOctagon size={11} /> Mark Failed / Re-queue
-                                </button>
+                                <div className="px-5 pb-4 pt-1">
+                                  <button
+                                    onClick={() => { setFailedInvoiceId(inv.id); setFailedReason(''); }}
+                                    className="flex items-center gap-2 text-[10px] font-bold text-red-600 border border-red-200 bg-red-50 hover:bg-red-100 px-4 py-2 rounded-xl transition-all"
+                                  >
+                                    <AlertOctagon size={12} />
+                                    Mark Failed / Re-queue
+                                  </button>
+                                </div>
                               )}
                             </div>
                           )}
