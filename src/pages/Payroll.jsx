@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
-import { useAppContext } from '../context/AppContext';
 import { usePayroll } from '../hooks/usePayroll';
+import { usePeople } from '../hooks/usePeople';
 import { DollarSign, Trash2, X, Check, CreditCard, UserPlus, Lock, Receipt, Link2 } from 'lucide-react';
 
 // Sub-components
@@ -17,7 +17,7 @@ const DEPARTMENTS = ['Operations', 'Sales', 'Warehouse', 'Delivery', 'Management
 const Payroll = () => {
   const { hasPermission, hasRole } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
-  const { users } = useAppContext();
+  const { users } = usePeople(currentTenantId);
   const { 
     employees, addEmployee, updateEmployee, deleteEmployee,
     payrollRecords, processPayroll, deletePayrollRecord, resetEmployeesDailyData,
