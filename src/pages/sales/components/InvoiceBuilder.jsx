@@ -600,10 +600,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         </div>
       </div>
 
-    </div>
-
-    {/* Full-page Checkout */}
-    {showCheckout && (
+      {/* Full-page Checkout */}
+      {showCheckout && (
       <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
         {/* Header */}
         <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-black/5 shrink-0">
@@ -625,7 +623,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-5xl mx-auto px-6 py-6 grid grid-cols-1 lg:grid-cols-[1fr_420px] gap-6">
 
-            {/* ── Left: Order Summary ── */}
+            {/* Left: Order Summary */}
             <div className="space-y-4">
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order Summary</p>
               <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
@@ -683,7 +681,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               })()}
             </div>
 
-            {/* ── Right: Fulfillment + Payment ── */}
+            {/* Right: Fulfillment + Payment */}
             <div className="space-y-4">
 
               {/* Fulfillment */}

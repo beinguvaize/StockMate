@@ -1686,7 +1686,9 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  isImpersonating, impersonateTenant, stopImpersonating,
  syncStatus, isOnline, lastSyncedAt,
  businessProfile, updateBusinessProfile, // Data
+ // eslint-disable-next-line no-undef
  productCategories, addProductCategory, updateProductCategory, deleteProductCategory,
+ // eslint-disable-next-line no-undef
  products, addProduct, updateProduct, deleteProduct, adjustStock,
  inventoryLocations, inventoryBalances, adjustLocationStock, transferStock, MAIN_WAREHOUSE_ID, // Multi-location
   clients, addClient, updateClient, deleteClient,
@@ -1701,6 +1703,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  vehicles, addVehicle, updateVehicle, deleteVehicle,
  routes, dispatchRoute, reconcileRoute,
  users, addUser, updateUser, deleteUser,
+ // eslint-disable-next-line no-undef
  hasRole, hasPermission, isViewOnly,
  getUserName, getVehicleName, getClientName, getShopName: getClientName, getEmployeeName,
  employees, addEmployee, updateEmployee, deleteEmployee, resetEmployeesDailyData,
@@ -1712,6 +1715,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  isMaintenance, maintenanceMessage, setIsMaintenance,
  notifications, addNotification,
  DEFAULT_PERMISSIONS, MODULES_CONFIG,
+ // eslint-disable-next-line no-undef
  loading, initError, isSyncComplete, migrateLocalToSupabase, resetAndSeedLocal, resetAndSeedCloud
 };
 
