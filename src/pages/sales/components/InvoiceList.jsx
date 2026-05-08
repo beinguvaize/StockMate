@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Search, Trash2, Printer, Receipt, Package, Wallet, CreditCard, Landmark,
-  Download, X, User, Clock, Calendar, CheckCircle2, AlertCircle, RotateCcw, Truck
+  Download, X, User, Clock, Calendar, CheckCircle2, AlertCircle, RotateCcw, Truck, PackageCheck
 } from 'lucide-react';
 import Table from '../../../shared/Table';
 import Modal from '../../../shared/Modal';
@@ -70,7 +70,7 @@ const DELIVERY_BADGE = {
   FAILED:     { bg: 'bg-red-50',     text: 'text-red-700',     ring: 'ring-red-200/60',     dot: 'bg-red-400',     label: 'Failed'            },
 };
 
-const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [], onDelete, onPrint, onSettle, onReturn }) => {
+const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [], onDelete, onPrint, onSettle, onReturn, onDispatch }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | PAID | PENDING
   // Resolves cross-tenant cashier names (GLOBAL_ADMIN impersonation, etc.).
@@ -290,6 +290,18 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
                 {deliveryBadge.label}
               </span>
             )}
+            {sale.fulfillment_status === 'PENDING_DISPATCH' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ring-1 bg-orange-50 text-orange-700 ring-orange-200/60">
+                <PackageCheck size={9} />
+                Pending Dispatch
+              </span>
+            )}
+            {sale.fulfillment_status === 'DISPATCHED' && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ring-1 bg-emerald-50 text-emerald-700 ring-emerald-200/60">
+                <PackageCheck size={9} />
+                Dispatched
+              </span>
+            )}
           </div>
         </td>
         <td className="px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
@@ -301,6 +313,15 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
                 className="p-2 rounded-lg hover:bg-emerald-50 text-gray-400 hover:text-emerald-600 transition-colors"
               >
                 <CheckCircle2 size={15} />
+              </button>
+            )}
+            {onDispatch && sale.fulfillment_status === 'PENDING_DISPATCH' && (
+              <button
+                onClick={() => onDispatch(sale.id)}
+                title="Mark as Dispatched — deducts stock"
+                className="p-2 rounded-lg hover:bg-emerald-50 text-emerald-500 hover:text-emerald-700 transition-colors"
+              >
+                <PackageCheck size={15} />
               </button>
             )}
             {onReturn && Array.isArray(sale.items) && sale.items.length > 0 && (

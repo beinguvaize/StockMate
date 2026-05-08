@@ -186,6 +186,7 @@ export const useSales = (tenantId) => {
         // persist sales under that tenant, not the admin's home tenant.
         // RPC rejects the override for non-admins (defence-in-depth).
         p_tenant_id: tenantId || null,
+        p_delivery_method: sale.fulfillmentType === 'DELIVERY' ? 'DELIVERY' : 'PICKUP',
       });
 
       if (rpcError) {
@@ -195,6 +196,16 @@ export const useSales = (tenantId) => {
 
       await fetchSales();
       return { success: true, id };
+    },
+    dispatchSale: async (saleId) => {
+      if (!currentUser?.id) return { error: new Error('Not authenticated') };
+      const { error } = await supabase.rpc('dispatch_sale', {
+        p_sale_id: saleId,
+        p_user_id: currentUser.id,
+      });
+      if (error) return { error };
+      await fetchSales();
+      return { success: true };
     },
     updateSale: update,
     deleteSale: remove,
