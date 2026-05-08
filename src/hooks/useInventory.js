@@ -105,10 +105,11 @@ export const useInventory = (tenantId) => {
     // Legacy support for AppContext RPC call logic
     const { error } = await supabase.rpc('adjust_inventory_atomic', {
       p_product_id: productId,
-      p_location_id: locationId,
-      p_delta: delta,
-      p_reason: reason,
-      p_tenant_id: tenantId
+      p_location_id: locationId ?? null,
+      p_amount:      delta,
+      p_reason:      reason,
+      p_user_id:     null,
+      p_tenant_id:   tenantId
     });
     if (!error) await fetchInventory();
     return { error };
