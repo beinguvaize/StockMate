@@ -57,7 +57,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
 
   /* ── Success screen ── */
   if (done) return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 pt-8 overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center space-y-5">
         <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto">
           <CheckCircle2 size={32} className="text-emerald-500" />
@@ -78,7 +78,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
 
   /* ── Main modal ── */
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 pt-8 overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden flex flex-col">
 
         {/* ── Header ── */}
