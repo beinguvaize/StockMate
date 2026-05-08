@@ -374,6 +374,7 @@ export const SalesProvider = ({ children }) => {
     scheduledDate = null,
     salesmanNote = '',
     manualLocationId = null,
+    deliveryMethod = 'PICKUP',  // 'PICKUP' | 'DELIVERY'
   ) => {
     const val = saleSchema.safeParse({
       clientId,
@@ -404,10 +405,12 @@ export const SalesProvider = ({ children }) => {
 
     // No DB writes here — `process_sale` RPC is the single source of truth for
     // stock writes. Prevents double-deduction race.
+    // For DELIVERY orders, stock is NOT deducted until dispatched — skip optimistic update too.
+    const isDelivery = deliveryMethod === 'DELIVERY';
     cartItems.forEach((item) => {
       const pIndex = updatedProducts.findIndex((p) => p.id === item.productId);
       if (pIndex > -1) {
-        if (status === 'COMPLETED') {
+        if (status === 'COMPLETED' && !isDelivery) {
           updatedProducts[pIndex].stock = Math.max(
             0,
             (updatedProducts[pIndex].stock || 0) - item.quantity,
@@ -457,6 +460,7 @@ export const SalesProvider = ({ children }) => {
         p_date: newSale.date,
         p_user_id: currentUser?.id,
         p_location_id: rpcLocationId,
+        p_delivery_method: deliveryMethod,
       });
 
       if (rpcError) {
@@ -681,6 +685,24 @@ export const SalesProvider = ({ children }) => {
     );
   };
 
+  const dispatchSale = async (saleId) => {
+    if (!isSupabaseConfigured) return { error: { message: 'Supabase not configured' } };
+    const { error } = await supabase.rpc('dispatch_sale', {
+      p_sale_id: saleId,
+      p_user_id: currentUser?.id ?? null,
+    });
+    if (error) {
+      addNotification(`Dispatch failed: ${error.message}`, 'error');
+      return { error };
+    }
+    // Update local state
+    setSales(prev => prev.map(s =>
+      s.id === saleId ? { ...s, fulfillment_status: 'DISPATCHED' } : s
+    ));
+    addNotification('Order dispatched — stock deducted', 'success');
+    return { error: null };
+  };
+
   const value = {
     sales, setSales,
     clients, setClients,
@@ -689,7 +711,7 @@ export const SalesProvider = ({ children }) => {
     addClient, updateClient, deleteClient,
     recordClientPayment,
     createInvoice, markInvoicePaid,
-    reconcileSaleEffects, placeSale, updateSale, deleteSale, settleSale,
+    reconcileSaleEffects, placeSale, updateSale, deleteSale, settleSale, dispatchSale,
   };
 
   return <SalesContext.Provider value={value}>{children}</SalesContext.Provider>;
