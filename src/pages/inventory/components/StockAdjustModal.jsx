@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, TrendingUp, TrendingDown, Target, AlertCircle, Loader2, CheckCircle2, ArrowRight, Minus, Plus } from 'lucide-react';
 
 const TYPES = [
@@ -56,7 +57,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
   };
 
   /* ── Success screen ── */
-  if (done) return (
+  if (done) return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center space-y-5">
         <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto">
@@ -73,11 +74,12 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
           Done
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 
   /* ── Main modal ── */
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
 
@@ -238,6 +240,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
