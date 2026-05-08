@@ -5,11 +5,11 @@ import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
 import { useInventory } from '../hooks/useInventory';
-import { 
-  Settings as SettingsIcon, Building, Shield, Bell, Save, 
-  CheckCircle2, Lock, Globe, Coins, ShieldCheck, 
+import {
+  Settings as SettingsIcon, Building, Shield, Bell, Save,
+  CheckCircle2, Lock, Globe, Coins, ShieldCheck,
   Database, RotateCcw, ChevronRight, Zap, Tag, Plus, Edit2, Trash2, X, FileUp, FileDown,
-  Sparkles, Mail
+  Sparkles, Mail, Receipt
 } from 'lucide-react';
 
 const Settings = () => {
@@ -60,6 +60,37 @@ const Settings = () => {
   });
 
  const [savedStatus, setSavedStatus] = useState(false);
+
+  // ── Bill Settings ───────────────────────────────────────────────────────
+  const DEFAULT_BILL_SETTINGS = {
+    show_address:        true,
+    show_phone:          true,
+    show_gstin:          true,
+    show_customer_name:  true,
+    show_customer_gstin: true,
+    show_tax_breakdown:  true,
+    show_upi:            true,
+    show_discount:       true,
+    bill_title:          'TAX INVOICE',
+    footer_message:      'Thank You for Your Business!',
+  };
+  const [billSettings, setBillSettings] = useState({
+    ...DEFAULT_BILL_SETTINGS,
+    ...(profile.bill_settings || {}),
+  });
+  const [billSavedStatus, setBillSavedStatus] = useState(false);
+
+  const toggleBill = (key) => setBillSettings(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const handleSaveBillSettings = async () => {
+    const { success, error } = await updateBusinessProfile({ bill_settings: billSettings });
+    if (success) {
+      setBillSavedStatus(true);
+      setTimeout(() => setBillSavedStatus(false), 3000);
+    } else {
+      alert('Save failed: ' + (error?.message || 'Unknown error'));
+    }
+  };
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -615,6 +646,127 @@ const Settings = () => {
 
  {/* Theme Picker — owner only */}
  {isOwner && <ThemePicker />}
+
+ {/* ── Cash Bill / POS Receipt Layout ─────────────────────────────── */}
+ <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+   <div className="bg-ink-primary p-6 flex items-center justify-between">
+     <div className="flex items-center gap-4">
+       <Receipt size={20} className="text-accent-signature" />
+       <div>
+         <h2 className="text-base font-bold text-surface">Cash Bill Layout</h2>
+         <p className="text-[10px] text-white/40 mt-0.5">Controls what prints on your 80mm POS receipt</p>
+       </div>
+     </div>
+     <div className="text-[9px] font-semibold text-accent-signature opacity-70 uppercase tracking-widest">Per-Tenant</div>
+   </div>
+   <div className="p-6 space-y-6">
+
+     {/* Toggle rows */}
+     <div>
+       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Business Info on Bill</p>
+       <div className="space-y-1">
+         {[
+           { key: 'show_address',  label: 'Business Address' },
+           { key: 'show_phone',    label: 'Business Phone' },
+           { key: 'show_gstin',    label: 'GSTIN / Tax Number' },
+           { key: 'show_upi',      label: 'UPI ID (payment footer)' },
+         ].map(({ key, label }) => (
+           <div key={key} className="flex items-center justify-between py-2.5 border-b border-black/5 last:border-0">
+             <span className="text-sm font-semibold text-ink-primary">{label}</span>
+             <button
+               onClick={() => toggleBill(key)}
+               className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${billSettings[key] ? 'bg-accent-signature' : 'bg-black/10'}`}
+             >
+               <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${billSettings[key] ? 'translate-x-5' : 'translate-x-0'}`} />
+             </button>
+           </div>
+         ))}
+       </div>
+     </div>
+
+     <div>
+       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Customer Info on Bill</p>
+       <div className="space-y-1">
+         {[
+           { key: 'show_customer_name',  label: 'Customer Name' },
+           { key: 'show_customer_gstin', label: 'Customer GSTIN' },
+         ].map(({ key, label }) => (
+           <div key={key} className="flex items-center justify-between py-2.5 border-b border-black/5 last:border-0">
+             <span className="text-sm font-semibold text-ink-primary">{label}</span>
+             <button
+               onClick={() => toggleBill(key)}
+               className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${billSettings[key] ? 'bg-accent-signature' : 'bg-black/10'}`}
+             >
+               <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${billSettings[key] ? 'translate-x-5' : 'translate-x-0'}`} />
+             </button>
+           </div>
+         ))}
+       </div>
+     </div>
+
+     <div>
+       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Amounts & Tax</p>
+       <div className="space-y-1">
+         {[
+           { key: 'show_tax_breakdown', label: 'Show CGST / SGST breakdown' },
+           { key: 'show_discount',      label: 'Show Discount line' },
+         ].map(({ key, label }) => (
+           <div key={key} className="flex items-center justify-between py-2.5 border-b border-black/5 last:border-0">
+             <span className="text-sm font-semibold text-ink-primary">{label}</span>
+             <button
+               onClick={() => toggleBill(key)}
+               className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${billSettings[key] ? 'bg-accent-signature' : 'bg-black/10'}`}
+             >
+               <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${billSettings[key] ? 'translate-x-5' : 'translate-x-0'}`} />
+             </button>
+           </div>
+         ))}
+       </div>
+     </div>
+
+     {/* Bill title */}
+     <div>
+       <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Bill Title</p>
+       <div className="flex gap-2">
+         {['TAX INVOICE', 'CASH BILL', 'RECEIPT', 'RETAIL INVOICE'].map(opt => (
+           <button
+             key={opt}
+             onClick={() => setBillSettings(prev => ({ ...prev, bill_title: opt }))}
+             className={`flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-wide border transition-all ${
+               billSettings.bill_title === opt
+                 ? 'bg-ink-primary text-white border-ink-primary'
+                 : 'bg-canvas border-black/10 text-gray-500 hover:border-black/30'
+             }`}
+           >
+             {opt}
+           </button>
+         ))}
+       </div>
+     </div>
+
+     {/* Footer message */}
+     <div>
+       <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Footer Message</label>
+       <input
+         type="text"
+         value={billSettings.footer_message}
+         onChange={e => setBillSettings(prev => ({ ...prev, footer_message: e.target.value }))}
+         placeholder="e.g. Thank You • Visit Again"
+         className="w-full bg-canvas border border-black/8 rounded-xl px-4 py-3 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
+       />
+       <p className="text-[10px] text-gray-400 mt-1.5">Appears at the bottom of every printed bill. Leave blank to hide.</p>
+     </div>
+
+     {/* Save */}
+     <button
+       onClick={handleSaveBillSettings}
+       disabled={billSavedStatus}
+       className={`btn-signature w-full !rounded-xl !py-5 !text-xs flex items-center justify-center gap-3 transition-all duration-500 ${billSavedStatus ? '!bg-emerald-500 !text-white' : ''}`}
+     >
+       {billSavedStatus ? <><CheckCircle2 size={16} /> SAVED</> : <><Save size={16} /> SAVE BILL SETTINGS</>}
+     </button>
+   </div>
+ </div>
 
  {/* Data Import / Export */}
  <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">

@@ -3,12 +3,27 @@ import { createPortal } from 'react-dom';
 import { X, Printer } from 'lucide-react';
 import { formatDate } from '../../lib/utils';
 
-const LINE = '--------------------------------';
+const LINE  = '--------------------------------';
 const DLINE = '================================';
+
+/** Merge tenant bill_settings with safe defaults so all keys are always defined. */
+const resolveSettings = (raw = {}) => ({
+  show_address:        raw.show_address        ?? true,
+  show_phone:          raw.show_phone          ?? true,
+  show_gstin:          raw.show_gstin          ?? true,
+  show_customer_name:  raw.show_customer_name  ?? true,
+  show_customer_gstin: raw.show_customer_gstin ?? true,
+  show_tax_breakdown:  raw.show_tax_breakdown  ?? true,
+  show_upi:            raw.show_upi            ?? true,
+  show_discount:       raw.show_discount       ?? true,
+  bill_title:          raw.bill_title          || 'TAX INVOICE',
+  footer_message:      raw.footer_message      || 'Thank You for Your Business!',
+});
 
 const POSReceipt = ({ invoice, businessProfile, client, onClose }) => {
   const biz = businessProfile || {};
   const cli = client || { name: invoice?.client_name || 'Walk-in' };
+  const s   = resolveSettings(biz.bill_settings);
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -43,23 +58,20 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose }) => {
   if (!invoice) return null;
 
   const items = (invoice.items || []).map(i => ({
-    name: i.name || 'Item',
-    qty:  parseFloat(i.qty || i.quantity || 1),
-    rate: parseFloat(i.rate || i.price || 0),
+    name:    i.name || 'Item',
+    qty:     parseFloat(i.qty || i.quantity || 1),
+    rate:    parseFloat(i.rate || i.price || 0),
     taxRate: parseFloat(i.taxRate ?? 0),
   }));
 
-  const taxable   = items.reduce((s, i) => s + i.qty * i.rate, 0);
-  const totalTax  = items.reduce((s, i) => s + i.qty * i.rate * i.taxRate / 100, 0);
+  const taxable    = items.reduce((s, i) => s + i.qty * i.rate, 0);
+  const totalTax   = items.reduce((s, i) => s + i.qty * i.rate * i.taxRate / 100, 0);
   const grandTotal = parseFloat(invoice.grand_total ?? taxable + totalTax);
   const paidAmount = parseFloat(invoice.paid_amount ?? 0);
   const balance    = grandTotal - paidAmount;
+  const discount   = Math.max(0, taxable - grandTotal + totalTax); // crude discount
 
-  const fmt = (n) => n.toFixed(2);
-  const rpad = (str, len) => String(str).substring(0, len).padEnd(len);
-  const lpad = (str, len) => String(str).substring(0, len).padStart(len);
-
-  const handlePrint = () => window.print();
+  const fmt  = (n) => n.toFixed(2);
 
   return createPortal(
     <div
@@ -69,7 +81,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose }) => {
       {/* Toolbar */}
       <div className="print-hidden flex items-center gap-3 mb-6">
         <button
-          onClick={handlePrint}
+          onClick={() => window.print()}
           className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full font-black text-[11px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
         >
           <Printer size={16} /> PRINT RECEIPT
@@ -88,32 +100,34 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose }) => {
         className="bg-white font-mono text-[11px] leading-tight w-[302px] px-3 py-4 shadow-2xl"
         style={{ fontFamily: "'Courier New', Courier, monospace" }}
       >
-        {/* Header */}
+        {/* ── Business Header ─────────────────────────────── */}
         <div className="text-center mb-1">
           <div className="text-[14px] font-black uppercase tracking-wide">{biz.name || 'BUSINESS NAME'}</div>
-          {biz.address && <div className="text-[10px] mt-0.5 whitespace-pre-wrap">{biz.address}</div>}
-          {biz.phone && <div className="text-[10px]">Ph: {biz.phone}</div>}
-          {biz.gst_no && <div className="text-[10px]">GSTIN: {biz.gst_no}</div>}
+          {s.show_address  && biz.address && <div className="text-[10px] mt-0.5 whitespace-pre-wrap">{biz.address}</div>}
+          {s.show_phone    && biz.phone   && <div className="text-[10px]">Ph: {biz.phone}</div>}
+          {s.show_gstin    && biz.gst_no  && <div className="text-[10px]">GSTIN: {biz.gst_no}</div>}
         </div>
 
         <div className="text-center text-[10px] my-1">{DLINE}</div>
-        <div className="text-center text-[11px] font-bold uppercase tracking-widest">TAX INVOICE</div>
+        <div className="text-center text-[11px] font-bold uppercase tracking-widest">{s.bill_title}</div>
         <div className="text-center text-[10px]">{LINE}</div>
 
-        {/* Invoice Meta */}
+        {/* ── Invoice Meta ─────────────────────────────────── */}
         <div className="text-[10px] flex justify-between">
           <span>#{invoice.invoice_number || invoice.id?.split('-').pop()}</span>
           <span>{formatDate(invoice.invoice_date || invoice.date)}</span>
         </div>
-        {cli.name && cli.name !== 'Walk-in' && (
+
+        {/* ── Customer ─────────────────────────────────────── */}
+        {s.show_customer_name && cli.name && cli.name !== 'Walk-in' && (
           <div className="text-[10px] mt-0.5">Bill To: <span className="font-bold">{cli.name}</span></div>
         )}
         {cli.phone && <div className="text-[10px]">Ph: {cli.phone}</div>}
-        {cli.gstin && <div className="text-[10px]">GSTIN: {cli.gstin}</div>}
+        {s.show_customer_gstin && cli.gstin && <div className="text-[10px]">GSTIN: {cli.gstin}</div>}
 
         <div className="text-[10px] my-1">{LINE}</div>
 
-        {/* Column Headers */}
+        {/* ── Column Headers ───────────────────────────────── */}
         <div className="text-[10px] flex">
           <span className="flex-1 font-bold">ITEM</span>
           <span className="w-6 text-right font-bold">QT</span>
@@ -122,7 +136,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose }) => {
         </div>
         <div className="text-[10px] mb-1">{LINE}</div>
 
-        {/* Items */}
+        {/* ── Items ────────────────────────────────────────── */}
         {items.map((item, idx) => {
           const amt = item.qty * item.rate;
           return (
@@ -142,13 +156,19 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose }) => {
 
         <div className="text-[10px] mt-1">{LINE}</div>
 
-        {/* Totals */}
+        {/* ── Totals ───────────────────────────────────────── */}
         <div className="text-[10px] space-y-0.5">
           <div className="flex justify-between">
             <span>Subtotal</span>
             <span>{fmt(taxable)}</span>
           </div>
-          {totalTax > 0 && (
+          {s.show_discount && discount > 0 && (
+            <div className="flex justify-between">
+              <span>Discount</span>
+              <span>- {fmt(discount)}</span>
+            </div>
+          )}
+          {s.show_tax_breakdown && totalTax > 0 && (
             <>
               <div className="flex justify-between">
                 <span>CGST</span>
@@ -192,16 +212,16 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose }) => {
 
         <div className="text-[10px] my-1">{DLINE}</div>
 
-        {/* Payment status */}
+        {/* ── Payment status ───────────────────────────────── */}
         <div className="text-center text-[10px] font-bold uppercase tracking-widest">
           {invoice.payment_status === 'PAID' ? '*** PAID ***' : '*** PAYMENT DUE ***'}
         </div>
 
-        {/* Footer */}
+        {/* ── Footer ───────────────────────────────────────── */}
         <div className="text-[10px] my-1">{LINE}</div>
         <div className="text-center text-[10px] space-y-0.5">
-          <div className="font-bold">Thank You for Your Business!</div>
-          <div className="text-[9px] text-gray-500">Visit Again</div>
+          {s.footer_message && <div className="font-bold">{s.footer_message}</div>}
+          {s.show_upi && biz.upi_id && <div className="mt-0.5">UPI: {biz.upi_id}</div>}
           {biz.invoice_terms && (
             <div className="text-[9px] text-gray-500 mt-1 whitespace-pre-wrap">
               {biz.invoice_terms.split('\n').slice(0, 2).join('\n')}
