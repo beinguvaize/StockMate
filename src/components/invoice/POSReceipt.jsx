@@ -7,7 +7,7 @@ const LINE  = '--------------------------------';
 const DLINE = '================================';
 
 /** Merge tenant bill_settings with safe defaults so all keys are always defined. */
-const resolveSettings = (raw = {}) => ({
+const resolveSettings = (raw) => { raw = raw ?? {}; return ({
   show_address:        raw.show_address        ?? true,
   show_phone:          raw.show_phone          ?? true,
   show_gstin:          raw.show_gstin          ?? true,
@@ -18,7 +18,7 @@ const resolveSettings = (raw = {}) => ({
   show_discount:       raw.show_discount       ?? true,
   bill_title:          raw.bill_title          || 'TAX INVOICE',
   footer_message:      raw.footer_message      || 'Thank You for Your Business!',
-});
+}); };
 
 const POSReceipt = ({ invoice, businessProfile, client, onClose }) => {
   const biz = businessProfile || {};
