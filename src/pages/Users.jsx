@@ -162,6 +162,16 @@ const Users = () => {
  setDeleteConfirm(null);
 };
 
+ // Must be before any early return — hooks cannot be conditional
+ React.useEffect(() => {
+ if (isAdding || editingUser) {
+ document.body.style.overflow = 'hidden';
+} else {
+ document.body.style.overflow = 'unset';
+}
+ return () => { document.body.style.overflow = 'unset';};
+}, [isAdding, editingUser]);
+
  if (!hasPermission('MANAGE_USERS')) {
  return (
  <div className="animate-fade-in flex flex-col items-center justify-center min-h-[60vh] p-5">
@@ -185,15 +195,6 @@ const Users = () => {
  </div>
  );
 }
-
- React.useEffect(() => {
- if (isAdding || editingUser) {
- document.body.style.overflow = 'hidden';
-} else {
- document.body.style.overflow = 'unset';
-}
- return () => { document.body.style.overflow = 'unset';};
-}, [isAdding, editingUser]);
 
  return (
  <>
