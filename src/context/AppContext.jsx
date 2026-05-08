@@ -1194,27 +1194,32 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
 
  // Redundant migration removed
 
- const updateBusinessProfile = async (profile) => {
-    if (!isSupabaseConfigured) return;
-    
+ const updateBusinessProfile = async (updates) => {
+    if (!isSupabaseConfigured) return { success: false, error: { message: 'Supabase not configured' } };
+
     try {
-      const payload = { ...profile, id: 'current', tenant_id: currentTenantId };
+      const payload = { ...updates, tenant_id: currentTenantId };
+      // Use existing profile id if available, otherwise upsert by tenant_id
+      if (businessProfile?.id) payload.id = businessProfile.id;
+
       const { error } = await supabase.from('business_profile').upsert(payload);
-      
+
       if (error) {
         console.error("Error updating business profile in Supabase:", error);
         addNotification(`Cloud Profile Sync Failed: ${error.message}`, "error");
-        return false;
+        return { success: false, error };
       }
-      
-      setBusinessProfile(profile);
-      cacheSet('business_profile', profile);
+
+      // Merge updates into existing profile state — don't wipe unrelated fields
+      const merged = { ...businessProfile, ...updates };
+      setBusinessProfile(merged);
+      cacheSet('business_profile', merged);
       addNotification("Business profile saved to cloud", "success");
-      return true;
+      return { success: true };
     } catch (err) {
       console.error("Exception in updateBusinessProfile:", err);
       addNotification("System error updating profile", "error");
-      return false;
+      return { success: false, error: err };
     }
   };
 
