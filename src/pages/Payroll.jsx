@@ -1,8 +1,9 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
+import { useAppContext } from '../context/AppContext';
 import { usePayroll } from '../hooks/usePayroll';
-import { DollarSign, Trash2, X, Check, CreditCard, UserPlus, Lock, Receipt} from 'lucide-react';
+import { DollarSign, Trash2, X, Check, CreditCard, UserPlus, Lock, Receipt, Link2 } from 'lucide-react';
 
 // Sub-components
 import PayrollHeader from '../components/payroll/PayrollHeader';
@@ -16,6 +17,7 @@ const DEPARTMENTS = ['Operations', 'Sales', 'Warehouse', 'Delivery', 'Management
 const Payroll = () => {
   const { hasPermission, hasRole } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
+  const { users } = useAppContext();
   const { 
     employees, addEmployee, updateEmployee, deleteEmployee,
     payrollRecords, processPayroll, deletePayrollRecord, resetEmployeesDailyData,
@@ -36,7 +38,7 @@ const Payroll = () => {
   const [empForm, setEmpForm] = useState({
   name: '', email: '', phone: '', department: DEPARTMENTS[0],
   position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '',
-  dailyRate: 500, daysWorked: 0
+  dailyRate: 500, daysWorked: 0, userId: ''
 });
   
   // Modals state
@@ -48,7 +50,7 @@ const Payroll = () => {
   // ===== EMPLOYEE CRUD =====
   const openAdd = () => {
   setEditingEmployee(null);
-  setEmpForm({ name: '', email: '', phone: '', department: DEPARTMENTS[0], position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '', dailyRate: 500, daysWorked: 0});
+  setEmpForm({ name: '', email: '', phone: '', department: DEPARTMENTS[0], position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '', dailyRate: 500, daysWorked: 0, userId: ''});
   setShowForm(true);
 };
 
@@ -60,7 +62,8 @@ const Payroll = () => {
   payType: emp.pay_type || emp.payType || 'MONTHLY', basePay: emp.salary ?? emp.basePay ?? '',
   bankAccount: emp.bank_account || emp.bankAccount || '', notes: emp.notes || '',
   dailyRate: emp.daily_rate ?? emp.dailyRate ?? 500,
-  daysWorked: emp.days_worked ?? emp.daysWorked ?? 0
+  daysWorked: emp.days_worked ?? emp.daysWorked ?? 0,
+  userId: emp.user_id || ''
 });
   setShowForm(true);
 };
@@ -72,11 +75,12 @@ const Payroll = () => {
   const daysWorked = parseFloat(empForm.daysWorked) || 0;
   const basePay = (dailyRate > 0 && daysWorked > 0) ? (dailyRate * daysWorked) : (parseFloat(empForm.basePay) || 0);
 
-  const data = { 
-  ...empForm, 
+  const data = {
+  ...empForm,
   basePay,
   dailyRate,
-  daysWorked
+  daysWorked,
+  user_id: empForm.userId || null,
 };
   setIsSaving(true);
   try {
@@ -338,10 +342,42 @@ const Payroll = () => {
   </div>
 
   <div>
+  <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1 flex items-center gap-1">
+    <Link2 size={10} /> Link to User Account <span className="text-gray-400">(optional)</span>
+  </label>
+  <select
+    className="w-full bg-canvas border-none rounded-lg p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer"
+    value={empForm.userId}
+    onChange={e => {
+      const u = users.find(u => u.id === e.target.value);
+      setEmpForm(prev => ({
+        ...prev,
+        userId: e.target.value,
+        // Auto-fill name + email if blank
+        name: prev.name || u?.name || prev.name,
+        email: prev.email || u?.email || prev.email,
+      }));
+    }}
+  >
+    <option value="">— No linked account —</option>
+    {(users || []).map(u => (
+      <option key={u.id} value={u.id}>
+        {u.name || u.email} {u.roles?.includes('DRIVER') ? '(Driver)' : ''}
+      </option>
+    ))}
+  </select>
+  {empForm.userId && (
+    <p className="text-[10px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+      <Check size={10} /> Linked — van dispatch will use this account
+    </p>
+  )}
+  </div>
+
+  <div>
   <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Department</label>
-  <select 
-  className="w-full bg-canvas border-none rounded-lg p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer" 
-  value={empForm.department} 
+  <select
+  className="w-full bg-canvas border-none rounded-lg p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer"
+  value={empForm.department}
   onChange={e => setEmpForm({ ...empForm, department: e.target.value})}
   >
   {DEPARTMENTS.map(d => <option key={d} value={d}>{d.toUpperCase()}</option>)}
