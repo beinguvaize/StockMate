@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
+import useRefetchOnFocus from './useRefetchOnFocus';
 
 const EMPLOYEE_NUMERIC = ['daily_rate', 'days_worked', 'amount_paid', 'salary'];
 const PAYROLL_NUMERIC  = ['gross', 'net', 'deductions', 'bonus', 'days_worked'];
@@ -60,6 +61,8 @@ export const usePayroll = (tenantId) => {
   useEffect(() => {
     fetchPayrollData();
   }, [fetchPayrollData]);
+
+  useRefetchOnFocus(fetchPayrollData);
 
   const addEmployee = async (employee) => {
     const id = crypto.randomUUID();
