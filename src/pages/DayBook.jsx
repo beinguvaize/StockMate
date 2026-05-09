@@ -9,7 +9,7 @@ import {
   FileText, ShieldCheck, Lock, Unlock,
   Banknote, CreditCard, Building2, Receipt,
   TrendingUp, TrendingDown, Clock, AlertTriangle,
-  Users, ShoppingCart, CheckCircle2, History, X
+  Users, ShoppingCart, CheckCircle2, History
 } from 'lucide-react';
 import DailyLedgerDetail from '../components/reports/DailyLedgerDetail';
 import { todayISOInAppTZ } from '../lib/utils';
@@ -236,6 +236,142 @@ const DayBook = () => {
       <div className="w-10 h-10 border-4 border-accent-signature/30 border-t-accent-signature rounded-full animate-spin" />
     </div>
   );
+
+  // ── History full-page view ────────────────────────────────────────────────
+  if (showHistory) {
+    const totalDays   = dayBook.length;
+    const closedDays  = dayBook.filter(r => r.is_closed).length;
+    const totalSales  = dayBook.reduce((s, r) => s + (Number(r.total_sales)  || 0), 0);
+    const totalExp    = dayBook.reduce((s, r) => s + (Number(r.total_expenses) || 0), 0);
+
+    return (
+      <div className="animate-fade-in flex flex-col gap-6 pb-20">
+
+        {/* Header */}
+        <div className="flex justify-between items-center py-2 border-b border-black/5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowHistory(false)}
+              className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-full hover:bg-canvas transition-all text-ink-primary shadow-sm"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <div>
+              <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
+                Day Book History<span className="text-accent-signature">.</span>
+              </h1>
+              <span className="text-[10px] font-semibold text-gray-400">Click any day to view its ledger</span>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{totalDays} records</span>
+        </div>
+
+        {/* Summary strip */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard label="Total Days" cy="" value={totalDays} sub={`${closedDays} closed · ${totalDays - closedDays} open`} icon={<Calendar size={14} />} color="default" />
+          <KpiCard label="All-Time Sales" cy={cy} value={fmt(totalSales)} icon={<TrendingUp size={14} />} color="green" />
+          <KpiCard label="All-Time Expenses" cy={cy} value={fmt(totalExp)} icon={<TrendingDown size={14} />} color="red" />
+          <KpiCard label="Net Flow" cy={cy}
+            value={`${totalSales - totalExp < 0 ? '−' : ''}${fmt(Math.abs(totalSales - totalExp))}`}
+            icon={<CheckCircle2 size={14} />}
+            color={totalSales - totalExp < 0 ? 'darkred' : 'dark'} />
+        </div>
+
+        {/* History table */}
+        <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-black/5 flex items-center gap-3">
+            <History size={14} className="text-accent-signature" />
+            <span className="text-xs font-black text-ink-primary uppercase tracking-widest">All Days</span>
+          </div>
+
+          {dayBook.length === 0 ? (
+            <div className="py-20 flex flex-col items-center opacity-20">
+              <History size={32} strokeWidth={1.5} />
+              <p className="text-[10px] font-bold uppercase tracking-widest mt-3">No history yet</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-canvas/60 border-b border-black/[0.04]">
+                    {['Date', 'Opening', 'Sales', 'Expenses', 'Closing', 'Net', 'Status', 'Closed At'].map(h => (
+                      <th key={h} className="py-3 px-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black/[0.04]">
+                  {[...dayBook]
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                    .map(rec => {
+                      const isToday  = rec.date === today;
+                      const isSel    = rec.date === selectedDate;
+                      const isClosed = !!rec.is_closed;
+                      const net      = (Number(rec.total_sales) || 0) - (Number(rec.total_expenses) || 0);
+                      return (
+                        <tr
+                          key={rec.id || rec.date}
+                          onClick={() => { setSelectedDate(rec.date); setShowHistory(false); }}
+                          className={`cursor-pointer transition-colors hover:bg-accent-signature/5 ${isSel ? 'bg-accent-signature/10' : ''}`}
+                        >
+                          <td className="py-3.5 px-4">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[11px] font-black text-ink-primary">{displayDate(rec.date)}</span>
+                              {isToday && (
+                                <span className="text-[8px] font-bold text-accent-signature uppercase tracking-widest">Today</span>
+                              )}
+                              {isSel && !isToday && (
+                                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Viewing</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 text-[10px] font-black text-ink-primary tabular-nums">
+                            {cy}{fmt(rec.opening_balance)}
+                          </td>
+                          <td className="py-3.5 px-4 text-[10px] font-black text-emerald-600 tabular-nums">
+                            {cy}{fmt(rec.total_sales)}
+                          </td>
+                          <td className="py-3.5 px-4 text-[10px] font-black text-red-500 tabular-nums">
+                            {cy}{fmt(rec.total_expenses)}
+                          </td>
+                          <td className="py-3.5 px-4 text-[10px] font-black tabular-nums">
+                            <span className={Number(rec.closing_balance) < 0 ? 'text-red-600' : 'text-ink-primary'}>
+                              {cy}{fmt(rec.closing_balance)}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-[10px] font-black tabular-nums">
+                            <span className={net < 0 ? 'text-red-500' : 'text-emerald-600'}>
+                              {net < 0 ? '−' : '+'}{cy}{fmt(Math.abs(net))}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {isClosed ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                                <Lock size={8} /> Closed
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                                <Unlock size={8} /> Open
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-[9px] font-bold text-gray-400 whitespace-nowrap">
+                            {rec.closed_at
+                              ? new Date(rec.closed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                              : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in flex flex-col gap-6 pb-20">
@@ -637,108 +773,6 @@ const DayBook = () => {
 
         </div>
       </div>
-
-      {/* ── History drawer ───────────────────────────────────────────────────── */}
-      {showHistory && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm no-print">
-          <div className="relative bg-white w-full max-w-4xl mx-4 mt-16 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-black/5 flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <History size={16} className="text-accent-signature" />
-                <div>
-                  <h2 className="text-sm font-black text-ink-primary">Day Book History</h2>
-                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                    {dayBook.length} records — click row to navigate
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowHistory(false)}
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-canvas text-gray-400 transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Table */}
-            <div className="overflow-y-auto">
-              {dayBook.length === 0 ? (
-                <div className="py-20 flex flex-col items-center opacity-20">
-                  <History size={32} strokeWidth={1.5} />
-                  <p className="text-[10px] font-bold uppercase tracking-widest mt-3">No history yet</p>
-                </div>
-              ) : (
-                <table className="w-full text-left border-collapse">
-                  <thead className="sticky top-0 bg-canvas/90 backdrop-blur-sm">
-                    <tr className="border-b border-black/[0.04]">
-                      {['Date', 'Opening', 'Sales', 'Expenses', 'Closing', 'Status', 'Closed At'].map(h => (
-                        <th key={h} className="py-3 px-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
-                          {h}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-black/[0.04]">
-                    {[...dayBook]
-                      .sort((a, b) => b.date.localeCompare(a.date))
-                      .map(rec => {
-                        const isToday  = rec.date === today;
-                        const isSel    = rec.date === selectedDate;
-                        const isClosed = !!rec.is_closed;
-                        return (
-                          <tr
-                            key={rec.id || rec.date}
-                            onClick={() => { setSelectedDate(rec.date); setShowHistory(false); }}
-                            className={`cursor-pointer transition-colors hover:bg-accent-signature/5 ${isSel ? 'bg-accent-signature/10' : ''}`}
-                          >
-                            <td className="py-3 px-4">
-                              <div className="flex flex-col gap-0.5">
-                                <span className="text-[10px] font-black text-ink-primary">{displayDate(rec.date)}</span>
-                                {isToday && <span className="text-[8px] font-bold text-accent-signature uppercase tracking-widest">Today</span>}
-                              </div>
-                            </td>
-                            <td className="py-3 px-4 text-[10px] font-black text-ink-primary tabular-nums">
-                              {cy}{fmt(rec.opening_balance)}
-                            </td>
-                            <td className="py-3 px-4 text-[10px] font-black text-emerald-600 tabular-nums">
-                              {cy}{fmt(rec.total_sales)}
-                            </td>
-                            <td className="py-3 px-4 text-[10px] font-black text-red-500 tabular-nums">
-                              {cy}{fmt(rec.total_expenses)}
-                            </td>
-                            <td className="py-3 px-4 text-[10px] font-black tabular-nums">
-                              <span className={Number(rec.closing_balance) < 0 ? 'text-red-600' : 'text-ink-primary'}>
-                                {cy}{fmt(rec.closing_balance)}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              {isClosed ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[8px] font-bold uppercase tracking-wider">
-                                  <Lock size={8} /> Closed
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[8px] font-bold uppercase tracking-wider">
-                                  <Unlock size={8} /> Open
-                                </span>
-                              )}
-                            </td>
-                            <td className="py-3 px-4 text-[9px] font-bold text-gray-400">
-                              {rec.closed_at
-                                ? new Date(rec.closed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
-                                : '—'}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* ── Report modal ─────────────────────────────────────────────────────── */}
       {showReport && (
