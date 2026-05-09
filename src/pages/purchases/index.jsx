@@ -9,6 +9,7 @@ import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
 import { formatCurrency, formatDate, generateRef } from '../../lib/utils';
 import PurchaseForm from './components/PurchaseForm';
+import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
 
 const PurchasesPage = () => {
@@ -23,36 +24,46 @@ const PurchasesPage = () => {
   const [returnTarget, setReturnTarget] = useState(null); // purchase being returned
   const [returnLoading, setReturnLoading] = useState(false);
 
-  const handleSavePurchase = async (data) => {
-    const payload = {
-      ...data,
-      id: generateRef('PUR'),
-      userId: currentUser?.id
-    };
-    const { success, error } = await addPurchase(payload);
-    if (error) {
-      alert('Failed to record purchase: ' + error.message);
-      return;
-    }
+  const [addLoading, setAddLoading] = useState(false);
 
-    // Weighted average cost update on linked product
-    const product = products.find(p => p.id === data.linked_product_id);
-    const unitCost = data.unit_cost ?? (data.quantity > 0 ? data.total_amount / data.quantity : 0);
-    if (product && unitCost > 0) {
-      const oldStock = Number(product.stock) || 0;
-      const oldCost = Number(product.costPrice) || 0;
-      const qty = Number(data.quantity) || 0;
-      const denom = oldStock + qty;
-      const newCost = denom > 0
-        ? (oldStock * oldCost + qty * unitCost) / denom
-        : unitCost;
-      const rounded = Math.round(newCost * 100) / 100;
-      if (rounded !== oldCost) {
-        await updateProduct(product.id, { costPrice: rounded });
-      }
-    }
+  // ── WAC helper ──────────────────────────────────────────────────────────────
+  const updateWAC = async (productId, qty, unitCost) => {
+    const product = products.find(p => p.id === productId);
+    if (!product || unitCost <= 0) return;
+    const oldStock = Number(product.stock) || 0;
+    const oldCost  = Number(product.costPrice) || 0;
+    const denom    = oldStock + qty;
+    const newCost  = denom > 0 ? (oldStock * oldCost + qty * unitCost) / denom : unitCost;
+    const rounded  = Math.round(newCost * 100) / 100;
+    if (rounded !== oldCost) await updateProduct(product.id, { costPrice: rounded });
+  };
 
-    setShowAddModal(false);
+  // ── Multi-item purchase save ─────────────────────────────────────────────────
+  const handleSaveMultiPurchase = async ({ header, items }) => {
+    setAddLoading(true);
+    const supplierName = suppliers.find(s => s.id === header.supplier_id)?.name || '';
+    let failed = 0;
+    for (const item of items) {
+      const payload = {
+        id:                generateRef('PUR'),
+        linked_product_id: item.linked_product_id,
+        supplier_id:       header.supplier_id,
+        supplier_name:     supplierName,
+        quantity:          item.quantity,
+        unit_cost:         item.unit_price,
+        total_amount:      item.total_amount,
+        payment_type:      header.payment_type,
+        date:              header.date,
+        notes:             header.notes,
+        userId:            currentUser?.id,
+      };
+      const { error } = await addPurchase(payload);
+      if (error) { failed++; continue; }
+      await updateWAC(item.linked_product_id, item.quantity, item.unit_price);
+    }
+    setAddLoading(false);
+    if (failed > 0) alert(`${failed} item(s) failed to save.`);
+    else setShowAddModal(false);
   };
 
   const handleEditPurchase = async (data) => {
@@ -186,12 +197,13 @@ const PurchasesPage = () => {
         emptyMessage="No purchases recorded yet"
       />
 
-      {/* Add Purchase Modal */}
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Purchase" subtitle="Record stock received from a supplier">
-        <PurchaseForm
+      {/* Add Purchase Modal — multi-line */}
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Purchase" subtitle="One supplier · multiple products · single submit">
+        <MultiPurchaseForm
           products={products}
           suppliers={suppliers}
-          onSave={handleSavePurchase}
+          onSave={handleSaveMultiPurchase}
+          loading={addLoading}
         />
       </Modal>
 
