@@ -20,16 +20,14 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-.font-sora {
-    font-family: 'Sora', sans-serif !important;
+.font-inter {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
-.font-bebas {
-    font-family: 'Bebas Neue', sans-serif !important;
-}
-
+.font-sora,
+.font-bebas,
 .font-space {
-    font-family: 'Space Grotesk', sans-serif !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 .font-arial {
@@ -325,7 +323,7 @@ body {
 }
 
 body {
-  font-family: 'Sora', 'Inter', 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
   background: var(--color-canvas);
   color: var(--color-ink-primary);
   line-height: 1.5;
@@ -890,7 +888,7 @@ body {
 .kpi-expense:hover { border-color: rgba(239, 68, 68, 0.3); box-shadow: 0 12px 24px -10px var(--expense-glow); }
 
 .kpi-value {
-  font-family: 'Bebas Neue', sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
   font-size: 3.5rem;
   line-height: 1;
   letter-spacing: 0.02em;
