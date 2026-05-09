@@ -4,16 +4,18 @@ import Button from '../../../shared/Button';
 import { UNITS } from '../../../lib/constants';
 import { formatCurrency, todayISOInAppTZ } from '../../../lib/utils';
 
-const PurchaseForm = ({ products, suppliers, onSave, loading }) => {
+const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => {
   const [formData, setFormData] = useState({
-    linked_product_id: '',
-    supplier_id: '',
-    quantity: '',
-    unit_price: '',
-    total_amount: '',
-    payment_type: 'CASH',
-    date: todayISOInAppTZ(),
-    notes: ''
+    linked_product_id: initialData?.linked_product_id ?? '',
+    supplier_id:       initialData?.supplier_id        ?? '',
+    quantity:          initialData?.quantity            ?? '',
+    unit_price:        initialData?.quantity > 0 && initialData?.total_amount > 0
+                         ? (initialData.total_amount / initialData.quantity).toFixed(4)
+                         : '',
+    total_amount:      initialData?.total_amount        ?? '',
+    payment_type:      initialData?.payment_type        ?? 'CASH',
+    date:              initialData?.date                ?? todayISOInAppTZ(),
+    notes:             initialData?.notes               ?? ''
   });
 
   const selectedProduct = useMemo(
@@ -184,7 +186,7 @@ const PurchaseForm = ({ products, suppliers, onSave, loading }) => {
         className="w-full !rounded-xl !h-12 shadow-xl"
         icon={CheckCircle2}
       >
-        {loading ? 'Saving...' : 'Save Purchase'}
+        {loading ? 'Saving...' : initialData ? 'Update Purchase' : 'Save Purchase'}
       </Button>
     </form>
   );

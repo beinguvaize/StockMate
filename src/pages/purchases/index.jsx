@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw } from 'lucide-react';
+import { Plus, RotateCcw, Pencil } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
@@ -14,10 +14,12 @@ import PurchaseReturnForm from './components/PurchaseReturnForm';
 const PurchasesPage = () => {
   const { currentTenantId } = useTenant();
   const { currentUser } = useAuth();
-  const { purchases, suppliers, add: addPurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
-  const { products, loading: prodLoading, updateProduct } = useInventory(currentTenantId);
+  const { purchases, suppliers, add: addPurchase, update: updatePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
+  const { products, loading: prodLoading, updateProduct, adjustStock } = useInventory(currentTenantId);
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);   // purchase being edited
+  const [editLoading, setEditLoading] = useState(false);
   const [returnTarget, setReturnTarget] = useState(null); // purchase being returned
   const [returnLoading, setReturnLoading] = useState(false);
 
@@ -51,6 +53,43 @@ const PurchasesPage = () => {
     }
 
     setShowAddModal(false);
+  };
+
+  const handleEditPurchase = async (data) => {
+    setEditLoading(true);
+    const orig = editTarget;
+    const qtyDelta = Number(data.quantity) - Number(orig.quantity);
+
+    // Update purchase record fields (metadata only — inventory adjusted separately)
+    const { error } = await updatePurchase(orig.id, {
+      linked_product_id: data.linked_product_id,
+      supplier_id:       data.supplier_id,
+      supplier_name:     suppliers.find(s => s.id === data.supplier_id)?.name || orig.supplier_name,
+      quantity:          Number(data.quantity),
+      total_amount:      Number(data.total_amount),
+      payment_type:      data.payment_type,
+      date:              data.date,
+      notes:             data.notes,
+    });
+
+    if (error) {
+      alert('Failed to update purchase: ' + error.message);
+      setEditLoading(false);
+      return;
+    }
+
+    // Adjust inventory for quantity delta
+    if (qtyDelta !== 0 && data.linked_product_id) {
+      await adjustStock(
+        data.linked_product_id,
+        qtyDelta,
+        `Purchase edit: ${orig.id}`,
+        null
+      );
+    }
+
+    setEditLoading(false);
+    setEditTarget(null);
   };
 
   const handleSaveReturn = async (data) => {
@@ -99,13 +138,22 @@ const PurchasesPage = () => {
           <div className="text-sm font-black text-ink-primary">{formatCurrency(pur.total_amount)}</div>
         </td>
         <td className="px-4 py-3 text-right">
-          <button
-            onClick={() => setReturnTarget({ purchase: pur, product, supplier })}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors ml-auto"
-          >
-            <RotateCcw size={11} />
-            Return
-          </button>
+          <div className="flex items-center gap-1.5 justify-end">
+            <button
+              onClick={() => setEditTarget(pur)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+            >
+              <Pencil size={11} />
+              Edit
+            </button>
+            <button
+              onClick={() => setReturnTarget({ purchase: pur, product, supplier })}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors"
+            >
+              <RotateCcw size={11} />
+              Return
+            </button>
+          </div>
         </td>
       </tr>
     );
@@ -145,6 +193,19 @@ const PurchasesPage = () => {
           suppliers={suppliers}
           onSave={handleSavePurchase}
         />
+      </Modal>
+
+      {/* Edit Purchase Modal */}
+      <Modal isOpen={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Purchase" subtitle="Update purchase details — inventory adjusted for qty change">
+        {editTarget && (
+          <PurchaseForm
+            products={products}
+            suppliers={suppliers}
+            onSave={handleEditPurchase}
+            loading={editLoading}
+            initialData={editTarget}
+          />
+        )}
       </Modal>
 
       {/* Purchase Return Modal */}
