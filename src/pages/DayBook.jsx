@@ -9,7 +9,7 @@ import {
   FileText, ShieldCheck, Lock, Unlock,
   Banknote, CreditCard, Building2, Receipt,
   TrendingUp, TrendingDown, Clock, AlertTriangle,
-  Users, ShoppingCart, CheckCircle2
+  Users, ShoppingCart, CheckCircle2, History, X
 } from 'lucide-react';
 import DailyLedgerDetail from '../components/reports/DailyLedgerDetail';
 import { todayISOInAppTZ } from '../lib/utils';
@@ -84,6 +84,7 @@ const DayBook = () => {
   const [isSaving,      setIsSaving]      = useState(false);
   const [isClosing,     setIsClosing]     = useState(false);
   const [showReport,    setShowReport]    = useState(false);
+  const [showHistory,   setShowHistory]   = useState(false);
 
   // ── Ledger computation ────────────────────────────────────────────────────
   const ledger = useMemo(() => {
@@ -273,6 +274,11 @@ const DayBook = () => {
               Today
             </button>
           )}
+          <button onClick={() => setShowHistory(true)}
+            className="flex items-center gap-2 px-4 h-9 bg-canvas border border-black/5 text-gray-600 text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-white transition-all shadow-sm">
+            <History size={12} />
+            History
+          </button>
           <button onClick={() => setShowReport(true)}
             className="flex items-center gap-2 px-4 h-9 bg-ink-primary text-white text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-black transition-all shadow-sm">
             <FileText size={12} />
@@ -631,6 +637,108 @@ const DayBook = () => {
 
         </div>
       </div>
+
+      {/* ── History drawer ───────────────────────────────────────────────────── */}
+      {showHistory && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm no-print">
+          <div className="relative bg-white w-full max-w-4xl mx-4 mt-16 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-black/5 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <History size={16} className="text-accent-signature" />
+                <div>
+                  <h2 className="text-sm font-black text-ink-primary">Day Book History</h2>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                    {dayBook.length} records — click row to navigate
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-canvas text-gray-400 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Table */}
+            <div className="overflow-y-auto">
+              {dayBook.length === 0 ? (
+                <div className="py-20 flex flex-col items-center opacity-20">
+                  <History size={32} strokeWidth={1.5} />
+                  <p className="text-[10px] font-bold uppercase tracking-widest mt-3">No history yet</p>
+                </div>
+              ) : (
+                <table className="w-full text-left border-collapse">
+                  <thead className="sticky top-0 bg-canvas/90 backdrop-blur-sm">
+                    <tr className="border-b border-black/[0.04]">
+                      {['Date', 'Opening', 'Sales', 'Expenses', 'Closing', 'Status', 'Closed At'].map(h => (
+                        <th key={h} className="py-3 px-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-black/[0.04]">
+                    {[...dayBook]
+                      .sort((a, b) => b.date.localeCompare(a.date))
+                      .map(rec => {
+                        const isToday  = rec.date === today;
+                        const isSel    = rec.date === selectedDate;
+                        const isClosed = !!rec.is_closed;
+                        return (
+                          <tr
+                            key={rec.id || rec.date}
+                            onClick={() => { setSelectedDate(rec.date); setShowHistory(false); }}
+                            className={`cursor-pointer transition-colors hover:bg-accent-signature/5 ${isSel ? 'bg-accent-signature/10' : ''}`}
+                          >
+                            <td className="py-3 px-4">
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-[10px] font-black text-ink-primary">{displayDate(rec.date)}</span>
+                                {isToday && <span className="text-[8px] font-bold text-accent-signature uppercase tracking-widest">Today</span>}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4 text-[10px] font-black text-ink-primary tabular-nums">
+                              {cy}{fmt(rec.opening_balance)}
+                            </td>
+                            <td className="py-3 px-4 text-[10px] font-black text-emerald-600 tabular-nums">
+                              {cy}{fmt(rec.total_sales)}
+                            </td>
+                            <td className="py-3 px-4 text-[10px] font-black text-red-500 tabular-nums">
+                              {cy}{fmt(rec.total_expenses)}
+                            </td>
+                            <td className="py-3 px-4 text-[10px] font-black tabular-nums">
+                              <span className={Number(rec.closing_balance) < 0 ? 'text-red-600' : 'text-ink-primary'}>
+                                {cy}{fmt(rec.closing_balance)}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
+                              {isClosed ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                                  <Lock size={8} /> Closed
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                                  <Unlock size={8} /> Open
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-[9px] font-bold text-gray-400">
+                              {rec.closed_at
+                                ? new Date(rec.closed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                                : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Report modal ─────────────────────────────────────────────────────── */}
       {showReport && (
