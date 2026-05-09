@@ -16,7 +16,7 @@ const PurchasesPage = () => {
   const { currentTenantId } = useTenant();
   const { currentUser } = useAuth();
   const { purchases, suppliers, add: addPurchase, update: updatePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
-  const { products, loading: prodLoading, updateProduct, adjustStock } = useInventory(currentTenantId);
+  const { products, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);   // purchase being edited
@@ -36,6 +36,13 @@ const PurchasesPage = () => {
     const newCost  = denom > 0 ? (oldStock * oldCost + qty * unitCost) / denom : unitCost;
     const rounded  = Math.round(newCost * 100) / 100;
     if (rounded !== oldCost) await updateProduct(product.id, { costPrice: rounded });
+  };
+
+  // ── Quick-create product from barcode ──────────────────────────────────────
+  const handleCreateProduct = async (productData) => {
+    const { data, error } = await addProduct(productData);
+    if (error) { alert('Failed to create product: ' + error.message); return null; }
+    return data;
   };
 
   // ── Multi-item purchase save ─────────────────────────────────────────────────
@@ -204,6 +211,7 @@ const PurchasesPage = () => {
           suppliers={suppliers}
           onSave={handleSaveMultiPurchase}
           loading={addLoading}
+          onCreateProduct={handleCreateProduct}
         />
       </Modal>
 

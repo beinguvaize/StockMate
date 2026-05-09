@@ -16,7 +16,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
     costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
-    lowStockThreshold: 10, min_margin: 0
+    lowStockThreshold: 10, min_margin: 0, barcode: ''
   });
 
   const [imageFile, setImageFile]     = useState(null);
@@ -52,14 +52,15 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         taxSlab: editingProduct.taxSlab || (TAX_SLABS.find(s => s.rate === (editingProduct.taxRate || 0))?.label) || 'Custom',
         tags: editingProduct.tags ? editingProduct.tags.join(', ') : '',
         image: editingProduct.image || '',
-        lowStockThreshold: editingProduct.lowStockThreshold || 10
+        lowStockThreshold: editingProduct.lowStockThreshold || 10,
+        barcode: editingProduct.barcode || '',
       });
       setImagePreview(editingProduct.image || null);
     } else {
       setFormData({
         name: '', sku: '', category: '', unit: UNITS[0],
         costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
-        lowStockThreshold: 10, min_margin: 0
+        lowStockThreshold: 10, min_margin: 0, barcode: '',
       });
       setImagePreview(null);
     }
@@ -175,6 +176,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     .map(name => <option key={name} value={name} />)}
                 </datalist>
               </div>
+            </div>
+
+            {/* Barcode */}
+            <div>
+              <label className={labelCls}>Barcode (EAN-13 / UPC / custom)</label>
+              <input type="text" className={`${inputCls} font-mono`} placeholder="Scan or type barcode…"
+                value={formData.barcode || ''}
+                onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
             </div>
 
             {/* Row 3: Cost | Selling | Unit */}
