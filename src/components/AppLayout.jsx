@@ -192,7 +192,7 @@ const Navbar = () => {
  {currentTenant && (
    <div className="hidden md:flex items-center gap-2">
      <div className="w-px h-6 bg-black/10"></div>
-     <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wide whitespace-nowrap max-w-[200px] truncate">{currentTenant.name}</span>
+     <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wide whitespace-nowrap">{currentTenant.name}</span>
      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
        currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
        currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
