@@ -116,9 +116,11 @@ const DayBook = () => {
     const prevRecord  = getPrevDayBook(selectedDate);
     const openingBal  = Number(record?.opening_balance) || 0;
     const closingBal  = openingBal + totalReceipts - totalPayments;
-    const isLocked    = !!record?.is_closed;
-    const closedAt    = record?.closed_at || null;
-    const hasOpening  = !!record?.id;
+    const isLocked          = !!record?.is_closed;
+    const closedAt          = record?.closed_at || null;
+    const hasOpening        = !!record?.id;
+    const savedPhysicalCash = record?.physical_cash != null ? Number(record.physical_cash) : null;
+    const savedVariance     = record?.variance      != null ? Number(record.variance)      : null;
 
     // ── Transaction log ───────────────────────────────────────────────────────
     const entries = [
@@ -175,6 +177,7 @@ const DayBook = () => {
 
     return {
       openingBal, closingBal, isLocked, closedAt, hasOpening,
+      savedPhysicalCash, savedVariance,
       cashSales, bankSales, creditSales,
       cashCollect, bankCollect,
       totalReceipts, totalExpenses, totalPurchPaid, totalPayments,
@@ -190,6 +193,11 @@ const DayBook = () => {
   const isDeficit  = ledger.closingBal < 0;
   const variance   = physicalCash !== '' ? (parseFloat(physicalCash) || 0) - ledger.closingBal : null;
   const isFuture   = selectedDate > today;
+
+  // Load saved physical cash when date changes
+  React.useEffect(() => {
+    setPhysicalCash(ledger.savedPhysicalCash != null ? String(ledger.savedPhysicalCash) : '');
+  }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleSaveOpening = async () => {
@@ -215,9 +223,22 @@ const DayBook = () => {
     setIsSaving(false);
   };
 
+  const handleSavePhysicalCash = async () => {
+    const pc = parseFloat(physicalCash);
+    if (isNaN(pc)) return;
+    const v = Math.round((pc - ledger.closingBal) * 100) / 100;
+    await updateDayBook({
+      date:            selectedDate,
+      opening_balance: ledger.openingBal,
+      physical_cash:   pc,
+      variance:        v,
+    });
+  };
+
   const handleCloseDay = async () => {
     if (isClosing || !window.confirm(`Close ${displayDate(selectedDate)}? This locks the ledger.`)) return;
     setIsClosing(true);
+    const pc = parseFloat(physicalCash);
     const { error } = await updateDayBook({
       date:             selectedDate,
       opening_balance:  ledger.openingBal,
@@ -226,6 +247,10 @@ const DayBook = () => {
       total_expenses:   ledger.totalPayments,
       is_closed:        true,
       closed_at:        new Date().toISOString(),
+      ...(isNaN(pc) ? {} : {
+        physical_cash: pc,
+        variance:      Math.round((pc - ledger.closingBal) * 100) / 100,
+      }),
     });
     if (error) console.error('Close day error:', error);
     setIsClosing(false);
@@ -239,10 +264,12 @@ const DayBook = () => {
 
   // ── History full-page view ────────────────────────────────────────────────
   if (showHistory) {
-    const totalDays   = dayBook.length;
-    const closedDays  = dayBook.filter(r => r.is_closed).length;
-    const totalSales  = dayBook.reduce((s, r) => s + (Number(r.total_sales)  || 0), 0);
-    const totalExp    = dayBook.reduce((s, r) => s + (Number(r.total_expenses) || 0), 0);
+    const totalDays    = dayBook.length;
+    const closedDays   = dayBook.filter(r => r.is_closed).length;
+    const totalSales   = dayBook.reduce((s, r) => s + (Number(r.total_sales)    || 0), 0);
+    const totalExp     = dayBook.reduce((s, r) => s + (Number(r.total_expenses) || 0), 0);
+    const discrepDays  = dayBook.filter(r => r.variance != null && Math.abs(Number(r.variance)) >= 0.01).length;
+    const shortDays    = dayBook.filter(r => r.variance != null && Number(r.variance) < -0.01).length;
 
     return (
       <div className="animate-fade-in flex flex-col gap-6 pb-20">
@@ -268,7 +295,9 @@ const DayBook = () => {
 
         {/* Summary strip */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <KpiCard label="Total Days" cy="" value={totalDays} sub={`${closedDays} closed · ${totalDays - closedDays} open`} icon={<Calendar size={14} />} color="default" />
+          <KpiCard label="Total Days" cy="" value={totalDays}
+            sub={`${closedDays} closed · ${discrepDays > 0 ? `${discrepDays} discrepancies` : 'no discrepancies'}`}
+            icon={<Calendar size={14} />} color="default" />
           <KpiCard label="All-Time Sales" cy={cy} value={fmt(totalSales)} icon={<TrendingUp size={14} />} color="green" />
           <KpiCard label="All-Time Expenses" cy={cy} value={fmt(totalExp)} icon={<TrendingDown size={14} />} color="red" />
           <KpiCard label="Net Flow" cy={cy}
@@ -294,7 +323,7 @@ const DayBook = () => {
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-canvas/60 border-b border-black/[0.04]">
-                    {['Date', 'Opening', 'Sales', 'Expenses', 'Closing', 'Net', 'Status', 'Closed At'].map(h => (
+                    {['Date', 'Opening', 'Sales', 'Expenses', 'Closing', 'Net', 'Discrepancy', 'Status', 'Closed At'].map(h => (
                       <th key={h} className="py-3 px-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
                         {h}
                       </th>
@@ -305,10 +334,12 @@ const DayBook = () => {
                   {[...dayBook]
                     .sort((a, b) => b.date.localeCompare(a.date))
                     .map(rec => {
-                      const isToday  = rec.date === today;
-                      const isSel    = rec.date === selectedDate;
-                      const isClosed = !!rec.is_closed;
-                      const net      = (Number(rec.total_sales) || 0) - (Number(rec.total_expenses) || 0);
+                      const isToday    = rec.date === today;
+                      const isSel      = rec.date === selectedDate;
+                      const isClosed   = !!rec.is_closed;
+                      const net        = (Number(rec.total_sales) || 0) - (Number(rec.total_expenses) || 0);
+                      const recVar     = rec.variance != null ? Number(rec.variance) : null;
+                      const hasDiscrep = recVar != null && Math.abs(recVar) >= 0.01;
                       return (
                         <tr
                           key={rec.id || rec.date}
@@ -344,6 +375,24 @@ const DayBook = () => {
                             <span className={net < 0 ? 'text-red-500' : 'text-emerald-600'}>
                               {net < 0 ? '−' : '+'}{cy}{fmt(Math.abs(net))}
                             </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {recVar == null ? (
+                              <span className="text-[9px] text-gray-300 font-bold">—</span>
+                            ) : !hasDiscrep ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[8px] font-bold">
+                                <CheckCircle2 size={8} /> Balanced
+                              </span>
+                            ) : (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold border ${
+                                recVar > 0
+                                  ? 'bg-blue-50 text-blue-600 border-blue-100'
+                                  : 'bg-red-50 text-red-600 border-red-100'
+                              }`}>
+                                <AlertTriangle size={8} />
+                                {recVar > 0 ? '+' : '−'}{cy}{fmt(Math.abs(recVar))}
+                              </span>
+                            )}
                           </td>
                           <td className="py-3.5 px-4">
                             {isClosed ? (
@@ -723,6 +772,18 @@ const DayBook = () => {
           <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
             <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Banknote size={11} className="text-amber-500" /> Cash Reconciliation
+              {ledger.savedVariance != null && (
+                <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold ${
+                  Math.abs(ledger.savedVariance) < 0.01
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                    : ledger.savedVariance > 0
+                      ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                      : 'bg-red-50 text-red-600 border border-red-100'
+                }`}>
+                  <CheckCircle2 size={8} />
+                  Saved
+                </span>
+              )}
             </h3>
             <div className="space-y-3">
               <div className="flex justify-between text-[10px] font-bold text-gray-400">
@@ -752,6 +813,14 @@ const DayBook = () => {
                     {Math.abs(variance) < 0.01 ? 'Exact match' : `${variance > 0 ? '+' : '−'}${cy}${fmt(Math.abs(variance))}`}
                   </span>
                 </div>
+              )}
+              {variance !== null && !isFuture && (
+                <button
+                  onClick={handleSavePhysicalCash}
+                  className="w-full h-9 flex items-center justify-center gap-2 bg-canvas border border-black/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-600 hover:bg-black/5 transition-all"
+                >
+                  <Save size={11} /> Save Count
+                </button>
               )}
             </div>
           </div>
