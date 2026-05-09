@@ -116,6 +116,7 @@ const DayBook = () => {
     const openingBal  = Number(record?.opening_balance) || 0;
     const closingBal  = openingBal + totalReceipts - totalPayments;
     const isLocked    = !!record?.is_closed;
+    const closedAt    = record?.closed_at || null;
     const hasOpening  = !!record?.id;
 
     // ── Transaction log ───────────────────────────────────────────────────────
@@ -172,7 +173,7 @@ const DayBook = () => {
     });
 
     return {
-      openingBal, closingBal, isLocked, hasOpening,
+      openingBal, closingBal, isLocked, closedAt, hasOpening,
       cashSales, bankSales, creditSales,
       cashCollect, bankCollect,
       totalReceipts, totalExpenses, totalPurchPaid, totalPayments,
@@ -223,6 +224,7 @@ const DayBook = () => {
       total_sales:      ledger.cashSales + ledger.bankSales,
       total_expenses:   ledger.totalPayments,
       is_closed:        true,
+      closed_at:        new Date().toISOString(),
     });
     if (error) console.error('Close day error:', error);
     setIsClosing(false);
@@ -479,7 +481,14 @@ const DayBook = () => {
                 <ShieldCheck size={16} className="text-emerald-500 flex-shrink-0" />
                 <div>
                   <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">Day Closed & Locked</p>
-                  <p className="text-[9px] font-bold text-emerald-500 mt-0.5">No further edits allowed</p>
+                  {ledger.closedAt ? (
+                    <p className="text-[9px] font-bold text-emerald-500 mt-0.5 flex items-center gap-1">
+                      <Clock size={9} />
+                      Closed at {new Date(ledger.closedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                    </p>
+                  ) : (
+                    <p className="text-[9px] font-bold text-emerald-500 mt-0.5">No further edits allowed</p>
+                  )}
                 </div>
               </div>
             ) : hasPermission('finance', 'edit') ? (
