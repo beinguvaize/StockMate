@@ -89,7 +89,8 @@ export const usePurchases = (tenantId) => {
   };
 
   const addReturn = async (ret) => {
-    const { error: rpcErr } = await supabase.rpc('process_purchase_return', {
+    console.log('[addReturn] payload:', ret);
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('process_purchase_return', {
       p_id:            ret.id,
       p_tenant_id:     tenantId,
       p_purchase_id:   ret.purchase_id,
@@ -103,6 +104,7 @@ export const usePurchases = (tenantId) => {
       p_reason:        ret.reason || null,
       p_date:          ret.date,
     });
+    console.log('[addReturn] rpc result:', { rpcData, rpcErr });
     if (rpcErr) return { error: rpcErr };
     await fetchPurchases();
     return { success: true };
