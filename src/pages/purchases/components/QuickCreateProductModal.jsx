@@ -33,27 +33,27 @@ const QuickCreateProductModal = ({ barcode, onSave, onCancel, loading }) => {
   const inp = 'w-full bg-canvas border border-black/5 rounded-xl p-2.5 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20';
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+    <div className="fixed inset-0 z-[60] flex flex-col bg-canvas animate-fade-in">
+      <div className="w-full max-w-2xl mx-auto flex flex-col flex-1 overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
-          <div className="flex items-center gap-2">
-            <PackagePlus size={16} className="text-accent-signature" />
+        <div className="flex items-center gap-4 px-6 py-4 border-b border-black/5 bg-white shrink-0">
+          <button onClick={onCancel} className="w-9 h-9 flex items-center justify-center rounded-full border border-black/5 hover:bg-canvas transition-all text-ink-primary shrink-0">
+            <X size={16} />
+          </button>
+          <div className="flex items-center gap-2 min-w-0">
+            <PackagePlus size={16} className="text-accent-signature shrink-0" />
             <div>
-              <p className="text-sm font-black text-ink-primary">New Product</p>
+              <p className="text-lg font-black text-ink-primary">New Product</p>
               <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
                 Barcode: <span className="font-mono text-ink-primary">{barcode}</span>
               </p>
             </div>
           </div>
-          <button onClick={onCancel} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-canvas text-gray-400">
-            <X size={14} />
-          </button>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-5 space-y-3">
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 space-y-4 max-w-lg mx-auto w-full">
           <div>
             <label className="block text-[9px] font-bold text-gray-500 uppercase tracking-wider mb-1">Product Name <span className="text-red-400">*</span></label>
             <input required className={inp} placeholder="e.g. Amul Butter 500g"

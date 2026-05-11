@@ -2,7 +2,7 @@ import React from 'react';
 import {
   X, Printer, ArrowUpRight, ArrowDownRight,
   Calendar, Clock, FileText, TrendingUp, TrendingDown,
-  CreditCard, Banknote, AlertTriangle
+  CreditCard, Banknote, AlertTriangle, ChevronLeft
 } from 'lucide-react';
 import { formatDate, parseLocalDate } from '../../lib/utils';
 
@@ -57,39 +57,36 @@ const DailyLedgerDetail = ({
   const creditIn = totalIncome - cashIn;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8 animate-fade-in no-print">
-      <div className="absolute inset-0 bg-ink-primary/20 backdrop-blur-md" onClick={onClose} />
+    <div className="fixed inset-0 z-[100] flex flex-col bg-canvas animate-fade-in no-print">
 
-      <div className="relative w-full max-w-4xl bg-white rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full flex flex-col flex-1 overflow-hidden">
 
         {/* Header */}
-        <div className="flex justify-between items-center p-6 md:p-8 border-b border-black/5">
-          <div className="flex items-center gap-5">
-            <div className="w-14 h-14 rounded-[1.25rem] bg-ink-primary text-accent-signature flex items-center justify-center shadow-lg flex-shrink-0">
-              <Calendar size={24} />
-            </div>
-            <div>
-              <h2 className="text-2xl md:text-4xl font-black font-sora text-ink-primary leading-none uppercase tracking-tight">
+        <div className="flex items-center gap-4 px-6 py-4 border-b border-black/5 bg-white shrink-0">
+          <button onClick={onClose}
+            className="w-9 h-9 flex items-center justify-center rounded-full border border-black/5 hover:bg-canvas transition-all text-ink-primary shrink-0">
+            <ChevronLeft size={18} />
+          </button>
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <Calendar size={16} className="text-accent-signature shrink-0" />
+            <div className="min-w-0">
+              <h2 className="text-lg font-black text-ink-primary leading-none">
                 Daily Ledger<span className="text-accent-signature">.</span>
               </h2>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Report</span>
-                <div className="h-0.5 w-0.5 rounded-full bg-black/20" />
-                <span className="text-[10px] font-black text-ink-primary bg-canvas px-2.5 py-0.5 rounded-full border border-black/5">
-                  {date ? formatDate(date) : 'Today'}
-                </span>
-                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{transactions.length} txns</span>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[10px] font-black text-ink-primary">{date ? formatDate(date) : 'Today'}</span>
+                <span className="text-[9px] font-bold text-gray-400">{transactions.length} transactions</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button onClick={() => window.print()}
-              className="w-11 h-11 rounded-full border border-black/5 bg-canvas flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary">
-              <Printer size={16} />
+              className="w-9 h-9 rounded-full border border-black/5 bg-canvas flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary">
+              <Printer size={14} />
             </button>
             <button onClick={onClose}
-              className="w-11 h-11 rounded-full border border-black/5 bg-canvas flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary">
-              <X size={16} />
+              className="w-9 h-9 rounded-full border border-black/5 bg-canvas flex items-center justify-center hover:bg-black/5 transition-all text-gray-400">
+              <X size={14} />
             </button>
           </div>
         </div>
