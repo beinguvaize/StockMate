@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import useRefetchOnFocus from './useRefetchOnFocus';
 
 const ORDER_NUMERIC = ['subtotal', 'discount', 'grand_total'];
 
@@ -51,6 +52,8 @@ export const useOrders = (tenantId) => {
   }, [tenantId]);
 
   useEffect(() => { fetchOrders(); }, [fetchOrders]);
+
+  useRefetchOnFocus(fetchOrders);
 
   // ── Realtime ─────────────────────────────────────────────────────────
   useEffect(() => {

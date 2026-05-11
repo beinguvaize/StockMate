@@ -192,7 +192,7 @@ const Navbar = () => {
  {currentTenant && (
    <div className="hidden md:flex items-center gap-2">
      <div className="w-px h-6 bg-black/10"></div>
-     <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wide">{currentTenant.name}</span>
+     <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wide leading-tight">{currentTenant.name}</span>
      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
        currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
        currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :
@@ -363,7 +363,7 @@ const Navbar = () => {
  {/* Tenant Badge in Mobile */}
  {currentTenant && (
    <div className="px-5 py-3 border-b border-black/5">
-     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{currentTenant.name}</p>
+     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1 leading-tight">{currentTenant.name}</p>
      <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full ${
        currentTenant.plan === 'ENTERPRISE' ? 'bg-purple-50 text-purple-600' :
        currentTenant.plan === 'PRO' ? 'bg-blue-50 text-blue-600' :

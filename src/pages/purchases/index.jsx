@@ -3,54 +3,111 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw } from 'lucide-react';
+import { Plus, RotateCcw, Pencil } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
 import { formatCurrency, formatDate, generateRef } from '../../lib/utils';
 import PurchaseForm from './components/PurchaseForm';
+import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
 
 const PurchasesPage = () => {
   const { currentTenantId } = useTenant();
   const { currentUser } = useAuth();
-  const { purchases, suppliers, add: addPurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
-  const { products, loading: prodLoading, updateProduct } = useInventory(currentTenantId);
+  const { purchases, suppliers, add: addPurchase, update: updatePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
+  const { products, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);   // purchase being edited
+  const [editLoading, setEditLoading] = useState(false);
   const [returnTarget, setReturnTarget] = useState(null); // purchase being returned
   const [returnLoading, setReturnLoading] = useState(false);
 
-  const handleSavePurchase = async (data) => {
-    const payload = {
-      ...data,
-      id: generateRef('PUR'),
-      userId: currentUser?.id
-    };
-    const { success, error } = await addPurchase(payload);
+  const [addLoading, setAddLoading] = useState(false);
+
+  // ── WAC helper ──────────────────────────────────────────────────────────────
+  const updateWAC = async (productId, qty, unitCost) => {
+    const product = products.find(p => p.id === productId);
+    if (!product || unitCost <= 0) return;
+    const oldStock = Number(product.stock) || 0;
+    const oldCost  = Number(product.costPrice) || 0;
+    const denom    = oldStock + qty;
+    const newCost  = denom > 0 ? (oldStock * oldCost + qty * unitCost) / denom : unitCost;
+    const rounded  = Math.round(newCost * 100) / 100;
+    if (rounded !== oldCost) await updateProduct(product.id, { costPrice: rounded });
+  };
+
+  // ── Quick-create product from barcode ──────────────────────────────────────
+  const handleCreateProduct = async (productData) => {
+    const { data, error } = await addProduct(productData);
+    if (error) { alert('Failed to create product: ' + error.message); return null; }
+    return data;
+  };
+
+  // ── Multi-item purchase save ─────────────────────────────────────────────────
+  const handleSaveMultiPurchase = async ({ header, items }) => {
+    setAddLoading(true);
+    const supplierName = suppliers.find(s => s.id === header.supplier_id)?.name || '';
+    let failed = 0;
+    for (const item of items) {
+      const payload = {
+        id:                generateRef('PUR'),
+        linked_product_id: item.linked_product_id,
+        supplier_id:       header.supplier_id,
+        supplier_name:     supplierName,
+        quantity:          item.quantity,
+        unit_cost:         item.unit_price,
+        total_amount:      item.total_amount,
+        payment_type:      header.payment_type,
+        date:              header.date,
+        notes:             header.notes,
+        userId:            currentUser?.id,
+      };
+      const { error } = await addPurchase(payload);
+      if (error) { failed++; continue; }
+      await updateWAC(item.linked_product_id, item.quantity, item.unit_price);
+    }
+    setAddLoading(false);
+    if (failed > 0) alert(`${failed} item(s) failed to save.`);
+    else setShowAddModal(false);
+  };
+
+  const handleEditPurchase = async (data) => {
+    setEditLoading(true);
+    const orig = editTarget;
+    const qtyDelta = Number(data.quantity) - Number(orig.quantity);
+
+    // Update purchase record fields (metadata only — inventory adjusted separately)
+    const { error } = await updatePurchase(orig.id, {
+      linked_product_id: data.linked_product_id,
+      supplier_id:       data.supplier_id,
+      supplier_name:     suppliers.find(s => s.id === data.supplier_id)?.name || orig.supplier_name,
+      quantity:          Number(data.quantity),
+      total_amount:      Number(data.total_amount),
+      payment_type:      data.payment_type,
+      date:              data.date,
+      notes:             data.notes,
+    });
+
     if (error) {
-      alert('Failed to record purchase: ' + error.message);
+      alert('Failed to update purchase: ' + error.message);
+      setEditLoading(false);
       return;
     }
 
-    // Weighted average cost update on linked product
-    const product = products.find(p => p.id === data.linked_product_id);
-    const unitCost = data.unit_cost ?? (data.quantity > 0 ? data.total_amount / data.quantity : 0);
-    if (product && unitCost > 0) {
-      const oldStock = Number(product.stock) || 0;
-      const oldCost = Number(product.costPrice) || 0;
-      const qty = Number(data.quantity) || 0;
-      const denom = oldStock + qty;
-      const newCost = denom > 0
-        ? (oldStock * oldCost + qty * unitCost) / denom
-        : unitCost;
-      const rounded = Math.round(newCost * 100) / 100;
-      if (rounded !== oldCost) {
-        await updateProduct(product.id, { costPrice: rounded });
-      }
+    // Adjust inventory for quantity delta
+    if (qtyDelta !== 0 && data.linked_product_id) {
+      await adjustStock(
+        data.linked_product_id,
+        qtyDelta,
+        `Purchase edit: ${orig.id}`,
+        null
+      );
     }
 
-    setShowAddModal(false);
+    setEditLoading(false);
+    setEditTarget(null);
   };
 
   const handleSaveReturn = async (data) => {
@@ -99,13 +156,22 @@ const PurchasesPage = () => {
           <div className="text-sm font-black text-ink-primary">{formatCurrency(pur.total_amount)}</div>
         </td>
         <td className="px-4 py-3 text-right">
-          <button
-            onClick={() => setReturnTarget({ purchase: pur, product, supplier })}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors ml-auto"
-          >
-            <RotateCcw size={11} />
-            Return
-          </button>
+          <div className="flex items-center gap-1.5 justify-end">
+            <button
+              onClick={() => setEditTarget(pur)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+            >
+              <Pencil size={11} />
+              Edit
+            </button>
+            <button
+              onClick={() => setReturnTarget({ purchase: pur, product, supplier })}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors"
+            >
+              <RotateCcw size={11} />
+              Return
+            </button>
+          </div>
         </td>
       </tr>
     );
@@ -138,13 +204,28 @@ const PurchasesPage = () => {
         emptyMessage="No purchases recorded yet"
       />
 
-      {/* Add Purchase Modal */}
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Purchase" subtitle="Record stock received from a supplier">
-        <PurchaseForm
+      {/* Add Purchase Modal — multi-line */}
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Purchase" subtitle="One supplier · multiple products · single submit">
+        <MultiPurchaseForm
           products={products}
           suppliers={suppliers}
-          onSave={handleSavePurchase}
+          onSave={handleSaveMultiPurchase}
+          loading={addLoading}
+          onCreateProduct={handleCreateProduct}
         />
+      </Modal>
+
+      {/* Edit Purchase Modal */}
+      <Modal isOpen={!!editTarget} onClose={() => setEditTarget(null)} title="Edit Purchase" subtitle="Update purchase details — inventory adjusted for qty change">
+        {editTarget && (
+          <PurchaseForm
+            products={products}
+            suppliers={suppliers}
+            onSave={handleEditPurchase}
+            loading={editLoading}
+            initialData={editTarget}
+          />
+        )}
       </Modal>
 
       {/* Purchase Return Modal */}

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { generateRef, todayISOInAppTZ } from '../lib/utils';
+import useRefetchOnFocus from './useRefetchOnFocus';
 
 // Postgres `numeric` -> JS string over the wire. Coerce on fetch so downstream
 // `reduce(sum + x, 0)` doesn't string-concat and `.toFixed` doesn't throw.
@@ -60,6 +61,9 @@ export const useSales = (tenantId) => {
   }, [tenantId]);
 
   useEffect(() => { fetchSales(); }, [fetchSales]);
+
+  // Re-fetch when tab becomes visible after idle (handles stale data after lock-screen / sleep)
+  useRefetchOnFocus(fetchSales);
 
   // ── Realtime — invoices + sales ───────────────────────────────────────
   useEffect(() => {

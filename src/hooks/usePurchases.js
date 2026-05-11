@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
+import useRefetchOnFocus from './useRefetchOnFocus';
 
 const PURCHASE_NUMERIC = ['quantity', 'total_amount', 'paid_amount', 'unit_price', 'tax'];
 const SUPPLIER_NUMERIC = ['balance', 'outstanding_balance'];
@@ -43,6 +44,8 @@ export const usePurchases = (tenantId) => {
   useEffect(() => {
     fetchPurchases();
   }, [fetchPurchases]);
+
+  useRefetchOnFocus(fetchPurchases);
 
   const add = async (purchase) => {
     const { error: rpcError } = await supabase.rpc('process_purchase', {

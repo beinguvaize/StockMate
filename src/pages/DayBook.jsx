@@ -9,7 +9,7 @@ import {
   FileText, ShieldCheck, Lock, Unlock,
   Banknote, CreditCard, Building2, Receipt,
   TrendingUp, TrendingDown, Clock, AlertTriangle,
-  Users, ShoppingCart, CheckCircle2
+  Users, ShoppingCart, CheckCircle2, History
 } from 'lucide-react';
 import DailyLedgerDetail from '../components/reports/DailyLedgerDetail';
 import { todayISOInAppTZ } from '../lib/utils';
@@ -84,6 +84,7 @@ const DayBook = () => {
   const [isSaving,      setIsSaving]      = useState(false);
   const [isClosing,     setIsClosing]     = useState(false);
   const [showReport,    setShowReport]    = useState(false);
+  const [showHistory,   setShowHistory]   = useState(false);
 
   // ── Ledger computation ────────────────────────────────────────────────────
   const ledger = useMemo(() => {
@@ -115,8 +116,11 @@ const DayBook = () => {
     const prevRecord  = getPrevDayBook(selectedDate);
     const openingBal  = Number(record?.opening_balance) || 0;
     const closingBal  = openingBal + totalReceipts - totalPayments;
-    const isLocked    = !!record?.is_closed;
-    const hasOpening  = !!record?.id;
+    const isLocked          = !!record?.is_closed;
+    const closedAt          = record?.closed_at || null;
+    const hasOpening        = !!record?.id;
+    const savedPhysicalCash = record?.physical_cash != null ? Number(record.physical_cash) : null;
+    const savedVariance     = record?.variance      != null ? Number(record.variance)      : null;
 
     // ── Transaction log ───────────────────────────────────────────────────────
     const entries = [
@@ -172,7 +176,8 @@ const DayBook = () => {
     });
 
     return {
-      openingBal, closingBal, isLocked, hasOpening,
+      openingBal, closingBal, isLocked, closedAt, hasOpening,
+      savedPhysicalCash, savedVariance,
       cashSales, bankSales, creditSales,
       cashCollect, bankCollect,
       totalReceipts, totalExpenses, totalPurchPaid, totalPayments,
@@ -188,6 +193,11 @@ const DayBook = () => {
   const isDeficit  = ledger.closingBal < 0;
   const variance   = physicalCash !== '' ? (parseFloat(physicalCash) || 0) - ledger.closingBal : null;
   const isFuture   = selectedDate > today;
+
+  // Load saved physical cash when date changes
+  React.useEffect(() => {
+    setPhysicalCash(ledger.savedPhysicalCash != null ? String(ledger.savedPhysicalCash) : '');
+  }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleSaveOpening = async () => {
@@ -213,9 +223,22 @@ const DayBook = () => {
     setIsSaving(false);
   };
 
+  const handleSavePhysicalCash = async () => {
+    const pc = parseFloat(physicalCash);
+    if (isNaN(pc)) return;
+    const v = Math.round((pc - ledger.closingBal) * 100) / 100;
+    await updateDayBook({
+      date:            selectedDate,
+      opening_balance: ledger.openingBal,
+      physical_cash:   pc,
+      variance:        v,
+    });
+  };
+
   const handleCloseDay = async () => {
     if (isClosing || !window.confirm(`Close ${displayDate(selectedDate)}? This locks the ledger.`)) return;
     setIsClosing(true);
+    const pc = parseFloat(physicalCash);
     const { error } = await updateDayBook({
       date:             selectedDate,
       opening_balance:  ledger.openingBal,
@@ -223,6 +246,11 @@ const DayBook = () => {
       total_sales:      ledger.cashSales + ledger.bankSales,
       total_expenses:   ledger.totalPayments,
       is_closed:        true,
+      closed_at:        new Date().toISOString(),
+      ...(isNaN(pc) ? {} : {
+        physical_cash: pc,
+        variance:      Math.round((pc - ledger.closingBal) * 100) / 100,
+      }),
     });
     if (error) console.error('Close day error:', error);
     setIsClosing(false);
@@ -233,6 +261,166 @@ const DayBook = () => {
       <div className="w-10 h-10 border-4 border-accent-signature/30 border-t-accent-signature rounded-full animate-spin" />
     </div>
   );
+
+  // ── History full-page view ────────────────────────────────────────────────
+  if (showHistory) {
+    const totalDays    = dayBook.length;
+    const closedDays   = dayBook.filter(r => r.is_closed).length;
+    const totalSales   = dayBook.reduce((s, r) => s + (Number(r.total_sales)    || 0), 0);
+    const totalExp     = dayBook.reduce((s, r) => s + (Number(r.total_expenses) || 0), 0);
+    const discrepDays  = dayBook.filter(r => r.variance != null && Math.abs(Number(r.variance)) >= 0.01).length;
+    const shortDays    = dayBook.filter(r => r.variance != null && Number(r.variance) < -0.01).length;
+
+    return (
+      <div className="animate-fade-in flex flex-col gap-6 pb-20">
+
+        {/* Header */}
+        <div className="flex justify-between items-center py-2 border-b border-black/5">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setShowHistory(false)}
+              className="w-9 h-9 flex items-center justify-center bg-white border border-black/5 rounded-full hover:bg-canvas transition-all text-ink-primary shadow-sm"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <div>
+              <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
+                Day Book History<span className="text-accent-signature">.</span>
+              </h1>
+              <span className="text-[10px] font-semibold text-gray-400">Click any day to view its ledger</span>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{totalDays} records</span>
+        </div>
+
+        {/* Summary strip */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <KpiCard label="Total Days" cy="" value={totalDays}
+            sub={`${closedDays} closed · ${discrepDays > 0 ? `${discrepDays} discrepancies` : 'no discrepancies'}`}
+            icon={<Calendar size={14} />} color="default" />
+          <KpiCard label="All-Time Sales" cy={cy} value={fmt(totalSales)} icon={<TrendingUp size={14} />} color="green" />
+          <KpiCard label="All-Time Expenses" cy={cy} value={fmt(totalExp)} icon={<TrendingDown size={14} />} color="red" />
+          <KpiCard label="Net Flow" cy={cy}
+            value={`${totalSales - totalExp < 0 ? '−' : ''}${fmt(Math.abs(totalSales - totalExp))}`}
+            icon={<CheckCircle2 size={14} />}
+            color={totalSales - totalExp < 0 ? 'darkred' : 'dark'} />
+        </div>
+
+        {/* History table */}
+        <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
+          <div className="px-6 py-4 border-b border-black/5 flex items-center gap-3">
+            <History size={14} className="text-accent-signature" />
+            <span className="text-xs font-black text-ink-primary uppercase tracking-widest">All Days</span>
+          </div>
+
+          {dayBook.length === 0 ? (
+            <div className="py-20 flex flex-col items-center opacity-20">
+              <History size={32} strokeWidth={1.5} />
+              <p className="text-[10px] font-bold uppercase tracking-widest mt-3">No history yet</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-canvas/60 border-b border-black/[0.04]">
+                    {['Date', 'Opening', 'Sales', 'Expenses', 'Closing', 'Net', 'Discrepancy', 'Status', 'Closed At'].map(h => (
+                      <th key={h} className="py-3 px-4 text-[9px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black/[0.04]">
+                  {[...dayBook]
+                    .sort((a, b) => b.date.localeCompare(a.date))
+                    .map(rec => {
+                      const isToday    = rec.date === today;
+                      const isSel      = rec.date === selectedDate;
+                      const isClosed   = !!rec.is_closed;
+                      const net        = (Number(rec.total_sales) || 0) - (Number(rec.total_expenses) || 0);
+                      const recVar     = rec.variance != null ? Number(rec.variance) : null;
+                      const hasDiscrep = recVar != null && Math.abs(recVar) >= 0.01;
+                      return (
+                        <tr
+                          key={rec.id || rec.date}
+                          onClick={() => { setSelectedDate(rec.date); setShowHistory(false); }}
+                          className={`cursor-pointer transition-colors hover:bg-accent-signature/5 ${isSel ? 'bg-accent-signature/10' : ''}`}
+                        >
+                          <td className="py-3.5 px-4">
+                            <div className="flex flex-col gap-0.5">
+                              <span className="text-[11px] font-black text-ink-primary">{displayDate(rec.date)}</span>
+                              {isToday && (
+                                <span className="text-[8px] font-bold text-accent-signature uppercase tracking-widest">Today</span>
+                              )}
+                              {isSel && !isToday && (
+                                <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest">Viewing</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 text-[10px] font-black text-ink-primary tabular-nums">
+                            {cy}{fmt(rec.opening_balance)}
+                          </td>
+                          <td className="py-3.5 px-4 text-[10px] font-black text-emerald-600 tabular-nums">
+                            {cy}{fmt(rec.total_sales)}
+                          </td>
+                          <td className="py-3.5 px-4 text-[10px] font-black text-red-500 tabular-nums">
+                            {cy}{fmt(rec.total_expenses)}
+                          </td>
+                          <td className="py-3.5 px-4 text-[10px] font-black tabular-nums">
+                            <span className={Number(rec.closing_balance) < 0 ? 'text-red-600' : 'text-ink-primary'}>
+                              {cy}{fmt(rec.closing_balance)}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-[10px] font-black tabular-nums">
+                            <span className={net < 0 ? 'text-red-500' : 'text-emerald-600'}>
+                              {net < 0 ? '−' : '+'}{cy}{fmt(Math.abs(net))}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {recVar == null ? (
+                              <span className="text-[9px] text-gray-300 font-bold">—</span>
+                            ) : !hasDiscrep ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[8px] font-bold">
+                                <CheckCircle2 size={8} /> Balanced
+                              </span>
+                            ) : (
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold border ${
+                                recVar > 0
+                                  ? 'bg-blue-50 text-blue-600 border-blue-100'
+                                  : 'bg-red-50 text-red-600 border-red-100'
+                              }`}>
+                                <AlertTriangle size={8} />
+                                {recVar > 0 ? '+' : '−'}{cy}{fmt(Math.abs(recVar))}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            {isClosed ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                                <Lock size={8} /> Closed
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                                <Unlock size={8} /> Open
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-[9px] font-bold text-gray-400 whitespace-nowrap">
+                            {rec.closed_at
+                              ? new Date(rec.closed_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })
+                              : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in flex flex-col gap-6 pb-20">
@@ -271,6 +459,11 @@ const DayBook = () => {
               Today
             </button>
           )}
+          <button onClick={() => setShowHistory(true)}
+            className="flex items-center gap-2 px-4 h-9 bg-canvas border border-black/5 text-gray-600 text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-white transition-all shadow-sm">
+            <History size={12} />
+            History
+          </button>
           <button onClick={() => setShowReport(true)}
             className="flex items-center gap-2 px-4 h-9 bg-ink-primary text-white text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-black transition-all shadow-sm">
             <FileText size={12} />
@@ -479,7 +672,14 @@ const DayBook = () => {
                 <ShieldCheck size={16} className="text-emerald-500 flex-shrink-0" />
                 <div>
                   <p className="text-[9px] font-black text-emerald-700 uppercase tracking-widest">Day Closed & Locked</p>
-                  <p className="text-[9px] font-bold text-emerald-500 mt-0.5">No further edits allowed</p>
+                  {ledger.closedAt ? (
+                    <p className="text-[9px] font-bold text-emerald-500 mt-0.5 flex items-center gap-1">
+                      <Clock size={9} />
+                      Closed at {new Date(ledger.closedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                    </p>
+                  ) : (
+                    <p className="text-[9px] font-bold text-emerald-500 mt-0.5">No further edits allowed</p>
+                  )}
                 </div>
               </div>
             ) : hasPermission('finance', 'edit') ? (
@@ -572,6 +772,18 @@ const DayBook = () => {
           <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
             <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
               <Banknote size={11} className="text-amber-500" /> Cash Reconciliation
+              {ledger.savedVariance != null && (
+                <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold ${
+                  Math.abs(ledger.savedVariance) < 0.01
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+                    : ledger.savedVariance > 0
+                      ? 'bg-blue-50 text-blue-600 border border-blue-100'
+                      : 'bg-red-50 text-red-600 border border-red-100'
+                }`}>
+                  <CheckCircle2 size={8} />
+                  Saved
+                </span>
+              )}
             </h3>
             <div className="space-y-3">
               <div className="flex justify-between text-[10px] font-bold text-gray-400">
@@ -601,6 +813,14 @@ const DayBook = () => {
                     {Math.abs(variance) < 0.01 ? 'Exact match' : `${variance > 0 ? '+' : '−'}${cy}${fmt(Math.abs(variance))}`}
                   </span>
                 </div>
+              )}
+              {variance !== null && !isFuture && (
+                <button
+                  onClick={handleSavePhysicalCash}
+                  className="w-full h-9 flex items-center justify-center gap-2 bg-canvas border border-black/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-600 hover:bg-black/5 transition-all"
+                >
+                  <Save size={11} /> Save Count
+                </button>
               )}
             </div>
           </div>

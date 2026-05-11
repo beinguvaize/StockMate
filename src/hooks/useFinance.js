@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
+import useRefetchOnFocus from './useRefetchOnFocus';
 
 const EXPENSE_NUMERIC       = ['amount'];
 const DAYBOOK_NUMERIC       = ['opening_balance', 'closing_balance', 'total_sales', 'total_expenses'];
@@ -62,6 +63,8 @@ export const useFinance = (tenantId) => {
   }, [tenantId]);
 
   useEffect(() => { fetchFinanceData(); }, [fetchFinanceData]);
+
+  useRefetchOnFocus(fetchFinanceData);
 
   // Map form fields → DB columns
   const toDbRow = (expense) => ({

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import useRefetchOnFocus from './useRefetchOnFocus';
 
 // Postgres `numeric` arrives as string over the wire (supabase-js preserves
 // precision). Mixing those with JS math causes subtle bugs: `0 + "100"` is
@@ -69,6 +70,9 @@ export const useInventory = (tenantId) => {
   useEffect(() => {
     fetchInventory();
   }, [fetchInventory]);
+
+  // Re-fetch when tab becomes visible after idle (handles stale data after lock-screen / sleep)
+  useRefetchOnFocus(fetchInventory);
 
   const add = async (product) => {
     const id = product.id || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
