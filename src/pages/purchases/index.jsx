@@ -112,16 +112,23 @@ const PurchasesPage = () => {
 
   const handleSaveReturn = async (data) => {
     setReturnLoading(true);
-    const { error } = await addReturn({
-      ...data,
-      id: generateRef('PRN'), // Purchase Return Note
-    });
-    setReturnLoading(false);
-    if (error) {
-      alert('Failed to process return: ' + error.message);
-      return;
+    try {
+      const { error } = await addReturn({
+        ...data,
+        id: generateRef('PRN'), // Purchase Return Note
+      });
+      if (error) {
+        console.error('[Return] RPC error:', error);
+        alert('Failed to process return: ' + (error.message || error.details || JSON.stringify(error)));
+        return;
+      }
+      setReturnTarget(null);
+    } catch (e) {
+      console.error('[Return] Exception:', e);
+      alert('Return failed (exception): ' + e.message);
+    } finally {
+      setReturnLoading(false);
     }
-    setReturnTarget(null);
   };
 
   const headers = [
