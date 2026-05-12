@@ -3,13 +3,14 @@ import { RotateCcw, CheckCircle2 } from 'lucide-react';
 import Button from '../../../shared/Button';
 import { formatCurrency, todayISOInAppTZ } from '../../../lib/utils';
 
-const PurchaseReturnForm = ({ purchase, product, supplier, onSave, loading }) => {
+const PurchaseReturnForm = ({ purchase, product, supplier, warehouses = [], onSave, loading }) => {
   const maxQty = Number(purchase?.quantity) || 0;
 
   const [formData, setFormData] = useState({
-    quantity: '',
-    reason: '',
-    date: todayISOInAppTZ(),
+    quantity:    '',
+    reason:      '',
+    date:        todayISOInAppTZ(),
+    location_id: '',
   });
 
   const unitPrice = maxQty > 0 ? (Number(purchase?.total_amount) || 0) / maxQty : 0;
@@ -39,6 +40,7 @@ const PurchaseReturnForm = ({ purchase, product, supplier, onSave, loading }) =>
       total_amount:  returnTotal,
       reason:        formData.reason,
       date:          formData.date,
+      location_id:   formData.location_id || null,
     });
   };
 
@@ -91,6 +93,20 @@ const PurchaseReturnForm = ({ purchase, product, supplier, onSave, loading }) =>
             onChange={e => setFormData(f => ({ ...f, date: e.target.value }))}
           />
         </div>
+
+        {warehouses.length > 0 && (
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Return Stock To</label>
+            <select
+              className="w-full bg-canvas border border-black/5 rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={formData.location_id}
+              onChange={e => setFormData(f => ({ ...f, location_id: e.target.value }))}
+            >
+              <option value="">Auto (main warehouse)</option>
+              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
+            </select>
+          </div>
+        )}
 
         <div>
           <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Reason</label>
