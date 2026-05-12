@@ -224,6 +224,7 @@ export const usePeople = (tenantId) => {
     updateSupplier,
     deleteSupplier,
     addClient,
+    updateClient,
     deleteClient,
 
     recordClientPayment: async (clientId, amount, date, notes, invoiceIds, paymentMethod = 'CASH') => {
