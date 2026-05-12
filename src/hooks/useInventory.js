@@ -74,6 +74,30 @@ export const useInventory = (tenantId) => {
   // Re-fetch when tab becomes visible after idle (handles stale data after lock-screen / sleep)
   useRefetchOnFocus(fetchInventory);
 
+  // Auto-retry once after 4 s if initial fetch fails (handles DB cold-start)
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => { fetchInventory(); }, 4000);
+    return () => clearTimeout(t);
+  }, [error, fetchInventory]);
+
+  // ── Realtime — products + inventory_balances ──────────────────────────
+  useEffect(() => {
+    if (!tenantId) return;
+    const channel = supabase
+      .channel(`inventory-realtime-${tenantId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'products',
+        filter: `tenant_id=eq.${tenantId}`,
+      }, fetchInventory)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'inventory_balances',
+        filter: `tenant_id=eq.${tenantId}`,
+      }, fetchInventory)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tenantId, fetchInventory]);
+
   const add = async (product) => {
     const id = product.id || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const { data: newProd, error } = await supabase
