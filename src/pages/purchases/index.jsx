@@ -253,6 +253,7 @@ const PurchasesPage = () => {
             purchase={returnTarget.purchase}
             product={returnTarget.product}
             supplier={returnTarget.supplier}
+            warehouses={warehouses}
             onSave={handleSaveReturn}
             loading={returnLoading}
           />
