@@ -15,19 +15,19 @@
 }
 
 body {
-    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
 .font-inter {
-    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 .font-sora,
 .font-bebas,
 .font-space {
-    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 .font-arial {
@@ -154,13 +154,13 @@ body {
 /* White theme: Inter font — clean professional */
 [data-theme="white"] body,
 [data-theme="white"] * {
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
   letter-spacing: -0.01em;
 }
 [data-theme="white"] h1,
 [data-theme="white"] h2,
 [data-theme="white"] h3 {
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: 'Inter', sans-serif !important;
   letter-spacing: -0.03em;
 }
 
@@ -171,7 +171,7 @@ body {
 [data-theme="white"] .text-4xl.font-black {
   text-transform: uppercase !important;
   letter-spacing: -0.04em !important;
-  font-family: 'DM Sans', sans-serif !important;
+  font-family: 'Inter', sans-serif !important;
   font-size: 4rem !important;
   line-height: 1 !important;
 }
@@ -323,7 +323,7 @@ body {
 }
 
 body {
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
   background: var(--color-canvas);
   color: var(--color-ink-primary);
   line-height: 1.5;
@@ -888,7 +888,7 @@ body {
 .kpi-expense:hover { border-color: rgba(239, 68, 68, 0.3); box-shadow: 0 12px 24px -10px var(--expense-glow); }
 
 .kpi-value {
-  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
   font-size: 3.5rem;
   line-height: 1;
   letter-spacing: 0.02em;
