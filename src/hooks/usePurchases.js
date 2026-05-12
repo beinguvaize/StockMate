@@ -4,10 +4,12 @@ import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
 const PURCHASE_NUMERIC = ['quantity', 'total_amount', 'paid_amount', 'unit_price', 'tax'];
+const RETURN_NUMERIC   = ['quantity', 'total_amount', 'unit_price'];
 const SUPPLIER_NUMERIC = ['balance', 'outstanding_balance'];
 
 export const usePurchases = (tenantId) => {
   const [data, setData] = useState([]);
+  const [purchaseReturns, setPurchaseReturns] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -22,17 +24,21 @@ export const usePurchases = (tenantId) => {
     try {
       const [
         { data: purData, error: purErr },
-        { data: supData, error: supErr }
+        { data: supData, error: supErr },
+        { data: retData, error: retErr },
       ] = await Promise.all([
         supabase.from('purchases').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false, nullsFirst: false }).limit(200),
-        supabase.from('suppliers').select('*').eq('tenant_id', tenantId).order('name')
+        supabase.from('suppliers').select('*').eq('tenant_id', tenantId).order('name'),
+        supabase.from('purchase_returns').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(200),
       ]);
 
       if (purErr) throw purErr;
       if (supErr) throw supErr;
+      if (retErr) throw retErr;
 
       setData(normalizeNumericRows(purData, PURCHASE_NUMERIC));
       setSuppliers(normalizeNumericRows(supData, SUPPLIER_NUMERIC));
+      setPurchaseReturns(normalizeNumericRows(retData, RETURN_NUMERIC));
     } catch (err) {
       console.error("usePurchases Fetch Error:", err);
       setError(err.message);
@@ -137,6 +143,7 @@ export const usePurchases = (tenantId) => {
   return {
     data,
     purchases: data,
+    purchaseReturns,
     suppliers,
     loading,
     error,
