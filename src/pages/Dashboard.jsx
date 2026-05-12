@@ -30,12 +30,18 @@ import {
 const Dashboard = () => {
   const { currentTenant, currentTenantId, businessProfile } = useTenant();
   const slug = currentTenant?.slug || '';
-  const { products, inventoryBalances } = useInventory(currentTenantId);
-  const { sales } = useSales(currentTenantId);
-  const { purchases } = usePurchases(currentTenantId);
-  const { expenses, dayBook } = useFinance(currentTenantId);
-  const { clients, employees } = usePeople(currentTenantId);
-  const { routes, movementLog } = useOperations(currentTenantId);
+  const { products, inventoryBalances, refetch: refetchInventory, loading: invLoading, error: invError } = useInventory(currentTenantId);
+  const { sales, refetch: refetchSales, loading: salesLoading } = useSales(currentTenantId);
+  const { purchases, refetch: refetchPurchases, loading: purLoading } = usePurchases(currentTenantId);
+  const { expenses, dayBook, refetch: refetchFinance, loading: finLoading } = useFinance(currentTenantId);
+  const { clients, employees, refetch: refetchPeople } = usePeople(currentTenantId);
+  const { routes, movementLog, refetch: refetchOps } = useOperations(currentTenantId);
+
+  const isLoading = invLoading || salesLoading || purLoading || finLoading;
+  const refetchAll = () => {
+    refetchInventory(); refetchSales(); refetchPurchases();
+    refetchFinance(); refetchPeople(); refetchOps();
+  };
 
   // Placeholders for remaining data
   const payrollRecords = [];
@@ -425,6 +431,13 @@ const Dashboard = () => {
  <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
  <h2 className="text-xl font-bold text-ink-primary">Financial Overview</h2>
  <div className="flex items-center gap-3">
+ <button
+   onClick={refetchAll}
+   title="Refresh all data"
+   className={`w-8 h-8 flex items-center justify-center rounded-full border border-black/10 hover:bg-black/5 transition-all text-gray-500 ${isLoading ? 'animate-spin opacity-50 pointer-events-none' : ''}`}
+ >
+   <Activity size={14} />
+ </button>
  <div className="flex items-center text-sm font-bold text-gray-700 mr-2">
  <Calendar size={16} className="mr-2 opacity-[0.85]" />
  Date Range

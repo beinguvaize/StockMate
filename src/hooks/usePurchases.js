@@ -47,6 +47,30 @@ export const usePurchases = (tenantId) => {
 
   useRefetchOnFocus(fetchPurchases);
 
+  // Auto-retry once after 4 s if initial fetch fails (handles DB cold-start)
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => { fetchPurchases(); }, 4000);
+    return () => clearTimeout(t);
+  }, [error, fetchPurchases]);
+
+  // ── Realtime — purchases + purchase_returns ───────────────────────────
+  useEffect(() => {
+    if (!tenantId) return;
+    const channel = supabase
+      .channel(`purchases-realtime-${tenantId}`)
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'purchases',
+        filter: `tenant_id=eq.${tenantId}`,
+      }, fetchPurchases)
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'purchase_returns',
+        filter: `tenant_id=eq.${tenantId}`,
+      }, fetchPurchases)
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [tenantId, fetchPurchases]);
+
   const add = async (purchase) => {
     const { error: rpcError } = await supabase.rpc('process_purchase', {
       p_id: purchase.id,
