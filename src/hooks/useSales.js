@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { generateRef, todayISOInAppTZ } from '../lib/utils';
 import useRefetchOnFocus from './useRefetchOnFocus';
+import { getPlanLimits } from '../lib/tenancy';
 
 // Postgres `numeric` -> JS string over the wire. Coerce on fetch so downstream
 // `reduce(sum + x, 0)` doesn't string-concat and `.toFixed` doesn't throw.
@@ -19,7 +20,7 @@ const normalizeRow = (row, cols) => {
   return out;
 };
 
-export const useSales = (tenantId) => {
+export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
   const { currentUser } = useAuth();
   const [data, setData] = useState([]);
   const [clients, setClients] = useState([]);
@@ -223,6 +224,28 @@ export const useSales = (tenantId) => {
     invoices,
     createInvoice: async (draft) => {
       if (!tenantId) return { error: new Error('createInvoice: no tenant') };
+
+      // ── Plan limit enforcement ──
+      const { maxInvoices } = getPlanLimits(plan);
+      if (maxInvoices !== -1) {
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+        const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+        const { count } = await supabase
+          .from('sales')
+          .select('id', { count: 'exact', head: true })
+          .eq('tenant_id', tenantId)
+          .gte('date', monthStart)
+          .lte('date', monthEnd);
+        if ((count || 0) >= maxInvoices) {
+          return {
+            error: new Error(
+              `Monthly invoice limit reached (${maxInvoices} invoices on ${plan} plan). Upgrade to Professional for unlimited invoices.`
+            ),
+            limitReached: true,
+          };
+        }
+      }
       const id = draft.id || generateRef('INV');
       const invoiceNumber = draft.invoice_number || `#${id.split('-').pop()}`;
       const row = {

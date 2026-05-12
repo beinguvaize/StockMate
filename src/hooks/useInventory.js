@@ -155,6 +155,40 @@ export const useInventory = (tenantId) => {
     return { error };
   };
 
+  // ── Location (Branch) CRUD ────────────────────────────────────────────────
+  const addLocation = async ({ name, type = 'BRANCH', address = '' }) => {
+    const id = crypto.randomUUID();
+    const { data, error } = await supabase
+      .from('inventory_locations')
+      .insert([{ id, name, type, address, tenant_id: tenantId }])
+      .select()
+      .single();
+    if (!error) await fetchInventory();
+    return { data, error };
+  };
+
+  const updateLocation = async ({ id, name, type, address }) => {
+    const { error } = await supabase
+      .from('inventory_locations')
+      .update({ name, type, address })
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
+    if (!error) await fetchInventory();
+    return { error };
+  };
+
+  const deleteLocation = async (id) => {
+    const MAIN = '00000000-0000-0000-0000-000000000001';
+    if (id === MAIN) return { error: new Error('Cannot delete main warehouse.') };
+    const { error } = await supabase
+      .from('inventory_locations')
+      .delete()
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
+    if (!error) await fetchInventory();
+    return { error };
+  };
+
   const addProductCategory = async (name) => {
     const { data: newCat, error } = await supabase.from('product_categories').insert([{ name, tenant_id: tenantId }]).select().single();
     if (!error) await fetchInventory();
@@ -189,6 +223,9 @@ export const useInventory = (tenantId) => {
     transferStock,
     addProductCategory,
     updateProductCategory,
-    deleteProductCategory
+    deleteProductCategory,
+    addLocation,
+    updateLocation,
+    deleteLocation,
   };
 };

@@ -1,16 +1,60 @@
-import React, { useState} from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import ThemePicker from '../components/ThemePicker';
+import { usePlanLimits } from '../hooks/usePlanLimits';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
 import { useInventory } from '../hooks/useInventory';
+import { supabase } from '../lib/supabase';
+import { hasFeature, PLANS } from '../lib/tenancy';
 import {
   Settings as SettingsIcon, Building, Shield, Bell, Save,
   CheckCircle2, Lock, Globe, Coins, ShieldCheck,
   Database, RotateCcw, ChevronRight, Zap, Tag, Plus, Edit2, Trash2, X, FileUp, FileDown,
-  Sparkles, Mail, Receipt
+  Sparkles, Mail, Receipt, MapPin, Key, Copy, RefreshCw, AlertTriangle
 } from 'lucide-react';
+
+// ── Plan usage card (data injected from parent) ──
+
+// ── Real plan usage via inline async state ──
+const PlanUsageBanner = ({ plan = 'STARTER', invoiceCount = 0, userCount = 0, maxInvoices = 500, maxUsers = 2, onUpgrade }) => {
+  if (maxInvoices === -1 && maxUsers === -1) return null; // unlimited — don't show
+  const invPct  = maxInvoices !== -1 ? Math.min(100, Math.round((invoiceCount / maxInvoices) * 100)) : null;
+  const usrPct  = maxUsers    !== -1 ? Math.min(100, Math.round((userCount    / maxUsers)    * 100)) : null;
+  const isWarn  = (invPct ?? 0) >= 80 || (usrPct ?? 0) >= 80;
+
+  return (
+    <div className={`rounded-2xl border p-4 space-y-3 ${isWarn ? 'bg-amber-50 border-amber-200' : 'bg-canvas border-black/5'}`}>
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Plan Usage — {plan}</p>
+        {isWarn && <button onClick={onUpgrade} className="text-[10px] font-black text-amber-600 underline">Upgrade</button>}
+      </div>
+      {invPct !== null && (
+        <div>
+          <div className="flex justify-between text-[10px] font-bold text-gray-500 mb-1">
+            <span>Invoices this month</span>
+            <span>{invoiceCount} / {maxInvoices}</span>
+          </div>
+          <div className="h-1.5 bg-black/5 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${invPct >= 90 ? 'bg-rose-500' : invPct >= 70 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${invPct}%` }} />
+          </div>
+        </div>
+      )}
+      {usrPct !== null && (
+        <div>
+          <div className="flex justify-between text-[10px] font-bold text-gray-500 mb-1">
+            <span>Active users</span>
+            <span>{userCount} / {maxUsers}</span>
+          </div>
+          <div className="h-1.5 bg-black/5 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${usrPct >= 90 ? 'bg-rose-500' : usrPct >= 70 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${usrPct}%` }} />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -24,11 +68,21 @@ const Settings = () => {
     expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory
   } = useFinance(currentTenantId);
   const {
-    productCategories, addProductCategory, updateProductCategory, deleteProductCategory
+    productCategories, addProductCategory, updateProductCategory, deleteProductCategory,
+    inventoryLocations, addLocation, updateLocation, deleteLocation,
   } = useInventory(currentTenantId);
 
   // Fallback for missing businessProfile during load
   const profile = businessProfile || {};
+
+  const plan        = currentTenant?.plan || 'STARTER';
+  const planMeta    = PLANS[plan] || PLANS.STARTER;
+  const isEnterprise = plan === 'ENTERPRISE';
+  const isPro        = plan === 'PRO' || isEnterprise;
+
+  const {
+    invoiceCount, userCount, maxInvoices, maxUsers,
+  } = usePlanLimits();
 
 
  const [newCategory, setNewCategory] = useState('');
@@ -41,6 +95,61 @@ const Settings = () => {
   const [workspaceSlug, setWorkspaceSlug] = useState(currentTenant?.slug || '');
   const [isUpdatingSlug, setIsUpdatingSlug] = useState(false);
 
+  // ── Branches ──
+  const [newLocName, setNewLocName]     = useState('');
+  const [newLocAddr, setNewLocAddr]     = useState('');
+  const [editingLoc, setEditingLoc]     = useState(null);
+  const [locSaving, setLocSaving]       = useState(false);
+
+  // ── API Keys ──
+  const [apiKey, setApiKey]             = useState(currentTenant?.api_key || '');
+  const [apiKeyVisible, setApiKeyVisible] = useState(false);
+  const [apiKeySaving, setApiKeySaving] = useState(false);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
+
+  const generateApiKey = useCallback(async () => {
+    if (!isEnterprise) return;
+    setApiKeySaving(true);
+    const newKey = `sk_live_${crypto.randomUUID().replace(/-/g, '')}`;
+    const { error } = await supabase
+      .from('tenants')
+      .update({ api_key: newKey })
+      .eq('id', currentTenantId);
+    if (!error) {
+      setApiKey(newKey);
+      setApiKeyVisible(true);
+    }
+    setApiKeySaving(false);
+  }, [isEnterprise, currentTenantId]);
+
+  const copyApiKey = () => {
+    navigator.clipboard.writeText(apiKey);
+    setApiKeyCopied(true);
+    setTimeout(() => setApiKeyCopied(false), 2000);
+  };
+
+  const handleAddLocation = async () => {
+    if (!newLocName.trim()) return;
+    setLocSaving(true);
+    await addLocation({ name: newLocName.trim(), address: newLocAddr.trim() });
+    setNewLocName(''); setNewLocAddr('');
+    setLocSaving(false);
+  };
+
+  const handleSaveEditLoc = async () => {
+    if (!editingLoc) return;
+    setLocSaving(true);
+    await updateLocation(editingLoc);
+    setEditingLoc(null);
+    setLocSaving(false);
+  };
+
+  const handleDeleteLoc = async (id) => {
+    if (!window.confirm('Delete this branch/location? Stock balances will be preserved.')) return;
+    const { error } = await deleteLocation(id);
+    if (error) alert(error.message);
+  };
+
   const [profileData, setProfileData] = useState({
     name: profile.name || '',
     country: profile.country || '',
@@ -49,6 +158,7 @@ const Settings = () => {
     lowStockThreshold: profile.lowStockThreshold || 20,
     pan_no: profile.pan_no || '',
     gst_no: profile.gst_no || '',
+    tax_mode: profile.tax_mode || 'EXCLUSIVE',
     bank_name: profile.bank_name || '',
     account_no: profile.account_no || '',
     ifsc_code: profile.ifsc_code || '',
@@ -231,6 +341,34 @@ const Settings = () => {
  placeholder="Permanent Account Number..."
  />
  </div>
+ </div>
+
+ {/* Tax Mode toggle */}
+ <div className="mt-5">
+   <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-3">Tax Mode</label>
+   <div className="grid grid-cols-2 gap-2">
+     {[
+       { value: 'EXCLUSIVE', label: 'Tax Exclusive', desc: 'Price shown before GST · tax added on top' },
+       { value: 'INCLUSIVE', label: 'Tax Inclusive', desc: 'Price already includes GST · tax extracted from total' },
+     ].map(opt => (
+       <button
+         key={opt.value}
+         type="button"
+         onClick={() => setProfileData(p => ({ ...p, tax_mode: opt.value }))}
+         className={`text-left px-4 py-3 rounded-xl border-2 transition-all ${
+           profileData.tax_mode === opt.value
+             ? 'bg-ink-primary text-white border-ink-primary'
+             : 'bg-canvas border-black/10 hover:border-black/30'
+         }`}
+       >
+         <p className={`text-xs font-black ${profileData.tax_mode === opt.value ? 'text-white' : 'text-ink-primary'}`}>{opt.label}</p>
+         <p className={`text-[10px] mt-0.5 font-medium ${profileData.tax_mode === opt.value ? 'text-white/70' : 'text-gray-400'}`}>{opt.desc}</p>
+       </button>
+     ))}
+   </div>
+   <p className="text-[10px] text-gray-400 mt-2">
+     Applies to all invoices and POS sales. Save profile to update.
+   </p>
  </div>
  </div>
 
@@ -831,6 +969,175 @@ const Settings = () => {
  </div>
 
 
+
+ {/* ── Branches / Locations (PRO+) ── */}
+ <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+   <div className="bg-ink-primary p-6 flex items-center justify-between">
+     <div className="flex items-center gap-4">
+       <MapPin size={20} className="text-accent-signature" />
+       <div>
+         <h2 className="text-base font-bold text-surface">Branches &amp; Locations</h2>
+         <p className="text-[10px] text-accent-signature/60 mt-0.5">Manage warehouses, outlets, and branches</p>
+       </div>
+     </div>
+     <span className={`text-[9px] font-black px-2 py-1 rounded-full ${planMeta.color}`}>{planMeta.label}</span>
+   </div>
+   <div className="p-6 space-y-4">
+     {!isPro ? (
+       <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
+         <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+         <p className="text-xs font-semibold text-amber-700">Multi-branch inventory requires Professional plan or higher.</p>
+         <button onClick={() => setShowUpgradeModal(true)} className="ml-auto text-[10px] font-black text-amber-600 underline underline-offset-2 whitespace-nowrap">Upgrade</button>
+       </div>
+     ) : (
+       <>
+         {/* Existing locations */}
+         <div className="space-y-2">
+           {inventoryLocations.map(loc => (
+             <div key={loc.id} className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-canvas border border-black/5">
+               <MapPin size={14} className="text-gray-400 shrink-0" />
+               {editingLoc?.id === loc.id ? (
+                 <div className="flex-1 flex gap-2">
+                   <input
+                     value={editingLoc.name}
+                     onChange={e => setEditingLoc(p => ({ ...p, name: e.target.value }))}
+                     className="flex-1 text-xs font-semibold bg-white border border-black/10 rounded-xl px-3 py-1.5 outline-none"
+                   />
+                   <input
+                     value={editingLoc.address || ''}
+                     onChange={e => setEditingLoc(p => ({ ...p, address: e.target.value }))}
+                     placeholder="Address"
+                     className="flex-1 text-xs font-semibold bg-white border border-black/10 rounded-xl px-3 py-1.5 outline-none"
+                   />
+                   <button onClick={handleSaveEditLoc} disabled={locSaving} className="text-[10px] font-black text-emerald-600 hover:text-emerald-700 px-2">Save</button>
+                   <button onClick={() => setEditingLoc(null)} className="text-[10px] font-black text-gray-400 hover:text-gray-600 px-2">Cancel</button>
+                 </div>
+               ) : (
+                 <>
+                   <div className="flex-1 min-w-0">
+                     <p className="text-sm font-black text-ink-primary truncate">{loc.name}</p>
+                     {loc.address && <p className="text-[10px] text-gray-400 truncate">{loc.address}</p>}
+                   </div>
+                   {loc.id !== '00000000-0000-0000-0000-000000000001' && (
+                     <div className="flex gap-1.5">
+                       <button onClick={() => setEditingLoc({ ...loc })} className="w-7 h-7 rounded-lg hover:bg-black/5 flex items-center justify-center transition-colors">
+                         <Edit2 size={12} className="text-gray-400" />
+                       </button>
+                       <button onClick={() => handleDeleteLoc(loc.id)} className="w-7 h-7 rounded-lg hover:bg-red-50 flex items-center justify-center transition-colors group">
+                         <Trash2 size={12} className="text-gray-300 group-hover:text-red-400" />
+                       </button>
+                     </div>
+                   )}
+                   {loc.id === '00000000-0000-0000-0000-000000000001' && (
+                     <span className="text-[9px] font-black text-gray-400 bg-black/5 px-2 py-0.5 rounded-full">Main</span>
+                   )}
+                 </>
+               )}
+             </div>
+           ))}
+         </div>
+         {/* Add new location */}
+         <div className="flex gap-2 pt-2">
+           <input
+             value={newLocName}
+             onChange={e => setNewLocName(e.target.value)}
+             placeholder="Branch name (e.g. Kozhikode Outlet)"
+             className="flex-1 text-xs font-semibold bg-canvas border border-black/8 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-accent-signature/25"
+           />
+           <input
+             value={newLocAddr}
+             onChange={e => setNewLocAddr(e.target.value)}
+             placeholder="Address (optional)"
+             className="flex-1 text-xs font-semibold bg-canvas border border-black/8 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-accent-signature/25"
+           />
+           <button
+             onClick={handleAddLocation}
+             disabled={locSaving || !newLocName.trim()}
+             className="px-5 py-3 bg-ink-primary text-white rounded-2xl text-xs font-black hover:bg-ink-primary/80 transition-colors disabled:opacity-40 flex items-center gap-2"
+           >
+             <Plus size={14} /> Add
+           </button>
+         </div>
+       </>
+     )}
+   </div>
+ </div>
+
+ {/* ── API Keys (Enterprise) ── */}
+ <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+   <div className="bg-ink-primary p-6 flex items-center justify-between">
+     <div className="flex items-center gap-4">
+       <Key size={20} className="text-accent-signature" />
+       <div>
+         <h2 className="text-base font-bold text-surface">API Access</h2>
+         <p className="text-[10px] text-accent-signature/60 mt-0.5">Generate API keys for integrations</p>
+       </div>
+     </div>
+     <span className={`text-[9px] font-black px-2 py-1 rounded-full ${PLANS.ENTERPRISE.color}`}>Enterprise</span>
+   </div>
+   <div className="p-6 space-y-4">
+     {!isEnterprise ? (
+       <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
+         <AlertTriangle size={16} className="text-amber-500 shrink-0" />
+         <p className="text-xs font-semibold text-amber-700">API access requires Enterprise plan.</p>
+         <button onClick={() => setShowUpgradeModal(true)} className="ml-auto text-[10px] font-black text-amber-600 underline underline-offset-2 whitespace-nowrap">Upgrade</button>
+       </div>
+     ) : (
+       <div className="space-y-4">
+         <p className="text-xs font-semibold text-gray-500">
+           Use this key to authenticate API requests. Keep it secret — treat like a password.
+         </p>
+         {apiKey ? (
+           <div className="flex items-center gap-3 p-4 rounded-2xl bg-canvas border border-black/8">
+             <Key size={14} className="text-gray-400 shrink-0" />
+             <code className="flex-1 text-[11px] font-mono text-ink-primary tracking-tight truncate">
+               {apiKeyVisible ? apiKey : '••••••••••••••••••••••••••••••••••••••••'}
+             </code>
+             <button
+               onClick={() => setApiKeyVisible(v => !v)}
+               className="text-[10px] font-black text-gray-400 hover:text-ink-primary px-2"
+             >
+               {apiKeyVisible ? 'Hide' : 'Show'}
+             </button>
+             <button
+               onClick={copyApiKey}
+               className="w-8 h-8 rounded-xl hover:bg-black/5 flex items-center justify-center transition-colors"
+             >
+               {apiKeyCopied ? <CheckCircle2 size={14} className="text-emerald-500" /> : <Copy size={14} className="text-gray-400" />}
+             </button>
+           </div>
+         ) : (
+           <div className="p-4 rounded-2xl bg-canvas border border-dashed border-black/10 text-center">
+             <p className="text-xs font-semibold text-gray-400">No API key generated yet.</p>
+           </div>
+         )}
+         <button
+           onClick={generateApiKey}
+           disabled={apiKeySaving}
+           className="flex items-center gap-2 px-5 py-3 rounded-2xl border border-black/8 text-xs font-black text-ink-primary hover:bg-black/5 transition-colors disabled:opacity-40"
+         >
+           <RefreshCw size={13} className={apiKeySaving ? 'animate-spin' : ''} />
+           {apiKey ? 'Regenerate Key' : 'Generate API Key'}
+         </button>
+         {apiKey && (
+           <p className="text-[10px] text-rose-500 font-semibold flex items-center gap-1.5">
+             <AlertTriangle size={11} /> Regenerating invalidates the existing key immediately.
+           </p>
+         )}
+       </div>
+     )}
+   </div>
+ </div>
+
+ {/* ── Plan Usage ── */}
+ <PlanUsageBanner
+   plan={plan}
+   invoiceCount={invoiceCount}
+   userCount={userCount}
+   maxInvoices={maxInvoices}
+   maxUsers={maxUsers}
+   onUpgrade={() => setShowUpgradeModal(true)}
+ />
 
  {/* Upgrade Modal */}
  {showUpgradeModal && (

@@ -287,6 +287,146 @@ export const buildGSTR1 = (sales = [], { businessState = '', clients = [] } = {}
   return { b2b, b2cl, b2cs, hsn, docs, totals, lines };
 };
 
+// ---- GSTR-1 Portal JSON export ----
+/**
+ * Converts buildGSTR1() output to the official GST Portal JSON schema.
+ * The resulting file can be uploaded at https://gst.gov.in → Returns → GSTR-1.
+ *
+ * @param {object} gstr1       - Output of buildGSTR1()
+ * @param {object} opts
+ * @param {string} opts.gstin  - Taxpayer GSTIN (15 chars)
+ * @param {string} opts.fp     - Filing period "MMYYYY" e.g. "042025"
+ */
+export const buildGSTR1PortalJSON = (gstr1, { gstin = '', fp = '' } = {}) => {
+  const fmtDate = (d) => {
+    if (!d) return '';
+    // Accept ISO (2025-04-01) → DD-MM-YYYY
+    const [y, m, day] = d.split('T')[0].split('-');
+    return day ? `${day}-${m}-${y}` : d;
+  };
+
+  // B2B — group invoices by GSTIN (ctin)
+  const b2bMap = {};
+  gstr1.b2b.forEach((inv, idx) => {
+    if (!b2bMap[inv.gstin]) b2bMap[inv.gstin] = { ctin: inv.gstin, inv: [] };
+    b2bMap[inv.gstin].inv.push({
+      inum: inv.invoiceNo,
+      idt:  fmtDate(inv.date),
+      val:  round2(inv.invoiceValue),
+      pos:  (inv.placeOfSupply || '').split(' ')[0], // extract state code
+      rchrg: inv.reverseCharge || 'N',
+      inv_typ: 'R',
+      itms: [
+        {
+          num: 1,
+          itm_det: {
+            txval: round2(inv.taxable),
+            rt:    inv.taxRate || 18,
+            camt:  round2(inv.cgst),
+            samt:  round2(inv.sgst),
+            iamt:  round2(inv.igst),
+            csamt: 0,
+          },
+        },
+      ],
+    });
+  });
+
+  // B2CL
+  const b2cl = gstr1.b2cl.map((inv) => ({
+    pos: (inv.placeOfSupply || '').split(' ')[0],
+    inv: [
+      {
+        inum: inv.invoiceNo,
+        idt:  fmtDate(inv.date),
+        val:  round2(inv.invoiceValue),
+        itms: [
+          {
+            num: 1,
+            itm_det: {
+              txval: round2(inv.taxable),
+              rt:    inv.taxRate || 18,
+              iamt:  round2(inv.igst),
+              csamt: 0,
+            },
+          },
+        ],
+      },
+    ],
+  }));
+
+  // B2CS
+  const b2cs = gstr1.b2cs.map((r) => ({
+    sply_ty: r.type === 'Inter-State' ? 'INTER' : 'INTRA',
+    pos:     r.stateCode || '',
+    typ:     'OE',
+    rt:      r.taxRate,
+    txval:   round2(r.taxable),
+    iamt:    round2(r.igst),
+    camt:    round2(r.cgst),
+    samt:    round2(r.sgst),
+    csamt:   0,
+  }));
+
+  // HSN Summary (section 12)
+  const hsnData = gstr1.hsn.map((h, idx) => ({
+    num:    idx + 1,
+    hsn_sc: h.hsn,
+    desc:   h.description || '',
+    uqc:    h.uqc || 'NOS',
+    qty:    round2(h.qty),
+    val:    round2(h.totalValue),
+    txval:  round2(h.taxable),
+    iamt:   round2(h.igst),
+    camt:   round2(h.cgst),
+    samt:   round2(h.sgst),
+    csamt:  0,
+  }));
+
+  // Doc issue (section 13)
+  const docDet = gstr1.docs.map((d, idx) => ({
+    doc_num: idx + 1,
+    docs: [
+      {
+        num:       1,
+        from:      d.from || '',
+        to:        d.to   || '',
+        totnum:    d.total || 0,
+        cancel:    d.cancelled || 0,
+        net_issue: d.net || 0,
+      },
+    ],
+  }));
+
+  return {
+    gstin,
+    fp,
+    gt:     round2(gstr1.totals.invoiceValue),
+    cur_gt: round2(gstr1.totals.invoiceValue),
+    b2b:    Object.values(b2bMap),
+    b2cl,
+    b2cs,
+    hsn:    { data: hsnData },
+    doc_issue: { doc_det: docDet },
+  };
+};
+
+/**
+ * Trigger browser download of a JSON blob.
+ */
+export const downloadGSTR1JSON = (gstr1, { gstin, fp, filename } = {}) => {
+  const payload = buildGSTR1PortalJSON(gstr1, { gstin, fp });
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = filename || `GSTR1_${gstin}_${fp}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+};
+
 // ---- GSTR-3B builder ----
 /**
  * GSTR-3B is a summary return. We aggregate outward supplies by taxability

@@ -5,7 +5,8 @@ import { formatCurrency, generateRef } from '../../../lib/utils';
 import { useNotifications } from '../../../context/NotificationContext';
 import { supabase } from '../../../lib/supabase';
 
-const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId }) => {
+const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE' }) => {
+  const taxInclusive = taxMode === 'INCLUSIVE';
   const { addNotification } = useNotifications();
   const [cart, setCart] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -161,9 +162,19 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   };
 
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const tax = cart.reduce((acc, item) => acc + (item.price * item.quantity * (item.taxRate / 100)), 0);
+  // Tax inclusive: price already contains GST → extract tax from subtotal
+  // Tax exclusive: price is pre-tax → add tax on top
+  const tax = cart.reduce((acc, item) => {
+    const lineTotal = item.price * item.quantity;
+    const rate = item.taxRate / 100;
+    return acc + (taxInclusive
+      ? lineTotal - lineTotal / (1 + rate)   // extract GST
+      : lineTotal * rate                       // add GST
+    );
+  }, 0);
+  const taxableAmount = taxInclusive ? subtotal - tax : subtotal;
   const deliveryFeeAmt = fulfillmentType === 'DELIVERY' ? (parseFloat(deliveryDetails.fee) || 0) : 0;
-  const total = subtotal + tax + deliveryFeeAmt;
+  const total = taxInclusive ? subtotal + deliveryFeeAmt : subtotal + tax + deliveryFeeAmt;
 
   // Credit sales require a real client (so outstanding_balance has a target).
   // Block the CREDIT button when the cart is attached to WALKIN — auto-revert
@@ -215,6 +226,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         clientId: selectedClientId,
         items: cart,
         totalAmount: total,
+        subtotal: taxableAmount,
+        tax: Math.round(tax * 100) / 100,
+        tax_mode: taxMode,
         paidAmount: isCreditSale ? 0 : total,
         paymentMethod,
         status: isCreditSale ? 'PENDING' : 'COMPLETED',
@@ -645,12 +659,18 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Totals */}
               <div className="bg-white rounded-2xl border border-black/5 p-5 space-y-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${taxInclusive ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                    {taxInclusive ? 'TAX INCLUSIVE' : 'TAX EXCLUSIVE'}
+                  </span>
+                </div>
                 <div className="flex justify-between text-xs font-semibold text-gray-500">
-                  <span>Subtotal</span><span className="tabular-nums">{formatCurrency(subtotal)}</span>
+                  <span>{taxInclusive ? 'Taxable (extracted)' : 'Subtotal'}</span>
+                  <span className="tabular-nums">{formatCurrency(taxableAmount)}</span>
                 </div>
                 {tax > 0 && (
                   <div className="flex justify-between text-xs font-semibold text-gray-500">
-                    <span>Tax</span><span className="tabular-nums">{formatCurrency(tax)}</span>
+                    <span>GST {taxInclusive ? '(incl.)' : ''}</span><span className="tabular-nums">{formatCurrency(tax)}</span>
                   </div>
                 )}
                 {deliveryFeeAmt > 0 && (

@@ -97,8 +97,8 @@ const TotalRow = ({ label, value, bold, tone }) => {
 // ── main ──────────────────────────────────────────────────────────────
 const Invoices = () => {
   const { hasPermission } = useAuth();
-  const { currentTenantId, businessProfile } = useTenant();
-  const { invoices, createInvoice, markInvoicePaid, refetch: refetchInvoices } = useSales(currentTenantId);
+  const { currentTenantId, businessProfile, currentTenant } = useTenant();
+  const { invoices, createInvoice, markInvoicePaid, refetch: refetchInvoices } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
   const { products } = useInventory(currentTenantId);
   const { clients }  = usePeople(currentTenantId);
 
