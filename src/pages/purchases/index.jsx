@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useInventory } from '../../hooks/useInventory';
 import { Plus, RotateCcw, Pencil } from 'lucide-react';
@@ -15,6 +16,7 @@ import PurchaseReturnForm from './components/PurchaseReturnForm';
 const PurchasesPage = () => {
   const { currentTenantId } = useTenant();
   const { currentUser } = useAuth();
+  const { addNotification } = useNotifications();
   const { purchases, suppliers, add: addPurchase, update: updatePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
   const { products, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
 
@@ -119,13 +121,14 @@ const PurchasesPage = () => {
       });
       if (error) {
         console.error('[Return] RPC error:', error);
-        alert('Failed to process return: ' + (error.message || error.details || JSON.stringify(error)));
+        addNotification('Return failed: ' + (error.message || error.details || JSON.stringify(error)), 'error');
         return;
       }
       setReturnTarget(null);
+      addNotification('Return processed — stock updated ✓', 'success');
     } catch (e) {
       console.error('[Return] Exception:', e);
-      alert('Return failed (exception): ' + e.message);
+      addNotification('Return failed: ' + e.message, 'error');
     } finally {
       setReturnLoading(false);
     }
