@@ -18,7 +18,8 @@ const PurchasesPage = () => {
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
   const { purchases, suppliers, add: addPurchase, update: updatePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
-  const { products, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
+  const { products, inventoryLocations, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
+  const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);   // purchase being edited
@@ -65,6 +66,7 @@ const PurchasesPage = () => {
         date:              header.date,
         notes:             header.notes,
         userId:            currentUser?.id,
+        locationId:        header.location_id || null,
       };
       const { error } = await addPurchase(payload);
       if (error) { failed++; continue; }
@@ -219,6 +221,7 @@ const PurchasesPage = () => {
         <MultiPurchaseForm
           products={products}
           suppliers={suppliers}
+          warehouses={warehouses}
           onSave={handleSaveMultiPurchase}
           loading={addLoading}
           onCreateProduct={handleCreateProduct}
