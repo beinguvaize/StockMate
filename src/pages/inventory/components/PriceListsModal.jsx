@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { X, Plus, Trash2, Tag, ChevronDown, ChevronUp, AlertCircle } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { X, Plus, Trash2, Tag, ChevronDown, ChevronUp, AlertCircle, ChevronLeft } from 'lucide-react';
 
 const TIERS = [
   { id: 'WHOLESALE',   label: 'Wholesale',   color: 'blue',   desc: 'Trade buyers, bulk purchasers' },
@@ -89,30 +90,37 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
   const tier = TIERS.find(t => t.id === activeTier);
   const style = TIER_STYLES[tier.color];
 
-  return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
 
-        {/* Header */}
-        <div className="flex items-start justify-between p-6 pb-4 border-b border-black/5">
-          <div>
-            <h2 className="text-2xl font-black text-ink-primary tracking-tight leading-tight">
-              Price Lists
-            </h2>
-            <p className="text-xs font-semibold text-gray-400 mt-0.5">
-              Wholesale &amp; distributor tier pricing with quantity breaks
-            </p>
-          </div>
-          <button
-            onClick={onClose}
-            className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
-          >
-            <X size={16} />
-          </button>
+      {/* ── Top bar ── */}
+      <div className="flex items-center gap-4 px-6 py-4 border-b border-black/5 bg-white shrink-0">
+        <button
+          onClick={onClose}
+          className="w-9 h-9 flex items-center justify-center rounded-full border border-black/5 hover:bg-canvas transition-all text-ink-primary shrink-0"
+        >
+          <ChevronLeft size={18} />
+        </button>
+        <div className="min-w-0">
+          <h1 className="text-lg font-black text-ink-primary leading-tight">Price Lists</h1>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+            Wholesale &amp; distributor tier pricing with quantity breaks
+          </p>
         </div>
+        <button
+          onClick={onClose}
+          className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-gray-400 shrink-0"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* ── Scrollable content ── */}
+      <div className="flex-1 overflow-y-auto">
+      <div className="max-w-4xl mx-auto px-6 py-6 flex flex-col gap-4">
 
         {/* Tier tabs */}
-        <div className="flex gap-2 px-6 pt-4 pb-2">
+        <div className="flex gap-2">
           {TIERS.map(t => {
             const st = TIER_STYLES[t.color];
             const active = t.id === activeTier;
@@ -135,10 +143,9 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
           })}
         </div>
 
-        <div className="text-[10px] font-semibold text-gray-400 px-6 pb-3">{tier.desc}</div>
+        <div className="text-[10px] font-semibold text-gray-400">{tier.desc}</div>
 
-        {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 pb-6 flex flex-col gap-4">
+        <div className="flex flex-col gap-4">
 
           {/* Add form */}
           <div className="bg-gray-50 rounded-2xl p-4 border border-black/5">
@@ -292,7 +299,9 @@ const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDe
           )}
         </div>
       </div>
-    </div>
+      </div>
+    </div>,
+    document.body
   );
 };
 

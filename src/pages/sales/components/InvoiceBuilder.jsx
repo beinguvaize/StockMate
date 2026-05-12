@@ -292,23 +292,23 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Name + SKU */}
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-semibold text-ink-primary truncate leading-tight">{product.name}</div>
-                {product.sku && <div className="text-[9px] font-medium text-gray-400 truncate">{product.sku}</div>}
+                <div className="text-sm font-semibold text-ink-primary truncate leading-tight">{product.name}</div>
+                {product.sku && <div className="text-xs font-medium text-gray-400 truncate">{product.sku}</div>}
               </div>
 
               {/* Price + stock + tax */}
               <div className="text-right flex-shrink-0">
                 <div className="flex items-center justify-end gap-1.5">
-                  <div className={`text-xs font-black leading-none ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>
+                  <div className={`text-sm font-black leading-none ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>
                     {formatCurrency(product.sellingPrice)}
                   </div>
                   {product.taxRate > 0 && (
-                    <span className="text-[8px] font-black px-1 py-0.5 rounded bg-blue-50 text-blue-500 border border-blue-100">
+                    <span className="text-[10px] font-black px-1 py-0.5 rounded bg-blue-50 text-blue-500 border border-blue-100">
                       {product.taxRate}%
                     </span>
                   )}
                 </div>
-                <div className={`text-[9px] font-semibold mt-0.5 ${
+                <div className={`text-xs font-semibold mt-0.5 ${
                   outOfStock ? 'text-red-400' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-gray-400'
                 }`}>
                   {outOfStock ? 'OUT' : `${stock} stk`}
@@ -317,7 +317,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Warning badge */}
               {(ms.isLoss || ms.belowFloor) && !outOfStock && (
-                <div className={`flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[7px] font-black uppercase ${
+                <div className={`flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
                   ms.isLoss ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
                 }`}>
                   <AlertTriangle size={7} />
@@ -346,10 +346,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         {/* Column headers */}
         {cart.length > 0 && (
           <div className="grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-black/5">
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Product</span>
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Qty</span>
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Unit Price</span>
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Total</span>
+            <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Product</span>
+            <span className="text-xs font-black text-gray-400 uppercase tracking-widest text-center">Qty</span>
+            <span className="text-xs font-black text-gray-400 uppercase tracking-widest text-right">Unit Price</span>
+            <span className="text-xs font-black text-gray-400 uppercase tracking-widest text-right">Total</span>
             <span />
           </div>
         )}
@@ -367,9 +367,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               >
                 {/* Product name + below-cost hint */}
                 <div className="min-w-0">
-                  <div className="text-[11px] font-bold text-ink-primary truncate uppercase">{item.name}</div>
+                  <div className="text-sm font-bold text-ink-primary truncate uppercase">{item.name}</div>
                   {belowCost && (
-                    <div className="text-[9px] font-bold text-red-500 mt-0.5">
+                    <div className="text-xs font-bold text-red-500 mt-0.5">
                       Min cost: {formatCurrency(cost)}
                     </div>
                   )}
@@ -388,7 +388,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     min="1"
                     value={item.quantity}
                     onChange={e => setQuantityDirect(item.productId, e.target.value)}
-                    className="w-8 text-center text-[11px] font-black text-ink-primary bg-transparent outline-none tabular-nums"
+                    className="w-8 text-center text-sm font-black text-ink-primary bg-transparent outline-none tabular-nums"
                   />
                   <button
                     onClick={() => addToCart(products.find(p => p.id === item.productId))}
@@ -400,14 +400,14 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
                 {/* Unit price input */}
                 <div className="relative">
-                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[9px] text-gray-400 font-bold pointer-events-none">₹</span>
+                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold pointer-events-none">₹</span>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
                     value={item.price}
                     onChange={e => setItemPrice(item.productId, e.target.value)}
-                    className={`w-full pl-4 pr-1 py-1 text-[11px] font-bold bg-canvas rounded-lg outline-none focus:ring-1 tabular-nums border ${
+                    className={`w-full pl-4 pr-1 py-1 text-sm font-bold bg-canvas rounded-lg outline-none focus:ring-1 tabular-nums border ${
                       belowCost
                         ? 'border-red-300 text-red-600 focus:ring-red-300/40'
                         : 'border-black/8 text-ink-primary focus:ring-accent-signature/30'
@@ -416,7 +416,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 </div>
 
                 {/* Line total */}
-                <div className="text-[11px] font-black text-ink-primary tabular-nums text-right">
+                <div className="text-sm font-black text-ink-primary tabular-nums text-right">
                   {formatCurrency(item.price * item.quantity)}
                 </div>
 
@@ -441,7 +441,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         <div className="p-6 border-t border-black/5 bg-canvas/10">
           {/* Client picker — walk-in by default. Credit requires a real client. */}
           <div className="mb-4">
-            <label className="flex items-center gap-2 text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">
+            <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
               <User size={12} /> Client
             </label>
             {/* Searchable client picker */}
@@ -544,11 +544,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             </div>
           </div>
           <div className="space-y-2 mb-6">
-            <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
               <span>Subtotal</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
-            <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+            <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
               <span>Tax</span>
               <span>{formatCurrency(tax)}</span>
             </div>
@@ -573,7 +573,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 {belowCostItems.length > 0 && (
                   <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-50 border border-red-300 text-red-700 mb-2">
                     <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                    <p className="text-[10px] font-bold leading-snug">
+                    <p className="text-xs font-bold leading-snug">
                       Cannot sell below purchase cost. Adjust price for: {belowCostItems.map(i => i.name).join(', ')}.
                     </p>
                   </div>
@@ -581,7 +581,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 {hasFloorWarn && belowCostItems.length === 0 && (
                   <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 mb-2">
                     <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                    <p className="text-[10px] font-bold leading-snug">
+                    <p className="text-xs font-bold leading-snug">
                       Some items are below your minimum margin floor.
                     </p>
                   </div>

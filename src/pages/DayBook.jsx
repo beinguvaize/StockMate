@@ -70,7 +70,7 @@ const DayBook = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const {
-    expenses, dayBook, clientPayments, cashPurchases,
+    expenses, dayBook, clientPayments, purchases,
     loading: finLoading, updateDayBook, getDayBookForDate, getPrevDayBook,
   } = useFinance(currentTenantId);
   const { sales, loading: salesLoading } = useSales(currentTenantId);
@@ -88,34 +88,47 @@ const DayBook = () => {
 
   // ── Ledger computation ────────────────────────────────────────────────────
   const ledger = useMemo(() => {
-    const daySales      = (sales          || []).filter(s => s.date === selectedDate);
-    const dayExpenses   = (expenses       || []).filter(e => e.date === selectedDate);
+    const daySales      = (sales      || []).filter(s => s.date === selectedDate);
+    const dayExpenses   = (expenses   || []).filter(e => e.date === selectedDate);
     const dayCollect    = (clientPayments || []).filter(p => p.date === selectedDate);
-    const dayPurchases  = (cashPurchases  || []).filter(p => p.date === selectedDate);
+    const dayPurchases  = (purchases  || []).filter(p => p.date === selectedDate);
 
     // ── Receipts ─────────────────────────────────────────────────────────────
-    const cashSales  = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CASH')
-                               .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
-    const bankSales  = daySales.filter(s => ['BANK','UPI','TRANSFER'].includes((s.paymentMethod || '').toUpperCase()))
-                               .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
+    const cashSales   = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CASH')
+                                .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
+    const bankSales   = daySales.filter(s => ['BANK','UPI','TRANSFER'].includes((s.paymentMethod || '').toUpperCase()))
+                                .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
     const creditSales = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CREDIT')
                                 .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
     const cashCollect = dayCollect.filter(p => (p.payment_method || '').toUpperCase() === 'CASH')
                                   .reduce((t, p) => t + (Number(p.amount) || 0), 0);
     const bankCollect = dayCollect.filter(p => ['BANK','UPI','TRANSFER','NEFT','RTGS'].includes((p.payment_method || '').toUpperCase()))
                                   .reduce((t, p) => t + (Number(p.amount) || 0), 0);
-    const totalReceipts = cashSales + bankSales + cashCollect + bankCollect;
+    // cashIn = money that hits the physical cash drawer
+    const cashIn       = cashSales + cashCollect;
+    const bankIn       = bankSales + bankCollect;
+    const totalReceipts = cashIn + bankIn; // full display total
 
     // ── Payments ─────────────────────────────────────────────────────────────
-    const totalExpenses  = dayExpenses.reduce((t, e) => t + (Number(e.amount) || 0), 0);
-    const totalPurchPaid = dayPurchases.reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
-    const totalPayments  = totalExpenses + totalPurchPaid;
+    const totalExpenses   = dayExpenses.reduce((t, e) => t + (Number(e.amount) || 0), 0);
+    // Split purchases by payment type — only CASH reduces physical cash
+    const cashPurchPaid   = dayPurchases
+      .filter(p => (p.payment_type || 'CASH').toUpperCase() === 'CASH')
+      .reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
+    const bankPurchPaid   = dayPurchases
+      .filter(p => ['BANK','UPI','TRANSFER'].includes((p.payment_type || '').toUpperCase()))
+      .reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
+    const totalPurchPaid  = cashPurchPaid + bankPurchPaid; // full display total
+    // cashOut = money leaving the physical cash drawer
+    const cashOut        = totalExpenses + cashPurchPaid;
+    const totalPayments  = cashOut + bankPurchPaid; // full display total
 
     // ── Balances ─────────────────────────────────────────────────────────────
     const record      = getDayBookForDate(selectedDate);
     const prevRecord  = getPrevDayBook(selectedDate);
     const openingBal  = Number(record?.opening_balance) || 0;
-    const closingBal  = openingBal + totalReceipts - totalPayments;
+    // Closing = cash only (bank receipts/payments don't move the cash drawer)
+    const closingBal  = openingBal + cashIn - cashOut;
     const isLocked          = !!record?.is_closed;
     const closedAt          = record?.closed_at || null;
     const hasOpening        = !!record?.id;
@@ -150,7 +163,7 @@ const DayBook = () => {
         category:  e.category || 'Expense',
         title:     e.category || 'Expense',
         note:      e.note || '',
-        method:    'CASH',
+        method:    e.payment_method || 'CASH',
         amount:    Number(e.amount) || 0,
         createdAt: e.created_at || selectedDate,
       })),
@@ -180,7 +193,8 @@ const DayBook = () => {
       savedPhysicalCash, savedVariance,
       cashSales, bankSales, creditSales,
       cashCollect, bankCollect,
-      totalReceipts, totalExpenses, totalPurchPaid, totalPayments,
+      cashIn, bankIn, cashOut, bankPurchPaid,
+      totalReceipts, totalExpenses, cashPurchPaid, totalPurchPaid, totalPayments,
       entries: entriesWithBal,
       sales: daySales, expenses: dayExpenses,
       txCount: entries.filter(e => e.type !== 'CREDIT_SALE').length,
@@ -188,7 +202,7 @@ const DayBook = () => {
       expenseCount: dayExpenses.length,
       collectCount: dayCollect.length,
     };
-  }, [sales, expenses, clientPayments, cashPurchases, selectedDate, getDayBookForDate, getPrevDayBook]);
+  }, [sales, expenses, clientPayments, purchases, selectedDate, getDayBookForDate, getPrevDayBook]);
 
   const isDeficit  = ledger.closingBal < 0;
   const variance   = physicalCash !== '' ? (parseFloat(physicalCash) || 0) - ledger.closingBal : null;
@@ -243,8 +257,8 @@ const DayBook = () => {
       date:             selectedDate,
       opening_balance:  ledger.openingBal,
       closing_balance:  ledger.closingBal,
-      total_sales:      ledger.cashSales + ledger.bankSales,
-      total_expenses:   ledger.totalPayments,
+      total_sales:      ledger.cashSales + ledger.bankSales + ledger.creditSales,
+      total_expenses:   ledger.totalExpenses + ledger.totalPurchPaid, // expenses + all purchases
       is_closed:        true,
       closed_at:        new Date().toISOString(),
       ...(isNaN(pc) ? {} : {
@@ -496,11 +510,11 @@ const DayBook = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <KpiCard label="Opening Balance" cy={cy} value={fmt(ledger.openingBal)}
           icon={<Banknote size={14} />} color="default" />
-        <KpiCard label="Total Receipts" cy={cy} value={fmt(ledger.totalReceipts)}
-          sub={`${ledger.txCount} transactions`}
+        <KpiCard label="Cash Receipts" cy={cy} value={fmt(ledger.cashIn)}
+          sub={`${ledger.txCount} transactions · bank: ${cy}${fmt(ledger.bankIn)}`}
           icon={<ArrowUpRight size={14} />} color="green" />
-        <KpiCard label="Total Payments" cy={cy} value={fmt(ledger.totalPayments)}
-          sub={`${ledger.expenseCount} expenses · ${ledger.entries.filter(e=>e.category==='Purchase').length} purchases`}
+        <KpiCard label="Cash Payments" cy={cy} value={fmt(ledger.cashOut)}
+          sub={`${ledger.expenseCount} expenses · bank purch: ${cy}${fmt(ledger.bankPurchPaid)}`}
           icon={<ArrowDownRight size={14} />} color="red" />
         <KpiCard label="Closing Balance" cy={cy}
           value={`${isDeficit ? '−' : ''}${fmt(Math.abs(ledger.closingBal))}`}
@@ -527,14 +541,14 @@ const DayBook = () => {
               </span>
             </div>
             <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${
-              ledger.totalReceipts >= ledger.totalPayments
+              ledger.cashIn >= ledger.cashOut
                 ? 'bg-emerald-50 text-emerald-600'
                 : 'bg-red-50 text-red-600'
             }`}>
-              {ledger.totalReceipts >= ledger.totalPayments
+              {ledger.cashIn >= ledger.cashOut
                 ? <TrendingUp size={11} />
                 : <TrendingDown size={11} />}
-              Net {cy}{fmt(Math.abs(ledger.totalReceipts - ledger.totalPayments))}
+              Net {cy}{fmt(Math.abs(ledger.cashIn - ledger.cashOut))}
             </div>
           </div>
 
@@ -650,9 +664,9 @@ const DayBook = () => {
             {/* Equation */}
             <div className="space-y-2 mb-4 pb-4 border-b border-black/5">
               {[
-                { label: 'Opening',    val: ledger.openingBal,    color: 'text-ink-primary', sign: '' },
-                { label: '+ Receipts', val: ledger.totalReceipts, color: 'text-emerald-600', sign: '+' },
-                { label: '− Payments', val: ledger.totalPayments, color: 'text-red-500',     sign: '−' },
+                { label: 'Opening',         val: ledger.openingBal, color: 'text-ink-primary' },
+                { label: '+ Cash Receipts', val: ledger.cashIn,     color: 'text-emerald-600' },
+                { label: '− Cash Payments', val: ledger.cashOut,    color: 'text-red-500'     },
               ].map(({ label, val, color }) => (
                 <div key={label} className="flex justify-between text-[10px] font-bold text-gray-400">
                   <span>{label}</span>
@@ -737,8 +751,14 @@ const DayBook = () => {
               ))}
               <div className="flex justify-between pt-2 border-t border-black/5 text-[10px] font-black">
                 <span className="text-ink-primary">Total Cash In</span>
-                <span className="text-emerald-600 tabular-nums">{cy}{fmt(ledger.totalReceipts)}</span>
+                <span className="text-emerald-600 tabular-nums">{cy}{fmt(ledger.cashIn)}</span>
               </div>
+              {ledger.bankIn > 0 && (
+                <div className="flex justify-between text-[9px] font-bold text-gray-400">
+                  <span>+ Bank / UPI In</span>
+                  <span className="tabular-nums text-violet-500">{cy}{fmt(ledger.bankIn)}</span>
+                </div>
+              )}
             </div>
           </div>
 
@@ -763,8 +783,14 @@ const DayBook = () => {
               ))}
               <div className="flex justify-between pt-2 border-t border-black/5 text-[10px] font-black">
                 <span className="text-ink-primary">Total Cash Out</span>
-                <span className="text-red-600 tabular-nums">{cy}{fmt(ledger.totalPayments)}</span>
+                <span className="text-red-600 tabular-nums">{cy}{fmt(ledger.cashOut)}</span>
               </div>
+              {ledger.bankPurchPaid > 0 && (
+                <div className="flex justify-between text-[9px] font-bold text-gray-400">
+                  <span>+ Bank / UPI Purchases</span>
+                  <span className="tabular-nums text-violet-500">{cy}{fmt(ledger.bankPurchPaid)}</span>
+                </div>
+              )}
             </div>
           </div>
 

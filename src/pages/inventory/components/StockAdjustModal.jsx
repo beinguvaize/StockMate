@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, TrendingUp, TrendingDown, Target, AlertCircle, Loader2, CheckCircle2, ArrowRight, Minus, Plus } from 'lucide-react';
+import { X, TrendingUp, TrendingDown, Target, AlertCircle, Loader2, CheckCircle2, ArrowRight, Minus, Plus, ChevronLeft } from 'lucide-react';
 
 const TYPES = [
   { key: 'set',      label: 'Set to',   icon: Target,       desc: 'Override to exact count after physical count', color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200', accent: 'bg-violet-600' },
@@ -58,21 +58,28 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
 
   /* ── Success screen ── */
   if (done) return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 text-center space-y-5">
-        <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto">
-          <CheckCircle2 size={32} className="text-emerald-500" />
-        </div>
-        <div>
-          <p className="text-base font-black text-ink-primary">Stock Updated</p>
-          <p className="text-xs text-gray-400 mt-1">
-            <span className="font-bold text-ink-primary">{product.name}</span> is now{' '}
-            <span className="font-black text-emerald-600">{p?.after ?? '—'} {product.unit || 'pcs'}</span>
-          </p>
-        </div>
-        <button onClick={onClose} className="btn-signature w-full text-xs font-black">
-          Done
+    <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
+      <div className="flex items-center gap-4 px-6 py-4 border-b border-black/5 bg-white shrink-0">
+        <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full border border-black/5 hover:bg-canvas transition-all text-ink-primary shrink-0">
+          <ChevronLeft size={18} />
         </button>
+        <h1 className="text-lg font-black text-ink-primary">Stock Adjustment</h1>
+        <button onClick={onClose} className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-gray-400 shrink-0"><X size={16} /></button>
+      </div>
+      <div className="flex-1 flex items-center justify-center">
+        <div className="text-center space-y-5 max-w-sm w-full px-6">
+          <div className="w-16 h-16 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center mx-auto">
+            <CheckCircle2 size={32} className="text-emerald-500" />
+          </div>
+          <div>
+            <p className="text-base font-black text-ink-primary">Stock Updated</p>
+            <p className="text-xs text-gray-400 mt-1">
+              <span className="font-bold text-ink-primary">{product.name}</span> is now{' '}
+              <span className="font-black text-emerald-600">{p?.after ?? '—'} {product.unit || 'pcs'}</span>
+            </p>
+          </div>
+          <button onClick={onClose} className="btn-signature w-full text-xs font-black h-12 rounded-2xl">Done</button>
+        </div>
       </div>
     </div>,
     document.body
@@ -80,32 +87,25 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
 
   /* ── Main modal ── */
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
 
-        {/* ── Header ── */}
-        <div className="px-6 pt-6 pb-5 border-b border-black/5 flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <span className="inline-block text-[9px] font-black uppercase tracking-[0.15em] text-gray-400 mb-1.5">
-              Stock Adjustment
-            </span>
-            <h2 className="text-sm font-black text-ink-primary leading-tight truncate">{product.name}</h2>
-            <div className="flex items-center gap-1.5 mt-2">
-              <span className="text-[10px] text-gray-400 font-medium">Current stock</span>
-              <span className="px-2 py-0.5 rounded-full bg-black/5 text-[10px] font-black text-ink-primary">
-                {currentStock} {product.unit || 'pcs'}
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="shrink-0 w-8 h-8 rounded-xl border border-black/8 flex items-center justify-center hover:bg-black/5 transition-all text-gray-400"
-          >
-            <X size={14} />
-          </button>
+      {/* ── Top bar ── */}
+      <div className="flex items-center gap-4 px-6 py-4 border-b border-black/5 bg-white shrink-0">
+        <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full border border-black/5 hover:bg-canvas transition-all text-ink-primary shrink-0">
+          <ChevronLeft size={18} />
+        </button>
+        <div className="min-w-0">
+          <h1 className="text-lg font-black text-ink-primary leading-tight">Stock Adjustment</h1>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+            {product.name} · Current: {currentStock} {product.unit || 'pcs'}
+          </p>
         </div>
+        <button onClick={onClose} className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-gray-400 shrink-0"><X size={16} /></button>
+      </div>
 
-        <div className="p-6 space-y-6 overflow-y-auto flex-1">
+      {/* ── Scrollable content ── */}
+      <div className="flex-1 overflow-y-auto">
+      <div className="max-w-lg mx-auto px-6 py-6 space-y-6">
 
           {/* ── Type pills ── */}
           <div className="grid grid-cols-3 gap-2">
@@ -225,19 +225,17 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
 
         </div>
 
-        {/* ── Footer ── */}
-        <div className="px-6 pb-6 pt-2">
-          <button
-            onClick={handleSubmit}
-            disabled={!canSubmit || saving}
-            className="btn-signature w-full flex items-center justify-center gap-2 text-xs font-black h-12 rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-          >
-            {saving
-              ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
-              : <><CheckCircle2 size={14} /> Save Adjustment</>
-            }
-          </button>
-        </div>
+        {/* ── Submit ── */}
+        <button
+          onClick={handleSubmit}
+          disabled={!canSubmit || saving}
+          className="btn-signature w-full flex items-center justify-center gap-2 text-xs font-black h-12 rounded-2xl disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+        >
+          {saving
+            ? <><Loader2 size={14} className="animate-spin" /> Saving…</>
+            : <><CheckCircle2 size={14} /> Save Adjustment</>
+          }
+        </button>
 
       </div>
     </div>,

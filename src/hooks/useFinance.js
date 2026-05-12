@@ -12,7 +12,7 @@ export const useFinance = (tenantId) => {
   const [expenses,        setExpenses]       = useState([]);
   const [dayBook,         setDayBook]        = useState([]);
   const [clientPayments,  setClientPayments] = useState([]);
-  const [cashPurchases,   setCashPurchases]  = useState([]);
+  const [purchases,       setPurchases]      = useState([]);
   const [loading,         setLoading]        = useState(true);
   const [error,           setError]          = useState(null);
 
@@ -37,11 +37,10 @@ export const useFinance = (tenantId) => {
           .select('id, amount, date, payment_method, notes, client_id, created_at')
           .eq('tenant_id', tenantId)
           .order('date', { ascending: false }).limit(500),
-        // Cash/bank purchases paid — outflow from business
+        // All purchases — filtered by payment_type in DayBook for cash-only closing
         supabase.from('purchases')
           .select('id, total_amount, payment_type, date, supplier_id, created_at')
           .eq('tenant_id', tenantId)
-          .in('payment_type', ['CASH','BANK','UPI'])
           .order('date', { ascending: false }).limit(500),
       ]);
 
@@ -53,7 +52,7 @@ export const useFinance = (tenantId) => {
       setExpenses(normalizeNumericRows(expData || [], EXPENSE_NUMERIC));
       setDayBook(normalizeNumericRows(dbData   || [], DAYBOOK_NUMERIC));
       setClientPayments(normalizeNumericRows(cpData  || [], CLIENT_PAYMENT_NUMERIC));
-      setCashPurchases(normalizeNumericRows(purData  || [], PURCHASE_NUMERIC));
+      setPurchases(normalizeNumericRows(purData  || [], PURCHASE_NUMERIC));
     } catch (err) {
       console.error('useFinance error:', err);
       setError(err.message);
@@ -111,7 +110,7 @@ export const useFinance = (tenantId) => {
   };
 
   return {
-    expenses, dayBook, clientPayments, cashPurchases,
+    expenses, dayBook, clientPayments, purchases,
     loading, error,
     refetch:          fetchFinanceData,
     addExpense, updateExpense, deleteExpense,

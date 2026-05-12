@@ -4,7 +4,7 @@ import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, ShoppingCart, ArrowLeftRight } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
@@ -17,7 +17,7 @@ const PurchasesPage = () => {
   const { currentTenantId } = useTenant();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, remove: removePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
   const { products, inventoryLocations, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
@@ -113,6 +113,13 @@ const PurchasesPage = () => {
 
     setEditLoading(false);
     setEditTarget(null);
+  };
+
+  const handleDeletePurchase = async (pur) => {
+    if (!window.confirm(`Delete purchase #${pur.id.split('-').pop()}? This will NOT reverse inventory.`)) return;
+    const { error } = await removePurchase(pur.id);
+    if (error) addNotification('Delete failed: ' + error.message, 'error');
+    else addNotification('Purchase deleted ✓', 'success');
   };
 
   const handleSaveReturn = async (data) => {
@@ -226,6 +233,13 @@ const PurchasesPage = () => {
             >
               <RotateCcw size={11} />
               Return
+            </button>
+            <button
+              onClick={() => handleDeletePurchase(pur)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-500 bg-gray-100 hover:bg-red-50 hover:text-red-600 transition-colors"
+            >
+              <Trash2 size={11} />
+              Delete
             </button>
           </div>
         </td>
