@@ -84,14 +84,37 @@ export const PurchasesProvider = ({ children }) => {
     setPurchases((prev) => [newPurchase, ...prev]);
 
     if (newPurchase.linked_product_id) {
+      // ── Weighted Average Cost (WAC) recalculation ──
+      // new_wac = (existing_stock × existing_cost + qty × unit_cost) / (existing_stock + qty)
+      const product = products.find(p => p.id === newPurchase.linked_product_id);
+      const existingStock = Number(product?.stock)      || 0;
+      const existingCost  = Number(product?.costPrice)  || 0;
+      const incomingQty   = Number(newPurchase.quantity) || 0;
+      const incomingCost  = Number(newPurchase.unit_cost) || 0;
+      const totalUnits    = existingStock + incomingQty;
+      const newWAC = totalUnits > 0
+        ? ((existingStock * existingCost) + (incomingQty * incomingCost)) / totalUnits
+        : incomingCost;
+      const roundedWAC = Math.round(newWAC * 100) / 100;
+
+      // Persist WAC to DB (best-effort, non-blocking)
+      if (isSupabaseConfigured) {
+        supabase
+          .from('products')
+          .update({ cost_price: roundedWAC })
+          .eq('id', newPurchase.linked_product_id)
+          .eq('tenant_id', currentTenantId)
+          .then(({ error }) => { if (error) console.warn('WAC update warn:', error.message); });
+      }
+
       setProducts((prev) =>
         prev.map((p) =>
           p.id === newPurchase.linked_product_id
-            ? { ...p, stock: (p.stock || 0) + newPurchase.quantity }
+            ? { ...p, stock: totalUnits, costPrice: roundedWAC }
             : p,
         ),
       );
-      addNotification(`Stock updated: +${newPurchase.quantity} units`, 'success');
+      addNotification(`Stock +${incomingQty} units · WAC ₹${roundedWAC.toFixed(2)}`, 'success');
     } else {
       addNotification('Purchase recorded', 'success');
     }

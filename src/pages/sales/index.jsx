@@ -16,8 +16,8 @@ import SalesReturnForm from './components/SalesReturnForm';
 
 const SalesPage = () => {
   const { addNotification } = useNotifications();
-  const { currentTenantId, businessProfile } = useTenant();
-  const { sales, clients, invoices, placeSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, loading: salesLoading } = useSales(currentTenantId);
+  const { currentTenantId, businessProfile, currentTenant } = useTenant();
+  const { sales, clients, invoices, placeSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
 
   // Wrap placeSale: auto-create invoice for credit sales (settlement) and
   // delivery sales (van dispatch queue), or both when combined.
@@ -181,6 +181,7 @@ const SalesPage = () => {
             clients={clients}
             onPlaceSale={addSale}
             currentTenantId={currentTenantId}
+            taxMode={businessProfile?.tax_mode || 'EXCLUSIVE'}
           />
         ) : (
           <InvoiceList

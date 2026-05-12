@@ -10,6 +10,7 @@ import AddItemModal from './components/AddItemModal';
 import BatchesModal from './components/BatchesModal';
 import PriceListsModal from './components/PriceListsModal';
 import StockAdjustModal from './components/StockAdjustModal';
+import StockHistoryModal from './components/StockHistoryModal';
 
 const Inventory = () => {
   const { currentUser, isOwner } = useAuth();
@@ -33,6 +34,7 @@ const Inventory = () => {
   const [showPriceLists,  setShowPriceLists]  = useState(false);
   const [adjustingProduct, setAdjustingProduct] = useState(null);
   const [adjustSaving,     setAdjustSaving]     = useState(false);
+  const [showHistory,      setShowHistory]      = useState(false);
 
   const kpis = useMemo(() => {
     const stockValue   = products.reduce((s, p) => s + (p.costPrice || 0) * (p.stock || 0), 0);
@@ -95,7 +97,7 @@ const Inventory = () => {
         </div>
         <div className="flex gap-2 items-center">
           <Button variant="secondary" icon={TagIcon} onClick={() => setShowPriceLists(true)}>Price Lists</Button>
-          <Button variant="secondary" icon={History} onClick={() => {}}>History</Button>
+          <Button variant="secondary" icon={History} onClick={() => setShowHistory(true)}>History</Button>
           <Button icon={Plus} onClick={openAddModal}>Add Product</Button>
         </div>
       </div>
@@ -165,6 +167,14 @@ const Inventory = () => {
           onConfirm={handleAdjust}
           onClose={() => setAdjustingProduct(null)}
           saving={adjustSaving}
+        />
+      )}
+
+      {showHistory && (
+        <StockHistoryModal
+          tenantId={currentTenantId}
+          products={products}
+          onClose={() => setShowHistory(false)}
         />
       )}
     </div>

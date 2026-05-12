@@ -4,33 +4,51 @@
  */
 
 // --- Plan Definitions ---
+// maxInvoices: monthly invoice cap (-1 = unlimited)
+// maxUsers:    seat cap (-1 = unlimited)
 export const PLANS = {
   STARTER: {
     label: 'Starter',
+    price: '₹499/mo',
     modules: ['dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices'],
-    maxUsers: 3,
-    color: 'bg-gray-100 text-gray-600'
+    features: [],
+    maxUsers: 2,
+    maxInvoices: 500,
+    color: 'bg-gray-100 text-gray-600',
   },
   PRO: {
-    label: 'Pro',
-    modules: [
-      'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
-      'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports'
-    ],
-    maxUsers: 25,
-    color: 'bg-blue-50 text-blue-600'
-  },
-  ENTERPRISE: {
-    label: 'Enterprise',
+    label: 'Professional',
+    price: '₹1,499/mo',
     modules: [
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports',
-      'users', 'settings', 'audit-log'
     ],
-    features: ['multi_location_inventory', 'api_access', 'white_label'],
-    maxUsers: -1, // Unlimited
-    color: 'bg-purple-50 text-purple-600'
-  }
+    features: ['price_lists', 'wac_costing', 'gstr_export'],
+    maxUsers: 10,
+    maxInvoices: -1,
+    color: 'bg-blue-50 text-blue-600',
+  },
+  ENTERPRISE: {
+    label: 'Enterprise',
+    price: '₹3,499/mo',
+    modules: [
+      'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
+      'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports',
+      'users', 'settings', 'audit-log',
+    ],
+    features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory', 'api_access', 'white_label'],
+    maxUsers: -1,
+    maxInvoices: -1,
+    color: 'bg-purple-50 text-purple-600',
+  },
+};
+
+/**
+ * Returns the limits for a given plan.
+ */
+export const getPlanLimits = (plan) => {
+  const p = PLANS[plan] || PLANS.STARTER;
+  return { maxUsers: p.maxUsers, maxInvoices: p.maxInvoices };
 };
 
 /**

@@ -1,13 +1,111 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import useReportData from './useReportData';
 import ReportShell from './ReportShell';
 import {
   FileText, Users, Globe, ShoppingBag, Layers, BookOpen,
-  Building2, Hash, Receipt, Calendar, Tag
+  Building2, Hash, Receipt, Calendar, Tag, Download, ChevronDown
 } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
-import { buildGSTR1 } from '../../utils/gstReporting';
+import { buildGSTR1, downloadGSTR1JSON } from '../../utils/gstReporting';
+
+// ── Helper: derive filing period string "MMYYYY" from today or selected month ──
+const currentFP = () => {
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yyyy = now.getFullYear();
+  return `${mm}${yyyy}`;
+};
+
+// ── Export dropdown ──
+const ExportMenu = ({ gstr1, gstin }) => {
+  const [open, setOpen] = useState(false);
+
+  const handlePortalJSON = () => {
+    const fp = currentFP();
+    downloadGSTR1JSON(gstr1, {
+      gstin: gstin || 'GSTIN_NOT_SET',
+      fp,
+      filename: `GSTR1_${gstin || 'export'}_${fp}.json`,
+    });
+    setOpen(false);
+  };
+
+  const handleCSV = (section, label) => {
+    const rows = gstr1[section] || [];
+    if (!rows.length) { setOpen(false); return; }
+    const headers = Object.keys(rows[0]);
+    const csvLines = [
+      headers.join(','),
+      ...rows.map(r => headers.map(h => JSON.stringify(r[h] ?? '')).join(',')),
+    ];
+    const blob = new Blob([csvLines.join('\n')], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href     = url;
+    a.download = `GSTR1_${label}_${currentFP()}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative no-print">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-black transition-colors"
+      >
+        <Download size={13} /> Export <ChevronDown size={11} className={open ? 'rotate-180' : ''} />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
+          <div className="absolute right-0 top-10 z-20 w-56 bg-white rounded-2xl border border-black/8 shadow-xl py-1.5 overflow-hidden">
+            <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400">
+              Portal Upload
+            </div>
+            <button
+              onClick={handlePortalJSON}
+              className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-indigo-50 text-left transition-colors"
+            >
+              <span className="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center text-indigo-600">
+                <Download size={12} />
+              </span>
+              <div>
+                <div className="text-[11px] font-black text-ink-primary">Download Portal JSON</div>
+                <div className="text-[9px] text-gray-400">Upload directly to GST Portal</div>
+              </div>
+            </button>
+            <div className="border-t border-black/5 mt-1 pt-1">
+              <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400">
+                CSV Downloads
+              </div>
+              {[
+                { key: 'b2b',  label: 'B2B Invoices' },
+                { key: 'b2cl', label: 'B2CL — Large B2C' },
+                { key: 'b2cs', label: 'B2CS — Small B2C' },
+                { key: 'hsn',  label: 'HSN Summary' },
+              ].map(s => (
+                <button
+                  key={s.key}
+                  onClick={() => handleCSV(s.key, s.key.toUpperCase())}
+                  className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-left transition-colors"
+                >
+                  <span className="w-6 h-6 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500">
+                    <FileText size={11} />
+                  </span>
+                  <span className="text-[11px] font-semibold text-ink-primary">{s.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 /**
  * GSTR-1 Report — Outward Supplies
@@ -20,6 +118,7 @@ import { buildGSTR1 } from '../../utils/gstReporting';
 const GSTR1Report = () => {
   const { businessProfile } = useTenant();
   const businessState = businessProfile?.state || businessProfile?.business_state || 'KERALA';
+  const businessGSTIN  = businessProfile?.gstin || businessProfile?.gst_no || '';
 
   const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: '*', dateColumn: 'date' });
   const { data: clients, loading: l2 } = useReportData({ table: 'clients', select: '*', nullFilters: { deleted_at: null } });
@@ -291,8 +390,12 @@ const GSTR1Report = () => {
             Tax Liability: <span className="font-black text-rose-600">{formatINR(gstr1.totals.cgst + gstr1.totals.sgst + gstr1.totals.igst)}</span>
             {' · '}
             {gstr1.totals.invoiceCount} Invoices
+            {businessGSTIN && (
+              <span className="ml-2 font-mono text-indigo-600">· GSTIN: {businessGSTIN}</span>
+            )}
           </div>
         </div>
+        <ExportMenu gstr1={gstr1} gstin={businessGSTIN} />
       </div>
 
       <ReportShell tabs={[b2bTab, b2clTab, b2csTab, hsnTab, docsTab]} />
