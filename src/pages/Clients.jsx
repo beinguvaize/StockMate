@@ -53,7 +53,28 @@ const Clients = () => {
  const [statusFilter, setStatusFilter] = useState('ALL');
  const [isAdding, setIsAdding] = useState(false);
  const [editingClient, setEditingClient] = useState(null);
- const EMPTY_FORM = { name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', status: 'ACTIVE', client_type: 'B2C', price_tier: 'RETAIL', credit_days: 0 };
+ const INDIAN_STATES = [
+   { name: 'Jammu & Kashmir', code: '01' }, { name: 'Himachal Pradesh', code: '02' },
+   { name: 'Punjab', code: '03' }, { name: 'Chandigarh', code: '04' },
+   { name: 'Uttarakhand', code: '05' }, { name: 'Haryana', code: '06' },
+   { name: 'Delhi', code: '07' }, { name: 'Rajasthan', code: '08' },
+   { name: 'Uttar Pradesh', code: '09' }, { name: 'Bihar', code: '10' },
+   { name: 'Sikkim', code: '11' }, { name: 'Arunachal Pradesh', code: '12' },
+   { name: 'Nagaland', code: '13' }, { name: 'Manipur', code: '14' },
+   { name: 'Mizoram', code: '15' }, { name: 'Tripura', code: '16' },
+   { name: 'Meghalaya', code: '17' }, { name: 'Assam', code: '18' },
+   { name: 'West Bengal', code: '19' }, { name: 'Jharkhand', code: '20' },
+   { name: 'Odisha', code: '21' }, { name: 'Chhattisgarh', code: '22' },
+   { name: 'Madhya Pradesh', code: '23' }, { name: 'Gujarat', code: '24' },
+   { name: 'Dadra & Nagar Haveli and Daman & Diu', code: '26' },
+   { name: 'Maharashtra', code: '27' }, { name: 'Karnataka', code: '29' },
+   { name: 'Goa', code: '30' }, { name: 'Lakshadweep', code: '31' },
+   { name: 'Kerala', code: '32' }, { name: 'Tamil Nadu', code: '33' },
+   { name: 'Puducherry', code: '34' }, { name: 'Andaman & Nicobar Islands', code: '35' },
+   { name: 'Telangana', code: '36' }, { name: 'Andhra Pradesh', code: '37' },
+   { name: 'Ladakh', code: '38' }, { name: 'Other Territory', code: '97' },
+ ];
+ const EMPTY_FORM = { name: '', contact: '', phone: '', email: '', address: '', gstin: '', state: '', state_code: '', pin_code: '', status: 'ACTIVE', client_type: 'B2C', price_tier: 'RETAIL', credit_days: 0 };
  const [formData, setFormData] = useState(EMPTY_FORM);
  const [deleteConfirm, setDeleteConfirm] = useState(null);
  const [saving, setSaving] = useState(false);
@@ -138,6 +159,7 @@ const Clients = () => {
    gstin:       client.gstin       || '',
    state:       client.state       || '',
    state_code:  client.state_code  || '',
+   pin_code:    client.pin_code    || '',
    status:      client.status      || 'ACTIVE',
    client_type: client.client_type || 'B2C',
    price_tier:  client.price_tier  || 'RETAIL',
@@ -346,14 +368,25 @@ const Clients = () => {
 
   <div>
     <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">State</label>
-    <input type="text" className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
-      placeholder="Tamil Nadu" value={formData.state} onChange={e => setFormData({...formData, state: e.target.value})} />
+    <select
+      className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none"
+      value={formData.state}
+      onChange={e => {
+        const sel = INDIAN_STATES.find(s => s.name === e.target.value);
+        setFormData({ ...formData, state: e.target.value, state_code: sel ? sel.code : formData.state_code });
+      }}
+    >
+      <option value="">— Select State —</option>
+      {INDIAN_STATES.map(s => (
+        <option key={s.code} value={s.name}>{s.name}</option>
+      ))}
+    </select>
   </div>
 
   <div>
-    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">State Code</label>
-    <input type="text" maxLength={2} className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums"
-      placeholder="33" value={formData.state_code} onChange={e => setFormData({...formData, state_code: e.target.value})} />
+    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Postal Code / PIN</label>
+    <input type="text" maxLength={6} className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums"
+      placeholder="600001" value={formData.pin_code} onChange={e => setFormData({...formData, pin_code: e.target.value})} />
   </div>
 
   {/* B2B / B2C Classification */}
