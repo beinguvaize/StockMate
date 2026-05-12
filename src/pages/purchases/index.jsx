@@ -4,7 +4,7 @@ import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, ShoppingCart, ArrowLeftRight } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
@@ -17,10 +17,11 @@ const PurchasesPage = () => {
   const { currentTenantId } = useTenant();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { purchases, suppliers, add: addPurchase, update: updatePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
   const { products, inventoryLocations, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
+  const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' | 'returns'
   const [showAddModal, setShowAddModal] = useState(false);
   const [editTarget, setEditTarget] = useState(null);   // purchase being edited
   const [editLoading, setEditLoading] = useState(false);
@@ -136,6 +137,7 @@ const PurchasesPage = () => {
     }
   };
 
+  // ── Purchases table ──────────────────────────────────────────────────────────
   const headers = [
     { label: 'Date' },
     { label: 'Reference' },
@@ -144,6 +146,48 @@ const PurchasesPage = () => {
     { label: 'Total', className: 'text-right' },
     { label: '', className: 'text-right' },
   ];
+
+  // ── Returns table ────────────────────────────────────────────────────────────
+  const returnHeaders = [
+    { label: 'Date' },
+    { label: 'Reference' },
+    { label: 'Product' },
+    { label: 'Supplier' },
+    { label: 'Qty', className: 'text-center' },
+    { label: 'Total', className: 'text-right' },
+    { label: 'Reason' },
+  ];
+
+  const renderReturnRow = (ret) => {
+    const product  = products.find(p => p.id === ret.product_id);
+    const supplier = suppliers.find(s => s.id === ret.supplier_id);
+    return (
+      <tr key={ret.id} className="hover:bg-canvas transition-colors">
+        <td className="px-4 py-3">
+          <div className="text-xs font-bold text-gray-500 uppercase">{formatDate(ret.date)}</div>
+        </td>
+        <td className="px-4 py-3">
+          <div className="text-sm font-black text-rose-600">#{ret.id.split('-').pop()}</div>
+          <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Debit Note</div>
+        </td>
+        <td className="px-4 py-3">
+          <div className="text-sm font-bold text-ink-primary">{product?.name || ret.product_name || 'Unknown'}</div>
+        </td>
+        <td className="px-4 py-3">
+          <div className="text-xs font-bold text-gray-500">{supplier?.name || ret.supplier_name || '—'}</div>
+        </td>
+        <td className="px-4 py-3 text-center">
+          <div className="text-sm font-black text-rose-500">−{ret.quantity}</div>
+        </td>
+        <td className="px-4 py-3 text-right">
+          <div className="text-sm font-black text-rose-600">{formatCurrency(ret.total_amount)}</div>
+        </td>
+        <td className="px-4 py-3">
+          <div className="text-xs text-gray-500">{ret.reason || '—'}</div>
+        </td>
+      </tr>
+    );
+  };
 
   const renderRow = (pur) => {
     const product = products.find(p => p.id === pur.linked_product_id);
@@ -209,12 +253,45 @@ const PurchasesPage = () => {
         </div>
       </div>
 
-      <Table
-        headers={headers}
-        rows={purchases}
-        renderRow={renderRow}
-        emptyMessage="No purchases recorded yet"
-      />
+      {/* ── Tab switcher ── */}
+      <div className="flex gap-1 p-1 bg-canvas rounded-xl border border-black/5 w-fit">
+        <button
+          onClick={() => setActiveTab('purchases')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeTab === 'purchases' ? 'bg-white shadow text-ink-primary' : 'text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          <ShoppingCart size={11} /> Purchases
+          <span className="ml-1 text-[9px] font-bold bg-black/5 rounded px-1.5 py-0.5">{purchases.length}</span>
+        </button>
+        <button
+          onClick={() => setActiveTab('returns')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeTab === 'returns' ? 'bg-white shadow text-rose-600' : 'text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          <ArrowLeftRight size={11} /> Returns
+          <span className={`ml-1 text-[9px] font-bold rounded px-1.5 py-0.5 ${purchaseReturns.length > 0 ? 'bg-rose-100 text-rose-600' : 'bg-black/5'}`}>
+            {purchaseReturns.length}
+          </span>
+        </button>
+      </div>
+
+      {activeTab === 'purchases' ? (
+        <Table
+          headers={headers}
+          rows={purchases}
+          renderRow={renderRow}
+          emptyMessage="No purchases recorded yet"
+        />
+      ) : (
+        <Table
+          headers={returnHeaders}
+          rows={purchaseReturns}
+          renderRow={renderReturnRow}
+          emptyMessage="No purchase returns yet"
+        />
+      )}
 
       {/* Add Purchase Modal — multi-line */}
       <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Add Purchase" subtitle="One supplier · multiple products · single submit">

@@ -19,7 +19,7 @@ const SupplierLedger = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { suppliers, loading: peoLoading } = usePeople(currentTenantId);
-  const { purchases, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, loading: purLoading } = usePurchases(currentTenantId);
   const { products, loading: invLoading } = useInventory(currentTenantId);
 
   const loading = peoLoading || purLoading || invLoading;
@@ -44,6 +44,13 @@ const SupplierLedger = () => {
       .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
   }, [supplier, purchases]);
 
+  const supplierReturns = useMemo(() => {
+    if (!supplier) return [];
+    return (purchaseReturns || [])
+      .filter(r => r.supplier_id === supplier.id || r.supplier_name === supplier.name)
+      .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
+  }, [supplier, purchaseReturns]);
+
   const filteredPurchases = useMemo(() => {
     const q = searchTerm.toLowerCase();
     return supplierPurchases.filter(p => {
@@ -66,11 +73,13 @@ const SupplierLedger = () => {
     const count = supplierPurchases.length;
     const avg = count > 0 ? total / count : 0;
     const last = supplierPurchases[0]?.date;
+    const totalReturns = supplierReturns.reduce((s, r) => s + Number(r.total_amount || 0), 0);
+    const net = total - totalReturns;
     // Live payable from suppliers.balance (authoritative) — falls back to computed credit total
     const payable = Number(supplier?.balance ?? supplier?.outstanding_balance ?? creditTotal);
 
-    return { total, count, avg, last, payable, cashPaid, creditTotal };
-  }, [supplierPurchases, supplier]);
+    return { total, count, avg, last, payable, cashPaid, creditTotal, totalReturns, net };
+  }, [supplierPurchases, supplierReturns, supplier]);
 
   if (loading) {
     return (
@@ -222,6 +231,22 @@ const SupplierLedger = () => {
                     {businessProfile?.currencySymbol}{Math.round(metrics.creditTotal).toLocaleString()}
                   </span>
                 </div>
+                {metrics.totalReturns > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Returns (Debit Notes)</span>
+                    <span className="text-base font-bold text-rose-500 tabular-nums">
+                      −{businessProfile?.currencySymbol}{Math.round(metrics.totalReturns).toLocaleString()}
+                    </span>
+                  </div>
+                )}
+                {metrics.totalReturns > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Net Purchased</span>
+                    <span className="text-base font-bold text-ink-primary tabular-nums">
+                      {businessProfile?.currencySymbol}{Math.round(metrics.net).toLocaleString()}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center pt-5 border-t border-black/5">
                   <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Amount Due</span>
                   <span className={`text-base font-bold tabular-nums ${metrics.payable > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
@@ -286,7 +311,7 @@ const SupplierLedger = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-black/5">
-                  {filteredPurchases.length === 0 ? (
+                  {filteredPurchases.length === 0 && supplierReturns.length === 0 ? (
                     <tr>
                       <td colSpan="7" className="py-24 text-center">
                         <div className="opacity-10 mb-4 flex justify-center"><Box size={72} strokeWidth={1} /></div>
@@ -295,7 +320,8 @@ const SupplierLedger = () => {
                       </td>
                     </tr>
                   ) : (
-                    filteredPurchases.map((p) => {
+                    <>
+                    {filteredPurchases.map((p) => {
                       const product = (products || []).find(prod => prod.id === p.linked_product_id);
                       const amount = Number(p.total_amount ?? p.total_cost ?? 0);
                       const qty = Number(p.quantity ?? 0);
@@ -321,7 +347,7 @@ const SupplierLedger = () => {
                               <div className="text-xs font-semibold text-ink-primary truncate max-w-[180px]">{product?.name || '—'}</div>
                             </td>
                             <td className="py-4 px-4 text-center">
-                              <span className="text-xs font-semibold text-ink-primary tabular-nums">{qty}</span>
+                              <span className="text-xs font-semibold text-emerald-600 tabular-nums">+{qty}</span>
                             </td>
                             <td className="py-4 px-4">
                               <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${credit ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
@@ -366,7 +392,76 @@ const SupplierLedger = () => {
                           )}
                         </React.Fragment>
                       );
-                    })
+                    })}
+                    {/* ── Return rows ── */}
+                    {supplierReturns.map((r) => {
+                      const product = (products || []).find(prod => prod.id === r.product_id);
+                      const expanded = expandedRow === r.id;
+                      return (
+                        <React.Fragment key={r.id}>
+                          <tr
+                            className={`cursor-pointer transition-colors ${expanded ? 'bg-rose-50/60' : 'hover:bg-rose-50/40'}`}
+                            onClick={() => setExpandedRow(expanded ? null : r.id)}
+                          >
+                            <td className="py-4 px-6 text-rose-300">
+                              <ChevronRight size={14} className={`transition-transform ${expanded ? 'rotate-90 text-rose-500' : ''}`} />
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="text-xs font-semibold text-ink-primary">{formatDate(r.date)}</div>
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="text-xs font-mono text-rose-600">#{(r.id || '').slice(-8).toUpperCase()}</div>
+                              <div className="text-[9px] font-bold text-rose-400 uppercase tracking-wider">Debit Note</div>
+                            </td>
+                            <td className="py-4 px-4">
+                              <div className="text-xs font-semibold text-ink-primary truncate max-w-[180px]">{product?.name || r.product_name || '—'}</div>
+                            </td>
+                            <td className="py-4 px-4 text-center">
+                              <span className="text-xs font-semibold text-rose-500 tabular-nums">−{Number(r.quantity)}</span>
+                            </td>
+                            <td className="py-4 px-4">
+                              <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-rose-100 text-rose-700">
+                                Return
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-right">
+                              <div className="text-sm font-bold tabular-nums text-rose-600">
+                                −{businessProfile?.currencySymbol || '₹'}{Number(r.total_amount).toLocaleString()}
+                              </div>
+                            </td>
+                          </tr>
+                          {expanded && (
+                            <tr className="bg-rose-50/30">
+                              <td colSpan="7" className="px-6 py-5">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-xs">
+                                  <div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Full Reference</div>
+                                    <div className="font-mono text-ink-primary break-all">{r.id}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Qty Returned</div>
+                                    <div className="font-semibold text-rose-600 tabular-nums">{Number(r.quantity)}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Unit Price</div>
+                                    <div className="font-semibold text-ink-primary tabular-nums">{businessProfile?.currencySymbol || '₹'}{Number(r.unit_price || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</div>
+                                  </div>
+                                  <div>
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Linked Purchase</div>
+                                    <div className="font-mono text-ink-primary text-[10px]">{r.purchase_id || '—'}</div>
+                                  </div>
+                                  <div className="col-span-2 md:col-span-4">
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Reason</div>
+                                    <div className="text-ink-primary">{r.reason || <span className="text-gray-400 italic">No reason given</span>}</div>
+                                  </div>
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
+                    </>
                   )}
                 </tbody>
               </table>
