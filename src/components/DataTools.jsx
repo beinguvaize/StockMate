@@ -1,7 +1,8 @@
 import React, { useState, useRef} from 'react';
-import { 
-  X, Download, Upload, FileJson, Eye, 
-  CheckCircle2, AlertCircle, Check, FileSpreadsheet 
+import { createPortal } from 'react-dom';
+import {
+  X, Download, Upload, FileJson, Eye,
+  CheckCircle2, AlertCircle, Check, FileSpreadsheet, ChevronLeft
 } from 'lucide-react';
 import { useInventory } from '../hooks/useInventory';
 import { usePeople } from '../hooks/usePeople';
@@ -305,22 +306,25 @@ const DataTools = ({ isOpen, onClose}) => {
 
  const currentModuleData = getModuleData(selectedModule);
 
- return (
- <div className="modal-overlay" onClick={onClose}>
- <div className="glass-modal !max-w-[650px] !p-0 !rounded-bento overflow-hidden" onClick={e => e.stopPropagation()}>
- {/* Header */}
- <div className="bg-ink-primary p-5 flex justify-between items-start">
- <div>
- <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">DATA TOOLS<span className="text-accent-signature">.</span></h1>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">IMPORT & EXPORT YOUR BUSINESS DATA</p>
+ return createPortal(
+ <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
+ {/* ── Top bar ── */}
+ <div className="flex items-center gap-4 px-6 py-4 border-b border-black/5 bg-white shrink-0">
+   <button onClick={onClose} className="w-9 h-9 flex items-center justify-center rounded-full border border-black/5 hover:bg-canvas transition-all text-ink-primary shrink-0">
+     <ChevronLeft size={18} />
+   </button>
+   <div className="min-w-0">
+     <h1 className="text-lg font-black text-ink-primary leading-tight">Data Tools<span className="text-accent-signature">.</span></h1>
+     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">Import &amp; export your business data</p>
+   </div>
+   <button onClick={onClose} className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-gray-400 shrink-0">
+     <X size={16} />
+   </button>
  </div>
- <button 
- onClick={onClose}
- className="w-10 h-10 rounded-pill border border-surface/20 flex items-center justify-center hover:bg-surface/10 transition-all cursor-pointer text-surface"
- >
- <X size={18} />
- </button>
- </div>
+
+ {/* ── Scrollable content ── */}
+ <div className="flex-1 overflow-y-auto">
+ <div className="max-w-3xl mx-auto px-6 py-6 flex flex-col gap-4">
 
  {/* Tabs */}
  <div className="flex border-b border-black/5">
@@ -339,7 +343,7 @@ const DataTools = ({ isOpen, onClose}) => {
  </div>
 
  {/* Content */}
- <div className="p-4 space-y-4">
+ <div className="space-y-4">
  {/* Module Selector */}
  <div>
  <label className="text-[10px] font-semibold text-gray-700 mb-2 block opacity-70">Select Data Module</label>
@@ -505,6 +509,9 @@ const DataTools = ({ isOpen, onClose}) => {
  </div>
  </div>
  </div>
+ </div>
+ </div>,
+ document.body
  );
 };
 
