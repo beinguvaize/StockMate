@@ -453,78 +453,78 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         </div>
 
         <div className="p-6 border-t border-black/5 bg-canvas/10">
-          {/* Client picker — walk-in by default. Credit requires a real client. */}
+          {/* Client picker — combobox, always-visible search */}
           <div className="mb-4">
             <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
               <User size={12} /> Client
             </label>
-            {/* Searchable client picker */}
             <div ref={clientDropRef} className="relative">
-              {/* Trigger */}
-              <button
-                type="button"
-                onClick={() => { setClientDropOpen(o => !o); setClientSearch(''); }}
-                className="w-full bg-white rounded-xl py-3 px-4 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/20 text-left flex items-center justify-between"
-              >
-                {selectedClientId === 'WALKIN' ? (
-                  <span className="text-xs font-bold text-ink-primary uppercase tracking-tight">WALK-IN (CASH ONLY)</span>
-                ) : (() => {
-                  const sel = (clients || []).find(c => c.id === selectedClientId);
-                  return (
-                    <span className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold text-ink-primary uppercase tracking-tight truncate">{(sel?.name || 'Unknown').toUpperCase()}</span>
-                      {(sel?.address || sel?.phone) && (
-                        <span className="text-[9px] text-gray-400 font-medium truncate">{sel?.address || sel?.phone}</span>
+
+              {/* Selected client chip — shown when a real client is picked */}
+              {selectedClientId !== 'WALKIN' && !clientDropOpen ? (() => {
+                const sel = (clients || []).find(c => c.id === selectedClientId);
+                return (
+                  <div className="w-full bg-accent-signature/5 border border-accent-signature/20 rounded-xl px-4 py-3 flex items-center justify-between gap-2">
+                    <span className="flex flex-col min-w-0 flex-1">
+                      <span className="text-xs font-black text-ink-primary uppercase tracking-tight truncate">{(sel?.name || 'Unknown').toUpperCase()}</span>
+                      {(sel?.phone || sel?.address) && (
+                        <span className="text-[9px] text-gray-400 font-medium truncate mt-0.5">{sel?.phone || sel?.address}</span>
                       )}
                     </span>
-                  );
-                })()}
-                <Search size={12} className="text-gray-400 shrink-0 ml-2" />
-              </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedClientId('WALKIN'); setClientSearch(''); setClientDropOpen(false); }}
+                      className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center text-gray-400 hover:bg-black/10 shrink-0"
+                    >
+                      <X size={10} />
+                    </button>
+                  </div>
+                );
+              })() : (
+                /* Search input — always visible when no client selected or editing */
+                <div className="relative">
+                  <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="Type client name to search…"
+                    className="w-full bg-white rounded-xl py-3 pl-9 pr-4 border border-black/8 outline-none focus:ring-2 focus:ring-accent-signature/20 text-xs font-semibold text-ink-primary placeholder:text-gray-400 placeholder:font-normal"
+                    value={clientSearch}
+                    onChange={e => { setClientSearch(e.target.value); setClientDropOpen(true); }}
+                    onFocus={() => setClientDropOpen(true)}
+                  />
+                  {clientSearch && (
+                    <button
+                      type="button"
+                      onClick={() => { setClientSearch(''); setClientDropOpen(false); }}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X size={11} />
+                    </button>
+                  )}
+                </div>
+              )}
 
-              {/* Dropdown */}
+              {/* Dropdown results */}
               {clientDropOpen && (
                 <div className="absolute z-50 bottom-full mb-1 left-0 right-0 bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden">
-                  {/* Search input */}
-                  <div className="p-2 border-b border-black/5">
-                    <div className="flex items-center gap-2 bg-canvas rounded-lg px-3 py-2">
-                      <Search size={12} className="text-gray-400 shrink-0" />
-                      <input
-                        autoFocus
-                        type="text"
-                        placeholder="Search client..."
-                        className="flex-1 bg-transparent text-xs font-semibold outline-none text-ink-primary placeholder:text-gray-400"
-                        value={clientSearch}
-                        onChange={e => setClientSearch(e.target.value)}
-                      />
-                      {clientSearch && (
-                        <button onClick={() => setClientSearch('')} className="text-gray-400 hover:text-gray-600">
-                          <X size={10} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Options list */}
                   <div className="max-h-52 overflow-y-auto">
                     {/* Walk-in option */}
-                    {!clientSearch && (
-                      <button
-                        type="button"
-                        onClick={() => { setSelectedClientId('WALKIN'); setClientDropOpen(false); }}
-                        className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-tight flex items-center justify-between hover:bg-canvas transition-colors ${selectedClientId === 'WALKIN' ? 'text-accent-signature bg-accent-signature/5' : 'text-ink-primary'}`}
-                      >
-                        WALK-IN (CASH ONLY)
-                        {selectedClientId === 'WALKIN' && <Check size={12} />}
-                      </button>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => { setSelectedClientId('WALKIN'); setClientDropOpen(false); setClientSearch(''); }}
+                      className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-tight flex items-center justify-between hover:bg-canvas transition-colors border-b border-black/5 ${selectedClientId === 'WALKIN' ? 'text-accent-signature bg-accent-signature/5' : 'text-gray-400'}`}
+                    >
+                      Walk-in / No client
+                      {selectedClientId === 'WALKIN' && <Check size={12} />}
+                    </button>
 
                     {/* Filtered clients */}
                     {(clients || [])
-                      .filter(c => !clientSearch ||
+                      .filter(c =>
+                        !clientSearch ||
                         (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
-                        (c.address || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
-                        (c.phone || '').toLowerCase().includes(clientSearch.toLowerCase())
+                        (c.phone || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
+                        (c.address || '').toLowerCase().includes(clientSearch.toLowerCase())
                       )
                       .map(c => (
                         <button
@@ -537,9 +537,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                             <span className={`text-xs font-bold uppercase tracking-tight truncate ${selectedClientId === c.id ? 'text-accent-signature' : 'text-ink-primary'}`}>
                               {(c.name || 'Unnamed').toUpperCase()}
                             </span>
-                            {(c.address || c.phone) && (
+                            {(c.phone || c.address) && (
                               <span className="text-[9px] text-gray-400 font-medium truncate mt-0.5">
-                                {c.address || c.phone}
+                                {c.phone || c.address}
                               </span>
                             )}
                           </span>
@@ -549,8 +549,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     }
 
                     {/* Empty state */}
-                    {clientSearch && (clients || []).filter(c => (c.name || '').toLowerCase().includes(clientSearch.toLowerCase())).length === 0 && (
-                      <div className="px-4 py-6 text-center text-[10px] text-gray-400">No clients match "{clientSearch}"</div>
+                    {clientSearch && (clients || []).filter(c =>
+                      (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
+                      (c.phone || '').toLowerCase().includes(clientSearch.toLowerCase())
+                    ).length === 0 && (
+                      <div className="px-4 py-5 text-center text-[10px] text-gray-400">No clients match "{clientSearch}"</div>
                     )}
                   </div>
                 </div>
