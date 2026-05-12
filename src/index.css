@@ -5,7 +5,7 @@
  * glassmorphism values, or layout tokens are permitted.
  */
 
-@import url('https://fonts.googleapis.com/css2?family=Sora:wght@100..800&family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;900&family=Space+Grotesk:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&family=Sora:wght@100..800&family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;900&display=swap');
 @import "tailwindcss";
 
 /* Global blur strip — no backdrop-filter anywhere */
@@ -15,19 +15,19 @@
 }
 
 body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
 
 .font-inter {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 .font-sora,
 .font-bebas,
 .font-space {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
 .font-arial {
@@ -154,13 +154,13 @@ body {
 /* White theme: Inter font — clean professional */
 [data-theme="white"] body,
 [data-theme="white"] * {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
   letter-spacing: -0.01em;
 }
 [data-theme="white"] h1,
 [data-theme="white"] h2,
 [data-theme="white"] h3 {
-  font-family: 'Inter', sans-serif !important;
+  font-family: 'DM Sans', sans-serif !important;
   letter-spacing: -0.03em;
 }
 
@@ -171,7 +171,7 @@ body {
 [data-theme="white"] .text-4xl.font-black {
   text-transform: uppercase !important;
   letter-spacing: -0.04em !important;
-  font-family: 'Inter', sans-serif !important;
+  font-family: 'DM Sans', sans-serif !important;
   font-size: 4rem !important;
   line-height: 1 !important;
 }
@@ -323,7 +323,7 @@ body {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
   background: var(--color-canvas);
   color: var(--color-ink-primary);
   line-height: 1.5;
@@ -888,7 +888,7 @@ body {
 .kpi-expense:hover { border-color: rgba(239, 68, 68, 0.3); box-shadow: 0 12px 24px -10px var(--expense-glow); }
 
 .kpi-value {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif !important;
   font-size: 3.5rem;
   line-height: 1;
   letter-spacing: 0.02em;
