@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect} from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
@@ -7,11 +8,12 @@ import { useFinance } from '../hooks/useFinance';
 import { formatDate } from '../lib/utils';
 import { supabase } from '../lib/supabase';
 
-import { 
-  UserCircle, Plus, DollarSign, Building, Phone, MapPin, 
-  Edit3, Trash2, X, Check, Save, UserCheck, CreditCard, 
+import {
+  UserCircle, Plus, DollarSign, Building, Phone, MapPin,
+  Edit3, Trash2, X, Check, Save, UserCheck, CreditCard,
   ChevronRight, ExternalLink, ShieldCheck, Mail, Search,
-  TrendingUp, AlertCircle, Users, BarChart3, Receipt, History
+  TrendingUp, AlertCircle, Users, BarChart3, Receipt, History,
+  ChevronLeft, Building2, Tag, Hash, Loader2
 } from 'lucide-react';
 import ClientDirectory from '../components/clients/ClientDirectory';
 import ClientAging from '../components/clients/ClientAging';
@@ -283,191 +285,326 @@ const Clients = () => {
  </div>
  </div>
 
- {/* Client Form Modal */}
- {isAdding && (
- <div className="modal-overlay">
- <div className="glass-modal flex flex-col max-h-[90vh]">
- <div className="flex justify-between items-start mb-5 shrink-0">
- <div>
- <h2 className="text-3xl font-semibold text-ink-primary leading-none mb-2">
- {editingClient ? 'EDIT CLIENT.' : 'NEW CLIENT.'}
- </h2>
- <p className="text-[10px] font-semibold text-[#4b5563] opacity-80">
- REGISTER BUSINESS OUTLET DETAILS
- </p>
- </div>
- <button
- onClick={() => { setIsAdding(false); setEditingClient(null);}}
- className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary"
- >
- <X size={18} />
- </button>
- </div>
+ {/* Client Form — Full-page portal */}
+ {isAdding && createPortal(
+   <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
 
- <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
- <div className="overflow-y-auto flex-1 space-y-5 pr-1">
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
- <div className="md:col-span-2">
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Business Name</label>
- <input 
- required 
- type="text" 
- placeholder="BUSINESS ENTITY NAME..."
- className="w-full bg-canvas border-none rounded-lg p-5 font-medium text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
- value={formData.name} 
- onChange={e => setFormData({...formData, name: e.target.value})} 
- />
- </div>
- 
-  <div>
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Primary Contact (Optional)</label>
-  <input 
-  type="text" 
-  className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
-  placeholder="PERSONNEL NAME..."
-  value={formData.contact} 
-  onChange={e => setFormData({...formData, contact: e.target.value})} 
-  />
-  </div>
+     {/* ── Top bar ── */}
+     <div className="flex items-center gap-4 px-6 py-4 border-b border-black/5 bg-white shrink-0">
+       <button
+         type="button"
+         onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
+         className="w-9 h-9 flex items-center justify-center rounded-full border border-black/8 hover:bg-canvas transition-all text-ink-primary shrink-0"
+       >
+         <ChevronLeft size={18} />
+       </button>
+       <div className="min-w-0 flex-1">
+         <h1 className="text-lg font-black text-ink-primary leading-tight">
+           {editingClient ? 'Edit Client' : 'New Client'}<span className="text-accent-signature">.</span>
+         </h1>
+         <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-0.5">
+           {editingClient ? `Editing — ${editingClient.name}` : 'Register a new business account'}
+         </p>
+       </div>
+       <button
+         type="button"
+         onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
+         className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-gray-400 shrink-0"
+       >
+         <X size={16} />
+       </button>
+     </div>
 
-  <div>
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Phone Number (Optional)</label>
-  <input 
-  type="text" 
-  className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums" 
-  placeholder="+1 (000) 000-0000"
-  value={formData.phone} 
-  onChange={e => setFormData({...formData, phone: e.target.value})} 
-  />
-  </div>
+     {/* ── Body ── */}
+     <div className="flex-1 overflow-y-auto">
+       <form onSubmit={handleSubmit} id="client-form">
+         <div className="max-w-5xl mx-auto px-6 py-8 grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-  <div className="md:col-span-2">
-    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Email Address (Optional)</label>
-    <input type="email" className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
-      placeholder="orders@client.com" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} />
-  </div>
+           {/* ── LEFT: form sections ── */}
+           <div className="lg:col-span-2 space-y-5">
 
-  <div className="md:col-span-2">
-    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Address (Optional)</label>
-    <input type="text" className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
-      placeholder="Shop / Street / City..." value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} />
-  </div>
+             {/* Section 1 — Basic Info */}
+             <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+               <div className="px-5 py-3.5 border-b border-black/5 flex items-center gap-2">
+                 <UserCircle size={14} className="text-accent-signature" />
+                 <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Basic Information</span>
+               </div>
+               <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                 <div className="sm:col-span-2">
+                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Business / Client Name <span className="text-accent-signature">*</span></label>
+                   <input
+                     required
+                     autoFocus
+                     type="text"
+                     placeholder="e.g. Sunrise Traders Pvt Ltd"
+                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30"
+                     value={formData.name}
+                     onChange={e => setFormData({...formData, name: e.target.value})}
+                   />
+                 </div>
+                 <div>
+                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Contact Person</label>
+                   <input
+                     type="text"
+                     placeholder="e.g. Ramesh Kumar"
+                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30"
+                     value={formData.contact}
+                     onChange={e => setFormData({...formData, contact: e.target.value})}
+                   />
+                 </div>
+                 <div>
+                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Phone Number</label>
+                   <input
+                     type="tel"
+                     placeholder="9876543210"
+                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 tabular-nums"
+                     value={formData.phone}
+                     onChange={e => setFormData({...formData, phone: e.target.value})}
+                   />
+                 </div>
+                 <div className="sm:col-span-2">
+                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Email Address</label>
+                   <input
+                     type="email"
+                     placeholder="billing@client.com"
+                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30"
+                     value={formData.email}
+                     onChange={e => setFormData({...formData, email: e.target.value})}
+                   />
+                 </div>
+                 <div className="sm:col-span-2">
+                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Address</label>
+                   <input
+                     type="text"
+                     placeholder="Shop / Street / Area / City"
+                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30"
+                     value={formData.address}
+                     onChange={e => setFormData({...formData, address: e.target.value})}
+                   />
+                 </div>
+               </div>
+             </div>
 
-  {/* GST Compliance — Optional */}
-  <div className="md:col-span-2">
-    <div className="border-t border-black/5 pt-4 mb-2">
-      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">GST Compliance (Optional)</span>
-    </div>
-  </div>
+             {/* Section 2 — Location */}
+             <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+               <div className="px-5 py-3.5 border-b border-black/5 flex items-center gap-2">
+                 <MapPin size={14} className="text-accent-signature" />
+                 <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Location</span>
+               </div>
+               <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                 <div>
+                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">State</label>
+                   <select
+                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 appearance-none"
+                     value={formData.state}
+                     onChange={e => {
+                       const sel = INDIAN_STATES.find(s => s.name === e.target.value);
+                       setFormData({ ...formData, state: e.target.value, state_code: sel ? sel.code : formData.state_code });
+                     }}
+                   >
+                     <option value="">— Select State —</option>
+                     {INDIAN_STATES.map(s => (
+                       <option key={s.code} value={s.name}>{s.name}</option>
+                     ))}
+                   </select>
+                 </div>
+                 <div>
+                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Postal / PIN Code</label>
+                   <input
+                     type="text"
+                     maxLength={6}
+                     placeholder="600001"
+                     className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 tabular-nums"
+                     value={formData.pin_code}
+                     onChange={e => setFormData({...formData, pin_code: e.target.value})}
+                   />
+                 </div>
+               </div>
+             </div>
 
-  <div className="md:col-span-2">
-    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">GSTIN</label>
-    <input type="text" maxLength={15} className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all uppercase tracking-widest"
-      placeholder="22AAAAA0000A1Z5" value={formData.gstin} onChange={e => setFormData({...formData, gstin: e.target.value.toUpperCase()})} />
-  </div>
+             {/* Section 3 — GST */}
+             <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+               <div className="px-5 py-3.5 border-b border-black/5 flex items-center gap-2">
+                 <ShieldCheck size={14} className="text-accent-signature" />
+                 <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">GST Details</span>
+                 <span className="ml-auto text-[9px] font-semibold text-gray-400">Optional</span>
+               </div>
+               <div className="p-5">
+                 <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">GSTIN</label>
+                 <input
+                   type="text"
+                   maxLength={15}
+                   placeholder="22AAAAA0000A1Z5"
+                   className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-black text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 uppercase tracking-widest"
+                   value={formData.gstin}
+                   onChange={e => setFormData({...formData, gstin: e.target.value.toUpperCase()})}
+                 />
+               </div>
+             </div>
 
-  <div>
-    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">State</label>
-    <select
-      className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none"
-      value={formData.state}
-      onChange={e => {
-        const sel = INDIAN_STATES.find(s => s.name === e.target.value);
-        setFormData({ ...formData, state: e.target.value, state_code: sel ? sel.code : formData.state_code });
-      }}
-    >
-      <option value="">— Select State —</option>
-      {INDIAN_STATES.map(s => (
-        <option key={s.code} value={s.name}>{s.name}</option>
-      ))}
-    </select>
-  </div>
+             {/* Section 4 — Account Classification */}
+             <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+               <div className="px-5 py-3.5 border-b border-black/5 flex items-center gap-2">
+                 <Tag size={14} className="text-accent-signature" />
+                 <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Account Classification</span>
+               </div>
+               <div className="p-5 space-y-4">
+                 {/* B2B / B2C */}
+                 <div>
+                   <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Account Type</label>
+                   <div className="grid grid-cols-2 gap-3">
+                     {[
+                       { val: 'B2C', label: 'B2C — Consumer', desc: 'Walk-in / retail customer', icon: '🛒' },
+                       { val: 'B2B', label: 'B2B — Business', desc: 'Company / distributor', icon: '🏢' },
+                     ].map(opt => (
+                       <button
+                         key={opt.val}
+                         type="button"
+                         onClick={() => setFormData({ ...formData, client_type: opt.val })}
+                         className={`flex items-start gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                           formData.client_type === opt.val
+                             ? 'border-ink-primary bg-ink-primary'
+                             : 'border-black/8 bg-canvas hover:border-black/20'
+                         }`}
+                       >
+                         <span className="text-lg leading-none mt-0.5">{opt.icon}</span>
+                         <div>
+                           <div className={`text-xs font-black ${formData.client_type === opt.val ? 'text-accent-signature' : 'text-ink-primary'}`}>{opt.label}</div>
+                           <div className={`text-[9px] mt-0.5 ${formData.client_type === opt.val ? 'text-white/50' : 'text-gray-400'}`}>{opt.desc}</div>
+                         </div>
+                       </button>
+                     ))}
+                   </div>
+                 </div>
 
-  <div>
-    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Postal Code / PIN</label>
-    <input type="text" maxLength={6} className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums"
-      placeholder="600001" value={formData.pin_code} onChange={e => setFormData({...formData, pin_code: e.target.value})} />
-  </div>
+                 <div className="grid grid-cols-2 gap-4">
+                   <div>
+                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Price Tier</label>
+                     <select
+                       className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 appearance-none"
+                       value={formData.price_tier}
+                       onChange={e => setFormData({ ...formData, price_tier: e.target.value })}
+                     >
+                       <option value="RETAIL">Retail — Standard</option>
+                       <option value="WHOLESALE">Wholesale — Volume</option>
+                       <option value="DISTRIBUTOR">Distributor — Trade</option>
+                     </select>
+                   </div>
+                   <div>
+                     <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Credit Terms</label>
+                     <select
+                       className="w-full bg-canvas rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all border border-black/5 focus:border-accent-signature/30 appearance-none"
+                       value={formData.credit_days}
+                       onChange={e => setFormData({ ...formData, credit_days: Number(e.target.value) })}
+                     >
+                       {[0, 7, 15, 30, 45, 60, 90].map(d => (
+                         <option key={d} value={d}>{d === 0 ? 'Cash on delivery' : `Net ${d} days`}</option>
+                       ))}
+                     </select>
+                   </div>
+                 </div>
+               </div>
+             </div>
 
-  {/* B2B / B2C Classification */}
-  <div className="md:col-span-2">
-    <div className="border-t border-black/5 pt-4 mb-2">
-      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Account Classification</span>
-    </div>
-  </div>
+             {formError && (
+               <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
+                 <AlertCircle size={15} className="shrink-0" />
+                 {formError}
+               </div>
+             )}
+           </div>
 
-  {/* Client type toggle */}
-  <div className="md:col-span-2">
-    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-2">Account Type</label>
-    <div className="flex gap-2">
-      {[
-        { val: 'B2C', label: 'B2C — Consumer',   desc: 'Walk-in / retail customer' },
-        { val: 'B2B', label: 'B2B — Business',   desc: 'Company / distributor account' },
-      ].map(opt => (
-        <button
-          key={opt.val}
-          type="button"
-          onClick={() => setFormData({ ...formData, client_type: opt.val })}
-          className={`flex-1 px-4 py-3 rounded-xl border-2 text-left transition-all ${
-            formData.client_type === opt.val
-              ? 'border-ink-primary bg-ink-primary text-surface'
-              : 'border-black/10 bg-canvas text-ink-primary hover:border-black/20'
-          }`}
-        >
-          <div className="text-[11px] font-black">{opt.label}</div>
-          <div className={`text-[9px] mt-0.5 ${formData.client_type === opt.val ? 'text-surface/60' : 'text-gray-400'}`}>{opt.desc}</div>
-        </button>
-      ))}
-    </div>
-  </div>
+           {/* ── RIGHT: live preview card + save ── */}
+           <div className="space-y-4 lg:sticky lg:top-8 lg:self-start">
+             {/* Preview card */}
+             <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+               <div className="px-5 py-3.5 border-b border-black/5">
+                 <span className="text-[10px] font-black text-ink-primary uppercase tracking-widest">Preview</span>
+               </div>
+               <div className="p-5 space-y-4">
+                 {/* Avatar + name */}
+                 <div className="flex items-center gap-3">
+                   <div className="w-12 h-12 rounded-2xl bg-accent-signature/10 border border-accent-signature/20 flex items-center justify-center text-xl font-black text-ink-primary shrink-0">
+                     {formData.name ? formData.name.charAt(0).toUpperCase() : '?'}
+                   </div>
+                   <div className="min-w-0">
+                     <div className="text-sm font-black text-ink-primary truncate">{formData.name || <span className="text-gray-300 font-medium">Client name</span>}</div>
+                     <div className="text-[10px] text-gray-400 mt-0.5">{formData.contact || <span className="text-gray-300">Contact person</span>}</div>
+                   </div>
+                 </div>
 
-  {/* Price tier */}
-  <div>
-    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Price Tier</label>
-    <select
-      className="w-full bg-canvas border-none rounded-lg p-4 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none"
-      value={formData.price_tier}
-      onChange={e => setFormData({ ...formData, price_tier: e.target.value })}
-    >
-      <option value="RETAIL">RETAIL — Standard pricing</option>
-      <option value="WHOLESALE">WHOLESALE — Volume pricing</option>
-      <option value="DISTRIBUTOR">DISTRIBUTOR — Trade pricing</option>
-    </select>
-  </div>
+                 <div className="space-y-2">
+                   {formData.phone && (
+                     <div className="flex items-center gap-2 text-xs text-gray-600">
+                       <Phone size={11} className="text-gray-400 shrink-0" />
+                       <span className="tabular-nums">{formData.phone}</span>
+                     </div>
+                   )}
+                   {formData.email && (
+                     <div className="flex items-center gap-2 text-xs text-gray-600">
+                       <Mail size={11} className="text-gray-400 shrink-0" />
+                       <span className="truncate">{formData.email}</span>
+                     </div>
+                   )}
+                   {formData.address && (
+                     <div className="flex items-center gap-2 text-xs text-gray-600">
+                       <MapPin size={11} className="text-gray-400 shrink-0" />
+                       <span className="truncate">{formData.address}</span>
+                     </div>
+                   )}
+                   {formData.state && (
+                     <div className="flex items-center gap-2 text-xs text-gray-600">
+                       <Building2 size={11} className="text-gray-400 shrink-0" />
+                       <span>{formData.state}{formData.pin_code ? ` — ${formData.pin_code}` : ''}</span>
+                     </div>
+                   )}
+                 </div>
 
-  {/* Credit days (only relevant for B2B) */}
-  <div>
-    <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">
-      Credit Days <span className="text-gray-400 font-normal">(0 = cash)</span>
-    </label>
-    <select
-      className="w-full bg-canvas border-none rounded-lg p-4 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none"
-      value={formData.credit_days}
-      onChange={e => setFormData({ ...formData, credit_days: Number(e.target.value) })}
-    >
-      {[0, 7, 15, 30, 45, 60, 90].map(d => (
-        <option key={d} value={d}>{d === 0 ? 'Cash on delivery' : `Net ${d}`}</option>
-      ))}
-    </select>
-  </div>
- </div>
+                 <div className="border-t border-black/5 pt-3 flex flex-wrap gap-1.5">
+                   <span className={`px-2.5 py-1 rounded-full text-[9px] font-black border ${
+                     formData.client_type === 'B2B'
+                       ? 'bg-blue-50 text-blue-700 border-blue-200'
+                       : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                   }`}>{formData.client_type}</span>
+                   <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-canvas border border-black/8 text-gray-600">{formData.price_tier}</span>
+                   {formData.credit_days > 0 && (
+                     <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-orange-50 border border-orange-200 text-orange-700">Net {formData.credit_days}</span>
+                   )}
+                   {formData.gstin && (
+                     <span className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[9px] font-black bg-purple-50 border border-purple-200 text-purple-700">
+                       <ShieldCheck size={8} /> GST
+                     </span>
+                   )}
+                 </div>
+               </div>
+             </div>
 
- {formError && (
-   <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
-     {formError}
-   </div>
- )}
- </div>{/* end scrollable */}
- <div className="grid grid-cols-2 gap-4 pt-4 shrink-0 border-t border-black/5 mt-4">
-   <button type="button" disabled={saving} className="px-8 py-2 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all cursor-pointer" onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}>Cancel</button>
-   <button type="submit" disabled={saving} className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill disabled:opacity-60 disabled:cursor-not-allowed">
-     {saving ? 'SAVING...' : (editingClient ? 'SAVE CHANGES' : 'ADD CLIENT')}
-     {!saving && <div className="icon-nest !w-10 !h-10 ml-4"><Save size={22} /></div>}
-   </button>
- </div>
- </form>
- </div>
- </div>
+             {/* Save / Cancel */}
+             <button
+               type="submit"
+               form="client-form"
+               disabled={saving}
+               className="w-full btn-signature !h-14 !text-sm flex items-center justify-center gap-3 disabled:opacity-60 disabled:cursor-not-allowed"
+             >
+               {saving
+                 ? <><Loader2 size={18} className="animate-spin" /> Saving…</>
+                 : <>{editingClient ? 'Save Changes' : 'Add Client'}<div className="icon-nest !w-9 !h-9 ml-2"><Save size={18} /></div></>
+               }
+             </button>
+             <button
+               type="button"
+               onClick={() => { setIsAdding(false); setEditingClient(null); setFormError(''); }}
+               className="w-full py-3 rounded-xl border border-black/10 text-xs font-semibold text-gray-500 hover:bg-black/5 transition-all"
+             >
+               Cancel
+             </button>
+           </div>
+
+         </div>
+       </form>
+     </div>
+   </div>,
+   document.body
  )}
 
  </>
