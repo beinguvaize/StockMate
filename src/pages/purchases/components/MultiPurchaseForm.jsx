@@ -13,9 +13,10 @@ const emptyLine = () => ({
   barcodeStatus:     null, // null | 'found' | 'not_found'
 });
 
-const MultiPurchaseForm = ({ products, suppliers, onSave, loading, onCreateProduct }) => {
+const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loading, onCreateProduct }) => {
   const [header, setHeader] = useState({
     supplier_id:  '',
+    location_id:  '',   // target warehouse
     payment_type: 'CASH',
     date:         todayISOInAppTZ(),
     notes:        '',
@@ -123,6 +124,20 @@ const MultiPurchaseForm = ({ products, suppliers, onSave, loading, onCreateProdu
               value={header.supplier_id} onChange={e => setHeader(h => ({ ...h, supplier_id: e.target.value }))}>
               <option value="">Select supplier...</option>
               {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+              Receive Into Warehouse
+              {warehouses.length === 0 && <span className="ml-1 text-gray-400">(auto)</span>}
+            </label>
+            <select
+              className="w-full bg-white border border-black/5 rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={header.location_id}
+              onChange={e => setHeader(h => ({ ...h, location_id: e.target.value }))}
+            >
+              <option value="">Auto (main warehouse)</option>
+              {warehouses.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}
             </select>
           </div>
           <div>
