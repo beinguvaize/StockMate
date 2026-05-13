@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/widgets/glass_panel.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/settings/presentation/providers/settings_provider.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -15,69 +16,147 @@ class SettingsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        title: const Text('System Settings', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: AppColors.inkPrimary,
+        title: Text(
+          'Settings',
+          style: GoogleFonts.hankenGrotesk(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: AppColors.inkPrimary,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(24, 8, 24, 40),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Business Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
+              // ── Business profile card ────────────────────────────
               profileAsync.when(
                 data: (profile) {
-                  if (profile == null) return const Text('No profile found.');
-                  return GlassPanel(
-                    padding: const EdgeInsets.all(20),
-                    borderRadius: 20,
+                  if (profile == null) {
+                    return Text(
+                      'No profile found.',
+                      style: GoogleFonts.inter(color: AppColors.inkTertiary),
+                    );
+                  }
+                  return Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [AppColors.cardShadow],
+                    ),
                     child: Column(
                       children: [
-                        const CircleAvatar(
-                          radius: 30,
-                          backgroundColor: AppColors.accentSignature,
-                          child: Icon(LucideIcons.building, color: Colors.black, size: 30),
+                        Container(
+                          width: 64,
+                          height: 64,
+                          decoration: const BoxDecoration(
+                            color: AppColors.primaryContainer,
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(LucideIcons.building2, color: AppColors.primary, size: 28),
                         ),
                         const SizedBox(height: 16),
-                        Text(profile.name ?? 'Company Name', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+                        Text(
+                          profile.name ?? 'Company Name',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.inkPrimary,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        if (profile.email != null)
+                          Text(
+                            profile.email!,
+                            style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary),
+                          ),
+                        if (profile.phone != null)
+                          Text(
+                            profile.phone!,
+                            style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary),
+                          ),
+                        const SizedBox(height: 20),
+                        const Divider(color: AppColors.outlineVariant, height: 1),
+                        const SizedBox(height: 16),
+                        _ProfileRow('Address', profile.address ?? 'N/A'),
                         const SizedBox(height: 8),
-                        Text(profile.email ?? 'No email', style: const TextStyle(color: AppColors.inkSecondary)),
-                        Text(profile.phone ?? 'No phone', style: const TextStyle(color: AppColors.inkSecondary)),
-                        const SizedBox(height: 16),
-                        const Divider(color: Colors.white24),
-                        const SizedBox(height: 16),
-                        _buildSettingRow('Address', profile.address ?? 'N/A'),
-                        _buildSettingRow('Base Currency', profile.currency ?? 'INR'),
+                        _ProfileRow('Currency', profile.currency ?? 'INR'),
                       ],
                     ),
                   );
                 },
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Text('Error: $e'),
+                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+                error: (e, _) => Text('Error: $e', style: GoogleFonts.inter(color: AppColors.danger)),
               ),
-              const SizedBox(height: 40),
-              const Text('App Preferences', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              GlassPanel(
-                padding: const EdgeInsets.all(8),
-                borderRadius: 16,
+
+              const SizedBox(height: 24),
+
+              // ── App preferences ──────────────────────────────────
+              Text(
+                'APP PREFERENCES',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.08,
+                  color: AppColors.inkSecondary,
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [AppColors.cardShadow],
+                ),
                 child: Column(
                   children: [
-                    ListTile(
-                      leading: const Icon(LucideIcons.bell, color: AppColors.inkPrimary),
-                      title: const Text('Push Notifications'),
-                      trailing: Switch(value: false, onChanged: (v) {}),
+                    _SettingRow(
+                      icon: LucideIcons.bell,
+                      iconColor: AppColors.warning,
+                      label: 'Push Notifications',
+                      trailing: Switch(
+                        value: false,
+                        onChanged: (v) {},
+                        activeThumbColor: AppColors.primary,
+                        activeTrackColor: AppColors.primaryContainer,
+                      ),
                     ),
-                    ListTile(
-                      leading: const Icon(LucideIcons.globe, color: AppColors.inkPrimary),
-                      title: const Text('Offline Sync Engine'),
-                      subtitle: const Text('Background queue active'),
-                      trailing: const Icon(LucideIcons.checkCircle, color: AppColors.success),
+                    const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
+                    _SettingRow(
+                      icon: LucideIcons.refreshCw,
+                      iconColor: AppColors.primary,
+                      label: 'Offline Sync Engine',
+                      subtitle: 'Background queue active',
+                      trailing: const Icon(LucideIcons.checkCircle2, color: AppColors.success, size: 20),
                     ),
                   ],
+                ),
+              ),
+
+              const SizedBox(height: 32),
+
+              // ── Logout ───────────────────────────────────────────
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () async => await supabase.auth.signOut(),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.danger,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: const BorderSide(color: AppColors.danger),
+                    ),
+                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                  child: const Text('Sign Out'),
                 ),
               ),
             ],
@@ -86,15 +165,80 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
   }
+}
 
-  Widget _buildSettingRow(String label, String value) {
+class _ProfileRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _ProfileRow(this.label, this.value);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary)),
+        Text(
+          value,
+          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkPrimary),
+        ),
+      ],
+    );
+  }
+}
+
+class _SettingRow extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String? subtitle;
+  final Widget trailing;
+
+  const _SettingRow({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    this.subtitle,
+    required this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: AppColors.inkSecondary)),
-          Text(value, style: const TextStyle(fontWeight: FontWeight.bold)),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: iconColor.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: iconColor, size: 18),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.inkPrimary,
+                  ),
+                ),
+                if (subtitle != null)
+                  Text(
+                    subtitle!,
+                    style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkTertiary),
+                  ),
+              ],
+            ),
+          ),
+          trailing,
         ],
       ),
     );

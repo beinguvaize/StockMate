@@ -1,17 +1,20 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/database/sync_service.dart';
-import 'package:mobile_app/features/inventory/data/models/product.dart';
 import 'package:mobile_app/features/inventory/data/repositories/product_repository.dart';
+import 'package:mobile_app/main.dart';
 
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
+  final db = ref.watch(databaseProvider);
   final syncService = ref.watch(syncServiceProvider);
-  return ProductRepository(syncService: syncService);
+  return ProductRepository(db: db, syncService: syncService);
 });
 
 // Fetches the products (from Supabase or local cache)
 final productsProvider = FutureProvider<List<Product>>((ref) async {
   final repository = ref.watch(productRepositoryProvider);
-  return repository.fetchAndCacheProducts();
+  await repository.fetchAndCacheProducts();
+  return repository.getCachedProducts();
 });
 
 // Holds the current search query

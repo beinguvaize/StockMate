@@ -1,99 +1,269 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/feature_gate.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/widgets/glass_panel.dart';
+import 'package:mobile_app/features/daybook/presentation/daybook_screen.dart';
 import 'package:mobile_app/features/finance/presentation/finance_screen.dart';
 import 'package:mobile_app/features/hr/presentation/hr_screen.dart';
-import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/driver_route_screen.dart';
+import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart';
+import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
+import 'package:mobile_app/features/reports/presentation/reports_screen.dart';
 import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
-class MenuScreen extends StatelessWidget {
+class MenuScreen extends ConsumerWidget {
   const MenuScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final tenantAsync = ref.watch(tenantContextProvider);
+
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 40),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'More Modules',
-                style: TextStyle(
+              Text(
+                'More',
+                style: GoogleFonts.hankenGrotesk(
                   fontSize: 28,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -1,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.inkPrimary,
+                  letterSpacing: -0.3,
                 ),
               ),
               const SizedBox(height: 20),
-              
-              _buildMenuCard(
-                context,
-                title: 'Finance & Expenses',
-                subtitle: 'Track daily expenses and day book',
-                icon: LucideIcons.wallet,
-                color: AppColors.danger,
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const FinanceScreen()));
-                },
-              ),
-              
-              _buildMenuCard(
-                context,
-                title: 'HR & Payroll',
-                subtitle: 'Manage employees and salaries',
-                icon: LucideIcons.briefcase,
-                color: AppColors.info,
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const HRScreen()));
-                },
-              ),
-              
-              _buildMenuCard(
-                context,
-                title: 'Fleet Management',
-                subtitle: 'Vehicles and route tracking',
-                icon: LucideIcons.truck,
-                color: AppColors.warning,
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const LogisticsScreen()));
-                },
-              ),
 
-              _buildMenuCard(
-                context,
-                title: 'My Route',
-                subtitle: 'Driver view — stops, van stock, van sales',
-                icon: LucideIcons.mapPin,
-                color: AppColors.accentSignature,
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverRouteScreen()));
+              tenantAsync.when(
+                data: (ctx) {
+                  final roles = ctx?.userRoles ?? [];
+                  final plan = ctx?.plan ?? 'STARTER';
+                  final name = ctx?.userProfile.name ?? ctx?.userProfile.email ?? 'User';
+                  final isOwner = roles.contains('OWNER');
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Profile header card ──────────────────
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 52,
+                              height: 52,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primaryContainer,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  name.isNotEmpty ? name[0].toUpperCase() : 'U',
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 22,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    name,
+                                    style: GoogleFonts.hankenGrotesk(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  Text(
+                                    ctx?.tenant.name ?? '',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 12,
+                                      color: Colors.white60,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryContainer,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                plan,
+                                style: GoogleFonts.inter(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // ── Menu section ─────────────────────────
+                      _SectionLabel('Modules'),
+                      const SizedBox(height: 12),
+
+                      _MenuCard(
+                        icon: LucideIcons.wallet,
+                        iconColor: const Color(0xFFe6a817),
+                        label: 'Finance & Expenses',
+                        subtitle: 'Track daily expenses',
+                        feature: 'expenses',
+                        roles: roles,
+                        plan: plan,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FinanceScreen())),
+                      ),
+                      _MenuCard(
+                        icon: LucideIcons.bookOpen,
+                        iconColor: const Color(0xFF2196F3),
+                        label: 'Day Book',
+                        subtitle: 'All daily transactions',
+                        feature: 'daybook',
+                        roles: roles,
+                        plan: plan,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DayBookScreen())),
+                      ),
+                      _MenuCard(
+                        icon: LucideIcons.shoppingBag,
+                        iconColor: const Color(0xFF9C27B0),
+                        label: 'Purchases',
+                        subtitle: 'Supplier purchases & stock-in',
+                        feature: 'purchases',
+                        roles: roles,
+                        plan: plan,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchasesScreen())),
+                      ),
+                      if (!staffBlocked.contains('reports') || isOwner)
+                        _MenuCard(
+                          icon: LucideIcons.barChart2,
+                          iconColor: AppColors.primary,
+                          label: 'Reports',
+                          subtitle: 'Sales, GST, P&L reports',
+                          feature: 'reports',
+                          roles: roles,
+                          plan: plan,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())),
+                        ),
+                      if (isOwner)
+                        _MenuCard(
+                          icon: LucideIcons.briefcase,
+                          iconColor: const Color(0xFF673AB7),
+                          label: 'HR & Payroll',
+                          subtitle: 'Manage employees & salaries',
+                          feature: 'hr',
+                          roles: roles,
+                          plan: plan,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HRScreen())),
+                        ),
+                      if (isOwner)
+                        _MenuCard(
+                          icon: LucideIcons.truck,
+                          iconColor: const Color(0xFFFF9800),
+                          label: 'Fleet Management',
+                          subtitle: 'Vehicles & route tracking',
+                          feature: 'logistics',
+                          roles: roles,
+                          plan: plan,
+                          onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LogisticsScreen())),
+                        ),
+                      _MenuCard(
+                        icon: LucideIcons.mapPin,
+                        iconColor: AppColors.primaryContainer,
+                        label: 'My Route',
+                        subtitle: 'Driver view — stops & van sales',
+                        feature: 'logistics',
+                        roles: roles,
+                        plan: plan,
+                        alwaysShow: true,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverRouteScreen())),
+                      ),
+
+                      const SizedBox(height: 16),
+                      _SectionLabel('System'),
+                      const SizedBox(height: 12),
+
+                      _MenuCard(
+                        icon: LucideIcons.settings,
+                        iconColor: AppColors.inkTertiary,
+                        label: 'Settings',
+                        subtitle: 'Business profile & preferences',
+                        feature: 'settings',
+                        roles: roles,
+                        plan: plan,
+                        alwaysShow: true,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+                      ),
+
+                      // Logout
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: () async => await supabase.auth.signOut(),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [AppColors.cardShadow],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.danger.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: const Icon(LucideIcons.logOut, color: AppColors.danger, size: 20),
+                              ),
+                              const SizedBox(width: 14),
+                              Text(
+                                'Logout',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.danger,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
                 },
-              ),
-              
-              const SizedBox(height: 40),
-              const Text(
-                'System',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+                loading: () => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              
-              _buildMenuCard(
-                context,
-                title: 'Settings',
-                subtitle: 'Business profile and preferences',
-                icon: LucideIcons.settings,
-                color: AppColors.inkSecondary,
-                onTap: () {
-                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
-                },
+                error: (e, _) => Text('Error: $e', style: GoogleFonts.inter(color: AppColors.danger)),
               ),
             ],
           ),
@@ -101,38 +271,134 @@ class MenuScreen extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildMenuCard(BuildContext context, {required String title, required String subtitle, required IconData icon, required Color color, required VoidCallback onTap}) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: GestureDetector(
-        onTap: onTap,
-        child: GlassPanel(
-          padding: const EdgeInsets.all(20),
-          borderRadius: 20,
-          child: Row(
-            children: [
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text.toUpperCase(),
+      style: GoogleFonts.jetBrainsMono(
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+        letterSpacing: 0.08,
+        color: AppColors.inkSecondary,
+      ),
+    );
+  }
+}
+
+class _MenuCard extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String label;
+  final String subtitle;
+  final String feature;
+  final List<String> roles;
+  final String plan;
+  final VoidCallback onTap;
+  final bool alwaysShow;
+
+  const _MenuCard({
+    required this.icon,
+    required this.iconColor,
+    required this.label,
+    required this.subtitle,
+    required this.feature,
+    required this.roles,
+    required this.plan,
+    required this.onTap,
+    this.alwaysShow = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isOwner = roles.contains('OWNER');
+    final isRoleBlocked = staffBlocked.contains(feature) && !isOwner;
+    final isPlanLocked = !planMeetsRequirement(feature, plan);
+    final requiredPlan = requiredPlanFor(feature);
+
+    if (isRoleBlocked && !alwaysShow) return const SizedBox.shrink();
+
+    return GestureDetector(
+      onTap: isPlanLocked
+          ? () => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('Upgrade to $requiredPlan to unlock this feature'),
+                  backgroundColor: AppColors.primary,
+                ),
+              )
+          : onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [AppColors.cardShadow],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isPlanLocked
+                    ? AppColors.surfaceContainer
+                    : iconColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isPlanLocked ? LucideIcons.lock : icon,
+                color: isPlanLocked ? AppColors.inkTertiary : iconColor,
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: isPlanLocked ? AppColors.inkTertiary : AppColors.inkPrimary,
+                    ),
+                  ),
+                  Text(
+                    isPlanLocked ? 'Upgrade to $requiredPlan to unlock' : subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: isPlanLocked ? AppColors.warning : AppColors.inkTertiary,
+                      fontWeight: isPlanLocked ? FontWeight.w600 : FontWeight.w400,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (isPlanLocked)
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(15),
+                  color: AppColors.warning.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: color, size: 24),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                    Text(subtitle, style: const TextStyle(color: AppColors.inkSecondary, fontSize: 12)),
-                  ],
+                child: Text(
+                  'PRO',
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.warning,
+                  ),
                 ),
-              ),
-              const Icon(LucideIcons.chevronRight, color: AppColors.inkSecondary),
-            ],
-          ),
+              )
+            else
+              const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.inkTertiary),
+          ],
         ),
       ),
     );

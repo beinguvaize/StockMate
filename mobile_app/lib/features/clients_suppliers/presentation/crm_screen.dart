@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/widgets/glass_panel.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
+import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/add_client_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/add_supplier_screen.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 
 class CRMScreen extends ConsumerStatefulWidget {
   const CRMScreen({super.key});
@@ -16,16 +16,20 @@ class CRMScreen extends ConsumerStatefulWidget {
 
 class _CRMScreenState extends ConsumerState<CRMScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final _searchController = TextEditingController();
+  String _query = '';
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _searchController.addListener(() => setState(() => _query = _searchController.text));
   }
 
   @override
   void dispose() {
     _tabController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
@@ -33,125 +37,105 @@ class _CRMScreenState extends ConsumerState<CRMScreen> with SingleTickerProvider
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => _tabController.index == 0
+                ? const AddClientScreen()
+                : const AddSupplierScreen(),
+          ),
+        ),
+        backgroundColor: AppColors.primaryContainer,
+        foregroundColor: AppColors.primary,
+        elevation: 0,
+        child: const Icon(LucideIcons.userPlus, size: 22),
+      ),
       body: SafeArea(
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // ── Header ────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Directory',
-                        style: TextStyle(
-                          fontSize: 40,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: -1,
-                          height: 1,
-                        ),
-                      ),
-                      Text(
-                        'CLIENTS & SUPPLIERS LOGISTICS',
-                        style: TextStyle(
-                          color: AppColors.inkSecondary,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+              child: Text(
+                'Clients',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.inkPrimary,
+                  letterSpacing: -0.3,
+                ),
               ),
             ),
-            
+
+            const SizedBox(height: 16),
+
+            // ── Search ────────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddClientScreen())),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Text('ADD CLIENT'),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.all(4), 
-                            decoration: const BoxDecoration(color: AppColors.inkPrimary, shape: BoxShape.circle), 
-                            child: const Icon(LucideIcons.plus, size: 14, color: AppColors.surface)
-                          ),
-                        ]
-                      ),
-                    ),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: TextField(
+                controller: _searchController,
+                decoration: InputDecoration(
+                  hintText: 'Search clients & suppliers…',
+                  hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.inkTertiary),
+                  prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.inkTertiary),
+                  filled: true,
+                  fillColor: AppColors.surfaceContainer,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AddSupplierScreen())),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: BorderSide(color: Colors.black.withValues(alpha: 0.1), width: 2),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-                      ),
-                      child: const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text('ADD SUPPLIER', style: TextStyle(color: AppColors.inkPrimary, fontWeight: FontWeight.w800, fontSize: 13, letterSpacing: -0.5)),
-                          SizedBox(width: 8),
-                          Icon(LucideIcons.store, size: 18, color: AppColors.inkPrimary),
-                        ]
-                      ),
-                    ),
-                  )
-                ]
-              )
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                ),
+              ),
             ),
-            
-            const SizedBox(height: 20),
-            
-            // Premium Pill Navigation
+
+            const SizedBox(height: 16),
+
+            // ── Tab row ───────────────────────────────────────────
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
+              padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Container(
-                height: 56,
-                padding: const EdgeInsets.all(6),
+                height: 44,
+                padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: AppColors.surface.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10))
-                  ],
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [AppColors.cardShadow],
                 ),
                 child: TabBar(
                   controller: _tabController,
                   indicatorSize: TabBarIndicatorSize.tab,
                   indicator: BoxDecoration(
-                    color: AppColors.inkPrimary,
-                    borderRadius: BorderRadius.circular(999),
+                    color: AppColors.primaryContainer,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                  labelColor: AppColors.surface,
-                  unselectedLabelColor: AppColors.inkSecondary,
-                  labelStyle: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12, letterSpacing: 1.2),
-                  unselectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 1.2),
+                  labelColor: AppColors.primary,
+                  unselectedLabelColor: AppColors.inkTertiary,
+                  labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+                  unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13),
                   dividerColor: Colors.transparent,
-                  splashBorderRadius: BorderRadius.circular(999),
+                  splashBorderRadius: BorderRadius.circular(10),
                   tabs: const [
-                    Tab(text: 'CLIENTS'),
-                    Tab(text: 'SUPPLIERS'),
+                    Tab(text: 'Clients'),
+                    Tab(text: 'Suppliers'),
                   ],
                 ),
               ),
             ),
-            
-            const SizedBox(height: 10),
-            
-            // Tab Views
+
+            const SizedBox(height: 8),
+
+            // ── Tab content ───────────────────────────────────────
             Expanded(
               child: TabBarView(
                 controller: _tabController,
@@ -172,60 +156,109 @@ class _CRMScreenState extends ConsumerState<CRMScreen> with SingleTickerProvider
 
     return clientsAsync.when(
       data: (clients) {
-        if (clients.isEmpty) {
-          return const Center(child: Text('No clients found.', style: TextStyle(color: AppColors.inkSecondary)));
+        final filtered = _query.isEmpty
+            ? clients
+            : clients
+                .where((c) =>
+                    (c.name ?? '').toLowerCase().contains(_query.toLowerCase()) ||
+                    (c.phone ?? '').contains(_query))
+                .toList();
+
+        if (filtered.isEmpty) {
+          return Center(
+            child: Text('No clients found.', style: GoogleFonts.inter(color: AppColors.inkTertiary)),
+          );
         }
-        
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
-          itemCount: clients.length,
+
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 100),
+          itemCount: filtered.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
-            final client = clients[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: GlassPanel(
-                padding: const EdgeInsets.all(16),
-                borderRadius: 20,
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: AppColors.accentSignature.withValues(alpha: 0.2),
-                      foregroundColor: AppColors.accentSignature,
-                      child: Text(client.name?.substring(0, 1).toUpperCase() ?? '?'),
+            final client = filtered[index];
+            final balance = client.outstandingBalance ?? 0;
+            final initial = (client.name?.isNotEmpty == true)
+                ? client.name![0].toUpperCase()
+                : '?';
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [AppColors.cardShadow],
+              ),
+              child: Row(
+                children: [
+                  // Avatar
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(client.name ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                          if (client.phone != null)
-                            Text(client.phone!, style: const TextStyle(color: AppColors.inkSecondary, fontSize: 12)),
-                        ],
+                    child: Center(
+                      child: Text(
+                        initial,
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
                       ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                  ),
+                  const SizedBox(width: 14),
+
+                  // Name + contact
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Balance', style: TextStyle(color: AppColors.inkSecondary, fontSize: 10)),
                         Text(
-                          '₹${client.outstandingBalance?.toStringAsFixed(2) ?? "0.00"}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w900,
-                            color: (client.outstandingBalance ?? 0) > 0 ? AppColors.danger : AppColors.success,
+                          client.name ?? 'Unknown',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.inkPrimary,
                           ),
                         ),
+                        if (client.phone != null)
+                          Text(
+                            client.phone!,
+                            style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+                          ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+
+                  // Balance + chevron
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        balance == 0 ? '✓ Clear' : '₹${balance.toStringAsFixed(0)}',
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: balance > 0 ? AppColors.danger : AppColors.success,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.inkTertiary),
+                ],
               ),
             );
           },
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text('Error: $err')),
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      error: (err, stack) => Center(
+        child: Text('Error: $err', style: GoogleFonts.inter(color: AppColors.danger)),
+      ),
     );
   }
 
@@ -234,60 +267,102 @@ class _CRMScreenState extends ConsumerState<CRMScreen> with SingleTickerProvider
 
     return suppliersAsync.when(
       data: (suppliers) {
-        if (suppliers.isEmpty) {
-          return const Center(child: Text('No suppliers found.', style: TextStyle(color: AppColors.inkSecondary)));
+        final filtered = _query.isEmpty
+            ? suppliers
+            : suppliers
+                .where((s) =>
+                    (s.name ?? '').toLowerCase().contains(_query.toLowerCase()))
+                .toList();
+
+        if (filtered.isEmpty) {
+          return Center(
+            child: Text('No suppliers found.', style: GoogleFonts.inter(color: AppColors.inkTertiary)),
+          );
         }
-        
-        return ListView.builder(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 100),
-          itemCount: suppliers.length,
+
+        return ListView.separated(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 100),
+          itemCount: filtered.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
-            final supplier = suppliers[index];
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: GlassPanel(
-                padding: const EdgeInsets.all(16),
-                borderRadius: 20,
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      backgroundColor: AppColors.inkPrimary.withValues(alpha: 0.1),
-                      foregroundColor: AppColors.inkPrimary,
-                      child: Text(supplier.name?.substring(0, 1).toUpperCase() ?? '?'),
+            final supplier = filtered[index];
+            final initial = (supplier.name?.isNotEmpty == true)
+                ? supplier.name![0].toUpperCase()
+                : '?';
+
+            return Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [AppColors.cardShadow],
+              ),
+              child: Row(
+                children: [
+                  // Avatar
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceContainer,
+                      shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(supplier.name ?? 'Unknown', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
-                          if (supplier.contactPerson != null)
-                            Text(supplier.contactPerson!, style: const TextStyle(color: AppColors.inkSecondary, fontSize: 12)),
-                        ],
+                    child: Center(
+                      child: Text(
+                        initial,
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.inkSecondary,
+                        ),
                       ),
                     ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
+                  ),
+                  const SizedBox(width: 14),
+
+                  // Name + contact person
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('Balance', style: TextStyle(color: AppColors.inkSecondary, fontSize: 10)),
                         Text(
-                          '₹${supplier.balance?.toStringAsFixed(2) ?? "0.00"}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w900,
+                          supplier.name ?? 'Unknown',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
                             color: AppColors.inkPrimary,
                           ),
                         ),
+                        if (supplier.contactPerson != null)
+                          Text(
+                            supplier.contactPerson!,
+                            style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+                          ),
                       ],
                     ),
-                  ],
-                ),
+                  ),
+
+                  // Balance
+                  Text(
+                    '₹${supplier.balance?.toStringAsFixed(0) ?? "0"}',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.inkSecondary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.inkTertiary),
+                ],
               ),
             );
           },
         );
       },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (err, stack) => Center(child: Text('Error: $err')),
+      loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      error: (err, stack) => Center(
+        child: Text('Error: $err', style: GoogleFonts.inter(color: AppColors.danger)),
+      ),
     );
   }
 }

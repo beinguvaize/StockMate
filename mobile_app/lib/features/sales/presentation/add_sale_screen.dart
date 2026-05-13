@@ -1,5 +1,10 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
-import 'package:mobile_app/features/inventory/data/models/product.dart';
+import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
+import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:mobile_app/main.dart';
 import 'package:mobile_app/core/database/database.dart' as db;
