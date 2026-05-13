@@ -4,15 +4,15 @@ import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../hooks/useNotifications';
 import { supabase } from '../../lib/supabase';
 import { 
-  Shield, Users, Building, Activity, 
-  Search, Filter, Plus, ShoppingBag, Truck, ChevronRight, 
+  Shield, Users, Building, Activity,
+  Search, Filter, Plus, ShoppingBag, Truck, ChevronRight,
   ExternalLink, Ban, CheckCircle2, AlertCircle,
-  Zap, Database, Globe, RefreshCcw, Mail, Settings, X, LogIn, ShieldAlert, Hash, LayoutDashboard
+  Zap, Database, Globe, RefreshCcw, Mail, Settings, X, LogIn, ShieldAlert, Hash, LayoutDashboard, LogOut
 } from 'lucide-react';
 import ErrorDiagnosticsPanel from '../../components/admin/ErrorDiagnosticsPanel';
 
 const SuperAdminPortal = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const { impersonateTenant, isMaintenance, setIsMaintenance, cacheClear } = useTenant();
   const { addNotification } = useNotifications();
   const [tenants, setTenants] = useState([]);
@@ -228,6 +228,13 @@ const SuperAdminPortal = () => {
             <div className="w-10 h-10 rounded-full bg-accent-signature flex items-center justify-center text-ink-primary font-black">
               {currentUser?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
+            <button
+              onClick={logout}
+              title="Sign out"
+              className="w-9 h-9 rounded-full bg-red-50 border border-red-100 flex items-center justify-center text-red-500 hover:bg-red-100 hover:border-red-200 transition-all"
+            >
+              <LogOut size={15} />
+            </button>
           </div>
         </div>
       </div>
