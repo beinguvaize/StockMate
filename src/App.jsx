@@ -57,13 +57,16 @@ const GuestRoute = ({ children }) => {
 /**
  * AuthRoute: Must be authenticated (but NOT global admin).
  * Used for /welcome — new users setting up their workspace.
+ * If user already has a tenant, skip setup and go to dashboard.
  */
 const AuthRoute = ({ children }) => {
   const { currentUser, loading } = useAuth();
-  const { isSyncComplete } = useTenant();
+  const { currentTenant, isSyncComplete } = useTenant();
 
   if (loading || !isSyncComplete) return <GlobalLoading />;
   if (!currentUser) return <Navigate to="/login" replace />;
+  // Already has workspace → skip setup
+  if (currentTenant) return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
   return children;
 };
 
