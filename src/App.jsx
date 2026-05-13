@@ -8,7 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import GlobalLoading from './components/GlobalLoading';
 
 // ── Eager (tiny, needed immediately) ────────────────────────────────────────
-import Login   from './pages/Login';
+import Login   from './pages/SaaSLogin'; // SaaSLogin = login + signup + Google OAuth
 import NoAccess from './pages/NoAccess';
 
 // ── Lazy (loaded only when route is visited) ─────────────────────────────────
@@ -34,6 +34,7 @@ const TenantSetup      = lazy(() => import('./pages/TenantSetup'));
 const SuperAdminPortal = lazy(() => import('./pages/admin/SuperAdminPortal'));
 const DataToolsPage    = lazy(() => import('./pages/DataToolsPage'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
+const Onboarding       = lazy(() => import('./pages/Onboarding'));
 
 /**
  * GuestRoute: Redirects authenticated users away from the login page.
@@ -45,12 +46,27 @@ const GuestRoute = ({ children }) => {
   if (!isSyncComplete) return <GlobalLoading />;
 
   if (currentUser) {
-    if (currentTenant) {
-      return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
-    }
-    return <Navigate to="/no-access" replace />;
+    if (currentTenant) return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
+    // Authenticated but no workspace yet → send to setup
+    return <Navigate to="/welcome" replace />;
   }
 
+  return children;
+};
+
+/**
+ * AuthRoute: Must be authenticated (but NOT global admin).
+ * Used for /welcome — new users setting up their workspace.
+ * If user already has a tenant, skip setup and go to dashboard.
+ */
+const AuthRoute = ({ children }) => {
+  const { currentUser, loading } = useAuth();
+  const { currentTenant, isSyncComplete } = useTenant();
+
+  if (loading || !isSyncComplete) return <GlobalLoading />;
+  if (!currentUser) return <Navigate to="/login" replace />;
+  // Already has workspace → skip setup
+  if (currentTenant) return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
   return children;
 };
 
@@ -106,7 +122,8 @@ const RootRedirect = () => {
 
     if (isGlobalAdmin) return <Navigate to="/nexus-hq" replace />;
     if (currentTenant) return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
-    return <Navigate to="/no-access" replace />;
+    // Authenticated, no tenant → new signup → workspace setup
+    return <Navigate to="/welcome" replace />;
   }
 
   return <Navigate to="/login" replace />;
@@ -124,6 +141,9 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+      {/* /welcome — new user signup flow, auth required but NOT global admin */}
+      <Route path="/welcome" element={<AuthRoute><TenantSetup /></AuthRoute>} />
+      {/* /setup — legacy admin-only tenant provisioning */}
       <Route path="/setup" element={<ProtectedRoute requireGlobalAdmin={true}><TenantSetup /></ProtectedRoute>} />
       <Route path="/no-access" element={<NoAccess />} />
       <Route path="/admin" element={<ProtectedRoute requireGlobalAdmin><AdminPanel /></ProtectedRoute>} />
@@ -132,6 +152,7 @@ function AppRoutes() {
       <Route path="/:tenantSlug" element={<TenantResolver><AppLayout /></TenantResolver>}>
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+        <Route path="onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
         <Route path="inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
         <Route path="sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />

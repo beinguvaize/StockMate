@@ -29,14 +29,14 @@ const CashFlowReport = () => {
     const cashSales = sales
       .filter((s) => {
         const m = (s.paymentMethod || 'CASH').toUpperCase();
-        return m !== 'CREDIT' && !s.clientId;
+        return m !== 'CREDIT';
       })
       .reduce((a, s) => a + (Number(s.totalAmount) || 0), 0);
 
     const creditSales = sales
       .filter((s) => {
         const m = (s.paymentMethod || 'CASH').toUpperCase();
-        return m === 'CREDIT' || !!s.clientId;
+        return m === 'CREDIT';
       })
       .reduce((a, s) => a + (Number(s.totalAmount) || 0), 0);
 
@@ -68,7 +68,7 @@ const CashFlowReport = () => {
 
     sales.forEach((s) => {
       const m = (s.paymentMethod || 'CASH').toUpperCase();
-      if (m === 'CREDIT' || s.clientId) return;
+      if (m === 'CREDIT') return;
       const k = getKey(s.date);
       if (monthly[k]) monthly[k].Inflow += Number(s.totalAmount) || 0;
     });

@@ -23,16 +23,21 @@ const GSTR3BReport = () => {
   const { businessProfile } = useTenant();
   const businessState = businessProfile?.state || businessProfile?.business_state || 'KERALA';
 
-  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: '*', dateColumn: 'date' });
-  const { data: clients, loading: l2 } = useReportData({ table: 'clients', select: '*', nullFilters: { deleted_at: null } });
-  const { data: purchases, loading: l3 } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date' });
+  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date' });
+  const { data: clients,  loading: l2 } = useReportData({ table: 'clients',  select: '*', nullFilters: { deleted_at: null } });
+  const { data: purchases,loading: l3 } = useReportData({ table: 'purchases',select: '*', dateColumn: 'date' });
   const { data: expenses, loading: l4 } = useReportData({ table: 'expenses', select: '*', dateColumn: 'date' });
+  const { data: invoices, loading: l5 } = useReportData({
+    table: 'invoices',
+    select: 'id, sale_id, client_id, client_name, invoice_number, invoice_date, date, taxable_amount, cgst_amount, sgst_amount, igst_amount, grand_total, is_interstate, items',
+    dateColumn: 'date',
+  });
 
-  const loading = l1 || l2 || l3 || l4;
+  const loading = l1 || l2 || l3 || l4 || l5;
 
   const gstr3b = useMemo(
-    () => buildGSTR3B(sales, purchases, expenses, { businessState, clients }),
-    [sales, purchases, expenses, clients, businessState]
+    () => buildGSTR3B(sales, purchases, expenses, { businessState, clients, invoices }),
+    [sales, purchases, expenses, clients, invoices, businessState]
   );
 
   // KPIs across all tabs

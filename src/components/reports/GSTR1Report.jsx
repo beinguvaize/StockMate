@@ -120,14 +120,20 @@ const GSTR1Report = () => {
   const businessState = businessProfile?.state || businessProfile?.business_state || 'KERALA';
   const businessGSTIN  = businessProfile?.gstin || businessProfile?.gst_no || '';
 
-  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: '*', dateColumn: 'date' });
-  const { data: clients, loading: l2 } = useReportData({ table: 'clients', select: '*', nullFilters: { deleted_at: null } });
+  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date' });
+  const { data: clients,  loading: l2 } = useReportData({ table: 'clients',  select: '*', nullFilters: { deleted_at: null } });
+  // Invoices have pre-computed cgst_amount/sgst_amount/igst_amount — use as primary source
+  const { data: invoices, loading: l3 } = useReportData({
+    table: 'invoices',
+    select: 'id, sale_id, client_id, client_name, invoice_number, invoice_date, date, taxable_amount, cgst_amount, sgst_amount, igst_amount, grand_total, is_interstate, items',
+    dateColumn: 'date',
+  });
 
-  const loading = l1 || l2;
+  const loading = l1 || l2 || l3;
 
   const gstr1 = useMemo(
-    () => buildGSTR1(sales, { businessState, clients }),
-    [sales, clients, businessState]
+    () => buildGSTR1(sales, { businessState, clients, invoices }),
+    [sales, clients, invoices, businessState]
   );
 
   // Shared KPIs for all tabs

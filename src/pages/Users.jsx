@@ -55,7 +55,13 @@ const INTERNAL_ROLES = [
 const Users = () => {
   const { currentUser, hasPermission } = useAuth();
   const { currentTenantId } = useTenant();
-  const { users, addUser, updateUser, deleteUser, loading } = usePeople(currentTenantId);
+  const { users: allUsers, addUser, updateUser, deleteUser, loading } = usePeople(currentTenantId);
+
+  // Hide GLOBAL_ADMIN accounts from tenant user portal — they are platform staff
+  const isGlobalAdmin = currentUser?.roles?.includes('GLOBAL_ADMIN');
+  const users = isGlobalAdmin
+    ? allUsers
+    : allUsers.filter(u => !(u.roles || []).includes('GLOBAL_ADMIN'));
   const { addNotification } = useNotifications();
  const [isAdding, setIsAdding] = useState(false);
  const [editingUser, setEditingUser] = useState(null);

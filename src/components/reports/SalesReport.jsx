@@ -58,13 +58,17 @@ const SalesReport = () => {
   const clientMetrics = useMemo(() => {
     const customerMap = {};
     sales.forEach(s => {
-      const clientId = s.clientId;
-      const clientName = clients.find(c => c.id === clientId)?.name || 'Walk-in Client';
-      if (!customerMap[clientId || 'guest']) {
-        customerMap[clientId || 'guest'] = { id: clientId || 'guest', name: clientName, revenue: 0, count: 0 };
+      // Client id is stored in customerInfo JSONB, not a direct column
+      const clientId = s.customerInfo?.id || s.customerInfo?.clientId || s.clientId || null;
+      const clientName = (clientId && clients.find(c => c.id === clientId)?.name)
+        || s.customerInfo?.name
+        || 'Walk-in Client';
+      const key = clientId || 'guest';
+      if (!customerMap[key]) {
+        customerMap[key] = { id: key, name: clientName, revenue: 0, count: 0 };
       }
-      customerMap[clientId || 'guest'].revenue += s.totalAmount || 0;
-      customerMap[clientId || 'guest'].count += 1;
+      customerMap[key].revenue += Number(s.totalAmount) || 0;
+      customerMap[key].count += 1;
     });
 
     const leaderboard = Object.values(customerMap)
