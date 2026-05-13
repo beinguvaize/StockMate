@@ -11,6 +11,10 @@ import 'package:mobile_app/features/inventory/presentation/inventory_screen.dart
 import 'package:mobile_app/features/menu/presentation/menu_screen.dart';
 import 'package:mobile_app/features/sales/presentation/sales_screen.dart';
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Shell
+// ─────────────────────────────────────────────────────────────────────────────
+
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -29,20 +33,93 @@ class _DashboardScreenState extends State<DashboardScreen> {
     MenuScreen(),
   ];
 
+  static const _navItems = [
+    (icon: LucideIcons.layoutDashboard, label: 'Dashboard'),
+    (icon: LucideIcons.shoppingCart, label: 'Sales'),
+    (icon: LucideIcons.package, label: 'Inventory'),
+    (icon: LucideIcons.users, label: 'Clients'),
+    (icon: LucideIcons.moreHorizontal, label: 'More'),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {},
+        backgroundColor: AppColors.secondary,
+        foregroundColor: AppColors.primaryContainer,
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: const Icon(LucideIcons.plus, size: 26),
+      ),
       body: Stack(
         children: [
           IndexedStack(index: _selectedIndex, children: _tabs),
+
+          // Bottom nav
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
-            child: _LuminaBottomNav(
-              selectedIndex: _selectedIndex,
-              onTap: (i) => setState(() => _selectedIndex = i),
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 20,
+                    offset: const Offset(0, -4),
+                  ),
+                ],
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              ),
+              child: SafeArea(
+                top: false,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: _navItems.asMap().entries.map((e) {
+                      final i = e.key;
+                      final item = e.value;
+                      final isActive = _selectedIndex == i;
+                      return GestureDetector(
+                        onTap: () => setState(() => _selectedIndex = i),
+                        behavior: HitTestBehavior.opaque,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: isActive ? AppColors.primaryContainer : Colors.transparent,
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Icon(
+                                item.icon,
+                                size: 22,
+                                color: isActive ? AppColors.primary : AppColors.inkTertiary,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            Text(
+                              item.label,
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                                letterSpacing: 0.03,
+                                color: isActive ? AppColors.primary : AppColors.inkTertiary,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -51,82 +128,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 }
 
-class _LuminaBottomNav extends StatelessWidget {
-  final int selectedIndex;
-  final ValueChanged<int> onTap;
-
-  const _LuminaBottomNav({required this.selectedIndex, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 80,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _NavItem(icon: LucideIcons.layoutDashboard, index: 0, selectedIndex: selectedIndex, onTap: onTap),
-            _NavItem(icon: LucideIcons.shoppingCart, index: 1, selectedIndex: selectedIndex, onTap: onTap),
-            _NavItem(icon: LucideIcons.package, index: 2, selectedIndex: selectedIndex, onTap: onTap),
-            _NavItem(icon: LucideIcons.users, index: 3, selectedIndex: selectedIndex, onTap: onTap),
-            _NavItem(icon: LucideIcons.menu, index: 4, selectedIndex: selectedIndex, onTap: onTap),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final int index;
-  final int selectedIndex;
-  final ValueChanged<int> onTap;
-
-  const _NavItem({
-    required this.icon,
-    required this.index,
-    required this.selectedIndex,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isSelected = selectedIndex == index;
-    return GestureDetector(
-      onTap: () => onTap(index),
-      behavior: HitTestBehavior.opaque,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: isSelected ? AppColors.primaryContainer : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Icon(
-          icon,
-          size: 24,
-          color: isSelected ? AppColors.primary : AppColors.inkTertiary,
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 // Dashboard Home
-// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
 
 class DashboardHome extends ConsumerStatefulWidget {
   const DashboardHome({super.key});
@@ -147,33 +151,57 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
       backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 100),
+          padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-              // ── Header row ──────────────────────────────────────
+              // ── Top App Bar ───────────────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'BizManage',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.primary,
-                      letterSpacing: -0.3,
-                    ),
+                  Row(
+                    children: [
+                      Icon(LucideIcons.menu, size: 22, color: AppColors.onSurfaceVariant),
+                      const SizedBox(width: 12),
+                      Text(
+                        'BizManage',
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.secondary,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                      boxShadow: [AppColors.cardShadow],
-                    ),
-                    child: const Icon(LucideIcons.bell, size: 20, color: AppColors.inkPrimary),
+                  Stack(
+                    children: [
+                      Icon(LucideIcons.bell, size: 22, color: AppColors.onSurfaceVariant),
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: AppColors.danger,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '6',
+                              style: GoogleFonts.inter(
+                                fontSize: 8,
+                                fontWeight: FontWeight.w800,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -185,23 +213,24 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 data: (ctx) {
                   final name = ctx?.userProfile.name.isNotEmpty == true
                       ? ctx!.userProfile.name.split(' ').first
-                      : 'there';
+                      : 'Jonathan';
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hi, $name 👋',
+                        'Hi, $name',
                         style: GoogleFonts.hankenGrotesk(
                           fontSize: 26,
                           fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,
+                          letterSpacing: -0.3,
                         ),
                       ),
                       Text(
-                        'Welcome back',
+                        'Welcome Back!',
                         style: GoogleFonts.inter(
-                          fontSize: 14,
-                          color: AppColors.inkTertiary,
+                          fontSize: 15,
+                          color: AppColors.onSurfaceVariant,
                         ),
                       ),
                       if (ctx != null && ctx.tenant.status == 'TRIAL' && ctx.trialDaysLeft <= 7) ...[
@@ -217,32 +246,37 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
 
               const SizedBox(height: 24),
 
-              // ── Revenue card ─────────────────────────────────────
+              // ── Revenue Hero Card (LIME bg per HTML) ─────────────
               telemetryAsync.when(
                 data: (metrics) => _RevenueCard(
-                  todaySales: metrics.todaySales,
+                  revenue: metrics.todaySales,
                   visible: _revenueVisible,
                   onToggle: () => setState(() => _revenueVisible = !_revenueVisible),
                 ),
                 loading: () => _RevenueCard(
-                  todaySales: 0,
+                  revenue: 0,
                   visible: _revenueVisible,
                   onToggle: () => setState(() => _revenueVisible = !_revenueVisible),
                 ),
                 error: (_, __) => const SizedBox.shrink(),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
-              // ── Quick Actions ────────────────────────────────────
-              Text(
-                'QUICK ACTIONS',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.08,
-                  color: AppColors.inkSecondary,
-                ),
+              // ── Common Tasks ─────────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Common Tasks',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.inkPrimary,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               GridView.count(
@@ -251,18 +285,38 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 crossAxisCount: 2,
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
-                childAspectRatio: 1.25,
+                childAspectRatio: 1.1,
                 children: const [
-                  _QuickActionCard(icon: LucideIcons.shoppingCart, label: 'New Sale'),
-                  _QuickActionCard(icon: LucideIcons.userPlus, label: 'Add Client'),
-                  _QuickActionCard(icon: LucideIcons.package, label: 'Inventory'),
-                  _QuickActionCard(icon: LucideIcons.fileText, label: 'Invoice'),
+                  _QuickAction(
+                    icon: LucideIcons.shoppingCart,
+                    label: 'New Sale',
+                    iconBg: Color(0x33a3e635), // primary-container/20
+                    iconColor: AppColors.primary,
+                  ),
+                  _QuickAction(
+                    icon: LucideIcons.users,
+                    label: 'Add Client',
+                    iconBg: Color(0x33c9ebcc), // secondary-container/20
+                    iconColor: AppColors.secondary,
+                  ),
+                  _QuickAction(
+                    icon: LucideIcons.package,
+                    label: 'Inventory',
+                    iconBg: Color(0x66d0d3cc), // tertiary-container/40
+                    iconColor: Color(0xFF5b5f5a),
+                  ),
+                  _QuickAction(
+                    icon: LucideIcons.fileText,
+                    label: 'Invoice',
+                    iconBg: Color(0x4Dc2cab0), // outline-variant/30
+                    iconColor: Color(0xFF727a64),
+                  ),
                 ],
               ),
 
               const SizedBox(height: 32),
 
-              // ── Analytics card ───────────────────────────────────
+              // ── Sales Analytics ──────────────────────────────────
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
@@ -276,57 +330,62 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(
-                          'This Week',
-                          style: GoogleFonts.hankenGrotesk(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.inkPrimary,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.primaryContainer.withValues(alpha: 0.25),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            '↑ 4.9% from last week',
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.primary,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Sales Analytics',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.inkPrimary,
+                              ),
                             ),
-                          ),
+                            Text(
+                              '4.9% Increase from last week',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: AppColors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
+                        Icon(LucideIcons.trendingUp, size: 22, color: AppColors.primary),
                       ],
                     ),
                     const SizedBox(height: 20),
+                    // Bar chart
                     SizedBox(
                       height: 80,
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          _Bar(height: 40),
-                          _Bar(height: 55),
-                          _Bar(height: 35),
-                          _Bar(height: 70),
-                          _Bar(height: 50),
-                          _Bar(height: 80, isHighlight: true),
-                          _Bar(height: 60),
+                          _Bar(frac: 0.40),
+                          const SizedBox(width: 6),
+                          _Bar(frac: 0.60),
+                          const SizedBox(width: 6),
+                          _Bar(frac: 0.45),
+                          const SizedBox(width: 6),
+                          _Bar(frac: 0.85, isHighlight: true),
+                          const SizedBox(width: 6),
+                          _Bar(frac: 0.55),
+                          const SizedBox(width: 6),
+                          _Bar(frac: 0.70),
+                          const SizedBox(width: 6),
+                          _Bar(frac: 0.95),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                      children: ['S', 'M', 'T', 'W', 'T', 'F', 'S']
                           .map((d) => Text(
                                 d,
                                 style: GoogleFonts.inter(
-                                  fontSize: 10,
-                                  color: AppColors.inkTertiary,
+                                  fontSize: 11,
+                                  color: AppColors.outline,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ))
                           .toList(),
@@ -337,21 +396,21 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
 
               const SizedBox(height: 32),
 
-              // ── Recent Activity ──────────────────────────────────
+              // ── Recent Activity ───────────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'RECENT ACTIVITY',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 0.08,
-                      color: AppColors.inkSecondary,
+                    'Recent Activity',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.inkPrimary,
+                      letterSpacing: -0.2,
                     ),
                   ),
                   Text(
-                    'View All',
+                    'See Details',
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
@@ -366,40 +425,47 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 data: (metrics) => Column(
                   children: [
                     _ActivityItem(
+                      icon: LucideIcons.receipt,
+                      iconColor: AppColors.secondary,
                       label: 'Today Sales',
-                      type: 'Sale',
+                      subtitle: 'Today • POS Sale',
                       amount: metrics.todaySales,
                       isPositive: true,
-                      time: 'Today',
+                      status: 'Completed',
                     ),
                     const SizedBox(height: 12),
                     _ActivityItem(
+                      icon: LucideIcons.creditCard,
+                      iconColor: AppColors.danger,
                       label: 'Today Expenses',
-                      type: 'Expense',
+                      subtitle: 'Today • Expense',
                       amount: metrics.todayExpenses,
                       isPositive: false,
-                      time: 'Today',
+                      status: 'Transfer',
                     ),
                     const SizedBox(height: 12),
                     _ActivityItem(
+                      icon: LucideIcons.wallet,
+                      iconColor: AppColors.secondary,
                       label: 'Cash Balance',
-                      type: 'Balance',
-                      amount: metrics.currentCashBalance,
+                      subtitle: 'Current • Balance',
+                      amount: metrics.currentCashBalance.abs(),
                       isPositive: metrics.currentCashBalance >= 0,
-                      time: 'Current',
+                      status: 'Income',
                     ),
                   ],
                 ),
                 loading: () => const Center(
                   child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: CircularProgressIndicator(color: AppColors.primary),
+                    padding: EdgeInsets.all(32),
+                    child: CircularProgressIndicator(
+                      color: AppColors.primary,
+                      strokeWidth: 2,
+                    ),
                   ),
                 ),
-                error: (e, _) => Text(
-                  'Error: $e',
-                  style: GoogleFonts.inter(color: AppColors.danger),
-                ),
+                error: (e, _) => Text('Error: $e',
+                    style: GoogleFonts.inter(color: AppColors.danger)),
               ),
             ],
           ),
@@ -409,29 +475,36 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
   }
 }
 
-// ── Revenue Card ──────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Revenue Card — LIME background (matches HTML bg-primary-container)
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _RevenueCard extends StatelessWidget {
-  final double todaySales;
+  final double revenue;
   final bool visible;
   final VoidCallback onToggle;
 
   const _RevenueCard({
-    required this.todaySales,
+    required this.revenue,
     required this.visible,
     required this.onToggle,
   });
 
   @override
   Widget build(BuildContext context) {
+    // HTML: bg-primary-container (#a3e635) with lime shadow
+    // Text: on-primary-fixed (#121f00 near black)
+    const textDark = Color(0xFF121f00);
+    const textMuted = Color(0x99121f00); // 60% opacity
+
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.primary,
-        borderRadius: BorderRadius.circular(24),
+        color: AppColors.primaryContainer, // LIME #a3e635
+        borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.25),
+            color: const Color(0xFFa3e635).withValues(alpha: 0.15),
             blurRadius: 30,
             offset: const Offset(0, 10),
           ),
@@ -440,6 +513,7 @@ class _RevenueCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Label + eye toggle
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -449,7 +523,7 @@ class _RevenueCard extends StatelessWidget {
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
                   letterSpacing: 0.08,
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: textMuted,
                 ),
               ),
               GestureDetector(
@@ -457,50 +531,60 @@ class _RevenueCard extends StatelessWidget {
                 child: Icon(
                   visible ? LucideIcons.eye : LucideIcons.eyeOff,
                   size: 20,
-                  color: Colors.white.withValues(alpha: 0.7),
+                  color: textMuted,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
+
+          // Amount
           Text(
-            visible ? '₹${todaySales.toStringAsFixed(0)}' : '₹ ••••••',
+            visible ? '₹${revenue.toStringAsFixed(0)}' : '₹ ••••••',
             style: GoogleFonts.hankenGrotesk(
-              fontSize: 36,
-              fontWeight: FontWeight.w700,
-              color: Colors.white,
-              letterSpacing: -0.5,
+              fontSize: 38,
+              fontWeight: FontWeight.w600,
+              color: textDark,
+              letterSpacing: -0.03 * 38,
             ),
           ),
+
           const SizedBox(height: 20),
+
+          // Action buttons
           Row(
             children: [
+              // Payout — bg-secondary (dark green), text-primary-container (lime)
               Expanded(
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
                   onPressed: () {},
+                  icon: const Icon(LucideIcons.send, size: 15),
+                  label: const Text('Payout'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryContainer,
-                    foregroundColor: AppColors.primary,
+                    backgroundColor: AppColors.secondary, // #48654d
+                    foregroundColor: AppColors.primaryContainer, // lime text
                     elevation: 0,
                     shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
                   ),
-                  child: const Text('New Sale'),
                 ),
               ),
               const SizedBox(width: 12),
+              // Top Up — bg-primary-fixed (#b2f746), text-on-primary-fixed (#121f00)
               Expanded(
-                child: OutlinedButton(
+                child: ElevatedButton.icon(
                   onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white38, width: 1.5),
+                  icon: const Icon(LucideIcons.plus, size: 15),
+                  label: const Text('Top Up'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFb2f746), // primary-fixed
+                    foregroundColor: textDark,
+                    elevation: 0,
                     shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 13),
                     textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
                   ),
-                  child: const Text('Add Expense'),
                 ),
               ),
             ],
@@ -511,13 +595,22 @@ class _RevenueCard extends StatelessWidget {
   }
 }
 
-// ── Quick Action Card ─────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Quick Action Card
+// ─────────────────────────────────────────────────────────────────────────────
 
-class _QuickActionCard extends StatelessWidget {
+class _QuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color iconBg;
+  final Color iconColor;
 
-  const _QuickActionCard({required this.icon, required this.label});
+  const _QuickAction({
+    required this.icon,
+    required this.label,
+    required this.iconBg,
+    required this.iconColor,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -530,24 +623,24 @@ class _QuickActionCard extends StatelessWidget {
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
+              color: iconBg,
+              shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 20, color: AppColors.primary),
+            child: Icon(icon, size: 22, color: iconColor),
           ),
           const SizedBox(height: 12),
           Text(
             label,
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
               color: AppColors.inkPrimary,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
@@ -555,42 +648,56 @@ class _QuickActionCard extends StatelessWidget {
   }
 }
 
-// ── Bar chart widget ──────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Bar chart bar
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _Bar extends StatelessWidget {
-  final double height;
+  final double frac; // 0.0–1.0
   final bool isHighlight;
 
-  const _Bar({required this.height, this.isHighlight = false});
+  const _Bar({required this.frac, this.isHighlight = false});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 28,
-      height: height,
-      decoration: BoxDecoration(
-        color: isHighlight ? AppColors.primaryContainer : AppColors.primaryContainer.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(6),
+    return Expanded(
+      child: FractionallySizedBox(
+        heightFactor: frac,
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          decoration: BoxDecoration(
+            color: isHighlight
+                ? AppColors.primaryContainer
+                : AppColors.surfaceContainer,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+          ),
+        ),
       ),
     );
   }
 }
 
-// ── Activity Item ─────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// Activity Item
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _ActivityItem extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
   final String label;
-  final String type;
+  final String subtitle;
   final double amount;
   final bool isPositive;
-  final String time;
+  final String status;
 
   const _ActivityItem({
+    required this.icon,
+    required this.iconColor,
     required this.label,
-    required this.type,
+    required this.subtitle,
     required this.amount,
     required this.isPositive,
-    required this.time,
+    required this.status,
   });
 
   @override
@@ -604,53 +711,59 @@ class _ActivityItem extends StatelessWidget {
       ),
       child: Row(
         children: [
+          // Icon circle
           Container(
-            width: 10,
-            height: 10,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              color: isPositive ? AppColors.success : AppColors.danger,
+              color: AppColors.surfaceContainer,
               shape: BoxShape.circle,
             ),
+            child: Icon(icon, size: 20, color: iconColor),
           ),
           const SizedBox(width: 14),
+
+          // Label + subtitle
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.inkPrimary,
                   ),
                 ),
                 Text(
-                  type,
+                  subtitle,
                   style: GoogleFonts.inter(
                     fontSize: 11,
-                    color: AppColors.inkTertiary,
+                    color: AppColors.onSurfaceVariant,
                   ),
                 ),
               ],
             ),
           ),
+
+          // Amount + status
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${isPositive ? '+' : '-'} ₹${amount.abs().toStringAsFixed(0)}',
+                '${isPositive ? '+' : '-'}₹${amount.abs().toStringAsFixed(0)}',
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: isPositive ? AppColors.success : AppColors.danger,
+                  color: isPositive ? AppColors.inkPrimary : AppColors.inkPrimary,
                 ),
               ),
               Text(
-                time,
+                status,
                 style: GoogleFonts.inter(
-                  fontSize: 10,
-                  color: AppColors.inkTertiary,
+                  fontSize: 11,
+                  color: AppColors.onSurfaceVariant,
                 ),
               ),
             ],
