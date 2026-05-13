@@ -57,79 +57,129 @@ export const stateFromGSTIN = (gstin) => {
 
 // ---- Build tax lines from a sale ----
 // A sale = one invoice. If sale.items exists we use per-item tax rates;
-// otherwise we assume a blanket tax rate on the sale total (default 18%).
+// otherwise we derive tax from sale-level subtotal/tax/totalAmount fields.
+//
+// NOTE: The `sales` table stores client info in a JSONB `customerInfo` field,
+// not as a foreign key column. Items may lack taxRate — default 18%.
 export const buildTaxLinesFromSale = (sale, { businessState = '', clients = [] } = {}) => {
-  const client = clients.find((c) => c.id === sale.clientId || c.id === sale.client_id) || null;
-  const clientGSTIN = client?.gstin || client?.gst_no || sale.gstin || '';
-  const clientState = client?.state || sale.client_state || '';
+  // Client lookup — customerInfo is a JSONB blob: { id, name, gstin, state, ... }
+  const customerId =
+    sale.customerInfo?.id ||
+    sale.customerInfo?.clientId ||
+    sale.clientId ||
+    sale.client_id ||
+    null;
+  const client = customerId ? clients.find((c) => c.id === customerId) : null;
+
+  const clientGSTIN =
+    client?.gstin || client?.gst_no ||
+    sale.customerInfo?.gstin || sale.customerInfo?.gst_no ||
+    sale.gstin || '';
+  const clientState =
+    client?.state ||
+    sale.customerInfo?.state ||
+    sale.client_state || '';
+
   const isB2B = hasValidGSTIN(clientGSTIN);
   const interstate = isInterstate(businessState, clientState);
 
-  // Items or fallback single-line
-  const rawItems = Array.isArray(sale.items) && sale.items.length
-    ? sale.items
-    : [{
-        name: sale.description || 'Goods',
-        qty: 1,
-        rate: Number(sale.totalAmount) || 0,
-        taxRate: Number(sale.taxRate) || 18,
-        hsn_code: sale.hsn || '',
-      }];
+  // Sale-level amounts (may be null for older records)
+  const directSubtotal = Number(sale.subtotal) || 0;
+  const directTax     = Number(sale.tax) || 0;
+  const directTotal   = Number(sale.totalAmount) || 0;
+
+  const hasItems = Array.isArray(sale.items) && sale.items.length > 0;
 
   let taxable = 0, cgst = 0, sgst = 0, igst = 0;
   const byRate = {}; // taxRate -> { taxable, cgst, sgst, igst }
-  const byHSN = {};  // hsn -> { taxable, cgst, sgst, igst, rate, qty, uqc }
+  const byHSN = {};  // key -> { hsn, taxRate, uqc, qty, taxable, cgst, sgst, igst }
 
-  rawItems.forEach((item) => {
-    const qty = Number(item.qty ?? item.quantity) || 1;
-    const rate = Number(item.rate ?? item.sellingPrice ?? item.price) || 0;
-    const discount = Number(item.discount ?? 0);
-    const taxRate = Number(item.taxRate ?? 18);
-    const hsn = String(item.hsn_code || item.hsn || '---');
-    const uqc = String(item.uqc || item.unit || 'NOS').toUpperCase();
+  if (hasItems) {
+    sale.items.forEach((item) => {
+      const qty      = Number(item.qty ?? item.quantity) || 1;
+      const rate     = Number(item.rate ?? item.sellingPrice ?? item.price) || 0;
+      const discount = Number(item.discount ?? 0);
+      // Items may not carry taxRate — fall back to sale-level tax rate or 18%
+      const taxRate  = Number(item.taxRate ?? item.tax_rate ?? sale.taxRate ?? 18);
+      const hsn      = String(item.hsn_code || item.hsn || '---');
+      const uqc      = String(item.uqc || item.unit || 'NOS').toUpperCase();
 
-    const itemTaxable = qty * rate - discount;
-    const taxAmt = (itemTaxable * taxRate) / 100;
+      const itemTaxable = qty * rate - discount;
+      const taxAmt      = (itemTaxable * taxRate) / 100;
 
-    let itemCgst = 0, itemSgst = 0, itemIgst = 0;
-    if (interstate) {
-      itemIgst = taxAmt;
-    } else {
-      itemCgst = taxAmt / 2;
-      itemSgst = taxAmt / 2;
+      let itemCgst = 0, itemSgst = 0, itemIgst = 0;
+      if (interstate) {
+        itemIgst = taxAmt;
+      } else {
+        itemCgst = taxAmt / 2;
+        itemSgst = taxAmt / 2;
+      }
+
+      taxable += itemTaxable;
+      cgst    += itemCgst;
+      sgst    += itemSgst;
+      igst    += itemIgst;
+
+      // By rate
+      if (!byRate[taxRate]) byRate[taxRate] = { taxRate, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+      byRate[taxRate].taxable += itemTaxable;
+      byRate[taxRate].cgst    += itemCgst;
+      byRate[taxRate].sgst    += itemSgst;
+      byRate[taxRate].igst    += itemIgst;
+
+      // By HSN
+      const hsnKey = `${hsn}|${taxRate}|${uqc}`;
+      if (!byHSN[hsnKey]) {
+        byHSN[hsnKey] = { hsn, taxRate, uqc, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+      }
+      byHSN[hsnKey].qty     += qty;
+      byHSN[hsnKey].taxable += itemTaxable;
+      byHSN[hsnKey].cgst    += itemCgst;
+      byHSN[hsnKey].sgst    += itemSgst;
+      byHSN[hsnKey].igst    += itemIgst;
+    });
+
+    // If items had no taxRate info (computed tax = 0) but DB has tax amount, use it
+    if (taxable > 0 && (cgst + sgst + igst === 0) && directTax > 0) {
+      if (interstate) {
+        igst = directTax;
+      } else {
+        cgst = directTax / 2;
+        sgst = directTax / 2;
+      }
+      // Re-assign to byRate/byHSN totals at 18% bucket
+      const key18 = 18;
+      if (!byRate[key18]) byRate[key18] = { taxRate: key18, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+      byRate[key18].taxable += taxable;
+      byRate[key18].cgst    += cgst;
+      byRate[key18].sgst    += sgst;
+      byRate[key18].igst    += igst;
     }
-
-    taxable += itemTaxable;
-    cgst += itemCgst;
-    sgst += itemSgst;
-    igst += itemIgst;
-
-    // By rate
-    if (!byRate[taxRate]) byRate[taxRate] = { taxRate, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
-    byRate[taxRate].taxable += itemTaxable;
-    byRate[taxRate].cgst += itemCgst;
-    byRate[taxRate].sgst += itemSgst;
-    byRate[taxRate].igst += itemIgst;
-
-    // By HSN
-    const hsnKey = `${hsn}|${taxRate}|${uqc}`;
-    if (!byHSN[hsnKey]) {
-      byHSN[hsnKey] = { hsn, taxRate, uqc, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+  } else {
+    // No items array — derive from sale-level fields
+    if (directSubtotal > 0) {
+      taxable = directSubtotal;
+      const taxAmt = directTax > 0 ? directTax : directSubtotal * 0.18;
+      if (interstate) { igst = taxAmt; } else { cgst = taxAmt / 2; sgst = taxAmt / 2; }
+    } else if (directTotal > 0) {
+      // Inclusive total — back-calculate assuming 18%
+      taxable = directTotal / 1.18;
+      const taxAmt = directTotal - taxable;
+      if (interstate) { igst = taxAmt; } else { cgst = taxAmt / 2; sgst = taxAmt / 2; }
     }
-    byHSN[hsnKey].qty += qty;
-    byHSN[hsnKey].taxable += itemTaxable;
-    byHSN[hsnKey].cgst += itemCgst;
-    byHSN[hsnKey].sgst += itemSgst;
-    byHSN[hsnKey].igst += itemIgst;
-  });
+    const fallbackRate = 18;
+    byRate[fallbackRate] = { taxRate: fallbackRate, taxable: round2(taxable), cgst: round2(cgst), sgst: round2(sgst), igst: round2(igst) };
+    byHSN['---|18|NOS'] = { hsn: '---', taxRate: fallbackRate, uqc: 'NOS', qty: 1, taxable: round2(taxable), cgst: round2(cgst), sgst: round2(sgst), igst: round2(igst) };
+  }
 
   const invoiceValue = taxable + cgst + sgst + igst;
 
   return {
     saleId: sale.id,
-    invoiceNo: sale.invoice_number || sale.invoiceNo || (sale.id || '').slice(0, 8).toUpperCase(),
+    // sales table uses `id` as invoice identifier — no separate invoice_number column
+    invoiceNo: sale.invoice_number || sale.invoiceNo || sale.id || '',
     date: sale.date,
-    clientName: client?.name || sale.client_name || 'Walk-in',
+    clientName: client?.name || sale.customerInfo?.name || sale.client_name || 'Walk-in',
     clientGSTIN,
     clientState,
     stateCode: getStateCode(clientState),
@@ -157,6 +207,82 @@ export const buildTaxLinesFromSale = (sale, { businessState = '', clients = [] }
   };
 };
 
+// ---- Build tax lines from a formal Invoice row ----
+// Invoices created via InvoiceBuilder store CGST/SGST/IGST directly.
+// This is more accurate than deriving from sales items.
+export const buildTaxLinesFromInvoice = (inv, { businessState = '', clients = [] } = {}) => {
+  const client = clients.find((c) => c.id === inv.client_id) || null;
+  const clientGSTIN = client?.gstin || client?.gst_no || '';
+  const clientState  = client?.state || '';
+  const isB2B        = hasValidGSTIN(clientGSTIN);
+  const interstate   = inv.is_interstate ?? isInterstate(businessState, clientState);
+
+  const taxable      = round2(Number(inv.taxable_amount) || 0);
+  const cgst         = round2(Number(inv.cgst_amount) || 0);
+  const sgst         = round2(Number(inv.sgst_amount) || 0);
+  const igst         = round2(Number(inv.igst_amount) || 0);
+  const invoiceValue = round2(Number(inv.grand_total) || (taxable + cgst + sgst + igst));
+
+  // HSN / rate from items if present
+  const byRate = {};
+  const byHSN  = {};
+  const rawItems = Array.isArray(inv.items) && inv.items.length ? inv.items : [];
+
+  if (rawItems.length > 0) {
+    rawItems.forEach((item) => {
+      const qty       = Number(item.qty ?? item.quantity) || 1;
+      const rate      = Number(item.rate ?? item.sellingPrice ?? item.price) || 0;
+      const discount  = Number(item.discount ?? 0);
+      const taxRate   = Number(item.taxRate ?? item.tax_rate ?? 18);
+      const hsn       = String(item.hsn_code || item.hsn || '---');
+      const uqc       = String(item.uqc || item.unit || 'NOS').toUpperCase();
+      const itemTax   = round2((rate * qty - discount) * taxRate / 100);
+      const itemTaxable = round2(rate * qty - discount);
+      const itemCgst  = interstate ? 0 : round2(itemTax / 2);
+      const itemSgst  = interstate ? 0 : round2(itemTax / 2);
+      const itemIgst  = interstate ? itemTax : 0;
+
+      if (!byRate[taxRate]) byRate[taxRate] = { taxRate, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+      byRate[taxRate].taxable += itemTaxable;
+      byRate[taxRate].cgst    += itemCgst;
+      byRate[taxRate].sgst    += itemSgst;
+      byRate[taxRate].igst    += itemIgst;
+
+      const hsnKey = `${hsn}|${taxRate}|${uqc}`;
+      if (!byHSN[hsnKey]) byHSN[hsnKey] = { hsn, taxRate, uqc, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+      byHSN[hsnKey].qty     += qty;
+      byHSN[hsnKey].taxable += itemTaxable;
+      byHSN[hsnKey].cgst    += itemCgst;
+      byHSN[hsnKey].sgst    += itemSgst;
+      byHSN[hsnKey].igst    += itemIgst;
+    });
+  } else {
+    // No items — use stored total tax split at 18%
+    const fallbackRate = 18;
+    byRate[fallbackRate] = { taxRate: fallbackRate, taxable, cgst, sgst, igst };
+    byHSN['---|18|NOS']  = { hsn: '---', taxRate: fallbackRate, uqc: 'NOS', qty: 1, taxable, cgst, sgst, igst };
+  }
+
+  return {
+    saleId: inv.sale_id || inv.id,
+    invoiceNo: inv.invoice_number || inv.id,
+    date: inv.invoice_date || (inv.date ? String(inv.date).split('T')[0] : ''),
+    clientName: client?.name || inv.client_name || 'Walk-in',
+    clientGSTIN,
+    clientState,
+    stateCode: getStateCode(clientState),
+    isB2B,
+    isInterstate: interstate,
+    taxable,
+    cgst,
+    sgst,
+    igst,
+    invoiceValue,
+    byRate: Object.values(byRate).map((r) => ({ ...r, taxable: round2(r.taxable), cgst: round2(r.cgst), sgst: round2(r.sgst), igst: round2(r.igst) })),
+    byHSN:  Object.values(byHSN).map((h) => ({ ...h, taxable: round2(h.taxable), cgst: round2(h.cgst), sgst: round2(h.sgst), igst: round2(h.igst) })),
+  };
+};
+
 // ---- GSTR-1 section builders ----
 
 /**
@@ -168,8 +294,21 @@ export const buildTaxLinesFromSale = (sale, { businessState = '', clients = [] }
  *   docs:  Document-issued summary
  *   totals: Grand totals
  */
-export const buildGSTR1 = (sales = [], { businessState = '', clients = [] } = {}) => {
-  const lines = sales.map((s) => buildTaxLinesFromSale(s, { businessState, clients }));
+export const buildGSTR1 = (sales = [], { businessState = '', clients = [], invoices = [] } = {}) => {
+  // Prefer invoice rows (have accurate stored CGST/SGST/IGST) over re-deriving from sales.
+  // Build a Set of sale_ids covered by invoices to avoid double-counting.
+  const invoiceSaleIds = new Set(invoices.map((inv) => inv.sale_id).filter(Boolean));
+
+  const invoiceLines = invoices.map((inv) =>
+    buildTaxLinesFromInvoice(inv, { businessState, clients })
+  );
+
+  // Only process sales that don't have a corresponding invoice
+  const saleLinesOnly = sales
+    .filter((s) => !invoiceSaleIds.has(s.id))
+    .map((s) => buildTaxLinesFromSale(s, { businessState, clients }));
+
+  const lines = [...invoiceLines, ...saleLinesOnly];
 
   const b2b = [];
   const b2cl = [];
@@ -432,8 +571,8 @@ export const downloadGSTR1JSON = (gstr1, { gstin, fp, filename } = {}) => {
  * GSTR-3B is a summary return. We aggregate outward supplies by taxability
  * and compute estimated ITC from purchases.
  */
-export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { businessState = '', clients = [] } = {}) => {
-  const gstr1 = buildGSTR1(sales, { businessState, clients });
+export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { businessState = '', clients = [], invoices = [] } = {}) => {
+  const gstr1 = buildGSTR1(sales, { businessState, clients, invoices });
 
   // 3.1(a) Outward taxable supplies (other than zero/nil/exempted)
   const taxableSupplies = gstr1.totals;
@@ -448,20 +587,23 @@ export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { busines
       igst: l.igst,
     }));
 
-  // 4. Eligible ITC — from purchases with tax info
+  // 4. Eligible ITC — from purchases.
+  // purchases table has no tax_rate or supplier_state columns.
+  // Assume intra-state supply at 18% to derive approximate ITC (conservative).
   const itcByType = { centralTax: 0, stateTax: 0, integratedTax: 0, cess: 0 };
   purchases.forEach((p) => {
-    const amt = Number(p.total_amount ?? p.amount) || 0;
-    const taxRate = Number(p.tax_rate ?? p.taxRate ?? 18);
+    const amt      = Number(p.total_amount ?? p.amount) || 0;
+    const taxRate  = Number(p.tax_rate ?? p.taxRate ?? 18); // fallback 18%
     const supplierState = p.supplier_state || '';
-    const isInter = isInterstate(businessState, supplierState);
-    const taxable = amt / (1 + taxRate / 100);
-    const tax = amt - taxable;
+    const isInter  = supplierState ? isInterstate(businessState, supplierState) : false;
+    // Back-calculate: total_amount is typically inclusive of GST
+    const taxableAmt = amt / (1 + taxRate / 100);
+    const tax = amt - taxableAmt;
     if (isInter) {
       itcByType.integratedTax += tax;
     } else {
       itcByType.centralTax += tax / 2;
-      itcByType.stateTax += tax / 2;
+      itcByType.stateTax   += tax / 2;
     }
   });
 

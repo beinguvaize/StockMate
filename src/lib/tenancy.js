@@ -93,3 +93,21 @@ export const TENANT_STATUS = {
   SUSPENDED: { label: 'Suspended', color: 'bg-red-50 text-red-600' },
   TRIAL: { label: 'Trial', color: 'bg-amber-50 text-amber-600' }
 };
+
+/**
+ * Returns true if tenant is on trial and the 60-day period has expired.
+ */
+export const isTrialExpired = (tenant) => {
+  if (tenant?.status !== 'TRIAL') return false;
+  if (!tenant?.trial_end_date) return false;
+  return new Date() > new Date(tenant.trial_end_date);
+};
+
+/**
+ * Returns days remaining in trial (0 if expired or not on trial).
+ */
+export const trialDaysLeft = (tenant) => {
+  if (tenant?.status !== 'TRIAL' || !tenant?.trial_end_date) return 0;
+  const diff = new Date(tenant.trial_end_date) - new Date();
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+};

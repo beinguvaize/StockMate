@@ -37,7 +37,7 @@ const GeneralLedgerReport = () => {
     sales.forEach((s) => {
       const refId = (s.id || '').slice(0, 8).toUpperCase();
       const method = (s.paymentMethod || 'CASH').toUpperCase();
-      const isCredit = method === 'CREDIT' || method === 'CREDIT_CARD_CREDIT' || s.clientId;
+      const isCredit = method === 'CREDIT' || method === 'CREDIT_CARD_CREDIT' || !!s.customerInfo?.id;
       const amount = Number(s.totalAmount) || 0;
       const cogs = Number(s.totalCogs) || 0;
 

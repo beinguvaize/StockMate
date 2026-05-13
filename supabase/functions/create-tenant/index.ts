@@ -60,6 +60,8 @@ serve(async (req) => {
         name: businessName,
         slug: slug,
         plan: plan,
+        status: 'TRIAL',
+        trial_end_date: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
         owner_id: user.id,
       })
       .select()
