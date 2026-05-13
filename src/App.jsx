@@ -8,7 +8,7 @@ import ErrorBoundary from './components/ErrorBoundary';
 import GlobalLoading from './components/GlobalLoading';
 
 // ── Eager (tiny, needed immediately) ────────────────────────────────────────
-import Login   from './pages/SaaSLogin'; // SaaSLogin = login + signup + Google OAuth
+import Login   from './pages/Login';
 import NoAccess from './pages/NoAccess';
 
 // ── Lazy (loaded only when route is visited) ─────────────────────────────────
