@@ -100,9 +100,10 @@ export const useInventory = (tenantId) => {
 
   const add = async (product) => {
     const id = product.id || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const { created_at: _ca, updated_at: _ua, ...safeProduct } = product;
     const { data: newProd, error } = await supabase
       .from('products')
-      .insert({ ...product, id, tenant_id: tenantId })
+      .insert({ ...safeProduct, id, tenant_id: tenantId })
       .select()
       .single();
     if (!error) fetchInventory().catch(e => console.error('add product refetch error:', e));
@@ -110,9 +111,11 @@ export const useInventory = (tenantId) => {
   };
 
   const update = async (id, updates) => {
+    // Strip immutable / server-managed columns so Postgres never rejects the UPDATE
+    const { id: _id, tenant_id: _tid, created_at: _ca, updated_at: _ua, ...safeUpdates } = updates;
     const { error } = await supabase
       .from('products')
-      .update(updates)
+      .update(safeUpdates)
       .eq('id', id)
       .eq('tenant_id', tenantId);
     if (!error) fetchInventory().catch(e => console.error('update product refetch error:', e));

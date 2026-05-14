@@ -121,7 +121,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       tags: typeof formData.tags === 'string' ? formData.tags.split(',').map(t => t.trim()).filter(t => t) : formData.tags
     };
 
-    const result = await onSave(parsedData);
+    let result;
+    try {
+      result = await onSave(parsedData);
+    } catch (err) {
+      setSaveError(err?.message || 'Unexpected error saving product');
+      setUploading(false);
+      return;
+    }
     setUploading(false);
     if (result?.error) {
       setSaveError(result.error.message || 'Failed to save product');
