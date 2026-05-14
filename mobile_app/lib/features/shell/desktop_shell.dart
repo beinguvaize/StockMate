@@ -32,57 +32,58 @@ class _NavItem {
   });
 }
 
-const _navItems = [
+// ignore: prefer_const_declarations
+final _navItems = [
   _NavItem(
     id: 'dashboard',
     label: 'Dashboard',
     icon: LucideIcons.layoutDashboard,
     feature: 'dashboard',
-    screen: DashboardHome(),
+    screen: DashboardHome(onTabSwitch: (_) {}),
   ),
-  _NavItem(
+  const _NavItem(
     id: 'inventory',
     label: 'Inventory',
     icon: LucideIcons.package,
     feature: 'inventory',
     screen: InventoryScreen(),
   ),
-  _NavItem(
+  const _NavItem(
     id: 'sales',
     label: 'Sales',
     icon: LucideIcons.shoppingCart,
     feature: 'sales',
     screen: SalesScreen(),
   ),
-  _NavItem(
+  const _NavItem(
     id: 'clients',
     label: 'Clients',
     icon: LucideIcons.users,
     feature: 'clients',
     screen: CRMScreen(),
   ),
-  _NavItem(
+  const _NavItem(
     id: 'expenses',
     label: 'Expenses',
     icon: LucideIcons.wallet,
     feature: 'expenses',
     screen: FinanceScreen(),
   ),
-  _NavItem(
+  const _NavItem(
     id: 'hr',
     label: 'HR & Payroll',
     icon: LucideIcons.briefcase,
     feature: 'hr',
     screen: HRScreen(),
   ),
-  _NavItem(
+  const _NavItem(
     id: 'logistics',
     label: 'Fleet',
     icon: LucideIcons.truck,
     feature: 'logistics',
     screen: LogisticsScreen(),
   ),
-  _NavItem(
+  const _NavItem(
     id: 'settings',
     label: 'Settings',
     icon: LucideIcons.settings,

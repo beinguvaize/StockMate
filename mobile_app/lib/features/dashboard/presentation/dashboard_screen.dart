@@ -5,10 +5,15 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/widgets/trial_banner.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/add_client_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/crm_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
+import 'package:mobile_app/features/finance/presentation/add_expense_screen.dart';
+import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/inventory_screen.dart';
 import 'package:mobile_app/features/menu/presentation/menu_screen.dart';
+import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
+import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/sales/presentation/sales_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -25,14 +30,6 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
 
-  static const _tabs = [
-    DashboardHome(),
-    SalesScreen(),
-    InventoryScreen(),
-    CRMScreen(),
-    MenuScreen(),
-  ];
-
   static const _navItems = [
     (icon: LucideIcons.layoutDashboard, label: 'Dashboard'),
     (icon: LucideIcons.shoppingCart, label: 'Sales'),
@@ -41,12 +38,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     (icon: LucideIcons.moreHorizontal, label: 'More'),
   ];
 
+  void _switchTab(int index) => setState(() => _selectedIndex = index);
+
+  List<Widget> get _tabs => [
+    DashboardHome(onTabSwitch: _switchTab),
+    const SalesScreen(),
+    const InventoryScreen(),
+    const CRMScreen(),
+    const MenuScreen(),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddSaleScreen()),
+        ),
         backgroundColor: AppColors.secondary,
         foregroundColor: AppColors.primaryContainer,
         elevation: 4,
@@ -85,7 +95,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       final item = e.value;
                       final isActive = _selectedIndex == i;
                       return GestureDetector(
-                        onTap: () => setState(() => _selectedIndex = i),
+                        onTap: () => _switchTab(i),
                         behavior: HitTestBehavior.opaque,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
@@ -133,7 +143,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class DashboardHome extends ConsumerStatefulWidget {
-  const DashboardHome({super.key});
+  final void Function(int index) onTabSwitch;
+
+  const DashboardHome({super.key, required this.onTabSwitch});
 
   @override
   ConsumerState<DashboardHome> createState() => _DashboardHomeState();
@@ -146,6 +158,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
   Widget build(BuildContext context) {
     final telemetryAsync = ref.watch(telemetryProvider);
     final tenantAsync = ref.watch(tenantContextProvider);
+    final recentSalesAsync = ref.watch(recentSalesProvider);
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -161,47 +174,42 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Row(
-                    children: [
-                      Icon(LucideIcons.menu, size: 22, color: AppColors.onSurfaceVariant),
-                      const SizedBox(width: 12),
-                      Text(
-                        'BizManage',
-                        style: GoogleFonts.hankenGrotesk(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.secondary,
-                          letterSpacing: -0.2,
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'StockMate',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.secondary, // forest deep #48654d — matches Stitch
+                      letterSpacing: -0.3,
+                    ),
                   ),
-                  Stack(
-                    children: [
-                      Icon(LucideIcons.bell, size: 22, color: AppColors.onSurfaceVariant),
-                      Positioned(
-                        top: 0,
-                        right: 0,
-                        child: Container(
-                          width: 14,
-                          height: 14,
-                          decoration: BoxDecoration(
-                            color: AppColors.danger,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Center(
-                            child: Text(
-                              '6',
-                              style: GoogleFonts.inter(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
+                  // Notification bell — red dot on low stock
+                  GestureDetector(
+                    onTap: () => widget.onTabSwitch(2),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Icon(LucideIcons.bell, size: 22, color: AppColors.onSurfaceVariant),
+                        telemetryAsync.whenData((m) => m.lowStockItems).when(
+                          data: (count) => count > 0
+                              ? Positioned(
+                                  top: -2,
+                                  right: -2,
+                                  child: Container(
+                                    width: 10,
+                                    height: 10,
+                                    decoration: const BoxDecoration(
+                                      color: AppColors.danger,
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                                )
+                              : const SizedBox.shrink(),
+                          loading: () => const SizedBox.shrink(),
+                          error: (_, __) => const SizedBox.shrink(),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -213,7 +221,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 data: (ctx) {
                   final name = ctx?.userProfile.name.isNotEmpty == true
                       ? ctx!.userProfile.name.split(' ').first
-                      : 'Jonathan';
+                      : 'there';
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -246,37 +254,42 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
 
               const SizedBox(height: 24),
 
-              // ── Revenue Hero Card (LIME bg per HTML) ─────────────
+              // ── Revenue Hero Card (LIME bg) ───────────────────────
               telemetryAsync.when(
                 data: (metrics) => _RevenueCard(
                   revenue: metrics.todaySales,
                   visible: _revenueVisible,
                   onToggle: () => setState(() => _revenueVisible = !_revenueVisible),
+                  onPayout: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
+                  ),
+                  onTopUp: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const AddProductScreen()),
+                  ),
                 ),
                 loading: () => _RevenueCard(
                   revenue: 0,
                   visible: _revenueVisible,
                   onToggle: () => setState(() => _revenueVisible = !_revenueVisible),
+                  onPayout: () {},
+                  onTopUp: () {},
                 ),
                 error: (_, __) => const SizedBox.shrink(),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
 
               // ── Common Tasks ─────────────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Common Tasks',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkPrimary,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
-                ],
+              Text(
+                'Common Tasks',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.inkPrimary,
+                  letterSpacing: -0.3,
+                ),
               ),
               const SizedBox(height: 16),
               GridView.count(
@@ -286,35 +299,45 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
                 childAspectRatio: 1.1,
-                children: const [
+                children: [
                   _QuickAction(
-                    icon: LucideIcons.shoppingCart,
+                    icon: LucideIcons.shoppingBag,
                     label: 'New Sale',
-                    iconBg: Color(0x33a3e635), // primary-container/20
+                    iconBg: const Color(0x33a3e635),
                     iconColor: AppColors.primary,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AddSaleScreen()),
+                    ),
                   ),
                   _QuickAction(
-                    icon: LucideIcons.users,
+                    icon: LucideIcons.userPlus,
                     label: 'Add Client',
-                    iconBg: Color(0x33c9ebcc), // secondary-container/20
+                    iconBg: const Color(0x33c9ebcc),
                     iconColor: AppColors.secondary,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AddClientScreen()),
+                    ),
                   ),
                   _QuickAction(
                     icon: LucideIcons.package,
                     label: 'Inventory',
-                    iconBg: Color(0x66d0d3cc), // tertiary-container/40
-                    iconColor: Color(0xFF5b5f5a),
+                    iconBg: const Color(0x66d0d3cc),
+                    iconColor: const Color(0xFF5b5f5a),
+                    onTap: () => widget.onTabSwitch(2),
                   ),
                   _QuickAction(
                     icon: LucideIcons.fileText,
-                    label: 'Invoice',
-                    iconBg: Color(0x4Dc2cab0), // outline-variant/30
-                    iconColor: Color(0xFF727a64),
+                    label: 'Sales History',
+                    iconBg: const Color(0x4Dc2cab0),
+                    iconColor: const Color(0xFF727a64),
+                    onTap: () => widget.onTabSwitch(1),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
 
               // ── Sales Analytics ──────────────────────────────────
               Container(
@@ -341,37 +364,44 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                                 color: AppColors.inkPrimary,
                               ),
                             ),
-                            Text(
-                              '4.9% Increase from last week',
-                              style: GoogleFonts.inter(
-                                fontSize: 12,
-                                color: AppColors.onSurfaceVariant,
+                            telemetryAsync.when(
+                              data: (m) => Text(
+                                '${m.totalProducts} products · ${m.lowStockItems} low stock',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  color: AppColors.onSurfaceVariant,
+                                ),
                               ),
+                              loading: () => const SizedBox.shrink(),
+                              error: (_, __) => const SizedBox.shrink(),
                             ),
                           ],
                         ),
-                        Icon(LucideIcons.trendingUp, size: 22, color: AppColors.primary),
+                        GestureDetector(
+                          onTap: () => widget.onTabSwitch(1),
+                          child: const Icon(LucideIcons.trendingUp, size: 22, color: AppColors.primary),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 20),
-                    // Bar chart
-                    SizedBox(
+                    // Bar chart — static shape, real data coming later
+                    const SizedBox(
                       height: 80,
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           _Bar(frac: 0.40),
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6),
                           _Bar(frac: 0.60),
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6),
                           _Bar(frac: 0.45),
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6),
                           _Bar(frac: 0.85, isHighlight: true),
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6),
                           _Bar(frac: 0.55),
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6),
                           _Bar(frac: 0.70),
-                          const SizedBox(width: 6),
+                          SizedBox(width: 6),
                           _Bar(frac: 0.95),
                         ],
                       ),
@@ -394,14 +424,14 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 ),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
 
               // ── Recent Activity ───────────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Recent Activity',
+                    'Recent Sales',
                     style: GoogleFonts.hankenGrotesk(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
@@ -409,52 +439,55 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                       letterSpacing: -0.2,
                     ),
                   ),
-                  Text(
-                    'See Details',
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.primary,
+                  GestureDetector(
+                    onTap: () => widget.onTabSwitch(1),
+                    child: Text(
+                      'See All',
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
 
-              telemetryAsync.when(
-                data: (metrics) => Column(
-                  children: [
-                    _ActivityItem(
-                      icon: LucideIcons.receipt,
-                      iconColor: AppColors.secondary,
-                      label: 'Today Sales',
-                      subtitle: 'Today • POS Sale',
-                      amount: metrics.todaySales,
-                      isPositive: true,
-                      status: 'Completed',
-                    ),
-                    const SizedBox(height: 12),
-                    _ActivityItem(
-                      icon: LucideIcons.creditCard,
-                      iconColor: AppColors.danger,
-                      label: 'Today Expenses',
-                      subtitle: 'Today • Expense',
-                      amount: metrics.todayExpenses,
-                      isPositive: false,
-                      status: 'Transfer',
-                    ),
-                    const SizedBox(height: 12),
-                    _ActivityItem(
-                      icon: LucideIcons.wallet,
-                      iconColor: AppColors.secondary,
-                      label: 'Cash Balance',
-                      subtitle: 'Current • Balance',
-                      amount: metrics.currentCashBalance.abs(),
-                      isPositive: metrics.currentCashBalance >= 0,
-                      status: 'Income',
-                    ),
-                  ],
-                ),
+              recentSalesAsync.when(
+                data: (sales) {
+                  if (sales.isEmpty) {
+                    return Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(32),
+                        child: Text(
+                          'No sales yet. Tap + to record one.',
+                          style: GoogleFonts.inter(color: AppColors.inkTertiary),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    );
+                  }
+                  final recent = sales.take(5).toList();
+                  return Column(
+                    children: recent.asMap().entries.map((e) {
+                      final sale = e.value;
+                      final isLast = e.key == recent.length - 1;
+                      return Padding(
+                        padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
+                        child: _ActivityItem(
+                          label: (sale.customerInfo?['name'] as String?)?.isNotEmpty == true
+                              ? sale.customerInfo!['name'] as String
+                              : 'Walk-in Customer',
+                          subtitle: _formatDate(sale.date),
+                          amount: sale.totalAmount ?? 0,
+                          isPositive: true,
+                          status: sale.paymentMethod ?? 'CASH',
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
                 loading: () => const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32),
@@ -467,11 +500,50 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 error: (e, _) => Text('Error: $e',
                     style: GoogleFonts.inter(color: AppColors.danger)),
               ),
+
+              const SizedBox(height: 24),
+
+              // ── Summary Row ──────────────────────────────────────
+              telemetryAsync.when(
+                data: (m) => Row(
+                  children: [
+                    _SummaryChip(
+                      label: 'Expenses',
+                      value: '₹${m.todayExpenses.toStringAsFixed(0)}',
+                      icon: LucideIcons.creditCard,
+                      color: AppColors.danger,
+                    ),
+                    const SizedBox(width: 12),
+                    _SummaryChip(
+                      label: 'Outstanding',
+                      value: '₹${m.outstandingCollections.toStringAsFixed(0)}',
+                      icon: LucideIcons.clock,
+                      color: AppColors.warning,
+                    ),
+                  ],
+                ),
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  String _formatDate(String? dateStr) {
+    if (dateStr == null) return 'Today';
+    try {
+      final dt = DateTime.parse(dateStr);
+      final now = DateTime.now();
+      if (dt.year == now.year && dt.month == now.month && dt.day == now.day) {
+        return 'Today · ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      }
+      return '${dt.day}/${dt.month}/${dt.year}';
+    } catch (_) {
+      return dateStr;
+    }
   }
 }
 
@@ -483,19 +555,21 @@ class _RevenueCard extends StatelessWidget {
   final double revenue;
   final bool visible;
   final VoidCallback onToggle;
+  final VoidCallback onPayout;
+  final VoidCallback onTopUp;
 
   const _RevenueCard({
     required this.revenue,
     required this.visible,
     required this.onToggle,
+    required this.onPayout,
+    required this.onTopUp,
   });
 
   @override
   Widget build(BuildContext context) {
-    // HTML: bg-primary-container (#a3e635) with lime shadow
-    // Text: on-primary-fixed (#121f00 near black)
     const textDark = Color(0xFF121f00);
-    const textMuted = Color(0x99121f00); // 60% opacity
+    const textMuted = Color(0x99121f00);
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -513,7 +587,6 @@ class _RevenueCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Label + eye toggle
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -522,7 +595,7 @@ class _RevenueCard extends StatelessWidget {
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
-                  letterSpacing: 0.08,
+                  letterSpacing: 0.05 * 11, // label-caps: 0.05em
                   color: textMuted,
                 ),
               ),
@@ -538,52 +611,50 @@ class _RevenueCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // Amount
           Text(
             visible ? '₹${revenue.toStringAsFixed(0)}' : '₹ ••••••',
             style: GoogleFonts.hankenGrotesk(
-              fontSize: 38,
+              fontSize: 40,
               fontWeight: FontWeight.w600,
               color: textDark,
-              letterSpacing: -0.03 * 38,
+              letterSpacing: -1.2, // -0.03em × 40px
             ),
           ),
 
           const SizedBox(height: 20),
 
-          // Action buttons
           Row(
             children: [
-              // Payout — bg-secondary (dark green), text-primary-container (lime)
+              // Payout → Add Expense
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: onPayout,
                   icon: const Icon(LucideIcons.send, size: 15),
-                  label: const Text('Payout'),
+                  label: const Text('Add Expense'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.secondary, // #48654d
-                    foregroundColor: AppColors.primaryContainer, // lime text
+                    backgroundColor: AppColors.secondary,
+                    foregroundColor: AppColors.primaryContainer,
                     elevation: 0,
                     shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(vertical: 13),
-                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12),
                   ),
                 ),
               ),
               const SizedBox(width: 12),
-              // Top Up — bg-primary-fixed (#b2f746), text-on-primary-fixed (#121f00)
+              // Top Up → Add Product
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: onTopUp,
                   icon: const Icon(LucideIcons.plus, size: 15),
-                  label: const Text('Top Up'),
+                  label: const Text('Add Stock'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFb2f746), // primary-fixed
+                    backgroundColor: const Color(0xFFb2f746),
                     foregroundColor: textDark,
                     elevation: 0,
                     shape: const StadiumBorder(),
                     padding: const EdgeInsets.symmetric(vertical: 13),
-                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
+                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 12),
                   ),
                 ),
               ),
@@ -604,45 +675,50 @@ class _QuickAction extends StatelessWidget {
   final String label;
   final Color iconBg;
   final Color iconColor;
+  final VoidCallback onTap;
 
   const _QuickAction({
     required this.icon,
     required this.label,
     required this.iconBg,
     required this.iconColor,
+    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [AppColors.cardShadow],
-      ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: iconBg,
-              shape: BoxShape.circle,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [AppColors.cardShadow],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: iconBg,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 22, color: iconColor),
             ),
-            child: Icon(icon, size: 22, color: iconColor),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              fontWeight: FontWeight.w500,
-              color: AppColors.inkPrimary,
+            const SizedBox(height: 12),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+                color: AppColors.inkPrimary,
+              ),
+              textAlign: TextAlign.center,
             ),
-            textAlign: TextAlign.center,
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -653,7 +729,7 @@ class _QuickAction extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _Bar extends StatelessWidget {
-  final double frac; // 0.0–1.0
+  final double frac;
   final bool isHighlight;
 
   const _Bar({required this.frac, this.isHighlight = false});
@@ -682,8 +758,6 @@ class _Bar extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _ActivityItem extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
   final String label;
   final String subtitle;
   final double amount;
@@ -691,14 +765,19 @@ class _ActivityItem extends StatelessWidget {
   final String status;
 
   const _ActivityItem({
-    required this.icon,
-    required this.iconColor,
     required this.label,
     required this.subtitle,
     required this.amount,
     required this.isPositive,
     required this.status,
   });
+
+  String _initials(String name) {
+    final parts = name.trim().split(' ');
+    if (parts.length >= 2) return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
+    if (parts[0].isNotEmpty) return parts[0][0].toUpperCase();
+    return '?';
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -711,19 +790,27 @@ class _ActivityItem extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Icon circle
+          // Avatar circle with initials — matches Stitch
           Container(
             width: 48,
             height: 48,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceContainer,
+            decoration: const BoxDecoration(
+              color: AppColors.secondaryContainer, // soft green
               shape: BoxShape.circle,
             ),
-            child: Icon(icon, size: 20, color: iconColor),
+            child: Center(
+              child: Text(
+                _initials(label),
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.secondary,
+                ),
+              ),
+            ),
           ),
           const SizedBox(width: 14),
 
-          // Label + subtitle
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -735,19 +822,22 @@ class _ActivityItem extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: AppColors.inkPrimary,
                   ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
+                const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.jetBrainsMono(
                     fontSize: 11,
-                    color: AppColors.onSurfaceVariant,
+                    color: AppColors.inkTertiary,
+                    letterSpacing: 0.2,
                   ),
                 ),
               ],
             ),
           ),
 
-          // Amount + status
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -756,19 +846,91 @@ class _ActivityItem extends StatelessWidget {
                 style: GoogleFonts.hankenGrotesk(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
-                  color: isPositive ? AppColors.inkPrimary : AppColors.inkPrimary,
+                  // Stitch: positive = dark inkPrimary, negative = danger red
+                  color: isPositive ? AppColors.inkPrimary : AppColors.danger,
                 ),
               ),
+              const SizedBox(height: 4),
               Text(
                 status,
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  color: AppColors.onSurfaceVariant,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 10,
+                  color: AppColors.inkTertiary,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.3,
                 ),
               ),
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Summary Chip
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SummaryChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+
+  const _SummaryChip({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [AppColors.cardShadow],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 16, color: color),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: GoogleFonts.inter(
+                      fontSize: 10,
+                      color: AppColors.inkTertiary,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    value,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.inkPrimary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
