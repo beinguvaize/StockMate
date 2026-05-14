@@ -5,16 +5,23 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/widgets/trial_banner.dart';
-import 'package:mobile_app/features/clients_suppliers/presentation/add_client_screen.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/add_supplier_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/crm_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
+import 'package:mobile_app/features/daybook/presentation/daybook_screen.dart';
 import 'package:mobile_app/features/finance/presentation/add_expense_screen.dart';
+import 'package:mobile_app/features/finance/presentation/finance_screen.dart';
+import 'package:mobile_app/features/hr/presentation/hr_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/inventory_screen.dart';
+import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart';
 import 'package:mobile_app/features/menu/presentation/menu_screen.dart';
+import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
+import 'package:mobile_app/features/reports/presentation/reports_screen.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/sales/presentation/sales_screen.dart';
+import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Shell
@@ -154,6 +161,9 @@ class DashboardHome extends ConsumerStatefulWidget {
 class _DashboardHomeState extends ConsumerState<DashboardHome> {
   bool _revenueVisible = true;
 
+  void _push(Widget screen) =>
+      Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
+
   @override
   Widget build(BuildContext context) {
     final telemetryAsync = ref.watch(telemetryProvider);
@@ -164,7 +174,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
       backgroundColor: AppColors.canvas,
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 120),
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -179,11 +189,10 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                     style: GoogleFonts.hankenGrotesk(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.secondary, // forest deep #48654d — matches Stitch
+                      color: AppColors.secondary,
                       letterSpacing: -0.3,
                     ),
                   ),
-                  // Notification bell — red dot on low stock
                   GestureDetector(
                     onTap: () => widget.onTabSwitch(2),
                     child: Stack(
@@ -214,7 +223,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 ],
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
               // ── Greeting ─────────────────────────────────────────
               tenantAsync.when(
@@ -226,19 +235,19 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Hi, $name',
+                        'Hi, $name 👋',
                         style: GoogleFonts.hankenGrotesk(
-                          fontSize: 26,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 24,
+                          fontWeight: FontWeight.w800,
                           color: AppColors.inkPrimary,
-                          letterSpacing: -0.3,
+                          letterSpacing: -0.5,
                         ),
                       ),
                       Text(
-                        'Welcome Back!',
+                        'Here\'s your business overview',
                         style: GoogleFonts.inter(
-                          fontSize: 15,
-                          color: AppColors.onSurfaceVariant,
+                          fontSize: 14,
+                          color: AppColors.inkSecondary,
                         ),
                       ),
                       if (ctx != null && ctx.tenant.status == 'TRIAL' && ctx.trialDaysLeft <= 7) ...[
@@ -252,22 +261,49 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 error: (_, __) => const SizedBox.shrink(),
               ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
 
-              // ── Revenue Hero Card (LIME bg) ───────────────────────
+              // ── EXPENSES + OUTSTANDING — TOP ──────────────────────
+              telemetryAsync.when(
+                data: (m) => Row(
+                  children: [
+                    _SummaryChip(
+                      label: 'Today\'s Expenses',
+                      value: '₹${m.todayExpenses.toStringAsFixed(0)}',
+                      icon: LucideIcons.creditCard,
+                      color: AppColors.danger,
+                      onTap: () => _push(const FinanceScreen()),
+                    ),
+                    const SizedBox(width: 12),
+                    _SummaryChip(
+                      label: 'Outstanding',
+                      value: '₹${m.outstandingCollections.toStringAsFixed(0)}',
+                      icon: LucideIcons.clock,
+                      color: AppColors.warning,
+                      onTap: () => _push(const PurchasesScreen()),
+                    ),
+                  ],
+                ),
+                loading: () => Row(
+                  children: [
+                    _SummaryChipSkeleton(),
+                    const SizedBox(width: 12),
+                    _SummaryChipSkeleton(),
+                  ],
+                ),
+                error: (_, __) => const SizedBox.shrink(),
+              ),
+
+              const SizedBox(height: 20),
+
+              // ── Revenue Hero Card (LIME) ──────────────────────────
               telemetryAsync.when(
                 data: (metrics) => _RevenueCard(
                   revenue: metrics.todaySales,
                   visible: _revenueVisible,
                   onToggle: () => setState(() => _revenueVisible = !_revenueVisible),
-                  onPayout: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
-                  ),
-                  onTopUp: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AddProductScreen()),
-                  ),
+                  onPayout: () => _push(const AddExpenseScreen()),
+                  onTopUp: () => _push(const AddProductScreen()),
                 ),
                 loading: () => _RevenueCard(
                   revenue: 0,
@@ -279,69 +315,134 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 error: (_, __) => const SizedBox.shrink(),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
 
-              // ── Common Tasks ─────────────────────────────────────
-              Text(
-                'Common Tasks',
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.inkPrimary,
-                  letterSpacing: -0.3,
-                ),
+              // ── All Features ──────────────────────────────────────
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(LucideIcons.layoutGrid, size: 14, color: AppColors.primary),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'ALL FEATURES',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
+
               GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                childAspectRatio: 1.1,
+                crossAxisCount: 3,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 0.9,
                 children: [
-                  _QuickAction(
+                  _FeatureTile(
                     icon: LucideIcons.shoppingBag,
                     label: 'New Sale',
-                    iconBg: const Color(0x33a3e635),
-                    iconColor: AppColors.primary,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AddSaleScreen()),
-                    ),
+                    color: AppColors.primary,
+                    bg: AppColors.primaryContainer.withValues(alpha: 0.35),
+                    isPrimary: true,
+                    onTap: () => _push(const AddSaleScreen()),
                   ),
-                  _QuickAction(
-                    icon: LucideIcons.userPlus,
-                    label: 'Add Client',
-                    iconBg: const Color(0x33c9ebcc),
-                    iconColor: AppColors.secondary,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AddClientScreen()),
-                    ),
-                  ),
-                  _QuickAction(
-                    icon: LucideIcons.package,
-                    label: 'Inventory',
-                    iconBg: const Color(0x66d0d3cc),
-                    iconColor: const Color(0xFF5b5f5a),
-                    onTap: () => widget.onTabSwitch(2),
-                  ),
-                  _QuickAction(
+                  _FeatureTile(
                     icon: LucideIcons.fileText,
                     label: 'Sales History',
-                    iconBg: const Color(0x4Dc2cab0),
-                    iconColor: const Color(0xFF727a64),
+                    color: AppColors.primary,
+                    bg: AppColors.primaryContainer.withValues(alpha: 0.15),
                     onTap: () => widget.onTabSwitch(1),
+                  ),
+                  _FeatureTile(
+                    icon: LucideIcons.package,
+                    label: 'Inventory',
+                    color: const Color(0xFF5b5f5a),
+                    bg: const Color(0x22d0d3cc),
+                    onTap: () => widget.onTabSwitch(2),
+                  ),
+                  _FeatureTile(
+                    icon: LucideIcons.users,
+                    label: 'Clients',
+                    color: AppColors.secondary,
+                    bg: AppColors.secondaryContainer.withValues(alpha: 0.5),
+                    onTap: () => widget.onTabSwitch(3),
+                  ),
+                  _FeatureTile(
+                    icon: LucideIcons.building2,
+                    label: 'Suppliers',
+                    color: AppColors.secondary,
+                    bg: AppColors.secondaryContainer.withValues(alpha: 0.35),
+                    onTap: () => _push(const AddSupplierScreen()),
+                  ),
+                  _FeatureTile(
+                    icon: LucideIcons.shoppingCart,
+                    label: 'Purchases',
+                    color: AppColors.warning,
+                    bg: AppColors.warning.withValues(alpha: 0.1),
+                    onTap: () => _push(const PurchasesScreen()),
+                  ),
+                  _FeatureTile(
+                    icon: LucideIcons.creditCard,
+                    label: 'Expenses',
+                    color: AppColors.danger,
+                    bg: AppColors.danger.withValues(alpha: 0.08),
+                    onTap: () => _push(const FinanceScreen()),
+                  ),
+                  _FeatureTile(
+                    icon: LucideIcons.bookOpen,
+                    label: 'Day Book',
+                    color: AppColors.info,
+                    bg: AppColors.info.withValues(alpha: 0.1),
+                    onTap: () => _push(const DayBookScreen()),
+                  ),
+                  _FeatureTile(
+                    icon: LucideIcons.barChart2,
+                    label: 'Reports',
+                    color: AppColors.primary,
+                    bg: AppColors.primaryContainer.withValues(alpha: 0.2),
+                    onTap: () => _push(const ReportsScreen()),
+                  ),
+                  _FeatureTile(
+                    icon: LucideIcons.users2,
+                    label: 'HR & Payroll',
+                    color: AppColors.secondary,
+                    bg: AppColors.secondaryContainer.withValues(alpha: 0.4),
+                    onTap: () => _push(const HRScreen()),
+                  ),
+                  _FeatureTile(
+                    icon: LucideIcons.truck,
+                    label: 'Fleet',
+                    color: const Color(0xFF5b5f5a),
+                    bg: const Color(0x22d0d3cc),
+                    onTap: () => _push(const LogisticsScreen()),
+                  ),
+                  _FeatureTile(
+                    icon: LucideIcons.settings,
+                    label: 'Settings',
+                    color: AppColors.inkSecondary,
+                    bg: Colors.black.withValues(alpha: 0.05),
+                    onTap: () => _push(const SettingsScreen()),
                   ),
                 ],
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
 
               // ── Sales Analytics ──────────────────────────────────
               Container(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(24),
@@ -384,7 +485,6 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    // Bar chart — static shape, real data coming later
                     const SizedBox(
                       height: 80,
                       child: Row(
@@ -424,20 +524,33 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 ),
               ),
 
-              const SizedBox(height: 40),
+              const SizedBox(height: 32),
 
-              // ── Recent Activity ───────────────────────────────────
+              // ── Recent Sales ──────────────────────────────────────
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Recent Sales',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkPrimary,
-                      letterSpacing: -0.2,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer.withValues(alpha: 0.3),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(LucideIcons.receipt, size: 14, color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'RECENT SALES',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
                   ),
                   GestureDetector(
                     onTap: () => widget.onTabSwitch(1),
@@ -452,14 +565,14 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 14),
 
               recentSalesAsync.when(
                 data: (sales) {
                   if (sales.isEmpty) {
                     return Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(32),
+                        padding: const EdgeInsets.symmetric(vertical: 24),
                         child: Text(
                           'No sales yet. Tap + to record one.',
                           style: GoogleFonts.inter(color: AppColors.inkTertiary),
@@ -474,7 +587,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                       final sale = e.value;
                       final isLast = e.key == recent.length - 1;
                       return Padding(
-                        padding: EdgeInsets.only(bottom: isLast ? 0 : 12),
+                        padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
                         child: _ActivityItem(
                           label: (sale.customerInfo?['name'] as String?)?.isNotEmpty == true
                               ? sale.customerInfo!['name'] as String
@@ -500,31 +613,6 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 error: (e, _) => Text('Error: $e',
                     style: GoogleFonts.inter(color: AppColors.danger)),
               ),
-
-              const SizedBox(height: 24),
-
-              // ── Summary Row ──────────────────────────────────────
-              telemetryAsync.when(
-                data: (m) => Row(
-                  children: [
-                    _SummaryChip(
-                      label: 'Expenses',
-                      value: '₹${m.todayExpenses.toStringAsFixed(0)}',
-                      icon: LucideIcons.creditCard,
-                      color: AppColors.danger,
-                    ),
-                    const SizedBox(width: 12),
-                    _SummaryChip(
-                      label: 'Outstanding',
-                      value: '₹${m.outstandingCollections.toStringAsFixed(0)}',
-                      icon: LucideIcons.clock,
-                      color: AppColors.warning,
-                    ),
-                  ],
-                ),
-                loading: () => const SizedBox.shrink(),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
             ],
           ),
         ),
@@ -548,7 +636,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Revenue Card — LIME background (matches HTML bg-primary-container)
+// Revenue Card
 // ─────────────────────────────────────────────────────────────────────────────
 
 class _RevenueCard extends StatelessWidget {
@@ -574,7 +662,7 @@ class _RevenueCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.primaryContainer, // LIME #a3e635
+        color: AppColors.primaryContainer,
         borderRadius: BorderRadius.circular(32),
         boxShadow: [
           BoxShadow(
@@ -591,11 +679,11 @@ class _RevenueCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'TOTAL REVENUE',
+                'TODAY\'S REVENUE',
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 11,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.05 * 11, // label-caps: 0.05em
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.5,
                   color: textMuted,
                 ),
               ),
@@ -610,22 +698,18 @@ class _RevenueCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-
           Text(
             visible ? '₹${revenue.toStringAsFixed(0)}' : '₹ ••••••',
             style: GoogleFonts.hankenGrotesk(
               fontSize: 40,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w900,
               color: textDark,
-              letterSpacing: -1.2, // -0.03em × 40px
+              letterSpacing: -1.5,
             ),
           ),
-
           const SizedBox(height: 20),
-
           Row(
             children: [
-              // Payout → Add Expense
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: onPayout,
@@ -642,7 +726,6 @@ class _RevenueCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 12),
-              // Top Up → Add Product
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: onTopUp,
@@ -667,22 +750,24 @@ class _RevenueCard extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Quick Action Card
+// Feature Tile (3-col grid)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _QuickAction extends StatelessWidget {
+class _FeatureTile extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color iconBg;
-  final Color iconColor;
+  final Color color;
+  final Color bg;
+  final bool isPrimary;
   final VoidCallback onTap;
 
-  const _QuickAction({
+  const _FeatureTile({
     required this.icon,
     required this.label,
-    required this.iconBg,
-    required this.iconColor,
+    required this.color,
+    required this.bg,
     required this.onTap,
+    this.isPrimary = false,
   });
 
   @override
@@ -690,34 +775,134 @@ class _QuickAction extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(24),
+          color: isPrimary ? AppColors.primary : Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: isPrimary ? Colors.transparent : Colors.black.withValues(alpha: 0.06),
+          ),
           boxShadow: [AppColors.cardShadow],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: iconBg,
-                shape: BoxShape.circle,
+                color: isPrimary ? Colors.white.withValues(alpha: 0.2) : bg,
+                borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(icon, size: 22, color: iconColor),
+              child: Icon(
+                icon,
+                size: 20,
+                color: isPrimary ? Colors.white : color,
+              ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             Text(
               label,
               style: GoogleFonts.inter(
-                fontSize: 13,
-                fontWeight: FontWeight.w500,
-                color: AppColors.inkPrimary,
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: isPrimary ? Colors.white : AppColors.inkPrimary,
               ),
               textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Summary Chip (top row)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SummaryChip extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  const _SummaryChip({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: color.withValues(alpha: 0.15)),
+            boxShadow: [AppColors.cardShadow],
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, size: 16, color: color),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        fontSize: 10,
+                        color: AppColors.inkTertiary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    Text(
+                      value,
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Skeleton placeholder while loading
+class _SummaryChipSkeleton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        height: 64,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [AppColors.cardShadow],
         ),
       ),
     );
@@ -782,35 +967,34 @@ class _ActivityItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
         boxShadow: [AppColors.cardShadow],
       ),
       child: Row(
         children: [
-          // Avatar circle with initials — matches Stitch
           Container(
-            width: 48,
-            height: 48,
+            width: 44,
+            height: 44,
             decoration: const BoxDecoration(
-              color: AppColors.secondaryContainer, // soft green
+              color: AppColors.secondaryContainer,
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
                 _initials(label),
                 style: GoogleFonts.hankenGrotesk(
-                  fontSize: 16,
+                  fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AppColors.secondary,
                 ),
               ),
             ),
           ),
-          const SizedBox(width: 14),
-
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -818,7 +1002,7 @@ class _ActivityItem extends StatelessWidget {
                 Text(
                   label,
                   style: GoogleFonts.inter(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.inkPrimary,
                   ),
@@ -829,7 +1013,7 @@ class _ActivityItem extends StatelessWidget {
                 Text(
                   subtitle,
                   style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: AppColors.inkTertiary,
                     letterSpacing: 0.2,
                   ),
@@ -837,100 +1021,37 @@ class _ActivityItem extends StatelessWidget {
               ],
             ),
           ),
-
           Column(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
                 '${isPositive ? '+' : '-'}₹${amount.abs().toStringAsFixed(0)}',
                 style: GoogleFonts.hankenGrotesk(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  // Stitch: positive = dark inkPrimary, negative = danger red
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
                   color: isPositive ? AppColors.inkPrimary : AppColors.danger,
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                status,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
-                  color: AppColors.inkTertiary,
-                  fontWeight: FontWeight.w500,
-                  letterSpacing: 0.3,
+              const SizedBox(height: 3),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  status,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 9,
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.3,
+                  ),
                 ),
               ),
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Summary Chip
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SummaryChip extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _SummaryChip({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          boxShadow: [AppColors.cardShadow],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 16, color: color),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 10,
-                      color: AppColors.inkTertiary,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  Text(
-                    value,
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkPrimary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
