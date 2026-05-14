@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/main.dart';
 import 'package:drift/drift.dart' as drift;
 
@@ -43,7 +44,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
             itemBuilder: (context, index) {
               final route = routes[index];
               return Container(
-                margin: const EdgeInsets.bottom(16),
+                margin: const EdgeInsets.only(bottom: 16),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: AppColors.surface,
@@ -120,7 +121,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   void _updateStatus(String id, String status) async {
     final dbStore = ref.read(databaseProvider);
     await (dbStore.update(dbStore.routes)..where((t) => t.id.equals(id)))
-        .write(drift.RoutesCompanion(status: drift.Value(status)));
+        .write(RoutesCompanion(status: drift.Value(status)));
     
     // Sync to cloud
     ref.read(syncServiceProvider).queueMutation(
@@ -137,7 +138,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
     final odo = double.tryParse(_odometerController.text) ?? 0;
 
     await (dbStore.update(dbStore.routes)..where((t) => t.id.equals(id)))
-        .write(drift.RoutesCompanion(
+        .write(RoutesCompanion(
           status: const drift.Value('COMPLETED'),
           finalOdometer: drift.Value(odo),
         ));

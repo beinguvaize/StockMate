@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
@@ -20,8 +21,29 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
   String _selectedStatus = 'ACTIVE';
   bool _isLoading = false;
 
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _contactController.dispose();
+    _phoneController.dispose();
+    _balanceController.dispose();
+    super.dispose();
+  }
+
   Future<void> _submit() async {
-    if (_nameController.text.isEmpty) return;
+    if (_nameController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Business name required',
+              style: GoogleFonts.inter(color: Colors.white)),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
     try {
@@ -37,13 +59,27 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
         ref.invalidate(clientsProvider);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Client added successfully!', style: TextStyle(color: AppColors.surface)), backgroundColor: AppColors.inkPrimary),
+          SnackBar(
+            content: Text('Client added successfully',
+                style: GoogleFonts.inter(color: AppColors.inkPrimary)),
+            backgroundColor: AppColors.primaryContainer,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger),
+          SnackBar(
+            content: Text('Error: $e',
+                style: GoogleFonts.inter(color: Colors.white)),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     } finally {
@@ -56,83 +92,300 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        title: const Text('NEW CLIENT.', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20, letterSpacing: -0.5)),
         backgroundColor: AppColors.canvas,
-        foregroundColor: AppColors.inkPrimary,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        leading: IconButton(
+          icon: const Icon(LucideIcons.arrowLeft,
+              size: 20, color: AppColors.inkPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Add Client',
+              style: GoogleFonts.hankenGrotesk(
+                color: AppColors.inkPrimary,
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+              ),
+            ),
+            Text(
+              'CRM',
+              style: GoogleFonts.jetBrainsMono(
+                color: AppColors.secondary,
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Text('REGISTER BUSINESS OUTLET DETAILS', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: AppColors.inkSecondary, letterSpacing: 1)),
-            const SizedBox(height: 24),
-            _buildTextField('Business Name', _nameController, LucideIcons.building),
-            const SizedBox(height: 16),
-            _buildTextField('Primary Contact Person', _contactController, LucideIcons.userCheck),
-            const SizedBox(height: 16),
-            _buildTextField('Phone Number', _phoneController, LucideIcons.phone),
-            const SizedBox(height: 16),
-            _buildTextField('Opening Balance', _balanceController, LucideIcons.indianRupee, isNumber: true),
-            const SizedBox(height: 16),
-
-            // Status Dropdown
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
-              ),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: _selectedStatus,
-                  isExpanded: true,
-                  icon: const Icon(LucideIcons.chevronDown, color: AppColors.inkSecondary),
-                  items: ['ACTIVE', 'INACTIVE'].map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value == 'ACTIVE' ? 'ACTIVE ACCOUNT' : 'INACTIVE / ON HOLD',
-                        style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-                    );
-                  }).toList(),
-                  onChanged: (v) => setState(() => _selectedStatus = v!),
+            // Avatar preview
+            Center(
+              child: Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: AppColors.secondaryContainer,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: ValueListenableBuilder(
+                    valueListenable: _nameController,
+                    builder: (_, __, ___) {
+                      final initial = _nameController.text.isNotEmpty
+                          ? _nameController.text[0].toUpperCase()
+                          : '?';
+                      return Text(
+                        initial,
+                        style: GoogleFonts.hankenGrotesk(
+                          color: AppColors.secondary,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      );
+                    },
+                  ),
                 ),
               ),
             ),
-            
-            const SizedBox(height: 32),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _submit,
-              child: _isLoading 
-                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: AppColors.inkPrimary, strokeWidth: 2))
-                : const Text('ADD CLIENT'),
+            const SizedBox(height: 28),
+
+            // Business info
+            _SectionHeader(title: 'BUSINESS INFO', icon: LucideIcons.building2),
+            const SizedBox(height: 12),
+            _buildField(
+              label: 'Business Name',
+              hint: 'e.g. Sunrise Traders',
+              controller: _nameController,
+              icon: LucideIcons.building2,
             ),
+            const SizedBox(height: 12),
+            _buildField(
+              label: 'Contact Person',
+              hint: 'e.g. John Doe',
+              controller: _contactController,
+              icon: LucideIcons.userCheck,
+            ),
+            const SizedBox(height: 12),
+            _buildField(
+              label: 'Phone Number',
+              hint: '+91 00000 00000',
+              controller: _phoneController,
+              icon: LucideIcons.phone,
+              keyboardType: TextInputType.phone,
+            ),
+
+            const SizedBox(height: 28),
+
+            // Account details
+            _SectionHeader(
+                title: 'ACCOUNT DETAILS', icon: LucideIcons.indianRupee),
+            const SizedBox(height: 12),
+            _buildField(
+              label: 'Opening Balance',
+              hint: '0.00',
+              controller: _balanceController,
+              icon: LucideIcons.indianRupee,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+            ),
+            const SizedBox(height: 12),
+
+            // Status selector
+            Row(
+              children: [
+                _StatusChip(
+                  label: 'Active',
+                  selected: _selectedStatus == 'ACTIVE',
+                  color: AppColors.success,
+                  onTap: () => setState(() => _selectedStatus = 'ACTIVE'),
+                ),
+                const SizedBox(width: 10),
+                _StatusChip(
+                  label: 'Inactive',
+                  selected: _selectedStatus == 'INACTIVE',
+                  color: AppColors.danger,
+                  onTap: () => setState(() => _selectedStatus = 'INACTIVE'),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 32),
           ],
+        ),
+      ),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _submit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryContainer,
+              foregroundColor: AppColors.inkPrimary,
+              disabledBackgroundColor:
+                  AppColors.primaryContainer.withValues(alpha: 0.4),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: const StadiumBorder(),
+            ),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        color: AppColors.inkPrimary, strokeWidth: 2.5),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(LucideIcons.userPlus, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        'ADD CLIENT',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildTextField(String label, TextEditingController controller, IconData icon, {bool isNumber = false}) {
+  Widget _buildField({
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    required IconData icon,
+    TextInputType? keyboardType,
+  }) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
       ),
       child: TextField(
         controller: controller,
-        keyboardType: isNumber ? TextInputType.number : TextInputType.text,
+        keyboardType: keyboardType ?? TextInputType.text,
+        style: GoogleFonts.inter(
+          fontSize: 14,
+          color: AppColors.inkPrimary,
+          fontWeight: FontWeight.w500,
+        ),
         decoration: InputDecoration(
-          prefixIcon: Icon(icon, size: 20, color: AppColors.inkSecondary),
+          prefixIcon: Icon(icon, size: 18, color: AppColors.inkSecondary),
           border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          hintText: label,
-          hintStyle: TextStyle(color: AppColors.inkSecondary.withValues(alpha: 0.5), fontWeight: FontWeight.w500),
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          hintText: hint,
+          hintStyle: GoogleFonts.inter(
+            color: AppColors.inkSecondary.withValues(alpha: 0.5),
+            fontSize: 14,
+          ),
+          labelText: label,
+          labelStyle: GoogleFonts.jetBrainsMono(
+            color: AppColors.inkSecondary,
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.5,
+          ),
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(
+                color: AppColors.primaryContainer, width: 1.5),
+          ),
+          enabledBorder: InputBorder.none,
         ),
       ),
+    );
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+  const _StatusChip({
+    required this.label,
+    required this.selected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.12) : AppColors.surface,
+          borderRadius: BorderRadius.circular(30),
+          border: Border.all(
+            color: selected ? color : Colors.black.withValues(alpha: 0.08),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.jetBrainsMono(
+            color: selected ? color : AppColors.inkSecondary,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  const _SectionHeader({required this.title, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.primaryContainer.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 14, color: AppColors.primary),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: GoogleFonts.jetBrainsMono(
+            color: AppColors.primary,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.5,
+          ),
+        ),
+      ],
     );
   }
 }
