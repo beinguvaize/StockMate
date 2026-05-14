@@ -6,12 +6,20 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 
-class SalesScreen extends ConsumerWidget {
+class SalesScreen extends ConsumerStatefulWidget {
   const SalesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SalesScreen> createState() => _SalesScreenState();
+}
+
+class _SalesScreenState extends ConsumerState<SalesScreen> {
+  int _filterIndex = 0; // 0=All, 1=Paid, 2=Credit
+
+  @override
+  Widget build(BuildContext context) {
     final salesAsync = ref.watch(recentSalesProvider);
+    final filters = ['All', 'Paid', 'Credit'];
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -20,23 +28,24 @@ class SalesScreen extends ConsumerWidget {
           context,
           MaterialPageRoute(builder: (_) => const AddSaleScreen()),
         ),
-        backgroundColor: AppColors.primaryContainer,
-        foregroundColor: AppColors.primary,
-        elevation: 0,
-        child: const Icon(LucideIcons.plus, size: 24),
+        backgroundColor: AppColors.secondary,
+        foregroundColor: AppColors.primaryContainer,
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: const Icon(LucideIcons.plus, size: 26),
       ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ────────────────────────────────────────────
+            // ── Header ─────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Sales',
+                    'Sales History',
                     style: GoogleFonts.hankenGrotesk(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
@@ -44,49 +53,49 @@ class SalesScreen extends ConsumerWidget {
                       letterSpacing: -0.3,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [AppColors.cardShadow],
+                  GestureDetector(
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const AddSaleScreen()),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(LucideIcons.calendar, size: 14, color: AppColors.inkTertiary),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Today',
-                          style: GoogleFonts.inter(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.inkSecondary,
-                          ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryContainer,
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: Text(
+                        'New Sale',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
                         ),
-                      ],
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
 
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
 
-            // ── Summary bar ───────────────────────────────────────
+            // ── Stats row ──────────────────────────────────────────
             salesAsync.maybeWhen(
               data: (sales) {
                 final total = sales.fold(0.0, (sum, s) => sum + (s.totalAmount ?? 0));
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [AppColors.cardShadow],
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -94,66 +103,130 @@ class SalesScreen extends ConsumerWidget {
                                 'TOTAL TODAY',
                                 style: GoogleFonts.jetBrainsMono(
                                   fontSize: 10,
-                                  color: Colors.white60,
-                                  letterSpacing: 0.06,
+                                  color: AppColors.inkTertiary,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
+                              const SizedBox(height: 4),
                               Text(
                                 '₹${total.toStringAsFixed(0)}',
                                 style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 22,
+                                  fontSize: 28,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.white,
+                                  color: AppColors.danger,
+                                  letterSpacing: -0.5,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        Container(
-                          width: 1,
-                          height: 40,
-                          color: Colors.white24,
-                          margin: const EdgeInsets.symmetric(horizontal: 16),
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              'COUNT',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 10,
-                                color: Colors.white60,
-                                letterSpacing: 0.06,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [AppColors.cardShadow],
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'TRANSACTIONS',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 10,
+                                  color: AppColors.inkTertiary,
+                                  letterSpacing: 0.5,
+                                ),
                               ),
-                            ),
-                            Text(
-                              '${sales.length} sales',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
+                              const SizedBox(height: 4),
+                              Text(
+                                '${sales.length}',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.inkPrimary,
+                                  letterSpacing: -0.5,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 );
               },
               orElse: () => const SizedBox.shrink(),
             ),
 
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
 
-            // ── Sales list ────────────────────────────────────────
+            // ── Filter chips ────────────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Recent Sales',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.inkPrimary,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: List.generate(filters.length, (i) {
+                      final isActive = _filterIndex == i;
+                      return Padding(
+                        padding: EdgeInsets.only(left: i == 0 ? 0 : 8),
+                        child: GestureDetector(
+                          onTap: () => setState(() => _filterIndex = i),
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: isActive ? AppColors.primaryContainer : Colors.white,
+                              borderRadius: BorderRadius.circular(100),
+                              boxShadow: [AppColors.cardShadow],
+                            ),
+                            child: Text(
+                              filters[i],
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isActive ? AppColors.primary : AppColors.inkTertiary,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Sales list ──────────────────────────────────────────
             Expanded(
               child: salesAsync.when(
-                data: (sales) {
+                data: (allSales) {
+                  final sales = allSales.where((s) {
+                    if (_filterIndex == 1) return s.paymentStatus == 'PAID';
+                    if (_filterIndex == 2) return s.paymentStatus != 'PAID';
+                    return true;
+                  }).toList();
+
                   if (sales.isEmpty) {
                     return Center(
                       child: Text(
-                        'No recent sales found.',
+                        'No sales found.',
                         style: GoogleFonts.inter(color: AppColors.inkTertiary),
                       ),
                     );
@@ -167,6 +240,7 @@ class SalesScreen extends ConsumerWidget {
                       final sale = sales[index];
                       final customerName = sale.customerInfo?['name'] as String? ?? 'Walk-in Customer';
                       final isPaid = sale.paymentStatus == 'PAID';
+                      final initial = customerName.isNotEmpty ? customerName[0].toUpperCase() : 'W';
 
                       return Container(
                         padding: const EdgeInsets.all(16),
@@ -177,22 +251,28 @@ class SalesScreen extends ConsumerWidget {
                         ),
                         child: Row(
                           children: [
-                            // Status icon
+                            // Avatar
                             Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryContainer.withValues(alpha: 0.3),
-                                borderRadius: BorderRadius.circular(12),
+                              width: 44,
+                              height: 44,
+                              decoration: const BoxDecoration(
+                                color: AppColors.secondaryContainer,
+                                shape: BoxShape.circle,
                               ),
-                              child: Icon(
-                                sale.status == 'COMPLETED' ? LucideIcons.checkCircle2 : LucideIcons.clock,
-                                color: sale.status == 'COMPLETED' ? AppColors.success : AppColors.warning,
-                                size: 20,
+                              child: Center(
+                                child: Text(
+                                  initial,
+                                  style: GoogleFonts.hankenGrotesk(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.secondary,
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 14),
 
-                            // Name + invoice
+                            // Name + invoice ID
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,6 +285,7 @@ class SalesScreen extends ConsumerWidget {
                                       color: AppColors.inkPrimary,
                                     ),
                                   ),
+                                  const SizedBox(height: 2),
                                   Text(
                                     '#${sale.id.substring(0, 8).toUpperCase()}',
                                     style: GoogleFonts.jetBrainsMono(
@@ -216,7 +297,7 @@ class SalesScreen extends ConsumerWidget {
                               ),
                             ),
 
-                            // Amount + status
+                            // Amount + status badge
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
@@ -233,7 +314,7 @@ class SalesScreen extends ConsumerWidget {
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
                                     color: isPaid
-                                        ? AppColors.success.withValues(alpha: 0.1)
+                                        ? AppColors.success.withValues(alpha: 0.12)
                                         : AppColors.warning.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(8),
                                   ),

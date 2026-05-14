@@ -42,16 +42,17 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           context,
           MaterialPageRoute(builder: (_) => const AddProductScreen()),
         ),
-        backgroundColor: AppColors.primaryContainer,
-        foregroundColor: AppColors.primary,
-        elevation: 0,
-        child: const Icon(LucideIcons.plus, size: 24),
+        backgroundColor: AppColors.secondary,
+        foregroundColor: AppColors.primaryContainer,
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: const Icon(LucideIcons.plus, size: 26),
       ),
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Header ────────────────────────────────────────────
+            // ── Header ─────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
               child: Text(
@@ -67,11 +68,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
             const SizedBox(height: 16),
 
-            // ── Search bar ────────────────────────────────────────
+            // ── Search bar ──────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: TextField(
                 controller: _searchController,
+                style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkPrimary),
                 decoration: InputDecoration(
                   hintText: 'Search products, SKU…',
                   hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.inkTertiary),
@@ -97,7 +99,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
             const SizedBox(height: 16),
 
-            // ── Filter chips ──────────────────────────────────────
+            // ── Filter chips ───────────────────────────────────────
             SizedBox(
               height: 36,
               child: ListView.separated(
@@ -114,14 +116,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                       decoration: BoxDecoration(
                         color: isActive ? AppColors.primaryContainer : Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+                        borderRadius: BorderRadius.circular(100),
+                        boxShadow: [AppColors.cardShadow],
                       ),
                       child: Text(
                         filters[i],
@@ -139,7 +135,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
             const SizedBox(height: 16),
 
-            // ── Product list ──────────────────────────────────────
+            // ── Product list ───────────────────────────────────────
             Expanded(
               child: ref.watch(filteredProductsProvider).when(
                 data: (allProducts) {
@@ -149,101 +145,241 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     return true;
                   }).toList();
 
-                  if (products.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'No products found.',
-                        style: GoogleFonts.inter(color: AppColors.inkTertiary),
-                      ),
-                    );
-                  }
+                  final lowCount = allProducts.where((p) => p.stock <= 10).length;
 
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(24, 8, 24, 100),
-                    itemCount: products.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final product = products[index];
-                      final stock = product.stock.toInt();
-                      final isLow = stock <= 10;
-                      final isOut = stock == 0;
-
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [AppColors.cardShadow],
-                        ),
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Stats row
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
                         child: Row(
                           children: [
-                            // Category icon
-                            Container(
-                              width: 48,
-                              height: 48,
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryContainer,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(LucideIcons.package, size: 22, color: AppColors.primary),
-                            ),
-                            const SizedBox(width: 14),
-
-                            // Product name + SKU
                             Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    product.name,
-                                    style: GoogleFonts.hankenGrotesk(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.inkPrimary,
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [AppColors.cardShadow],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'TOTAL ITEMS',
+                                      style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 10,
+                                        color: AppColors.inkTertiary,
+                                        letterSpacing: 0.5,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Text(
-                                    'SKU: ${product.sku ?? "N/A"}',
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 11,
-                                      color: AppColors.inkTertiary,
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${allProducts.length}',
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.primary,
+                                        letterSpacing: -0.5,
+                                      ),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
                               ),
                             ),
-
-                            // Stock + price
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  isOut ? 'Out' : '$stock units',
-                                  style: GoogleFonts.hankenGrotesk(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: isOut
-                                        ? AppColors.danger
-                                        : isLow
-                                            ? AppColors.warning
-                                            : AppColors.inkPrimary,
-                                  ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Container(
+                                padding: const EdgeInsets.all(20),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [AppColors.cardShadow],
                                 ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '₹${product.sellingPrice.toStringAsFixed(0)}',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    color: AppColors.inkTertiary,
-                                  ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'LOW STOCK',
+                                      style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 10,
+                                        color: AppColors.inkTertiary,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '$lowCount',
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 28,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.warning,
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                  ],
                                 ),
-                              ],
+                              ),
                             ),
                           ],
                         ),
-                      );
-                    },
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Section header
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Inventory Items',
+                              style: GoogleFonts.hankenGrotesk(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.inkPrimary,
+                              ),
+                            ),
+                            TextButton(
+                              onPressed: () => setState(() => _filterIndex = 0),
+                              style: TextButton.styleFrom(
+                                foregroundColor: AppColors.primary,
+                                padding: EdgeInsets.zero,
+                                minimumSize: Size.zero,
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              ),
+                              child: Text(
+                                'VIEW ALL',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      // List
+                      Expanded(
+                        child: products.isEmpty
+                            ? Center(
+                                child: Text(
+                                  'No products found.',
+                                  style: GoogleFonts.inter(color: AppColors.inkTertiary),
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.fromLTRB(24, 0, 24, 100),
+                                itemCount: products.length,
+                                separatorBuilder: (_, __) => const SizedBox(height: 12),
+                                itemBuilder: (context, index) {
+                                  final product = products[index];
+                                  final stock = product.stock.toInt();
+                                  final isLow = stock > 0 && stock <= 10;
+                                  final isOut = stock == 0;
+
+                                  Color statusColor;
+                                  String statusLabel;
+                                  if (isOut) {
+                                    statusColor = AppColors.danger;
+                                    statusLabel = 'Out of Stock';
+                                  } else if (isLow) {
+                                    statusColor = AppColors.warning;
+                                    statusLabel = 'Low Stock';
+                                  } else {
+                                    statusColor = AppColors.success;
+                                    statusLabel = 'In Stock';
+                                  }
+
+                                  return Container(
+                                    padding: const EdgeInsets.all(16),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [AppColors.cardShadow],
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        // Icon circle
+                                        Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: const BoxDecoration(
+                                            color: AppColors.primaryContainer,
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(LucideIcons.package, size: 20, color: AppColors.primary),
+                                        ),
+                                        const SizedBox(width: 14),
+
+                                        // Name + SKU
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                product.name,
+                                                style: GoogleFonts.hankenGrotesk(
+                                                  fontSize: 15,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.inkPrimary,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'SKU: ${product.sku ?? "N/A"}',
+                                                style: GoogleFonts.jetBrainsMono(
+                                                  fontSize: 11,
+                                                  color: AppColors.inkTertiary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+
+                                        // Price + status chip
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.end,
+                                          children: [
+                                            Text(
+                                              '₹${product.sellingPrice.toStringAsFixed(0)}',
+                                              style: GoogleFonts.hankenGrotesk(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.inkPrimary,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 4),
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                              decoration: BoxDecoration(
+                                                color: statusColor.withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                statusLabel,
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 10,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: statusColor,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                    ],
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),

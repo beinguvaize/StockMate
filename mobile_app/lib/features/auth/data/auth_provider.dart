@@ -3,8 +3,10 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // Provides the current Supabase session
-final sessionProvider = StreamProvider<Session?>((ref) {
-  return supabase.auth.onAuthStateChange.map((event) => event.session);
+// Yields currentSession immediately so app never hangs in loading state
+final sessionProvider = StreamProvider<Session?>((ref) async* {
+  yield supabase.auth.currentSession;
+  yield* supabase.auth.onAuthStateChange.map((event) => event.session);
 });
 
 // Provides the current user

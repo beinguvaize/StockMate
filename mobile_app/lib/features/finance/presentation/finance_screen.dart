@@ -9,194 +9,307 @@ import 'package:mobile_app/features/finance/presentation/providers/finance_provi
 class FinanceScreen extends ConsumerWidget {
   const FinanceScreen({super.key});
 
+  Color _categoryColor(String? category) {
+    final cat = (category ?? '').toLowerCase();
+    if (cat.contains('rent') || cat.contains('util')) return const Color(0xFF2196F3);
+    if (cat.contains('inventory') || cat.contains('stock')) return AppColors.primary;
+    if (cat.contains('health') || cat.contains('medical')) return AppColors.danger;
+    if (cat.contains('food') || cat.contains('meal')) return AppColors.warning;
+    return AppColors.inkSecondary;
+  }
+
+  IconData _categoryIcon(String? category) {
+    final cat = (category ?? '').toLowerCase();
+    if (cat.contains('rent') || cat.contains('util')) return LucideIcons.home;
+    if (cat.contains('inventory') || cat.contains('stock')) return LucideIcons.package;
+    if (cat.contains('health') || cat.contains('medical')) return LucideIcons.heartPulse;
+    if (cat.contains('food') || cat.contains('meal')) return LucideIcons.utensils;
+    return LucideIcons.receipt;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final expensesAsync = ref.watch(expensesProvider);
+    final now = DateTime.now();
+    final monthLabel = _monthName(now.month);
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: Text(
-          'Expenses',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AppColors.inkPrimary,
-          ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
         ),
-        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: GestureDetector(
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
-              ),
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: AppColors.primaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: const Icon(LucideIcons.plus, size: 20, color: AppColors.primary),
-              ),
-            ),
-          ),
-        ],
+        backgroundColor: AppColors.secondary,
+        foregroundColor: AppColors.primaryContainer,
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: const Icon(LucideIcons.plus, size: 26),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // ── Summary card ──────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
-              child: Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [AppColors.cardShadow],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                    // ── Header ─────────────────────────────────────
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Text(
-                          'TOTAL THIS MONTH',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
-                            color: AppColors.inkTertiary,
-                            letterSpacing: 0.06,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        expensesAsync.maybeWhen(
-                          data: (expenses) {
-                            final total = expenses.fold(0.0, (sum, exp) => sum + (exp.amount ?? 0));
-                            return Text(
-                              '₹${total.toStringAsFixed(0)}',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 32,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.danger,
-                                letterSpacing: -0.5,
-                              ),
-                            );
-                          },
-                          orElse: () => Text(
-                            '₹ …',
+                        Expanded(
+                          child: Text(
+                            'Expenses Tracking',
                             style: GoogleFonts.hankenGrotesk(
-                              fontSize: 32,
+                              fontSize: 28,
                               fontWeight: FontWeight.w700,
                               color: AppColors.inkPrimary,
+                              letterSpacing: -0.3,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.surfaceContainer,
+                            borderRadius: BorderRadius.circular(100),
+                          ),
+                          child: Text(
+                            '$monthLabel ${now.year}',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 11,
+                              color: AppColors.inkSecondary,
                             ),
                           ),
                         ),
                       ],
                     ),
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.danger.withValues(alpha: 0.08),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(LucideIcons.trendingDown, color: AppColors.danger, size: 26),
+
+                    const SizedBox(height: 20),
+
+                    // ── Main stat card ──────────────────────────────
+                    expensesAsync.maybeWhen(
+                      data: (expenses) {
+                        final total = expenses.fold(0.0, (sum, e) => sum + (e.amount ?? 0));
+                        final categories = expenses.map((e) => e.category).toSet();
+
+                        return Column(
+                          children: [
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(24),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(24),
+                                boxShadow: [AppColors.cardShadow],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'TOTAL EXPENSES',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 10,
+                                      color: AppColors.inkTertiary,
+                                      letterSpacing: 0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    '-₹${total.toStringAsFixed(0)}',
+                                    style: GoogleFonts.hankenGrotesk(
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.danger,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    children: [
+                                      const Icon(LucideIcons.trendingDown, size: 14, color: AppColors.danger),
+                                      const SizedBox(width: 6),
+                                      Text(
+                                        '${expenses.length} expenses this month',
+                                        style: GoogleFonts.inter(
+                                          fontSize: 12,
+                                          color: AppColors.inkTertiary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            const SizedBox(height: 12),
+
+                            // ── Secondary stat cards ──────────────────
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [AppColors.cardShadow],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'BUDGET USED',
+                                          style: GoogleFonts.jetBrainsMono(
+                                            fontSize: 10,
+                                            color: AppColors.inkTertiary,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 8),
+                                        ClipRRect(
+                                          borderRadius: BorderRadius.circular(4),
+                                          child: LinearProgressIndicator(
+                                            value: (total / 100000).clamp(0.0, 1.0),
+                                            backgroundColor: AppColors.surfaceContainer,
+                                            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primaryContainer),
+                                            minHeight: 6,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 6),
+                                        Text(
+                                          '${((total / 100000) * 100).clamp(0, 100).toStringAsFixed(0)}%',
+                                          style: GoogleFonts.hankenGrotesk(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.inkPrimary,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Container(
+                                    padding: const EdgeInsets.all(20),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [AppColors.cardShadow],
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'ACTIVE CATEGORIES',
+                                          style: GoogleFonts.jetBrainsMono(
+                                            fontSize: 10,
+                                            color: AppColors.inkTertiary,
+                                            letterSpacing: 0.5,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${categories.length}',
+                                          style: GoogleFonts.hankenGrotesk(
+                                            fontSize: 28,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.inkPrimary,
+                                            letterSpacing: -0.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                      orElse: () => const SizedBox.shrink(),
                     ),
+
+                    const SizedBox(height: 24),
+
+                    // ── Recent Expenses header ──────────────────────
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Recent Expenses',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.inkPrimary,
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AddExpenseScreen()),
+                          ),
+                          child: Text(
+                            'Manage ›',
+                            style: GoogleFonts.inter(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 12),
                   ],
                 ),
               ),
             ),
 
-            const SizedBox(height: 20),
-
-            // ── Expense list ──────────────────────────────────────
-            Expanded(
-              child: expensesAsync.when(
-                data: (expenses) {
-                  if (expenses.isEmpty) {
-                    return Center(
-                      child: Text(
-                        'No expenses recorded.',
-                        style: GoogleFonts.inter(color: AppColors.inkTertiary),
-                      ),
-                    );
-                  }
-
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-                    itemCount: expenses.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final expense = expenses[index];
-
-                      return Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [AppColors.cardShadow],
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: AppColors.danger.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: const Icon(LucideIcons.receipt, color: AppColors.danger, size: 20),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    expense.category ?? 'Uncategorized',
-                                    style: GoogleFonts.hankenGrotesk(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.inkPrimary,
-                                    ),
-                                  ),
-                                  if (expense.note != null && expense.note!.isNotEmpty)
-                                    Text(
-                                      expense.note!,
-                                      style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  Text(
-                                    expense.date ?? '',
-                                    style: GoogleFonts.jetBrainsMono(
-                                      fontSize: 10,
-                                      color: AppColors.inkTertiary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Text(
-                              '₹${expense.amount?.toStringAsFixed(0) ?? "0"}',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.danger,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+            // ── Expenses list ──────────────────────────────────────
+            expensesAsync.when(
+              data: (expenses) {
+                if (expenses.isEmpty) {
+                  return const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.all(40),
+                      child: Center(child: Text('No expenses recorded.')),
+                    ),
                   );
-                },
-                loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                error: (err, stack) => Center(
+                }
+
+                return SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 100),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        if (index < expenses.length - 1) {
+                          return Padding(
+                            padding: const EdgeInsets.only(bottom: 12),
+                            child: _buildExpenseItem(expenses[index]),
+                          );
+                        }
+                        return _buildExpenseItem(expenses[index]);
+                      },
+                      childCount: expenses.length,
+                    ),
+                  ),
+                );
+              },
+              loading: () => const SliverToBoxAdapter(
+                child: Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                ),
+              ),
+              error: (err, stack) => SliverToBoxAdapter(
+                child: Center(
                   child: Text('Error: $err', style: GoogleFonts.inter(color: AppColors.danger)),
                 ),
               ),
@@ -205,5 +318,81 @@ class FinanceScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildExpenseItem(dynamic expense) {
+    final color = _categoryColor(expense.category);
+    final icon = _categoryIcon(expense.category);
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [AppColors.cardShadow],
+      ),
+      child: Row(
+        children: [
+          // Category icon circle
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 14),
+
+          // Category name + note/date
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  expense.category ?? 'Uncategorized',
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.inkPrimary,
+                  ),
+                ),
+                if (expense.note != null && expense.note!.isNotEmpty)
+                  Text(
+                    expense.note!,
+                    style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                if (expense.date != null)
+                  Text(
+                    expense.date!,
+                    style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppColors.inkTertiary),
+                  ),
+              ],
+            ),
+          ),
+
+          // Amount
+          Text(
+            '₹${expense.amount?.toStringAsFixed(0) ?? "0"}',
+            style: GoogleFonts.hankenGrotesk(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.danger,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _monthName(int month) {
+    const months = [
+      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    return months[month];
   }
 }

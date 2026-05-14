@@ -64,7 +64,7 @@ class MenuScreen extends ConsumerWidget {
                               width: 52,
                               height: 52,
                               decoration: const BoxDecoration(
-                                color: AppColors.primaryContainer,
+                                color: AppColors.secondaryContainer,
                                 shape: BoxShape.circle,
                               ),
                               child: Center(
