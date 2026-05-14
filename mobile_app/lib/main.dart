@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -179,42 +180,57 @@ bool get _isDesktop {
   return Platform.isMacOS || Platform.isWindows || Platform.isLinux;
 }
 
-class _TenantGate extends ConsumerWidget {
+class _TenantGate extends ConsumerStatefulWidget {
   const _TenantGate();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_TenantGate> createState() => _TenantGateState();
+}
+
+class _TenantGateState extends ConsumerState<_TenantGate> {
+  // After this many seconds still loading → show dashboard anyway
+  static const _maxWaitSeconds = 6;
+  bool _forceShow = false;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer(const Duration(seconds: _maxWaitSeconds), () {
+      if (mounted) setState(() => _forceShow = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Widget get _dashboard =>
+      _isDesktop ? const DesktopShell() : const DashboardScreen();
+
+  @override
+  Widget build(BuildContext context) {
     final tenantAsync = ref.watch(tenantContextProvider);
 
-    // Show app immediately when loading — don't block on tenant network call.
-    // Use cached value if available, otherwise optimistically show dashboard.
-    if (tenantAsync.isLoading) {
-      final cached = tenantAsync.valueOrNull;
-      if (cached == null) {
-        // First load — show skeleton splash for max ~8s (timeout above)
-        return const _SplashScreen();
-      }
-      // Has cached data from previous build — show app without blocking
-      if (_isDesktop) return const DesktopShell();
-      return const DashboardScreen();
+    // Resolved — cancel timer, show appropriate screen
+    if (tenantAsync.hasValue) {
+      _timer?.cancel();
+      final ctx = tenantAsync.value;
+      if (ctx == null) return const _ContactAdminScreen();
+      if (ctx.isTrialExpired) return const _TrialExpiredScreen();
+      return _dashboard;
     }
 
-    return tenantAsync.when(
-      data: (ctx) {
-        if (ctx == null) {
-          return const _ContactAdminScreen();
-        }
-        if (ctx.isTrialExpired) {
-          return const _TrialExpiredScreen();
-        }
-        if (_isDesktop) {
-          return const DesktopShell();
-        }
-        return const DashboardScreen();
-      },
-      loading: () => const _SplashScreen(),
-      error: (_, __) => const _ContactAdminScreen(),
-    );
+    if (tenantAsync.hasError) {
+      _timer?.cancel();
+      return const _ContactAdminScreen();
+    }
+
+    // Still loading — show dashboard after timeout, splash before
+    if (_forceShow) return _dashboard;
+    return const _SplashScreen();
   }
 }
 

@@ -108,7 +108,7 @@ final tenantContextProvider = FutureProvider<TenantContext?>((ref) async {
         .select()
         .eq('id', userId)
         .maybeSingle()
-        .timeout(const Duration(seconds: 8));
+        .timeout(const Duration(seconds: 5));
 
     if (userProfileData == null) return null;
 
@@ -121,7 +121,7 @@ final tenantContextProvider = FutureProvider<TenantContext?>((ref) async {
         .select()
         .eq('id', userProfile.tenantId)
         .maybeSingle()
-        .timeout(const Duration(seconds: 8));
+        .timeout(const Duration(seconds: 5));
 
     if (tenantData == null) return null;
 
