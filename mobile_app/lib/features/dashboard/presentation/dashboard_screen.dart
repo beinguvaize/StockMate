@@ -59,7 +59,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      drawer: const _AppDrawer(),
       floatingActionButton: FloatingActionButton(
         onPressed: () => Navigator.push(
           context,
@@ -441,6 +440,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      drawer: const _AppDrawer(),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
