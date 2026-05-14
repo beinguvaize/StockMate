@@ -18,13 +18,28 @@ class SettingsScreen extends ConsumerWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: Text(
-          'Settings',
-          style: GoogleFonts.hankenGrotesk(
-            fontSize: 20,
-            fontWeight: FontWeight.w700,
-            color: AppColors.inkPrimary,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Settings',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                color: AppColors.inkPrimary,
+              ),
+            ),
+            Text(
+              'ACCOUNT & PREFERENCES',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: AppColors.secondary,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
         ),
         iconTheme: const IconThemeData(color: AppColors.inkPrimary),
       ),
@@ -98,14 +113,27 @@ class SettingsScreen extends ConsumerWidget {
               const SizedBox(height: 24),
 
               // ── App preferences ──────────────────────────────────
-              Text(
-                'APP PREFERENCES',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.08,
-                  color: AppColors.inkSecondary,
-                ),
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer.withValues(alpha: 0.3),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(LucideIcons.settings, size: 14, color: AppColors.primary),
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'APP PREFERENCES',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.5,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 12),
 

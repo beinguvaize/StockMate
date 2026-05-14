@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
@@ -116,10 +117,33 @@ class _VanSaleScreenState extends ConsumerState<VanSaleScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        title: const Text('VAN SALE', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: -0.5)),
         backgroundColor: AppColors.canvas,
-        foregroundColor: AppColors.inkPrimary,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Van Sale',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                color: AppColors.inkPrimary,
+              ),
+            ),
+            Text(
+              'ROADSIDE POS',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: AppColors.secondary,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
       ),
       body: stockAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),

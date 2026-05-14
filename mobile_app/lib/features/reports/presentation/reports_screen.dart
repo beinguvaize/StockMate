@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/widgets/glass_panel.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 class _ReportSummary {
@@ -21,9 +21,10 @@ class _ReportSummary {
   });
 }
 
-final _reportSummaryProvider = FutureProvider.family<_ReportSummary, ({String tenantId, DateTimeRange range})>((ref, params) async {
-  final start = params.range.start.toIso8601String();
-  final end = params.range.end.toIso8601String();
+final _reportSummaryProvider = FutureProvider.family<_ReportSummary,
+    ({String tenantId, DateTimeRange range})>((ref, params) async {
+  final start = params.range.start.toIso8601String().split('T').first;
+  final end = params.range.end.toIso8601String().split('T').first;
 
   final salesData = await supabase
       .from('sales')
@@ -50,12 +51,10 @@ final _reportSummaryProvider = FutureProvider.family<_ReportSummary, ({String te
   for (final row in salesData as List) {
     totalSales += (row['total_amount'] as num? ?? 0).toDouble();
   }
-
   double totalExpenses = 0;
   for (final row in expensesData as List) {
     totalExpenses += (row['amount'] as num? ?? 0).toDouble();
   }
-
   double totalPurchases = 0;
   for (final row in purchasesData as List) {
     totalPurchases += (row['total_amount'] as num? ?? 0).toDouble();
@@ -88,10 +87,27 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
       initialDateRange: _dateRange,
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: const ColorScheme.light(
+            primary: AppColors.primary,
+            onPrimary: Colors.white,
+          ),
+        ),
+        child: child!,
+      ),
     );
-    if (picked != null) {
-      setState(() => _dateRange = picked);
-    }
+    if (picked != null) setState(() => _dateRange = picked);
+  }
+
+  String _fmt(DateTime d) =>
+      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+
+  String _compact(double v) {
+    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(1)}Cr';
+    if (v >= 100000) return '₹${(v / 100000).toStringAsFixed(1)}L';
+    if (v >= 1000) return '₹${(v / 1000).toStringAsFixed(1)}K';
+    return '₹${v.toStringAsFixed(0)}';
   }
 
   @override
@@ -101,78 +117,201 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: AppColors.canvas,
         elevation: 0,
-        title: const Text('Reports', style: TextStyle(color: AppColors.inkPrimary, fontWeight: FontWeight.bold)),
+        scrolledUnderElevation: 0,
         iconTheme: const IconThemeData(color: AppColors.inkPrimary),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Reports',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 20,
+                fontWeight: FontWeight.w800,
+                letterSpacing: -0.5,
+                color: AppColors.inkPrimary,
+              ),
+            ),
+            Text(
+              'BUSINESS ANALYTICS',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: AppColors.secondary,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: GestureDetector(
+              onTap: _pickDateRange,
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryContainer.withValues(alpha: 0.3),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AppColors.primaryContainer),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(LucideIcons.calendar,
+                        size: 12, color: AppColors.primary),
+                    const SizedBox(width: 6),
+                    Text(
+                      '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
       body: tenantAsync.when(
         data: (ctx) {
           if (ctx == null) {
             return const Center(child: Text('No tenant context.'));
           }
-
-          // Check plan gate
           if (!planMeetsRequirement('reports', ctx.plan)) {
-            return _buildUpgradeBanner('PRO');
+            return _UpgradeBanner();
           }
 
           final params = (tenantId: ctx.tenantId, range: _dateRange);
           final summaryAsync = ref.watch(_reportSummaryProvider(params));
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Date Range Picker
-                GestureDetector(
-                  onTap: _pickDateRange,
-                  child: GlassPanel(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    borderRadius: 14,
-                    child: Row(
+          return summaryAsync.when(
+            data: (summary) => SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Net profit hero
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: summary.netProfit >= 0
+                          ? AppColors.primaryContainer
+                          : AppColors.danger.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(LucideIcons.calendar, color: AppColors.inkSecondary, size: 18),
-                        const SizedBox(width: 10),
-                        Text(
-                          '${_formatDate(_dateRange.start)}  →  ${_formatDate(_dateRange.end)}',
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                        Row(
+                          children: [
+                            Icon(
+                              summary.netProfit >= 0
+                                  ? LucideIcons.trendingUp
+                                  : LucideIcons.trendingDown,
+                              size: 16,
+                              color: summary.netProfit >= 0
+                                  ? AppColors.inkPrimary
+                                  : AppColors.danger,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'NET PROFIT / LOSS',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.5,
+                                color: summary.netProfit >= 0
+                                    ? AppColors.inkPrimary.withValues(alpha: 0.6)
+                                    : AppColors.danger,
+                              ),
+                            ),
+                          ],
                         ),
-                        const Spacer(),
-                        const Icon(LucideIcons.chevronDown, color: AppColors.inkSecondary, size: 16),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${summary.netProfit >= 0 ? '+' : ''}${_compact(summary.netProfit)}',
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 40,
+                            fontWeight: FontWeight.w900,
+                            color: summary.netProfit >= 0
+                                ? AppColors.inkPrimary
+                                : AppColors.danger,
+                            letterSpacing: -2,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: summary.netProfit >= 0
+                                ? AppColors.inkPrimary.withValues(alpha: 0.5)
+                                : AppColors.danger.withValues(alpha: 0.7),
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                ),
-                const SizedBox(height: 24),
 
-                summaryAsync.when(
-                  data: (summary) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('Summary', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 16),
-                      _buildReportCard('Total Sales', summary.totalSales, Colors.green, LucideIcons.trendingUp),
-                      _buildReportCard('Total Expenses', summary.totalExpenses, AppColors.danger, LucideIcons.trendingDown),
-                      _buildReportCard('Total Purchases', summary.totalPurchases, Colors.purple, LucideIcons.shoppingBag),
-                      _buildReportCard(
-                        'Net Profit / Loss',
-                        summary.netProfit,
-                        summary.netProfit >= 0 ? Colors.green : AppColors.danger,
-                        summary.netProfit >= 0 ? LucideIcons.thumbsUp : LucideIcons.thumbsDown,
-                      ),
-                      const SizedBox(height: 24),
-                      const Text('GST Reports', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 16),
-                      _buildGSTCard('GSTR-1', 'Outward Supplies Report'),
-                      _buildGSTCard('GSTR-3B', 'Monthly Return Summary'),
-                    ],
+                  const SizedBox(height: 24),
+
+                  // Section header
+                  _SectionHeader(title: 'BREAKDOWN', icon: LucideIcons.barChart2),
+                  const SizedBox(height: 12),
+
+                  _MetricCard(
+                    label: 'Total Sales',
+                    value: _compact(summary.totalSales),
+                    icon: LucideIcons.shoppingCart,
+                    color: AppColors.success,
+                    subtitle: 'Revenue from all sales',
                   ),
-                  loading: () => const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator())),
-                  error: (e, _) => Center(child: Text('Error loading report: $e')),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  _MetricCard(
+                    label: 'Total Expenses',
+                    value: _compact(summary.totalExpenses),
+                    icon: LucideIcons.receipt,
+                    color: AppColors.danger,
+                    subtitle: 'Operational costs',
+                  ),
+                  const SizedBox(height: 10),
+                  _MetricCard(
+                    label: 'Total Purchases',
+                    value: _compact(summary.totalPurchases),
+                    icon: LucideIcons.shoppingBag,
+                    color: AppColors.warning,
+                    subtitle: 'Procurement spend',
+                  ),
+
+                  const SizedBox(height: 28),
+
+                  // GST section
+                  _SectionHeader(title: 'GST REPORTS', icon: LucideIcons.fileText),
+                  const SizedBox(height: 12),
+                  _GSTCard(
+                    type: 'GSTR-1',
+                    subtitle: 'Outward Supplies Report',
+                    color: AppColors.info,
+                  ),
+                  const SizedBox(height: 10),
+                  _GSTCard(
+                    type: 'GSTR-3B',
+                    subtitle: 'Monthly Return Summary',
+                    color: AppColors.secondary,
+                  ),
+                ],
+              ),
+            ),
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Text('Error: $e',
+                  style: GoogleFonts.inter(color: AppColors.danger)),
             ),
           );
         },
@@ -181,71 +320,183 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
       ),
     );
   }
+}
 
-  Widget _buildReportCard(String title, double amount, Color color, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: GlassPanel(
-        padding: const EdgeInsets.all(16),
-        borderRadius: 20,
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: color, size: 20),
+class _MetricCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final Color color;
+  final String subtitle;
+
+  const _MetricCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.color,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: AppColors.inkPrimary,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: AppColors.inkSecondary,
+                  ),
+                ),
+              ],
             ),
-            Text(
-              '₹${amount.toStringAsFixed(2)}',
-              style: TextStyle(fontWeight: FontWeight.w900, fontSize: 18, color: color),
+          ),
+          Text(
+            value,
+            style: GoogleFonts.hankenGrotesk(
+              fontWeight: FontWeight.w900,
+              fontSize: 20,
+              color: color,
+              letterSpacing: -0.5,
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildGSTCard(String type, String subtitle) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: GlassPanel(
-        padding: const EdgeInsets.all(16),
-        borderRadius: 20,
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.info.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: const Icon(LucideIcons.fileText, color: AppColors.info, size: 20),
+class _GSTCard extends StatelessWidget {
+  final String type;
+  final String subtitle;
+  final Color color;
+
+  const _GSTCard({
+    required this.type,
+    required this.subtitle,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(type, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-                  Text(subtitle, style: const TextStyle(color: AppColors.inkSecondary, fontSize: 12)),
-                ],
-              ),
+            child: Icon(LucideIcons.fileText, color: color, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  type,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                    color: AppColors.inkPrimary,
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    color: AppColors.inkSecondary,
+                  ),
+                ),
+              ],
             ),
-            const Icon(LucideIcons.download, color: AppColors.inkSecondary, size: 18),
-          ],
-        ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.primaryContainer.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(LucideIcons.download,
+                size: 16, color: AppColors.primary),
+          ),
+        ],
       ),
     );
   }
+}
 
-  Widget _buildUpgradeBanner(String requiredPlan) {
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  const _SectionHeader({required this.title, required this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.primaryContainer.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 14, color: AppColors.primary),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          title,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.5,
+            color: AppColors.primary,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _UpgradeBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(32),
@@ -255,29 +506,31 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.1),
+                color: AppColors.primaryContainer.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(LucideIcons.lock, color: AppColors.warning, size: 40),
+              child: const Icon(LucideIcons.lock,
+                  color: AppColors.primary, size: 40),
             ),
             const SizedBox(height: 20),
-            const Text(
-              'Upgrade to PRO',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.5),
+            Text(
+              'Upgrade Required',
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 22,
+                fontWeight: FontWeight.w900,
+                letterSpacing: -0.5,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Reports are available on the $requiredPlan plan and above.',
+              'Reports are available on PRO plan and above.',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.inkSecondary, fontSize: 14),
+              style: GoogleFonts.inter(
+                  color: AppColors.inkSecondary, fontSize: 14),
             ),
           ],
         ),
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 }

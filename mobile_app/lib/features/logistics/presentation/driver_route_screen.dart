@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/data/models/route_stop.dart';
@@ -26,10 +27,32 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
-        title: const Text('MY ROUTE', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: -0.5)),
         backgroundColor: AppColors.canvas,
-        foregroundColor: AppColors.inkPrimary,
         elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'My Route',
+              style: GoogleFonts.hankenGrotesk(
+                fontWeight: FontWeight.w800,
+                fontSize: 17,
+                color: AppColors.inkPrimary,
+              ),
+            ),
+            Text(
+              'DRIVER CONSOLE',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+                color: AppColors.secondary,
+                letterSpacing: 1.5,
+              ),
+            ),
+          ],
+        ),
         actions: [
           // Quick stock view
           IconButton(
@@ -47,7 +70,12 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
       ),
       body: routeAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e', style: const TextStyle(color: AppColors.danger))),
+        error: (e, _) => Center(
+          child: Text(
+            'Error: $e',
+            style: GoogleFonts.inter(color: AppColors.danger),
+          ),
+        ),
         data: (route) {
           if (route == null) {
             return _NoRouteView(
@@ -66,7 +94,12 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
               Expanded(
                 child: ref.watch(routeStopsProvider(route.id)).when(
                   loading: () => const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('Error: $e')),
+                  error: (e, _) => Center(
+                    child: Text(
+                      'Error: $e',
+                      style: GoogleFonts.inter(color: AppColors.danger),
+                    ),
+                  ),
                   data: (stops) {
                     if (stops.isEmpty) {
                       return _EmptyStops(
@@ -103,10 +136,17 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
                     routeId:   route.id,
                   ),
                 )),
-                backgroundColor: AppColors.accentSignature,
+                backgroundColor: AppColors.primaryContainer,
                 foregroundColor: AppColors.inkPrimary,
+                shape: const StadiumBorder(),
                 icon: const Icon(LucideIcons.shoppingCart, size: 18),
-                label: const Text('QUICK SALE', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 12)),
+                label: Text(
+                  'QUICK SALE',
+                  style: GoogleFonts.jetBrainsMono(
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                  ),
+                ),
               )
             : null,
       ),
@@ -125,15 +165,16 @@ class _RouteHeader extends StatelessWidget {
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.inkPrimary,
-        borderRadius: BorderRadius.circular(24),
+        color: AppColors.primaryContainer,
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
         children: [
           Container(
-            width: 48, height: 48,
+            width: 48,
+            height: 48,
             decoration: BoxDecoration(
-              color: AppColors.accentSignature,
+              color: Colors.white.withValues(alpha: 0.35),
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(LucideIcons.truck, color: AppColors.inkPrimary, size: 22),
@@ -145,29 +186,46 @@ class _RouteHeader extends StatelessWidget {
               children: [
                 Text(
                   route.location ?? 'Active Route',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16),
+                  style: GoogleFonts.hankenGrotesk(
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16,
+                    color: AppColors.inkPrimary,
+                  ),
                 ),
-                const SizedBox(height: 2),
+                const SizedBox(height: 3),
                 Row(
                   children: [
-                    const Icon(LucideIcons.mapPin, size: 12, color: Colors.white54),
+                    const Icon(LucideIcons.mapPin, size: 12, color: AppColors.secondary),
                     const SizedBox(width: 4),
                     Text(
                       route.date ?? '',
-                      style: const TextStyle(color: Colors.white54, fontSize: 11, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.secondary,
+                      ),
                     ),
                   ],
                 ),
               ],
             ),
           ),
+          // ACTIVE badge — primary text on white bg pill
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: AppColors.accentSignature,
+              color: Colors.white,
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text('ACTIVE', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppColors.inkPrimary)),
+            child: Text(
+              'ACTIVE',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+                letterSpacing: 1.2,
+              ),
+            ),
           ),
         ],
       ),
@@ -239,12 +297,14 @@ class _StopCardState extends ConsumerState<_StopCard> {
         margin: const EdgeInsets.only(bottom: 10),
         decoration: BoxDecoration(
           color: AppColors.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: done ? _statusColor.withValues(alpha: 0.3) : Colors.black.withValues(alpha: 0.05),
+            color: done
+                ? _statusColor.withValues(alpha: 0.3)
+                : Colors.black.withValues(alpha: 0.06),
             width: done ? 1.5 : 1,
           ),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 8, offset: const Offset(0, 2))],
+          boxShadow: [AppColors.cardShadow],
         ),
         child: Column(
           children: [
@@ -253,17 +313,31 @@ class _StopCardState extends ConsumerState<_StopCard> {
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  // Sequence circle
+                  // Sequence circle or status icon
                   Container(
-                    width: 36, height: 36,
+                    width: 36,
+                    height: 36,
                     decoration: BoxDecoration(
-                      color: done ? _statusColor.withValues(alpha: 0.12) : AppColors.canvas,
+                      color: done
+                          ? _statusColor.withValues(alpha: 0.12)
+                          : AppColors.primaryContainer.withValues(alpha: 0.3),
                       shape: BoxShape.circle,
-                      border: Border.all(color: done ? _statusColor : Colors.black12),
+                      border: Border.all(
+                        color: done ? _statusColor : AppColors.primary.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: done
                         ? Icon(_statusIcon, size: 16, color: _statusColor)
-                        : Center(child: Text('${widget.stop.sequence}', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 13))),
+                        : Center(
+                            child: Text(
+                              '${widget.stop.sequence}',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ),
                   ),
                   const SizedBox(width: 14),
                   // Client info
@@ -273,17 +347,28 @@ class _StopCardState extends ConsumerState<_StopCard> {
                       children: [
                         Text(
                           widget.stop.clientName ?? 'Unknown Client',
-                          style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                          style: GoogleFonts.hankenGrotesk(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 14,
+                            color: AppColors.inkPrimary,
+                          ),
                         ),
                         if (widget.stop.cashCollected > 0)
                           Text(
                             'Collected: ${widget.stop.cashCollected.toStringAsFixed(0)}',
-                            style: TextStyle(fontSize: 11, color: AppColors.success, fontWeight: FontWeight.w700),
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w700,
+                            ),
                           ),
                         if (widget.stop.visitedAt != null)
                           Text(
                             _formatTime(widget.stop.visitedAt!),
-                            style: const TextStyle(fontSize: 10, color: AppColors.inkTertiary),
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              color: AppColors.inkTertiary,
+                            ),
                           ),
                       ],
                     ),
@@ -294,18 +379,23 @@ class _StopCardState extends ConsumerState<_StopCard> {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                       decoration: BoxDecoration(
                         color: _statusColor.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: _statusColor.withValues(alpha: 0.2)),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: _statusColor.withValues(alpha: 0.25)),
                       ),
                       child: Text(
                         widget.stop.status,
-                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: _statusColor),
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                          color: _statusColor,
+                        ),
                       ),
                     )
                   else
                     Icon(
                       widget.isExpanded ? LucideIcons.chevronUp : LucideIcons.chevronDown,
-                      size: 18, color: AppColors.inkTertiary,
+                      size: 18,
+                      color: AppColors.inkTertiary,
                     ),
                 ],
               ),
@@ -319,22 +409,62 @@ class _StopCardState extends ConsumerState<_StopCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('CASH COLLECTED', style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: AppColors.inkTertiary, letterSpacing: 1)),
-                    const SizedBox(height: 8),
+                    // Section header
+                    Row(
+                      children: [
+                        Container(
+                          width: 20,
+                          height: 20,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryContainer.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: const Icon(LucideIcons.dollarSign, size: 11, color: AppColors.primary),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'CASH COLLECTED',
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.5,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
                     TextField(
                       controller: _cashController,
                       keyboardType: const TextInputType.numberWithOptions(decimal: true),
                       inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[\d.]'))],
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.inkPrimary,
+                      ),
                       decoration: InputDecoration(
                         hintText: '0.00',
+                        hintStyle: GoogleFonts.jetBrainsMono(
+                          fontSize: 15,
+                          color: AppColors.inkTertiary,
+                        ),
                         prefixText: '\$ ',
+                        prefixStyle: GoogleFonts.jetBrainsMono(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.inkPrimary,
+                        ),
                         filled: true,
                         fillColor: AppColors.canvas,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide.none,
+                        ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide(color: AppColors.accentSignature, width: 2),
+                          borderSide: BorderSide(color: AppColors.primary, width: 2),
                         ),
                       ),
                     ),
@@ -344,14 +474,26 @@ class _StopCardState extends ConsumerState<_StopCard> {
                     else
                       Row(
                         children: [
-                          _ActionBtn(label: 'DELIVERED', color: AppColors.success, icon: LucideIcons.checkCircle2,
-                            onTap: () => _markStatus('DELIVERED')),
+                          _ActionBtn(
+                            label: 'DELIVERED',
+                            color: AppColors.success,
+                            icon: LucideIcons.checkCircle2,
+                            onTap: () => _markStatus('DELIVERED'),
+                          ),
                           const SizedBox(width: 8),
-                          _ActionBtn(label: 'PARTIAL', color: AppColors.info, icon: LucideIcons.minusCircle,
-                            onTap: () => _markStatus('PARTIAL')),
+                          _ActionBtn(
+                            label: 'PARTIAL',
+                            color: AppColors.info,
+                            icon: LucideIcons.minusCircle,
+                            onTap: () => _markStatus('PARTIAL'),
+                          ),
                           const SizedBox(width: 8),
-                          _ActionBtn(label: 'NO SALE', color: AppColors.danger, icon: LucideIcons.xCircle,
-                            onTap: () => _markStatus('NO_SALE')),
+                          _ActionBtn(
+                            label: 'NO SALE',
+                            color: AppColors.danger,
+                            icon: LucideIcons.xCircle,
+                            onTap: () => _markStatus('NO_SALE'),
+                          ),
                         ],
                       ),
                   ],
@@ -389,14 +531,21 @@ class _ActionBtn extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
         ),
         child: Column(
           children: [
             Icon(icon, size: 16, color: color),
             const SizedBox(height: 3),
-            Text(label, style: TextStyle(fontSize: 8, fontWeight: FontWeight.w900, color: color)),
+            Text(
+              label,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 8,
+                fontWeight: FontWeight.w900,
+                color: color,
+              ),
+            ),
           ],
         ),
       ),
@@ -417,20 +566,48 @@ class _NoRouteView extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Container(
-            width: 80, height: 80,
-            decoration: BoxDecoration(color: AppColors.canvas, borderRadius: BorderRadius.circular(24)),
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+            ),
             child: const Icon(LucideIcons.truck, size: 36, color: AppColors.inkTertiary),
           ),
           const SizedBox(height: 20),
-          const Text('No Active Route', style: TextStyle(fontWeight: FontWeight.w900, fontSize: 20)),
+          Text(
+            'No Active Route',
+            style: GoogleFonts.hankenGrotesk(
+              fontWeight: FontWeight.w900,
+              fontSize: 20,
+              color: AppColors.inkPrimary,
+            ),
+          ),
           const SizedBox(height: 8),
-          const Text('You have no dispatched route.\nManager must dispatch you from the web app.',
-              textAlign: TextAlign.center, style: TextStyle(color: AppColors.inkTertiary, fontSize: 13)),
+          Text(
+            'You have no dispatched route.\nManager must dispatch you from the web app.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.inter(color: AppColors.inkTertiary, fontSize: 13),
+          ),
           const SizedBox(height: 32),
           ElevatedButton.icon(
             onPressed: onMakeSale,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryContainer,
+              foregroundColor: AppColors.inkPrimary,
+              shape: const StadiumBorder(),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            ),
             icon: const Icon(LucideIcons.shoppingCart, size: 16),
-            label: const Text('MAKE A SALE'),
+            label: Text(
+              'MAKE A SALE',
+              style: GoogleFonts.jetBrainsMono(
+                fontWeight: FontWeight.w900,
+                fontSize: 12,
+                letterSpacing: 1.2,
+              ),
+            ),
           ),
         ],
       ),
@@ -448,11 +625,29 @@ class _EmptyStops extends StatelessWidget {
     child: Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const Icon(LucideIcons.mapPin, size: 40, color: AppColors.inkTertiary),
-        const SizedBox(height: 12),
-        const Text('No delivery stops assigned', style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.inkTertiary)),
+        Container(
+          width: 60,
+          height: 60,
+          decoration: BoxDecoration(
+            color: AppColors.primaryContainer.withValues(alpha: 0.3),
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(LucideIcons.mapPin, size: 28, color: AppColors.primary),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          'No delivery stops assigned',
+          style: GoogleFonts.hankenGrotesk(
+            fontWeight: FontWeight.w700,
+            fontSize: 15,
+            color: AppColors.inkSecondary,
+          ),
+        ),
         const SizedBox(height: 6),
-        const Text('You can still make walk-in van sales.', style: TextStyle(fontSize: 12, color: AppColors.inkTertiary)),
+        Text(
+          'You can still make walk-in van sales.',
+          style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+        ),
       ],
     ),
   );
