@@ -95,31 +95,41 @@ typedef TenantModel = Tenant;
 
 // Provider
 final tenantContextProvider = FutureProvider<TenantContext?>((ref) async {
-  final user = ref.watch(userProvider);
-  if (user == null) return null;
+  // Watch only the user ID (stable string) — not the full User object.
+  // This prevents re-running the Supabase fetch on every token-refresh
+  // event that emits a new Session/User object with the same user ID.
+  final userId = ref.watch(userIdProvider);
+  if (userId == null) return null;
 
-  // Load user profile
-  final userProfileData = await supabase
-      .from('users')
-      .select()
-      .eq('id', user.id)
-      .maybeSingle();
+  try {
+    // Load user profile — 8s timeout so emulator network never hangs forever
+    final userProfileData = await supabase
+        .from('users')
+        .select()
+        .eq('id', userId)
+        .maybeSingle()
+        .timeout(const Duration(seconds: 8));
 
-  if (userProfileData == null) return null;
+    if (userProfileData == null) return null;
 
-  final userProfile = UserProfile.fromMap(userProfileData);
-  if (userProfile.tenantId.isEmpty) return null;
+    final userProfile = UserProfile.fromMap(userProfileData);
+    if (userProfile.tenantId.isEmpty) return null;
 
-  // Load tenant
-  final tenantData = await supabase
-      .from('tenants')
-      .select()
-      .eq('id', userProfile.tenantId)
-      .maybeSingle();
+    // Load tenant
+    final tenantData = await supabase
+        .from('tenants')
+        .select()
+        .eq('id', userProfile.tenantId)
+        .maybeSingle()
+        .timeout(const Duration(seconds: 8));
 
-  if (tenantData == null) return null;
+    if (tenantData == null) return null;
 
-  final tenant = Tenant.fromMap(tenantData);
+    final tenant = Tenant.fromMap(tenantData);
 
-  return TenantContext(userProfile: userProfile, tenant: tenant);
+    return TenantContext(userProfile: userProfile, tenant: tenant);
+  } catch (e) {
+    // Network timeout or RLS error — return null so app shows ContactAdmin
+    return null;
+  }
 });

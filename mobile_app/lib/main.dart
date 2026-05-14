@@ -186,6 +186,19 @@ class _TenantGate extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tenantAsync = ref.watch(tenantContextProvider);
 
+    // Show app immediately when loading — don't block on tenant network call.
+    // Use cached value if available, otherwise optimistically show dashboard.
+    if (tenantAsync.isLoading) {
+      final cached = tenantAsync.valueOrNull;
+      if (cached == null) {
+        // First load — show skeleton splash for max ~8s (timeout above)
+        return const _SplashScreen();
+      }
+      // Has cached data from previous build — show app without blocking
+      if (_isDesktop) return const DesktopShell();
+      return const DashboardScreen();
+    }
+
     return tenantAsync.when(
       data: (ctx) {
         if (ctx == null) {
@@ -194,7 +207,6 @@ class _TenantGate extends ConsumerWidget {
         if (ctx.isTrialExpired) {
           return const _TrialExpiredScreen();
         }
-        // Use desktop shell on macOS/Windows/Linux, mobile bottom-nav otherwise
         if (_isDesktop) {
           return const DesktopShell();
         }
