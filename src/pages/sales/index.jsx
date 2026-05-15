@@ -17,7 +17,7 @@ import SalesReturnForm from './components/SalesReturnForm';
 const SalesPage = () => {
   const { addNotification } = useNotifications();
   const { currentTenantId, businessProfile, currentTenant } = useTenant();
-  const { sales, clients, invoices, placeSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
+  const { sales, clients, invoices, placeSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, convertSaleToInvoice, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
 
   // Wrap placeSale: auto-create invoice for credit sales (settlement) and
   // delivery sales (van dispatch queue), or both when combined.
@@ -195,6 +195,20 @@ const SalesPage = () => {
             onPrint={printSale}
             onReturn={setReturnSale}
             onDispatch={dispatchSale}
+            onConvertToInvoice={async (sale) => {
+              const result = await convertSaleToInvoice(sale.id, {
+                client_id:   sale.shopId || sale.shop_id || null,
+                client_name: sale.customerInfo?.name || sale.customer_name || null,
+                due_days:    30,
+              });
+              if (result.error) {
+                alert('Convert failed: ' + result.error.message);
+              } else if (result.already_existed) {
+                alert(`Already converted: ${result.invoice_number}`);
+              } else {
+                alert(`Invoice ${result.invoice_number} created`);
+              }
+            }}
           />
         )}
       </div>

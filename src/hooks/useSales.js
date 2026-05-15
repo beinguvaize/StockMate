@@ -293,6 +293,28 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       setInvoices(prev => [inserted, ...prev]);
       return { success: true, data: inserted };
     },
+    // Convert an existing POS sale into a full GST invoice.
+    // Atomic + idempotent via SQL RPC. Re-running on a sale that already has
+    // an invoice returns the existing invoice without burning a number.
+    convertSaleToInvoice: async (saleId, opts = {}) => {
+      if (!saleId) return { error: new Error('convertSaleToInvoice: saleId required') };
+      if (!currentUser?.id) return { error: new Error('convertSaleToInvoice: not authenticated') };
+      const { data, error } = await supabase.rpc('convert_sale_to_invoice', {
+        p_sale_id:         saleId,
+        p_user_id:         currentUser.id,
+        p_client_id:       opts.client_id        ?? null,
+        p_client_name:     opts.client_name      ?? null,
+        p_gstin:           opts.gstin            ?? null,
+        p_address:         opts.address          ?? null,
+        p_place_of_supply: opts.place_of_supply  ?? null,
+        p_series:          opts.series           ?? 'DEFAULT',
+        p_due_days:        opts.due_days         ?? 0,
+        p_notes:           opts.notes            ?? null,
+      });
+      if (error) return { error };
+      await fetchSales();
+      return { success: true, ...data };
+    },
     processSalesReturn: async (ret) => {
       if (!tenantId) return { error: new Error('processSalesReturn: no tenant') };
       const { error: rpcErr } = await supabase.rpc('process_sales_return', {

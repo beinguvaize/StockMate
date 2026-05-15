@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Search, Trash2, Printer, Receipt, Package, Wallet, CreditCard, Landmark,
-  Download, X, User, Clock, Calendar, CheckCircle2, AlertCircle, RotateCcw, Truck, PackageCheck
+  Download, X, User, Clock, Calendar, CheckCircle2, AlertCircle, RotateCcw, Truck, PackageCheck,
+  FileText
 } from 'lucide-react';
 import Table from '../../../shared/Table';
 import Modal from '../../../shared/Modal';
@@ -70,7 +71,7 @@ const DELIVERY_BADGE = {
   FAILED:     { bg: 'bg-red-50',     text: 'text-red-700',     ring: 'ring-red-200/60',     dot: 'bg-red-400',     label: 'Failed'            },
 };
 
-const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [], onDelete, onPrint, onSettle, onReturn, onDispatch }) => {
+const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [], onDelete, onPrint, onSettle, onReturn, onDispatch, onConvertToInvoice }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | PAID | PENDING
   // Resolves cross-tenant cashier names (GLOBAL_ADMIN impersonation, etc.).
@@ -331,6 +332,18 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
                 className="p-2 rounded-lg hover:bg-rose-50 text-gray-400 hover:text-rose-600 transition-colors"
               >
                 <RotateCcw size={15} />
+              </button>
+            )}
+            {onConvertToInvoice && (
+              <button
+                onClick={() => onConvertToInvoice(sale)}
+                title={sale.invoice_id ? 'GST Invoice already issued' : 'Convert to GST Invoice'}
+                disabled={!!sale.invoice_id}
+                className={`p-2 rounded-lg transition-colors ${sale.invoice_id
+                  ? 'text-emerald-500 cursor-default'
+                  : 'text-gray-400 hover:bg-blue-50 hover:text-blue-600'}`}
+              >
+                <FileText size={15} />
               </button>
             )}
             <button onClick={() => onPrint(sale)} title="Print / View" className="p-2 rounded-lg hover:bg-white text-gray-500 hover:text-ink-primary transition-colors">

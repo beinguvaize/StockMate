@@ -224,6 +224,27 @@ class InvoiceDetailScreen extends ConsumerWidget {
               ],
             ),
 
+            // Convert Sale → GST Invoice (only for POS sales, not real invoices)
+            if (invoice.id.startsWith('SAL-')) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _convertToInvoice(context, ref),
+                  icon: const Icon(LucideIcons.fileText, size: 16),
+                  label: Text('Convert to GST Invoice',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E293B),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: const StadiumBorder(),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ],
+
             if (invoice.paymentStatus != 'PAID') ...[
               const SizedBox(height: 12),
               SizedBox(
@@ -286,6 +307,54 @@ class InvoiceDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger));
+      }
+    }
+  }
+
+  Future<void> _convertToInvoice(BuildContext context, WidgetRef ref) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Not signed in')));
+        }
+        return;
+      }
+
+      final result = await supabase.rpc('convert_sale_to_invoice', params: {
+        'p_sale_id':     invoice.id,
+        'p_user_id':     userId,
+        'p_client_id':   invoice.clientId,
+        'p_client_name': invoice.clientName,
+        'p_due_days':    30,
+      });
+
+      final data = (result is Map) ? Map<String, dynamic>.from(result) : <String, dynamic>{};
+      final number = data['invoice_number']?.toString() ?? 'created';
+      final already = data['already_existed'] == true;
+
+      // Refresh sales/invoices providers so back-link reflects
+      try { ref.invalidate(invoicesProvider); } catch (_) {}
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(already
+              ? 'Already converted: $number'
+              : 'GST Invoice $number created'),
+          backgroundColor: AppColors.secondary,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 5),
+        ));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Convert failed: $e'),
+          backgroundColor: AppColors.danger,
+          duration: const Duration(seconds: 6),
+        ));
       }
     }
   }
