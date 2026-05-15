@@ -734,7 +734,6 @@ class InvoiceDetailScreen extends ConsumerWidget {
                 ),
               ),
               child: pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                 children: [
                   // Business block
                   pw.Expanded(
@@ -752,18 +751,16 @@ class InvoiceDetailScreen extends ConsumerWidget {
                                 style: const pw.TextStyle(fontSize: 9, color: ink)),
                           ],
                           pw.SizedBox(height: 4),
-                          pw.Wrap(
-                            spacing: 12,
-                            runSpacing: 2,
-                            children: [
-                              if (biz?.phone?.isNotEmpty == true)
-                                pw.Text('Ph: ${biz!.phone!}',
-                                    style: const pw.TextStyle(fontSize: 9, color: ink)),
-                              if (biz?.email?.isNotEmpty == true)
-                                pw.Text('Email: ${biz!.email!}',
-                                    style: const pw.TextStyle(fontSize: 9, color: ink)),
-                            ],
-                          ),
+                          pw.Row(children: [
+                            if (biz?.phone?.isNotEmpty == true)
+                              pw.Text('Ph: ${biz!.phone!}',
+                                  style: const pw.TextStyle(fontSize: 9, color: ink)),
+                            if (biz?.phone?.isNotEmpty == true && biz?.email?.isNotEmpty == true)
+                              pw.SizedBox(width: 12),
+                            if (biz?.email?.isNotEmpty == true)
+                              pw.Text('Email: ${biz!.email!}',
+                                  style: const pw.TextStyle(fontSize: 9, color: ink)),
+                          ]),
                           if (biz?.gstNo?.isNotEmpty == true || biz?.panNo?.isNotEmpty == true) ...[
                             pw.SizedBox(height: 4),
                             pw.Row(children: [
@@ -792,7 +789,6 @@ class InvoiceDetailScreen extends ConsumerWidget {
                     ),
                   ),
                   // Vertical separator
-                  pw.Container(width: 1, color: ink),
                   // Invoice meta
                   pw.Expanded(
                     flex: 2,
@@ -826,7 +822,6 @@ class InvoiceDetailScreen extends ConsumerWidget {
                 ),
               ),
               child: pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                 children: [
                   pw.Expanded(
                     child: pw.Padding(
@@ -851,7 +846,6 @@ class InvoiceDetailScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  pw.Container(width: 1, color: ink),
                   pw.Expanded(
                     child: pw.Padding(
                       padding: const pw.EdgeInsets.all(12),
@@ -955,7 +949,6 @@ class InvoiceDetailScreen extends ConsumerWidget {
                 ),
               ),
               child: pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                 children: [
                   // Left: Words + HSN summary
                   pw.Expanded(
@@ -1005,7 +998,6 @@ class InvoiceDetailScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  pw.Container(width: 1, color: ink),
                   // Right: Subtotal + Grand Total
                   pw.Expanded(
                     flex: 2,
@@ -1083,7 +1075,6 @@ class InvoiceDetailScreen extends ConsumerWidget {
                 ),
               ),
               child: pw.Row(
-                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                 children: [
                   // Bank/UPI + Terms
                   pw.Expanded(
@@ -1111,7 +1102,6 @@ class InvoiceDetailScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  pw.Container(width: 1, color: ink),
                   // Declaration + Signature
                   pw.Expanded(
                     flex: 2,
