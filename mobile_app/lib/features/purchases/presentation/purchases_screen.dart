@@ -628,54 +628,6 @@ class _PurchaseCard extends StatelessWidget {
   }
 }
 
-// ─── Text field ───────────────────────────────────────────────────────────────
-
-class _Field extends StatelessWidget {
-  final TextEditingController ctrl;
-  final String label;
-  final IconData icon;
-  final TextInputType? keyboardType;
-  final void Function(String)? onChanged;
-  const _Field({
-    required this.ctrl,
-    required this.label,
-    required this.icon,
-    this.keyboardType,
-    this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) => Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [AppColors.cardShadow],
-        ),
-        child: TextField(
-          controller: ctrl,
-          keyboardType: keyboardType,
-          onChanged: onChanged,
-          style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkPrimary),
-          decoration: InputDecoration(
-            prefixIcon: Icon(icon, size: 18, color: AppColors.inkSecondary),
-            hintText: label,
-            hintStyle: GoogleFonts.inter(
-                color: AppColors.inkSecondary.withValues(alpha: 0.5),
-                fontSize: 14),
-            border: InputBorder.none,
-            contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 14),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(
-                  color: AppColors.primaryContainer, width: 1.5),
-            ),
-            enabledBorder: InputBorder.none,
-          ),
-        ),
-      );
-}
-
 // ─── Add Purchase Sheet ───────────────────────────────────────────────────────
 
 class _AddPurchaseSheet extends StatefulWidget {
@@ -687,22 +639,45 @@ class _AddPurchaseSheet extends StatefulWidget {
   State<_AddPurchaseSheet> createState() => _AddPurchaseSheetState();
 }
 
+class _PurchaseLine {
+  String? productId;
+  final qtyCtrl       = TextEditingController();
+  final unitPriceCtrl = TextEditingController();
+  final totalCtrl     = TextEditingController();
+
+  void dispose() {
+    qtyCtrl.dispose();
+    unitPriceCtrl.dispose();
+    totalCtrl.dispose();
+  }
+
+  double get qtyVal   => double.tryParse(qtyCtrl.text) ?? 0;
+  double get totalVal => double.tryParse(totalCtrl.text) ?? 0;
+  double? get unitCost {
+    final u = double.tryParse(unitPriceCtrl.text);
+    if (u != null) return u;
+    if (qtyVal > 0 && totalVal > 0) return totalVal / qtyVal;
+    return null;
+  }
+
+  bool get isValid => productId != null && qtyVal > 0 && totalVal > 0;
+}
+
 class _AddPurchaseSheetState extends State<_AddPurchaseSheet> {
-  // Dropdowns
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _suppliers = [];
-  String? _selectedProductId;
-  String? _selectedSupplierId;
   bool _loadingData = true;
 
-  // Fields
-  final _qtyCtrl       = TextEditingController();
-  final _unitPriceCtrl = TextEditingController();
-  final _totalCtrl     = TextEditingController();
-  final _notesCtrl     = TextEditingController();
-  String _paymentType  = 'CASH';
-  DateTime _date       = DateTime.now();
-  bool _saving         = false;
+  // Header
+  String? _supplierId;
+  String _paymentType = 'CASH';
+  DateTime _date = DateTime.now();
+  final _notesCtrl = TextEditingController();
+
+  // Lines
+  final List<_PurchaseLine> _lines = [_PurchaseLine()];
+
+  bool _saving = false;
 
   @override
   void initState() {
@@ -712,19 +687,18 @@ class _AddPurchaseSheetState extends State<_AddPurchaseSheet> {
 
   @override
   void dispose() {
-    _qtyCtrl.dispose();
-    _unitPriceCtrl.dispose();
-    _totalCtrl.dispose();
     _notesCtrl.dispose();
+    for (final l in _lines) {
+      l.dispose();
+    }
     super.dispose();
   }
 
   Future<void> _loadDropdowns() async {
-    // Load independently so one failure doesn't kill the other
     final results = await Future.wait([
       supabase
           .from('products')
-          .select('id, name, sku, costPrice')   // camelCase — matches DB schema
+          .select('id, name, sku, costPrice, stock')
           .order('name')
           .then((v) => v as List)
           .catchError((_) => <dynamic>[]),
@@ -738,46 +712,37 @@ class _AddPurchaseSheetState extends State<_AddPurchaseSheet> {
 
     if (mounted) {
       setState(() {
-        _products  = results[0]
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
-        _suppliers = results[1]
-            .map((e) => Map<String, dynamic>.from(e as Map))
-            .toList();
+        _products  = results[0].map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        _suppliers = results[1].map((e) => Map<String, dynamic>.from(e as Map)).toList();
         _loadingData = false;
       });
     }
   }
 
-  // ── Bidirectional calc (mirrors web PurchaseForm logic) ──────────────────────
-  void _onQtyChanged(String val) {
+  // ── Bidirectional calc per line ──────────────────────────────────────────────
+  void _onQtyChanged(_PurchaseLine line, String val) {
     final q = double.tryParse(val);
-    final u = double.tryParse(_unitPriceCtrl.text);
-    final t = double.tryParse(_totalCtrl.text);
-    if (q != null && q > 0) {
-      if (u != null) {
-        _totalCtrl.text = (u * q).toStringAsFixed(2);
-      } else if (t != null) {
-        _unitPriceCtrl.text = (t / q).toStringAsFixed(4);
-      }
+    final u = double.tryParse(line.unitPriceCtrl.text);
+    if (q != null && q > 0 && u != null) {
+      line.totalCtrl.text = (u * q).toStringAsFixed(2);
     }
     setState(() {});
   }
 
-  void _onUnitPriceChanged(String val) {
-    final q = double.tryParse(_qtyCtrl.text);
+  void _onUnitPriceChanged(_PurchaseLine line, String val) {
+    final q = double.tryParse(line.qtyCtrl.text);
     final u = double.tryParse(val);
     if (q != null && q > 0 && u != null) {
-      _totalCtrl.text = (u * q).toStringAsFixed(2);
+      line.totalCtrl.text = (u * q).toStringAsFixed(2);
     }
     setState(() {});
   }
 
-  void _onTotalChanged(String val) {
-    final q = double.tryParse(_qtyCtrl.text);
+  void _onTotalChanged(_PurchaseLine line, String val) {
+    final q = double.tryParse(line.qtyCtrl.text);
     final t = double.tryParse(val);
     if (q != null && q > 0 && t != null) {
-      _unitPriceCtrl.text = (t / q).toStringAsFixed(4);
+      line.unitPriceCtrl.text = (t / q).toStringAsFixed(4);
     }
     setState(() {});
   }
@@ -802,64 +767,52 @@ class _AddPurchaseSheetState extends State<_AddPurchaseSheet> {
   }
 
   Future<void> _save() async {
-    final qty   = double.tryParse(_qtyCtrl.text) ?? 0;
-    final total = double.tryParse(_totalCtrl.text) ?? 0;
-    final unit  = qty > 0 ? total / qty : 0.0;
-    final dateStr = '${_date.year}-${_date.month.toString().padLeft(2,'0')}-${_date.day.toString().padLeft(2,'0')}';
-    final id = 'PUR-${DateTime.now().millisecondsSinceEpoch}-${(1000 + (DateTime.now().microsecond % 9000)).toString()}';
+    final validLines = _lines.where((l) => l.isValid).toList();
+    if (_supplierId == null || validLines.isEmpty) return;
 
     setState(() => _saving = true);
     try {
-      // Mirror web: call process_purchase RPC for atomic stock update
       final currentUserId = supabase.auth.currentUser?.id;
-      await supabase.rpc('process_purchase', params: {
-        'p_id':           id,
-        'p_product_id':   _selectedProductId,
-        'p_quantity':     qty,
-        'p_total_amount': total,
-        'p_supplier_id':  _selectedSupplierId,
-        'p_payment_type': _paymentType,
-        'p_date':         dateStr,
-        'p_notes':        _notesCtrl.text.trim(),
-        'p_user_id':      currentUserId,
-        'p_location_id':  null,
-        'p_tenant_id':    widget.tenantId,
-      });
+      final dateStr = '${_date.year}-${_date.month.toString().padLeft(2,'0')}-${_date.day.toString().padLeft(2,'0')}';
+      final notes = _notesCtrl.text.trim();
+
+      // One RPC call per line (mirrors web — process_purchase is single-product)
+      for (int i = 0; i < validLines.length; i++) {
+        final line = validLines[i];
+        final id = 'PUR-${DateTime.now().millisecondsSinceEpoch}-${i.toString().padLeft(2, '0')}';
+        await supabase.rpc('process_purchase', params: {
+          'p_id':           id,
+          'p_product_id':   line.productId,
+          'p_quantity':     line.qtyVal,
+          'p_total_amount': line.totalVal,
+          'p_supplier_id':  _supplierId,
+          'p_payment_type': _paymentType,
+          'p_date':         dateStr,
+          'p_notes':        notes,
+          'p_user_id':      currentUserId,
+          'p_location_id':  null,
+          'p_tenant_id':    widget.tenantId,
+        });
+      }
+
       if (mounted) {
         Navigator.pop(context);
         widget.onSaved();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${validLines.length} item${validLines.length == 1 ? '' : 's'} saved'),
+            backgroundColor: AppColors.secondary,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
       }
     } catch (e) {
-      // Fallback: direct insert if RPC not available
-      try {
-        final sup = _suppliers.firstWhere(
-          (s) => s['id'] == _selectedSupplierId,
-          orElse: () => {},
-        );
-        await supabase.from('purchases').insert({
-          'id':            id,
-          'linked_product_id': _selectedProductId,
-          'supplier_id':   _selectedSupplierId,
-          'supplier_name': sup['name'] as String? ?? '',
-          'quantity':      qty,
-          'unit_cost':     unit,
-          'total_amount':  total,
-          'payment_type':  _paymentType,
-          'date':          dateStr,
-          'notes':         _notesCtrl.text.trim(),
-          'tenant_id':     widget.tenantId,
-        });
-        if (mounted) {
-          Navigator.pop(context);
-          widget.onSaved();
-        }
-      } catch (e2) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Error: $e2'),
-            backgroundColor: AppColors.danger,
-          ));
-        }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Error: $e'),
+          backgroundColor: AppColors.danger,
+          duration: const Duration(seconds: 6),
+        ));
       }
     } finally {
       if (mounted) setState(() => _saving = false);
@@ -872,26 +825,15 @@ class _AddPurchaseSheetState extends State<_AddPurchaseSheet> {
     return '${d.day} ${m[d.month-1]} ${d.year}';
   }
 
+  double get _grandTotal => _lines.fold(0.0, (s, l) => s + l.totalVal);
+
   @override
   Widget build(BuildContext context) {
-    final qty   = double.tryParse(_qtyCtrl.text);
-    final total = double.tryParse(_totalCtrl.text);
-    final unitCost = (qty != null && qty > 0 && total != null) ? total / qty : null;
-
-    // Show cost comparison vs product's last cost
-    double? lastCost;
-    if (_selectedProductId != null && unitCost != null) {
-      final prod = _products.firstWhere(
-        (p) => p['id'] == _selectedProductId, orElse: () => {});
-      final cp = prod['costPrice'];
-      if (cp != null) lastCost = double.tryParse(cp.toString());
-    }
-
-    final canSave = _selectedSupplierId != null &&
-        (double.tryParse(_totalCtrl.text) ?? 0) > 0;
+    final canSave = _supplierId != null && _lines.any((l) => l.isValid);
+    final itemCount = _lines.where((l) => l.isValid).length;
 
     return DraggableScrollableSheet(
-      initialChildSize: 0.92,
+      initialChildSize: 0.95,
       maxChildSize: 0.97,
       minChildSize: 0.5,
       builder: (_, ctrl) => Container(
@@ -901,7 +843,6 @@ class _AddPurchaseSheetState extends State<_AddPurchaseSheet> {
         ),
         child: Column(
           children: [
-            // Handle
             Center(
               child: Container(
                 margin: const EdgeInsets.only(top: 12, bottom: 4),
@@ -917,170 +858,192 @@ class _AddPurchaseSheetState extends State<_AddPurchaseSheet> {
                   ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
                   : SingleChildScrollView(
                       controller: ctrl,
-                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           // Header
-                          Text('New Purchase Order',
+                          Text('Add Purchase',
                               style: GoogleFonts.hankenGrotesk(
                                   fontSize: 22, fontWeight: FontWeight.w800,
                                   letterSpacing: -0.5, color: AppColors.inkPrimary)),
-                          Text('PROCUREMENT',
+                          Text('ONE SUPPLIER · MULTIPLE PRODUCTS · SINGLE SUBMIT',
                               style: GoogleFonts.jetBrainsMono(
                                   fontSize: 9, fontWeight: FontWeight.w600,
-                                  color: AppColors.secondary, letterSpacing: 1.5)),
-                          const SizedBox(height: 24),
+                                  color: AppColors.inkSecondary, letterSpacing: 1.2)),
+                          const SizedBox(height: 20),
 
-                          // Product picker
-                          _label('PRODUCT'),
-                          _Dropdown(
-                            hint: 'Select a product...',
-                            icon: LucideIcons.package,
-                            value: _selectedProductId,
-                            items: _products.map((p) => DropdownMenuItem(
-                              value: p['id'] as String,
-                              child: Text(
-                                '${p['name']}${p['sku'] != null ? ' (${p['sku']})' : ''}',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            )).toList(),
-                            onChanged: (v) => setState(() => _selectedProductId = v),
+                          // ── HEADER CARD ──────────────────────────────
+                          Container(
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: AppColors.surface,
+                              borderRadius: BorderRadius.circular(18),
+                              boxShadow: [AppColors.cardShadow],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _label('SUPPLIER *'),
+                                _Dropdown(
+                                  hint: 'Select a supplier...',
+                                  icon: LucideIcons.building2,
+                                  value: _supplierId,
+                                  items: _suppliers.map((s) => DropdownMenuItem(
+                                    value: s['id'] as String,
+                                    child: Text(s['name'] as String? ?? '',
+                                        overflow: TextOverflow.ellipsis),
+                                  )).toList(),
+                                  onChanged: (v) => setState(() => _supplierId = v),
+                                ),
+                                const SizedBox(height: 12),
+                                _label('PAYMENT TYPE'),
+                                Row(
+                                  children: [
+                                    _PayChip(label: 'Cash', active: _paymentType == 'CASH',
+                                      onTap: () => setState(() => _paymentType = 'CASH')),
+                                    const SizedBox(width: 8),
+                                    _PayChip(label: 'Credit', active: _paymentType == 'CREDIT',
+                                      onTap: () => setState(() => _paymentType = 'CREDIT')),
+                                    const SizedBox(width: 8),
+                                    _PayChip(label: 'Bank', active: _paymentType == 'BANK',
+                                      onTap: () => setState(() => _paymentType = 'BANK')),
+                                  ],
+                                ),
+                                const SizedBox(height: 12),
+                                _label('DATE'),
+                                GestureDetector(
+                                  onTap: _pickDate,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.canvas,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const Icon(LucideIcons.calendar,
+                                            size: 16, color: AppColors.inkSecondary),
+                                        const SizedBox(width: 10),
+                                        Text(_fmt(_date),
+                                            style: GoogleFonts.inter(
+                                                fontSize: 13, fontWeight: FontWeight.w600,
+                                                color: AppColors.inkPrimary)),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                _label('NOTES (OPTIONAL)'),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.canvas,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+                                  ),
+                                  child: TextField(
+                                    controller: _notesCtrl,
+                                    style: GoogleFonts.inter(
+                                        fontSize: 13, color: AppColors.inkPrimary),
+                                    decoration: InputDecoration(
+                                      prefixIcon: const Icon(LucideIcons.fileText,
+                                          size: 16, color: AppColors.inkSecondary),
+                                      hintText: 'Invoice no., remarks...',
+                                      hintStyle: GoogleFonts.inter(
+                                          fontSize: 13,
+                                          color: AppColors.inkSecondary.withValues(alpha: 0.5)),
+                                      border: InputBorder.none,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 12),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 14),
 
-                          // Supplier picker (required)
-                          _label('SUPPLIER *'),
-                          _Dropdown(
-                            hint: 'Select a supplier...',
-                            icon: LucideIcons.building2,
-                            value: _selectedSupplierId,
-                            items: _suppliers.map((s) => DropdownMenuItem(
-                              value: s['id'] as String,
-                              child: Text(s['name'] as String? ?? '',
-                                  overflow: TextOverflow.ellipsis),
-                            )).toList(),
-                            onChanged: (v) => setState(() => _selectedSupplierId = v),
-                          ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 18),
 
-                          // Qty + Unit price row
+                          // ── LINE ITEMS ───────────────────────────────
                           Row(
                             children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _label('QUANTITY'),
-                                    _Field(
-                                      ctrl: _qtyCtrl,
-                                      label: '0',
-                                      icon: LucideIcons.hash,
-                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                      onChanged: _onQtyChanged,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    _label('UNIT PRICE'),
-                                    _Field(
-                                      ctrl: _unitPriceCtrl,
-                                      label: '0.00',
-                                      icon: LucideIcons.indianRupee,
-                                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                      onChanged: _onUnitPriceChanged,
-                                    ),
-                                  ],
-                                ),
-                              ),
+                              _label('LINE ITEMS'),
+                              const Spacer(),
+                              Text('${_lines.length} ROW${_lines.length == 1 ? '' : 'S'}',
+                                  style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 9, fontWeight: FontWeight.w700,
+                                      color: AppColors.inkTertiary, letterSpacing: 1)),
                             ],
                           ),
-                          const SizedBox(height: 14),
+                          const SizedBox(height: 8),
 
-                          // Total amount
-                          _label('TOTAL AMOUNT *'),
-                          _Field(
-                            ctrl: _totalCtrl,
-                            label: '0.00',
-                            icon: LucideIcons.indianRupee,
-                            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                            onChanged: _onTotalChanged,
-                          ),
-                          if (unitCost != null && lastCost != null && lastCost > 0)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 4, left: 4),
-                              child: Text(
-                                unitCost > lastCost
-                                    ? '▲ Higher than last cost ₹${lastCost.toStringAsFixed(2)}'
-                                    : '▼ Lower than last cost ₹${lastCost.toStringAsFixed(2)}',
+                          ..._lines.asMap().entries.map((entry) {
+                            final idx = entry.key;
+                            final line = entry.value;
+                            return Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: _LineItemCard(
+                                index: idx,
+                                line: line,
+                                products: _products,
+                                canRemove: _lines.length > 1,
+                                onProductChange: (id) => setState(() => line.productId = id),
+                                onQtyChange: (v) => _onQtyChanged(line, v),
+                                onUnitPriceChange: (v) => _onUnitPriceChanged(line, v),
+                                onTotalChange: (v) => _onTotalChanged(line, v),
+                                onRemove: () => setState(() {
+                                  line.dispose();
+                                  _lines.removeAt(idx);
+                                }),
+                              ),
+                            );
+                          }),
+
+                          // Add row
+                          OutlinedButton.icon(
+                            onPressed: () => setState(() => _lines.add(_PurchaseLine())),
+                            icon: const Icon(LucideIcons.plus, size: 14),
+                            label: Text('ADD ROW',
                                 style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10, fontWeight: FontWeight.w700,
-                                  color: unitCost > lastCost
-                                      ? AppColors.warning
-                                      : AppColors.success,
-                                ),
-                              ),
-                            ),
-                          const SizedBox(height: 14),
-
-                          // Payment type
-                          _label('PAYMENT TYPE'),
-                          Row(
-                            children: [
-                              _PayChip(
-                                label: 'Cash',
-                                active: _paymentType == 'CASH',
-                                onTap: () => setState(() => _paymentType = 'CASH'),
-                              ),
-                              const SizedBox(width: 10),
-                              _PayChip(
-                                label: 'Credit',
-                                active: _paymentType == 'CREDIT',
-                                onTap: () => setState(() => _paymentType = 'CREDIT'),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-
-                          // Date
-                          _label('DATE'),
-                          GestureDetector(
-                            onTap: _pickDate,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                borderRadius: BorderRadius.circular(14),
-                                boxShadow: [AppColors.cardShadow],
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(LucideIcons.calendar,
-                                      size: 18, color: AppColors.inkSecondary),
-                                  const SizedBox(width: 12),
-                                  Text(_fmt(_date),
-                                      style: GoogleFonts.inter(
-                                          fontSize: 14, fontWeight: FontWeight.w600,
-                                          color: AppColors.inkPrimary)),
-                                ],
-                              ),
+                                    fontSize: 11, fontWeight: FontWeight.w700,
+                                    letterSpacing: 1)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              backgroundColor: AppColors.primaryContainer.withValues(alpha: 0.3),
+                              side: BorderSide(
+                                  color: AppColors.primary.withValues(alpha: 0.3)),
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: const StadiumBorder(),
                             ),
                           ),
-                          const SizedBox(height: 14),
 
-                          // Notes
-                          _label('NOTES (OPTIONAL)'),
-                          _Field(
-                            ctrl: _notesCtrl,
-                            label: 'Reference or remarks...',
-                            icon: LucideIcons.fileText,
+                          const SizedBox(height: 18),
+
+                          // ── GRAND TOTAL ──────────────────────────────
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppColors.inkPrimary,
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('GRAND TOTAL',
+                                    style: GoogleFonts.jetBrainsMono(
+                                        fontSize: 10, fontWeight: FontWeight.w700,
+                                        color: Colors.white.withValues(alpha: 0.6),
+                                        letterSpacing: 1.5)),
+                                Text('₹${_grandTotal.toStringAsFixed(2)}',
+                                    style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 24, fontWeight: FontWeight.w900,
+                                        color: Colors.white, letterSpacing: -0.8)),
+                              ],
+                            ),
                           ),
-                          const SizedBox(height: 28),
+
+                          const SizedBox(height: 22),
 
                           // Save button
                           SizedBox(
@@ -1088,25 +1051,34 @@ class _AddPurchaseSheetState extends State<_AddPurchaseSheet> {
                             child: ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: canSave
-                                    ? AppColors.primaryContainer
+                                    ? AppColors.inkPrimary
                                     : AppColors.surfaceContainer,
                                 foregroundColor: canSave
-                                    ? AppColors.inkPrimary
+                                    ? Colors.white
                                     : AppColors.inkTertiary,
                                 elevation: 0,
                                 padding: const EdgeInsets.symmetric(vertical: 16),
                                 shape: const StadiumBorder(),
-                                textStyle: GoogleFonts.jetBrainsMono(
-                                    fontWeight: FontWeight.w700, fontSize: 13,
-                                    letterSpacing: 1),
                               ),
                               onPressed: canSave && !_saving ? _save : null,
                               child: _saving
                                   ? const SizedBox(
                                       width: 20, height: 20,
                                       child: CircularProgressIndicator(
-                                          strokeWidth: 2, color: AppColors.primary))
-                                  : const Text('SAVE ORDER'),
+                                          strokeWidth: 2, color: Colors.white))
+                                  : Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        const Icon(LucideIcons.checkCircle, size: 16),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'SAVE ${itemCount > 0 ? "$itemCount ITEM${itemCount == 1 ? '' : 'S'}" : 'PURCHASE'}',
+                                          style: GoogleFonts.jetBrainsMono(
+                                              fontSize: 12, fontWeight: FontWeight.w700,
+                                              letterSpacing: 1.5),
+                                        ),
+                                      ],
+                                    ),
                             ),
                           ),
                         ],
@@ -1120,13 +1092,223 @@ class _AddPurchaseSheetState extends State<_AddPurchaseSheet> {
   }
 
   Widget _label(String text) => Padding(
-    padding: const EdgeInsets.only(bottom: 6),
+    padding: const EdgeInsets.only(bottom: 6, left: 2),
     child: Text(text,
         style: GoogleFonts.jetBrainsMono(
             fontSize: 9, fontWeight: FontWeight.w700,
-            color: AppColors.inkTertiary, letterSpacing: 1)),
+            color: AppColors.inkTertiary, letterSpacing: 1.2)),
   );
 }
+
+// ─── Line item card ─────────────────────────────────────────────────────────
+class _LineItemCard extends StatelessWidget {
+  final int index;
+  final _PurchaseLine line;
+  final List<Map<String, dynamic>> products;
+  final bool canRemove;
+  final ValueChanged<String?> onProductChange;
+  final ValueChanged<String> onQtyChange;
+  final ValueChanged<String> onUnitPriceChange;
+  final ValueChanged<String> onTotalChange;
+  final VoidCallback onRemove;
+
+  const _LineItemCard({
+    required this.index,
+    required this.line,
+    required this.products,
+    required this.canRemove,
+    required this.onProductChange,
+    required this.onQtyChange,
+    required this.onUnitPriceChange,
+    required this.onTotalChange,
+    required this.onRemove,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedProduct = line.productId == null
+        ? null
+        : products.firstWhere((p) => p['id'] == line.productId,
+            orElse: () => <String, dynamic>{});
+
+    final lastCost = selectedProduct?['costPrice'] == null
+        ? null
+        : double.tryParse(selectedProduct!['costPrice'].toString());
+    final unit = line.unitCost;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+        boxShadow: [AppColors.cardShadow],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Row index + remove
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(99),
+                ),
+                child: Text('#${index + 1}',
+                    style: GoogleFonts.jetBrainsMono(
+                        fontSize: 10, fontWeight: FontWeight.w700,
+                        color: AppColors.primary)),
+              ),
+              const Spacer(),
+              if (canRemove)
+                IconButton(
+                  iconSize: 16,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                  onPressed: onRemove,
+                  icon: const Icon(LucideIcons.trash2, color: AppColors.danger),
+                ),
+            ],
+          ),
+          const SizedBox(height: 6),
+
+          // Product picker
+          _Dropdown(
+            hint: 'Select product...',
+            icon: LucideIcons.package,
+            value: line.productId,
+            items: products.map((p) => DropdownMenuItem(
+              value: p['id'] as String,
+              child: Text(
+                '${p['name']}${p['sku'] != null ? ' (${p['sku']})' : ''}',
+                overflow: TextOverflow.ellipsis,
+              ),
+            )).toList(),
+            onChanged: onProductChange,
+          ),
+
+          if (selectedProduct != null && selectedProduct.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 4),
+              child: Text(
+                'Stock: ${selectedProduct['stock'] ?? 0}'
+                '${lastCost != null && lastCost > 0 ? " · Last ₹${lastCost.toStringAsFixed(2)}" : ""}',
+                style: GoogleFonts.jetBrainsMono(
+                    fontSize: 9, fontWeight: FontWeight.w600,
+                    color: AppColors.inkTertiary),
+              ),
+            ),
+
+          const SizedBox(height: 10),
+
+          // Qty + Unit price row
+          Row(
+            children: [
+              Expanded(
+                child: _MiniField(
+                  label: 'QTY',
+                  ctrl: line.qtyCtrl,
+                  icon: LucideIcons.hash,
+                  onChanged: onQtyChange,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MiniField(
+                  label: 'UNIT',
+                  ctrl: line.unitPriceCtrl,
+                  icon: LucideIcons.indianRupee,
+                  onChanged: onUnitPriceChange,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _MiniField(
+                  label: 'TOTAL',
+                  ctrl: line.totalCtrl,
+                  icon: LucideIcons.indianRupee,
+                  onChanged: onTotalChange,
+                ),
+              ),
+            ],
+          ),
+
+          // Cost vs last
+          if (unit != null && lastCost != null && lastCost > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 4),
+              child: Text(
+                unit > lastCost
+                    ? '▲ Higher than last ₹${lastCost.toStringAsFixed(2)}'
+                    : '▼ Lower than last ₹${lastCost.toStringAsFixed(2)}',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 9, fontWeight: FontWeight.w700,
+                  color: unit > lastCost ? AppColors.warning : AppColors.success,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniField extends StatelessWidget {
+  final String label;
+  final TextEditingController ctrl;
+  final IconData icon;
+  final ValueChanged<String>? onChanged;
+  const _MiniField({
+    required this.label,
+    required this.ctrl,
+    required this.icon,
+    this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4, left: 2),
+          child: Text(label,
+              style: GoogleFonts.jetBrainsMono(
+                  fontSize: 8, fontWeight: FontWeight.w700,
+                  color: AppColors.inkTertiary, letterSpacing: 1)),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.canvas,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+          ),
+          child: TextField(
+            controller: ctrl,
+            onChanged: onChanged,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: GoogleFonts.inter(
+                fontSize: 13, fontWeight: FontWeight.w600,
+                color: AppColors.inkPrimary),
+            decoration: InputDecoration(
+              prefixIcon: Icon(icon, size: 13, color: AppColors.inkSecondary),
+              prefixIconConstraints: const BoxConstraints(minWidth: 30, minHeight: 0),
+              hintText: '0',
+              hintStyle: GoogleFonts.inter(
+                  color: AppColors.inkSecondary.withValues(alpha: 0.4),
+                  fontSize: 13),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 
 class _Dropdown extends StatelessWidget {
   final String hint;
