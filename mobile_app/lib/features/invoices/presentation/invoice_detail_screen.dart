@@ -224,6 +224,15 @@ class InvoiceDetailScreen extends ConsumerWidget {
               ],
             ),
 
+            // ── IRN status + manual generate (real invoices only) ────────
+            if (invoice.id.startsWith('INV-')) ...[
+              const SizedBox(height: 12),
+              _IrnStatusCard(
+                invoice: invoice,
+                onGenerate: () => _enqueueIrn(context, ref),
+              ),
+            ],
+
             // Convert Sale → GST Invoice (only for POS sales, not real invoices)
             if (invoice.id.startsWith('SAL-')) ...[
               const SizedBox(height: 12),
@@ -307,6 +316,39 @@ class InvoiceDetailScreen extends ConsumerWidget {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger));
+      }
+    }
+  }
+
+  Future<void> _enqueueIrn(BuildContext context, WidgetRef ref) async {
+    try {
+      final supabase = Supabase.instance.client;
+      final userId = supabase.auth.currentUser?.id;
+      if (userId == null) return;
+
+      final result = await supabase.rpc('enqueue_irn_request', params: {
+        'p_invoice_id': invoice.id,
+        'p_user_id':    userId,
+      });
+      final data = (result is Map) ? Map<String, dynamic>.from(result) : {};
+      final already = data['already_existed'] == true;
+
+      try { ref.invalidate(invoicesProvider); } catch (_) {}
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(already ? 'IRN request already queued' : 'IRN request queued'),
+          backgroundColor: AppColors.secondary,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('IRN enqueue failed: $e'),
+          backgroundColor: AppColors.danger,
+          duration: const Duration(seconds: 6),
+        ));
       }
     }
   }
@@ -1587,6 +1629,108 @@ class _InvoiceCard extends StatelessWidget {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── IRN status card ──────────────────────────────────────────────────────────
+class _IrnStatusCard extends StatelessWidget {
+  final Invoice invoice;
+  final VoidCallback onGenerate;
+  const _IrnStatusCard({required this.invoice, required this.onGenerate});
+
+  @override
+  Widget build(BuildContext context) {
+    final status = invoice.irnStatus ?? 'NONE';
+
+    Color bg, fg;
+    String headline;
+    IconData icon;
+
+    switch (status) {
+      case 'SUCCESS':
+        bg = const Color(0xFFECFDF5); fg = const Color(0xFF047857);
+        headline = 'Generated · ${invoice.irn?.substring(0, invoice.irn!.length.clamp(0, 16)) ?? ''}…';
+        icon = LucideIcons.checkCircle2;
+        break;
+      case 'PENDING':
+        bg = const Color(0xFFFFFBEB); fg = const Color(0xFFB45309);
+        headline = 'Queued for NIC';
+        icon = LucideIcons.clock;
+        break;
+      case 'PROCESSING':
+        bg = const Color(0xFFFFFBEB); fg = const Color(0xFFB45309);
+        headline = 'Worker processing…';
+        icon = LucideIcons.loader;
+        break;
+      case 'FAILED':
+        bg = const Color(0xFFFEF2F2); fg = const Color(0xFFB91C1C);
+        headline = 'Failed — retry available';
+        icon = LucideIcons.alertCircle;
+        break;
+      default:
+        bg = const Color(0xFFF8FAFC); fg = const Color(0xFF475569);
+        headline = 'Not generated';
+        icon = LucideIcons.fileText;
+    }
+
+    final canRetry = status == 'NONE' || status == 'FAILED' || status == 'NOT_APPLICABLE';
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: fg.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: fg),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('E-INVOICE IRN',
+                        style: GoogleFonts.jetBrainsMono(
+                            fontSize: 9, fontWeight: FontWeight.w700,
+                            color: fg.withValues(alpha: 0.7), letterSpacing: 1.5)),
+                    const SizedBox(height: 2),
+                    Text(headline,
+                        style: GoogleFonts.inter(
+                            fontSize: 13, fontWeight: FontWeight.w700, color: fg),
+                        overflow: TextOverflow.ellipsis),
+                  ],
+                ),
+              ),
+              if (canRetry)
+                TextButton.icon(
+                  onPressed: onGenerate,
+                  icon: const Icon(LucideIcons.send, size: 13),
+                  label: Text(status == 'FAILED' ? 'Retry' : 'Generate',
+                      style: GoogleFonts.inter(
+                          fontSize: 12, fontWeight: FontWeight.w700)),
+                  style: TextButton.styleFrom(
+                    foregroundColor: fg,
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    shape: const StadiumBorder(),
+                  ),
+                ),
+            ],
+          ),
+          if (invoice.ackNo != null) ...[
+            const SizedBox(height: 6),
+            Text('Ack: ${invoice.ackNo} · ${invoice.ackDate ?? ''}',
+                style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10, color: fg.withValues(alpha: 0.7))),
+          ],
         ],
       ),
     );

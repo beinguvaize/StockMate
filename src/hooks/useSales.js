@@ -293,6 +293,21 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       setInvoices(prev => [inserted, ...prev]);
       return { success: true, data: inserted };
     },
+    // Manually trigger e-invoice IRN generation for a given invoice.
+    // Idempotent — re-running on an invoice with a queued/successful job
+    // returns the existing job.
+    enqueueIrn: async (invoiceId) => {
+      if (!invoiceId) return { error: new Error('enqueueIrn: invoiceId required') };
+      if (!currentUser?.id) return { error: new Error('enqueueIrn: not authenticated') };
+      const { data, error } = await supabase.rpc('enqueue_irn_request', {
+        p_invoice_id: invoiceId,
+        p_user_id:    currentUser.id,
+      });
+      if (error) return { error };
+      await fetchSales();
+      return { success: true, ...data };
+    },
+
     // Convert an existing POS sale into a full GST invoice.
     // Atomic + idempotent via SQL RPC. Re-running on a sale that already has
     // an invoice returns the existing invoice without burning a number.

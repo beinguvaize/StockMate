@@ -159,6 +159,7 @@ const Settings = () => {
     pan_no: profile.pan_no || '',
     gst_no: profile.gst_no || '',
     tax_mode: profile.tax_mode || 'EXCLUSIVE',
+    auto_irn_enabled: profile.auto_irn_enabled ?? false,
     bank_name: profile.bank_name || '',
     account_no: profile.account_no || '',
     ifsc_code: profile.ifsc_code || '',
@@ -369,6 +370,26 @@ const Settings = () => {
    <p className="text-[10px] text-gray-400 mt-2">
      Applies to all invoices and POS sales. Save profile to update.
    </p>
+ </div>
+
+ {/* Auto IRN toggle */}
+ <div className="mt-5">
+   <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-3">E-Invoice (IRN)</label>
+   <div className="flex items-center justify-between px-4 py-3 rounded-xl border-2 bg-canvas border-black/10">
+     <div className="flex-1 pr-4">
+       <p className="text-xs font-black text-ink-primary">Auto-generate IRN for every invoice</p>
+       <p className="text-[10px] mt-0.5 font-medium text-gray-400">
+         Required if your aggregate turnover exceeds ₹5 Cr. Queues an IRN request to the NIC portal on each invoice — fetched asynchronously by the worker.
+       </p>
+     </div>
+     <button
+       type="button"
+       onClick={() => setProfileData(p => ({ ...p, auto_irn_enabled: !p.auto_irn_enabled }))}
+       className={`relative w-11 h-6 rounded-full transition-colors ${profileData.auto_irn_enabled ? 'bg-emerald-500' : 'bg-gray-300'}`}
+     >
+       <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${profileData.auto_irn_enabled ? 'translate-x-5' : ''}`} />
+     </button>
+   </div>
  </div>
  </div>
 

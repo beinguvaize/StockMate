@@ -98,7 +98,7 @@ const TotalRow = ({ label, value, bold, tone }) => {
 const Invoices = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile, currentTenant } = useTenant();
-  const { invoices, createInvoice, markInvoicePaid, refetch: refetchInvoices } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
+  const { invoices, createInvoice, markInvoicePaid, enqueueIrn, refetch: refetchInvoices } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
   const { products } = useInventory(currentTenantId);
   const { clients }  = usePeople(currentTenantId);
 
@@ -493,6 +493,49 @@ const Invoices = () => {
                       </div>
                     );
                   })}
+                </div>
+
+                {/* IRN status */}
+                <div className={`rounded-xl p-4 border ${
+                  inv.irn_status === 'SUCCESS' ? 'bg-emerald-50 border-emerald-200' :
+                  inv.irn_status === 'FAILED'  ? 'bg-red-50 border-red-200' :
+                  inv.irn_status === 'PENDING' || inv.irn_status === 'PROCESSING' ? 'bg-amber-50 border-amber-200' :
+                  'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-gray-500">E-Invoice IRN</p>
+                      <p className={`text-sm font-bold mt-0.5 ${
+                        inv.irn_status === 'SUCCESS' ? 'text-emerald-700' :
+                        inv.irn_status === 'FAILED'  ? 'text-red-700' :
+                        inv.irn_status === 'PENDING' || inv.irn_status === 'PROCESSING' ? 'text-amber-700' :
+                        'text-gray-700'
+                      }`}>
+                        {inv.irn_status === 'SUCCESS' ? `Generated · ${inv.irn?.slice(0, 16)}…` :
+                         inv.irn_status === 'FAILED'  ? 'Failed — see error' :
+                         inv.irn_status === 'PENDING' ? 'Queued for NIC' :
+                         inv.irn_status === 'PROCESSING' ? 'Worker processing…' :
+                         'Not generated'}
+                      </p>
+                    </div>
+                    {(!inv.irn_status || inv.irn_status === 'FAILED' || inv.irn_status === 'NOT_APPLICABLE') && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const r = await enqueueIrn(inv.id);
+                          if (r.error) return alert('Enqueue failed: ' + r.error.message);
+                          alert(r.already_existed ? 'Already queued' : 'IRN request queued');
+                          setDetailInv(null);
+                        }}
+                        className="px-3 py-1.5 rounded-pill bg-ink-primary text-white text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
+                      >
+                        Generate IRN
+                      </button>
+                    )}
+                  </div>
+                  {inv.ack_no && (
+                    <p className="text-[10px] text-gray-500 mt-1.5 font-mono">Ack: {inv.ack_no} · {inv.ack_date}</p>
+                  )}
                 </div>
 
                 {/* Totals */}
