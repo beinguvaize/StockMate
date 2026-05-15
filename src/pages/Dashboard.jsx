@@ -57,35 +57,52 @@ const Dashboard = () => {
    return () => clearTimeout(t);
  }, []);
 
+ // Pull a clean YYYY-MM-DD out of any input ("2026-05-15", "2026-05-15T00:00:00Z", Date, etc)
+ // No Date-object parsing — avoids timezone off-by-one (esp. negative UTC offsets).
+ const toYMD = (v) => {
+   if (!v) return '';
+   if (typeof v === 'string') {
+     const m = v.match(/^(\d{4}-\d{2}-\d{2})/);
+     if (m) return m[1];
+   }
+   // Fallback for Date objects — use local components, not toISOString (UTC).
+   const d = v instanceof Date ? v : new Date(v);
+   if (isNaN(d.getTime())) return '';
+   const y = d.getFullYear();
+   const mo = String(d.getMonth() + 1).padStart(2, '0');
+   const day = String(d.getDate()).padStart(2, '0');
+   return `${y}-${mo}-${day}`;
+ };
+
  const isWithinRange = (dateStr) => {
- if (!dateStr) return false;
- const d = new Date(dateStr);
- d.setHours(0,0,0,0);
- const today = new Date();
- today.setHours(0,0,0,0);
- 
- if (datePreset === 'Today') {
- return d.getTime() === today.getTime();
-} else if (datePreset === 'This Week') {
- const currentDay = today.getDay() === 0 ? 7 : today.getDay(); 
- const startOfWeek = new Date(today);
- startOfWeek.setDate(today.getDate() - currentDay + 1);
- const endOfWeek = new Date(startOfWeek);
- endOfWeek.setDate(startOfWeek.getDate() + 6);
- return d >= startOfWeek && d <= endOfWeek;
-} else if (datePreset === 'This Month') {
- return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
-} else if (datePreset === 'Last Month') {
- const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
- return d.getMonth() === lastMonth.getMonth() && d.getFullYear() === lastMonth.getFullYear();
-} else if (datePreset === 'Custom Range') {
- if (!customRange.start || !customRange.end) return true;
- const start = new Date(customRange.start);
- const end = new Date(customRange.end);
- return d >= start && d <= end;
-}
- return true;
-};
+   if (!dateStr) return false;
+   const dStr = toYMD(dateStr);
+   if (!dStr) return false;
+   const todayStr = toYMD(new Date());
+
+   if (datePreset === 'Today') {
+     return dStr === todayStr;
+   } else if (datePreset === 'This Week') {
+     const today = new Date();
+     today.setHours(0,0,0,0);
+     const currentDay = today.getDay() === 0 ? 7 : today.getDay();
+     const startOfWeek = new Date(today);
+     startOfWeek.setDate(today.getDate() - currentDay + 1);
+     const endOfWeek = new Date(startOfWeek);
+     endOfWeek.setDate(startOfWeek.getDate() + 6);
+     return dStr >= toYMD(startOfWeek) && dStr <= toYMD(endOfWeek);
+   } else if (datePreset === 'This Month') {
+     return dStr.slice(0, 7) === todayStr.slice(0, 7);
+   } else if (datePreset === 'Last Month') {
+     const today = new Date();
+     const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+     return dStr.slice(0, 7) === toYMD(lastMonth).slice(0, 7);
+   } else if (datePreset === 'Custom Range') {
+     if (!customRange.start || !customRange.end) return true;
+     return dStr >= toYMD(customRange.start) && dStr <= toYMD(customRange.end);
+   }
+   return true;
+ };
 
  // New KPIs
  const rangeSales = (sales || []).filter(s => isWithinRange(s.date)).reduce((sum, s) => sum + (s.totalAmount || 0), 0);
