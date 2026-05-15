@@ -17,7 +17,7 @@ const PurchasesPage = () => {
   const { currentTenantId } = useTenant();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, remove: removePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
   const { products, inventoryLocations, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
@@ -151,8 +151,16 @@ const PurchasesPage = () => {
     { label: 'Product / Supplier' },
     { label: 'Quantity', className: 'text-center' },
     { label: 'Total', className: 'text-right' },
+    { label: 'Status', className: 'text-center' },
     { label: '', className: 'text-right' },
   ];
+
+  const _STATUS_STYLES = {
+    PENDING:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   label: 'Pending'   },
+    ORDERED:   { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    label: 'Ordered'   },
+    RECEIVED:  { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Received'  },
+    CANCELLED: { bg: 'bg-gray-100',   text: 'text-gray-500',    border: 'border-gray-200',    label: 'Cancelled' },
+  };
 
   // ── Returns table ────────────────────────────────────────────────────────────
   const returnHeaders = [
@@ -217,6 +225,24 @@ const PurchasesPage = () => {
         </td>
         <td className="px-4 py-3 text-right">
           <div className="text-sm font-black text-ink-primary">{formatCurrency(pur.total_amount)}</div>
+        </td>
+        <td className="px-4 py-3 text-center">
+          {(() => {
+            const st = (pur.status || 'RECEIVED').toUpperCase();
+            const s = _STATUS_STYLES[st] || _STATUS_STYLES.RECEIVED;
+            return (
+              <select
+                value={st}
+                onChange={(e) => updatePurchaseStatus(pur.id, e.target.value)}
+                className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-pill border outline-none cursor-pointer ${s.bg} ${s.text} ${s.border}`}
+              >
+                <option value="PENDING">Pending</option>
+                <option value="ORDERED">Ordered</option>
+                <option value="RECEIVED">Received</option>
+                <option value="CANCELLED">Cancelled</option>
+              </select>
+            );
+          })()}
         </td>
         <td className="px-4 py-3 text-right">
           <div className="flex items-center gap-1.5 justify-end">

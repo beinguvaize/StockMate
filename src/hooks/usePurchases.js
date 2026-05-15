@@ -118,6 +118,19 @@ export const usePurchases = (tenantId) => {
     return { error };
   };
 
+  // PENDING → ORDERED → RECEIVED → (CANCELLED)
+  const updateStatus = async (id, status) => {
+    const allowed = ['PENDING', 'ORDERED', 'RECEIVED', 'CANCELLED'];
+    if (!allowed.includes(status)) return { error: new Error('Invalid status') };
+    const { error } = await supabase
+      .from('purchases')
+      .update({ status })
+      .eq('id', id)
+      .eq('tenant_id', tenantId);
+    if (!error) await fetchPurchases();
+    return { error };
+  };
+
   const addReturn = async (ret) => {
     const { data: rpcData, error: rpcErr } = await supabase.rpc('process_purchase_return', {
       p_id:            ret.id,
@@ -150,6 +163,7 @@ export const usePurchases = (tenantId) => {
     refetch: fetchPurchases,
     add,
     update,
+    updateStatus,
     remove,
     addReturn,
   };
