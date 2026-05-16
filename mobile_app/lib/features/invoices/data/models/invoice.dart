@@ -27,7 +27,18 @@ class Invoice {
   final String? ackNo;
   final String? ackDate;
   final String? signedQr;
-  final String? irnStatus; // null | PENDING | PROCESSING | SUCCESS | FAILED | CANCELLED | NOT_APPLICABLE
+  final String? irnStatus;
+
+  // GST client fields (set on Sale → Invoice conversion)
+  final String? clientGstin;
+  final String? clientAddress;
+  final String? clientPhone;
+  final String? placeOfSupply;
+  final String? saleId; // back-link to originating POS sale
+  // When this Invoice instance is a view-adapter built from a Sale that has
+  // already been converted to a real invoice, this carries the linked
+  // invoice id so the UI can flip the action button to 'View GST Invoice'.
+  final String? linkedInvoiceIdFromSale;
 
   Invoice({
     required this.id,
@@ -53,6 +64,12 @@ class Invoice {
     this.ackDate,
     this.signedQr,
     this.irnStatus,
+    this.clientGstin,
+    this.clientAddress,
+    this.clientPhone,
+    this.placeOfSupply,
+    this.saleId,
+    this.linkedInvoiceIdFromSale,
   });
 
   /// Amount still owed — matches web's outstandingOf(inv)
@@ -65,6 +82,11 @@ class Invoice {
   /// Customer display name
   String get displayClientName => clientName?.isNotEmpty == true ? clientName! : 'Unknown';
 
+  /// Walk-in detection — no client id linked to the underlying sale.
+  bool get isWalkIn =>
+      (clientId == null || clientId!.isEmpty) &&
+      (clientGstin == null || clientGstin!.isEmpty);
+
   /// Adapts a POS/van Sale record to Invoice for display in InvoiceDetailScreen.
   factory Invoice.fromSale(Sale s) {
     final total = s.totalAmount ?? 0.0;
@@ -73,6 +95,7 @@ class Invoice {
     return Invoice(
       id:            s.id,
       invoiceNumber: null,
+      clientId:      s.shopId,
       clientName:    s.displayCustomerName,
       invoiceDate:   s.date,
       dueDate:       s.date,
@@ -83,6 +106,9 @@ class Invoice {
       igstAmount:    taxAmt > 0 ? taxAmt : null,
       paymentMethod: s.paymentMethod,
       items:         s.items,
+      // Carry the back-link so the UI can flip the Convert button to
+      // 'View GST Invoice' when the sale has already been promoted.
+      linkedInvoiceIdFromSale: s.invoiceId,
     );
   }
 
@@ -116,6 +142,11 @@ class Invoice {
       ackDate:       j['ack_date'] as String?,
       signedQr:      j['signed_qr'] as String?,
       irnStatus:     (j['irn_status'] as String?)?.toUpperCase(),
+      clientGstin:   j['client_gstin']    as String?,
+      clientAddress: j['client_address']  as String?,
+      clientPhone:   j['client_phone']    as String?,
+      placeOfSupply: j['place_of_supply'] as String?,
+      saleId:        j['sale_id']         as String?,
     );
   }
 }

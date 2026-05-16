@@ -8,6 +8,8 @@ import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:mobile_app/features/settings/presentation/providers/settings_provider.dart';
+import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -129,17 +131,21 @@ class InvoiceDetailScreen extends ConsumerWidget {
           ],
         ),
         actions: [
-          IconButton(
-            onPressed: () => _share(context, profile),
-            icon: const Icon(LucideIcons.share2, size: 20, color: AppColors.primary),
-            tooltip: 'Share PDF',
-          ),
-          IconButton(
-            onPressed: () => _print(context, profile),
-            icon: const Icon(LucideIcons.printer, size: 20, color: Color(0xFF1E293B)),
-            tooltip: 'Print',
-          ),
-          const SizedBox(width: 8),
+          // Real GST invoices get Print/Share PDF icons. Sale-backed views
+          // skip these — they print receipts via the body buttons instead.
+          if (invoice.id.startsWith('INV-')) ...[
+            IconButton(
+              onPressed: () => _share(context, profile),
+              icon: const Icon(LucideIcons.share2, size: 20, color: AppColors.primary),
+              tooltip: 'Share PDF',
+            ),
+            IconButton(
+              onPressed: () => _print(context, profile),
+              icon: const Icon(LucideIcons.printer, size: 20, color: Color(0xFF1E293B)),
+              tooltip: 'Print',
+            ),
+            const SizedBox(width: 8),
+          ],
         ],
       ),
       body: SingleChildScrollView(
@@ -148,46 +154,56 @@ class InvoiceDetailScreen extends ConsumerWidget {
           children: [
             _InvoiceCard(invoice: invoice, profile: profile),
             const SizedBox(height: 20),
-            // Action buttons
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () => _print(context, profile),
-                    icon: const Icon(LucideIcons.printer, size: 16),
-                    label: Text('Print',
-                        style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w700, fontSize: 14)),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF1E293B),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: const StadiumBorder(),
-                      side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+
+            // GST Invoice print/share — only when this view is a real GST invoice.
+            // Sale-backed views (id starts with SAL-) get Receipt buttons only.
+            if (invoice.id.startsWith('INV-'))
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _print(context, profile),
+                      icon: const Icon(LucideIcons.printer, size: 16),
+                      label: Text('Print',
+                          style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700, fontSize: 14)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF1E293B),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: const StadiumBorder(),
+                        side: const BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  flex: 2,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _share(context, profile),
-                    icon: const Icon(LucideIcons.share2, size: 16),
-                    label: Text('Share Invoice',
-                        style: GoogleFonts.inter(
-                            fontWeight: FontWeight.w700, fontSize: 14)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondary,
-                      foregroundColor: AppColors.primaryContainer,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: const StadiumBorder(),
-                      elevation: 0,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    flex: 2,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _share(context, profile),
+                      icon: const Icon(LucideIcons.share2, size: 16),
+                      label: Text('Share Invoice',
+                          style: GoogleFonts.inter(
+                              fontWeight: FontWeight.w700, fontSize: 14)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.secondary,
+                        foregroundColor: AppColors.primaryContainer,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: const StadiumBorder(),
+                        elevation: 0,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            // POS Receipt (80mm thermal format — mirrors web POSReceipt.jsx)
-            const SizedBox(height: 12),
+                ],
+              ),
+
+            if (invoice.id.startsWith('INV-')) const SizedBox(height: 12),
+            if (!invoice.id.startsWith('INV-'))
+              // No spacer needed; receipt row starts directly.
+              const SizedBox.shrink(),
+            // POS Receipt — always available for sale-backed views.
+            // For real invoices we keep them too as a fallback (some users still
+            // want a thermal print). Hidden buttons row above implies this is
+            // the primary action set for SAL- views.
             Row(
               children: [
                 Expanded(
@@ -233,8 +249,13 @@ class InvoiceDetailScreen extends ConsumerWidget {
               ),
             ],
 
-            // Convert Sale → GST Invoice (only for POS sales, not real invoices)
-            if (invoice.id.startsWith('SAL-')) ...[
+            // Sale → GST Invoice flow.
+            // ALL sales (walk-in or named) can be converted — cashier collects
+            // client + GSTIN at the time of conversion.
+            // Already-converted sales: show 'GST Invoice issued · INV-…' badge.
+            if (invoice.id.startsWith('SAL-') &&
+                (invoice.linkedInvoiceIdFromSale == null ||
+                 invoice.linkedInvoiceIdFromSale!.isEmpty)) ...[
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
@@ -250,6 +271,39 @@ class InvoiceDetailScreen extends ConsumerWidget {
                     shape: const StadiumBorder(),
                     elevation: 0,
                   ),
+                ),
+              ),
+            ],
+
+            // Sale already converted → show muted reference to the linked invoice.
+            if (invoice.id.startsWith('SAL-') &&
+                invoice.linkedInvoiceIdFromSale != null &&
+                invoice.linkedInvoiceIdFromSale!.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(LucideIcons.checkCircle2, size: 16, color: AppColors.success),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'GST Invoice issued · ${invoice.linkedInvoiceIdFromSale}',
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.success),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -354,6 +408,25 @@ class InvoiceDetailScreen extends ConsumerWidget {
   }
 
   Future<void> _convertToInvoice(BuildContext context, WidgetRef ref) async {
+    // Open form sheet to collect client info + GSTIN.
+    // ANY sale (walk-in or named) can be converted — we collect everything
+    // we need to issue a GST tax invoice at this moment.
+    final result = await showModalBottomSheet<Map<String, String?>?>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _ConvertSheet(invoice: invoice),
+    );
+    if (result == null) return; // cancelled
+
+    await _runConvertRpc(context, ref, result);
+  }
+
+  Future<void> _runConvertRpc(
+      BuildContext context, WidgetRef ref, Map<String, String?> form) async {
     try {
       final supabase = Supabase.instance.client;
       final userId = supabase.auth.currentUser?.id;
@@ -365,20 +438,53 @@ class InvoiceDetailScreen extends ConsumerWidget {
         return;
       }
 
+      // Auto-create a clients row when the sale has no linked client (walk-in)
+      // and we now have full GST customer info. Future sales to the same
+      // customer can then link directly. Skip silently on any DB error —
+      // invoice still goes through.
+      String? clientId = invoice.clientId;
+      if ((clientId == null || clientId.isEmpty) &&
+          (form['gstin'] ?? '').isNotEmpty) {
+        try {
+          final newClientId =
+              'CLI-${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecond}';
+          final inserted = await supabase.from('clients').insert({
+            'id':                newClientId,
+            'name':              form['name'],
+            'phone':             form['phone'],
+            'address':           form['address'],
+            'gst_no':            form['gstin'],
+            'place_of_supply':   form['placeOfSupply'],
+            'outstanding_balance': 0,
+          }).select('id').maybeSingle();
+          if (inserted != null && inserted['id'] != null) {
+            clientId = inserted['id'] as String;
+          }
+        } catch (e) {
+          debugPrint('[convert] client auto-create failed (non-fatal): $e');
+        }
+      }
+
       final result = await supabase.rpc('convert_sale_to_invoice', params: {
-        'p_sale_id':     invoice.id,
-        'p_user_id':     userId,
-        'p_client_id':   invoice.clientId,
-        'p_client_name': invoice.clientName,
-        'p_due_days':    30,
+        'p_sale_id':         invoice.id,
+        'p_user_id':         userId,
+        'p_client_id':       clientId,
+        'p_client_name':     form['name'] ?? invoice.clientName,
+        'p_gstin':           form['gstin'],
+        'p_address':         form['address'],
+        'p_phone':           form['phone'],
+        'p_place_of_supply': form['placeOfSupply'],
+        'p_due_days':        int.tryParse(form['dueDays'] ?? '30') ?? 30,
       });
 
       final data = (result is Map) ? Map<String, dynamic>.from(result) : <String, dynamic>{};
       final number = data['invoice_number']?.toString() ?? 'created';
       final already = data['already_existed'] == true;
 
-      // Refresh sales/invoices providers so back-link reflects
+      // Refresh sales/invoices/clients so back-link + new client reflect.
       try { ref.invalidate(invoicesProvider); } catch (_) {}
+      try { ref.invalidate(recentSalesProvider); } catch (_) {}
+      try { ref.invalidate(clientsProvider); } catch (_) {}
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
@@ -389,6 +495,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 5),
         ));
+        Navigator.of(context).pop(); // close detail; user can re-open via Invoices tab
       }
     } catch (e) {
       if (context.mounted) {
@@ -1733,6 +1840,230 @@ class _IrnStatusCard extends StatelessWidget {
           ],
         ],
       ),
+    );
+  }
+}
+
+// ─── Convert Sale → GST Invoice form sheet ────────────────────────────────────
+class _ConvertSheet extends StatefulWidget {
+  final Invoice invoice;
+  const _ConvertSheet({required this.invoice});
+
+  @override
+  State<_ConvertSheet> createState() => _ConvertSheetState();
+}
+
+class _ConvertSheetState extends State<_ConvertSheet> {
+  late final TextEditingController _name;
+  late final TextEditingController _gstin;
+  late final TextEditingController _address;
+  late final TextEditingController _phone;
+  late final TextEditingController _placeOfSupply;
+  late final TextEditingController _dueDays;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _name          = TextEditingController(text: widget.invoice.clientName ?? '');
+    _gstin         = TextEditingController(text: widget.invoice.clientGstin ?? '');
+    _address       = TextEditingController(text: widget.invoice.clientAddress ?? '');
+    _phone         = TextEditingController(text: widget.invoice.clientPhone ?? '');
+    _placeOfSupply = TextEditingController(text: widget.invoice.placeOfSupply ?? '');
+    _dueDays       = TextEditingController(text: '30');
+  }
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _gstin.dispose();
+    _address.dispose();
+    _phone.dispose();
+    _placeOfSupply.dispose();
+    _dueDays.dispose();
+    super.dispose();
+  }
+
+  // GSTIN basic shape: 15 chars, [2-digit state] + 10-char PAN + 1 + Z + 1 alnum.
+  static final _gstinRe = RegExp(r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$');
+
+  void _submit() {
+    final name  = _name.text.trim();
+    final gstin = _gstin.text.trim().toUpperCase();
+    if (name.isEmpty) {
+      setState(() => _error = 'Client name required');
+      return;
+    }
+    if (gstin.isEmpty) {
+      setState(() => _error = 'GSTIN required for tax invoice');
+      return;
+    }
+    if (!_gstinRe.hasMatch(gstin)) {
+      setState(() => _error = 'GSTIN format invalid (15 chars, e.g. 29AAACR5055K1Z5)');
+      return;
+    }
+    Navigator.pop(context, {
+      'name':          name,
+      'gstin':         gstin,
+      'address':       _address.text.trim(),
+      'phone':         _phone.text.trim(),
+      'placeOfSupply': _placeOfSupply.text.trim(),
+      'dueDays':       _dueDays.text.trim(),
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(20, 12, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 36, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text('Issue GST Invoice',
+                style: GoogleFonts.hankenGrotesk(
+                    fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
+            Text('TAX INVOICE — REQUIRES GSTIN',
+                style: GoogleFonts.jetBrainsMono(
+                    fontSize: 10, fontWeight: FontWeight.w600,
+                    color: AppColors.inkTertiary, letterSpacing: 1.2)),
+            const SizedBox(height: 18),
+
+            _Field(label: 'Client Name *', ctrl: _name),
+            const SizedBox(height: 10),
+            _Field(label: 'GSTIN *', ctrl: _gstin, mono: true, hint: '29AAACR5055K1Z5'),
+            const SizedBox(height: 10),
+            _Field(label: 'Billing Address', ctrl: _address, maxLines: 2),
+            const SizedBox(height: 10),
+            Row(children: [
+              Expanded(child: _Field(label: 'Phone', ctrl: _phone, keyboardType: TextInputType.phone)),
+              const SizedBox(width: 10),
+              Expanded(child: _Field(label: 'Place of Supply', ctrl: _placeOfSupply, hint: 'KL / TN / GST state code')),
+            ]),
+            const SizedBox(height: 10),
+            _Field(label: 'Due in (days)', ctrl: _dueDays, keyboardType: TextInputType.number),
+
+            if (_error != null) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(
+                  color: AppColors.danger.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+                ),
+                child: Row(children: [
+                  const Icon(LucideIcons.alertCircle, size: 14, color: AppColors.danger),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(_error!,
+                      style: GoogleFonts.inter(fontSize: 12, color: AppColors.danger, fontWeight: FontWeight.w600))),
+                ]),
+              ),
+            ],
+
+            const SizedBox(height: 18),
+            Row(children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: const StadiumBorder(),
+                    side: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
+                  ),
+                  child: Text('Cancel',
+                      style: GoogleFonts.inter(
+                          fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkSecondary)),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                flex: 2,
+                child: ElevatedButton.icon(
+                  onPressed: _submit,
+                  icon: const Icon(LucideIcons.fileText, size: 16),
+                  label: Text('Issue Invoice',
+                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primaryContainer,
+                    foregroundColor: AppColors.inkPrimary,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: const StadiumBorder(),
+                  ),
+                ),
+              ),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Field extends StatelessWidget {
+  final String label;
+  final TextEditingController ctrl;
+  final String? hint;
+  final int maxLines;
+  final bool mono;
+  final TextInputType? keyboardType;
+  const _Field({
+    required this.label,
+    required this.ctrl,
+    this.hint,
+    this.maxLines = 1,
+    this.mono = false,
+    this.keyboardType,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 6),
+          child: Text(label,
+              style: GoogleFonts.jetBrainsMono(
+                  fontSize: 10, fontWeight: FontWeight.w700,
+                  color: AppColors.inkTertiary, letterSpacing: 1)),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+          ),
+          child: TextField(
+            controller: ctrl,
+            maxLines: maxLines,
+            keyboardType: keyboardType,
+            style: (mono
+                    ? GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.w700)
+                    : GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500))
+                .copyWith(color: AppColors.inkPrimary),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+              hintText: hint,
+              hintStyle: GoogleFonts.inter(
+                  color: AppColors.inkTertiary.withValues(alpha: 0.6), fontSize: 13),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

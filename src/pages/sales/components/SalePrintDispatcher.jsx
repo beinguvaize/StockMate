@@ -1,7 +1,5 @@
-import React, { useState } from 'react';
-import InvoiceTemplate from '../../../components/invoice/InvoiceTemplate';
+import React from 'react';
 import POSReceipt from '../../../components/invoice/POSReceipt';
-import { shareToWhatsApp } from '../../../lib/gstEngine';
 
 /**
  * Maps a POS sale record → InvoiceTemplate / POSReceipt invoice shape.
@@ -45,38 +43,28 @@ const saleToInvoice = (sale) => {
   };
 };
 
+/**
+ * Architectural rule:
+ *   - POS sales print POS receipts (thermal / 80mm).
+ *   - GST tax invoices are a separate legal document, printed from the
+ *     Invoices tab AFTER the sale has been converted to an invoice.
+ *
+ * Therefore: a sale-row Print action always renders POSReceipt — no toggle
+ * to the InvoiceTemplate. If the sale has been converted (sale.invoice_id
+ * is set) the receipt shows a small reference so the user knows where to
+ * find the GST document.
+ */
 const SalePrintDispatcher = ({ sale, client, business, onClose }) => {
-  const [mode, setMode] = useState('gst'); // 'gst' | 'pos'
-
   if (!sale) return null;
 
   const invoice = saleToInvoice(sale);
   const safeClient = client || { name: 'Walk-in' };
-
-  const closeAll = () => { setMode('gst'); onClose(); };
-
-  if (mode === 'pos') {
-    return (
-      <POSReceipt
-        invoice={invoice}
-        businessProfile={business}
-        client={safeClient}
-        onClose={closeAll}
-      />
-    );
-  }
-
   return (
-    <InvoiceTemplate
+    <POSReceipt
       invoice={invoice}
       businessProfile={business}
       client={safeClient}
-      onPrint={() => window.print()}
-      onShare={(type) => {
-        if (type === 'whatsapp') shareToWhatsApp(invoice, safeClient, business);
-      }}
-      onToggleMode={() => setMode('pos')}
-      onClose={closeAll}
+      onClose={onClose}
     />
   );
 };
