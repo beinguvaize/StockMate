@@ -14,6 +14,10 @@ class Client {
   final String? shippingAddress;
   final String? state;
   final String? stateCode;
+  final String? pinCode;
+  final String? clientType; // B2C | B2B
+  final String? priceTier;  // RETAIL | WHOLESALE | DISTRIBUTOR
+  final int?    creditDays; // 0 | 7 | 15 | 30 | 45 | 60 | 90
   final DateTime? createdAt;
 
   Client({
@@ -32,6 +36,10 @@ class Client {
     this.shippingAddress,
     this.state,
     this.stateCode,
+    this.pinCode,
+    this.clientType,
+    this.priceTier,
+    this.creditDays,
     this.createdAt,
   });
 
@@ -52,6 +60,10 @@ class Client {
       shippingAddress: json['shipping_address'] as String?,
       state: json['state'] as String?,
       stateCode: json['state_code'] as String?,
+      pinCode: json['pin_code'] as String?,
+      clientType: json['client_type'] as String?,
+      priceTier: json['price_tier'] as String?,
+      creditDays: (json['credit_days'] as num?)?.toInt(),
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
     );
   }
