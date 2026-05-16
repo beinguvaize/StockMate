@@ -3,8 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/features/invoices/data/models/invoice.dart';
+import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 
 class SalesScreen extends ConsumerStatefulWidget {
   const SalesScreen({super.key});
@@ -24,6 +27,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       floatingActionButton: FloatingActionButton(
+        heroTag: null,
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const AddSaleScreen()),
@@ -232,17 +236,37 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                     );
                   }
 
+                  // Resolve client name from clientsProvider when sale.shopId is set
+                  // (RPC-created sales don't carry customerInfo — only shopId).
+                  final clientsAsync = ref.watch(clientsProvider);
+                  final clientById = <String, String>{};
+                  if (clientsAsync.hasValue) {
+                    for (final c in clientsAsync.value!) {
+                      clientById[c.id] = c.name ?? '';
+                    }
+                  }
+
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 100),
                     itemCount: sales.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final sale = sales[index];
-                      final customerName = sale.customerInfo?['name'] as String? ?? 'Walk-in Customer';
+                      final resolvedFromShop = (sale.shopId != null)
+                          ? clientById[sale.shopId!]
+                          : null;
+                      final customerName = (resolvedFromShop != null && resolvedFromShop.isNotEmpty)
+                          ? resolvedFromShop
+                          : sale.displayCustomerName;
                       final isPaid = sale.paymentStatus == 'PAID';
                       final initial = customerName.isNotEmpty ? customerName[0].toUpperCase() : 'W';
 
-                      return Container(
+                      return GestureDetector(
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => InvoiceDetailScreen(invoice: Invoice.fromSale(sale))),
+                        ),
+                        child: Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
                           color: Colors.white,
@@ -331,6 +355,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                             ),
                           ],
                         ),
+                      ),
                       );
                     },
                   );
