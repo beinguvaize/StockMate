@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
@@ -446,19 +447,25 @@ class InvoiceDetailScreen extends ConsumerWidget {
       if ((clientId == null || clientId.isEmpty) &&
           (form['gstin'] ?? '').isNotEmpty) {
         try {
-          final newClientId =
-              'CLI-${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecond}';
-          final inserted = await supabase.from('clients').insert({
-            'id':                newClientId,
-            'name':              form['name'],
-            'phone':             form['phone'],
-            'address':           form['address'],
-            'gst_no':            form['gstin'],
-            'place_of_supply':   form['placeOfSupply'],
-            'outstanding_balance': 0,
-          }).select('id').maybeSingle();
-          if (inserted != null && inserted['id'] != null) {
-            clientId = inserted['id'] as String;
+          // tenant_id required — server default points at seed tenant which
+          // RLS hides from this user. id is NOT NULL with no default.
+          final tenantId = ref.read(tenantContextProvider).valueOrNull?.tenantId;
+          if (tenantId != null) {
+            final newClientId =
+                'CLI-${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecond}';
+            final inserted = await supabase.from('clients').insert({
+              'id':                newClientId,
+              'tenant_id':         tenantId,
+              'name':              form['name'],
+              'phone':             form['phone'],
+              'address':           form['address'],
+              'gst_no':            form['gstin'],
+              'state':             form['placeOfSupply'],
+              'outstanding_balance': 0,
+            }).select('id').maybeSingle();
+            if (inserted != null && inserted['id'] != null) {
+              clientId = inserted['id'] as String;
+            }
           }
         } catch (e) {
           debugPrint('[convert] client auto-create failed (non-fatal): $e');

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
@@ -74,6 +75,17 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
 
     setState(() => _isLoading = true);
     try {
+      // Tenant id required — server default is the seed tenant which RLS hides.
+      final tenantCtx = ref.read(tenantContextProvider).valueOrNull;
+      if (tenantCtx == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No tenant context — please sign out and back in.')),
+          );
+        }
+        return;
+      }
+
       final data = {
         'name':                _nameController.text.trim(),
         'contact':             _contactController.text.trim(),
@@ -83,14 +95,13 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
         'gst_no':              _gstinController.text.trim(),
         'outstanding_balance': double.tryParse(_balanceController.text) ?? 0.0,
         'credit_limit':        double.tryParse(_creditLimitController.text),
-        'status':              _selectedStatus,
+        'tenant_id':           tenantCtx.tenantId,
       };
 
-      // Offline-first: upsert (works for both insert + update via on_conflict).
-      // For update path we ensure id is present in the payload.
-      if (_isEdit) {
-        data['id'] = widget.client!.id;
-      }
+      // id is NOT NULL with no default on the server — always supply one.
+      data['id'] = _isEdit
+          ? widget.client!.id
+          : 'CLI-${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecond}';
       await ref.read(syncServiceProvider)
           .upsertOnlineOrQueue('clients', data);
 
