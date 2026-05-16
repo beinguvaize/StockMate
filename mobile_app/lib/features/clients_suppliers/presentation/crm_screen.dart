@@ -692,11 +692,50 @@ class _ClientDetailSheet extends StatelessWidget {
   final WidgetRef ref;
   const _ClientDetailSheet({required this.client, required this.ref});
 
+  // Indian-format compact (parity with web/dashboard helpers).
+  static String _fmtAmount(double v) {
+    final whole = v.truncate();
+    final s = whole.toString();
+    if (s.length <= 3) return '₹$s';
+    final last3 = s.substring(s.length - 3);
+    final rest = s.substring(0, s.length - 3);
+    final restGrouped =
+        rest.replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},');
+    return '₹$restGrouped,$last3';
+  }
+
+  String _accountTypeLabel(String? t) =>
+      t == 'B2B' ? 'B2B · BUSINESS' : 'B2C · CONSUMER';
+
+  String _priceTierLabel(String? t) {
+    switch (t) {
+      case 'WHOLESALE':   return 'Wholesale · Volume';
+      case 'DISTRIBUTOR': return 'Distributor · Trade';
+      default:            return 'Retail · Standard';
+    }
+  }
+
+  String _creditTermLabel(int? days) =>
+      (days ?? 0) == 0 ? 'Cash on delivery' : 'Net ${days!} days';
+
   @override
   Widget build(BuildContext context) {
     final balance = client.outstandingBalance ?? 0;
     final avatarColor = _avatarColor(client.name);
     final avatarBg = _avatarBg(client.name);
+
+    // Sales aggregate for this client (matches web clientStats).
+    final salesAsync = ref.watch(recentSalesProvider);
+    final mySales = (salesAsync.valueOrNull ?? const [])
+        .where((s) => s.shopId == client.id)
+        .toList();
+    final totalSales = mySales.fold(0.0, (s, sale) => s + (sale.totalAmount ?? 0));
+    final orderCount = mySales.length;
+
+    final clientType = client.clientType ?? 'B2C';
+    final gstinValue = (client.gstin ?? client.gstNo ?? '').trim();
+    final hasGstin = gstinValue.isNotEmpty;
+    final hasState = (client.state ?? '').isNotEmpty;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.7,
@@ -756,20 +795,25 @@ class _ClientDetailSheet extends StatelessWidget {
                                 color: AppColors.inkPrimary,
                               ),
                             ),
+                            // Account type pill (B2B / B2C) — matches web preview chip.
                             Container(
                               margin: const EdgeInsets.only(top: 4),
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: AppColors.secondaryContainer,
+                                color: clientType == 'B2B'
+                                    ? AppColors.primary.withValues(alpha: 0.1)
+                                    : AppColors.secondaryContainer,
                                 borderRadius: BorderRadius.circular(6),
                               ),
                               child: Text(
-                                'CLIENT',
+                                _accountTypeLabel(client.clientType),
                                 style: GoogleFonts.jetBrainsMono(
                                   fontSize: 9,
                                   fontWeight: FontWeight.w700,
-                                  color: AppColors.secondary,
-                                  letterSpacing: 1.5,
+                                  color: clientType == 'B2B'
+                                      ? AppColors.primary
+                                      : AppColors.secondary,
+                                  letterSpacing: 1.2,
                                 ),
                               ),
                             ),
@@ -801,7 +845,7 @@ class _ClientDetailSheet extends StatelessWidget {
 
                   const SizedBox(height: 24),
 
-                  // Balance card
+                  // ── Balance card — always shows ₹ amount + Cleared/Unpaid chip ──
                   Container(
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
@@ -830,17 +874,46 @@ class _ClientDetailSheet extends StatelessWidget {
                               Text(
                                 'Outstanding Balance',
                                 style: GoogleFonts.inter(
-                                  fontSize: 11,
-                                  color: AppColors.inkTertiary,
-                                ),
+                                    fontSize: 11, color: AppColors.inkTertiary),
                               ),
-                              Text(
-                                balance == 0 ? 'All Clear' : '₹${balance.toStringAsFixed(2)}',
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 20,
-                                  fontWeight: FontWeight.w800,
-                                  color: balance > 0 ? AppColors.danger : AppColors.success,
-                                ),
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    _fmtAmount(balance),
+                                    style: GoogleFonts.hankenGrotesk(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w900,
+                                      color: balance > 0 ? AppColors.danger : AppColors.success,
+                                      letterSpacing: -0.5,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: balance > 0
+                                            ? AppColors.danger.withValues(alpha: 0.12)
+                                            : AppColors.success.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(99),
+                                      ),
+                                      child: Text(
+                                        balance > 0 ? 'UNPAID' : 'CLEARED',
+                                        style: GoogleFonts.jetBrainsMono(
+                                          fontSize: 9,
+                                          fontWeight: FontWeight.w700,
+                                          color: balance > 0
+                                              ? AppColors.danger
+                                              : AppColors.success,
+                                          letterSpacing: 1.2,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -849,43 +922,123 @@ class _ClientDetailSheet extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
 
-                  // Info rows
-                  _DetailSection(
-                    title: 'CONTACT INFO',
-                    icon: LucideIcons.phone,
-                    rows: [
-                      if (client.phone != null) _InfoRow(icon: LucideIcons.phone, label: 'Phone', value: client.phone!),
-                      if (client.email != null) _InfoRow(icon: LucideIcons.mail, label: 'Email', value: client.email!),
-                      if (client.address != null) _InfoRow(icon: LucideIcons.mapPin, label: 'Address', value: client.address!),
-                    ],
+                  // ── Sales summary ─────────────────────────────────────────
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+                      boxShadow: [AppColors.cardShadow],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('TOTAL SALES',
+                                  style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.inkTertiary,
+                                      letterSpacing: 1.2)),
+                              const SizedBox(height: 4),
+                              Text(_fmtAmount(totalSales),
+                                  style: GoogleFonts.hankenGrotesk(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.inkPrimary,
+                                      letterSpacing: -0.4)),
+                            ],
+                          ),
+                        ),
+                        Container(width: 1, height: 32, color: Colors.black.withValues(alpha: 0.05)),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('ORDERS',
+                                  style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.inkTertiary,
+                                      letterSpacing: 1.2)),
+                              const SizedBox(height: 4),
+                              Text('$orderCount',
+                                  style: GoogleFonts.hankenGrotesk(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.inkPrimary,
+                                      letterSpacing: -0.4)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
 
-                  if ((client.gstNo ?? client.gstin) != null || client.state != null) ...[
+                  const SizedBox(height: 16),
+
+                  // ── Contact Info — only render rows with data ──
+                  if (client.phone != null || client.email != null || client.address != null)
+                    _DetailSection(
+                      title: 'CONTACT INFO',
+                      icon: LucideIcons.phone,
+                      rows: [
+                        if (client.phone != null && client.phone!.isNotEmpty)
+                          _InfoRow(icon: LucideIcons.phone, label: 'Phone', value: client.phone!),
+                        if (client.email != null && client.email!.isNotEmpty)
+                          _InfoRow(icon: LucideIcons.mail, label: 'Email', value: client.email!),
+                        if (client.address != null && client.address!.isNotEmpty)
+                          _InfoRow(icon: LucideIcons.mapPin, label: 'Address', value: client.address!),
+                      ],
+                    ),
+
+                  // ── Tax info — hide entirely when both GSTIN + state empty ──
+                  if (hasGstin || hasState) ...[
                     const SizedBox(height: 16),
                     _DetailSection(
                       title: 'TAX INFORMATION',
                       icon: LucideIcons.fileText,
                       rows: [
-                        if (client.gstNo != null || client.gstin != null)
-                          _InfoRow(icon: LucideIcons.hash, label: 'GSTIN', value: client.gstNo ?? client.gstin ?? ''),
-                        if (client.state != null)
-                          _InfoRow(icon: LucideIcons.mapPin, label: 'State', value: '${client.state}${client.stateCode != null ? ' (${client.stateCode})' : ''}'),
+                        if (hasGstin)
+                          _InfoRow(icon: LucideIcons.hash, label: 'GSTIN', value: gstinValue),
+                        if (hasState)
+                          _InfoRow(
+                              icon: LucideIcons.mapPin,
+                              label: 'State',
+                              value: '${client.state}${client.stateCode != null ? ' (${client.stateCode})' : ''}'),
                       ],
                     ),
                   ],
 
-                  if (client.creditLimit != null) ...[
-                    const SizedBox(height: 16),
-                    _DetailSection(
-                      title: 'CREDIT',
-                      icon: LucideIcons.creditCard,
-                      rows: [
-                        _InfoRow(icon: LucideIcons.creditCard, label: 'Credit Limit', value: '₹${client.creditLimit!.toStringAsFixed(2)}'),
-                      ],
-                    ),
-                  ],
+                  // ── Classification (replaces Credit Limit row) ──
+                  const SizedBox(height: 16),
+                  _DetailSection(
+                    title: 'CLASSIFICATION',
+                    icon: LucideIcons.tag,
+                    rows: [
+                      _InfoRow(
+                        icon: clientType == 'B2B' ? LucideIcons.building2 : LucideIcons.shoppingBag,
+                        label: 'Account Type',
+                        value: _accountTypeLabel(client.clientType),
+                      ),
+                      _InfoRow(
+                        icon: LucideIcons.tag,
+                        label: 'Price Tier',
+                        value: _priceTierLabel(client.priceTier),
+                      ),
+                      _InfoRow(
+                        icon: LucideIcons.clock,
+                        label: 'Credit Terms',
+                        value: _creditTermLabel(client.creditDays),
+                      ),
+                    ],
+                  ),
 
                   if (client.createdAt != null) ...[
                     const SizedBox(height: 20),
