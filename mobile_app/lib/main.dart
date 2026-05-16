@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/database/database.dart';
+import 'package:mobile_app/core/database/realtime_sync.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/auth/data/auth_provider.dart';
@@ -38,12 +39,20 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await SupabaseConfig.initialize();
+  // Timeout Supabase init — paused/slow project must not block runApp.
+  // App shows splash immediately; auth state resolves once network comes up.
+  try {
+    await SupabaseConfig.initialize()
+        .timeout(const Duration(seconds: 6));
+  } catch (_) {
+    // Init timed out or failed — proceed anyway. SessionProvider will
+    // yield null session and show the LoginScreen.
+  }
 
   final container = ProviderContainer();
-  // Trigger initial background sync
-  container.read(syncServiceProvider).sync();
-  container.read(syncServiceProvider).pullSync();
+  // Fire-and-forget background sync — do NOT await here.
+  unawaited(container.read(syncServiceProvider).sync());
+  unawaited(container.read(syncServiceProvider).pullSync());
 
   runApp(
     UncontrolledProviderScope(
@@ -192,6 +201,7 @@ class _TenantGateState extends ConsumerState<_TenantGate> {
   static const _maxWaitSeconds = 6;
   bool _forceShow = false;
   Timer? _timer;
+  String? _startedTenantId;
 
   @override
   void initState() {
@@ -213,13 +223,35 @@ class _TenantGateState extends ConsumerState<_TenantGate> {
   @override
   Widget build(BuildContext context) {
     final tenantAsync = ref.watch(tenantContextProvider);
+    // Watch userId — provider resolves null before session is ready on startup.
+    // Only treat null ctx as "no business" when we KNOW userId is confirmed.
+    final userId = ref.watch(userIdProvider);
 
     // Resolved — cancel timer, show appropriate screen
     if (tenantAsync.hasValue) {
-      _timer?.cancel();
       final ctx = tenantAsync.value;
+      if (ctx == null && userId == null) {
+        // tenantProvider resolved null before session loaded — keep waiting
+        if (_forceShow) return _dashboard;
+        return const _SplashScreen();
+      }
+      _timer?.cancel();
       if (ctx == null) return const _ContactAdminScreen();
       if (ctx.isTrialExpired) return const _TrialExpiredScreen();
+
+      // One-time-per-tenant: spin up realtime channel + pull-sync local cache.
+      if (_startedTenantId != ctx.tenantId) {
+        _startedTenantId = ctx.tenantId;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          ref.read(realtimeSyncProvider).start(ctx.tenantId, ref);
+          // ignore: unawaited_futures
+          ref.read(syncServiceProvider).pullSync();
+          // ignore: unawaited_futures
+          ref.read(syncServiceProvider).sync();
+        });
+      }
+
       return _dashboard;
     }
 
