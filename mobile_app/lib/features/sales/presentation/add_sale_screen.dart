@@ -232,18 +232,9 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       };
 
       // Offline-first: try direct RPC, on network/transient failure queue it.
-      try {
-        await supabase.rpc('process_sale', params: rpcParams);
-        debugPrint('[SALE] RPC success');
-      } catch (e) {
-        debugPrint('[SALE] RPC failed, queuing for offline sync: $e');
-        await ref.read(syncServiceProvider).queueMutation(
-          targetTable: 'sales',
-          action: 'rpc',
-          rpcName: 'process_sale',
-          payload: rpcParams,
-        );
-      }
+      final queued = await ref.read(syncServiceProvider)
+          .rpcOnlineOrQueue('process_sale', rpcParams);
+      debugPrint(queued ? '[SALE] queued for offline sync' : '[SALE] RPC success');
 
       if (paymentMethod == 'CREDIT_SALE' && _selectedClient != null) {
         try {

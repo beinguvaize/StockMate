@@ -8,6 +8,7 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchase_detail_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
+import 'package:mobile_app/main.dart' show syncServiceProvider;
 
 // ─── Model ────────────────────────────────────────────────────────────────────
 
@@ -630,13 +631,13 @@ class _PurchaseCard extends StatelessWidget {
 
 // ─── Add Purchase Sheet ───────────────────────────────────────────────────────
 
-class _AddPurchaseSheet extends StatefulWidget {
+class _AddPurchaseSheet extends ConsumerStatefulWidget {
   final String tenantId;
   final VoidCallback onSaved;
   const _AddPurchaseSheet({required this.tenantId, required this.onSaved});
 
   @override
-  State<_AddPurchaseSheet> createState() => _AddPurchaseSheetState();
+  ConsumerState<_AddPurchaseSheet> createState() => _AddPurchaseSheetState();
 }
 
 class _PurchaseLine {
@@ -663,7 +664,7 @@ class _PurchaseLine {
   bool get isValid => productId != null && qtyVal > 0 && totalVal > 0;
 }
 
-class _AddPurchaseSheetState extends State<_AddPurchaseSheet> {
+class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _suppliers = [];
   bool _loadingData = true;
@@ -776,11 +777,14 @@ class _AddPurchaseSheetState extends State<_AddPurchaseSheet> {
       final dateStr = '${_date.year}-${_date.month.toString().padLeft(2,'0')}-${_date.day.toString().padLeft(2,'0')}';
       final notes = _notesCtrl.text.trim();
 
-      // One RPC call per line (mirrors web — process_purchase is single-product)
+      // One RPC call per line. Offline-first: rpcOnlineOrQueue tries the
+      // network and falls back to the local queue on transient failure.
+      final svc = ref.read(syncServiceProvider);
+      int queuedCount = 0;
       for (int i = 0; i < validLines.length; i++) {
         final line = validLines[i];
         final id = 'PUR-${DateTime.now().millisecondsSinceEpoch}-${i.toString().padLeft(2, '0')}';
-        await supabase.rpc('process_purchase', params: {
+        final params = <String, dynamic>{
           'p_id':           id,
           'p_product_id':   line.productId,
           'p_quantity':     line.qtyVal,
@@ -792,15 +796,20 @@ class _AddPurchaseSheetState extends State<_AddPurchaseSheet> {
           'p_user_id':      currentUserId,
           'p_location_id':  null,
           'p_tenant_id':    widget.tenantId,
-        });
+        };
+        final queued = await svc.rpcOnlineOrQueue('process_purchase', params);
+        if (queued) queuedCount++;
       }
 
       if (mounted) {
         Navigator.pop(context);
         widget.onSaved();
+        final n = validLines.length;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${validLines.length} item${validLines.length == 1 ? '' : 's'} saved'),
+            content: Text(queuedCount > 0
+                ? '$n item${n == 1 ? '' : 's'} saved · $queuedCount queued offline'
+                : '$n item${n == 1 ? '' : 's'} saved'),
             backgroundColor: AppColors.secondary,
             behavior: SnackBarBehavior.floating,
           ),

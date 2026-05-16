@@ -75,6 +75,54 @@ class SyncService {
     return id;
   }
 
+  // ── Offline-first helpers ──────────────────────────────────────────────────
+  // Each helper tries the network first while online; on transient failure
+  // (network, 5xx, timeout) it falls back to enqueueing the mutation. Returns
+  // true if the operation was queued for later (caller can show "saved offline"
+  // UI), false if it completed online immediately.
+
+  Future<bool> upsertOnlineOrQueue(String table, Map<String, dynamic> row) async {
+    try {
+      await supabase.from(table).upsert(row);
+      return false;
+    } catch (e) {
+      debugPrint('[sync] upsert($table) failed online — queueing: $e');
+      await queueMutation(targetTable: table, action: 'upsert', payload: row);
+      return true;
+    }
+  }
+
+  Future<bool> deleteOnlineOrQueue(String table, String id) async {
+    try {
+      await supabase.from(table).delete().eq('id', id);
+      return false;
+    } catch (e) {
+      debugPrint('[sync] delete($table) failed online — queueing: $e');
+      await queueMutation(
+        targetTable: table,
+        action: 'delete',
+        payload: {'id': id},
+      );
+      return true;
+    }
+  }
+
+  Future<bool> rpcOnlineOrQueue(String name, Map<String, dynamic> params) async {
+    try {
+      await supabase.rpc(name, params: params);
+      return false;
+    } catch (e) {
+      debugPrint('[sync] rpc($name) failed online — queueing: $e');
+      await queueMutation(
+        targetTable: 'rpc:$name',
+        action: 'rpc',
+        rpcName: name,
+        payload: params,
+      );
+      return true;
+    }
+  }
+
   // ── Counters / observability ───────────────────────────────────────────────
 
   /// Count of jobs still owed to the server (PENDING + FAILED retryable).
@@ -210,11 +258,19 @@ class SyncService {
   // ── Pull sync (server → local) ─────────────────────────────────────────────
 
   /// Initial full sync from Supabase. RLS limits to the current tenant.
+  /// Each table is independent — if one fails the others still proceed.
   Future<void> pullSync() async {
+    await Future.wait([
+      _pullProducts(),
+      _pullClients(),
+      _pullSuppliers(),
+    ]);
+  }
+
+  Future<void> _pullProducts() async {
     try {
       final response = await supabase.from('products').select();
       final List<dynamic> data = response as List<dynamic>;
-
       await db.batch((batch) {
         for (final item in data) {
           batch.insert(
@@ -237,8 +293,64 @@ class SyncService {
         }
       });
     } catch (e) {
-      debugPrint('[pullSync] failed: $e');
-      // Stay offline — local cache from previous sync is still valid.
+      debugPrint('[pullSync] products failed: $e');
+    }
+  }
+
+  Future<void> _pullClients() async {
+    try {
+      final response = await supabase
+          .from('clients')
+          .select('id, tenant_id, name, email, phone, address, balance, outstanding_balance');
+      final List<dynamic> data = response as List<dynamic>;
+      await db.batch((batch) {
+        for (final item in data) {
+          batch.insert(
+            db.clients,
+            ClientsCompanion.insert(
+              id: item['id'] as String,
+              tenantId: item['tenant_id'] as String,
+              name: (item['name'] as String?) ?? '',
+              email:   Value(item['email']   as String?),
+              phone:   Value(item['phone']   as String?),
+              address: Value(item['address'] as String?),
+              balance: Value((item['balance'] ?? 0).toDouble()),
+              outstandingBalance:
+                  Value((item['outstanding_balance'] ?? 0).toDouble()),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] clients failed: $e');
+    }
+  }
+
+  Future<void> _pullSuppliers() async {
+    try {
+      final response = await supabase
+          .from('suppliers')
+          .select('id, tenant_id, name, contact_person, phone, balance');
+      final List<dynamic> data = response as List<dynamic>;
+      await db.batch((batch) {
+        for (final item in data) {
+          batch.insert(
+            db.suppliers,
+            SuppliersCompanion.insert(
+              id:            item['id'] as String,
+              tenantId:      item['tenant_id'] as String,
+              name:          (item['name'] as String?) ?? '',
+              contactPerson: Value(item['contact_person'] as String?),
+              phone:         Value(item['phone'] as String?),
+              balance:       Value((item['balance'] ?? 0).toDouble()),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] suppliers failed: $e');
     }
   }
 }
