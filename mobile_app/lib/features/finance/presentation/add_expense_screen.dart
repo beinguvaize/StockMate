@@ -24,7 +24,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   bool _isLoading = false;
   String? _formError;
 
-  // Mirror web (Expenses.jsx) — same options, same order
   static const _categories = [
     'Other',
     'Petrol',
@@ -51,11 +50,6 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     'Other': LucideIcons.receipt,
   };
 
-  // Premium dark palette
-  static const _ink = Color(0xFF0A0A0B);
-  static const _inkSoft = Color(0xFF1F1F23);
-  static const _gold = Color(0xFFD4AF37); // subtle premium accent
-
   @override
   void dispose() {
     _noteController.dispose();
@@ -72,7 +66,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: const ColorScheme.light(
-            primary: _ink,
+            primary: AppColors.primary,
             onPrimary: Colors.white,
             surface: Colors.white,
           ),
@@ -115,9 +109,8 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         'note': note,
         'tenant_id': tenantCtx.tenantId,
       };
-      // Offline-first: write online if possible, otherwise queue.
-      final queued = await ref.read(syncServiceProvider)
-          .upsertOnlineOrQueue('expenses', row);
+
+      final queued = await ref.read(syncServiceProvider).upsertOnlineOrQueue('expenses', row);
 
       if (mounted) {
         ref.invalidate(expensesProvider);
@@ -125,10 +118,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-                queued ? 'Saved offline — will sync when online' : 'Expense logged',
-                style: GoogleFonts.inter(color: Colors.white)),
-            backgroundColor: _ink,
+            content: Text(queued
+                ? 'Saved offline — will sync when online'
+                : 'Expense logged'),
+            backgroundColor: AppColors.secondary,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -151,36 +144,31 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final catIcon = _categoryIcons[_selectedCategory] ?? LucideIcons.receipt;
-
     return Scaffold(
       backgroundColor: AppColors.canvas,
       appBar: AppBar(
         backgroundColor: AppColors.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
-        leading: IconButton(
-          icon: const Icon(LucideIcons.arrowLeft, size: 20, color: _ink),
-          onPressed: () => Navigator.pop(context),
-        ),
+        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               'New Expense',
               style: GoogleFonts.hankenGrotesk(
-                color: _ink,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
+                color: AppColors.inkPrimary,
               ),
             ),
             Text(
               'LOG BUSINESS EXPENDITURE',
               style: GoogleFonts.jetBrainsMono(
-                color: AppColors.inkSecondary,
                 fontSize: 9,
                 fontWeight: FontWeight.w600,
+                color: AppColors.secondary,
                 letterSpacing: 1.5,
               ),
             ),
@@ -188,205 +176,115 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 110),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
 
-            // ── Premium amount hero card ──────────────────────────
+            // ── Amount card (light, theme-consistent) ─────────────
             Container(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 18),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [_ink, _inkSoft],
-                ),
-                borderRadius: BorderRadius.circular(28),
-                boxShadow: [
-                  BoxShadow(
-                    color: _ink.withValues(alpha: 0.25),
-                    blurRadius: 30,
-                    spreadRadius: -4,
-                    offset: const Offset(0, 12),
-                  ),
-                ],
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [AppColors.cardShadow],
+                border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
               ),
-              child: Stack(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Subtle radial glow accent (top-right)
-                  Positioned(
-                    top: -40,
-                    right: -40,
-                    child: Container(
-                      width: 160,
-                      height: 160,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        gradient: RadialGradient(
-                          colors: [
-                            _gold.withValues(alpha: 0.08),
-                            Colors.transparent,
-                          ],
+                  Text('AMOUNT',
+                      style: GoogleFonts.jetBrainsMono(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.inkTertiary,
+                          letterSpacing: 1.5)),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        '₹',
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 26,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.inkTertiary,
                         ),
                       ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(26, 26, 26, 22),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Category badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.06),
-                            borderRadius: BorderRadius.circular(99),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.08),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: TextField(
+                          controller: _amountController,
+                          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                          inputFormatters: [
+                            FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+                          ],
+                          cursorColor: AppColors.primary,
+                          style: GoogleFonts.hankenGrotesk(
+                            fontSize: 38,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.inkPrimary,
+                            letterSpacing: -1.5,
+                            height: 1.05,
+                          ),
+                          decoration: InputDecoration(
+                            isDense: true,
+                            contentPadding: EdgeInsets.zero,
+                            border: InputBorder.none,
+                            enabledBorder: InputBorder.none,
+                            focusedBorder: InputBorder.none,
+                            hintText: '0.00',
+                            hintStyle: GoogleFonts.hankenGrotesk(
+                              fontSize: 38,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.inkTertiary.withValues(alpha: 0.35),
+                              letterSpacing: -1.5,
                             ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 12),
+                  Container(height: 1, color: Colors.black.withValues(alpha: 0.05)),
+                  const SizedBox(height: 10),
+
+                  // Date row
+                  GestureDetector(
+                    onTap: _pickDate,
+                    behavior: HitTestBehavior.opaque,
+                    child: Row(
+                      children: [
+                        const Icon(LucideIcons.calendar, size: 14, color: AppColors.inkSecondary),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formattedDate,
+                          style: GoogleFonts.inter(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.inkPrimary,
+                          ),
+                        ),
+                        const Spacer(),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryContainer.withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(99),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(catIcon, size: 12, color: Colors.white.withValues(alpha: 0.7)),
-                              const SizedBox(width: 8),
-                              Text(
-                                _selectedCategory.toUpperCase(),
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 9,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.white.withValues(alpha: 0.75),
-                                  letterSpacing: 1.4,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                        const SizedBox(height: 28),
-
-                        // Amount label
-                        Text(
-                          'AMOUNT',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 9,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white.withValues(alpha: 0.35),
-                            letterSpacing: 2.5,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-
-                        // Big amount input — clean, no focus ring
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Text(
-                              '₹',
-                              style: GoogleFonts.hankenGrotesk(
-                                fontSize: 28,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.white.withValues(alpha: 0.5),
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Expanded(
-                              child: TextField(
-                                controller: _amountController,
-                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                                inputFormatters: [
-                                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-                                ],
-                                cursorColor: _gold,
-                                style: GoogleFonts.hankenGrotesk(
-                                  fontSize: 48,
-                                  fontWeight: FontWeight.w900,
-                                  color: Colors.white,
-                                  letterSpacing: -2.5,
-                                  height: 1.05,
-                                ),
-                                decoration: InputDecoration(
-                                  border: InputBorder.none,
-                                  enabledBorder: InputBorder.none,
-                                  focusedBorder: InputBorder.none,
-                                  isDense: true,
-                                  contentPadding: EdgeInsets.zero,
-                                  hintText: '0.00',
-                                  hintStyle: GoogleFonts.hankenGrotesk(
-                                    fontSize: 48,
-                                    fontWeight: FontWeight.w900,
-                                    color: Colors.white.withValues(alpha: 0.12),
-                                    letterSpacing: -2.5,
-                                    height: 1.05,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        const SizedBox(height: 22),
-                        Container(
-                          height: 1,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Colors.white.withValues(alpha: 0.0),
-                                Colors.white.withValues(alpha: 0.1),
-                                Colors.white.withValues(alpha: 0.0),
-                              ],
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Date row
-                        GestureDetector(
-                          onTap: _pickDate,
-                          behavior: HitTestBehavior.opaque,
-                          child: Row(
-                            children: [
-                              Icon(LucideIcons.calendar,
-                                  size: 13, color: Colors.white.withValues(alpha: 0.4)),
-                              const SizedBox(width: 10),
-                              Text(
-                                _formattedDate,
-                                style: GoogleFonts.inter(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                  letterSpacing: 0.2,
-                                ),
-                              ),
-                              const Spacer(),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.06),
-                                  borderRadius: BorderRadius.circular(99),
-                                  border: Border.all(
-                                    color: Colors.white.withValues(alpha: 0.1),
-                                  ),
-                                ),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      'CHANGE',
-                                      style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.w700,
-                                        color: Colors.white.withValues(alpha: 0.7),
-                                        letterSpacing: 1.2,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 5),
-                                    Icon(LucideIcons.chevronRight,
-                                        size: 10, color: Colors.white.withValues(alpha: 0.55)),
-                                  ],
-                                ),
-                              ),
+                              Text('CHANGE',
+                                  style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.primary,
+                                      letterSpacing: 1)),
+                              const SizedBox(width: 4),
+                              const Icon(LucideIcons.chevronRight,
+                                  size: 11, color: AppColors.primary),
                             ],
                           ),
                         ),
@@ -397,105 +295,88 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 22),
 
-            // ── Description / Notes ────────────────────────────────
-            _SectionLabel(text: 'DESCRIPTION'),
+            // ── Description ──────────────────────────────────────
+            _SectionHeader(label: 'DESCRIPTION', icon: LucideIcons.fileText),
             const SizedBox(height: 10),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.04),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
+                color: AppColors.surface,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [AppColors.cardShadow],
+                border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
               ),
               child: TextField(
                 controller: _noteController,
                 maxLines: 3,
-                cursorColor: _ink,
+                cursorColor: AppColors.primary,
                 style: GoogleFonts.inter(
                   fontSize: 14,
-                  color: _ink,
+                  color: AppColors.inkPrimary,
                   fontWeight: FontWeight.w500,
-                  height: 1.5,
+                  height: 1.45,
                 ),
                 decoration: InputDecoration(
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
-                  contentPadding: const EdgeInsets.all(18),
+                  contentPadding: const EdgeInsets.all(16),
                   hintText: 'E.g. Fuel for delivery van, rent payment, office supplies...',
                   hintStyle: GoogleFonts.inter(
                     color: AppColors.inkTertiary,
                     fontSize: 14,
-                    height: 1.5,
+                    height: 1.45,
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 22),
 
-            // ── Category ──────────────────────────────────────────
-            _SectionLabel(text: 'CATEGORY'),
+            // ── Category ─────────────────────────────────────────
+            _SectionHeader(label: 'CATEGORY', icon: LucideIcons.layoutGrid),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
-              runSpacing: 10,
+              runSpacing: 8,
               children: _categories.map((cat) {
                 final selected = _selectedCategory == cat;
                 final icon = _categoryIcons[cat] ?? LucideIcons.receipt;
                 return GestureDetector(
                   onTap: () => setState(() => _selectedCategory = cat),
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
+                    duration: const Duration(milliseconds: 160),
                     curve: Curves.easeOutCubic,
-                    padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
                     decoration: BoxDecoration(
-                      color: selected ? _ink : Colors.white,
+                      color: selected
+                          ? AppColors.primaryContainer
+                          : AppColors.surface,
                       borderRadius: BorderRadius.circular(99),
                       border: Border.all(
                         color: selected
-                            ? _ink
+                            ? AppColors.primary
                             : Colors.black.withValues(alpha: 0.06),
-                        width: 1.2,
+                        width: selected ? 1.5 : 1,
                       ),
                       boxShadow: selected
-                          ? [
-                              BoxShadow(
-                                color: _ink.withValues(alpha: 0.2),
-                                blurRadius: 12,
-                                spreadRadius: -2,
-                                offset: const Offset(0, 4),
-                              ),
-                            ]
-                          : [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.03),
-                                blurRadius: 8,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
+                          ? null
+                          : [AppColors.cardShadow],
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(icon,
                             size: 13,
-                            color: selected ? Colors.white.withValues(alpha: 0.85) : AppColors.inkSecondary),
-                        const SizedBox(width: 7),
+                            color: selected ? AppColors.primary : AppColors.inkSecondary),
+                        const SizedBox(width: 6),
                         Text(
                           cat,
                           style: GoogleFonts.inter(
-                            color: selected ? Colors.white : _ink,
+                            color: selected ? AppColors.inkPrimary : AppColors.inkSecondary,
                             fontSize: 12.5,
                             fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                            letterSpacing: selected ? 0.1 : 0,
                           ),
                         ),
                       ],
@@ -505,26 +386,25 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               }).toList(),
             ),
 
-            // ── Form error ─────────────────────────────────────────
             if (_formError != null) ...[
-              const SizedBox(height: 22),
+              const SizedBox(height: 20),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFEF2F2),
+                  color: AppColors.danger.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFFFECACA)),
+                  border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(LucideIcons.alertCircle, size: 16, color: Color(0xFFDC2626)),
+                    const Icon(LucideIcons.alertCircle, size: 16, color: AppColors.danger),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         _formError!,
                         style: GoogleFonts.inter(
                           fontSize: 13,
-                          color: const Color(0xFFDC2626),
+                          color: AppColors.danger,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -536,67 +416,41 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           ],
         ),
       ),
-
-      // ── Premium CTA bar ────────────────────────────────────────
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: AppColors.canvas,
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.04),
-              blurRadius: 12,
-              offset: const Offset(0, -4),
+      bottomNavigationBar: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
+          child: ElevatedButton(
+            onPressed: _isLoading ? null : _submit,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryContainer,
+              foregroundColor: AppColors.inkPrimary,
+              disabledBackgroundColor: AppColors.surfaceContainer,
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: const StadiumBorder(),
             ),
-          ],
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _submit,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: _ink,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: _ink.withValues(alpha: 0.3),
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                shape: const StadiumBorder(),
-                shadowColor: _ink,
-              ).copyWith(
-                overlayColor: WidgetStateProperty.all(Colors.white.withValues(alpha: 0.08)),
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                          color: Colors.white, strokeWidth: 2.5),
-                    )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(99),
-                          ),
-                          child: const Icon(LucideIcons.check,
-                              size: 13, color: Colors.white),
+            child: _isLoading
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        color: AppColors.primary, strokeWidth: 2.5),
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(LucideIcons.check, size: 16),
+                      const SizedBox(width: 8),
+                      Text(
+                        'LOG EXPENSE',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 13,
+                          letterSpacing: 1.5,
                         ),
-                        const SizedBox(width: 11),
-                        Text(
-                          'LOG EXPENSE',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontWeight: FontWeight.w700,
-                            fontSize: 13,
-                            letterSpacing: 1.8,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
-                    ),
-            ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -604,36 +458,34 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   }
 }
 
-class _SectionLabel extends StatelessWidget {
-  final String text;
-  const _SectionLabel({required this.text});
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  const _SectionHeader({required this.label, required this.icon});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(left: 4),
-      child: Row(
-        children: [
-          Container(
-            width: 3,
-            height: 11,
-            decoration: BoxDecoration(
-              color: const Color(0xFF0A0A0B),
-              borderRadius: BorderRadius.circular(2),
-            ),
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            color: AppColors.primaryContainer.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(8),
           ),
-          const SizedBox(width: 9),
-          Text(
-            text,
-            style: GoogleFonts.jetBrainsMono(
-              color: const Color(0xFF0A0A0B),
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 2,
-            ),
+          child: Icon(icon, size: 13, color: AppColors.primary),
+        ),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: GoogleFonts.jetBrainsMono(
+            color: AppColors.primary,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.5,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }
