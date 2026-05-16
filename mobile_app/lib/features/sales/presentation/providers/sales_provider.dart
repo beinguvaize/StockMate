@@ -1,14 +1,49 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:drift/drift.dart' show OrderingTerm, OrderingMode;
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/sales/data/models/sale.dart';
+import 'package:mobile_app/main.dart' show databaseProvider;
 
-// Provides a list of recent sales directly from Supabase
+// Cache-first recent sales. Mirrors web useSales: tenant-scoped, newest first,
+// 500-row cap. Falls back to local Drift sales table when offline.
 final recentSalesProvider = FutureProvider<List<Sale>>((ref) async {
-  final response = await supabase
-      .from('sales')
-      .select()
-      .order('created_at', ascending: false)
-      .limit(50);
-      
-  return (response as List).map((data) => Sale.fromJson(data)).toList();
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return [];
+
+  try {
+    final response = await supabase
+        .from('sales')
+        .select()
+        .eq('tenant_id', ctx.tenantId)
+        .order('created_at', ascending: false)
+        .limit(500);
+
+    return (response as List).map((data) => Sale.fromJson(data)).toList();
+  } catch (e) {
+    debugPrint('[recentSalesProvider] online failed, using Drift cache: $e');
+    final db = ref.read(databaseProvider);
+    final rows = await (db.select(db.sales)
+          ..where((t) => t.tenantId.equals(ctx.tenantId))
+          ..orderBy([(t) => OrderingTerm(
+                expression: t.date, mode: OrderingMode.desc)])
+          ..limit(500))
+        .get();
+    return rows
+        .map((r) => Sale.fromJson({
+              'id': r.id,
+              'tenant_id': r.tenantId,
+              'paymentMethod': r.paymentMethod,
+              'paymentStatus': r.paymentStatus,
+              'subtotal': r.subtotal,
+              'tax': r.tax,
+              'totalAmount': r.totalAmount,
+              'paidAmount': r.paidAmount,
+              'date': r.date.toIso8601String().split('T').first,
+              'items': jsonDecode(r.itemsJson),
+            }))
+        .toList();
+  }
 });
