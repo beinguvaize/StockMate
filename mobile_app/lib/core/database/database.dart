@@ -126,6 +126,49 @@ class Purchases extends Table {
   Set<Column> get primaryKey => {id};
 }
 
+class Invoices extends Table {
+  TextColumn get id => text()();
+  TextColumn get tenantId => text()();
+  TextColumn get invoiceNumber => text().nullable()();
+  TextColumn get clientId => text().nullable()();
+  TextColumn get clientName => text().nullable()();
+  TextColumn get saleId => text().nullable()();
+  TextColumn get invoiceDate => text().nullable()();
+  TextColumn get dueDate => text().nullable()();
+  RealColumn get taxableAmount => real().withDefault(const Constant(0))();
+  RealColumn get grandTotal => real().withDefault(const Constant(0))();
+  RealColumn get paidAmount => real().withDefault(const Constant(0))();
+  TextColumn get paymentStatus => text().nullable()();
+  TextColumn get irn => text().nullable()();
+  TextColumn get irnStatus => text().nullable()();
+  TextColumn get ackNo => text().nullable()();
+  TextColumn get signedQr => text().nullable()();
+  TextColumn get itemsJson => text().nullable()();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+class BusinessProfileLocal extends Table {
+  TextColumn get tenantId => text()();
+  TextColumn get name => text().nullable()();
+  TextColumn get address => text().nullable()();
+  TextColumn get phone => text().nullable()();
+  TextColumn get email => text().nullable()();
+  TextColumn get currency => text().nullable()();
+  TextColumn get gstNo => text().nullable()();
+  TextColumn get panNo => text().nullable()();
+  TextColumn get upiId => text().nullable()();
+  TextColumn get invoiceTerms => text().nullable()();
+  TextColumn get footerMessage => text().nullable()();
+  BoolColumn get autoIrnEnabled => boolean().withDefault(const Constant(false))();
+  DateTimeColumn get updatedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {tenantId};
+}
+
 class Routes extends Table {
   TextColumn get id => text()();
   TextColumn get tenantId => text()();
@@ -154,13 +197,15 @@ class Routes extends Table {
   Expenses,
   Suppliers,
   Purchases,
-  Routes
+  Invoices,
+  BusinessProfileLocal,
+  Routes,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -169,16 +214,18 @@ class AppDatabase extends _$AppDatabase {
     },
     onUpgrade: (m, from, to) async {
       if (from < 2) {
-        // Add per-item retry fields to existing SyncMutations rows.
         await m.addColumn(syncMutations, syncMutations.rpcName);
         await m.addColumn(syncMutations, syncMutations.status);
         await m.addColumn(syncMutations, syncMutations.attempts);
         await m.addColumn(syncMutations, syncMutations.lastError);
         await m.addColumn(syncMutations, syncMutations.nextAttemptAt);
         await m.addColumn(syncMutations, syncMutations.lastAttemptAt);
-        // Backfill status from legacy isSynced flag
         await customStatement(
           "UPDATE sync_mutations SET status = CASE WHEN is_synced = 1 THEN 'SUCCESS' ELSE 'PENDING' END WHERE status IS NULL OR status = ''");
+      }
+      if (from < 3) {
+        await m.createTable(invoices);
+        await m.createTable(businessProfileLocal);
       }
     },
   );

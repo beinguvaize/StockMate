@@ -3487,6 +3487,1453 @@ class PurchasesCompanion extends UpdateCompanion<Purchase> {
   }
 }
 
+class $InvoicesTable extends Invoices with TableInfo<$InvoicesTable, Invoice> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $InvoicesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+      'id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _tenantIdMeta =
+      const VerificationMeta('tenantId');
+  @override
+  late final GeneratedColumn<String> tenantId = GeneratedColumn<String>(
+      'tenant_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _invoiceNumberMeta =
+      const VerificationMeta('invoiceNumber');
+  @override
+  late final GeneratedColumn<String> invoiceNumber = GeneratedColumn<String>(
+      'invoice_number', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _clientIdMeta =
+      const VerificationMeta('clientId');
+  @override
+  late final GeneratedColumn<String> clientId = GeneratedColumn<String>(
+      'client_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _clientNameMeta =
+      const VerificationMeta('clientName');
+  @override
+  late final GeneratedColumn<String> clientName = GeneratedColumn<String>(
+      'client_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _saleIdMeta = const VerificationMeta('saleId');
+  @override
+  late final GeneratedColumn<String> saleId = GeneratedColumn<String>(
+      'sale_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _invoiceDateMeta =
+      const VerificationMeta('invoiceDate');
+  @override
+  late final GeneratedColumn<String> invoiceDate = GeneratedColumn<String>(
+      'invoice_date', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _dueDateMeta =
+      const VerificationMeta('dueDate');
+  @override
+  late final GeneratedColumn<String> dueDate = GeneratedColumn<String>(
+      'due_date', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _taxableAmountMeta =
+      const VerificationMeta('taxableAmount');
+  @override
+  late final GeneratedColumn<double> taxableAmount = GeneratedColumn<double>(
+      'taxable_amount', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _grandTotalMeta =
+      const VerificationMeta('grandTotal');
+  @override
+  late final GeneratedColumn<double> grandTotal = GeneratedColumn<double>(
+      'grand_total', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _paidAmountMeta =
+      const VerificationMeta('paidAmount');
+  @override
+  late final GeneratedColumn<double> paidAmount = GeneratedColumn<double>(
+      'paid_amount', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _paymentStatusMeta =
+      const VerificationMeta('paymentStatus');
+  @override
+  late final GeneratedColumn<String> paymentStatus = GeneratedColumn<String>(
+      'payment_status', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _irnMeta = const VerificationMeta('irn');
+  @override
+  late final GeneratedColumn<String> irn = GeneratedColumn<String>(
+      'irn', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _irnStatusMeta =
+      const VerificationMeta('irnStatus');
+  @override
+  late final GeneratedColumn<String> irnStatus = GeneratedColumn<String>(
+      'irn_status', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _ackNoMeta = const VerificationMeta('ackNo');
+  @override
+  late final GeneratedColumn<String> ackNo = GeneratedColumn<String>(
+      'ack_no', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _signedQrMeta =
+      const VerificationMeta('signedQr');
+  @override
+  late final GeneratedColumn<String> signedQr = GeneratedColumn<String>(
+      'signed_qr', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _itemsJsonMeta =
+      const VerificationMeta('itemsJson');
+  @override
+  late final GeneratedColumn<String> itemsJson = GeneratedColumn<String>(
+      'items_json', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        tenantId,
+        invoiceNumber,
+        clientId,
+        clientName,
+        saleId,
+        invoiceDate,
+        dueDate,
+        taxableAmount,
+        grandTotal,
+        paidAmount,
+        paymentStatus,
+        irn,
+        irnStatus,
+        ackNo,
+        signedQr,
+        itemsJson,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'invoices';
+  @override
+  VerificationContext validateIntegrity(Insertable<Invoice> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('tenant_id')) {
+      context.handle(_tenantIdMeta,
+          tenantId.isAcceptableOrUnknown(data['tenant_id']!, _tenantIdMeta));
+    } else if (isInserting) {
+      context.missing(_tenantIdMeta);
+    }
+    if (data.containsKey('invoice_number')) {
+      context.handle(
+          _invoiceNumberMeta,
+          invoiceNumber.isAcceptableOrUnknown(
+              data['invoice_number']!, _invoiceNumberMeta));
+    }
+    if (data.containsKey('client_id')) {
+      context.handle(_clientIdMeta,
+          clientId.isAcceptableOrUnknown(data['client_id']!, _clientIdMeta));
+    }
+    if (data.containsKey('client_name')) {
+      context.handle(
+          _clientNameMeta,
+          clientName.isAcceptableOrUnknown(
+              data['client_name']!, _clientNameMeta));
+    }
+    if (data.containsKey('sale_id')) {
+      context.handle(_saleIdMeta,
+          saleId.isAcceptableOrUnknown(data['sale_id']!, _saleIdMeta));
+    }
+    if (data.containsKey('invoice_date')) {
+      context.handle(
+          _invoiceDateMeta,
+          invoiceDate.isAcceptableOrUnknown(
+              data['invoice_date']!, _invoiceDateMeta));
+    }
+    if (data.containsKey('due_date')) {
+      context.handle(_dueDateMeta,
+          dueDate.isAcceptableOrUnknown(data['due_date']!, _dueDateMeta));
+    }
+    if (data.containsKey('taxable_amount')) {
+      context.handle(
+          _taxableAmountMeta,
+          taxableAmount.isAcceptableOrUnknown(
+              data['taxable_amount']!, _taxableAmountMeta));
+    }
+    if (data.containsKey('grand_total')) {
+      context.handle(
+          _grandTotalMeta,
+          grandTotal.isAcceptableOrUnknown(
+              data['grand_total']!, _grandTotalMeta));
+    }
+    if (data.containsKey('paid_amount')) {
+      context.handle(
+          _paidAmountMeta,
+          paidAmount.isAcceptableOrUnknown(
+              data['paid_amount']!, _paidAmountMeta));
+    }
+    if (data.containsKey('payment_status')) {
+      context.handle(
+          _paymentStatusMeta,
+          paymentStatus.isAcceptableOrUnknown(
+              data['payment_status']!, _paymentStatusMeta));
+    }
+    if (data.containsKey('irn')) {
+      context.handle(
+          _irnMeta, irn.isAcceptableOrUnknown(data['irn']!, _irnMeta));
+    }
+    if (data.containsKey('irn_status')) {
+      context.handle(_irnStatusMeta,
+          irnStatus.isAcceptableOrUnknown(data['irn_status']!, _irnStatusMeta));
+    }
+    if (data.containsKey('ack_no')) {
+      context.handle(
+          _ackNoMeta, ackNo.isAcceptableOrUnknown(data['ack_no']!, _ackNoMeta));
+    }
+    if (data.containsKey('signed_qr')) {
+      context.handle(_signedQrMeta,
+          signedQr.isAcceptableOrUnknown(data['signed_qr']!, _signedQrMeta));
+    }
+    if (data.containsKey('items_json')) {
+      context.handle(_itemsJsonMeta,
+          itemsJson.isAcceptableOrUnknown(data['items_json']!, _itemsJsonMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Invoice map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Invoice(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}id'])!,
+      tenantId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!,
+      invoiceNumber: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}invoice_number']),
+      clientId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}client_id']),
+      clientName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}client_name']),
+      saleId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}sale_id']),
+      invoiceDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}invoice_date']),
+      dueDate: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}due_date']),
+      taxableAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}taxable_amount'])!,
+      grandTotal: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}grand_total'])!,
+      paidAmount: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}paid_amount'])!,
+      paymentStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}payment_status']),
+      irn: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}irn']),
+      irnStatus: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}irn_status']),
+      ackNo: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}ack_no']),
+      signedQr: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}signed_qr']),
+      itemsJson: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}items_json']),
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at']),
+    );
+  }
+
+  @override
+  $InvoicesTable createAlias(String alias) {
+    return $InvoicesTable(attachedDatabase, alias);
+  }
+}
+
+class Invoice extends DataClass implements Insertable<Invoice> {
+  final String id;
+  final String tenantId;
+  final String? invoiceNumber;
+  final String? clientId;
+  final String? clientName;
+  final String? saleId;
+  final String? invoiceDate;
+  final String? dueDate;
+  final double taxableAmount;
+  final double grandTotal;
+  final double paidAmount;
+  final String? paymentStatus;
+  final String? irn;
+  final String? irnStatus;
+  final String? ackNo;
+  final String? signedQr;
+  final String? itemsJson;
+  final DateTime? updatedAt;
+  const Invoice(
+      {required this.id,
+      required this.tenantId,
+      this.invoiceNumber,
+      this.clientId,
+      this.clientName,
+      this.saleId,
+      this.invoiceDate,
+      this.dueDate,
+      required this.taxableAmount,
+      required this.grandTotal,
+      required this.paidAmount,
+      this.paymentStatus,
+      this.irn,
+      this.irnStatus,
+      this.ackNo,
+      this.signedQr,
+      this.itemsJson,
+      this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['tenant_id'] = Variable<String>(tenantId);
+    if (!nullToAbsent || invoiceNumber != null) {
+      map['invoice_number'] = Variable<String>(invoiceNumber);
+    }
+    if (!nullToAbsent || clientId != null) {
+      map['client_id'] = Variable<String>(clientId);
+    }
+    if (!nullToAbsent || clientName != null) {
+      map['client_name'] = Variable<String>(clientName);
+    }
+    if (!nullToAbsent || saleId != null) {
+      map['sale_id'] = Variable<String>(saleId);
+    }
+    if (!nullToAbsent || invoiceDate != null) {
+      map['invoice_date'] = Variable<String>(invoiceDate);
+    }
+    if (!nullToAbsent || dueDate != null) {
+      map['due_date'] = Variable<String>(dueDate);
+    }
+    map['taxable_amount'] = Variable<double>(taxableAmount);
+    map['grand_total'] = Variable<double>(grandTotal);
+    map['paid_amount'] = Variable<double>(paidAmount);
+    if (!nullToAbsent || paymentStatus != null) {
+      map['payment_status'] = Variable<String>(paymentStatus);
+    }
+    if (!nullToAbsent || irn != null) {
+      map['irn'] = Variable<String>(irn);
+    }
+    if (!nullToAbsent || irnStatus != null) {
+      map['irn_status'] = Variable<String>(irnStatus);
+    }
+    if (!nullToAbsent || ackNo != null) {
+      map['ack_no'] = Variable<String>(ackNo);
+    }
+    if (!nullToAbsent || signedQr != null) {
+      map['signed_qr'] = Variable<String>(signedQr);
+    }
+    if (!nullToAbsent || itemsJson != null) {
+      map['items_json'] = Variable<String>(itemsJson);
+    }
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    return map;
+  }
+
+  InvoicesCompanion toCompanion(bool nullToAbsent) {
+    return InvoicesCompanion(
+      id: Value(id),
+      tenantId: Value(tenantId),
+      invoiceNumber: invoiceNumber == null && nullToAbsent
+          ? const Value.absent()
+          : Value(invoiceNumber),
+      clientId: clientId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(clientId),
+      clientName: clientName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(clientName),
+      saleId:
+          saleId == null && nullToAbsent ? const Value.absent() : Value(saleId),
+      invoiceDate: invoiceDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(invoiceDate),
+      dueDate: dueDate == null && nullToAbsent
+          ? const Value.absent()
+          : Value(dueDate),
+      taxableAmount: Value(taxableAmount),
+      grandTotal: Value(grandTotal),
+      paidAmount: Value(paidAmount),
+      paymentStatus: paymentStatus == null && nullToAbsent
+          ? const Value.absent()
+          : Value(paymentStatus),
+      irn: irn == null && nullToAbsent ? const Value.absent() : Value(irn),
+      irnStatus: irnStatus == null && nullToAbsent
+          ? const Value.absent()
+          : Value(irnStatus),
+      ackNo:
+          ackNo == null && nullToAbsent ? const Value.absent() : Value(ackNo),
+      signedQr: signedQr == null && nullToAbsent
+          ? const Value.absent()
+          : Value(signedQr),
+      itemsJson: itemsJson == null && nullToAbsent
+          ? const Value.absent()
+          : Value(itemsJson),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+    );
+  }
+
+  factory Invoice.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Invoice(
+      id: serializer.fromJson<String>(json['id']),
+      tenantId: serializer.fromJson<String>(json['tenantId']),
+      invoiceNumber: serializer.fromJson<String?>(json['invoiceNumber']),
+      clientId: serializer.fromJson<String?>(json['clientId']),
+      clientName: serializer.fromJson<String?>(json['clientName']),
+      saleId: serializer.fromJson<String?>(json['saleId']),
+      invoiceDate: serializer.fromJson<String?>(json['invoiceDate']),
+      dueDate: serializer.fromJson<String?>(json['dueDate']),
+      taxableAmount: serializer.fromJson<double>(json['taxableAmount']),
+      grandTotal: serializer.fromJson<double>(json['grandTotal']),
+      paidAmount: serializer.fromJson<double>(json['paidAmount']),
+      paymentStatus: serializer.fromJson<String?>(json['paymentStatus']),
+      irn: serializer.fromJson<String?>(json['irn']),
+      irnStatus: serializer.fromJson<String?>(json['irnStatus']),
+      ackNo: serializer.fromJson<String?>(json['ackNo']),
+      signedQr: serializer.fromJson<String?>(json['signedQr']),
+      itemsJson: serializer.fromJson<String?>(json['itemsJson']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'tenantId': serializer.toJson<String>(tenantId),
+      'invoiceNumber': serializer.toJson<String?>(invoiceNumber),
+      'clientId': serializer.toJson<String?>(clientId),
+      'clientName': serializer.toJson<String?>(clientName),
+      'saleId': serializer.toJson<String?>(saleId),
+      'invoiceDate': serializer.toJson<String?>(invoiceDate),
+      'dueDate': serializer.toJson<String?>(dueDate),
+      'taxableAmount': serializer.toJson<double>(taxableAmount),
+      'grandTotal': serializer.toJson<double>(grandTotal),
+      'paidAmount': serializer.toJson<double>(paidAmount),
+      'paymentStatus': serializer.toJson<String?>(paymentStatus),
+      'irn': serializer.toJson<String?>(irn),
+      'irnStatus': serializer.toJson<String?>(irnStatus),
+      'ackNo': serializer.toJson<String?>(ackNo),
+      'signedQr': serializer.toJson<String?>(signedQr),
+      'itemsJson': serializer.toJson<String?>(itemsJson),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+    };
+  }
+
+  Invoice copyWith(
+          {String? id,
+          String? tenantId,
+          Value<String?> invoiceNumber = const Value.absent(),
+          Value<String?> clientId = const Value.absent(),
+          Value<String?> clientName = const Value.absent(),
+          Value<String?> saleId = const Value.absent(),
+          Value<String?> invoiceDate = const Value.absent(),
+          Value<String?> dueDate = const Value.absent(),
+          double? taxableAmount,
+          double? grandTotal,
+          double? paidAmount,
+          Value<String?> paymentStatus = const Value.absent(),
+          Value<String?> irn = const Value.absent(),
+          Value<String?> irnStatus = const Value.absent(),
+          Value<String?> ackNo = const Value.absent(),
+          Value<String?> signedQr = const Value.absent(),
+          Value<String?> itemsJson = const Value.absent(),
+          Value<DateTime?> updatedAt = const Value.absent()}) =>
+      Invoice(
+        id: id ?? this.id,
+        tenantId: tenantId ?? this.tenantId,
+        invoiceNumber:
+            invoiceNumber.present ? invoiceNumber.value : this.invoiceNumber,
+        clientId: clientId.present ? clientId.value : this.clientId,
+        clientName: clientName.present ? clientName.value : this.clientName,
+        saleId: saleId.present ? saleId.value : this.saleId,
+        invoiceDate: invoiceDate.present ? invoiceDate.value : this.invoiceDate,
+        dueDate: dueDate.present ? dueDate.value : this.dueDate,
+        taxableAmount: taxableAmount ?? this.taxableAmount,
+        grandTotal: grandTotal ?? this.grandTotal,
+        paidAmount: paidAmount ?? this.paidAmount,
+        paymentStatus:
+            paymentStatus.present ? paymentStatus.value : this.paymentStatus,
+        irn: irn.present ? irn.value : this.irn,
+        irnStatus: irnStatus.present ? irnStatus.value : this.irnStatus,
+        ackNo: ackNo.present ? ackNo.value : this.ackNo,
+        signedQr: signedQr.present ? signedQr.value : this.signedQr,
+        itemsJson: itemsJson.present ? itemsJson.value : this.itemsJson,
+        updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+      );
+  @override
+  String toString() {
+    return (StringBuffer('Invoice(')
+          ..write('id: $id, ')
+          ..write('tenantId: $tenantId, ')
+          ..write('invoiceNumber: $invoiceNumber, ')
+          ..write('clientId: $clientId, ')
+          ..write('clientName: $clientName, ')
+          ..write('saleId: $saleId, ')
+          ..write('invoiceDate: $invoiceDate, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('taxableAmount: $taxableAmount, ')
+          ..write('grandTotal: $grandTotal, ')
+          ..write('paidAmount: $paidAmount, ')
+          ..write('paymentStatus: $paymentStatus, ')
+          ..write('irn: $irn, ')
+          ..write('irnStatus: $irnStatus, ')
+          ..write('ackNo: $ackNo, ')
+          ..write('signedQr: $signedQr, ')
+          ..write('itemsJson: $itemsJson, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      id,
+      tenantId,
+      invoiceNumber,
+      clientId,
+      clientName,
+      saleId,
+      invoiceDate,
+      dueDate,
+      taxableAmount,
+      grandTotal,
+      paidAmount,
+      paymentStatus,
+      irn,
+      irnStatus,
+      ackNo,
+      signedQr,
+      itemsJson,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Invoice &&
+          other.id == this.id &&
+          other.tenantId == this.tenantId &&
+          other.invoiceNumber == this.invoiceNumber &&
+          other.clientId == this.clientId &&
+          other.clientName == this.clientName &&
+          other.saleId == this.saleId &&
+          other.invoiceDate == this.invoiceDate &&
+          other.dueDate == this.dueDate &&
+          other.taxableAmount == this.taxableAmount &&
+          other.grandTotal == this.grandTotal &&
+          other.paidAmount == this.paidAmount &&
+          other.paymentStatus == this.paymentStatus &&
+          other.irn == this.irn &&
+          other.irnStatus == this.irnStatus &&
+          other.ackNo == this.ackNo &&
+          other.signedQr == this.signedQr &&
+          other.itemsJson == this.itemsJson &&
+          other.updatedAt == this.updatedAt);
+}
+
+class InvoicesCompanion extends UpdateCompanion<Invoice> {
+  final Value<String> id;
+  final Value<String> tenantId;
+  final Value<String?> invoiceNumber;
+  final Value<String?> clientId;
+  final Value<String?> clientName;
+  final Value<String?> saleId;
+  final Value<String?> invoiceDate;
+  final Value<String?> dueDate;
+  final Value<double> taxableAmount;
+  final Value<double> grandTotal;
+  final Value<double> paidAmount;
+  final Value<String?> paymentStatus;
+  final Value<String?> irn;
+  final Value<String?> irnStatus;
+  final Value<String?> ackNo;
+  final Value<String?> signedQr;
+  final Value<String?> itemsJson;
+  final Value<DateTime?> updatedAt;
+  final Value<int> rowid;
+  const InvoicesCompanion({
+    this.id = const Value.absent(),
+    this.tenantId = const Value.absent(),
+    this.invoiceNumber = const Value.absent(),
+    this.clientId = const Value.absent(),
+    this.clientName = const Value.absent(),
+    this.saleId = const Value.absent(),
+    this.invoiceDate = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.taxableAmount = const Value.absent(),
+    this.grandTotal = const Value.absent(),
+    this.paidAmount = const Value.absent(),
+    this.paymentStatus = const Value.absent(),
+    this.irn = const Value.absent(),
+    this.irnStatus = const Value.absent(),
+    this.ackNo = const Value.absent(),
+    this.signedQr = const Value.absent(),
+    this.itemsJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  InvoicesCompanion.insert({
+    required String id,
+    required String tenantId,
+    this.invoiceNumber = const Value.absent(),
+    this.clientId = const Value.absent(),
+    this.clientName = const Value.absent(),
+    this.saleId = const Value.absent(),
+    this.invoiceDate = const Value.absent(),
+    this.dueDate = const Value.absent(),
+    this.taxableAmount = const Value.absent(),
+    this.grandTotal = const Value.absent(),
+    this.paidAmount = const Value.absent(),
+    this.paymentStatus = const Value.absent(),
+    this.irn = const Value.absent(),
+    this.irnStatus = const Value.absent(),
+    this.ackNo = const Value.absent(),
+    this.signedQr = const Value.absent(),
+    this.itemsJson = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  })  : id = Value(id),
+        tenantId = Value(tenantId);
+  static Insertable<Invoice> custom({
+    Expression<String>? id,
+    Expression<String>? tenantId,
+    Expression<String>? invoiceNumber,
+    Expression<String>? clientId,
+    Expression<String>? clientName,
+    Expression<String>? saleId,
+    Expression<String>? invoiceDate,
+    Expression<String>? dueDate,
+    Expression<double>? taxableAmount,
+    Expression<double>? grandTotal,
+    Expression<double>? paidAmount,
+    Expression<String>? paymentStatus,
+    Expression<String>? irn,
+    Expression<String>? irnStatus,
+    Expression<String>? ackNo,
+    Expression<String>? signedQr,
+    Expression<String>? itemsJson,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (tenantId != null) 'tenant_id': tenantId,
+      if (invoiceNumber != null) 'invoice_number': invoiceNumber,
+      if (clientId != null) 'client_id': clientId,
+      if (clientName != null) 'client_name': clientName,
+      if (saleId != null) 'sale_id': saleId,
+      if (invoiceDate != null) 'invoice_date': invoiceDate,
+      if (dueDate != null) 'due_date': dueDate,
+      if (taxableAmount != null) 'taxable_amount': taxableAmount,
+      if (grandTotal != null) 'grand_total': grandTotal,
+      if (paidAmount != null) 'paid_amount': paidAmount,
+      if (paymentStatus != null) 'payment_status': paymentStatus,
+      if (irn != null) 'irn': irn,
+      if (irnStatus != null) 'irn_status': irnStatus,
+      if (ackNo != null) 'ack_no': ackNo,
+      if (signedQr != null) 'signed_qr': signedQr,
+      if (itemsJson != null) 'items_json': itemsJson,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  InvoicesCompanion copyWith(
+      {Value<String>? id,
+      Value<String>? tenantId,
+      Value<String?>? invoiceNumber,
+      Value<String?>? clientId,
+      Value<String?>? clientName,
+      Value<String?>? saleId,
+      Value<String?>? invoiceDate,
+      Value<String?>? dueDate,
+      Value<double>? taxableAmount,
+      Value<double>? grandTotal,
+      Value<double>? paidAmount,
+      Value<String?>? paymentStatus,
+      Value<String?>? irn,
+      Value<String?>? irnStatus,
+      Value<String?>? ackNo,
+      Value<String?>? signedQr,
+      Value<String?>? itemsJson,
+      Value<DateTime?>? updatedAt,
+      Value<int>? rowid}) {
+    return InvoicesCompanion(
+      id: id ?? this.id,
+      tenantId: tenantId ?? this.tenantId,
+      invoiceNumber: invoiceNumber ?? this.invoiceNumber,
+      clientId: clientId ?? this.clientId,
+      clientName: clientName ?? this.clientName,
+      saleId: saleId ?? this.saleId,
+      invoiceDate: invoiceDate ?? this.invoiceDate,
+      dueDate: dueDate ?? this.dueDate,
+      taxableAmount: taxableAmount ?? this.taxableAmount,
+      grandTotal: grandTotal ?? this.grandTotal,
+      paidAmount: paidAmount ?? this.paidAmount,
+      paymentStatus: paymentStatus ?? this.paymentStatus,
+      irn: irn ?? this.irn,
+      irnStatus: irnStatus ?? this.irnStatus,
+      ackNo: ackNo ?? this.ackNo,
+      signedQr: signedQr ?? this.signedQr,
+      itemsJson: itemsJson ?? this.itemsJson,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (tenantId.present) {
+      map['tenant_id'] = Variable<String>(tenantId.value);
+    }
+    if (invoiceNumber.present) {
+      map['invoice_number'] = Variable<String>(invoiceNumber.value);
+    }
+    if (clientId.present) {
+      map['client_id'] = Variable<String>(clientId.value);
+    }
+    if (clientName.present) {
+      map['client_name'] = Variable<String>(clientName.value);
+    }
+    if (saleId.present) {
+      map['sale_id'] = Variable<String>(saleId.value);
+    }
+    if (invoiceDate.present) {
+      map['invoice_date'] = Variable<String>(invoiceDate.value);
+    }
+    if (dueDate.present) {
+      map['due_date'] = Variable<String>(dueDate.value);
+    }
+    if (taxableAmount.present) {
+      map['taxable_amount'] = Variable<double>(taxableAmount.value);
+    }
+    if (grandTotal.present) {
+      map['grand_total'] = Variable<double>(grandTotal.value);
+    }
+    if (paidAmount.present) {
+      map['paid_amount'] = Variable<double>(paidAmount.value);
+    }
+    if (paymentStatus.present) {
+      map['payment_status'] = Variable<String>(paymentStatus.value);
+    }
+    if (irn.present) {
+      map['irn'] = Variable<String>(irn.value);
+    }
+    if (irnStatus.present) {
+      map['irn_status'] = Variable<String>(irnStatus.value);
+    }
+    if (ackNo.present) {
+      map['ack_no'] = Variable<String>(ackNo.value);
+    }
+    if (signedQr.present) {
+      map['signed_qr'] = Variable<String>(signedQr.value);
+    }
+    if (itemsJson.present) {
+      map['items_json'] = Variable<String>(itemsJson.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('InvoicesCompanion(')
+          ..write('id: $id, ')
+          ..write('tenantId: $tenantId, ')
+          ..write('invoiceNumber: $invoiceNumber, ')
+          ..write('clientId: $clientId, ')
+          ..write('clientName: $clientName, ')
+          ..write('saleId: $saleId, ')
+          ..write('invoiceDate: $invoiceDate, ')
+          ..write('dueDate: $dueDate, ')
+          ..write('taxableAmount: $taxableAmount, ')
+          ..write('grandTotal: $grandTotal, ')
+          ..write('paidAmount: $paidAmount, ')
+          ..write('paymentStatus: $paymentStatus, ')
+          ..write('irn: $irn, ')
+          ..write('irnStatus: $irnStatus, ')
+          ..write('ackNo: $ackNo, ')
+          ..write('signedQr: $signedQr, ')
+          ..write('itemsJson: $itemsJson, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $BusinessProfileLocalTable extends BusinessProfileLocal
+    with TableInfo<$BusinessProfileLocalTable, BusinessProfileLocalData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BusinessProfileLocalTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _tenantIdMeta =
+      const VerificationMeta('tenantId');
+  @override
+  late final GeneratedColumn<String> tenantId = GeneratedColumn<String>(
+      'tenant_id', aliasedName, false,
+      type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+      'name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _addressMeta =
+      const VerificationMeta('address');
+  @override
+  late final GeneratedColumn<String> address = GeneratedColumn<String>(
+      'address', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _phoneMeta = const VerificationMeta('phone');
+  @override
+  late final GeneratedColumn<String> phone = GeneratedColumn<String>(
+      'phone', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _emailMeta = const VerificationMeta('email');
+  @override
+  late final GeneratedColumn<String> email = GeneratedColumn<String>(
+      'email', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _currencyMeta =
+      const VerificationMeta('currency');
+  @override
+  late final GeneratedColumn<String> currency = GeneratedColumn<String>(
+      'currency', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _gstNoMeta = const VerificationMeta('gstNo');
+  @override
+  late final GeneratedColumn<String> gstNo = GeneratedColumn<String>(
+      'gst_no', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _panNoMeta = const VerificationMeta('panNo');
+  @override
+  late final GeneratedColumn<String> panNo = GeneratedColumn<String>(
+      'pan_no', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _upiIdMeta = const VerificationMeta('upiId');
+  @override
+  late final GeneratedColumn<String> upiId = GeneratedColumn<String>(
+      'upi_id', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _invoiceTermsMeta =
+      const VerificationMeta('invoiceTerms');
+  @override
+  late final GeneratedColumn<String> invoiceTerms = GeneratedColumn<String>(
+      'invoice_terms', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _footerMessageMeta =
+      const VerificationMeta('footerMessage');
+  @override
+  late final GeneratedColumn<String> footerMessage = GeneratedColumn<String>(
+      'footer_message', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _autoIrnEnabledMeta =
+      const VerificationMeta('autoIrnEnabled');
+  @override
+  late final GeneratedColumn<bool> autoIrnEnabled = GeneratedColumn<bool>(
+      'auto_irn_enabled', aliasedName, false,
+      type: DriftSqlType.bool,
+      requiredDuringInsert: false,
+      defaultConstraints: GeneratedColumn.constraintIsAlways(
+          'CHECK ("auto_irn_enabled" IN (0, 1))'),
+      defaultValue: const Constant(false));
+  static const VerificationMeta _updatedAtMeta =
+      const VerificationMeta('updatedAt');
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+      'updated_at', aliasedName, true,
+      type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        tenantId,
+        name,
+        address,
+        phone,
+        email,
+        currency,
+        gstNo,
+        panNo,
+        upiId,
+        invoiceTerms,
+        footerMessage,
+        autoIrnEnabled,
+        updatedAt
+      ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'business_profile_local';
+  @override
+  VerificationContext validateIntegrity(
+      Insertable<BusinessProfileLocalData> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('tenant_id')) {
+      context.handle(_tenantIdMeta,
+          tenantId.isAcceptableOrUnknown(data['tenant_id']!, _tenantIdMeta));
+    } else if (isInserting) {
+      context.missing(_tenantIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+          _nameMeta, name.isAcceptableOrUnknown(data['name']!, _nameMeta));
+    }
+    if (data.containsKey('address')) {
+      context.handle(_addressMeta,
+          address.isAcceptableOrUnknown(data['address']!, _addressMeta));
+    }
+    if (data.containsKey('phone')) {
+      context.handle(
+          _phoneMeta, phone.isAcceptableOrUnknown(data['phone']!, _phoneMeta));
+    }
+    if (data.containsKey('email')) {
+      context.handle(
+          _emailMeta, email.isAcceptableOrUnknown(data['email']!, _emailMeta));
+    }
+    if (data.containsKey('currency')) {
+      context.handle(_currencyMeta,
+          currency.isAcceptableOrUnknown(data['currency']!, _currencyMeta));
+    }
+    if (data.containsKey('gst_no')) {
+      context.handle(
+          _gstNoMeta, gstNo.isAcceptableOrUnknown(data['gst_no']!, _gstNoMeta));
+    }
+    if (data.containsKey('pan_no')) {
+      context.handle(
+          _panNoMeta, panNo.isAcceptableOrUnknown(data['pan_no']!, _panNoMeta));
+    }
+    if (data.containsKey('upi_id')) {
+      context.handle(
+          _upiIdMeta, upiId.isAcceptableOrUnknown(data['upi_id']!, _upiIdMeta));
+    }
+    if (data.containsKey('invoice_terms')) {
+      context.handle(
+          _invoiceTermsMeta,
+          invoiceTerms.isAcceptableOrUnknown(
+              data['invoice_terms']!, _invoiceTermsMeta));
+    }
+    if (data.containsKey('footer_message')) {
+      context.handle(
+          _footerMessageMeta,
+          footerMessage.isAcceptableOrUnknown(
+              data['footer_message']!, _footerMessageMeta));
+    }
+    if (data.containsKey('auto_irn_enabled')) {
+      context.handle(
+          _autoIrnEnabledMeta,
+          autoIrnEnabled.isAcceptableOrUnknown(
+              data['auto_irn_enabled']!, _autoIrnEnabledMeta));
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(_updatedAtMeta,
+          updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {tenantId};
+  @override
+  BusinessProfileLocalData map(Map<String, dynamic> data,
+      {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return BusinessProfileLocalData(
+      tenantId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!,
+      name: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}name']),
+      address: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}address']),
+      phone: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}phone']),
+      email: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}email']),
+      currency: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}currency']),
+      gstNo: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}gst_no']),
+      panNo: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}pan_no']),
+      upiId: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}upi_id']),
+      invoiceTerms: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}invoice_terms']),
+      footerMessage: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}footer_message']),
+      autoIrnEnabled: attachedDatabase.typeMapping
+          .read(DriftSqlType.bool, data['${effectivePrefix}auto_irn_enabled'])!,
+      updatedAt: attachedDatabase.typeMapping
+          .read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at']),
+    );
+  }
+
+  @override
+  $BusinessProfileLocalTable createAlias(String alias) {
+    return $BusinessProfileLocalTable(attachedDatabase, alias);
+  }
+}
+
+class BusinessProfileLocalData extends DataClass
+    implements Insertable<BusinessProfileLocalData> {
+  final String tenantId;
+  final String? name;
+  final String? address;
+  final String? phone;
+  final String? email;
+  final String? currency;
+  final String? gstNo;
+  final String? panNo;
+  final String? upiId;
+  final String? invoiceTerms;
+  final String? footerMessage;
+  final bool autoIrnEnabled;
+  final DateTime? updatedAt;
+  const BusinessProfileLocalData(
+      {required this.tenantId,
+      this.name,
+      this.address,
+      this.phone,
+      this.email,
+      this.currency,
+      this.gstNo,
+      this.panNo,
+      this.upiId,
+      this.invoiceTerms,
+      this.footerMessage,
+      required this.autoIrnEnabled,
+      this.updatedAt});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['tenant_id'] = Variable<String>(tenantId);
+    if (!nullToAbsent || name != null) {
+      map['name'] = Variable<String>(name);
+    }
+    if (!nullToAbsent || address != null) {
+      map['address'] = Variable<String>(address);
+    }
+    if (!nullToAbsent || phone != null) {
+      map['phone'] = Variable<String>(phone);
+    }
+    if (!nullToAbsent || email != null) {
+      map['email'] = Variable<String>(email);
+    }
+    if (!nullToAbsent || currency != null) {
+      map['currency'] = Variable<String>(currency);
+    }
+    if (!nullToAbsent || gstNo != null) {
+      map['gst_no'] = Variable<String>(gstNo);
+    }
+    if (!nullToAbsent || panNo != null) {
+      map['pan_no'] = Variable<String>(panNo);
+    }
+    if (!nullToAbsent || upiId != null) {
+      map['upi_id'] = Variable<String>(upiId);
+    }
+    if (!nullToAbsent || invoiceTerms != null) {
+      map['invoice_terms'] = Variable<String>(invoiceTerms);
+    }
+    if (!nullToAbsent || footerMessage != null) {
+      map['footer_message'] = Variable<String>(footerMessage);
+    }
+    map['auto_irn_enabled'] = Variable<bool>(autoIrnEnabled);
+    if (!nullToAbsent || updatedAt != null) {
+      map['updated_at'] = Variable<DateTime>(updatedAt);
+    }
+    return map;
+  }
+
+  BusinessProfileLocalCompanion toCompanion(bool nullToAbsent) {
+    return BusinessProfileLocalCompanion(
+      tenantId: Value(tenantId),
+      name: name == null && nullToAbsent ? const Value.absent() : Value(name),
+      address: address == null && nullToAbsent
+          ? const Value.absent()
+          : Value(address),
+      phone:
+          phone == null && nullToAbsent ? const Value.absent() : Value(phone),
+      email:
+          email == null && nullToAbsent ? const Value.absent() : Value(email),
+      currency: currency == null && nullToAbsent
+          ? const Value.absent()
+          : Value(currency),
+      gstNo:
+          gstNo == null && nullToAbsent ? const Value.absent() : Value(gstNo),
+      panNo:
+          panNo == null && nullToAbsent ? const Value.absent() : Value(panNo),
+      upiId:
+          upiId == null && nullToAbsent ? const Value.absent() : Value(upiId),
+      invoiceTerms: invoiceTerms == null && nullToAbsent
+          ? const Value.absent()
+          : Value(invoiceTerms),
+      footerMessage: footerMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(footerMessage),
+      autoIrnEnabled: Value(autoIrnEnabled),
+      updatedAt: updatedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(updatedAt),
+    );
+  }
+
+  factory BusinessProfileLocalData.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return BusinessProfileLocalData(
+      tenantId: serializer.fromJson<String>(json['tenantId']),
+      name: serializer.fromJson<String?>(json['name']),
+      address: serializer.fromJson<String?>(json['address']),
+      phone: serializer.fromJson<String?>(json['phone']),
+      email: serializer.fromJson<String?>(json['email']),
+      currency: serializer.fromJson<String?>(json['currency']),
+      gstNo: serializer.fromJson<String?>(json['gstNo']),
+      panNo: serializer.fromJson<String?>(json['panNo']),
+      upiId: serializer.fromJson<String?>(json['upiId']),
+      invoiceTerms: serializer.fromJson<String?>(json['invoiceTerms']),
+      footerMessage: serializer.fromJson<String?>(json['footerMessage']),
+      autoIrnEnabled: serializer.fromJson<bool>(json['autoIrnEnabled']),
+      updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'tenantId': serializer.toJson<String>(tenantId),
+      'name': serializer.toJson<String?>(name),
+      'address': serializer.toJson<String?>(address),
+      'phone': serializer.toJson<String?>(phone),
+      'email': serializer.toJson<String?>(email),
+      'currency': serializer.toJson<String?>(currency),
+      'gstNo': serializer.toJson<String?>(gstNo),
+      'panNo': serializer.toJson<String?>(panNo),
+      'upiId': serializer.toJson<String?>(upiId),
+      'invoiceTerms': serializer.toJson<String?>(invoiceTerms),
+      'footerMessage': serializer.toJson<String?>(footerMessage),
+      'autoIrnEnabled': serializer.toJson<bool>(autoIrnEnabled),
+      'updatedAt': serializer.toJson<DateTime?>(updatedAt),
+    };
+  }
+
+  BusinessProfileLocalData copyWith(
+          {String? tenantId,
+          Value<String?> name = const Value.absent(),
+          Value<String?> address = const Value.absent(),
+          Value<String?> phone = const Value.absent(),
+          Value<String?> email = const Value.absent(),
+          Value<String?> currency = const Value.absent(),
+          Value<String?> gstNo = const Value.absent(),
+          Value<String?> panNo = const Value.absent(),
+          Value<String?> upiId = const Value.absent(),
+          Value<String?> invoiceTerms = const Value.absent(),
+          Value<String?> footerMessage = const Value.absent(),
+          bool? autoIrnEnabled,
+          Value<DateTime?> updatedAt = const Value.absent()}) =>
+      BusinessProfileLocalData(
+        tenantId: tenantId ?? this.tenantId,
+        name: name.present ? name.value : this.name,
+        address: address.present ? address.value : this.address,
+        phone: phone.present ? phone.value : this.phone,
+        email: email.present ? email.value : this.email,
+        currency: currency.present ? currency.value : this.currency,
+        gstNo: gstNo.present ? gstNo.value : this.gstNo,
+        panNo: panNo.present ? panNo.value : this.panNo,
+        upiId: upiId.present ? upiId.value : this.upiId,
+        invoiceTerms:
+            invoiceTerms.present ? invoiceTerms.value : this.invoiceTerms,
+        footerMessage:
+            footerMessage.present ? footerMessage.value : this.footerMessage,
+        autoIrnEnabled: autoIrnEnabled ?? this.autoIrnEnabled,
+        updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
+      );
+  @override
+  String toString() {
+    return (StringBuffer('BusinessProfileLocalData(')
+          ..write('tenantId: $tenantId, ')
+          ..write('name: $name, ')
+          ..write('address: $address, ')
+          ..write('phone: $phone, ')
+          ..write('email: $email, ')
+          ..write('currency: $currency, ')
+          ..write('gstNo: $gstNo, ')
+          ..write('panNo: $panNo, ')
+          ..write('upiId: $upiId, ')
+          ..write('invoiceTerms: $invoiceTerms, ')
+          ..write('footerMessage: $footerMessage, ')
+          ..write('autoIrnEnabled: $autoIrnEnabled, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+      tenantId,
+      name,
+      address,
+      phone,
+      email,
+      currency,
+      gstNo,
+      panNo,
+      upiId,
+      invoiceTerms,
+      footerMessage,
+      autoIrnEnabled,
+      updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is BusinessProfileLocalData &&
+          other.tenantId == this.tenantId &&
+          other.name == this.name &&
+          other.address == this.address &&
+          other.phone == this.phone &&
+          other.email == this.email &&
+          other.currency == this.currency &&
+          other.gstNo == this.gstNo &&
+          other.panNo == this.panNo &&
+          other.upiId == this.upiId &&
+          other.invoiceTerms == this.invoiceTerms &&
+          other.footerMessage == this.footerMessage &&
+          other.autoIrnEnabled == this.autoIrnEnabled &&
+          other.updatedAt == this.updatedAt);
+}
+
+class BusinessProfileLocalCompanion
+    extends UpdateCompanion<BusinessProfileLocalData> {
+  final Value<String> tenantId;
+  final Value<String?> name;
+  final Value<String?> address;
+  final Value<String?> phone;
+  final Value<String?> email;
+  final Value<String?> currency;
+  final Value<String?> gstNo;
+  final Value<String?> panNo;
+  final Value<String?> upiId;
+  final Value<String?> invoiceTerms;
+  final Value<String?> footerMessage;
+  final Value<bool> autoIrnEnabled;
+  final Value<DateTime?> updatedAt;
+  final Value<int> rowid;
+  const BusinessProfileLocalCompanion({
+    this.tenantId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.address = const Value.absent(),
+    this.phone = const Value.absent(),
+    this.email = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.gstNo = const Value.absent(),
+    this.panNo = const Value.absent(),
+    this.upiId = const Value.absent(),
+    this.invoiceTerms = const Value.absent(),
+    this.footerMessage = const Value.absent(),
+    this.autoIrnEnabled = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  BusinessProfileLocalCompanion.insert({
+    required String tenantId,
+    this.name = const Value.absent(),
+    this.address = const Value.absent(),
+    this.phone = const Value.absent(),
+    this.email = const Value.absent(),
+    this.currency = const Value.absent(),
+    this.gstNo = const Value.absent(),
+    this.panNo = const Value.absent(),
+    this.upiId = const Value.absent(),
+    this.invoiceTerms = const Value.absent(),
+    this.footerMessage = const Value.absent(),
+    this.autoIrnEnabled = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : tenantId = Value(tenantId);
+  static Insertable<BusinessProfileLocalData> custom({
+    Expression<String>? tenantId,
+    Expression<String>? name,
+    Expression<String>? address,
+    Expression<String>? phone,
+    Expression<String>? email,
+    Expression<String>? currency,
+    Expression<String>? gstNo,
+    Expression<String>? panNo,
+    Expression<String>? upiId,
+    Expression<String>? invoiceTerms,
+    Expression<String>? footerMessage,
+    Expression<bool>? autoIrnEnabled,
+    Expression<DateTime>? updatedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (tenantId != null) 'tenant_id': tenantId,
+      if (name != null) 'name': name,
+      if (address != null) 'address': address,
+      if (phone != null) 'phone': phone,
+      if (email != null) 'email': email,
+      if (currency != null) 'currency': currency,
+      if (gstNo != null) 'gst_no': gstNo,
+      if (panNo != null) 'pan_no': panNo,
+      if (upiId != null) 'upi_id': upiId,
+      if (invoiceTerms != null) 'invoice_terms': invoiceTerms,
+      if (footerMessage != null) 'footer_message': footerMessage,
+      if (autoIrnEnabled != null) 'auto_irn_enabled': autoIrnEnabled,
+      if (updatedAt != null) 'updated_at': updatedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  BusinessProfileLocalCompanion copyWith(
+      {Value<String>? tenantId,
+      Value<String?>? name,
+      Value<String?>? address,
+      Value<String?>? phone,
+      Value<String?>? email,
+      Value<String?>? currency,
+      Value<String?>? gstNo,
+      Value<String?>? panNo,
+      Value<String?>? upiId,
+      Value<String?>? invoiceTerms,
+      Value<String?>? footerMessage,
+      Value<bool>? autoIrnEnabled,
+      Value<DateTime?>? updatedAt,
+      Value<int>? rowid}) {
+    return BusinessProfileLocalCompanion(
+      tenantId: tenantId ?? this.tenantId,
+      name: name ?? this.name,
+      address: address ?? this.address,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      currency: currency ?? this.currency,
+      gstNo: gstNo ?? this.gstNo,
+      panNo: panNo ?? this.panNo,
+      upiId: upiId ?? this.upiId,
+      invoiceTerms: invoiceTerms ?? this.invoiceTerms,
+      footerMessage: footerMessage ?? this.footerMessage,
+      autoIrnEnabled: autoIrnEnabled ?? this.autoIrnEnabled,
+      updatedAt: updatedAt ?? this.updatedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (tenantId.present) {
+      map['tenant_id'] = Variable<String>(tenantId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (address.present) {
+      map['address'] = Variable<String>(address.value);
+    }
+    if (phone.present) {
+      map['phone'] = Variable<String>(phone.value);
+    }
+    if (email.present) {
+      map['email'] = Variable<String>(email.value);
+    }
+    if (currency.present) {
+      map['currency'] = Variable<String>(currency.value);
+    }
+    if (gstNo.present) {
+      map['gst_no'] = Variable<String>(gstNo.value);
+    }
+    if (panNo.present) {
+      map['pan_no'] = Variable<String>(panNo.value);
+    }
+    if (upiId.present) {
+      map['upi_id'] = Variable<String>(upiId.value);
+    }
+    if (invoiceTerms.present) {
+      map['invoice_terms'] = Variable<String>(invoiceTerms.value);
+    }
+    if (footerMessage.present) {
+      map['footer_message'] = Variable<String>(footerMessage.value);
+    }
+    if (autoIrnEnabled.present) {
+      map['auto_irn_enabled'] = Variable<bool>(autoIrnEnabled.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BusinessProfileLocalCompanion(')
+          ..write('tenantId: $tenantId, ')
+          ..write('name: $name, ')
+          ..write('address: $address, ')
+          ..write('phone: $phone, ')
+          ..write('email: $email, ')
+          ..write('currency: $currency, ')
+          ..write('gstNo: $gstNo, ')
+          ..write('panNo: $panNo, ')
+          ..write('upiId: $upiId, ')
+          ..write('invoiceTerms: $invoiceTerms, ')
+          ..write('footerMessage: $footerMessage, ')
+          ..write('autoIrnEnabled: $autoIrnEnabled, ')
+          ..write('updatedAt: $updatedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $RoutesTable extends Routes with TableInfo<$RoutesTable, Route> {
   @override
   final GeneratedDatabase attachedDatabase;
@@ -4053,6 +5500,9 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $ExpensesTable expenses = $ExpensesTable(this);
   late final $SuppliersTable suppliers = $SuppliersTable(this);
   late final $PurchasesTable purchases = $PurchasesTable(this);
+  late final $InvoicesTable invoices = $InvoicesTable(this);
+  late final $BusinessProfileLocalTable businessProfileLocal =
+      $BusinessProfileLocalTable(this);
   late final $RoutesTable routes = $RoutesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -4067,6 +5517,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         expenses,
         suppliers,
         purchases,
+        invoices,
+        businessProfileLocal,
         routes
       ];
 }

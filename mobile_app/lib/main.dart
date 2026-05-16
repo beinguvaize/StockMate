@@ -62,8 +62,37 @@ Future<void> main() async {
   );
 }
 
-class LedgrApp extends StatelessWidget {
+class LedgrApp extends ConsumerStatefulWidget {
   const LedgrApp({super.key});
+
+  @override
+  ConsumerState<LedgrApp> createState() => _LedgrAppState();
+}
+
+class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // When the user resumes the app after backgrounding (especially after
+    // an offline trip), kick the sync engine. Cheap if queue is empty.
+    if (state == AppLifecycleState.resumed) {
+      try {
+        ref.read(syncServiceProvider).sync();
+        ref.read(syncServiceProvider).pullSync();
+      } catch (_) {/* ignore — providers may not be ready before login */}
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

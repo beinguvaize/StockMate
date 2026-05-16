@@ -264,6 +264,8 @@ class SyncService {
       _pullProducts(),
       _pullClients(),
       _pullSuppliers(),
+      _pullInvoices(),
+      _pullBusinessProfile(),
     ]);
   }
 
@@ -324,6 +326,77 @@ class SyncService {
       });
     } catch (e) {
       debugPrint('[pullSync] clients failed: $e');
+    }
+  }
+
+  Future<void> _pullInvoices() async {
+    try {
+      final response = await supabase
+          .from('invoices')
+          .select('id, tenant_id, invoice_number, client_id, client_name, sale_id, invoice_date, due_date, taxable_amount, grand_total, paid_amount, payment_status, irn, irn_status, ack_no, signed_qr, items')
+          .order('invoice_date', ascending: false)
+          .limit(500);
+      final List<dynamic> data = response as List<dynamic>;
+      await db.batch((batch) {
+        for (final item in data) {
+          batch.insert(
+            db.invoices,
+            InvoicesCompanion.insert(
+              id: item['id'] as String,
+              tenantId: item['tenant_id'] as String,
+              invoiceNumber: Value(item['invoice_number'] as String?),
+              clientId:      Value(item['client_id']      as String?),
+              clientName:    Value(item['client_name']    as String?),
+              saleId:        Value(item['sale_id']        as String?),
+              invoiceDate:   Value(item['invoice_date']?.toString()),
+              dueDate:       Value(item['due_date']?.toString()),
+              taxableAmount: Value((item['taxable_amount'] ?? 0).toDouble()),
+              grandTotal:    Value((item['grand_total']    ?? 0).toDouble()),
+              paidAmount:    Value((item['paid_amount']    ?? 0).toDouble()),
+              paymentStatus: Value(item['payment_status'] as String?),
+              irn:           Value(item['irn']            as String?),
+              irnStatus:     Value(item['irn_status']     as String?),
+              ackNo:         Value(item['ack_no']         as String?),
+              signedQr:      Value(item['signed_qr']      as String?),
+              itemsJson:     Value(item['items'] == null ? null : jsonEncode(item['items'])),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] invoices failed: $e');
+    }
+  }
+
+  Future<void> _pullBusinessProfile() async {
+    try {
+      final response = await supabase
+          .from('business_profile')
+          .select('tenant_id, name, address, phone, email, currency, gst_no, pan_no, upi_id, invoice_terms, footer_message, auto_irn_enabled')
+          .limit(1);
+      final List<dynamic> data = response as List<dynamic>;
+      if (data.isEmpty) return;
+      final item = data.first as Map<String, dynamic>;
+      await db.into(db.businessProfileLocal).insert(
+        BusinessProfileLocalCompanion.insert(
+          tenantId:        item['tenant_id'] as String,
+          name:            Value(item['name']            as String?),
+          address:         Value(item['address']         as String?),
+          phone:           Value(item['phone']           as String?),
+          email:           Value(item['email']           as String?),
+          currency:        Value(item['currency']        as String?),
+          gstNo:           Value(item['gst_no']          as String?),
+          panNo:           Value(item['pan_no']          as String?),
+          upiId:           Value(item['upi_id']          as String?),
+          invoiceTerms:    Value(item['invoice_terms']   as String?),
+          footerMessage:   Value(item['footer_message']  as String?),
+          autoIrnEnabled:  Value(item['auto_irn_enabled'] == true),
+        ),
+        mode: InsertMode.insertOrReplace,
+      );
+    } catch (e) {
+      debugPrint('[pullSync] business_profile failed: $e');
     }
   }
 
