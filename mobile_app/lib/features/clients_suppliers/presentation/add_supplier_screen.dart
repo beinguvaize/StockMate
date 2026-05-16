@@ -2,25 +2,44 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
+import 'package:mobile_app/main.dart' show syncServiceProvider;
 
 class AddSupplierScreen extends ConsumerStatefulWidget {
-  const AddSupplierScreen({super.key});
+  final Supplier? supplier; // null = create, non-null = edit
+  const AddSupplierScreen({super.key, this.supplier});
 
   @override
   ConsumerState<AddSupplierScreen> createState() => _AddSupplierScreenState();
 }
 
 class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
-  final _nameController = TextEditingController();
+  final _nameController    = TextEditingController();
   final _contactController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _emailController = TextEditingController();
+  final _phoneController   = TextEditingController();
+  final _emailController   = TextEditingController();
   final _addressController = TextEditingController();
-  final _balanceController = TextEditingController();
+  final _notesController   = TextEditingController();
   bool _isLoading = false;
+
+  bool get _isEdit => widget.supplier != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final s = widget.supplier;
+    if (s != null) {
+      _nameController.text    = s.name ?? '';
+      _contactController.text = s.contactPerson ?? '';
+      _phoneController.text   = s.phone ?? '';
+      _emailController.text   = s.email ?? '';
+      _addressController.text = s.address ?? '';
+      _notesController.text   = s.notes ?? '';
+    }
+  }
 
   @override
   void dispose() {
@@ -29,7 +48,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
     _phoneController.dispose();
     _emailController.dispose();
     _addressController.dispose();
-    _balanceController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -50,22 +69,44 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await supabase.from('suppliers').insert({
-        'name': _nameController.text.trim(),
+      // Tenant id required — server default points at seed tenant which RLS hides.
+      final tenantCtx = ref.read(tenantContextProvider).valueOrNull;
+      if (tenantCtx == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('No tenant context — sign out and back in.')),
+          );
+        }
+        return;
+      }
+
+      // Web schema parity: name, contact_person, phone, email, address, notes.
+      // Drop the legacy 'balance' field — that's maintained by purchase flows.
+      final data = <String, dynamic>{
+        'id': _isEdit
+            ? widget.supplier!.id
+            : 'SUP-${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecond}',
+        'tenant_id':      tenantCtx.tenantId,
+        'name':           _nameController.text.trim(),
         'contact_person': _contactController.text.trim(),
-        'phone': _phoneController.text.trim(),
-        'email': _emailController.text.trim(),
-        'address': _addressController.text.trim(),
-        'balance': double.tryParse(_balanceController.text) ?? 0.0,
-      });
+        'phone':          _phoneController.text.trim(),
+        'email':          _emailController.text.trim(),
+        'address':        _addressController.text.trim(),
+        'notes':          _notesController.text.trim(),
+      };
+
+      await ref.read(syncServiceProvider)
+          .upsertOnlineOrQueue('suppliers', data);
 
       if (mounted) {
         ref.invalidate(suppliersProvider);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Supplier added',
-                style: GoogleFonts.inter(color: AppColors.inkPrimary)),
+            content: Text(
+              _isEdit ? 'Supplier updated' : 'Supplier added',
+              style: GoogleFonts.inter(color: AppColors.inkPrimary),
+            ),
             backgroundColor: AppColors.primaryContainer,
             behavior: SnackBarBehavior.floating,
             shape:
@@ -108,7 +149,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Add Supplier',
+              _isEdit ? 'Edit Supplier' : 'Add Supplier',
               style: GoogleFonts.hankenGrotesk(
                 color: AppColors.inkPrimary,
                 fontSize: 20,
@@ -234,17 +275,15 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
 
             const SizedBox(height: 28),
 
-            // Financials
-            _SectionHeader(
-                title: 'ACCOUNT BALANCE', icon: LucideIcons.indianRupee),
+            // Notes — internal supplier remarks (matches web 'notes' column).
+            _SectionHeader(title: 'NOTES', icon: LucideIcons.stickyNote),
             const SizedBox(height: 12),
             _buildField(
-              label: 'Opening Balance',
-              hint: '0.00',
-              controller: _balanceController,
-              icon: LucideIcons.indianRupee,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
+              label: 'Internal notes',
+              hint: 'Payment terms, lead time, contacts, anything...',
+              controller: _notesController,
+              icon: LucideIcons.messageSquare,
+              maxLines: 3,
             ),
 
             const SizedBox(height: 32),
@@ -275,10 +314,10 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(LucideIcons.plus, size: 18),
+                      Icon(_isEdit ? LucideIcons.save : LucideIcons.plus, size: 18),
                       const SizedBox(width: 8),
                       Text(
-                        'ADD SUPPLIER',
+                        _isEdit ? 'SAVE CHANGES' : 'ADD SUPPLIER',
                         style: GoogleFonts.jetBrainsMono(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,
