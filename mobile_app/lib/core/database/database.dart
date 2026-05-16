@@ -11,10 +11,18 @@ part 'database.g.dart';
 class SyncMutations extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get targetTable => text()();
-  TextColumn get action => text()(); // UPSERT, DELETE
+  TextColumn get action => text()(); // 'upsert' | 'delete' | 'rpc'
   TextColumn get payload => text()(); // JSON data
+  TextColumn get rpcName => text().nullable()(); // when action='rpc'
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
+  // Legacy boolean kept for backwards-read; new code uses status.
   BoolColumn get isSynced => boolean().withDefault(const Constant(false))();
+  // Per-item state machine — mirrors the e_invoice_irn server-side queue pattern.
+  TextColumn get status => text().withDefault(const Constant('PENDING'))(); // PENDING|PROCESSING|SUCCESS|FAILED
+  IntColumn get attempts => integer().withDefault(const Constant(0))();
+  TextColumn get lastError => text().nullable()();
+  DateTimeColumn get nextAttemptAt => dateTime().withDefault(currentDateAndTime)();
+  DateTimeColumn get lastAttemptAt => dateTime().nullable()();
 }
 
 // --- CORE TABLES ---
@@ -152,7 +160,28 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (m) async {
+      await m.createAll();
+    },
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        // Add per-item retry fields to existing SyncMutations rows.
+        await m.addColumn(syncMutations, syncMutations.rpcName);
+        await m.addColumn(syncMutations, syncMutations.status);
+        await m.addColumn(syncMutations, syncMutations.attempts);
+        await m.addColumn(syncMutations, syncMutations.lastError);
+        await m.addColumn(syncMutations, syncMutations.nextAttemptAt);
+        await m.addColumn(syncMutations, syncMutations.lastAttemptAt);
+        // Backfill status from legacy isSynced flag
+        await customStatement(
+          "UPDATE sync_mutations SET status = CASE WHEN is_synced = 1 THEN 'SUCCESS' ELSE 'PENDING' END WHERE status IS NULL OR status = ''");
+      }
+    },
+  );
 }
 
 LazyDatabase _openConnection() {

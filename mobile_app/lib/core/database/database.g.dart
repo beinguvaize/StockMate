@@ -35,6 +35,12 @@ class $SyncMutationsTable extends SyncMutations
   late final GeneratedColumn<String> payload = GeneratedColumn<String>(
       'payload', aliasedName, false,
       type: DriftSqlType.string, requiredDuringInsert: true);
+  static const VerificationMeta _rpcNameMeta =
+      const VerificationMeta('rpcName');
+  @override
+  late final GeneratedColumn<String> rpcName = GeneratedColumn<String>(
+      'rpc_name', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _createdAtMeta =
       const VerificationMeta('createdAt');
   @override
@@ -53,9 +59,56 @@ class $SyncMutationsTable extends SyncMutations
       defaultConstraints:
           GeneratedColumn.constraintIsAlways('CHECK ("is_synced" IN (0, 1))'),
       defaultValue: const Constant(false));
+  static const VerificationMeta _statusMeta = const VerificationMeta('status');
   @override
-  List<GeneratedColumn> get $columns =>
-      [id, targetTable, action, payload, createdAt, isSynced];
+  late final GeneratedColumn<String> status = GeneratedColumn<String>(
+      'status', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant('PENDING'));
+  static const VerificationMeta _attemptsMeta =
+      const VerificationMeta('attempts');
+  @override
+  late final GeneratedColumn<int> attempts = GeneratedColumn<int>(
+      'attempts', aliasedName, false,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _lastErrorMeta =
+      const VerificationMeta('lastError');
+  @override
+  late final GeneratedColumn<String> lastError = GeneratedColumn<String>(
+      'last_error', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
+  static const VerificationMeta _nextAttemptAtMeta =
+      const VerificationMeta('nextAttemptAt');
+  @override
+  late final GeneratedColumn<DateTime> nextAttemptAt =
+      GeneratedColumn<DateTime>('next_attempt_at', aliasedName, false,
+          type: DriftSqlType.dateTime,
+          requiredDuringInsert: false,
+          defaultValue: currentDateAndTime);
+  static const VerificationMeta _lastAttemptAtMeta =
+      const VerificationMeta('lastAttemptAt');
+  @override
+  late final GeneratedColumn<DateTime> lastAttemptAt =
+      GeneratedColumn<DateTime>('last_attempt_at', aliasedName, true,
+          type: DriftSqlType.dateTime, requiredDuringInsert: false);
+  @override
+  List<GeneratedColumn> get $columns => [
+        id,
+        targetTable,
+        action,
+        payload,
+        rpcName,
+        createdAt,
+        isSynced,
+        status,
+        attempts,
+        lastError,
+        nextAttemptAt,
+        lastAttemptAt
+      ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -89,6 +142,10 @@ class $SyncMutationsTable extends SyncMutations
     } else if (isInserting) {
       context.missing(_payloadMeta);
     }
+    if (data.containsKey('rpc_name')) {
+      context.handle(_rpcNameMeta,
+          rpcName.isAcceptableOrUnknown(data['rpc_name']!, _rpcNameMeta));
+    }
     if (data.containsKey('created_at')) {
       context.handle(_createdAtMeta,
           createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta));
@@ -96,6 +153,30 @@ class $SyncMutationsTable extends SyncMutations
     if (data.containsKey('is_synced')) {
       context.handle(_isSyncedMeta,
           isSynced.isAcceptableOrUnknown(data['is_synced']!, _isSyncedMeta));
+    }
+    if (data.containsKey('status')) {
+      context.handle(_statusMeta,
+          status.isAcceptableOrUnknown(data['status']!, _statusMeta));
+    }
+    if (data.containsKey('attempts')) {
+      context.handle(_attemptsMeta,
+          attempts.isAcceptableOrUnknown(data['attempts']!, _attemptsMeta));
+    }
+    if (data.containsKey('last_error')) {
+      context.handle(_lastErrorMeta,
+          lastError.isAcceptableOrUnknown(data['last_error']!, _lastErrorMeta));
+    }
+    if (data.containsKey('next_attempt_at')) {
+      context.handle(
+          _nextAttemptAtMeta,
+          nextAttemptAt.isAcceptableOrUnknown(
+              data['next_attempt_at']!, _nextAttemptAtMeta));
+    }
+    if (data.containsKey('last_attempt_at')) {
+      context.handle(
+          _lastAttemptAtMeta,
+          lastAttemptAt.isAcceptableOrUnknown(
+              data['last_attempt_at']!, _lastAttemptAtMeta));
     }
     return context;
   }
@@ -114,10 +195,22 @@ class $SyncMutationsTable extends SyncMutations
           .read(DriftSqlType.string, data['${effectivePrefix}action'])!,
       payload: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}payload'])!,
+      rpcName: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}rpc_name']),
       createdAt: attachedDatabase.typeMapping
           .read(DriftSqlType.dateTime, data['${effectivePrefix}created_at'])!,
       isSynced: attachedDatabase.typeMapping
           .read(DriftSqlType.bool, data['${effectivePrefix}is_synced'])!,
+      status: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}status'])!,
+      attempts: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}attempts'])!,
+      lastError: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}last_error']),
+      nextAttemptAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}next_attempt_at'])!,
+      lastAttemptAt: attachedDatabase.typeMapping.read(
+          DriftSqlType.dateTime, data['${effectivePrefix}last_attempt_at']),
     );
   }
 
@@ -132,15 +225,27 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
   final String targetTable;
   final String action;
   final String payload;
+  final String? rpcName;
   final DateTime createdAt;
   final bool isSynced;
+  final String status;
+  final int attempts;
+  final String? lastError;
+  final DateTime nextAttemptAt;
+  final DateTime? lastAttemptAt;
   const SyncMutation(
       {required this.id,
       required this.targetTable,
       required this.action,
       required this.payload,
+      this.rpcName,
       required this.createdAt,
-      required this.isSynced});
+      required this.isSynced,
+      required this.status,
+      required this.attempts,
+      this.lastError,
+      required this.nextAttemptAt,
+      this.lastAttemptAt});
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
     final map = <String, Expression>{};
@@ -148,8 +253,20 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
     map['target_table'] = Variable<String>(targetTable);
     map['action'] = Variable<String>(action);
     map['payload'] = Variable<String>(payload);
+    if (!nullToAbsent || rpcName != null) {
+      map['rpc_name'] = Variable<String>(rpcName);
+    }
     map['created_at'] = Variable<DateTime>(createdAt);
     map['is_synced'] = Variable<bool>(isSynced);
+    map['status'] = Variable<String>(status);
+    map['attempts'] = Variable<int>(attempts);
+    if (!nullToAbsent || lastError != null) {
+      map['last_error'] = Variable<String>(lastError);
+    }
+    map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt);
+    if (!nullToAbsent || lastAttemptAt != null) {
+      map['last_attempt_at'] = Variable<DateTime>(lastAttemptAt);
+    }
     return map;
   }
 
@@ -159,8 +276,20 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
       targetTable: Value(targetTable),
       action: Value(action),
       payload: Value(payload),
+      rpcName: rpcName == null && nullToAbsent
+          ? const Value.absent()
+          : Value(rpcName),
       createdAt: Value(createdAt),
       isSynced: Value(isSynced),
+      status: Value(status),
+      attempts: Value(attempts),
+      lastError: lastError == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastError),
+      nextAttemptAt: Value(nextAttemptAt),
+      lastAttemptAt: lastAttemptAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastAttemptAt),
     );
   }
 
@@ -172,8 +301,14 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
       targetTable: serializer.fromJson<String>(json['targetTable']),
       action: serializer.fromJson<String>(json['action']),
       payload: serializer.fromJson<String>(json['payload']),
+      rpcName: serializer.fromJson<String?>(json['rpcName']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       isSynced: serializer.fromJson<bool>(json['isSynced']),
+      status: serializer.fromJson<String>(json['status']),
+      attempts: serializer.fromJson<int>(json['attempts']),
+      lastError: serializer.fromJson<String?>(json['lastError']),
+      nextAttemptAt: serializer.fromJson<DateTime>(json['nextAttemptAt']),
+      lastAttemptAt: serializer.fromJson<DateTime?>(json['lastAttemptAt']),
     );
   }
   @override
@@ -184,8 +319,14 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
       'targetTable': serializer.toJson<String>(targetTable),
       'action': serializer.toJson<String>(action),
       'payload': serializer.toJson<String>(payload),
+      'rpcName': serializer.toJson<String?>(rpcName),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'isSynced': serializer.toJson<bool>(isSynced),
+      'status': serializer.toJson<String>(status),
+      'attempts': serializer.toJson<int>(attempts),
+      'lastError': serializer.toJson<String?>(lastError),
+      'nextAttemptAt': serializer.toJson<DateTime>(nextAttemptAt),
+      'lastAttemptAt': serializer.toJson<DateTime?>(lastAttemptAt),
     };
   }
 
@@ -194,15 +335,28 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
           String? targetTable,
           String? action,
           String? payload,
+          Value<String?> rpcName = const Value.absent(),
           DateTime? createdAt,
-          bool? isSynced}) =>
+          bool? isSynced,
+          String? status,
+          int? attempts,
+          Value<String?> lastError = const Value.absent(),
+          DateTime? nextAttemptAt,
+          Value<DateTime?> lastAttemptAt = const Value.absent()}) =>
       SyncMutation(
         id: id ?? this.id,
         targetTable: targetTable ?? this.targetTable,
         action: action ?? this.action,
         payload: payload ?? this.payload,
+        rpcName: rpcName.present ? rpcName.value : this.rpcName,
         createdAt: createdAt ?? this.createdAt,
         isSynced: isSynced ?? this.isSynced,
+        status: status ?? this.status,
+        attempts: attempts ?? this.attempts,
+        lastError: lastError.present ? lastError.value : this.lastError,
+        nextAttemptAt: nextAttemptAt ?? this.nextAttemptAt,
+        lastAttemptAt:
+            lastAttemptAt.present ? lastAttemptAt.value : this.lastAttemptAt,
       );
   @override
   String toString() {
@@ -211,15 +365,32 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
           ..write('targetTable: $targetTable, ')
           ..write('action: $action, ')
           ..write('payload: $payload, ')
+          ..write('rpcName: $rpcName, ')
           ..write('createdAt: $createdAt, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('status: $status, ')
+          ..write('attempts: $attempts, ')
+          ..write('lastError: $lastError, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
+          ..write('lastAttemptAt: $lastAttemptAt')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode =>
-      Object.hash(id, targetTable, action, payload, createdAt, isSynced);
+  int get hashCode => Object.hash(
+      id,
+      targetTable,
+      action,
+      payload,
+      rpcName,
+      createdAt,
+      isSynced,
+      status,
+      attempts,
+      lastError,
+      nextAttemptAt,
+      lastAttemptAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -228,8 +399,14 @@ class SyncMutation extends DataClass implements Insertable<SyncMutation> {
           other.targetTable == this.targetTable &&
           other.action == this.action &&
           other.payload == this.payload &&
+          other.rpcName == this.rpcName &&
           other.createdAt == this.createdAt &&
-          other.isSynced == this.isSynced);
+          other.isSynced == this.isSynced &&
+          other.status == this.status &&
+          other.attempts == this.attempts &&
+          other.lastError == this.lastError &&
+          other.nextAttemptAt == this.nextAttemptAt &&
+          other.lastAttemptAt == this.lastAttemptAt);
 }
 
 class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
@@ -237,23 +414,41 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
   final Value<String> targetTable;
   final Value<String> action;
   final Value<String> payload;
+  final Value<String?> rpcName;
   final Value<DateTime> createdAt;
   final Value<bool> isSynced;
+  final Value<String> status;
+  final Value<int> attempts;
+  final Value<String?> lastError;
+  final Value<DateTime> nextAttemptAt;
+  final Value<DateTime?> lastAttemptAt;
   const SyncMutationsCompanion({
     this.id = const Value.absent(),
     this.targetTable = const Value.absent(),
     this.action = const Value.absent(),
     this.payload = const Value.absent(),
+    this.rpcName = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.status = const Value.absent(),
+    this.attempts = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
+    this.lastAttemptAt = const Value.absent(),
   });
   SyncMutationsCompanion.insert({
     this.id = const Value.absent(),
     required String targetTable,
     required String action,
     required String payload,
+    this.rpcName = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.isSynced = const Value.absent(),
+    this.status = const Value.absent(),
+    this.attempts = const Value.absent(),
+    this.lastError = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
+    this.lastAttemptAt = const Value.absent(),
   })  : targetTable = Value(targetTable),
         action = Value(action),
         payload = Value(payload);
@@ -262,16 +457,28 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
     Expression<String>? targetTable,
     Expression<String>? action,
     Expression<String>? payload,
+    Expression<String>? rpcName,
     Expression<DateTime>? createdAt,
     Expression<bool>? isSynced,
+    Expression<String>? status,
+    Expression<int>? attempts,
+    Expression<String>? lastError,
+    Expression<DateTime>? nextAttemptAt,
+    Expression<DateTime>? lastAttemptAt,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (targetTable != null) 'target_table': targetTable,
       if (action != null) 'action': action,
       if (payload != null) 'payload': payload,
+      if (rpcName != null) 'rpc_name': rpcName,
       if (createdAt != null) 'created_at': createdAt,
       if (isSynced != null) 'is_synced': isSynced,
+      if (status != null) 'status': status,
+      if (attempts != null) 'attempts': attempts,
+      if (lastError != null) 'last_error': lastError,
+      if (nextAttemptAt != null) 'next_attempt_at': nextAttemptAt,
+      if (lastAttemptAt != null) 'last_attempt_at': lastAttemptAt,
     });
   }
 
@@ -280,15 +487,27 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
       Value<String>? targetTable,
       Value<String>? action,
       Value<String>? payload,
+      Value<String?>? rpcName,
       Value<DateTime>? createdAt,
-      Value<bool>? isSynced}) {
+      Value<bool>? isSynced,
+      Value<String>? status,
+      Value<int>? attempts,
+      Value<String?>? lastError,
+      Value<DateTime>? nextAttemptAt,
+      Value<DateTime?>? lastAttemptAt}) {
     return SyncMutationsCompanion(
       id: id ?? this.id,
       targetTable: targetTable ?? this.targetTable,
       action: action ?? this.action,
       payload: payload ?? this.payload,
+      rpcName: rpcName ?? this.rpcName,
       createdAt: createdAt ?? this.createdAt,
       isSynced: isSynced ?? this.isSynced,
+      status: status ?? this.status,
+      attempts: attempts ?? this.attempts,
+      lastError: lastError ?? this.lastError,
+      nextAttemptAt: nextAttemptAt ?? this.nextAttemptAt,
+      lastAttemptAt: lastAttemptAt ?? this.lastAttemptAt,
     );
   }
 
@@ -307,11 +526,29 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
     if (payload.present) {
       map['payload'] = Variable<String>(payload.value);
     }
+    if (rpcName.present) {
+      map['rpc_name'] = Variable<String>(rpcName.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
     if (isSynced.present) {
       map['is_synced'] = Variable<bool>(isSynced.value);
+    }
+    if (status.present) {
+      map['status'] = Variable<String>(status.value);
+    }
+    if (attempts.present) {
+      map['attempts'] = Variable<int>(attempts.value);
+    }
+    if (lastError.present) {
+      map['last_error'] = Variable<String>(lastError.value);
+    }
+    if (nextAttemptAt.present) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt.value);
+    }
+    if (lastAttemptAt.present) {
+      map['last_attempt_at'] = Variable<DateTime>(lastAttemptAt.value);
     }
     return map;
   }
@@ -323,8 +560,14 @@ class SyncMutationsCompanion extends UpdateCompanion<SyncMutation> {
           ..write('targetTable: $targetTable, ')
           ..write('action: $action, ')
           ..write('payload: $payload, ')
+          ..write('rpcName: $rpcName, ')
           ..write('createdAt: $createdAt, ')
-          ..write('isSynced: $isSynced')
+          ..write('isSynced: $isSynced, ')
+          ..write('status: $status, ')
+          ..write('attempts: $attempts, ')
+          ..write('lastError: $lastError, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
+          ..write('lastAttemptAt: $lastAttemptAt')
           ..write(')'))
         .toString();
   }

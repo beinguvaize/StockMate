@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/database/sync_status_pill.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/widgets/trial_banner.dart';
-import 'package:mobile_app/features/clients_suppliers/presentation/add_supplier_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/crm_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
 import 'package:mobile_app/features/daybook/presentation/daybook_screen.dart';
@@ -18,6 +18,7 @@ import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart
 import 'package:mobile_app/features/menu/presentation/menu_screen.dart';
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
 import 'package:mobile_app/features/reports/presentation/reports_screen.dart';
+import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/sales/presentation/sales_screen.dart';
@@ -36,12 +37,13 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   int _selectedIndex = 0;
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
 
   static const _navItems = [
     (icon: LucideIcons.layoutDashboard, label: 'Dashboard'),
     (icon: LucideIcons.shoppingCart,    label: 'Sales'),
     (icon: LucideIcons.package,         label: 'Inventory'),
-    (icon: LucideIcons.users,           label: 'Clients'),
+    (icon: LucideIcons.fileText,        label: 'Invoices'),
     (icon: LucideIcons.moreHorizontal,  label: 'More'),
   ];
 
@@ -51,15 +53,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
     DashboardHome(onTabSwitch: _switchTab),
     const SalesScreen(),
     const InventoryScreen(),
-    const CRMScreen(),
+    const InvoicesScreen(),
     const MenuScreen(),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: AppColors.canvas,
+      drawer: const _AppDrawer(),
       floatingActionButton: FloatingActionButton(
+        heroTag: null,
         onPressed: () => Navigator.push(
           context,
           MaterialPageRoute(builder: (_) => const AddSaleScreen()),
@@ -70,9 +75,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         child: const Icon(LucideIcons.plus, size: 26),
       ),
-      body: Stack(
+      body: Column(
         children: [
-          IndexedStack(index: _selectedIndex, children: _tabs),
+          // ── Global app bar ────────────────────────────────────────
+          _GlobalAppBar(
+            onMenuTap: () => _scaffoldKey.currentState?.openDrawer(),
+          ),
+
+          // ── Tab content ───────────────────────────────────────────
+          Expanded(
+            child: Stack(
+              children: [
+                MediaQuery.removePadding(
+                  context: context,
+                  removeTop: true,
+                  child: IndexedStack(index: _selectedIndex, children: _tabs),
+                ),
 
           // Bottom nav
           Positioned(
@@ -137,8 +155,88 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
               ),
             ),
+              ),
+            ],
           ),
-        ],
+        ),
+      ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Global App Bar
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _GlobalAppBar extends StatelessWidget {
+  final VoidCallback onMenuTap;
+  const _GlobalAppBar({required this.onMenuTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AppColors.canvas,
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          child: Row(
+            children: [
+              // Hamburger
+              GestureDetector(
+                onTap: onMenuTap,
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [AppColors.cardShadow],
+                  ),
+                  child: const Icon(
+                    LucideIcons.menu,
+                    size: 20,
+                    color: AppColors.inkPrimary,
+                  ),
+                ),
+              ),
+
+              // Logo
+              Expanded(
+                child: Center(
+                  child: Image.asset(
+                    'assets/images/logo.png',
+                    height: 32,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+
+              // Offline sync status (hidden when synced + online)
+              const SyncStatusPill(),
+
+              // Bell
+              GestureDetector(
+                onTap: () {}, // TODO: notifications
+                child: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [AppColors.cardShadow],
+                  ),
+                  child: const Icon(
+                    LucideIcons.bell,
+                    size: 20,
+                    color: AppColors.inkPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -154,22 +252,22 @@ class _AppDrawer extends ConsumerWidget {
   static const _sections = [
     _DrawerSection(label: 'SALES & FINANCE', items: [
       _DrawerItem(icon: LucideIcons.shoppingBag,  label: 'New Sale',      color: AppColors.primary),
-      _DrawerItem(icon: LucideIcons.fileText,      label: 'Sales History', color: AppColors.primary),
+      _DrawerItem(icon: LucideIcons.shoppingCart,  label: 'Sales History', color: AppColors.primary),
+      _DrawerItem(icon: LucideIcons.fileText,      label: 'Invoices',      color: AppColors.primary),
       _DrawerItem(icon: LucideIcons.creditCard,    label: 'Expenses',      color: AppColors.danger),
-      _DrawerItem(icon: LucideIcons.shoppingCart,  label: 'Purchases',     color: AppColors.warning),
+      _DrawerItem(icon: LucideIcons.clipboardList, label: 'Purchases',     color: AppColors.warning),
       _DrawerItem(icon: LucideIcons.bookOpen,      label: 'Day Book',      color: AppColors.info),
     ]),
     _DrawerSection(label: 'INVENTORY & CRM', items: [
-      _DrawerItem(icon: LucideIcons.package,    label: 'Inventory', color: Color(0xFF5b5f5a)),
-      _DrawerItem(icon: LucideIcons.users,      label: 'Clients',   color: AppColors.secondary),
-      _DrawerItem(icon: LucideIcons.building2,  label: 'Suppliers', color: AppColors.secondary),
+      _DrawerItem(icon: LucideIcons.package,  label: 'Inventory', color: Color(0xFF5b5f5a)),
+      _DrawerItem(icon: LucideIcons.users,    label: 'CRM',        color: AppColors.secondary),
     ]),
     _DrawerSection(label: 'INSIGHTS', items: [
-      _DrawerItem(icon: LucideIcons.barChart2,  label: 'Reports',     color: AppColors.primary),
+      _DrawerItem(icon: LucideIcons.barChart2, label: 'Reports', color: AppColors.primary),
     ]),
     _DrawerSection(label: 'WORKFORCE & OPS', items: [
-      _DrawerItem(icon: LucideIcons.users2,  label: 'HR & Payroll', color: AppColors.secondary),
-      _DrawerItem(icon: LucideIcons.truck,   label: 'Fleet',         color: Color(0xFF5b5f5a)),
+      _DrawerItem(icon: LucideIcons.users2, label: 'HR & Payroll', color: AppColors.secondary),
+      _DrawerItem(icon: LucideIcons.truck,  label: 'Fleet',         color: Color(0xFF5b5f5a)),
     ]),
     _DrawerSection(label: 'ACCOUNT', items: [
       _DrawerItem(icon: LucideIcons.settings, label: 'Settings', color: AppColors.inkSecondary),
@@ -188,12 +286,12 @@ class _AppDrawer extends ConsumerWidget {
     switch (label) {
       case 'New Sale':      return const AddSaleScreen();
       case 'Sales History': return const SalesScreen();
+      case 'Invoices':      return const InvoicesScreen();
       case 'Expenses':      return const FinanceScreen();
       case 'Purchases':     return const PurchasesScreen();
       case 'Day Book':      return const DayBookScreen();
       case 'Inventory':     return const InventoryScreen();
-      case 'Clients':       return const CRMScreen();
-      case 'Suppliers':     return const AddSupplierScreen();
+      case 'CRM':           return const CRMScreen();
       case 'Reports':       return const ReportsScreen();
       case 'HR & Payroll':  return const HRScreen();
       case 'Fleet':         return const LogisticsScreen();
@@ -440,75 +538,13 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
-      drawer: const _AppDrawer(),
       body: SafeArea(
+        top: false,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 16),
-
-              // ── Top bar ───────────────────────────────────────────
-              Row(
-                children: [
-                  Builder(
-                    builder: (ctx) => GestureDetector(
-                      onTap: () => Scaffold.of(ctx).openDrawer(),
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.black.withValues(alpha: 0.07)),
-                          boxShadow: [AppColors.cardShadow],
-                        ),
-                        child: const Icon(LucideIcons.menu, size: 20, color: AppColors.inkPrimary),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Text(
-                    'StockMate',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.secondary,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  const Spacer(),
-                  // Low-stock bell
-                  GestureDetector(
-                    onTap: () => widget.onTabSwitch(2),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Icon(LucideIcons.bell, size: 22, color: AppColors.onSurfaceVariant),
-                        telemetryAsync.whenData((m) => m.lowStockItems).when(
-                          data: (count) => count > 0
-                              ? Positioned(
-                                  top: -2, right: -2,
-                                  child: Container(
-                                    width: 10, height: 10,
-                                    decoration: const BoxDecoration(
-                                      color: AppColors.danger,
-                                      shape: BoxShape.circle,
-                                    ),
-                                  ),
-                                )
-                              : const SizedBox.shrink(),
-                          loading: () => const SizedBox.shrink(),
-                          error:   (_, __) => const SizedBox.shrink(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 22),
-
               // ── Greeting ─────────────────────────────────────────
               tenantAsync.when(
                 data: (ctx) {
@@ -544,95 +580,154 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
 
               const SizedBox(height: 20),
 
-              // ── EXPENSES + OUTSTANDING — TOP ──────────────────────
+              // ── KPI Cards ─────────────────────────────────────────
               telemetryAsync.when(
-                data: (m) => Row(
+                data: (m) => Column(
                   children: [
-                    _SummaryChip(
-                      label: 'Today\'s Expenses',
-                      value: '₹${m.todayExpenses.toStringAsFixed(0)}',
-                      icon: LucideIcons.creditCard,
-                      color: AppColors.danger,
-                      onTap: () => _push(const FinanceScreen()),
+                    // Row 1: Revenue hero card
+                    _KpiCard(
+                      label: 'TODAY\'S REVENUE',
+                      value: _revenueVisible ? _fmtAmount(m.todaySales) : '••••••',
+                      icon: LucideIcons.trendingUp,
+                      isHero: true,
+                      onTap: () => widget.onTabSwitch(1),
+                      trailing: GestureDetector(
+                        onTap: () => setState(() => _revenueVisible = !_revenueVisible),
+                        child: Icon(
+                          _revenueVisible ? LucideIcons.eye : LucideIcons.eyeOff,
+                          size: 16,
+                          color: Colors.white.withValues(alpha: 0.45),
+                        ),
+                      ),
                     ),
-                    const SizedBox(width: 12),
-                    _SummaryChip(
-                      label: 'Outstanding',
-                      value: '₹${m.outstandingCollections.toStringAsFixed(0)}',
-                      icon: LucideIcons.clock,
-                      color: AppColors.warning,
-                      onTap: () => _push(const PurchasesScreen()),
+                    const SizedBox(height: 12),
+                    // Row 2: Expenses | Outstanding
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _KpiCard(
+                            label: 'EXPENSES',
+                            value: _fmtAmount(m.todayExpenses),
+                            icon: LucideIcons.creditCard,
+                            accentColor: const Color(0xFFe53935),
+                            onTap: () => _push(const FinanceScreen()),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _KpiCard(
+                            label: 'OUTSTANDING',
+                            value: _fmtAmount(m.outstandingCollections),
+                            icon: LucideIcons.clock,
+                            accentColor: const Color(0xFFe6a817),
+                            onTap: () => _push(const PurchasesScreen()),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    // Row 3: Products | Low Stock
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _KpiCard(
+                            label: 'PRODUCTS',
+                            value: '${m.totalProducts}',
+                            icon: LucideIcons.package,
+                            accentColor: AppColors.primary,
+                            onTap: () => widget.onTabSwitch(2),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _KpiCard(
+                            label: 'LOW STOCK',
+                            value: '${m.lowStockItems}',
+                            icon: LucideIcons.alertTriangle,
+                            accentColor: m.lowStockItems > 0
+                                ? const Color(0xFFe53935)
+                                : AppColors.secondary,
+                            onTap: () => widget.onTabSwitch(2),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
-                loading: () => Row(children: [
-                  _SkeletonBox(height: 70),
-                  const SizedBox(width: 12),
-                  _SkeletonBox(height: 70),
-                ]),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
-
-              const SizedBox(height: 20),
-
-              // ── Revenue Hero ──────────────────────────────────────
-              telemetryAsync.when(
-                data: (m) => _RevenueCard(
-                  revenue: m.todaySales,
-                  visible: _revenueVisible,
-                  onToggle: () => setState(() => _revenueVisible = !_revenueVisible),
-                  onNewSale: () => _push(const AddSaleScreen()),
-                  onAddExpense: () => _push(const AddExpenseScreen()),
-                ),
-                loading: () => _RevenueCard(
-                  revenue: 0,
-                  visible: _revenueVisible,
-                  onToggle: () => setState(() => _revenueVisible = !_revenueVisible),
-                  onNewSale: () {},
-                  onAddExpense: () {},
-                ),
-                error: (_, __) => const SizedBox.shrink(),
-              ),
-
-              const SizedBox(height: 24),
-
-              // ── Key Metrics Row ───────────────────────────────────
-              telemetryAsync.when(
-                data: (m) => Row(
+                loading: () => Column(
                   children: [
-                    _MetricTile(
-                      label: 'PRODUCTS',
-                      value: '${m.totalProducts}',
-                      icon: LucideIcons.package,
-                      color: AppColors.primary,
-                      onTap: () => widget.onTabSwitch(2),
+                    // Full-width skeleton (no Expanded — inside ScrollView Column)
+                    SizedBox(
+                      width: double.infinity,
+                      child: _SkeletonBox(height: 100),
                     ),
-                    const SizedBox(width: 10),
-                    _MetricTile(
-                      label: 'LOW STOCK',
-                      value: '${m.lowStockItems}',
-                      icon: LucideIcons.alertTriangle,
-                      color: m.lowStockItems > 0 ? AppColors.danger : AppColors.success,
-                      onTap: () => widget.onTabSwitch(2),
-                    ),
-                    const SizedBox(width: 10),
-                    _MetricTile(
-                      label: 'REPORTS',
-                      value: '→',
-                      icon: LucideIcons.barChart2,
-                      color: AppColors.secondary,
-                      onTap: () => _push(const ReportsScreen()),
-                    ),
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      _SkeletonBox(height: 90, expand: true),
+                      const SizedBox(width: 10),
+                      _SkeletonBox(height: 90, expand: true),
+                    ]),
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      _SkeletonBox(height: 90, expand: true),
+                      const SizedBox(width: 10),
+                      _SkeletonBox(height: 90, expand: true),
+                    ]),
                   ],
                 ),
-                loading: () => Row(children: [
-                  _SkeletonBox(height: 80),
-                  const SizedBox(width: 10),
-                  _SkeletonBox(height: 80),
-                  const SizedBox(width: 10),
-                  _SkeletonBox(height: 80),
-                ]),
                 error: (_, __) => const SizedBox.shrink(),
+              ),
+
+              // Quick action buttons
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _push(const AddSaleScreen()),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryContainer,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(LucideIcons.shoppingBag, size: 16, color: AppColors.primary),
+                            const SizedBox(width: 8),
+                            Text('New Sale', style: GoogleFonts.inter(
+                              fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary,
+                            )),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () => _push(const AddExpenseScreen()),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(LucideIcons.send, size: 16, color: AppColors.primaryContainer),
+                            const SizedBox(width: 8),
+                            Text('Add Expense', style: GoogleFonts.inter(
+                              fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryContainer,
+                            )),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
 
               const SizedBox(height: 24),
@@ -698,27 +793,51 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    const SizedBox(
-                      height: 100,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          _Bar(frac: 0.40, day: 'Sun'),
-                          SizedBox(width: 6),
-                          _Bar(frac: 0.60, day: 'Mon'),
-                          SizedBox(width: 6),
-                          _Bar(frac: 0.45, day: 'Tue'),
-                          SizedBox(width: 6),
-                          _Bar(frac: 0.85, day: 'Wed', isHighlight: true),
-                          SizedBox(width: 6),
-                          _Bar(frac: 0.55, day: 'Thu'),
-                          SizedBox(width: 6),
-                          _Bar(frac: 0.70, day: 'Fri'),
-                          SizedBox(width: 6),
-                          _Bar(frac: 0.95, day: 'Sat', isHighlight: true),
-                        ],
-                      ),
-                    ),
+                    Builder(builder: (context) {
+                      final weekly = telemetryAsync.asData?.value.weeklySales ?? [];
+                      if (weekly.isEmpty) {
+                        // Still loading or no data — show skeleton bars
+                        return SizedBox(
+                          height: 100,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: List.generate(7, (i) => Expanded(
+                              child: Padding(
+                                padding: EdgeInsets.only(right: i < 6 ? 6 : 0),
+                                child: Container(
+                                  height: 40,
+                                  decoration: BoxDecoration(
+                                    color: Colors.black.withValues(alpha: 0.05),
+                                    borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
+                                  ),
+                                ),
+                              ),
+                            )),
+                          ),
+                        );
+                      }
+                      final dayLabels = ['S','M','T','W','T','F','S'];
+                      final maxAmt = weekly.map((d) => d.amount).reduce((a, b) => a > b ? a : b);
+                      final today = DateTime.now();
+                      final todayDate = DateTime(today.year, today.month, today.day);
+                      return SizedBox(
+                        height: 100,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            for (int i = 0; i < weekly.length; i++) ...[
+                              _Bar(
+                                frac: maxAmt > 0 ? (weekly[i].amount / maxAmt).clamp(0.05, 1.0) : 0.05,
+                                day: dayLabels[weekly[i].date.weekday % 7],
+                                isHighlight: weekly[i].date == todayDate,
+                                amount: weekly[i].amount,
+                              ),
+                              if (i < weekly.length - 1) const SizedBox(width: 6),
+                            ],
+                          ],
+                        ),
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -869,254 +988,173 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
       return dateStr;
     }
   }
-}
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Revenue Card
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _RevenueCard extends StatelessWidget {
-  final double revenue;
-  final bool visible;
-  final VoidCallback onToggle;
-  final VoidCallback onNewSale;
-  final VoidCallback onAddExpense;
-
-  const _RevenueCard({
-    required this.revenue,
-    required this.visible,
-    required this.onToggle,
-    required this.onNewSale,
-    required this.onAddExpense,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    const textDark = Color(0xFF121f00);
-    const textMuted = Color(0x99121f00);
-
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.primaryContainer,
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFFa3e635).withValues(alpha: 0.18),
-            blurRadius: 30,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'TODAY\'S REVENUE',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 1.5,
-                  color: textMuted,
-                ),
-              ),
-              GestureDetector(
-                onTap: onToggle,
-                child: Icon(
-                  visible ? LucideIcons.eye : LucideIcons.eyeOff,
-                  size: 20,
-                  color: textMuted,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            visible ? '₹${revenue.toStringAsFixed(0)}' : '₹ ••••••',
-            style: GoogleFonts.hankenGrotesk(
-              fontSize: 44,
-              fontWeight: FontWeight.w900,
-              color: textDark,
-              letterSpacing: -2,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: onNewSale,
-                  icon: const Icon(LucideIcons.shoppingBag, size: 15),
-                  label: const Text('New Sale'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: AppColors.primaryContainer,
-                    elevation: 0,
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: onAddExpense,
-                  icon: const Icon(LucideIcons.send, size: 15),
-                  label: const Text('Expense'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFb2f746),
-                    foregroundColor: textDark,
-                    elevation: 0,
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(vertical: 13),
-                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
+  String _fmtAmount(double amount) {
+    // Indian number system grouping (lakhs/crores style): 1,23,456.00
+    final whole = amount.truncate();
+    final str = whole.toString();
+    String grouped;
+    if (str.length <= 3) {
+      grouped = str;
+    } else {
+      final last3 = str.substring(str.length - 3);
+      final rest = str.substring(0, str.length - 3);
+      final restGrouped = rest.replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{2})+$)'),
+        (m) => '${m[1]},',
+      );
+      grouped = '$restGrouped,$last3';
+    }
+    return '₹$grouped';
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Metric Tile (3-col row)
+// KPI Card — hero (gradient) or metric (white)
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _MetricTile extends StatelessWidget {
+class _KpiCard extends StatelessWidget {
   final String label;
   final String value;
   final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _MetricTile({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-            boxShadow: [AppColors.cardShadow],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: GoogleFonts.hankenGrotesk(
-                  fontSize: 22,
-                  fontWeight: FontWeight.w900,
-                  color: AppColors.inkPrimary,
-                  letterSpacing: -0.5,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                label,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Summary Chip (Expenses / Outstanding)
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _SummaryChip extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
+  final Color? accentColor;
+  final Widget? trailing;
   final VoidCallback? onTap;
+  final bool isHero;
 
-  const _SummaryChip({
+  const _KpiCard({
     required this.label,
     required this.value,
     required this.icon,
-    required this.color,
+    this.accentColor,
+    this.trailing,
     this.onTap,
+    this.isHero = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
+    final valueColor = accentColor ?? AppColors.inkPrimary;
+
+    if (isHero) {
+      // ── Hero card (TODAY'S REVENUE) — dark gradient, full-width ──
+      return GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(14),
+          width: double.infinity,
+          padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: color.withValues(alpha: 0.18)),
-            boxShadow: [AppColors.cardShadow],
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(icon, size: 15, color: color),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      label,
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        color: AppColors.inkTertiary,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    Text(
-                      value,
-                      style: GoogleFonts.hankenGrotesk(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: color,
-                      ),
-                    ),
-                  ],
-                ),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF1e3600), Color(0xFF446900)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            borderRadius: BorderRadius.circular(22),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF446900).withValues(alpha: 0.35),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
+          child: Stack(clipBehavior: Clip.hardEdge, children: [
+            Positioned(
+              right: -16,
+              bottom: -16,
+              child: Icon(icon, size: 90,
+                  color: Colors.white.withValues(alpha: 0.06)),
+            ),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Expanded(
+                  child: Text(label,
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 10, fontWeight: FontWeight.w700,
+                      letterSpacing: 1.4,
+                      color: AppColors.primaryContainer.withValues(alpha: 0.7),
+                    ),
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: 8), trailing!,
+                ],
+              ]),
+              const SizedBox(height: 10),
+              Text(value,
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 34, fontWeight: FontWeight.w900,
+                  color: Colors.white, letterSpacing: -1.2,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(children: [
+                Container(
+                  width: 6, height: 6,
+                  decoration: const BoxDecoration(
+                    color: AppColors.primaryContainer,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Text('Today',
+                  style: GoogleFonts.inter(
+                    fontSize: 11, fontWeight: FontWeight.w500,
+                    color: Colors.white.withValues(alpha: 0.5),
+                  ),
+                ),
+              ]),
+            ]),
+          ]),
+        ),
+      );
+    }
+
+    // ── Metric card — white, colored icon + value ──
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.04)),
+          boxShadow: [AppColors.cardShadow],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: valueColor.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 15, color: valueColor),
+                ),
+                if (trailing != null) trailing!,
+              ],
+            ),
+            const SizedBox(height: 12),
+            Text(value,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 24, fontWeight: FontWeight.w800,
+                color: valueColor, letterSpacing: -0.8,
+              ),
+            ),
+            const SizedBox(height: 3),
+            Text(label,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 9, fontWeight: FontWeight.w600,
+                letterSpacing: 0.8, color: AppColors.inkTertiary,
+              ),
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );
@@ -1175,8 +1213,9 @@ class _Bar extends StatelessWidget {
   final double frac;
   final String day;
   final bool isHighlight;
+  final double amount;
 
-  const _Bar({required this.frac, required this.day, this.isHighlight = false});
+  const _Bar({required this.frac, required this.day, this.isHighlight = false, this.amount = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -1332,18 +1371,18 @@ class _ActivityItem extends StatelessWidget {
 
 class _SkeletonBox extends StatelessWidget {
   final double height;
-  const _SkeletonBox({required this.height});
+  final bool expand;
+  const _SkeletonBox({required this.height, this.expand = false});
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: Container(
-        height: height,
-        decoration: BoxDecoration(
-          color: Colors.black.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(18),
-        ),
+    final box = Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(18),
       ),
     );
+    return expand ? Expanded(child: box) : box;
   }
 }
