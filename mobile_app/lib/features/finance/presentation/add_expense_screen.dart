@@ -4,25 +4,31 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/features/finance/data/models/expense.dart';
 import 'package:mobile_app/features/finance/presentation/providers/finance_provider.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
 
 class AddExpenseScreen extends ConsumerStatefulWidget {
-  const AddExpenseScreen({super.key});
+  final Expense? expense; // non-null = edit mode
+
+  const AddExpenseScreen({super.key, this.expense});
 
   @override
   ConsumerState<AddExpenseScreen> createState() => _AddExpenseScreenState();
 }
 
 class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
-  final _noteController = TextEditingController();
-  final _amountController = TextEditingController();
-  DateTime _selectedDate = DateTime.now();
-  String _selectedCategory = 'Other';
+  late final TextEditingController _noteController;
+  late final TextEditingController _amountController;
+  late DateTime _selectedDate;
+  late String _selectedCategory;
   bool _isLoading = false;
   String? _formError;
+
+  bool get _isEditMode => widget.expense != null;
 
   static const _categories = [
     _Cat('Food',     LucideIcons.utensils),
@@ -36,6 +42,20 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     _Cat('Delivery', LucideIcons.truck,             valueOverride: 'Delivery Charge'),
     _Cat('Other',    LucideIcons.moreHorizontal),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    final e = widget.expense;
+    _noteController = TextEditingController(text: e?.note ?? '');
+    _amountController = TextEditingController(
+      text: e?.amount != null ? e!.amount!.toStringAsFixed(0) : '',
+    );
+    _selectedCategory = e?.category ?? 'Other';
+    _selectedDate = e?.date != null
+        ? DateTime.tryParse(e!.date!) ?? DateTime.now()
+        : DateTime.now();
+  }
 
   @override
   void dispose() {
@@ -98,32 +118,61 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
     setState(() => _isLoading = true);
     try {
-      final id = 'EXP-${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecond}';
-      final row = {
-        'id': id,
-        'category': _selectedCategory,
-        'amount': amount,
-        'date': _selectedDate.toIso8601String().split('T')[0],
-        'note': note,
-        'tenant_id': tenantCtx.tenantId,
-      };
+      if (_isEditMode) {
+        // ── Edit mode: update existing record directly via Supabase ──
+        final updateRow = {
+          'category': _selectedCategory,
+          'amount': amount,
+          'date': _selectedDate.toIso8601String().split('T')[0],
+          'note': note,
+        };
+        await supabase
+            .from('expenses')
+            .update(updateRow)
+            .eq('id', widget.expense!.id);
 
-      final queued = await ref.read(syncServiceProvider).upsertOnlineOrQueue('expenses', row);
+        if (mounted) {
+          ref.invalidate(expensesProvider);
+          ref.invalidate(telemetryProvider);
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Expense updated'),
+              backgroundColor: AppColors.secondary,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
+      } else {
+        // ── Add mode: insert new record via sync service ──
+        final id = 'EXP-${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecond}';
+        final row = {
+          'id': id,
+          'category': _selectedCategory,
+          'amount': amount,
+          'date': _selectedDate.toIso8601String().split('T')[0],
+          'note': note,
+          'tenant_id': tenantCtx.tenantId,
+        };
 
-      if (mounted) {
-        ref.invalidate(expensesProvider);
-        ref.invalidate(telemetryProvider);
-        Navigator.pop(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(queued
-                ? 'Saved offline — will sync when online'
-                : 'Expense logged'),
-            backgroundColor: AppColors.secondary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
+        final queued = await ref.read(syncServiceProvider).upsertOnlineOrQueue('expenses', row);
+
+        if (mounted) {
+          ref.invalidate(expensesProvider);
+          ref.invalidate(telemetryProvider);
+          Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(queued
+                  ? 'Saved offline — will sync when online'
+                  : 'Expense logged'),
+              backgroundColor: AppColors.secondary,
+              behavior: SnackBarBehavior.floating,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -153,7 +202,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                   Expanded(
                     child: Center(
                       child: Text(
-                        'NEW EXPENSE',
+                        _isEditMode ? 'EDIT EXPENSE' : 'NEW EXPENSE',
                         style: GoogleFonts.publicSans(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
@@ -481,7 +530,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
                                   Text(
-                                    'Log Expense',
+                                    _isEditMode ? 'Save Changes' : 'Log Expense',
                                     style: GoogleFonts.publicSans(
                                       fontSize: 17,
                                       fontWeight: FontWeight.w700,

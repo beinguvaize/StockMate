@@ -8,6 +8,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/add_supplier_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
+import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
 
 // ─── Supplier transactions provider ──────────────────────────────────────────
 // Provider key: "supplierId|supplierName"
@@ -449,7 +450,10 @@ class _QuickActions extends StatelessWidget {
             label: 'Orders',
             sublabel: 'View POs',
             color: AppColors.warning,
-            onTap: () {},
+            onTap: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => const PurchasesScreen()),
+            ),
           ),
         ),
       ],

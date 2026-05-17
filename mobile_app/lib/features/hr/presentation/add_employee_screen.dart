@@ -2,23 +2,30 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/features/hr/data/models/employee.dart';
 import 'package:mobile_app/features/hr/presentation/providers/hr_provider.dart';
 
 class AddEmployeeScreen extends ConsumerStatefulWidget {
-  const AddEmployeeScreen({super.key});
+  /// Pass an existing [Employee] to enter edit mode; leave null to add a new one.
+  final Employee? employee;
+
+  const AddEmployeeScreen({super.key, this.employee});
 
   @override
   ConsumerState<AddEmployeeScreen> createState() => _AddEmployeeScreenState();
 }
 
 class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
-  final _nameController = TextEditingController();
-  final _roleController = TextEditingController();
-  final _salaryController = TextEditingController();
-  String _selectedStatus = 'Active';
+  late final TextEditingController _nameController;
+  late final TextEditingController _roleController;
+  late final TextEditingController _salaryController;
+  late String _selectedStatus;
   bool _isLoading = false;
+
+  bool get _isEditing => widget.employee != null;
 
   static const _statusOptions = ['Active', 'On Leave', 'Inactive'];
   static const _statusColors = {
@@ -26,6 +33,37 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
     'On Leave': Colors.orange,
     'Inactive': AppColors.danger,
   };
+
+  @override
+  void initState() {
+    super.initState();
+    final emp = widget.employee;
+    _nameController = TextEditingController(text: emp?.name ?? '');
+    _roleController =
+        TextEditingController(text: emp?.role ?? emp?.position ?? '');
+    _salaryController = TextEditingController(
+      text: emp?.salary != null && emp!.salary! > 0
+          ? emp.salary!.toStringAsFixed(0)
+          : '',
+    );
+    // Normalise status to one of the three option strings
+    final rawStatus = emp?.status ?? 'Active';
+    if (_statusOptions.contains(rawStatus)) {
+      _selectedStatus = rawStatus;
+    } else {
+      switch (rawStatus.toUpperCase()) {
+        case 'ACTIVE':
+          _selectedStatus = 'Active';
+          break;
+        case 'ON LEAVE':
+        case 'ON_LEAVE':
+          _selectedStatus = 'On Leave';
+          break;
+        default:
+          _selectedStatus = 'Inactive';
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -50,26 +88,42 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
       return;
     }
 
+    final tenantCtx = ref.read(tenantContextProvider).valueOrNull;
+
     setState(() => _isLoading = true);
     try {
-      await supabase.from('employees').insert({
+      final payload = {
         'name': _nameController.text.trim(),
         'role': _roleController.text.trim(),
-        'baseSalary': double.tryParse(_salaryController.text) ?? 0.0,
+        'salary': double.tryParse(_salaryController.text) ?? 0.0,
         'status': _selectedStatus,
-      });
+      };
+
+      if (_isEditing) {
+        await supabase
+            .from('employees')
+            .update(payload)
+            .eq('id', widget.employee!.id);
+      } else {
+        await supabase.from('employees').insert({
+          ...payload,
+          'tenant_id': tenantCtx?.tenantId,
+        });
+      }
 
       if (mounted) {
         ref.invalidate(employeesProvider);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Employee added',
-                style: GoogleFonts.inter(color: AppColors.inkPrimary)),
+            content: Text(
+              _isEditing ? 'Employee updated' : 'Employee added',
+              style: GoogleFonts.inter(color: AppColors.inkPrimary),
+            ),
             backgroundColor: AppColors.primaryContainer,
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
           ),
         );
       }
@@ -108,7 +162,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Add Employee',
+              _isEditing ? 'Edit Employee' : 'Add Employee',
               style: GoogleFonts.hankenGrotesk(
                 color: AppColors.inkPrimary,
                 fontSize: 20,
@@ -138,7 +192,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
               child: Container(
                 width: 80,
                 height: 80,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.secondaryContainer,
                   shape: BoxShape.circle,
                 ),
@@ -231,7 +285,10 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                               width: 8,
                               height: 8,
                               decoration: BoxDecoration(
-                                color: selected ? color : AppColors.inkSecondary.withValues(alpha: 0.3),
+                                color: selected
+                                    ? color
+                                    : AppColors.inkSecondary
+                                        .withValues(alpha: 0.3),
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -283,10 +340,11 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(LucideIcons.userPlus, size: 18),
+                      Icon(_isEditing ? LucideIcons.save : LucideIcons.userPlus,
+                          size: 18),
                       const SizedBox(width: 8),
                       Text(
-                        'ADD EMPLOYEE',
+                        _isEditing ? 'SAVE CHANGES' : 'ADD EMPLOYEE',
                         style: GoogleFonts.jetBrainsMono(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,

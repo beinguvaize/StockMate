@@ -9,10 +9,14 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/auth/presentation/login_screen.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/crm_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/dashboard_screen.dart';
+import 'package:mobile_app/features/daybook/presentation/daybook_screen.dart';
 import 'package:mobile_app/features/finance/presentation/finance_screen.dart';
 import 'package:mobile_app/features/hr/presentation/hr_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/inventory_screen.dart';
+import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart';
+import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
+import 'package:mobile_app/features/reports/presentation/reports_screen.dart';
 import 'package:mobile_app/features/sales/presentation/sales_screen.dart';
 import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
 
@@ -82,6 +86,34 @@ final _navItems = [
     icon: LucideIcons.truck,
     feature: 'logistics',
     screen: LogisticsScreen(),
+  ),
+  const _NavItem(
+    id: 'invoices',
+    label: 'Invoices',
+    icon: LucideIcons.receipt,
+    feature: 'invoices',
+    screen: InvoicesScreen(),
+  ),
+  const _NavItem(
+    id: 'purchases',
+    label: 'Purchases',
+    icon: LucideIcons.shoppingBag,
+    feature: 'purchases',
+    screen: PurchasesScreen(),
+  ),
+  const _NavItem(
+    id: 'daybook',
+    label: 'Day Book',
+    icon: LucideIcons.bookOpen,
+    feature: 'daybook',
+    screen: DayBookScreen(),
+  ),
+  const _NavItem(
+    id: 'reports',
+    label: 'Reports',
+    icon: LucideIcons.barChart2,
+    feature: 'reports',
+    screen: ReportsScreen(),
   ),
   const _NavItem(
     id: 'settings',
@@ -494,6 +526,18 @@ class _LockedScreen extends StatelessWidget {
           const Text(
             'Upgrade your plan to unlock this feature.',
             style: TextStyle(color: AppColors.inkSecondary, fontSize: 14),
+          ),
+          const SizedBox(height: 24),
+          OutlinedButton.icon(
+            onPressed: () {},
+            icon: const Icon(LucideIcons.mail, size: 16),
+            label: const Text('Contact support to upgrade'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.inkPrimary,
+              side: const BorderSide(color: AppColors.inkSecondary),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+              shape: StadiumBorder(),
+            ),
           ),
         ],
       ),

@@ -218,7 +218,31 @@ class _GlobalAppBar extends StatelessWidget {
 
               // Bell
               GestureDetector(
-                onTap: () {}, // TODO: notifications
+                onTap: () => showModalBottomSheet(
+                  context: context,
+                  backgroundColor: Colors.white,
+                  shape: const RoundedRectangleBorder(
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                  ),
+                  builder: (_) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(LucideIcons.bell, size: 40, color: AppColors.inkTertiary),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No new notifications',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.inkSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
                 child: Container(
                   width: 42,
                   height: 42,
@@ -620,7 +644,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                             value: _fmtAmount(m.outstandingCollections),
                             icon: LucideIcons.clock,
                             accentColor: const Color(0xFFe6a817),
-                            onTap: () => _push(const PurchasesScreen()),
+                            onTap: () => _push(const InvoicesScreen()),
                           ),
                         ),
                       ],

@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/core/database/database.dart';
-import 'package:mobile_app/core/database/sync_service.dart';
 import 'package:mobile_app/features/inventory/data/repositories/product_repository.dart';
 import 'package:mobile_app/main.dart';
 
@@ -28,7 +27,7 @@ final filteredProductsProvider = Provider<AsyncValue<List<Product>>>((ref) {
   return productsAsync.whenData((products) {
     if (searchQuery.isEmpty) return products;
     return products.where((p) {
-      final matchName = p.name?.toLowerCase().contains(searchQuery) ?? false;
+      final matchName = p.name.toLowerCase().contains(searchQuery);
       final matchSku = p.sku?.toLowerCase().contains(searchQuery) ?? false;
       return matchName || matchSku;
     }).toList();

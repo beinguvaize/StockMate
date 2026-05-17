@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' show OrderingTerm;
+import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart';
@@ -11,16 +12,21 @@ import 'package:mobile_app/main.dart' show databaseProvider;
 // local Drift cache (populated by SyncService.pullSync()). UI stays usable
 // offline as long as a previous online session warmed the cache.
 final clientsProvider = FutureProvider<List<Client>>((ref) async {
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return [];
+
   try {
     final response = await supabase
         .from('clients')
         .select()
+        .eq('tenant_id', ctx.tenantId)
         .order('name', ascending: true);
     return (response as List).map((data) => Client.fromJson(data)).toList();
   } catch (e) {
     debugPrint('[clientsProvider] online failed, using Drift cache: $e');
     final db = ref.read(databaseProvider);
     final rows = await (db.select(db.clients)
+          ..where((t) => t.tenantId.equals(ctx.tenantId))
           ..orderBy([(t) => OrderingTerm(expression: t.name)]))
         .get();
     return rows
@@ -39,16 +45,21 @@ final clientsProvider = FutureProvider<List<Client>>((ref) async {
 });
 
 final suppliersProvider = FutureProvider<List<Supplier>>((ref) async {
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return [];
+
   try {
     final response = await supabase
         .from('suppliers')
         .select()
+        .eq('tenant_id', ctx.tenantId)
         .order('name', ascending: true);
     return (response as List).map((data) => Supplier.fromJson(data)).toList();
   } catch (e) {
     debugPrint('[suppliersProvider] online failed, using Drift cache: $e');
     final db = ref.read(databaseProvider);
     final rows = await (db.select(db.suppliers)
+          ..where((t) => t.tenantId.equals(ctx.tenantId))
           ..orderBy([(t) => OrderingTerm(expression: t.name)]))
         .get();
     return rows

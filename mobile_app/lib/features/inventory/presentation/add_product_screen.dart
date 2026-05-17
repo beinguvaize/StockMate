@@ -1,13 +1,18 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
-  const AddProductScreen({super.key});
+  final Product? product; // non-null = edit mode
+
+  const AddProductScreen({super.key, this.product});
 
   @override
   ConsumerState<AddProductScreen> createState() => _AddProductScreenState();
@@ -26,6 +31,36 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   String _selectedUnit = 'pcs';
   String _selectedTaxSlab = 'Exempt';
   double _taxRate = 0.0;
+
+  bool get _isEditMode => widget.product != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.product;
+    if (p != null) {
+      _nameController.text = p.name;
+      _skuController.text = p.sku ?? '';
+      _categoryController.text = p.category ?? '';
+      _costController.text = p.costPrice.toStringAsFixed(2);
+      _sellingController.text = p.sellingPrice.toStringAsFixed(2);
+      _stockController.text = p.stock.toStringAsFixed(0);
+      _selectedUnit = p.unit ?? 'pcs';
+      final rate = p.taxRate;
+      _taxRate = rate;
+      if (rate == 5.0) {
+        _selectedTaxSlab = 'VAT 5%';
+      } else if (rate == 12.0) {
+        _selectedTaxSlab = 'GST 12%';
+      } else if (rate == 18.0) {
+        _selectedTaxSlab = 'GST 18%';
+      } else if (rate == 28.0) {
+        _selectedTaxSlab = 'GST 28%';
+      } else {
+        _selectedTaxSlab = 'Exempt';
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -53,31 +88,55 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       return;
     }
 
+    final tenantCtx = ref.read(tenantContextProvider).valueOrNull;
+    final repo = ref.read(productRepositoryProvider);
+
     setState(() => _isLoading = true);
     try {
-      await supabase.from('products').insert({
-        'name': _nameController.text.trim(),
-        'sku': _skuController.text.trim(),
-        'costPrice': double.tryParse(_costController.text) ?? 0.0,
-        'sellingPrice': double.tryParse(_sellingController.text) ?? 0.0,
-        'stock': double.tryParse(_stockController.text) ?? 0.0,
-        'lowStockThreshold': double.tryParse(_alertController.text) ?? 10.0,
-        'category': _categoryController.text.trim().isEmpty
-            ? 'Other'
-            : _categoryController.text.trim(),
-        'unit': _selectedUnit,
-        'taxRate': _taxRate,
-        'taxSlab': _selectedTaxSlab,
-        'date': DateTime.now().toIso8601String().split('T')[0],
-      });
+      if (_isEditMode) {
+        // Edit mode — update via repository (offline-first)
+        final updated = widget.product!.copyWith(
+          name: _nameController.text.trim(),
+          sku: Value(_skuController.text.trim()),
+          category: Value(_categoryController.text.trim().isEmpty
+              ? 'Other'
+              : _categoryController.text.trim()),
+          unit: Value(_selectedUnit),
+          costPrice: double.tryParse(_costController.text) ?? 0.0,
+          sellingPrice: double.tryParse(_sellingController.text) ?? 0.0,
+          stock: double.tryParse(_stockController.text) ?? 0.0,
+          taxRate: _taxRate,
+        );
+        await repo.updateProduct(updated);
+      } else {
+        // Add mode — insert via Supabase directly (existing pattern)
+        await supabase.from('products').insert({
+          'name': _nameController.text.trim(),
+          'sku': _skuController.text.trim(),
+          'cost_price': double.tryParse(_costController.text) ?? 0.0,
+          'selling_price': double.tryParse(_sellingController.text) ?? 0.0,
+          'stock': double.tryParse(_stockController.text) ?? 0.0,
+          'low_stock_threshold': double.tryParse(_alertController.text) ?? 10.0,
+          'category': _categoryController.text.trim().isEmpty
+              ? 'Other'
+              : _categoryController.text.trim(),
+          'unit': _selectedUnit,
+          'tax_rate': _taxRate,
+          'tax_slab': _selectedTaxSlab,
+          'date': DateTime.now().toIso8601String().split('T')[0],
+          'tenant_id': tenantCtx?.tenantId,
+        });
+      }
 
       if (mounted) {
         ref.invalidate(productsProvider);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Product added successfully',
-                style: GoogleFonts.inter(color: AppColors.inkPrimary)),
+            content: Text(
+              _isEditMode ? 'Product updated successfully' : 'Product added successfully',
+              style: GoogleFonts.inter(color: AppColors.inkPrimary),
+            ),
             backgroundColor: AppColors.primaryContainer,
             behavior: SnackBarBehavior.floating,
             shape:
@@ -120,7 +179,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Add Product',
+              _isEditMode ? 'Edit Product' : 'Add Product',
               style: GoogleFonts.hankenGrotesk(
                 color: AppColors.inkPrimary,
                 fontSize: 20,
@@ -289,10 +348,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(LucideIcons.plus, size: 18),
+                      Icon(_isEditMode ? LucideIcons.save : LucideIcons.plus, size: 18),
                       const SizedBox(width: 8),
                       Text(
-                        'ADD TO INVENTORY',
+                        _isEditMode ? 'SAVE CHANGES' : 'ADD TO INVENTORY',
                         style: GoogleFonts.jetBrainsMono(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,

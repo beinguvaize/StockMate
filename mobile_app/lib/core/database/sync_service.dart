@@ -266,6 +266,9 @@ class SyncService {
       _pullSuppliers(),
       _pullInvoices(),
       _pullBusinessProfile(),
+      _pullSales(),
+      _pullExpenses(),
+      _pullPurchases(),
     ]);
   }
 
@@ -424,6 +427,111 @@ class SyncService {
       });
     } catch (e) {
       debugPrint('[pullSync] suppliers failed: $e');
+    }
+  }
+
+  Future<void> _pullSales() async {
+    try {
+      final response = await supabase
+          .from('sales')
+          .select('id, tenant_id, client_id, payment_method, payment_status, subtotal, tax, total_amount, paid_amount, date, items')
+          .order('date', ascending: false)
+          .limit(500);
+      final List<dynamic> data = response as List<dynamic>;
+      await db.batch((batch) {
+        for (final item in data) {
+          final rawDate = item['date'];
+          final date = rawDate is String
+              ? DateTime.tryParse(rawDate) ?? DateTime.now()
+              : (rawDate as DateTime? ?? DateTime.now());
+          batch.insert(
+            db.sales,
+            SalesCompanion.insert(
+              id:            item['id'] as String,
+              tenantId:      item['tenant_id'] as String,
+              clientId:      Value(item['client_id'] as String?),
+              paymentMethod: (item['payment_method'] as String?) ?? 'CASH',
+              paymentStatus: (item['payment_status'] as String?) ?? 'PAID',
+              subtotal:      (item['subtotal'] ?? 0).toDouble(),
+              tax:           (item['tax'] ?? 0).toDouble(),
+              totalAmount:   (item['total_amount'] ?? 0).toDouble(),
+              paidAmount:    Value((item['paid_amount'] ?? 0).toDouble()),
+              date:          date,
+              itemsJson:     item['items'] == null ? '[]' : jsonEncode(item['items']),
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] sales failed: $e');
+    }
+  }
+
+  Future<void> _pullExpenses() async {
+    try {
+      final response = await supabase
+          .from('expenses')
+          .select('id, tenant_id, category, amount, note, date')
+          .order('date', ascending: false)
+          .limit(500);
+      final List<dynamic> data = response as List<dynamic>;
+      await db.batch((batch) {
+        for (final item in data) {
+          final rawDate = item['date'];
+          final date = rawDate is String
+              ? DateTime.tryParse(rawDate) ?? DateTime.now()
+              : (rawDate as DateTime? ?? DateTime.now());
+          batch.insert(
+            db.expenses,
+            ExpensesCompanion.insert(
+              id:       item['id'] as String,
+              tenantId: item['tenant_id'] as String,
+              category: (item['category'] as String?) ?? '',
+              amount:   (item['amount'] ?? 0).toDouble(),
+              note:     Value(item['note'] as String?),
+              date:     date,
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] expenses failed: $e');
+    }
+  }
+
+  Future<void> _pullPurchases() async {
+    try {
+      final response = await supabase
+          .from('purchases')
+          .select('id, tenant_id, supplier_id, product_id, quantity, total_amount, date')
+          .order('date', ascending: false)
+          .limit(500);
+      final List<dynamic> data = response as List<dynamic>;
+      await db.batch((batch) {
+        for (final item in data) {
+          final rawDate = item['date'];
+          final date = rawDate is String
+              ? DateTime.tryParse(rawDate) ?? DateTime.now()
+              : (rawDate as DateTime? ?? DateTime.now());
+          batch.insert(
+            db.purchases,
+            PurchasesCompanion.insert(
+              id:          item['id'] as String,
+              tenantId:    item['tenant_id'] as String,
+              supplierId:  Value(item['supplier_id'] as String?),
+              productId:   Value(item['product_id'] as String?),
+              quantity:    (item['quantity'] ?? 0).toDouble(),
+              totalAmount: (item['total_amount'] ?? 0).toDouble(),
+              date:        date,
+            ),
+            mode: InsertMode.insertOrReplace,
+          );
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] purchases failed: $e');
     }
   }
 }

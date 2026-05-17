@@ -16,7 +16,6 @@ import 'package:mobile_app/features/shell/desktop_shell.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:mobile_app/core/database/sync_service.dart';
-import 'package:mobile_app/features/inventory/data/repositories/product_repository.dart';
 
 // Providers
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -27,13 +26,6 @@ final databaseProvider = Provider<AppDatabase>((ref) {
 
 final syncServiceProvider = Provider<SyncService>((ref) {
   return SyncService(ref.watch(databaseProvider));
-});
-
-final productRepositoryProvider = Provider<ProductRepository>((ref) {
-  return ProductRepository(
-    db: ref.watch(databaseProvider),
-    syncService: ref.watch(syncServiceProvider),
-  );
 });
 
 Future<void> main() async {
@@ -405,7 +397,23 @@ class _TrialExpiredScreen extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  showDialog(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: const Text('Upgrade Your Plan'),
+                      content: const Text(
+                        'Please contact support at support@stockmate.app to upgrade your plan.',
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(context).pop(),
+                          child: const Text('OK'),
+                        ),
+                      ],
+                    ),
+                  );
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accentSignature,
                   foregroundColor: Colors.black,

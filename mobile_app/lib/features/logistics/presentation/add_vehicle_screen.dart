@@ -4,10 +4,14 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/features/logistics/data/models/vehicle.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
 
 class AddVehicleScreen extends ConsumerStatefulWidget {
-  const AddVehicleScreen({super.key});
+  /// When non-null the screen operates in edit mode.
+  final Vehicle? vehicle;
+
+  const AddVehicleScreen({super.key, this.vehicle});
 
   @override
   ConsumerState<AddVehicleScreen> createState() => _AddVehicleScreenState();
@@ -19,6 +23,8 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
   final _driverController = TextEditingController();
   String _selectedStatus = 'ACTIVE';
   bool _isLoading = false;
+
+  bool get _isEditing => widget.vehicle != null;
 
   static const _statusOptions = ['ACTIVE', 'MAINTENANCE', 'OUT_OF_SERVICE'];
   static const _statusLabels = {
@@ -36,6 +42,19 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
     'MAINTENANCE': LucideIcons.wrench,
     'OUT_OF_SERVICE': LucideIcons.xCircle,
   };
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill fields when editing an existing vehicle
+    final v = widget.vehicle;
+    if (v != null) {
+      _nameController.text = v.name ?? '';
+      _plateController.text = v.displayPlate == '—' ? '' : v.displayPlate;
+      _driverController.text = v.type ?? ''; // stored in `type` per existing model usage
+      _selectedStatus = v.status ?? 'ACTIVE';
+    }
+  }
 
   @override
   void dispose() {
@@ -62,20 +81,31 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
 
     setState(() => _isLoading = true);
     try {
-      await supabase.from('vehicles').insert({
+      final payload = {
         'name': _nameController.text.trim(),
         'plateNumber': _plateController.text.trim().toUpperCase(),
         'status': _selectedStatus,
         'driverName': _driverController.text.trim(),
-      });
+      };
+
+      if (_isEditing) {
+        await supabase
+            .from('vehicles')
+            .update(payload)
+            .eq('id', widget.vehicle!.id);
+      } else {
+        await supabase.from('vehicles').insert(payload);
+      }
 
       if (mounted) {
         ref.invalidate(vehiclesProvider);
         Navigator.pop(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Vehicle added to fleet',
-                style: GoogleFonts.inter(color: AppColors.inkPrimary)),
+            content: Text(
+              _isEditing ? 'Vehicle updated' : 'Vehicle added to fleet',
+              style: GoogleFonts.inter(color: AppColors.inkPrimary),
+            ),
             backgroundColor: AppColors.primaryContainer,
             behavior: SnackBarBehavior.floating,
             shape:
@@ -118,7 +148,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Add Vehicle',
+              _isEditing ? 'Edit Vehicle' : 'Add Vehicle',
               style: GoogleFonts.hankenGrotesk(
                 color: AppColors.inkPrimary,
                 fontSize: 20,
@@ -293,10 +323,13 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
                 : Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Icon(LucideIcons.plus, size: 18),
+                      Icon(
+                        _isEditing ? LucideIcons.save : LucideIcons.plus,
+                        size: 18,
+                      ),
                       const SizedBox(width: 8),
                       Text(
-                        'ADD TO FLEET',
+                        _isEditing ? 'SAVE CHANGES' : 'ADD TO FLEET',
                         style: GoogleFonts.jetBrainsMono(
                           fontWeight: FontWeight.w700,
                           fontSize: 13,

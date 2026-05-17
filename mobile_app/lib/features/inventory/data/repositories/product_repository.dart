@@ -1,7 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/database/sync_service.dart';
-import 'package:mobile_app/core/supabase/client.dart';
 
 class ProductRepository {
   final AppDatabase db;
@@ -64,6 +63,33 @@ class ProductRepository {
         'taxRate': product.taxRate,
         'image': product.image,
       },
+    );
+  }
+
+  /// Delete a product with offline support
+  Future<void> deleteProduct(String productId) async {
+    // 1. Local Delete
+    await (db.delete(db.products)..where((t) => t.id.equals(productId))).go();
+
+    // 2. Sync Queue
+    await syncService.queueMutation(
+      targetTable: 'products',
+      action: 'delete',
+      payload: {'id': productId},
+    );
+  }
+
+  /// Update only the stock value of a product
+  Future<void> updateStock(String productId, double newStock) async {
+    // 1. Local Update
+    await (db.update(db.products)..where((t) => t.id.equals(productId)))
+        .write(ProductsCompanion(stock: Value(newStock)));
+
+    // 2. Sync Queue
+    await syncService.queueMutation(
+      targetTable: 'products',
+      action: 'upsert',
+      payload: {'id': productId, 'stock': newStock},
     );
   }
 

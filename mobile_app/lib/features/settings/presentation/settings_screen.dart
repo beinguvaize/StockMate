@@ -2,15 +2,51 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:mobile_app/features/settings/presentation/providers/settings_provider.dart';
 
-class SettingsScreen extends ConsumerWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  bool _pushNotificationsEnabled = false;
+
+  void _openEditProfile(BusinessProfile profile) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditBusinessProfileSheet(
+        profile: profile,
+        onSaved: () {
+          ref.invalidate(businessProfileProvider);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Business profile updated.',
+                  style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
+                ),
+                backgroundColor: AppColors.success,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final profileAsync = ref.watch(businessProfileProvider);
 
     return Scaffold(
@@ -67,16 +103,43 @@ class SettingsScreen extends ConsumerWidget {
                     ),
                     child: Column(
                       children: [
-                        Container(
-                          width: 64,
-                          height: 64,
-                          decoration: const BoxDecoration(
-                            color: AppColors.primaryContainer,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(LucideIcons.building2, color: AppColors.primary, size: 28),
+                        // Header row: avatar + edit button
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Spacer(),
+                            Container(
+                              width: 64,
+                              height: 64,
+                              decoration: const BoxDecoration(
+                                color: AppColors.primaryContainer,
+                                shape: BoxShape.circle,
+                              ),
+                              child: const Icon(LucideIcons.building2, color: AppColors.primary, size: 28),
+                            ),
+                            Expanded(
+                              child: Align(
+                                alignment: Alignment.topRight,
+                                child: GestureDetector(
+                                  onTap: () => _openEditProfile(profile),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryContainer,
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      LucideIcons.pencil,
+                                      size: 16,
+                                      color: AppColors.primary,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         Text(
                           profile.name ?? 'Company Name',
                           style: GoogleFonts.hankenGrotesk(
@@ -100,6 +163,8 @@ class SettingsScreen extends ConsumerWidget {
                         const Divider(color: AppColors.outlineVariant, height: 1),
                         const SizedBox(height: 16),
                         _ProfileRow('Address', profile.address ?? 'N/A'),
+                        const SizedBox(height: 8),
+                        _ProfileRow('GSTIN', profile.gstNo ?? 'N/A'),
                         const SizedBox(height: 8),
                         _ProfileRow('Currency', profile.currency ?? 'INR'),
                       ],
@@ -150,8 +215,8 @@ class SettingsScreen extends ConsumerWidget {
                       iconColor: AppColors.warning,
                       label: 'Push Notifications',
                       trailing: Switch(
-                        value: false,
-                        onChanged: (v) {},
+                        value: _pushNotificationsEnabled,
+                        onChanged: (v) => setState(() => _pushNotificationsEnabled = v),
                         activeThumbColor: AppColors.primary,
                         activeTrackColor: AppColors.primaryContainer,
                       ),
@@ -195,6 +260,304 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
+// ─────────────────────────────────────────────────────────
+// Edit Business Profile — Modal Bottom Sheet
+// ─────────────────────────────────────────────────────────
+
+class _EditBusinessProfileSheet extends ConsumerStatefulWidget {
+  final BusinessProfile profile;
+  final VoidCallback onSaved;
+
+  const _EditBusinessProfileSheet({required this.profile, required this.onSaved});
+
+  @override
+  ConsumerState<_EditBusinessProfileSheet> createState() => _EditBusinessProfileSheetState();
+}
+
+class _EditBusinessProfileSheetState extends ConsumerState<_EditBusinessProfileSheet> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _nameCtrl;
+  late final TextEditingController _gstinCtrl;
+  late final TextEditingController _addressCtrl;
+  late final TextEditingController _phoneCtrl;
+  late final TextEditingController _emailCtrl;
+  late final TextEditingController _currencyCtrl;
+
+  bool _isSaving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl = TextEditingController(text: widget.profile.name ?? '');
+    _gstinCtrl = TextEditingController(text: widget.profile.gstNo ?? '');
+    _addressCtrl = TextEditingController(text: widget.profile.address ?? '');
+    _phoneCtrl = TextEditingController(text: widget.profile.phone ?? '');
+    _emailCtrl = TextEditingController(text: widget.profile.email ?? '');
+    _currencyCtrl = TextEditingController(text: widget.profile.currency ?? '');
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _gstinCtrl.dispose();
+    _addressCtrl.dispose();
+    _phoneCtrl.dispose();
+    _emailCtrl.dispose();
+    _currencyCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    setState(() => _isSaving = true);
+
+    try {
+      final tenantCtx = ref.read(tenantContextProvider).valueOrNull;
+      final tenantId = tenantCtx?.tenantId;
+
+      final updates = <String, dynamic>{
+        'name': _nameCtrl.text.trim(),
+        'gst_no': _gstinCtrl.text.trim().isEmpty ? null : _gstinCtrl.text.trim(),
+        'address': _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
+        'phone': _phoneCtrl.text.trim().isEmpty ? null : _phoneCtrl.text.trim(),
+        'email': _emailCtrl.text.trim().isEmpty ? null : _emailCtrl.text.trim(),
+        'currency': _currencyCtrl.text.trim().isEmpty ? null : _currencyCtrl.text.trim(),
+      };
+
+      if (tenantId != null && tenantId.isNotEmpty) {
+        await supabase
+            .from('business_profile')
+            .update(updates)
+            .eq('tenant_id', tenantId);
+      } else {
+        // Fallback: update by record id
+        await supabase
+            .from('business_profile')
+            .update(updates)
+            .eq('id', widget.profile.id);
+      }
+
+      if (mounted) {
+        Navigator.of(context).pop();
+        widget.onSaved();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Failed to save: $e',
+              style: GoogleFonts.inter(fontSize: 13, color: Colors.white),
+            ),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+      decoration: BoxDecoration(
+        color: AppColors.canvas,
+        borderRadius: BorderRadius.circular(28),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 24, 24, 24 + bottomInset),
+      child: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Sheet handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.outlineVariant,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Title row
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(LucideIcons.building2, size: 18, color: AppColors.primary),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Edit Business Profile',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.inkPrimary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              _FormField(label: 'Business Name', controller: _nameCtrl, hint: 'e.g. Acme Pvt. Ltd.', required: true),
+              const SizedBox(height: 16),
+              _FormField(label: 'GSTIN', controller: _gstinCtrl, hint: 'e.g. 29ABCDE1234F1Z5'),
+              const SizedBox(height: 16),
+              _FormField(label: 'Address', controller: _addressCtrl, hint: 'Street, City, State', maxLines: 3),
+              const SizedBox(height: 16),
+              _FormField(
+                label: 'Phone',
+                controller: _phoneCtrl,
+                hint: '+91 98765 43210',
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 16),
+              _FormField(
+                label: 'Email',
+                controller: _emailCtrl,
+                hint: 'contact@company.com',
+                keyboardType: TextInputType.emailAddress,
+              ),
+              const SizedBox(height: 16),
+              _FormField(label: 'Currency Symbol', controller: _currencyCtrl, hint: 'e.g. ₹  or  USD'),
+              const SizedBox(height: 28),
+
+              // Save button
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: _isSaving ? null : _save,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                  child: _isSaving
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : const Text('Save Changes'),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Shared form field widget
+// ─────────────────────────────────────────────────────────
+
+class _FormField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+  final String? hint;
+  final bool required;
+  final int maxLines;
+  final TextInputType keyboardType;
+
+  const _FormField({
+    required this.label,
+    required this.controller,
+    this.hint,
+    this.required = false,
+    this.maxLines = 1,
+    this.keyboardType = TextInputType.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        RichText(
+          text: TextSpan(
+            text: label,
+            style: GoogleFonts.inter(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.inkSecondary,
+              letterSpacing: 0.3,
+            ),
+            children: required
+                ? [
+                    TextSpan(
+                      text: ' *',
+                      style: GoogleFonts.inter(color: AppColors.danger),
+                    ),
+                  ]
+                : [],
+          ),
+        ),
+        const SizedBox(height: 6),
+        TextFormField(
+          controller: controller,
+          maxLines: maxLines,
+          keyboardType: keyboardType,
+          style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkPrimary),
+          decoration: InputDecoration(
+            hintText: hint,
+            hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.inkTertiary),
+            filled: true,
+            fillColor: Colors.white,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.outlineVariant),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.outlineVariant),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.danger),
+            ),
+            focusedErrorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(14),
+              borderSide: const BorderSide(color: AppColors.danger, width: 1.5),
+            ),
+          ),
+          validator: required
+              ? (v) => (v == null || v.trim().isEmpty) ? '$label is required' : null
+              : null,
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Read-only profile row
+// ─────────────────────────────────────────────────────────
+
 class _ProfileRow extends StatelessWidget {
   final String label;
   final String value;
@@ -204,17 +567,26 @@ class _ProfileRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary)),
-        Text(
-          value,
-          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkPrimary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            softWrap: true,
+            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkPrimary),
+          ),
         ),
       ],
     );
   }
 }
+
+// ─────────────────────────────────────────────────────────
+// Preference row
+// ─────────────────────────────────────────────────────────
 
 class _SettingRow extends StatelessWidget {
   final IconData icon;

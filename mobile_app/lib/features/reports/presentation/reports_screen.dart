@@ -28,28 +28,25 @@ final _reportSummaryProvider = FutureProvider.family<_ReportSummary,
 
   final salesData = await supabase
       .from('sales')
-      .select('total_amount')
-      .eq('tenant_id', params.tenantId)
+      .select('totalAmount')
       .gte('date', start)
       .lte('date', end);
 
   final expensesData = await supabase
       .from('expenses')
       .select('amount')
-      .eq('tenant_id', params.tenantId)
       .gte('date', start)
       .lte('date', end);
 
   final purchasesData = await supabase
       .from('purchases')
       .select('total_amount')
-      .eq('tenant_id', params.tenantId)
       .gte('date', start)
       .lte('date', end);
 
   double totalSales = 0;
   for (final row in salesData as List) {
-    totalSales += (row['total_amount'] as num? ?? 0).toDouble();
+    totalSales += (row['totalAmount'] as num? ?? 0).toDouble();
   }
   double totalExpenses = 0;
   for (final row in expensesData as List) {
@@ -405,58 +402,80 @@ class _GSTCard extends StatelessWidget {
     required this.color,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Icon(LucideIcons.fileText, color: color, size: 20),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  type,
-                  style: GoogleFonts.hankenGrotesk(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                    color: AppColors.inkPrimary,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: AppColors.inkSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.primaryContainer.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(LucideIcons.download,
-                size: 16, color: AppColors.primary),
+  void _showGstrComingSoon(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('GSTR Export'),
+        content: const Text(
+          'GSTR export will be available in the next update. '
+          'For now, please use the web dashboard to download your GST reports.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Close'),
           ),
         ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _showGstrComingSoon(context),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(LucideIcons.fileText, color: color, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    type,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: AppColors.inkPrimary,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppColors.inkSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primaryContainer.withValues(alpha: 0.3),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(LucideIcons.download,
+                  size: 16, color: AppColors.primary),
+            ),
+          ],
+        ),
       ),
     );
   }
