@@ -114,7 +114,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Invoice',
+              invoice.docKind,
               style: GoogleFonts.hankenGrotesk(
                 color: const Color(0xFF1E293B),
                 fontSize: 18,

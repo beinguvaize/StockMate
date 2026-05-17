@@ -75,9 +75,21 @@ class Invoice {
   /// Amount still owed — matches web's outstandingOf(inv)
   double get outstanding => (grandTotal - paidAmount).clamp(0, double.infinity);
 
-  /// Display invoice number — matches web fallback logic
-  String get displayNumber =>
-      invoiceNumber?.isNotEmpty == true ? invoiceNumber! : '#${id.substring(id.length - 6).toUpperCase()}';
+  /// True when this view-adapter represents a POS sale, not a real GST invoice.
+  bool get isSaleSource => id.startsWith('SAL-');
+
+  /// Display number.
+  /// - Real GST invoice: 'INV/2026-27/0001' (server-issued invoice_number).
+  /// - Sale: 'SAL-XXXXXX' (last 6 of id, uppercased). Never bare '#XXXXXX'
+  ///   so it's never mistaken for a tax-invoice number.
+  String get displayNumber {
+    if (invoiceNumber != null && invoiceNumber!.isNotEmpty) return invoiceNumber!;
+    final tail = id.substring(id.length - 6).toUpperCase();
+    return isSaleSource ? 'SAL-$tail' : '#$tail';
+  }
+
+  /// Human-friendly document type label for headers / cards.
+  String get docKind => isSaleSource ? 'Sale Receipt' : 'Invoice';
 
   /// Customer display name
   String get displayClientName => clientName?.isNotEmpty == true ? clientName! : 'Unknown';
