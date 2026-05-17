@@ -1852,15 +1852,15 @@ class _IrnStatusCard extends StatelessWidget {
 }
 
 // ─── Convert Sale → GST Invoice form sheet ────────────────────────────────────
-class _ConvertSheet extends StatefulWidget {
+class _ConvertSheet extends ConsumerStatefulWidget {
   final Invoice invoice;
   const _ConvertSheet({required this.invoice});
 
   @override
-  State<_ConvertSheet> createState() => _ConvertSheetState();
+  ConsumerState<_ConvertSheet> createState() => _ConvertSheetState();
 }
 
-class _ConvertSheetState extends State<_ConvertSheet> {
+class _ConvertSheetState extends ConsumerState<_ConvertSheet> {
   late final TextEditingController _name;
   late final TextEditingController _gstin;
   late final TextEditingController _address;
@@ -1872,12 +1872,24 @@ class _ConvertSheetState extends State<_ConvertSheet> {
   @override
   void initState() {
     super.initState();
-    _name          = TextEditingController(text: widget.invoice.clientName ?? '');
-    _gstin         = TextEditingController(text: widget.invoice.clientGstin ?? '');
-    _address       = TextEditingController(text: widget.invoice.clientAddress ?? '');
-    _phone         = TextEditingController(text: widget.invoice.clientPhone ?? '');
-    _placeOfSupply = TextEditingController(text: widget.invoice.placeOfSupply ?? '');
-    _dueDays       = TextEditingController(text: '30');
+    // Pre-fill from the linked client when available — sales with shopId
+    // shouldn't re-ask for GSTIN if the client already has one on file.
+    final inv = widget.invoice;
+    final clientId = inv.clientId;
+    final clients = ref.read(clientsProvider).valueOrNull ?? const [];
+    final linked = (clientId == null || clientId.isEmpty)
+        ? null
+        : clients.where((c) => c.id == clientId).cast<dynamic>().firstOrNull;
+
+    String pick(String? a, String? b) => (a != null && a.isNotEmpty) ? a : (b ?? '');
+
+    _name = TextEditingController(text: pick(inv.clientName, linked?.name));
+    _gstin = TextEditingController(text: pick(inv.clientGstin, linked?.gstin ?? linked?.gstNo));
+    _address = TextEditingController(text: pick(inv.clientAddress, linked?.address));
+    _phone = TextEditingController(text: pick(inv.clientPhone, linked?.phone));
+    _placeOfSupply = TextEditingController(text: pick(inv.placeOfSupply, linked?.state));
+    _dueDays = TextEditingController(
+        text: linked?.creditDays?.toString() ?? '30');
   }
 
   @override
