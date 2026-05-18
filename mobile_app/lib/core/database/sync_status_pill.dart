@@ -5,7 +5,6 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 
 final pendingSyncCountProvider = StreamProvider<int>((ref) {
@@ -28,58 +27,50 @@ class SyncStatusPill extends ConsumerWidget {
     final conn = ref.watch(connectivityProvider).asData?.value;
     final offline = conn == ConnectivityResult.none;
 
-    final Color bg;
     final Color fg;
-    final IconData icon;
     final String label;
 
     if (offline) {
-      bg = const Color(0xFFFEF2F2);
-      fg = const Color(0xFFB91C1C);
-      icon = LucideIcons.wifiOff;
-      label = pending > 0 ? 'Offline · $pending pending' : 'Offline';
+      fg = const Color(0xFFDC2626);
+      label = pending > 0 ? 'Offline · $pending queued' : 'Offline';
     } else if (pending > 0) {
-      bg = const Color(0xFFFFFBEB);
-      fg = const Color(0xFFB45309);
-      icon = LucideIcons.cloudOff;
-      label = 'Syncing $pending…';
+      fg = const Color(0xFFD97706);
+      label = 'Syncing…';
     } else {
-      bg = const Color(0xFFECFDF5);
-      fg = const Color(0xFF047857);
-      icon = LucideIcons.cloud;
+      fg = const Color(0xFF16A34A);
       label = 'Online';
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      child: GestureDetector(
-        onTap: () {
-          // Manual flush trigger
-          ref.read(syncServiceProvider).sync();
-        },
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(99),
-            border: Border.all(color: fg.withValues(alpha: 0.25)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 12, color: fg),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: fg,
-                  letterSpacing: 0.5,
-                ),
+    return GestureDetector(
+      onTap: () => ref.read(syncServiceProvider).sync(),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Pulsing dot for offline/syncing, static for online
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: fg,
+                shape: BoxShape.circle,
+                boxShadow: offline || pending > 0
+                    ? [BoxShadow(color: fg.withValues(alpha: 0.4), blurRadius: 4, spreadRadius: 1)]
+                    : null,
               ),
-            ],
-          ),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              label,
+              style: GoogleFonts.inter(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: fg,
+                letterSpacing: 0.1,
+              ),
+            ),
+          ],
         ),
       ),
     );
