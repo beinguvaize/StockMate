@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:mobile_app/core/database/sync_status_pill.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/data/models/route.dart';
@@ -50,7 +49,7 @@ class LogisticsScreen extends ConsumerWidget {
             ),
           ],
         ),
-        actions: const [SyncStatusPill()],
+        actions: const [],
       ),
       body: SafeArea(
         child: vehiclesAsync.when(

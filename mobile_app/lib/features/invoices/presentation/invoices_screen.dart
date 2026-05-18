@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:mobile_app/core/database/sync_status_pill.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
@@ -71,7 +70,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
         backgroundColor: AppColors.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
-        actions: const [SyncStatusPill()],
+        actions: const [],
       ),
       floatingActionButton: FloatingActionButton(
         heroTag: null,

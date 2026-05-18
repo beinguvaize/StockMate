@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
-import 'package:mobile_app/core/database/sync_status_pill.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchase_detail_screen.dart';
@@ -140,7 +139,6 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
           ],
         ),
         actions: [
-          const SyncStatusPill(),
           tenantAsync.maybeWhen(
             data: (ctx) {
               if (ctx == null || !planMeetsRequirement('purchases', ctx.plan)) {

@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:mobile_app/core/database/sync_status_pill.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/daybook/data/daybook_models.dart';
 import 'package:mobile_app/features/daybook/presentation/daybook_history_screen.dart';
@@ -148,7 +147,6 @@ class _DayBookScreenState extends ConsumerState<DayBookScreen> {
           ],
         ),
         actions: [
-          const SyncStatusPill(),
           IconButton(
             icon: const Icon(LucideIcons.history, size: 20),
             tooltip: 'History',
