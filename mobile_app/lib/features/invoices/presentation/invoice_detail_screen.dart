@@ -702,7 +702,9 @@ class InvoiceDetailScreen extends ConsumerWidget {
     String fmt(num v) => v.toStringAsFixed(2);
     final billTitle = (biz?.invoiceTerms != null && biz!.invoiceTerms!.toLowerCase().contains('estimate'))
         ? 'ESTIMATE'
-        : 'TAX INVOICE';
+        : invoice.isSaleSource
+            ? 'SALE RECEIPT'
+            : 'TAX INVOICE';
 
     pdf.addPage(
       pw.Page(
@@ -749,7 +751,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
               pw.Row(
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
-                  pw.Text('#$invoiceNo',
+                  pw.Text(invoiceNo,
                       style: const pw.TextStyle(fontSize: 8, color: ink)),
                   pw.Text(dateStr,
                       style: const pw.TextStyle(fontSize: 8, color: ink)),
