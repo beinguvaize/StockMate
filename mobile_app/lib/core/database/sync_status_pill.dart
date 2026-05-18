@@ -28,8 +28,6 @@ class SyncStatusPill extends ConsumerWidget {
     final conn = ref.watch(connectivityProvider).asData?.value;
     final offline = conn == ConnectivityResult.none;
 
-    if (!offline && pending == 0) return const SizedBox.shrink();
-
     final Color bg;
     final Color fg;
     final IconData icon;
@@ -46,11 +44,10 @@ class SyncStatusPill extends ConsumerWidget {
       icon = LucideIcons.cloudOff;
       label = 'Syncing $pending…';
     } else {
-      // Unreachable due to guard above.
       bg = const Color(0xFFECFDF5);
       fg = const Color(0xFF047857);
       icon = LucideIcons.cloud;
-      label = 'Synced';
+      label = 'Online';
     }
 
     return Padding(
