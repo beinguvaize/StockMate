@@ -434,7 +434,7 @@ class SyncService {
     try {
       final response = await supabase
           .from('sales')
-          .select('id, tenant_id, "shopId", payment_method, payment_status, subtotal, tax, total_amount, paid_amount, date, items')
+          .select('id, tenant_id, "shopId", "paymentMethod", "paymentStatus", subtotal, tax, "totalAmount", "paidAmount", date, items')
           .order('date', ascending: false)
           .limit(500);
       final List<dynamic> data = response as List<dynamic>;
@@ -450,12 +450,12 @@ class SyncService {
               id:            item['id'] as String,
               tenantId:      item['tenant_id'] as String,
               clientId:      Value(item['shopId'] as String?),
-              paymentMethod: (item['payment_method'] as String?) ?? 'CASH',
-              paymentStatus: (item['payment_status'] as String?) ?? 'PAID',
+              paymentMethod: (item['paymentMethod'] as String?) ?? 'CASH',
+              paymentStatus: (item['paymentStatus'] as String?) ?? 'PAID',
               subtotal:      (item['subtotal'] ?? 0).toDouble(),
               tax:           (item['tax'] ?? 0).toDouble(),
-              totalAmount:   (item['total_amount'] ?? 0).toDouble(),
-              paidAmount:    Value((item['paid_amount'] ?? 0).toDouble()),
+              totalAmount:   (item['totalAmount'] ?? 0).toDouble(),
+              paidAmount:    Value((item['paidAmount'] ?? 0).toDouble()),
               date:          date,
               itemsJson:     item['items'] == null ? '[]' : jsonEncode(item['items']),
             ),

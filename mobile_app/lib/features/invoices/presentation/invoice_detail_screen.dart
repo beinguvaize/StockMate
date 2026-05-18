@@ -1744,6 +1744,32 @@ class _InvoiceCard extends StatelessWidget {
                 const Divider(color: Color(0xFFE2E8F0)),
                 const SizedBox(height: 10),
 
+                // ── Tax breakdown ─────────────────────────────────────────
+                Builder(builder: (_) {
+                  final lineSubtotal = items.fold(0.0, (s, i) => s + i.lineTotal);
+                  final taxable = invoice.taxableAmount ?? lineSubtotal;
+                  final cgst   = invoice.cgstAmount ?? 0.0;
+                  final sgst   = invoice.sgstAmount ?? 0.0;
+                  final igst   = invoice.igstAmount ?? 0.0;
+                  final totalTax = cgst + sgst + igst;
+                  final hasTax = totalTax > 0;
+                  final isIntra = igst == 0 && hasTax;
+
+                  if (!hasTax) return const SizedBox.shrink();
+
+                  return Column(
+                    children: [
+                      _TaxRow(label: 'Taxable Amount', value: taxable),
+                      if (isIntra) ...[
+                        _TaxRow(label: 'CGST', value: cgst),
+                        _TaxRow(label: 'SGST', value: sgst),
+                      ] else
+                        _TaxRow(label: 'IGST', value: igst),
+                      const SizedBox(height: 6),
+                    ],
+                  );
+                }),
+
                 // ── Grand total ──────────────────────────────────────────
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -2109,6 +2135,31 @@ class _Field extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─── Tax breakdown row ────────────────────────────────────────────────────────
+class _TaxRow extends StatelessWidget {
+  final String label;
+  final double value;
+  const _TaxRow({required this.label, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label,
+              style: GoogleFonts.inter(
+                  fontSize: 12, color: const Color(0xFF64748B))),
+          Text('₹${value.toStringAsFixed(2)}',
+              style: GoogleFonts.inter(
+                  fontSize: 12, color: const Color(0xFF64748B))),
+        ],
+      ),
     );
   }
 }
