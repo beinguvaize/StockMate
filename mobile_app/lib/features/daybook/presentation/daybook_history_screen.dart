@@ -425,7 +425,7 @@ class _DayBookHistoryCard extends StatelessWidget {
                 ],
                 const SizedBox(width: 8),
                 Icon(
-                  record.isClosed ? LucideIcons.lock : LucideIcons.lockOpen,
+                  record.isClosed ? LucideIcons.lock : LucideIcons.unlock,
                   size: 15,
                   color: record.isClosed
                       ? const Color(0xFF2E7D32)
@@ -486,7 +486,7 @@ class _DayBookHistoryCard extends StatelessWidget {
                 Icon(
                   record.isClosed
                       ? LucideIcons.clock
-                      : LucideIcons.clockDashed,
+                      : LucideIcons.clock3,
                   size: 12,
                   color: record.isClosed
                       ? AppColors.inkTertiary

@@ -376,7 +376,7 @@ class SyncService {
     try {
       final response = await supabase
           .from('business_profile')
-          .select('tenant_id, name, address, phone, email, currency, gst_no, pan_no, upi_id, invoice_terms, footer_message, auto_irn_enabled')
+          .select('tenant_id, name, address, phone, email, currency, gst_no, pan_no, upi_id, invoice_terms')
           .limit(1);
       final List<dynamic> data = response as List<dynamic>;
       if (data.isEmpty) return;
@@ -393,8 +393,8 @@ class SyncService {
           panNo:           Value(item['pan_no']          as String?),
           upiId:           Value(item['upi_id']          as String?),
           invoiceTerms:    Value(item['invoice_terms']   as String?),
-          footerMessage:   Value(item['footer_message']  as String?),
-          autoIrnEnabled:  Value(item['auto_irn_enabled'] == true),
+          footerMessage:   const Value(null),
+          autoIrnEnabled:  const Value(false),
         ),
         mode: InsertMode.insertOrReplace,
       );
@@ -434,7 +434,7 @@ class SyncService {
     try {
       final response = await supabase
           .from('sales')
-          .select('id, tenant_id, client_id, payment_method, payment_status, subtotal, tax, total_amount, paid_amount, date, items')
+          .select('id, tenant_id, "shopId", payment_method, payment_status, subtotal, tax, total_amount, paid_amount, date, items')
           .order('date', ascending: false)
           .limit(500);
       final List<dynamic> data = response as List<dynamic>;
@@ -449,7 +449,7 @@ class SyncService {
             SalesCompanion.insert(
               id:            item['id'] as String,
               tenantId:      item['tenant_id'] as String,
-              clientId:      Value(item['client_id'] as String?),
+              clientId:      Value(item['shopId'] as String?),
               paymentMethod: (item['payment_method'] as String?) ?? 'CASH',
               paymentStatus: (item['payment_status'] as String?) ?? 'PAID',
               subtotal:      (item['subtotal'] ?? 0).toDouble(),
