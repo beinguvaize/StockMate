@@ -7,6 +7,7 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
+import 'package:mobile_app/features/returns/presentation/purchase_return_form_screen.dart';
 
 class PurchaseDetailScreen extends ConsumerWidget {
   final Purchase purchase;
@@ -431,28 +432,64 @@ class PurchaseDetailScreen extends ConsumerWidget {
                       color: AppColors.primary,
                     ));
                   }
-                  if (actions.isEmpty) return const SizedBox.shrink();
-                  return Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: actions.map((a) => OutlinedButton.icon(
-                      icon: Icon(a.icon, size: 14, color: a.color),
-                      label: Text(
-                        a.label,
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: a.color,
+                  final upperStatus = purchase.status?.toUpperCase();
+                  final showReturn = upperStatus == null ||
+                      upperStatus == 'RECEIVED' ||
+                      upperStatus == 'COMPLETED';
+                  if (actions.isEmpty && !showReturn) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (actions.isNotEmpty)
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: actions.map((a) => OutlinedButton.icon(
+                            icon: Icon(a.icon, size: 14, color: a.color),
+                            label: Text(
+                              a.label,
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: a.color,
+                              ),
+                            ),
+                            style: OutlinedButton.styleFrom(
+                              backgroundColor: a.color.withValues(alpha: 0.08),
+                              side: BorderSide(color: a.color.withValues(alpha: 0.4), width: 1.2),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              shape: const StadiumBorder(),
+                            ),
+                            onPressed: () => _updateStatus(context, ref, a.target),
+                          )).toList(),
                         ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: a.color.withValues(alpha: 0.08),
-                        side: BorderSide(color: a.color.withValues(alpha: 0.4), width: 1.2),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                        shape: const StadiumBorder(),
-                      ),
-                      onPressed: () => _updateStatus(context, ref, a.target),
-                    )).toList(),
+                      if (showReturn) ...[
+                        if (actions.isNotEmpty) const SizedBox(height: 8),
+                        OutlinedButton.icon(
+                          icon: const Icon(LucideIcons.rotateCcw, size: 14, color: AppColors.danger),
+                          label: Text(
+                            'Process Return',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.danger,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            backgroundColor: AppColors.danger.withValues(alpha: 0.08),
+                            side: BorderSide(color: AppColors.danger.withValues(alpha: 0.4), width: 1.2),
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                            shape: const StadiumBorder(),
+                          ),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PurchaseReturnFormScreen(purchase: purchase),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
                   );
                 }),
               ]),

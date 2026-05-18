@@ -20,6 +20,8 @@ class Purchase {
   final String? status;        // PENDING / ORDERED / RECEIVED / CANCELLED
   final String? deliveryDate;
   final String? paymentType; // CASH / CREDIT / UDHAAR
+  final double quantity;
+  final String? linkedProductId;
 
   const Purchase({
     required this.id,
@@ -29,6 +31,8 @@ class Purchase {
     this.status,
     this.deliveryDate,
     this.paymentType,
+    this.quantity = 0,
+    this.linkedProductId,
   });
 
   factory Purchase.fromMap(Map<String, dynamic> m) => Purchase(
@@ -39,6 +43,8 @@ class Purchase {
         status: (m['status'] as String?)?.toUpperCase(),
         deliveryDate: m['delivery_date'] as String?,
         paymentType: m['payment_type'] as String?,
+        quantity: (m['quantity'] as num? ?? 0).toDouble(),
+        linkedProductId: m['linked_product_id'] as String?,
       );
 
   String get poNumber => 'PO-${id.substring(0, 8).toUpperCase()}';
@@ -53,7 +59,7 @@ final purchasesProvider =
     FutureProvider.family<List<Purchase>, String>((ref, tenantId) async {
   final data = await supabase
       .from('purchases')
-      .select('id, supplier_name, total_amount, date, payment_type, status')
+      .select('id, supplier_name, total_amount, date, payment_type, status, quantity, linked_product_id')
       .eq('tenant_id', tenantId)
       .order('date', ascending: false);
 
