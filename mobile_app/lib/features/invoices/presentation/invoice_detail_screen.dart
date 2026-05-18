@@ -669,10 +669,10 @@ class InvoiceDetailScreen extends ConsumerWidget {
 
   // ── PDF Builder ─────────────────────────────────────────────────────────────
 
-  // ─── POS Receipt PDF (80mm thermal — professional layout) ───────────────────
+  // ─── POS Receipt PDF (80mm thermal — standard receipt style) ────────────────
   Future<Uint8List> _buildPosReceiptPdf(BusinessProfile? biz) async {
-    final regular = await PdfGoogleFonts.notoSansRegular();
-    final bold    = await PdfGoogleFonts.notoSansBold();
+    final regular = await PdfGoogleFonts.robotoMonoRegular();
+    final bold    = await PdfGoogleFonts.robotoMonoBold();
     final theme   = pw.ThemeData.withFont(base: regular, bold: bold);
 
     final pdf   = pw.Document(theme: theme);
@@ -690,23 +690,22 @@ class InvoiceDetailScreen extends ConsumerWidget {
     final double balance    = (grandTotal - paidAmount).clamp(0, double.infinity);
 
     const ink    = PdfColors.black;
-    const subtle = PdfColor.fromInt(0xFF6B7280);
+    const subtle = PdfColor.fromInt(0xFF555555);
 
-    pw.Widget divider({double t = 0.5}) =>
-        pw.Divider(height: 6, thickness: t, color: const PdfColor.fromInt(0xFFCCCCCC));
+    // Dashed divider — authentic thermal receipt look
+    pw.Widget dashedLine() => pw.Divider(height: 8, thickness: 0.6, color: subtle);
+    pw.Widget solidLine() => pw.Divider(height: 8, thickness: 1.0, color: ink);
 
-    pw.Widget amtRow(String label, String value, {bool bold2 = false, double fs = 8}) =>
+    // Right-aligned amount row
+    pw.Widget amtRow(String label, String value, {bool isBold = false, double fs = 8}) =>
         pw.Padding(
           padding: const pw.EdgeInsets.symmetric(vertical: 1),
           child: pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text(label,
-                  style: bold2
-                      ? pw.TextStyle(fontSize: fs, fontWeight: pw.FontWeight.bold, color: ink)
-                      : pw.TextStyle(fontSize: fs, color: subtle)),
+              pw.Text(label, style: pw.TextStyle(fontSize: fs, color: isBold ? ink : subtle)),
               pw.Text(value,
-                  style: bold2
+                  style: isBold
                       ? pw.TextStyle(fontSize: fs, fontWeight: pw.FontWeight.bold, color: ink)
                       : pw.TextStyle(fontSize: fs, color: ink)),
             ],
@@ -720,7 +719,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.roll80.copyWith(
-          marginLeft: 10, marginRight: 10, marginTop: 12, marginBottom: 12,
+          marginLeft: 8, marginRight: 8, marginTop: 12, marginBottom: 16,
         ),
         build: (ctx) => pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.stretch,
@@ -729,192 +728,157 @@ class InvoiceDetailScreen extends ConsumerWidget {
             // ── Business header ──────────────────────────────────────────
             pw.Center(child: pw.Text(
               (biz?.name ?? 'YOUR BUSINESS').toUpperCase(),
-              style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: ink),
               textAlign: pw.TextAlign.center,
+              style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: ink),
             )),
-            pw.SizedBox(height: 3),
-            if (biz?.address?.isNotEmpty == true)
+            if (biz?.address?.isNotEmpty == true) ...[
+              pw.SizedBox(height: 2),
               pw.Center(child: pw.Text(biz!.address!,
                   textAlign: pw.TextAlign.center,
-                  style: pw.TextStyle(fontSize: 7.5, color: subtle))),
+                  style: pw.TextStyle(fontSize: 8, color: subtle))),
+            ],
             if (biz?.phone?.isNotEmpty == true)
-              pw.Center(child: pw.Text('Ph: ${biz!.phone!}',
-                  style: pw.TextStyle(fontSize: 7.5, color: subtle))),
+              pw.Center(child: pw.Text('(${biz!.phone!})',
+                  style: pw.TextStyle(fontSize: 8, color: subtle))),
             if (biz?.gstNo?.isNotEmpty == true) ...[
               pw.SizedBox(height: 1),
               pw.Center(child: pw.Text('GSTIN: ${biz!.gstNo!}',
-                  style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: ink))),
+                  style: pw.TextStyle(fontSize: 8, color: subtle))),
             ],
 
-            pw.SizedBox(height: 6),
+            dashedLine(),
 
-            // ── Document type banner ─────────────────────────────────────
-            pw.Container(
-              padding: const pw.EdgeInsets.symmetric(vertical: 4),
-              decoration: const pw.BoxDecoration(
-                border: pw.Border.symmetric(
-                  horizontal: pw.BorderSide(color: ink, width: 1),
-                ),
-              ),
-              child: pw.Center(child: pw.Text(
-                docLabel,
-                style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold,
-                    color: ink, letterSpacing: 2),
-              )),
-            ),
+            // ── Document type ────────────────────────────────────────────
+            pw.Center(child: pw.Text(docLabel,
+                style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: ink,
+                    letterSpacing: 1.5))),
 
-            pw.SizedBox(height: 6),
+            dashedLine(),
 
-            // ── Invoice meta ─────────────────────────────────────────────
+            // ── Meta: receipt# left, date right ─────────────────────────
             pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text(invoiceNo,
-                    style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink)),
+                pw.Text('Receipt #: $invoiceNo',
+                    style: pw.TextStyle(fontSize: 8, color: subtle)),
                 pw.Text(dateStr, style: pw.TextStyle(fontSize: 8, color: subtle)),
               ],
             ),
-
-            if (custName.isNotEmpty &&
-                custName != 'Walk-in Customer' &&
-                custName != 'Unknown') ...[
-              pw.SizedBox(height: 3),
+            if (custName.isNotEmpty && custName != 'Walk-in Customer' && custName != 'Unknown') ...[
+              pw.SizedBox(height: 2),
               pw.Row(children: [
-                pw.Text('To: ', style: pw.TextStyle(fontSize: 8, color: subtle)),
+                pw.Text('Bill To: ', style: pw.TextStyle(fontSize: 8, color: subtle)),
                 pw.Text(custName,
                     style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink)),
               ]),
             ],
 
-            pw.SizedBox(height: 6),
-            divider(t: 0.8),
+            dashedLine(),
 
             // ── Column headers ───────────────────────────────────────────
-            pw.Padding(
-              padding: const pw.EdgeInsets.symmetric(vertical: 3),
-              child: pw.Row(children: [
-                pw.Expanded(child: pw.Text('ITEM',
-                    style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: subtle))),
-                pw.SizedBox(width: 20, child: pw.Text('QTY',
-                    textAlign: pw.TextAlign.right,
-                    style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: subtle))),
-                pw.SizedBox(width: 44, child: pw.Text('RATE',
-                    textAlign: pw.TextAlign.right,
-                    style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: subtle))),
-                pw.SizedBox(width: 44, child: pw.Text('AMOUNT',
-                    textAlign: pw.TextAlign.right,
-                    style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold, color: subtle))),
-              ]),
-            ),
-            divider(),
+            pw.Row(children: [
+              pw.Expanded(child: pw.Text('Item',
+                  style: pw.TextStyle(fontSize: 8, color: subtle))),
+              pw.SizedBox(width: 22, child: pw.Text('Qty',
+                  textAlign: pw.TextAlign.right,
+                  style: pw.TextStyle(fontSize: 8, color: subtle))),
+              pw.SizedBox(width: 46, child: pw.Text('Price',
+                  textAlign: pw.TextAlign.right,
+                  style: pw.TextStyle(fontSize: 8, color: subtle))),
+              pw.SizedBox(width: 46, child: pw.Text('Amount',
+                  textAlign: pw.TextAlign.right,
+                  style: pw.TextStyle(fontSize: 8, color: subtle))),
+            ]),
+            dashedLine(),
 
-            // ── Items ────────────────────────────────────────────────────
+            // ── Items — single line per item ─────────────────────────────
             ...items.map((it) => pw.Padding(
-              padding: const pw.EdgeInsets.symmetric(vertical: 3),
-              child: pw.Column(
+              padding: const pw.EdgeInsets.symmetric(vertical: 2),
+              child: pw.Row(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Row(
+                  pw.Expanded(child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Expanded(child: pw.Text(it.name,
-                          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink))),
-                      pw.SizedBox(width: 20, child: pw.Text(it.qty.toString(),
-                          textAlign: pw.TextAlign.right,
-                          style: pw.TextStyle(fontSize: 8, color: ink))),
-                      pw.SizedBox(width: 44, child: pw.Text(_fmtAmount(it.price),
-                          textAlign: pw.TextAlign.right,
-                          style: pw.TextStyle(fontSize: 8, color: subtle))),
-                      pw.SizedBox(width: 44, child: pw.Text(_fmtAmount(it.lineTotal),
-                          textAlign: pw.TextAlign.right,
-                          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink))),
+                      pw.Text(it.name,
+                          style: pw.TextStyle(fontSize: 8, color: ink)),
+                      if (it.taxRate > 0)
+                        pw.Text('GST ${it.taxRate.toStringAsFixed(0)}%',
+                            style: pw.TextStyle(fontSize: 7, color: subtle)),
                     ],
-                  ),
-                  if (it.taxRate > 0)
-                    pw.Text('  GST ${it.taxRate.toStringAsFixed(0)}%',
-                        style: pw.TextStyle(fontSize: 7, color: subtle)),
+                  )),
+                  pw.SizedBox(width: 22, child: pw.Text(it.qty.toString(),
+                      textAlign: pw.TextAlign.right,
+                      style: pw.TextStyle(fontSize: 8, color: ink))),
+                  pw.SizedBox(width: 46, child: pw.Text(_fmtAmount(it.price),
+                      textAlign: pw.TextAlign.right,
+                      style: pw.TextStyle(fontSize: 8, color: subtle))),
+                  pw.SizedBox(width: 46, child: pw.Text(_fmtAmount(it.lineTotal),
+                      textAlign: pw.TextAlign.right,
+                      style: pw.TextStyle(fontSize: 8, color: ink))),
                 ],
               ),
             )),
 
-            divider(t: 0.8),
-            pw.SizedBox(height: 2),
+            dashedLine(),
 
             // ── Subtotal + tax ───────────────────────────────────────────
             amtRow('Subtotal', 'Rs.${_fmtAmount(subtotal)}'),
             if (totalTax > 0) ...[
-              amtRow('CGST', 'Rs.${_fmtAmount(totalTax / 2)}'),
-              amtRow('SGST', 'Rs.${_fmtAmount(totalTax / 2)}'),
+              amtRow('CGST (${(totalTax / subtotal * 50).toStringAsFixed(1)}%)',
+                  'Rs.${_fmtAmount(totalTax / 2)}'),
+              amtRow('SGST (${(totalTax / subtotal * 50).toStringAsFixed(1)}%)',
+                  'Rs.${_fmtAmount(totalTax / 2)}'),
             ],
 
-            pw.SizedBox(height: 4),
+            solidLine(),
 
             // ── Grand total ──────────────────────────────────────────────
-            pw.Container(
-              padding: const pw.EdgeInsets.symmetric(vertical: 5),
-              decoration: const pw.BoxDecoration(
-                border: pw.Border.symmetric(
-                  horizontal: pw.BorderSide(color: ink, width: 1),
-                ),
-              ),
-              child: pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('TOTAL',
-                      style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: ink)),
-                  pw.Text('Rs.${_fmtAmount(grandTotal)}',
-                      style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: ink)),
-                ],
-              ),
+            pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+              children: [
+                pw.Text('Total',
+                    style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: ink)),
+                pw.Text('Rs.${_fmtAmount(grandTotal)}',
+                    style: pw.TextStyle(fontSize: 13, fontWeight: pw.FontWeight.bold, color: ink)),
+              ],
             ),
 
-            pw.SizedBox(height: 4),
+            solidLine(),
 
             // ── Paid / balance ───────────────────────────────────────────
             if (isPartial || (paidAmount > 0 && !isPaid)) ...[
-              amtRow('Paid', 'Rs.${_fmtAmount(paidAmount)}', bold2: true),
-              amtRow('Balance Due', 'Rs.${_fmtAmount(balance)}', bold2: true, fs: 9),
-              pw.SizedBox(height: 4),
+              amtRow('Paid', 'Rs.${_fmtAmount(paidAmount)}', isBold: true),
+              amtRow('Balance Due', 'Rs.${_fmtAmount(balance)}', isBold: true, fs: 9),
+              dashedLine(),
             ],
 
-            // ── Payment status badge ─────────────────────────────────────
-            pw.Center(child: pw.Container(
-              padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 3),
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: isPaid
-                    ? const PdfColor.fromInt(0xFF16A34A)
-                    : const PdfColor.fromInt(0xFFDC2626), width: 0.8),
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(4)),
-              ),
-              child: pw.Text(
-                isPaid ? '✓  PAID' : 'PAYMENT DUE',
-                style: pw.TextStyle(
-                  fontSize: 9,
-                  fontWeight: pw.FontWeight.bold,
-                  color: isPaid
-                      ? const PdfColor.fromInt(0xFF16A34A)
-                      : const PdfColor.fromInt(0xFFDC2626),
-                  letterSpacing: 1.5,
-                ),
-              ),
-            )),
+            // ── Payment method ───────────────────────────────────────────
+            if (invoice.paymentMethod?.isNotEmpty == true) ...[
+              pw.Text('Payment Method:',
+                  style: pw.TextStyle(fontSize: 8, color: subtle)),
+              pw.SizedBox(height: 1),
+              pw.Text(invoice.paymentMethod!.toUpperCase(),
+                  style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink)),
+              dashedLine(),
+            ],
 
-            pw.SizedBox(height: 8),
-            divider(),
+            pw.SizedBox(height: 4),
 
             // ── Footer ───────────────────────────────────────────────────
             pw.Center(child: pw.Text(
-              biz?.footerMessage ?? 'Thank you for your business!',
+              biz?.footerMessage ?? 'Thank you for shopping with us!',
               textAlign: pw.TextAlign.center,
               style: pw.TextStyle(fontSize: 8, color: subtle),
             )),
             if (biz?.upiId?.isNotEmpty == true) ...[
               pw.SizedBox(height: 3),
-              pw.Center(child: pw.Text('Pay via UPI: ${biz!.upiId!}',
+              pw.Center(child: pw.Text('UPI: ${biz!.upiId!}',
                   style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink))),
             ],
+
             pw.SizedBox(height: 8),
-            divider(t: 0.3),
+            dashedLine(),
           ],
         ),
       ),
