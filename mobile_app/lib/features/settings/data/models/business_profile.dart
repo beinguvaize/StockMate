@@ -1,5 +1,5 @@
 class BusinessProfile {
-  final String id;
+  final String id; // maps to tenant_id (PK)
   final String? name;
   final String? address;
   final String? phone;
@@ -37,7 +37,7 @@ class BusinessProfile {
 
   factory BusinessProfile.fromJson(Map<String, dynamic> json) {
     return BusinessProfile(
-      id: json['id'] as String,
+      id: (json['tenant_id'] ?? json['id'] ?? '') as String,
       name: json['name'] as String?,
       address: json['address'] as String?,
       phone: json['phone'] as String?,
