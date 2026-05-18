@@ -1,12 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
+// Sub-report screens (built by parallel agents)
+import 'package:mobile_app/features/reports/presentation/sales_summary_screen.dart';
+import 'package:mobile_app/features/reports/presentation/ar_aging_screen.dart';
+import 'package:mobile_app/features/reports/presentation/ap_aging_screen.dart';
+import 'package:mobile_app/features/reports/presentation/inventory_report_screen.dart';
+import 'package:mobile_app/features/reports/presentation/expenses_report_screen.dart';
+import 'package:mobile_app/features/reports/presentation/purchases_report_screen.dart';
+import 'package:mobile_app/features/reports/presentation/gstr1_screen.dart';
+import 'package:mobile_app/features/reports/presentation/gstr3b_screen.dart';
+
+// ---------------------------------------------------------------------------
+// Internal summary provider (kept for overview KPIs)
+// ---------------------------------------------------------------------------
 class _ReportSummary {
   final double totalSales;
   final double totalExpenses;
@@ -65,6 +78,47 @@ final _reportSummaryProvider = FutureProvider.family<_ReportSummary,
   );
 });
 
+// ---------------------------------------------------------------------------
+// Hub item model
+// ---------------------------------------------------------------------------
+class _HubItem {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final Widget Function() screenBuilder;
+
+  const _HubItem(
+    this.title,
+    this.subtitle,
+    this.icon,
+    this.color,
+    this.screenBuilder,
+  );
+}
+
+final _reportHubItems = <_HubItem>[
+  _HubItem('Sales Summary', 'Revenue, COGS, margin by day',
+      LucideIcons.trendingUp, const Color(0xFF059669), () => const SalesSummaryScreen()),
+  _HubItem('AR Aging', 'Receivables by overdue bucket',
+      LucideIcons.users, const Color(0xFF2563EB), () => const ArAgingScreen()),
+  _HubItem('AP Aging', 'Payables to suppliers',
+      LucideIcons.truck, const Color(0xFF7C3AED), () => const ApAgingScreen()),
+  _HubItem('Inventory', 'Stock value + dead stock',
+      LucideIcons.package, const Color(0xFFF59E0B), () => const InventoryReportScreen()),
+  _HubItem('Expenses', 'Burn by category',
+      LucideIcons.receipt, const Color(0xFFDC2626), () => const ExpensesReportScreen()),
+  _HubItem('Purchases', 'Procurement by supplier',
+      LucideIcons.shoppingBag, const Color(0xFF0891B2), () => const PurchasesReportScreen()),
+  _HubItem('GSTR-1', 'Outward supplies',
+      LucideIcons.fileText, const Color(0xFF065F46), () => const Gstr1Screen()),
+  _HubItem('GSTR-3B', 'Monthly return summary',
+      LucideIcons.fileCheck, const Color(0xFF1E3A5F), () => const Gstr3bScreen()),
+];
+
+// ---------------------------------------------------------------------------
+// Main screen
+// ---------------------------------------------------------------------------
 class ReportsScreen extends ConsumerStatefulWidget {
   const ReportsScreen({super.key});
 
@@ -193,7 +247,9 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  // -------------------------------------------------------
                   // Net profit hero
+                  // -------------------------------------------------------
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
@@ -258,8 +314,11 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
                   const SizedBox(height: 24),
 
-                  // Section header
-                  _SectionHeader(title: 'BREAKDOWN', icon: LucideIcons.barChart2),
+                  // -------------------------------------------------------
+                  // Overview breakdown
+                  // -------------------------------------------------------
+                  _SectionHeader(
+                      title: 'BREAKDOWN', icon: LucideIcons.barChart2),
                   const SizedBox(height: 12),
 
                   _MetricCard(
@@ -288,20 +347,21 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
 
                   const SizedBox(height: 28),
 
-                  // GST section
-                  _SectionHeader(title: 'GST REPORTS', icon: LucideIcons.fileText),
+                  // -------------------------------------------------------
+                  // Report hub grid
+                  // -------------------------------------------------------
+                  _SectionHeader(
+                      title: 'DETAILED REPORTS', icon: LucideIcons.layoutGrid),
                   const SizedBox(height: 12),
-                  _GSTCard(
-                    type: 'GSTR-1',
-                    subtitle: 'Outward Supplies Report',
-                    color: AppColors.info,
-                  ),
-                  const SizedBox(height: 10),
-                  _GSTCard(
-                    type: 'GSTR-3B',
-                    subtitle: 'Monthly Return Summary',
-                    color: AppColors.secondary,
-                  ),
+
+                  ..._reportHubItems.map((item) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _HubCard(
+                          item: item,
+                          tenantId: ctx.tenantId,
+                          dateRange: _dateRange,
+                        ),
+                      )),
                 ],
               ),
             ),
@@ -319,6 +379,88 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Hub card widget
+// ---------------------------------------------------------------------------
+class _HubCard extends StatelessWidget {
+  final _HubItem item;
+  final String tenantId;
+  final DateTimeRange dateRange;
+
+  const _HubCard({
+    required this.item,
+    required this.tenantId,
+    required this.dateRange,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => item.screenBuilder()),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+          boxShadow: [AppColors.cardShadow],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: item.color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(item.icon, color: item.color, size: 20),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    style: GoogleFonts.hankenGrotesk(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: AppColors.inkPrimary,
+                    ),
+                  ),
+                  Text(
+                    item.subtitle,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: AppColors.inkSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: item.color.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child:
+                  Icon(LucideIcons.chevronRight, size: 16, color: item.color),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared helper widgets
+// ---------------------------------------------------------------------------
 class _MetricCard extends StatelessWidget {
   final String label;
   final String value;
@@ -386,96 +528,6 @@ class _MetricCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _GSTCard extends StatelessWidget {
-  final String type;
-  final String subtitle;
-  final Color color;
-
-  const _GSTCard({
-    required this.type,
-    required this.subtitle,
-    required this.color,
-  });
-
-  void _showGstrComingSoon(BuildContext context) {
-    showDialog<void>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('GSTR Export'),
-        content: const Text(
-          'GSTR export will be available in the next update. '
-          'For now, please use the web dashboard to download your GST reports.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => _showGstrComingSoon(context),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(LucideIcons.fileText, color: color, size: 20),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    type,
-                    style: GoogleFonts.hankenGrotesk(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 14,
-                      color: AppColors.inkPrimary,
-                    ),
-                  ),
-                  Text(
-                    subtitle,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      color: AppColors.inkSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.primaryContainer.withValues(alpha: 0.3),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(LucideIcons.download,
-                  size: 16, color: AppColors.primary),
-            ),
-          ],
-        ),
       ),
     );
   }
