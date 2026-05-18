@@ -1048,7 +1048,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                       child: pw.Column(
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
-                          _kvRow('Invoice No', '#${invoiceNo.replaceAll('#', '')}', subtle, ink),
+                          _kvRow('Invoice No', invoiceNo.replaceAll('#', ''), subtle, ink),
                           pw.SizedBox(height: 4),
                           _kvRow('Invoice Date', dateStr, subtle, ink),
                           pw.SizedBox(height: 4),
@@ -1086,13 +1086,28 @@ class InvoiceDetailScreen extends ConsumerWidget {
                           pw.Text(custName,
                               style: pw.TextStyle(fontSize: 12, fontWeight: pw.FontWeight.bold, color: ink)),
                           pw.SizedBox(height: 3),
-                          pw.RichText(
-                            text: pw.TextSpan(children: [
-                              pw.TextSpan(text: 'GSTIN: ', style: const pw.TextStyle(fontSize: 9, color: subtle)),
-                              pw.TextSpan(text: 'URD',
-                                  style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: ink)),
-                            ]),
-                          ),
+                          if (invoice.clientGstin != null && invoice.clientGstin!.isNotEmpty) ...[
+                            pw.RichText(
+                              text: pw.TextSpan(children: [
+                                pw.TextSpan(text: 'GSTIN: ', style: const pw.TextStyle(fontSize: 9, color: subtle)),
+                                pw.TextSpan(text: invoice.clientGstin!,
+                                    style: pw.TextStyle(fontSize: 9, fontWeight: pw.FontWeight.bold, color: ink)),
+                              ]),
+                            ),
+                          ] else ...[
+                            pw.Text('Unregistered Dealer',
+                                style: const pw.TextStyle(fontSize: 9, color: subtle)),
+                          ],
+                          if (invoice.clientAddress != null && invoice.clientAddress!.isNotEmpty) ...[
+                            pw.SizedBox(height: 2),
+                            pw.Text(invoice.clientAddress!,
+                                style: const pw.TextStyle(fontSize: 9, color: subtle)),
+                          ],
+                          if (invoice.clientPhone != null && invoice.clientPhone!.isNotEmpty) ...[
+                            pw.SizedBox(height: 2),
+                            pw.Text('Ph: ${invoice.clientPhone!}',
+                                style: const pw.TextStyle(fontSize: 9, color: subtle)),
+                          ],
                         ],
                       ),
                     ),
