@@ -4,7 +4,7 @@ import { useTenant } from '../context/TenantContext';
 import { supabase } from '../lib/supabase';
 import {
   Upload, Download, CheckCircle2, XCircle, AlertCircle,
-  Users, Package, Loader2, FileSpreadsheet, ChevronRight,
+  Users, Package, Truck, Loader2, FileSpreadsheet, ChevronRight,
 } from 'lucide-react';
 
 // ─── Column definitions ───────────────────────────────────────────────────────
@@ -19,6 +19,15 @@ const CLIENT_COLS = [
   { key: 'state_code',  label: 'State Code',  required: false, type: 'string' },
   { key: 'client_type', label: 'Client Type', required: false, type: 'string', note: 'B2B or B2C' },
   { key: 'credit_days', label: 'Credit Days', required: false, type: 'number' },
+];
+
+const SUPPLIER_COLS = [
+  { key: 'name',           label: 'Name',           required: true,  type: 'string' },
+  { key: 'contact_person', label: 'Contact Person',  required: false, type: 'string' },
+  { key: 'phone',          label: 'Phone',           required: false, type: 'string' },
+  { key: 'email',          label: 'Email',           required: false, type: 'string' },
+  { key: 'address',        label: 'Address',         required: false, type: 'string' },
+  { key: 'notes',          label: 'Notes',           required: false, type: 'string' },
 ];
 
 const PRODUCT_COLS = [
@@ -45,10 +54,12 @@ const generateId = () => {
 const buildTemplate = (cols, sheetName) => {
   const headers = cols.map(c => c.label);
   const example = cols.map(c => {
-    if (c.key === 'name') return sheetName === 'Clients' ? 'ABC Traders' : 'Premium Rice';
+    if (c.key === 'name') return sheetName === 'Clients' ? 'ABC Traders' : sheetName === 'Suppliers' ? 'Global Supplies Co.' : 'Premium Rice';
+    if (c.key === 'contact_person') return 'Ravi Kumar';
     if (c.key === 'phone') return '9876543210';
     if (c.key === 'email') return 'info@example.com';
     if (c.key === 'address') return '123 MG Road, Chennai';
+    if (c.key === 'notes') return 'Preferred vendor for grains';
     if (c.key === 'gstin') return '33AABCU9603R1ZX';
     if (c.key === 'state') return 'Tamil Nadu';
     if (c.key === 'state_code') return '33';
@@ -236,6 +247,21 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
         };
         const { error } = await supabase.from('clients').insert(payload);
         error ? failed++ : inserted++;
+      } else if (type === 'suppliers') {
+        payload = {
+          id,
+          tenant_id: tenantId,
+          name: String(row.name || '').trim(),
+          contact_person: String(row.contact_person || '').trim() || null,
+          phone: String(row.phone || '').trim() || null,
+          email: String(row.email || '').trim() || null,
+          address: String(row.address || '').trim() || null,
+          notes: String(row.notes || '').trim() || '',
+          created_at: new Date().toISOString(),
+        };
+        const { error } = await supabase.from('suppliers').insert(payload);
+        if (error) { console.error('Supplier import error:', error.message, payload); failed++; }
+        else inserted++;
       } else {
         payload = {
           id,
@@ -276,7 +302,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           <p className="text-xs text-blue-600 mt-0.5">Use this template to prepare your data</p>
         </div>
         <button
-          onClick={() => buildTemplate(cols, type === 'clients' ? 'Clients' : 'Products')}
+          onClick={() => buildTemplate(cols, type === 'clients' ? 'Clients' : type === 'suppliers' ? 'Suppliers' : 'Products')}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Download size={15} />
@@ -352,7 +378,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           >
             {status === 'importing'
               ? <><Loader2 size={16} className="animate-spin" /> Importing…</>
-              : <><Upload size={16} /> Import {validRows.length} {type === 'clients' ? 'Clients' : 'Products'}</>
+              : <><Upload size={16} /> Import {validRows.length} {type === 'clients' ? 'Clients' : type === 'suppliers' ? 'Suppliers' : 'Products'}</>
             }
           </button>
         </div>
@@ -398,8 +424,9 @@ export default function ImportData({ modal = false }) {
   const [tab, setTab] = useState('clients');
 
   const tabs = [
-    { key: 'clients',  label: 'Clients',  icon: <Users size={16} />,   cols: CLIENT_COLS  },
-    { key: 'products', label: 'Products', icon: <Package size={16} />, cols: PRODUCT_COLS },
+    { key: 'clients',   label: 'Clients',   icon: <Users size={16} />,   cols: CLIENT_COLS   },
+    { key: 'suppliers', label: 'Suppliers', icon: <Truck size={16} />,   cols: SUPPLIER_COLS },
+    { key: 'products',  label: 'Products',  icon: <Package size={16} />, cols: PRODUCT_COLS  },
   ];
 
   return (
