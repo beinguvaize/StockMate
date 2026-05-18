@@ -605,6 +605,18 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
               const SizedBox(height: 20),
 
               // ── KPI Cards ─────────────────────────────────────────
+              if (telemetryAsync.asData?.value.fromCache == true)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(LucideIcons.cloudOff, size: 12, color: Colors.orange.shade400),
+                      const SizedBox(width: 4),
+                      Text('Showing cached data', style: TextStyle(fontSize: 11, color: Colors.orange.shade400)),
+                    ],
+                  ),
+                ),
               telemetryAsync.when(
                 data: (m) => Column(
                   children: [
