@@ -774,49 +774,28 @@ class InvoiceDetailScreen extends ConsumerWidget {
               pw.SizedBox(height: 3),
               pw.Text(lineStr, style: const pw.TextStyle(fontSize: 8, color: ink)),
 
-              // Column headers
+              // Column headers — 18+4+9+9 = 40 chars fits 80mm roll at 8pt mono
               pw.Text(
-                '${pad("ITEM", 16)}${pad("QT", 4, right: true)}${pad("RATE", 6, right: true)}${pad("AMT", 6, right: true)}',
+                '${pad("ITEM", 18)}${pad("QT", 4, right: true)}${pad("RATE", 9, right: true)}${pad("AMT", 9, right: true)}',
                 style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink),
               ),
               pw.Text(lineStr, style: const pw.TextStyle(fontSize: 8, color: ink)),
 
-              // Items
+              // Items — same pad widths as header for perfect column alignment
               ...items.map((it) {
                 final amt = it.lineTotal;
+                final nameLine = it.name.length > 40 ? it.name.substring(0, 40) : it.name;
+                final dataLine =
+                    '${pad("", 18)}${pad(it.qty.toString(), 4, right: true)}${pad(fmt(it.price), 9, right: true)}${pad(fmt(amt), 9, right: true)}';
                 return pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text(it.name.length > 30 ? it.name.substring(0, 30) : it.name,
+                    pw.Text(nameLine,
                         style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink)),
-                    pw.Row(
-                      children: [
-                        pw.Expanded(
-                          child: pw.Text(
-                            it.taxRate > 0 ? 'GST ${it.taxRate.toStringAsFixed(0)}%' : '',
-                            style: const pw.TextStyle(fontSize: 7, color: muted),
-                          ),
-                        ),
-                        pw.SizedBox(
-                          width: 24,
-                          child: pw.Text(it.qty.toString(),
-                              textAlign: pw.TextAlign.right,
-                              style: const pw.TextStyle(fontSize: 8, color: ink)),
-                        ),
-                        pw.SizedBox(
-                          width: 36,
-                          child: pw.Text(fmt(it.price),
-                              textAlign: pw.TextAlign.right,
-                              style: const pw.TextStyle(fontSize: 8, color: ink)),
-                        ),
-                        pw.SizedBox(
-                          width: 40,
-                          child: pw.Text(fmt(amt),
-                              textAlign: pw.TextAlign.right,
-                              style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink)),
-                        ),
-                      ],
-                    ),
+                    pw.Text(dataLine, style: const pw.TextStyle(fontSize: 8, color: ink)),
+                    if (it.taxRate > 0)
+                      pw.Text('  GST ${it.taxRate.toStringAsFixed(0)}%',
+                          style: const pw.TextStyle(fontSize: 7, color: muted)),
                     pw.SizedBox(height: 1),
                   ],
                 );
@@ -825,65 +804,39 @@ class InvoiceDetailScreen extends ConsumerWidget {
               pw.Text(lineStr, style: const pw.TextStyle(fontSize: 8, color: ink)),
               pw.SizedBox(height: 1),
 
-              // Totals
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('Subtotal', style: const pw.TextStyle(fontSize: 8, color: ink)),
-                  pw.Text(fmt(subtotal),
-                      style: const pw.TextStyle(fontSize: 8, color: ink)),
-                ],
+              // Totals — all use pad() for consistent right-alignment
+              pw.Text(
+                '${pad("Subtotal", 22)}${pad(fmt(subtotal), 18, right: true)}',
+                style: const pw.TextStyle(fontSize: 8, color: ink),
               ),
               if (totalTax > 0) ...[
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('CGST', style: const pw.TextStyle(fontSize: 8, color: ink)),
-                    pw.Text(fmt(totalTax / 2),
-                        style: const pw.TextStyle(fontSize: 8, color: ink)),
-                  ],
+                pw.Text(
+                  '${pad("CGST", 22)}${pad(fmt(totalTax / 2), 18, right: true)}',
+                  style: const pw.TextStyle(fontSize: 8, color: ink),
                 ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('SGST', style: const pw.TextStyle(fontSize: 8, color: ink)),
-                    pw.Text(fmt(totalTax / 2),
-                        style: const pw.TextStyle(fontSize: 8, color: ink)),
-                  ],
+                pw.Text(
+                  '${pad("SGST", 22)}${pad(fmt(totalTax / 2), 18, right: true)}',
+                  style: const pw.TextStyle(fontSize: 8, color: ink),
                 ),
               ],
 
               pw.SizedBox(height: 2),
               pw.Text(dlineStr, style: const pw.TextStyle(fontSize: 8, color: ink)),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('TOTAL',
-                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: ink)),
-                  pw.Text('Rs.${fmt(grandTotal)}',
-                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: ink)),
-                ],
+              pw.Text(
+                '${pad("TOTAL", 22)}${pad("Rs.${fmt(grandTotal)}", 18, right: true)}',
+                style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: ink),
               ),
 
               if (paidAmount > 0 && !isPaid) ...[
                 pw.SizedBox(height: 2),
                 pw.Text(lineStr, style: const pw.TextStyle(fontSize: 8, color: ink)),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Paid', style: const pw.TextStyle(fontSize: 8, color: ink)),
-                    pw.Text(fmt(paidAmount),
-                        style: const pw.TextStyle(fontSize: 8, color: ink)),
-                  ],
+                pw.Text(
+                  '${pad("Paid", 22)}${pad(fmt(paidAmount), 18, right: true)}',
+                  style: const pw.TextStyle(fontSize: 8, color: ink),
                 ),
-                pw.Row(
-                  mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                  children: [
-                    pw.Text('Balance Due',
-                        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink)),
-                    pw.Text(fmt(balance),
-                        style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink)),
-                  ],
+                pw.Text(
+                  '${pad("Balance Due", 22)}${pad(fmt(balance), 18, right: true)}',
+                  style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold, color: ink),
                 ),
               ],
 
