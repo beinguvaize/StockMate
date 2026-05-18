@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/database/sync_status_pill.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart';
@@ -125,6 +126,12 @@ class _CRMScreenState extends ConsumerState<CRMScreen>
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      appBar: AppBar(
+        backgroundColor: AppColors.canvas,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        actions: const [SyncStatusPill()],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         heroTag: 'crm_fab',
         onPressed: _openAdd,

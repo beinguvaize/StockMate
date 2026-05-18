@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/database/sync_status_pill.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/hr/data/models/employee.dart';
 import 'package:mobile_app/features/hr/presentation/providers/hr_provider.dart';
@@ -46,6 +47,7 @@ class HRScreen extends ConsumerWidget {
               ),
             ],
           ),
+          actions: const [SyncStatusPill()],
           bottom: TabBar(
             indicatorColor: AppColors.primary,
             indicatorWeight: 2,

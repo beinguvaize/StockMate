@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/database/database.dart';
+import 'package:mobile_app/core/database/sync_status_pill.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
@@ -53,6 +54,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
+      appBar: AppBar(
+        backgroundColor: AppColors.canvas,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        actions: const [SyncStatusPill()],
+      ),
       floatingActionButton: FloatingActionButton(
         heroTag: null,
         onPressed: () => Navigator.push(
