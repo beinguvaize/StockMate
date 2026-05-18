@@ -283,7 +283,7 @@ class _InventoryBody extends StatelessWidget {
                             label: 'Projected Profit',
                             value: compactINR(projectedProfit),
                             color: const Color(0xFF0891B2),
-                            icon: LucideIcons.badgeIndianRupee,
+                            icon: LucideIcons.indianRupee,
                           ),
                         ),
                         const SizedBox(width: 12),

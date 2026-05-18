@@ -113,7 +113,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                 (inv.invoiceNumber ?? '').toLowerCase().contains(q);
             final matchDate = _dateRange == null ||
                 _withinRange(
-                  inv.invoiceDate ?? inv.createdAt?.toIso8601String()?.substring(0, 10),
+                  inv.invoiceDate ?? inv.createdAt?.toIso8601String().substring(0, 10),
                   _dateRange!,
                 );
             return matchFilter && matchSearch && matchDate;
