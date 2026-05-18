@@ -822,9 +822,14 @@ class InvoiceDetailScreen extends ConsumerWidget {
 
               pw.SizedBox(height: 2),
               pw.Text(dlineStr, style: const pw.TextStyle(fontSize: 8, color: ink)),
-              pw.Text(
-                '${pad("TOTAL", 22)}${pad("Rs.${fmt(grandTotal)}", 18, right: true)}',
-                style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: ink),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('TOTAL',
+                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: ink)),
+                  pw.Text('Rs.${fmt(grandTotal)}',
+                      style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold, color: ink)),
+                ],
               ),
 
               if (paidAmount > 0 && !isPaid) ...[
