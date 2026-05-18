@@ -324,6 +324,16 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                       color: AppColors.inkTertiary,
                                     ),
                                   ),
+                                  if (sale.date != null) ...[
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      _fmtDate(sale.date!),
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        color: AppColors.inkTertiary,
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
@@ -377,5 +387,16 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         ),
       ),
     );
+  }
+
+  static const _months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  String _fmtDate(String dateStr) {
+    try {
+      final d = DateTime.parse(dateStr);
+      return '${d.day} ${_months[d.month - 1]} ${d.year}';
+    } catch (_) {
+      return dateStr;
+    }
   }
 }
