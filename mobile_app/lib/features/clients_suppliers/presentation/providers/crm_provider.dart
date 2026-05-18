@@ -4,6 +4,7 @@ import 'package:drift/drift.dart' show OrderingTerm;
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
+import 'package:mobile_app/features/clients_suppliers/data/models/client_payment.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart';
 import 'package:mobile_app/main.dart' show databaseProvider;
 
@@ -73,4 +74,29 @@ final suppliersProvider = FutureProvider<List<Supplier>>((ref) async {
             }))
         .toList();
   }
+});
+
+final clientPaymentsProvider = FutureProvider<List<ClientPayment>>((ref) async {
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return [];
+  final response = await supabase
+      .from('client_payments')
+      .select()
+      .eq('tenant_id', ctx.tenantId)
+      .order('created_at', ascending: false)
+      .limit(500);
+  return (response as List).map((d) => ClientPayment.fromJson(d as Map<String, dynamic>)).toList();
+});
+
+final clientPaymentsForClientProvider =
+    FutureProvider.family<List<ClientPayment>, String>((ref, clientId) async {
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return [];
+  final response = await supabase
+      .from('client_payments')
+      .select()
+      .eq('client_id', clientId)
+      .eq('tenant_id', ctx.tenantId)
+      .order('date', ascending: true);
+  return (response as List).map((d) => ClientPayment.fromJson(d as Map<String, dynamic>)).toList();
 });

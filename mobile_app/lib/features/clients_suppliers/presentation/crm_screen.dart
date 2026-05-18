@@ -11,6 +11,10 @@ import 'package:mobile_app/features/clients_suppliers/presentation/add_supplier_
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/supplier_detail_screen.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/client_aging_screen.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/client_payments_screen.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/client_statement_sheet.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/client_settlement_screen.dart';
 
 // ─── Avatar colour cycling ────────────────────────────────────────────────────
 Color _avatarColor(String? name) {
@@ -506,6 +510,51 @@ class _ClientsTab extends ConsumerWidget {
 
         return Column(
           children: [
+            // ── Quick-access AR action chips ────────────────────────────────
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
+              child: Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ClientAgingScreen()),
+                    ),
+                    icon: const Icon(LucideIcons.calendarClock, size: 14),
+                    label: Text(
+                      'Aging Report',
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary, width: 1.2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const ClientPaymentsScreen()),
+                    ),
+                    icon: const Icon(LucideIcons.creditCard, size: 14),
+                    label: Text(
+                      'Payments',
+                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.secondary,
+                      side: BorderSide(color: AppColors.secondary, width: 1.2),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
+              ),
+            ),
             _SummaryRow(
               leftLabel: '${filtered.length} client${filtered.length == 1 ? '' : 's'}',
               rightLabel: totalBalance == 0
@@ -1051,6 +1100,62 @@ class _ClientDetailSheet extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                   ],
+
+                  // ── AR action buttons ───────────────────────────────────
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () {
+                            showModalBottomSheet(
+                              context: context,
+                              isScrollControlled: true,
+                              backgroundColor: Colors.transparent,
+                              builder: (_) => ClientStatementSheet(client: client),
+                            );
+                          },
+                          icon: const Icon(LucideIcons.bookOpen, size: 15),
+                          label: Text(
+                            'View Statement',
+                            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primary, width: 1.2),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => ClientSettlementScreen(client: client),
+                              ),
+                            );
+                          },
+                          icon: const Icon(LucideIcons.checkCircle2, size: 15),
+                          label: Text(
+                            'Settle Account',
+                            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            elevation: 0,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
