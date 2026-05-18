@@ -15,3 +15,14 @@ final employeesProvider = FutureProvider<List<Employee>>((ref) async {
 
   return (response as List).map((data) => Employee.fromJson(data)).toList();
 });
+
+final payrollRecordsProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return [];
+  final res = await supabase.from('payroll_records')
+      .select()
+      .eq('tenant_id', ctx.tenantId)
+      .order('paid_at', ascending: false)
+      .limit(200);
+  return (res as List).cast<Map<String, dynamic>>();
+});

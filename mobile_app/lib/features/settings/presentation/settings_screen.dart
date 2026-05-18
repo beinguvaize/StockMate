@@ -18,6 +18,13 @@ class SettingsScreen extends ConsumerStatefulWidget {
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _pushNotificationsEnabled = false;
 
+  Future<void> _updateProfileField(String column, dynamic value) async {
+    final tenantId = ref.read(tenantContextProvider).valueOrNull?.tenantId;
+    if (tenantId == null) return;
+    await supabase.from('business_profile').update({column: value}).eq('tenant_id', tenantId);
+    ref.invalidate(businessProfileProvider);
+  }
+
   void _openEditProfile(BusinessProfile profile) {
     showModalBottomSheet(
       context: context,
@@ -231,6 +238,122 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ],
                 ),
+              ),
+
+              const SizedBox(height: 24),
+
+              // ── Invoice template ─────────────────────────────────
+              profileAsync.when(
+                data: (profile) {
+                  if (profile == null) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryContainer.withValues(alpha: 0.3),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(LucideIcons.calculator, size: 14, color: AppColors.primary),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            'INVOICE TEMPLATE',
+                            style: GoogleFonts.jetBrainsMono(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.5,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [AppColors.cardShadow],
+                        ),
+                        child: Column(
+                          children: [
+                            _SettingRow(
+                              icon: LucideIcons.shieldCheck,
+                              iconColor: AppColors.primary,
+                              label: 'Show Business GSTIN',
+                              trailing: Switch(
+                                value: profile.showGstin ?? true,
+                                onChanged: (v) => _updateProfileField('show_gstin', v),
+                                activeThumbColor: AppColors.primary,
+                                activeTrackColor: AppColors.primaryContainer,
+                              ),
+                            ),
+                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
+                            _SettingRow(
+                              icon: LucideIcons.userCheck,
+                              iconColor: AppColors.secondary,
+                              label: 'Show Customer GSTIN',
+                              trailing: Switch(
+                                value: profile.showCustomerGstin ?? true,
+                                onChanged: (v) => _updateProfileField('show_customer_gstin', v),
+                                activeThumbColor: AppColors.primary,
+                                activeTrackColor: AppColors.primaryContainer,
+                              ),
+                            ),
+                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
+                            _SettingRow(
+                              icon: LucideIcons.percent,
+                              iconColor: AppColors.warning,
+                              label: 'Show Tax Breakdown',
+                              trailing: Switch(
+                                value: profile.showTaxBreakdown ?? true,
+                                onChanged: (v) => _updateProfileField('show_tax_breakdown', v),
+                                activeThumbColor: AppColors.primary,
+                                activeTrackColor: AppColors.primaryContainer,
+                              ),
+                            ),
+                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.inkTertiary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(LucideIcons.calculator, color: AppColors.inkTertiary, size: 18),
+                                  ),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Text(
+                                      'Tax Mode',
+                                      style: GoogleFonts.hankenGrotesk(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.inkPrimary,
+                                      ),
+                                    ),
+                                  ),
+                                  _TaxModePicker(
+                                    current: profile.taxMode ?? 'EXCLUSIVE',
+                                    onChanged: (v) => _updateProfileField('tax_mode', v),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+                loading: () => const SizedBox.shrink(),
+                error: (_, __) => const SizedBox.shrink(),
               ),
 
               const SizedBox(height: 32),
@@ -580,6 +703,52 @@ class _ProfileRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+// Tax mode pill picker
+// ─────────────────────────────────────────────────────────
+
+class _TaxModePicker extends StatelessWidget {
+  final String current;
+  final ValueChanged<String> onChanged;
+
+  const _TaxModePicker({required this.current, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: ['INCLUSIVE', 'EXCLUSIVE'].map((mode) {
+        final selected = current == mode;
+        return GestureDetector(
+          onTap: () => onChanged(mode),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            margin: const EdgeInsets.only(left: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: selected ? AppColors.primaryContainer : Colors.transparent,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: selected ? AppColors.primaryContainer : AppColors.outlineVariant,
+                width: 1.5,
+              ),
+            ),
+            child: Text(
+              mode,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.8,
+                color: selected ? AppColors.onPrimaryContainer : AppColors.inkTertiary,
+              ),
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/hr/data/models/employee.dart';
 import 'package:mobile_app/features/hr/presentation/providers/hr_provider.dart';
@@ -13,157 +14,227 @@ class HRScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final employeesAsync = ref.watch(employeesProvider);
-
-    return Scaffold(
-      backgroundColor: AppColors.canvas,
-      appBar: AppBar(
-        backgroundColor: AppColors.surface,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        iconTheme: const IconThemeData(color: AppColors.inkPrimary),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'HR & Payroll',
-              style: GoogleFonts.hankenGrotesk(
-                fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.5,
-                color: AppColors.inkPrimary,
-              ),
-            ),
-            Text(
-              'WORKFORCE MANAGEMENT',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-                color: AppColors.inkSecondary,
-                letterSpacing: 1.2,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: SafeArea(
-        child: employeesAsync.when(
-          data: (employees) {
-            final activeCount =
-                employees.where((e) => e.status == 'ACTIVE' || e.status == 'Active').length;
-            final totalPayroll = employees.fold<double>(
-              0,
-              (sum, e) => sum + (e.salary ?? 0),
-            );
-
-            return CustomScrollView(
-              slivers: [
-                // Stats row
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
-                    child: Row(
-                      children: [
-                        _StatCard(
-                          label: 'TOTAL STAFF',
-                          value: '${employees.length}',
-                          color: AppColors.primary,
-                        ),
-                        const SizedBox(width: 10),
-                        _StatCard(
-                          label: 'ACTIVE',
-                          value: '$activeCount',
-                          color: AppColors.success,
-                        ),
-                        const SizedBox(width: 10),
-                        _StatCard(
-                          label: 'MONTHLY PAYROLL',
-                          value: '₹${_formatCompact(totalPayroll)}',
-                          color: AppColors.secondary,
-                        ),
-                      ],
-                    ),
-                  ),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        backgroundColor: AppColors.canvas,
+        appBar: AppBar(
+          backgroundColor: AppColors.surface,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          iconTheme: const IconThemeData(color: AppColors.inkPrimary),
+          title: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'HR & Payroll',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.5,
+                  color: AppColors.inkPrimary,
                 ),
-
-                // Section header
-                SliverToBoxAdapter(
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
-                    child: Row(
-                      children: [
-                        const Icon(LucideIcons.users, size: 14, color: AppColors.primary),
-                        const SizedBox(width: 6),
-                        Text(
-                          'EMPLOYEES',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
-                            color: AppColors.primary,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+              ),
+              Text(
+                'WORKFORCE MANAGEMENT',
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 9,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.inkSecondary,
+                  letterSpacing: 1.2,
                 ),
-
-                // Employee list or empty state
-                if (employees.isEmpty)
-                  SliverFillRemaining(
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(LucideIcons.users,
-                              size: 48, color: AppColors.inkTertiary),
-                          const SizedBox(height: 12),
-                          Text(
-                            'No employees yet',
-                            style: GoogleFonts.inter(
-                              fontSize: 15,
-                              color: AppColors.inkSecondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
-                    sliver: SliverList(
-                      delegate: SliverChildBuilderDelegate(
-                        (context, index) {
-                          final employee = employees[index];
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 10),
-                            child: _EmployeeCard(employee: employee),
-                          );
-                        },
-                        childCount: employees.length,
-                      ),
-                    ),
-                  ),
-              ],
-            );
-          },
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (err, stack) => Center(
-            child: Text('Error: $err',
-                style: GoogleFonts.inter(color: AppColors.danger)),
+              ),
+            ],
+          ),
+          bottom: TabBar(
+            indicatorColor: AppColors.primary,
+            indicatorWeight: 2,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: AppColors.inkTertiary,
+            labelStyle: GoogleFonts.jetBrainsMono(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.5,
+            ),
+            unselectedLabelStyle: GoogleFonts.jetBrainsMono(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 1.5,
+            ),
+            tabs: const [
+              Tab(text: 'EMPLOYEES'),
+              Tab(text: 'HISTORY'),
+            ],
           ),
         ),
+        body: TabBarView(
+          children: [
+            _EmployeesTab(),
+            _PayrollHistoryTab(),
+          ],
+        ),
+        floatingActionButton: FloatingActionButton(
+          heroTag: null,
+          onPressed: () {
+            Navigator.push(
+                context, MaterialPageRoute(builder: (_) => const AddEmployeeScreen()));
+          },
+          backgroundColor: AppColors.primaryContainer,
+          shape: const StadiumBorder(),
+          child: const Icon(LucideIcons.userPlus, color: AppColors.inkPrimary),
+        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        onPressed: () {
-          Navigator.push(
-              context, MaterialPageRoute(builder: (_) => const AddEmployeeScreen()));
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 1 — Employees
+// ---------------------------------------------------------------------------
+class _EmployeesTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final employeesAsync = ref.watch(employeesProvider);
+
+    return SafeArea(
+      child: employeesAsync.when(
+        data: (employees) {
+          final activeCount =
+              employees.where((e) => e.status == 'ACTIVE' || e.status == 'Active').length;
+          final totalPayroll = employees.fold<double>(
+            0,
+            (sum, e) => sum + (e.salary ?? 0),
+          );
+
+          return CustomScrollView(
+            slivers: [
+              // Stats row
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                  child: Row(
+                    children: [
+                      _StatCard(
+                        label: 'TOTAL STAFF',
+                        value: '${employees.length}',
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 10),
+                      _StatCard(
+                        label: 'ACTIVE',
+                        value: '$activeCount',
+                        color: AppColors.success,
+                      ),
+                      const SizedBox(width: 10),
+                      _StatCard(
+                        label: 'MONTHLY PAYROLL',
+                        value: '₹${_formatCompact(totalPayroll)}',
+                        color: AppColors.secondary,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Section header with Process Payroll chip
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.users, size: 14, color: AppColors.primary),
+                      const SizedBox(width: 6),
+                      Text(
+                        'EMPLOYEES',
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.5,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => _openProcessPayroll(context, ref, employees),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryContainer.withValues(alpha: 0.6),
+                            borderRadius: BorderRadius.circular(100),
+                            border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(LucideIcons.play,
+                                  size: 11, color: AppColors.primary),
+                              const SizedBox(width: 5),
+                              Text(
+                                'PROCESS PAYROLL',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1.0,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Employee list or empty state
+              if (employees.isEmpty)
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(LucideIcons.users,
+                            size: 48, color: AppColors.inkTertiary),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No employees yet',
+                          style: GoogleFonts.inter(
+                            fontSize: 15,
+                            color: AppColors.inkSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 100),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) {
+                        final employee = employees[index];
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: _EmployeeCard(employee: employee),
+                        );
+                      },
+                      childCount: employees.length,
+                    ),
+                  ),
+                ),
+            ],
+          );
         },
-        backgroundColor: AppColors.primaryContainer,
-        shape: const StadiumBorder(),
-        child: const Icon(LucideIcons.userPlus, color: AppColors.inkPrimary),
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, stack) => Center(
+          child: Text('Error: $err',
+              style: GoogleFonts.inter(color: AppColors.danger)),
+        ),
       ),
     );
   }
@@ -175,6 +246,736 @@ class HRScreen extends ConsumerWidget {
       return '${(value / 1000).toStringAsFixed(1)}K';
     }
     return value.toStringAsFixed(0);
+  }
+
+  void _openProcessPayroll(
+      BuildContext context, WidgetRef ref, List<Employee> employees) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ProcessPayrollSheet(employees: employees, ref: ref),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Tab 2 — Payroll History
+// ---------------------------------------------------------------------------
+class _PayrollHistoryTab extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final payrollAsync = ref.watch(payrollRecordsProvider);
+    final employeesAsync = ref.watch(employeesProvider);
+
+    return SafeArea(
+      child: payrollAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(
+          child: Text('Error: $err',
+              style: GoogleFonts.inter(color: AppColors.danger)),
+        ),
+        data: (records) {
+          // Build employee name lookup map
+          final Map<String, String> empNames = {};
+          if (employeesAsync.hasValue) {
+            for (final emp in employeesAsync.value!) {
+              empNames[emp.id] = emp.name ?? 'Unknown';
+            }
+          }
+
+          if (records.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(LucideIcons.banknote,
+                      size: 48, color: AppColors.inkTertiary),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No payroll records yet.',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.inkSecondary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Run your first payroll.',
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: AppColors.inkTertiary,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            itemCount: records.length,
+            itemBuilder: (context, index) {
+              final record = records[index];
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _PayrollRecordCard(record: record, empNames: empNames),
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Payroll record card
+// ---------------------------------------------------------------------------
+class _PayrollRecordCard extends StatelessWidget {
+  final Map<String, dynamic> record;
+  final Map<String, String> empNames;
+
+  const _PayrollRecordCard({required this.record, required this.empNames});
+
+  String _formatPeriodDate(String? dateStr) {
+    if (dateStr == null) return '';
+    try {
+      final dt = DateTime.parse(dateStr);
+      const months = [
+        '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      return '${dt.day} ${months[dt.month]} ${dt.year}';
+    } catch (_) {
+      return dateStr;
+    }
+  }
+
+  String _relativeTime(String? isoStr) {
+    if (isoStr == null) return '';
+    try {
+      final dt = DateTime.parse(isoStr).toLocal();
+      final diff = DateTime.now().difference(dt);
+      if (diff.inSeconds < 60) return 'just now';
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      if (diff.inDays == 1) return '1 day ago';
+      if (diff.inDays < 30) return '${diff.inDays} days ago';
+      const months = [
+        '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      return '${dt.day} ${months[dt.month]} ${dt.year}';
+    } catch (_) {
+      return isoStr;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final employeeId = record['employee_id'] as String? ?? '';
+    final name = record['employee_name'] as String? ??
+        empNames[employeeId] ??
+        'Unknown';
+    final avatarLetter = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final netPay = (record['net_pay'] as num?)?.toDouble() ?? 0.0;
+    final status = (record['status'] as String? ?? 'PENDING').toUpperCase();
+    final periodStart = _formatPeriodDate(record['pay_period_start'] as String?);
+    final periodEnd = _formatPeriodDate(record['pay_period_end'] as String?);
+    final paidAt = _relativeTime(record['paid_at'] as String?);
+
+    final Color statusBg;
+    final Color statusFg;
+    final String statusLabel;
+    if (status == 'PAID') {
+      statusBg = AppColors.success.withValues(alpha: 0.12);
+      statusFg = AppColors.success;
+      statusLabel = 'PAID';
+    } else {
+      statusBg = AppColors.warning.withValues(alpha: 0.12);
+      statusFg = AppColors.warning;
+      statusLabel = 'PENDING';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+        boxShadow: [AppColors.cardShadow],
+      ),
+      child: Row(
+        children: [
+          // Avatar
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: AppColors.secondaryContainer,
+              shape: BoxShape.circle,
+            ),
+            alignment: Alignment.center,
+            child: Text(
+              avatarLetter,
+              style: GoogleFonts.hankenGrotesk(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: AppColors.secondary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+
+          // Details
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  name,
+                  style: GoogleFonts.hankenGrotesk(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.inkPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '$periodStart – $periodEnd',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    color: AppColors.inkSecondary,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: statusBg,
+                        borderRadius: BorderRadius.circular(100),
+                      ),
+                      child: Text(
+                        statusLabel,
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: statusFg,
+                        ),
+                      ),
+                    ),
+                    if (paidAt.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        paidAt,
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          color: AppColors.inkTertiary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(width: 10),
+
+          // Net pay
+          Text(
+            '₹${netPay.toStringAsFixed(2)}',
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.success,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Process Payroll bottom sheet
+// ---------------------------------------------------------------------------
+class _ProcessPayrollSheet extends StatefulWidget {
+  final List<Employee> employees;
+  final WidgetRef ref;
+
+  const _ProcessPayrollSheet({required this.employees, required this.ref});
+
+  @override
+  State<_ProcessPayrollSheet> createState() => _ProcessPayrollSheetState();
+}
+
+class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
+  int _month = DateTime.now().month;
+  int _year = DateTime.now().year;
+  bool _isRunning = false;
+
+  late final List<_EmpPayEntry> _entries;
+
+  WidgetRef get ref => widget.ref;
+
+  static const _monthNames = [
+    '', 'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _entries = widget.employees
+        .where((e) =>
+            e.status == 'ACTIVE' || e.status == 'Active')
+        .map((e) => _EmpPayEntry(
+              employee: e,
+              basePayCtrl:
+                  TextEditingController(text: (e.salary ?? 0).toStringAsFixed(0)),
+              bonusCtrl: TextEditingController(text: '0'),
+              deductionsCtrl: TextEditingController(text: '0'),
+            ))
+        .toList();
+    for (final entry in _entries) {
+      entry.basePayCtrl.addListener(() => setState(() {}));
+      entry.bonusCtrl.addListener(() => setState(() {}));
+      entry.deductionsCtrl.addListener(() => setState(() {}));
+    }
+  }
+
+  @override
+  void dispose() {
+    for (final e in _entries) {
+      e.basePayCtrl.dispose();
+      e.bonusCtrl.dispose();
+      e.deductionsCtrl.dispose();
+    }
+    super.dispose();
+  }
+
+  void _prevMonth() {
+    setState(() {
+      if (_month == 1) {
+        _month = 12;
+        _year -= 1;
+      } else {
+        _month -= 1;
+      }
+    });
+  }
+
+  void _nextMonth() {
+    setState(() {
+      if (_month == 12) {
+        _month = 1;
+        _year += 1;
+      } else {
+        _month += 1;
+      }
+    });
+  }
+
+  double _net(_EmpPayEntry entry) {
+    final base = double.tryParse(entry.basePayCtrl.text) ?? 0;
+    final bonus = double.tryParse(entry.bonusCtrl.text) ?? 0;
+    final deductions = double.tryParse(entry.deductionsCtrl.text) ?? 0;
+    return base + bonus - deductions;
+  }
+
+  Future<void> _runPayroll() async {
+    setState(() => _isRunning = true);
+    try {
+      final ctx = await ref.read(tenantContextProvider.future);
+      if (ctx == null) throw Exception('Not authenticated');
+      final tenantId = ctx.tenantId;
+
+      final now = DateTime.now();
+      final monthStr =
+          '$_year-${_month.toString().padLeft(2, '0')}';
+      final lastDay = DateTime(_year, _month + 1, 0).day;
+
+      for (final entry in _entries) {
+        final emp = entry.employee;
+        final basePay = double.tryParse(entry.basePayCtrl.text) ?? 0;
+        final bonus = double.tryParse(entry.bonusCtrl.text) ?? 0;
+        final deductions = double.tryParse(entry.deductionsCtrl.text) ?? 0;
+        final netPay = basePay + bonus - deductions;
+
+        await supabase.from('payroll_records').insert({
+          'id': 'PR-${now.millisecondsSinceEpoch}-${emp.id.substring(0, 6)}',
+          'tenant_id': tenantId,
+          'employee_id': emp.id,
+          'employee_name': emp.name,
+          'pay_period_start': '$monthStr-01',
+          'pay_period_end': '$monthStr-$lastDay',
+          'base_pay': basePay,
+          'bonus': bonus,
+          'deductions': deductions,
+          'net_pay': netPay,
+          'status': 'PAID',
+          'paid_at': now.toIso8601String(),
+        });
+      }
+
+      ref.invalidate(payrollRecordsProvider);
+      ref.invalidate(employeesProvider);
+
+      if (!mounted) return;
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Payroll processed for ${_entries.length} employees',
+            style: GoogleFonts.inter(color: AppColors.inkPrimary),
+          ),
+          backgroundColor: AppColors.primaryContainer,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isRunning = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e',
+                style: GoogleFonts.inter(color: Colors.white)),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.88,
+      ),
+      decoration: const BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Drag handle
+          const SizedBox(height: 12),
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.inkTertiary.withValues(alpha: 0.3),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Title
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              children: [
+                const Icon(LucideIcons.banknote,
+                    size: 20, color: AppColors.primary),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Process Payroll',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.inkPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    Text(
+                      'Run payroll for all active employees',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.inkSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // Month selector
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+              decoration: BoxDecoration(
+                color: AppColors.canvas,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  IconButton(
+                    icon: const Icon(LucideIcons.chevronLeft,
+                        size: 18, color: AppColors.inkSecondary),
+                    onPressed: _prevMonth,
+                    splashRadius: 20,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '${_monthNames[_month]} $_year',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.inkPrimary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(LucideIcons.chevronRight,
+                        size: 18, color: AppColors.inkSecondary),
+                    onPressed: _nextMonth,
+                    splashRadius: 20,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Employee entries
+          if (_entries.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              child: Text(
+                'No active employees found.',
+                style: GoogleFonts.inter(
+                    fontSize: 14, color: AppColors.inkSecondary),
+              ),
+            )
+          else
+            Flexible(
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                itemCount: _entries.length,
+                itemBuilder: (context, index) {
+                  final entry = _entries[index];
+                  final net = _net(entry);
+                  final name = entry.employee.name ?? 'Unknown';
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.canvas,
+                      borderRadius: BorderRadius.circular(16),
+                      border:
+                          Border.all(color: Colors.black.withValues(alpha: 0.06)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: const BoxDecoration(
+                                color: AppColors.secondaryContainer,
+                                shape: BoxShape.circle,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.secondary,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                name,
+                                style: GoogleFonts.hankenGrotesk(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.inkPrimary,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              'Net: ₹${net.toStringAsFixed(2)}',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.success,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _PayField(
+                                label: 'Base Pay',
+                                controller: entry.basePayCtrl,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _PayField(
+                                label: 'Bonus',
+                                controller: entry.bonusCtrl,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _PayField(
+                                label: 'Deductions',
+                                controller: entry.deductionsCtrl,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+
+          const SizedBox(height: 16),
+
+          // Run Payroll button
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: SizedBox(
+              width: double.infinity,
+              child: Material(
+                color: AppColors.primary,
+                borderRadius: BorderRadius.circular(14),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(14),
+                  onTap: (_isRunning || _entries.isEmpty) ? null : _runPayroll,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    child: Center(
+                      child: _isRunning
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                color: Colors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(LucideIcons.play,
+                                    size: 16, color: Colors.white),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'RUN PAYROLL',
+                                  style: GoogleFonts.jetBrainsMono(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w700,
+                                    letterSpacing: 1.0,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmpPayEntry {
+  final Employee employee;
+  final TextEditingController basePayCtrl;
+  final TextEditingController bonusCtrl;
+  final TextEditingController deductionsCtrl;
+
+  _EmpPayEntry({
+    required this.employee,
+    required this.basePayCtrl,
+    required this.bonusCtrl,
+    required this.deductionsCtrl,
+  });
+}
+
+class _PayField extends StatelessWidget {
+  final String label;
+  final TextEditingController controller;
+
+  const _PayField({required this.label, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      style: GoogleFonts.jetBrainsMono(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: AppColors.inkPrimary,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.inter(
+          fontSize: 11,
+          color: AppColors.inkTertiary,
+        ),
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide:
+              BorderSide(color: Colors.black.withValues(alpha: 0.1)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide:
+              BorderSide(color: Colors.black.withValues(alpha: 0.1)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(10),
+          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+        ),
+        filled: true,
+        fillColor: AppColors.surface,
+      ),
+    );
   }
 }
 
@@ -330,7 +1131,8 @@ class _EmployeeCard extends ConsumerWidget {
                     const SizedBox(height: 6),
                     // Status badge pill
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
+                      padding:
+                          const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                       decoration: BoxDecoration(
                         color: statusBg,
                         borderRadius: BorderRadius.circular(100),
@@ -661,7 +1463,8 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
                     icon: LucideIcons.alertCircle,
                     label: 'Outstanding',
                     value: _formatCurrency(outstanding),
-                    valueColor: outstanding > 0 ? AppColors.danger : AppColors.success,
+                    valueColor:
+                        outstanding > 0 ? AppColors.danger : AppColors.success,
                   ),
                 ],
               ),
@@ -691,7 +1494,8 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
                 _ActionButton(
                   label: 'EDIT EMPLOYEE',
                   icon: LucideIcons.pencil,
-                  backgroundColor: AppColors.primaryContainer.withValues(alpha: 0.5),
+                  backgroundColor:
+                      AppColors.primaryContainer.withValues(alpha: 0.5),
                   foregroundColor: AppColors.primary,
                   onTap: () {
                     Navigator.pop(context); // close sheet first

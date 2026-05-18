@@ -85,6 +85,10 @@ class Client {
       'shipping_address': shippingAddress,
       'state': state,
       'state_code': stateCode,
+      'pin_code': pinCode,
+      'client_type': clientType,
+      'price_tier': priceTier,
+      'credit_days': creditDays,
     };
   }
 }
