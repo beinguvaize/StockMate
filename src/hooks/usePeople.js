@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import { generateUUID } from '../lib/utils';
@@ -30,13 +30,14 @@ export const usePeople = (tenantId) => {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const initialLoadDone = useRef(false);
 
   const fetchPeopleData = useCallback(async () => {
     if (!tenantId) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!initialLoadDone.current) setLoading(true);
     try {
       const [
         { data: cliData, error: cliErr },
@@ -64,10 +65,12 @@ export const usePeople = (tenantId) => {
       setError(err.message);
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   }, [tenantId]);
 
   useEffect(() => {
+    initialLoadDone.current = false;
     fetchPeopleData();
   }, [fetchPeopleData]);
 

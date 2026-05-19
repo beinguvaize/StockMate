@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
@@ -15,10 +15,11 @@ export const useFinance = (tenantId) => {
   const [purchases,       setPurchases]      = useState([]);
   const [loading,         setLoading]        = useState(true);
   const [error,           setError]          = useState(null);
+  const initialLoadDone = useRef(false);
 
   const fetchFinanceData = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
-    setLoading(true);
+    if (!initialLoadDone.current) setLoading(true);
     try {
       const [
         { data: expData,  error: expErr  },
@@ -58,10 +59,11 @@ export const useFinance = (tenantId) => {
       setError(err.message);
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   }, [tenantId]);
 
-  useEffect(() => { fetchFinanceData(); }, [fetchFinanceData]);
+  useEffect(() => { initialLoadDone.current = false; fetchFinanceData(); }, [fetchFinanceData]);
 
   useRefetchOnFocus(fetchFinanceData);
 

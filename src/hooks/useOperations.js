@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 
@@ -12,10 +12,12 @@ export const useOperations = (tenantId) => {
   const [deliveryInvoices, setDeliveryInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error,   setError]   = useState(null);
+  const tabId = useRef(Math.random().toString(36).slice(2, 8));
+  const initialLoadDone = useRef(false);
 
   const fetchOperationsData = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
-    setLoading(true);
+    if (!initialLoadDone.current) setLoading(true);
     try {
       const [
         { data: rtData,  error: rtErr  },
@@ -52,10 +54,11 @@ export const useOperations = (tenantId) => {
       setError(err.message);
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   }, [tenantId]);
 
-  useEffect(() => { fetchOperationsData(); }, [fetchOperationsData]);
+  useEffect(() => { initialLoadDone.current = false; fetchOperationsData(); }, [fetchOperationsData]);
 
   // ── Realtime subscriptions ───────────────────────────────────────────
   // Re-fetch whenever routes, route_stops, or inventory_balances change.
@@ -65,7 +68,7 @@ export const useOperations = (tenantId) => {
     if (!tenantId) return;
 
     const channel = supabase
-      .channel(`ops-realtime-${tenantId}`)
+      .channel(`ops-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'routes',
         filter: `tenant_id=eq.${tenantId}`,

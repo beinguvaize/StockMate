@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { generateRef, todayISOInAppTZ } from '../lib/utils';
@@ -27,13 +27,15 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const tabId = useRef(Math.random().toString(36).slice(2, 8));
+  const initialLoadDone = useRef(false);
 
   const fetchSales = useCallback(async () => {
     if (!tenantId) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!initialLoadDone.current) setLoading(true);
     setError(null);
     try {
       const [
@@ -58,10 +60,11 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       setError(err.message);
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   }, [tenantId]);
 
-  useEffect(() => { fetchSales(); }, [fetchSales]);
+  useEffect(() => { initialLoadDone.current = false; fetchSales(); }, [fetchSales]);
 
   // Re-fetch when tab becomes visible after idle (handles stale data after lock-screen / sleep)
   useRefetchOnFocus(fetchSales);
@@ -70,7 +73,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
   useEffect(() => {
     if (!tenantId) return;
     const channel = supabase
-      .channel(`sales-realtime-${tenantId}`)
+      .channel(`sales-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'invoices',
         filter: `tenant_id=eq.${tenantId}`,

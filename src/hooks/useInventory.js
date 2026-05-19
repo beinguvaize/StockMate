@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
@@ -28,14 +28,16 @@ export const useInventory = (tenantId) => {
   const [error, setError] = useState(null);
 
   const MAIN_WAREHOUSE_ID = 'MAIN-WH';
+  const tabId = useRef(Math.random().toString(36).slice(2, 8));
+  const initialLoadDone = useRef(false);
 
   const fetchInventory = useCallback(async () => {
     if (!tenantId) {
       setLoading(false);
       return;
     }
-    
-    setLoading(true);
+
+    if (!initialLoadDone.current) setLoading(true);
     setError(null);
     try {
       const [
@@ -64,10 +66,12 @@ export const useInventory = (tenantId) => {
       setError(err.message);
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   }, [tenantId]);
 
   useEffect(() => {
+    initialLoadDone.current = false;
     fetchInventory();
   }, [fetchInventory]);
 
@@ -85,7 +89,7 @@ export const useInventory = (tenantId) => {
   useEffect(() => {
     if (!tenantId) return;
     const channel = supabase
-      .channel(`inventory-realtime-${tenantId}`)
+      .channel(`inventory-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'products',
         filter: `tenant_id=eq.${tenantId}`,

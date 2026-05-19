@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
@@ -16,10 +16,12 @@ export const useOrders = (tenantId) => {
   const [priceLists, setPriceLists] = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [error,      setError]      = useState(null);
+  const tabId = useRef(Math.random().toString(36).slice(2, 8));
+  const initialLoadDone = useRef(false);
 
   const fetchOrders = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
-    setLoading(true);
+    if (!initialLoadDone.current) setLoading(true);
     try {
       const [
         { data: ordData, error: ordErr },
@@ -48,10 +50,11 @@ export const useOrders = (tenantId) => {
       setError(err.message);
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   }, [tenantId]);
 
-  useEffect(() => { fetchOrders(); }, [fetchOrders]);
+  useEffect(() => { initialLoadDone.current = false; fetchOrders(); }, [fetchOrders]);
 
   useRefetchOnFocus(fetchOrders);
 
@@ -59,7 +62,7 @@ export const useOrders = (tenantId) => {
   useEffect(() => {
     if (!tenantId) return;
     const channel = supabase
-      .channel(`orders-realtime-${tenantId}`)
+      .channel(`orders-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'orders',
         filter: `tenant_id=eq.${tenantId}`,

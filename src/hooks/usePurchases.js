@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
@@ -13,13 +13,15 @@ export const usePurchases = (tenantId) => {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const tabId = useRef(Math.random().toString(36).slice(2, 8));
+  const initialLoadDone = useRef(false);
 
   const fetchPurchases = useCallback(async () => {
     if (!tenantId) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!initialLoadDone.current) setLoading(true);
     setError(null);
     try {
       const [
@@ -44,10 +46,12 @@ export const usePurchases = (tenantId) => {
       setError(err.message);
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   }, [tenantId]);
 
   useEffect(() => {
+    initialLoadDone.current = false;
     fetchPurchases();
   }, [fetchPurchases]);
 
@@ -64,7 +68,7 @@ export const usePurchases = (tenantId) => {
   useEffect(() => {
     if (!tenantId) return;
     const channel = supabase
-      .channel(`purchases-realtime-${tenantId}`)
+      .channel(`purchases-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'purchases',
         filter: `tenant_id=eq.${tenantId}`,

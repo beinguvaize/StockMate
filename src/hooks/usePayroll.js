@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
@@ -29,13 +29,14 @@ export const usePayroll = (tenantId) => {
   const [payrollRecords, setPayrollRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const initialLoadDone = useRef(false);
 
   const fetchPayrollData = useCallback(async () => {
     if (!tenantId) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!initialLoadDone.current) setLoading(true);
     try {
       const [
         { data: empData, error: empErr },
@@ -55,10 +56,12 @@ export const usePayroll = (tenantId) => {
       setError(err.message);
     } finally {
       setLoading(false);
+      initialLoadDone.current = true;
     }
   }, [tenantId]);
 
   useEffect(() => {
+    initialLoadDone.current = false;
     fetchPayrollData();
   }, [fetchPayrollData]);
 
