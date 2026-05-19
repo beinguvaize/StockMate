@@ -29,6 +29,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
   const [error, setError] = useState(null);
   const tabId = useRef(Math.random().toString(36).slice(2, 8));
   const initialLoadDone = useRef(false);
+  const fetchRef = useRef(null);
 
   const fetchSales = useCallback(async () => {
     if (!tenantId) {
@@ -64,7 +65,9 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     }
   }, [tenantId]);
 
-  useEffect(() => { initialLoadDone.current = false; fetchSales(); }, [fetchSales]);
+  fetchRef.current = fetchSales;
+
+  useEffect(() => { initialLoadDone.current = false; fetchRef.current?.(); }, [tenantId]);
 
   // Re-fetch when tab becomes visible after idle (handles stale data after lock-screen / sleep)
   useRefetchOnFocus(fetchSales);
@@ -77,14 +80,14 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'invoices',
         filter: `tenant_id=eq.${tenantId}`,
-      }, fetchSales)
+      }, () => fetchRef.current?.())
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'sales',
         filter: `tenant_id=eq.${tenantId}`,
-      }, fetchSales)
+      }, () => fetchRef.current?.())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [tenantId, fetchSales]);
+  }, [tenantId]);
 
   // Deprecated in favor of placeSale() returned below, which matches the
   // actual process_sale RPC signature. Kept to preserve the update/remove

@@ -15,6 +15,7 @@ export const usePurchases = (tenantId) => {
   const [error, setError] = useState(null);
   const tabId = useRef(Math.random().toString(36).slice(2, 8));
   const initialLoadDone = useRef(false);
+  const fetchRef = useRef(null);
 
   const fetchPurchases = useCallback(async () => {
     if (!tenantId) {
@@ -50,19 +51,21 @@ export const usePurchases = (tenantId) => {
     }
   }, [tenantId]);
 
+  fetchRef.current = fetchPurchases;
+
   useEffect(() => {
     initialLoadDone.current = false;
-    fetchPurchases();
-  }, [fetchPurchases]);
+    fetchRef.current?.();
+  }, [tenantId]);
 
   useRefetchOnFocus(fetchPurchases);
 
   // Auto-retry once after 4 s if initial fetch fails (handles DB cold-start)
   useEffect(() => {
     if (!error) return;
-    const t = setTimeout(() => { fetchPurchases(); }, 4000);
+    const t = setTimeout(() => { fetchRef.current?.(); }, 4000);
     return () => clearTimeout(t);
-  }, [error, fetchPurchases]);
+  }, [error]);
 
   // ── Realtime — purchases + purchase_returns ───────────────────────────
   useEffect(() => {
@@ -72,14 +75,14 @@ export const usePurchases = (tenantId) => {
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'purchases',
         filter: `tenant_id=eq.${tenantId}`,
-      }, fetchPurchases)
+      }, () => fetchRef.current?.())
       .on('postgres_changes', {
         event: 'INSERT', schema: 'public', table: 'purchase_returns',
         filter: `tenant_id=eq.${tenantId}`,
-      }, fetchPurchases)
+      }, () => fetchRef.current?.())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [tenantId, fetchPurchases]);
+  }, [tenantId]);
 
   const add = async (purchase) => {
     const { error: rpcError } = await supabase.rpc('process_purchase', {

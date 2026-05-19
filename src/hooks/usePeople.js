@@ -31,6 +31,7 @@ export const usePeople = (tenantId) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const initialLoadDone = useRef(false);
+  const fetchRef = useRef(null);
 
   const fetchPeopleData = useCallback(async () => {
     if (!tenantId) {
@@ -69,10 +70,12 @@ export const usePeople = (tenantId) => {
     }
   }, [tenantId]);
 
+  fetchRef.current = fetchPeopleData;
+
   useEffect(() => {
     initialLoadDone.current = false;
-    fetchPeopleData();
-  }, [fetchPeopleData]);
+    fetchRef.current?.();
+  }, [tenantId]);
 
   const addSupplier = async (supplier) => {
     const id = supplier.id || generateUUID();

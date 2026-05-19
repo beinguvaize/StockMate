@@ -27,6 +27,64 @@ import {
  Legend
 } from 'recharts';
 
+// ── Memoized chart sub-components (outside Dashboard to avoid re-instantiation) ─────
+const WeeklySalesBarChart = React.memo(({ data, currencySymbol }) => (
+  <ResponsiveContainer width="100%" height="100%">
+    <BarChart data={data} margin={{ top: 20, right: 10, left: -20, bottom: 0}}>
+      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 700}} />
+      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `${currencySymbol}${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
+      <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
+      <Bar dataKey="value" fill="#2563EB" radius={[4, 4, 0, 0]} barSize={32} />
+    </BarChart>
+  </ResponsiveContainer>
+));
+
+const MonthlyComparisonAreaChart = React.memo(({ data, currencySymbol }) => (
+  <ResponsiveContainer width="100%" height="100%">
+    <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0}}>
+      <defs>
+        <linearGradient id="fillThisMonth" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="5%" stopColor="#2563EB" stopOpacity={0.2}/>
+          <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
+        </linearGradient>
+      </defs>
+      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
+      <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} />
+      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `${currencySymbol}${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
+      <RechartsTooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
+      <Area type="monotone" dataKey="thisMonth" name="This Month" stroke="#2563EB" strokeWidth={2} fillOpacity={1} fill="url(#fillThisMonth)" />
+      <Area type="monotone" dataKey="lastMonth" name="Last Month" stroke="#94A3B8" strokeWidth={2} strokeDasharray="5 5" fill="none" />
+    </AreaChart>
+  </ResponsiveContainer>
+));
+
+const PaymentBreakdownPieChart = React.memo(({ data, total, currencySymbol }) => (
+  <ResponsiveContainer width="100%" height="100%">
+    <PieChart>
+      <Pie data={data} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={2} dataKey="value" stroke="none">
+        {data.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
+      </Pie>
+      <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" className="text-xs font-semibold text-gray-700 opacity-[0.85]">Total</text>
+      <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" className="text-xl font-semibold text-ink-primary">{currencySymbol}{total.toLocaleString()}</text>
+      <RechartsTooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} formatter={(value) => `${currencySymbol}${value.toLocaleString()}`} />
+      <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold'}} />
+    </PieChart>
+  </ResponsiveContainer>
+));
+
+const ExpenseCategoryBarChart = React.memo(({ data, currencySymbol }) => (
+  <ResponsiveContainer width="100%" height="100%">
+    <BarChart data={data} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0}}>
+      <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="rgba(0,0,0,0.05)" />
+      <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `${currencySymbol}${val > 999 ? (val/1000).toFixed(0) + 'k' : val}`} />
+      <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#1F2937', fontSize: 11, fontWeight: 700}} width={120} />
+      <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} formatter={(value) => `${currencySymbol}${value.toLocaleString()}`} />
+      <Bar dataKey="value" fill="#EF4444" radius={[0, 4, 4, 0]} barSize={24} />
+    </BarChart>
+  </ResponsiveContainer>
+));
+
 const Dashboard = () => {
   const { currentTenant, currentTenantId, businessProfile } = useTenant();
   const slug = currentTenant?.slug || '';
@@ -606,15 +664,7 @@ const Dashboard = () => {
  <span className="text-sm font-bold">No Sales Data for This Week</span>
  </div>
  ) : (
- <ResponsiveContainer width="100%" height="100%">
- <BarChart data={chart1Data} margin={{ top: 20, right: 10, left: -20, bottom: 0}}>
- <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
- <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 700}} />
- <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `₹${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
- <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
- <Bar dataKey="value" fill="#2563EB" radius={[4, 4, 0, 0]} barSize={32} />
- </BarChart>
- </ResponsiveContainer>
+ <WeeklySalesBarChart data={chart1Data} currencySymbol={businessProfile?.currencySymbol || '₹'} />
  )}
  </div>
  </div>
@@ -635,22 +685,7 @@ const Dashboard = () => {
  <span className="text-sm font-bold">No Monthly Progression Data</span>
  </div>
  ) : (
- <ResponsiveContainer width="100%" height="100%">
- <AreaChart data={chart2Data} margin={{ top: 10, right: 10, left: -20, bottom: 0}}>
- <defs>
- <linearGradient id="fillThisMonth" x1="0" y1="0" x2="0" y2="1">
- <stop offset="5%" stopColor="#2563EB" stopOpacity={0.2}/>
- <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
- </linearGradient>
- </defs>
- <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
- <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} />
- <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `₹${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
- <RechartsTooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
- <Area type="monotone" dataKey="thisMonth" name="This Month" stroke="#2563EB" strokeWidth={2} fillOpacity={1} fill="url(#fillThisMonth)" />
- <Area type="monotone" dataKey="lastMonth" name="Last Month" stroke="#94A3B8" strokeWidth={2} strokeDasharray="5 5" fill="none" />
- </AreaChart>
- </ResponsiveContainer>
+ <MonthlyComparisonAreaChart data={chart2Data} currencySymbol={businessProfile?.currencySymbol || '₹'} />
  )}
  </div>
  </div>
@@ -665,17 +700,7 @@ const Dashboard = () => {
  <span className="text-sm font-bold">Awaiting Transactions</span>
  </div>
  ) : (
- <ResponsiveContainer width="100%" height="100%">
- <PieChart>
- <Pie data={chart3Data} cx="50%" cy="50%" innerRadius={70} outerRadius={100} paddingAngle={2} dataKey="value" stroke="none">
- {chart3Data.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}
- </Pie>
- <text x="50%" y="45%" textAnchor="middle" dominantBaseline="middle" className="text-xs font-semibold text-gray-700 opacity-[0.85]">Total</text>
- <text x="50%" y="55%" textAnchor="middle" dominantBaseline="middle" className="text-xl font-semibold text-ink-primary">₹{chart3Total.toLocaleString()}</text>
- <RechartsTooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} formatter={(value) => `₹${value.toLocaleString()}`} />
- <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '12px', fontWeight: 'bold'}} />
- </PieChart>
- </ResponsiveContainer>
+ <PaymentBreakdownPieChart data={chart3Data} total={chart3Total} currencySymbol={businessProfile?.currencySymbol || '₹'} />
  )}
  </div>
  </div>
@@ -690,15 +715,7 @@ const Dashboard = () => {
  <span className="text-sm font-bold">No Expenses Currently</span>
  </div>
  ) : (
- <ResponsiveContainer width="100%" height="100%">
- <BarChart data={chart4Data} layout="vertical" margin={{ top: 0, right: 10, left: 0, bottom: 0}}>
- <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="rgba(0,0,0,0.05)" />
- <XAxis type="number" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `₹${val > 999 ? (val/1000).toFixed(0) + 'k' : val}`} />
- <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#1F2937', fontSize: 11, fontWeight: 700}} width={120} />
- <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} formatter={(value) => `₹${value.toLocaleString()}`} />
- <Bar dataKey="value" fill="#EF4444" radius={[0, 4, 4, 0]} barSize={24} />
- </BarChart>
- </ResponsiveContainer>
+ <ExpenseCategoryBarChart data={chart4Data} currencySymbol={businessProfile?.currencySymbol || '₹'} />
  )}
  </div>
  </div>

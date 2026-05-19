@@ -18,6 +18,7 @@ export const useOrders = (tenantId) => {
   const [error,      setError]      = useState(null);
   const tabId = useRef(Math.random().toString(36).slice(2, 8));
   const initialLoadDone = useRef(false);
+  const fetchRef = useRef(null);
 
   const fetchOrders = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
@@ -54,7 +55,9 @@ export const useOrders = (tenantId) => {
     }
   }, [tenantId]);
 
-  useEffect(() => { initialLoadDone.current = false; fetchOrders(); }, [fetchOrders]);
+  fetchRef.current = fetchOrders;
+
+  useEffect(() => { initialLoadDone.current = false; fetchRef.current?.(); }, [tenantId]);
 
   useRefetchOnFocus(fetchOrders);
 
@@ -66,10 +69,10 @@ export const useOrders = (tenantId) => {
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'orders',
         filter: `tenant_id=eq.${tenantId}`,
-      }, fetchOrders)
+      }, () => fetchRef.current?.())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [tenantId, fetchOrders]);
+  }, [tenantId]);
 
   // ── CRUD ─────────────────────────────────────────────────────────────
 

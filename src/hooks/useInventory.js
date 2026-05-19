@@ -30,6 +30,7 @@ export const useInventory = (tenantId) => {
   const MAIN_WAREHOUSE_ID = 'MAIN-WH';
   const tabId = useRef(Math.random().toString(36).slice(2, 8));
   const initialLoadDone = useRef(false);
+  const fetchRef = useRef(null);
 
   const fetchInventory = useCallback(async () => {
     if (!tenantId) {
@@ -70,10 +71,12 @@ export const useInventory = (tenantId) => {
     }
   }, [tenantId]);
 
+  fetchRef.current = fetchInventory;
+
   useEffect(() => {
     initialLoadDone.current = false;
-    fetchInventory();
-  }, [fetchInventory]);
+    fetchRef.current?.();
+  }, [tenantId]);
 
   // Re-fetch when tab becomes visible after idle (handles stale data after lock-screen / sleep)
   useRefetchOnFocus(fetchInventory);
@@ -81,9 +84,9 @@ export const useInventory = (tenantId) => {
   // Auto-retry once after 4 s if initial fetch fails (handles DB cold-start)
   useEffect(() => {
     if (!error) return;
-    const t = setTimeout(() => { fetchInventory(); }, 4000);
+    const t = setTimeout(() => { fetchRef.current?.(); }, 4000);
     return () => clearTimeout(t);
-  }, [error, fetchInventory]);
+  }, [error]);
 
   // ── Realtime — products + inventory_balances ──────────────────────────
   useEffect(() => {
@@ -93,14 +96,14 @@ export const useInventory = (tenantId) => {
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'products',
         filter: `tenant_id=eq.${tenantId}`,
-      }, fetchInventory)
+      }, () => fetchRef.current?.())
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'inventory_balances',
         filter: `tenant_id=eq.${tenantId}`,
-      }, fetchInventory)
+      }, () => fetchRef.current?.())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [tenantId, fetchInventory]);
+  }, [tenantId]);
 
   const add = async (product) => {
     const id = product.id || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;

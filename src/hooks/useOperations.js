@@ -14,6 +14,7 @@ export const useOperations = (tenantId) => {
   const [error,   setError]   = useState(null);
   const tabId = useRef(Math.random().toString(36).slice(2, 8));
   const initialLoadDone = useRef(false);
+  const fetchRef = useRef(null);
 
   const fetchOperationsData = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
@@ -58,7 +59,9 @@ export const useOperations = (tenantId) => {
     }
   }, [tenantId]);
 
-  useEffect(() => { initialLoadDone.current = false; fetchOperationsData(); }, [fetchOperationsData]);
+  fetchRef.current = fetchOperationsData;
+
+  useEffect(() => { initialLoadDone.current = false; fetchRef.current?.(); }, [tenantId]);
 
   // ── Realtime subscriptions ───────────────────────────────────────────
   // Re-fetch whenever routes, route_stops, or inventory_balances change.
@@ -72,23 +75,23 @@ export const useOperations = (tenantId) => {
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'routes',
         filter: `tenant_id=eq.${tenantId}`,
-      }, fetchOperationsData)
+      }, () => fetchRef.current?.())
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'route_stops',
         filter: `tenant_id=eq.${tenantId}`,
-      }, fetchOperationsData)
+      }, () => fetchRef.current?.())
       .on('postgres_changes', {
         event: '*', schema: 'public', table: 'inventory_balances',
         filter: `tenant_id=eq.${tenantId}`,
-      }, fetchOperationsData)
+      }, () => fetchRef.current?.())
       .on('postgres_changes', {
         event: 'UPDATE', schema: 'public', table: 'invoices',
         filter: `tenant_id=eq.${tenantId}`,
-      }, fetchOperationsData)
+      }, () => fetchRef.current?.())
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [tenantId, fetchOperationsData]);
+  }, [tenantId]);
 
   // ── Vehicles ────────────────────────────────────────────────────────
   const addVehicle = async (vehicle) => {
