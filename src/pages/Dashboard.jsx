@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect} from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
+import { supabase } from '../lib/supabase';
 import { useInventory } from '../hooks/useInventory';
 import { useSales } from '../hooks/useSales';
 import { usePurchases } from '../hooks/usePurchases';
@@ -114,6 +115,21 @@ const Dashboard = () => {
    const t = setTimeout(() => setHeroVisible(false), 15000);
    return () => clearTimeout(t);
  }, []);
+
+ // Server-side KPI aggregation via Supabase RPC (replaces 7 client-side filters)
+ const [kpiData, setKpiData] = useState(null);
+ const [kpiLoading, setKpiLoading] = useState(true);
+ useEffect(() => {
+   if (!currentTenantId) return;
+   const todayStr = new Date().toISOString().split('T')[0];
+   supabase.rpc('get_dashboard_kpis', {
+     p_tenant_id: currentTenantId,
+     p_date: todayStr,
+   }).then(({ data, error }) => {
+     if (!error && data) setKpiData(data);
+     setKpiLoading(false);
+   });
+ }, [currentTenantId]);
 
  // Pull a clean YYYY-MM-DD out of any input ("2026-05-15", "2026-05-15T00:00:00Z", Date, etc)
  // No Date-object parsing — avoids timezone off-by-one (esp. negative UTC offsets).
@@ -575,7 +591,7 @@ const Dashboard = () => {
  <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">{datePreset} Sales</span>
  <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
  <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(rangeSales).toLocaleString()}
+ {Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_sales ?? rangeSales) : rangeSales).toLocaleString()}
  </div>
  </div>
  </div>
@@ -589,7 +605,7 @@ const Dashboard = () => {
  <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">{datePreset} Expenses</span>
  <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
  <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(rangeExpenses).toLocaleString()}
+ {Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses).toLocaleString()}
  </div>
  </div>
  </div>
@@ -617,7 +633,7 @@ const Dashboard = () => {
  <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">Outstanding Collections</span>
  <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
  <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(totalOutstanding).toLocaleString()}
+ {Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding).toLocaleString()}
  </div>
  </div>
  </div>
@@ -631,7 +647,7 @@ const Dashboard = () => {
  <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">{datePreset} Purchases</span>
  <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
  <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(rangePurchases).toLocaleString()}
+ {Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases).toLocaleString()}
  </div>
  </div>
  </div>
@@ -730,7 +746,7 @@ const Dashboard = () => {
  <div className="flex justify-between items-start mb-4">
  <div>
  <p className="text-gray-700 text-sm font-medium">Total Products</p>
- <h3 className="text-3xl font-bold mt-1 text-ink-primary">{(products || []).length}</h3>
+ <h3 className="text-3xl font-bold mt-1 text-ink-primary">{kpiData ? (kpiData.total_products ?? (products || []).length) : (products || []).length}</h3>
  </div>
  <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-ink-primary">
  <Package className="w-6 h-6" />
@@ -746,7 +762,7 @@ const Dashboard = () => {
  <div className="flex justify-between items-start mb-4">
  <div>
  <p className="text-gray-700 text-sm font-medium">Active Trips</p>
- <h3 className="text-3xl font-bold mt-1 text-ink-primary">{(routes || []).filter(r => r.status === 'ACTIVE').length}</h3>
+ <h3 className="text-3xl font-bold mt-1 text-ink-primary">{kpiData ? (kpiData.active_trips ?? (routes || []).filter(r => r.status === 'ACTIVE').length) : (routes || []).filter(r => r.status === 'ACTIVE').length}</h3>
  </div>
  <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center overflow-hidden border border-blue-100 shadow-sm">
  <img src="/assets/van.png" className="w-full h-full object-cover scale-150 transform hover:scale-175 transition-transform" alt="Van" />
@@ -762,7 +778,7 @@ const Dashboard = () => {
  <div className="flex justify-between items-start mb-4">
  <div>
  <p className="text-gray-700 text-sm font-medium">Low Stock Items</p>
- <h3 className="text-3xl font-bold mt-1 text-red-600">{lowStockProducts.length}</h3>
+ <h3 className="text-3xl font-bold mt-1 text-red-600">{kpiData ? (kpiData.low_stock_items ?? lowStockProducts.length) : lowStockProducts.length}</h3>
  </div>
  <div className="w-12 h-12 rounded-lg bg-red-100 flex items-center justify-center text-red-600">
  <AlertCircle className="w-6 h-6" />
@@ -1020,7 +1036,7 @@ const Dashboard = () => {
        <AlertCircle size={13} className="text-red-500" />
        <span className="text-xs font-black text-ink-primary uppercase tracking-wide">Low Stock</span>
      </div>
-     <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-lg">{lowStockProducts.length}</span>
+     <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-lg">{kpiData ? (kpiData.low_stock_items ?? lowStockProducts.length) : lowStockProducts.length}</span>
    </div>
    <div className="flex-1 overflow-y-auto divide-y divide-black/5">
      {lowStockProducts.length === 0 ? (
