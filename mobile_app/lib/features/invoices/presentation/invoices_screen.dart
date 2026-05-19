@@ -70,6 +70,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
         backgroundColor: AppColors.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
+        toolbarHeight: 0,
         actions: const [],
       ),
       floatingActionButton: FloatingActionButton(

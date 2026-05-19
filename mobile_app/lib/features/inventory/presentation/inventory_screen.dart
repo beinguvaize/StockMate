@@ -57,6 +57,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
         backgroundColor: AppColors.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
+        toolbarHeight: 0,
         actions: const [],
       ),
       floatingActionButton: FloatingActionButton(

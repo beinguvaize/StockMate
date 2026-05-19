@@ -30,6 +30,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         backgroundColor: AppColors.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
+        toolbarHeight: 0,
         actions: const [],
       ),
       floatingActionButton: FloatingActionButton(

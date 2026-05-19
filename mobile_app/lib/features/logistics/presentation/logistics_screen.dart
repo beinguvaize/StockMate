@@ -49,6 +49,7 @@ class LogisticsScreen extends ConsumerWidget {
             ),
           ],
         ),
+        toolbarHeight: 0,
         actions: const [],
       ),
       body: SafeArea(

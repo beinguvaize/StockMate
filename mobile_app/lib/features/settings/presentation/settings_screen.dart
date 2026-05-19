@@ -85,6 +85,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ],
         ),
         iconTheme: const IconThemeData(color: AppColors.inkPrimary),
+        toolbarHeight: 0,
         actions: const [],
       ),
       body: SafeArea(

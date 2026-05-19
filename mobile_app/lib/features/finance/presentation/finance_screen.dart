@@ -292,6 +292,7 @@ class FinanceScreen extends ConsumerWidget {
         backgroundColor: AppColors.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
+        toolbarHeight: 0,
         actions: const [],
       ),
       floatingActionButton: FloatingActionButton(

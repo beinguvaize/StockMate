@@ -46,6 +46,7 @@ class HRScreen extends ConsumerWidget {
               ),
             ],
           ),
+        toolbarHeight: 0,
           actions: const [],
           bottom: TabBar(
             indicatorColor: AppColors.primary,

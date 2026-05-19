@@ -129,6 +129,7 @@ class _CRMScreenState extends ConsumerState<CRMScreen>
         backgroundColor: AppColors.canvas,
         elevation: 0,
         scrolledUnderElevation: 0,
+        toolbarHeight: 0,
         actions: const [],
       ),
       floatingActionButton: FloatingActionButton.extended(
