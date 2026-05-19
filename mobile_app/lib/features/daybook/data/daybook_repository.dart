@@ -33,7 +33,7 @@ class DaybookRepository {
     final results = await Future.wait([
       _client.from('sales').select('id, totalAmount, paymentMethod, customerInfo, items, created_at')
           .eq('tenant_id', tenantId).eq('date', date),
-      _client.from('expenses').select('id, amount, category, note, payment_method, created_at')
+      _client.from('expenses').select('id, amount, category, note, created_at')
           .eq('tenant_id', tenantId).eq('date', date),
       _client.from('client_payments').select('id, amount, payment_method, notes, client_id, created_at')
           .eq('tenant_id', tenantId).eq('date', date),
@@ -118,8 +118,8 @@ class DaybookRepository {
         category: (e['category'] as String?) ?? 'Expense',
         title: (e['category'] as String?) ?? 'Expense',
         note: e['note'] as String?,
-        method: methodKindFromString(e['payment_method'] as String?),
-        methodLabel: ((e['payment_method'] as String?) ?? 'CASH').toUpperCase(),
+        method: MethodKind.cash,
+        methodLabel: 'CASH',
         amount: (e['amount'] as num?)?.toDouble() ?? 0,
         createdAt: DateTime.tryParse(e['created_at'] as String? ?? '') ?? DateTime.now(),
       ));
