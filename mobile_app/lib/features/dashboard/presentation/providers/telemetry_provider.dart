@@ -118,12 +118,11 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
 
       try {
         final pData = await supabase.from('products')
-            .select('stock, low_stock_threshold').eq('tenant_id', tenantId);
+            .select('stock').eq('tenant_id', tenantId);
         productsCount = pData.length;
         for (var p in pData) {
           final st = int.tryParse(p['stock']?.toString() ?? '0') ?? 0;
-          final th = int.tryParse(p['low_stock_threshold']?.toString() ?? '10') ?? 10;
-          if (st < th) lowStockCount++;
+          if (st < 10) lowStockCount++; // default threshold 10
         }
       } catch (_) {}
 
