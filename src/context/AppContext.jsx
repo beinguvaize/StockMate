@@ -1256,11 +1256,11 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
       { data: balancesData},
       { data: invoicesData}
     ] = await Promise.all([
-      supabase.from('products').select('*').eq('tenant_id', targetTenantId),
-      supabase.from('clients').select('*').eq('tenant_id', targetTenantId).is('deleted_at', null),
-      supabase.from('sales').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
-      supabase.from('expenses').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
-      supabase.from('employees').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('products').select('id,sku,name,category,unit,costPrice,sellingPrice,stock,taxRate,tags,image,hsn_code,lowStockThreshold,tenant_id,updated_at').eq('tenant_id', targetTenantId),
+      supabase.from('clients').select('id,name,phone,email,address,gstin,state,state_code,client_type,credit_days,outstanding_balance,tenant_id,created_at').eq('tenant_id', targetTenantId).is('deleted_at', null),
+      supabase.from('sales').select('id,shopId,date,totalAmount,totalCogs,paymentMethod,paymentStatus,status,items,customerInfo,paidAmount,tenant_id,created_at,invoice_id').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+      supabase.from('expenses').select('id,category,amount,note,date,tenant_id,created_at').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+      supabase.from('employees').select('id,name,role,status,daily_rate,days_worked,amount_paid,tenant_id,created_at').eq('tenant_id', targetTenantId),
       supabase.from('payroll').select('*').eq('tenant_id', targetTenantId).order('processed_at', { ascending: false }).limit(100),
       supabase.from('business_profile').select('*').eq('tenant_id', targetTenantId).maybeSingle(),
       supabase.from('day_book').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(31),
@@ -1349,6 +1349,7 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
  // Supabase Sync & Init (REUSABLE)
  // Supabase Sync & Init (REUSABLE)
  const initializeApp = async (force = false) => {
+ if (appInitialized.current && !force) return; // guard against double initialization
  if (initializingRef.current) return;
  initializingRef.current = true;
 
@@ -1420,12 +1421,12 @@ setVehicles(vehicles.filter(v => v.id !== vehicleId));
         { data: balancesData },
         { data: invoicesData }
       ] = await Promise.all([
-        supabase.from('products').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('products').select('id,sku,name,category,unit,costPrice,sellingPrice,stock,taxRate,tags,image,hsn_code,lowStockThreshold,tenant_id,updated_at').eq('tenant_id', targetTenantId),
         supabase.from('product_categories').select('*').eq('tenant_id', targetTenantId).order('name'),
-        supabase.from('clients').select('*').eq('tenant_id', targetTenantId).is('deleted_at', null),
-        supabase.from('sales').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
-        supabase.from('expenses').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
-        supabase.from('employees').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('clients').select('id,name,phone,email,address,gstin,state,state_code,client_type,credit_days,outstanding_balance,tenant_id,created_at').eq('tenant_id', targetTenantId).is('deleted_at', null),
+        supabase.from('sales').select('id,shopId,date,totalAmount,totalCogs,paymentMethod,paymentStatus,status,items,customerInfo,paidAmount,tenant_id,created_at,invoice_id').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+        supabase.from('expenses').select('id,category,amount,note,date,tenant_id,created_at').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(500),
+        supabase.from('employees').select('id,name,role,status,daily_rate,days_worked,amount_paid,tenant_id,created_at').eq('tenant_id', targetTenantId),
         supabase.from('payroll').select('*').eq('tenant_id', targetTenantId).order('processed_at', { ascending: false }).limit(100),
         supabase.from('business_profile').select('*').eq('tenant_id', targetTenantId).maybeSingle(),
         supabase.from('day_book').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(31),

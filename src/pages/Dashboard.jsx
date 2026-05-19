@@ -105,30 +105,53 @@ const Dashboard = () => {
  };
 
  // New KPIs
- const rangeSales = (sales || []).filter(s => isWithinRange(s.date)).reduce((sum, s) => sum + (s.totalAmount || 0), 0);
- const rangeExpenses = (expenses || []).filter(e => isWithinRange(e.date)).reduce((sum, e) => sum + (e.amount || 0), 0);
-  const rangePurchases = (purchases || []).filter(p => isWithinRange(p.date)).reduce((sum, p) => sum + (p.total_cost || p.total_amount || 0), 0);
- 
+ const rangeSales = useMemo(
+   () => (sales || []).filter(s => isWithinRange(s.date)).reduce((sum, s) => sum + (s.totalAmount || 0), 0),
+   [sales, datePreset, customRange]
+ );
+ const rangeExpenses = useMemo(
+   () => (expenses || []).filter(e => isWithinRange(e.date)).reduce((sum, e) => sum + (e.amount || 0), 0),
+   [expenses, datePreset, customRange]
+ );
+ const rangePurchases = useMemo(
+   () => (purchases || []).filter(p => isWithinRange(p.date)).reduce((sum, p) => sum + (p.total_cost || p.total_amount || 0), 0),
+   [purchases, datePreset, customRange]
+ );
+
  const todayStr = todayISOInAppTZ();
- const todaysDayBook = (dayBook || []).find(db => db.date === todayStr);
- const currentCashBalance = todaysDayBook ? (todaysDayBook.closing_balance || 0) : 0;
- 
- const totalOutstanding = (clients || []).reduce((sum, c) => sum + (c.outstanding_balance || 0), 0);
+ const currentCashBalance = useMemo(() => {
+   const todaysDayBook = (dayBook || []).find(db => db.date === todayStr);
+   return todaysDayBook ? (todaysDayBook.closing_balance || 0) : 0;
+ }, [dayBook, todayStr]);
 
- const salariesPending = (employees || []).reduce((sum, e) => {
- const earned = (e.dailyRate ?? e.daily_rate ?? 500) * (e.daysWorked ?? e.days_worked ?? 0);
- return sum + Math.max(0, earned - (e.amountPaid ?? e.amount_paid ?? 0));
-}, 0);
+ const totalOutstanding = useMemo(
+   () => (clients || []).reduce((sum, c) => sum + (c.outstanding_balance || 0), 0),
+   [clients]
+ );
 
-  const lowStockProducts = (products || []).filter(p => {
-    const threshold = p.low_stock_threshold ?? p.lowStockThreshold ?? 10;
-    const balances = (inventoryBalances || []).filter(b => b.product_id === p.id);
-    const totalQty = balances.length > 0
-      ? balances.reduce((s, b) => s + b.quantity, 0)
-      : (p.stock ?? 0);
-    return totalQty < threshold;
-  });
- const pendingSalaryAlerts = (employees || []).filter(e => ((e.dailyRate ?? e.daily_rate ?? 500) * (e.daysWorked ?? e.days_worked ?? 0)) > (e.amountPaid ?? e.amount_paid ?? 0));
+ const salariesPending = useMemo(
+   () => (employees || []).reduce((sum, e) => {
+     const earned = (e.dailyRate ?? e.daily_rate ?? 500) * (e.daysWorked ?? e.days_worked ?? 0);
+     return sum + Math.max(0, earned - (e.amountPaid ?? e.amount_paid ?? 0));
+   }, 0),
+   [employees]
+ );
+
+ const lowStockProducts = useMemo(
+   () => (products || []).filter(p => {
+     const threshold = p.low_stock_threshold ?? p.lowStockThreshold ?? 10;
+     const balances = (inventoryBalances || []).filter(b => b.product_id === p.id);
+     const totalQty = balances.length > 0
+       ? balances.reduce((s, b) => s + b.quantity, 0)
+       : (p.stock ?? 0);
+     return totalQty < threshold;
+   }),
+   [products, inventoryBalances]
+ );
+ const pendingSalaryAlerts = useMemo(
+   () => (employees || []).filter(e => ((e.dailyRate ?? e.daily_rate ?? 500) * (e.daysWorked ?? e.days_worked ?? 0)) > (e.amountPaid ?? e.amount_paid ?? 0)),
+   [employees]
+ );
 
  // Chart 1: Daily Sales This Week
  const chart1Data = useMemo(() => {
@@ -223,7 +246,10 @@ const Dashboard = () => {
 }, [sales, expenses]);
 
  // Operational Metrics
- const activeRoutes = (routes || []).filter(r => r.status === 'ACTIVE');
+ const activeRoutes = useMemo(
+   () => (routes || []).filter(r => r.status === 'ACTIVE'),
+   [routes]
+ );
 
  const topDebtors = useMemo(() => {
  return (clients || [])
