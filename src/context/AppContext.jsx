@@ -88,7 +88,11 @@ const AppProviderInner = ({ children }) => {
     inventoryLocations, setInventoryLocations, inventoryBalances, setInventoryBalances,
     movementLog, setMovementLog, MAIN_WAREHOUSE_ID,
     vehicles, setVehicles, routes, setRoutes,
-    adjustLocationStock, adjustStock, transferStock
+    adjustLocationStock, adjustStock, transferStock,
+    logMovement,
+    addProduct, updateProduct, deleteProduct,
+    addProductCategory, updateProductCategory, deleteProductCategory,
+    addVehicle, updateVehicle, deleteVehicle,
   } = useInventory();
 
   const {
@@ -288,45 +292,7 @@ const AppProviderInner = ({ children }) => {
  // addClient/updateClient/deleteClient moved to SalesContext
 
  // addExpense/updateExpense/deleteExpense moved to FinanceContext
-
- const logMovement = async (productId, productName, type, quantity, reason, userId) => {
- const newLog = {
- id: `LOG-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
- date: new Date().toISOString(),
- product_id: productId, 
- product_name: productName, 
- // Also provide camelCase for the frontend state consistency
- productId: productId,
- productName: productName,
- type, 
- quantity, 
- reason, 
- user_id: userId,
- userId: userId,
- tenant_id: currentTenantId
-};
-
- if (isSupabaseConfigured) {
- // ENSURE WE ONLY SEND VALID DATABASE COLUMNS
- const dbLog = {
- id: newLog.id,
- date: newLog.date,
- product_id: productId,
- product_name: productName,
- type,
- quantity,
- reason,
- user_id: userId,
- tenant_id: currentTenantId
-};
- const { error} = await supabase.from('movement_log').insert(dbLog);
- if (error) {
- console.error("Error logging movement to Supabase:", error);
-}
-}
-
- setMovementLog(prev => [newLog, ...prev]);
-};
+ // logMovement moved to InventoryContext
 
  // reconcileSaleEffects moved to SalesContext
  // placeSale moved to SalesContext
@@ -740,132 +706,8 @@ const AppProviderInner = ({ children }) => {
  // recordClientPayment moved to SalesContext
 
 
-  const addProductCategory = async (categoryName) => {
-    if (isSupabaseConfigured) {
-      setSyncStatus('SYNCING');
-      const { data, error } = await supabase.from('product_categories').insert({ name: categoryName, tenant_id: currentTenantId }).select();
-      if (error) {
-        console.error("Error adding category:", error);
-        setSyncStatus('ERROR');
-        addNotification("Failed to add category: " + error.message, "error");
-        return null;
-      }
-      setProductCategories(prev => [...prev, data[0]]);
-      setSyncStatus('SYNCED');
-      return data[0];
-    }
-    const newCat = { id: generateUUID(), name: categoryName };
-    setProductCategories(prev => [...prev, newCat]);
-    return newCat;
-  };
-
-  const updateProductCategory = async (updatedCategory) => {
-    if (isSupabaseConfigured) {
-      setSyncStatus('SYNCING');
-      const { error } = await supabase.from('product_categories').update({ name: updatedCategory.name }).eq('id', updatedCategory.id).eq('tenant_id', currentTenantId);
-      if (error) {
-        setSyncStatus('ERROR');
-        addNotification("Failed to update category: " + error.message, "error");
-        return;
-      }
-      setSyncStatus('SYNCED');
-    }
-    setProductCategories(prev => prev.map(c => c.id === updatedCategory.id ? updatedCategory : c));
-  };
-
-  const deleteProductCategory = async (categoryId) => {
-    if (isSupabaseConfigured) {
-      setSyncStatus('SYNCING');
-      const { error } = await supabase.from('product_categories').delete().eq('id', categoryId).eq('tenant_id', currentTenantId);
-      if (error) {
-        setSyncStatus('ERROR');
-        addNotification("Failed to delete category: " + error.message, "error");
-        return false;
-      }
-      setSyncStatus('SYNCED');
-    }
-    setProductCategories(prev => prev.filter(c => c.id !== categoryId));
-    return true;
-  };
-
- const addProduct = async (product) => {
- const newProduct = { 
- ...product, 
- id: product.id || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`, 
- stock: product.stock || 0, 
- taxRate: product.taxRate || 0,
- tenant_id: currentTenantId
-};
-
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('products').upsert(newProduct);
-  if (error) {
-  console.error("Error adding product to Supabase:", error);
-  logError({
-    module: 'Inventory',
-    action: 'Add Product',
-    error_code: error.code,
-    error_message: error.message,
-    severity: 'High'
-  });
-  setSyncStatus('ERROR');
-  addNotification(`Cloud Save Failed: ${error.message}`,"error");
-  return;
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
-
- setProducts([...products, newProduct]);
- if (newProduct.stock > 0) {
- logMovement(newProduct.id, newProduct.name, 'IN', newProduct.stock, 'Initial Stock', currentUser?.id);
-}
-};
- const updateProduct = async (updatedProduct) => {
- if (isSupabaseConfigured) {
- setSyncStatus('SYNCING');
- const { error} = await supabase.from('products').upsert({ ...updatedProduct, tenant_id: currentTenantId });
-  if (error) {
-  console.error("Error updating product in Supabase:", error);
-  logError({
-    module: 'Inventory',
-    action: 'Update Product',
-    error_code: error.code,
-    error_message: error.message,
-    severity: 'Medium'
-  });
-  setSyncStatus('ERROR');
-  addNotification(`Cloud Sync Failed: ${error.message}`, "error");
-  return;
-} else {
- setSyncStatus('SYNCED');
- setLastSyncedAt(new Date().toISOString());
-}
-}
- setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-};
-
- const deleteProduct = async (id) => {
-    if (isSupabaseConfigured) {
-      const { error } = await supabase.from('products').delete().eq('id', id).eq('tenant_id', currentTenantId);
-      if (error) {
-        console.error("Error deleting product from Supabase:", error);
-        logError({
-          module: 'Inventory',
-          action: 'Delete Product',
-          error_code: error.code,
-          error_message: error.message,
-          severity: 'Medium'
-        });
-        addNotification(`Cloud Delete Failed: ${error.message}`, "error");
-        return; // STOP
-      }
-    }
- setProducts(prev => prev.filter(p => p.id !== id));
- setMovementLog(prev => prev.filter(l => l.productId !== id));
-};
+ // addProduct / updateProduct / deleteProduct moved to InventoryContext
+ // addProductCategory / updateProductCategory / deleteProductCategory moved to InventoryContext
 
 
  // Mock data generator removed
@@ -972,42 +814,7 @@ const AppProviderInner = ({ children }) => {
  return false;
 };
 
- const addVehicle = async (vehicle) => {
- const newVehicle = { ...vehicle, id: vehicle.id || `VH-${Date.now()}`, tenant_id: currentTenantId};
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('vehicles').upsert(newVehicle);
- if (error) {
- console.error("Error adding vehicle to Supabase:", error);
- addNotification(`Cloud Sync Failed: ${error.message}`, "error");
- return; // STOP
-}
-}
- setVehicles([...vehicles, newVehicle]);
- addNotification(`${vehicle.name} registered and synced`, "success");
-};
-
- const updateVehicle = async (updated) => {
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('vehicles').upsert({ ...updated, tenant_id: currentTenantId });
- if (error) {
- console.error("Error updating vehicle in Supabase:", error);
- addNotification(`Cloud Sync Failed: ${error.message}`, "error");
- return; // STOP
-}
-}
- setVehicles(vehicles.map(v => v.id === updated.id ? updated : v));
-};
-
- const deleteVehicle = async (vehicleId) => {
- if (isSupabaseConfigured) {
- const { error} = await supabase.from('vehicles').delete().eq('id', vehicleId).eq('tenant_id', currentTenantId);
- if (error) {
- console.error("Error deleting vehicle from Supabase:", error);
-}
-}
-setVehicles(vehicles.filter(v => v.id !== vehicleId));
- addNotification('Vehicle clearance revoked', 'success');
-};
+ // addVehicle / updateVehicle / deleteVehicle moved to InventoryContext
 
  const dispatchRoute = async (routeData) => {
     const newRoute = {
