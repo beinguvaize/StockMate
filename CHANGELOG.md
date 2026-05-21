@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- Fixed broken logo and image assets in the desktop app (Windows + macOS).
+
 ## 1.0.0
 
 First desktop release of StockMate — inventory, sales and logistics management.
