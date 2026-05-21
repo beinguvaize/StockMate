@@ -498,7 +498,7 @@ const BudgetVsActualReport = () => {
         </div>
       </div>
 
-      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50/50 border border-indigo-100">
+      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-indigo-50/50 border border-black/5 shadow-sm">
         <Edit3 size={12} className="text-indigo-600" />
         <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-700">
           Tip: Click any Budget cell to edit. Changes sync across all devices in real-time.

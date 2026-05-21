@@ -209,7 +209,7 @@ const GSTR3BReport = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Compliance summary banner */}
-      <div className="no-print flex items-center gap-3 px-4 py-3 rounded-xl border bg-emerald-50 border-emerald-200">
+      <div className="no-print flex items-center gap-3 px-4 py-3 rounded-2xl border border-black/5 shadow-sm bg-emerald-50">
         <CheckCircle2 className="text-emerald-600" size={20} />
         <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>

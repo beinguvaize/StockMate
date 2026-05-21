@@ -398,7 +398,7 @@ const APAgingReport = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Payment-terms banner */}
-      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50/50 border border-amber-100">
+      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-50/50 border border-black/5 shadow-sm">
         <Clock size={12} className="text-amber-600" />
         <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
           Aging computed from bill date + net-{DEFAULT_PAYMENT_TERMS_DAYS} terms.

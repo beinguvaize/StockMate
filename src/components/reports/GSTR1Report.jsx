@@ -384,7 +384,7 @@ const GSTR1Report = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Compliance banner */}
-      <div className="no-print flex items-center gap-3 px-4 py-3 rounded-xl border bg-indigo-50 border-indigo-200">
+      <div className="no-print flex items-center gap-3 px-4 py-3 rounded-2xl border border-black/5 shadow-sm bg-indigo-50">
         <FileText className="text-indigo-600" size={20} />
         <div className="flex-1">
           <div className="text-[11px] font-black uppercase tracking-widest text-indigo-700">

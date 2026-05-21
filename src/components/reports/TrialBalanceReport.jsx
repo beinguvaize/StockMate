@@ -148,8 +148,8 @@ const TrialBalanceReport = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Double-entry integrity banner */}
-      <div className={`no-print flex items-center gap-3 px-4 py-3 rounded-xl border ${
-        balanced ? 'bg-emerald-50 border-emerald-200' : 'bg-rose-50 border-rose-200'
+      <div className={`no-print flex items-center gap-3 px-4 py-3 rounded-2xl border shadow-sm ${
+        balanced ? 'bg-emerald-50 border-black/5' : 'bg-rose-50 border-black/5'
       }`}>
         {balanced ? <CheckCircle2 className="text-emerald-600" size={20} /> : <AlertTriangle className="text-rose-600" size={20} />}
         <div className="flex-1">
