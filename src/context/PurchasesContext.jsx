@@ -26,7 +26,7 @@ export const PurchasesProvider = ({ children }) => {
   const addPurchase = async (purchase) => {
     const val = purchaseSchema.safeParse(purchase);
     if (!val.success) {
-      addNotification('Validation failed:' + val.error.errors[0].message, 'error');
+      addNotification('Validation failed:' + val.error.issues?.[0]?.message, 'error');
       return false;
     }
 

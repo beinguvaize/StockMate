@@ -25,7 +25,7 @@ export const HRProvider = ({ children }) => {
   const addEmployee = async (emp) => {
     const val = employeeSchema.safeParse(emp);
     if (!val.success) {
-      addNotification('Validation failed:' + val.error.errors[0].message, 'error');
+      addNotification('Validation failed:' + val.error.issues?.[0]?.message, 'error');
       return false;
     }
     const newEmp = {

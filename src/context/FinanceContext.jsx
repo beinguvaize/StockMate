@@ -24,7 +24,7 @@ export const FinanceProvider = ({ children }) => {
   const addExpense = async (expense) => {
     const val = expenseSchema.safeParse(expense);
     if (!val.success) {
-      addNotification('Validation failed:' + val.error.errors[0].message, 'error');
+      addNotification('Validation failed:' + val.error.issues?.[0]?.message, 'error');
       return;
     }
     const { title, date, routeId, splitType, notes, ...restExpense } = expense;
@@ -150,7 +150,7 @@ export const FinanceProvider = ({ children }) => {
   const updateDayBook = async (record) => {
     const val = dayBookSchema.safeParse(record);
     if (!val.success) {
-      addNotification('Validation failed:' + val.error.errors[0].message, 'error');
+      addNotification('Validation failed:' + val.error.issues?.[0]?.message, 'error');
       return null;
     }
     const payload = {

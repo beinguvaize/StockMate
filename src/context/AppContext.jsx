@@ -303,7 +303,7 @@ const AppProviderInner = ({ children }) => {
  const placeSale_DEAD = async (clientId, cartItems, subtotal, discount, tax, totalAmount, customerInfo, paymentType = 'cash', routeId = null, status = 'COMPLETED', scheduledDate = null, salesmanNote = '', manualLocationId = null) => {
     const val = saleSchema.safeParse({ clientId, items: cartItems, totalAmount, paymentMethod: paymentType});
     if (!val.success) {
-      addNotification("Sale Validation failed:" + val.error.errors[0].message,"error");
+      addNotification("Sale Validation failed:" + val.error.issues?.[0]?.message,"error");
       return;
     }
 

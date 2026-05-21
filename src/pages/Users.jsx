@@ -132,7 +132,7 @@ const Users = () => {
           roles: formData.roles
         });
         if (!validation.success) {
-          const firstError = validation.error.errors[0]?.message || 'Validation failed';
+          const firstError = validation.error.issues?.[0]?.message || 'Validation failed';
           addNotification(firstError, 'error');
           clearTimeout(timeout);
           setIsSaving(false);

@@ -36,7 +36,7 @@ export const SalesProvider = ({ children }) => {
   const addClient = async (client) => {
     const val = clientSchema.safeParse(client);
     if (!val.success) {
-      addNotification('Validation failed:' + val.error.errors[0].message, 'error');
+      addNotification('Validation failed:' + val.error.issues?.[0]?.message, 'error');
       return;
     }
     const newClient = {
@@ -383,7 +383,7 @@ export const SalesProvider = ({ children }) => {
       paymentMethod: paymentType,
     });
     if (!val.success) {
-      addNotification('Sale Validation failed:' + val.error.errors[0].message, 'error');
+      addNotification('Sale Validation failed:' + val.error.issues?.[0]?.message, 'error');
       return;
     }
 
