@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
 import ReportShell from './ReportShell';
-import { parseLocalDate } from '../../lib/utils';
-import { 
-  DollarSign, TrendingUp, CreditCard, PieChart as PieChartIcon, 
+import { parseLocalDate, formatCurrency } from '../../lib/utils';
+import {
+  DollarSign, TrendingUp, CreditCard, PieChart as PieChartIcon,
   ArrowUpRight, ArrowDownRight, Download, Activity, Target
 } from 'lucide-react';
 
@@ -101,8 +101,8 @@ const FinancialReport = () => {
     columns: [
       { key: 'month', label: 'Fiscal Node', sortable: true, width: 140, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
       { key: 'revenue', label: 'Gross Yield', type: 'currency', align: 'right', sortable: true, width: 180 },
-      { key: 'expenses', label: 'Expenditure', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => <span className="text-red-500 font-bold">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val)}</span> },
-      { key: 'net', label: 'Net Performance', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => <span className={val >= 0 ? 'text-emerald-500 font-black' : 'text-red-600 font-black'}>{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(val)}</span> },
+      { key: 'expenses', label: 'Expenditure', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => <span className="text-red-500 font-bold">{formatCurrency(val)}</span> },
+      { key: 'net', label: 'Net Performance', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => <span className={val >= 0 ? 'text-emerald-500 font-black' : 'text-red-600 font-black'}>{formatCurrency(val)}</span> },
       { key: 'margin', label: 'Margin %', align: 'right', width: 100, render: (val) => (
         <span className={`px-2 py-1 rounded-full text-[9px] font-black ${val >= 20 ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
           {val}%

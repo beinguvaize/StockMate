@@ -96,7 +96,7 @@ const ProductProfitabilityReport = () => {
       const items = Array.isArray(s.items) ? s.items : [];
       items.forEach((it) => {
         const qty = Number(it?.quantity ?? it?.qty ?? 0);
-        const unitPrice = Number(it?.price ?? it?.unitPrice ?? 0);
+        const unitPrice = Number(it?.rate ?? it?.price ?? it?.unitPrice ?? it?.sellingPrice ?? 0);
         if (qty <= 0) return;
 
         // Resolve product — prefer productId, fall back to SKU match

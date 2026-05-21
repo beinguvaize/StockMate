@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
 import ReportShell from './ReportShell';
+import { formatCurrency } from '../../lib/utils';
 import { UserCircle, Phone, CreditCard, AlertTriangle, TrendingUp, DollarSign, Calendar, Info } from 'lucide-react';
 
 const DEFAULT_CREDIT_LIMIT = 200000;
@@ -15,9 +16,6 @@ const daysBetween = (dateStr) => {
   return diff;
 };
 
-const formatCurrency = (val) =>
-  new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 2 }).format(val || 0);
-
 const ClientOutstandingReport = () => {
   // 1. Fetch Client Data (Rule 11)
   const { data: rawData, loading, error, lastUpdated } = useReportData({
@@ -31,7 +29,7 @@ const ClientOutstandingReport = () => {
   const enrichedData = useMemo(() => {
     return (rawData || []).map((c) => {
       const creditLimit = Number(c.credit_limit ?? c.creditLimit ?? DEFAULT_CREDIT_LIMIT);
-      const balance = Number(c.balance || 0);
+      const balance = Number(c.outstanding_balance ?? c.balance ?? 0);
 
       // Use actual last_payment_date / due_date fields (fall back to updated_at)
       const lastPaymentDate = c.last_payment_date || c.lastPaymentDate || c.updated_at || c.created_at;

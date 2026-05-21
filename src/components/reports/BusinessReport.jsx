@@ -144,6 +144,7 @@ const BusinessReport = () => {
   const { data: sales,     loading: salesLoading }     = useReportData({ table: 'sales',     select: '*', dateColumn: 'date', filters });
   const { data: purchases, loading: purchLoading }     = useReportData({ table: 'purchases', select: '*', dateColumn: 'date', filters });
   const { data: clients }                              = useReportData({ table: 'clients',   select: 'id, name, outstanding_balance' });
+  const { data: vehicles }                             = useReportData({ table: 'vehicles',  select: 'id, plateNumber, name' });
 
   const loading = salesLoading || purchLoading;
 
@@ -576,7 +577,7 @@ const BusinessReport = () => {
       </div>
 
       {/* ── DETAILED DAILY SALES LOG ────────────────────────────────────── */}
-      <DailySalesDetail sales={sales} clients={clients} loading={salesLoading} />
+      <DailySalesDetail sales={sales} clients={clients} vehicles={vehicles} loading={salesLoading} />
 
     </div>
   );
@@ -585,7 +586,7 @@ const BusinessReport = () => {
 /* ─── Detailed daily breakdown ────────────────────────────────────────────── */
 const PAY_BADGE = { CASH: 'bg-emerald-50 text-emerald-700', UPI: 'bg-indigo-50 text-indigo-700', CREDIT: 'bg-amber-50 text-amber-700', BANK: 'bg-blue-50 text-blue-700' };
 
-const DailySalesDetail = ({ sales, clients, loading }) => {
+const DailySalesDetail = ({ sales, clients, vehicles = [], loading }) => {
   const [openDates, setOpenDates] = useState({});
 
   const byDate = useMemo(() => {
@@ -649,8 +650,8 @@ const DailySalesDetail = ({ sales, clients, loading }) => {
             {isOpen && (
               <div className="bg-canvas/30 border-t border-black/5">
                 {/* Column labels */}
-                <div className="grid grid-cols-[1fr_180px_60px_90px_110px] gap-3 px-8 py-2 border-b border-black/5">
-                  {['Client', 'Products', 'Items', 'Method', 'Amount'].map(h => (
+                <div className="grid grid-cols-[1fr_180px_60px_70px_90px_110px] gap-3 px-8 py-2 border-b border-black/5">
+                  {['Client', 'Products', 'Items', 'Source', 'Method', 'Amount'].map(h => (
                     <span key={h} className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{h}</span>
                   ))}
                 </div>
@@ -663,10 +664,13 @@ const DailySalesDetail = ({ sales, clients, loading }) => {
                   const prodList = items.map(it => `${it.name}${it.quantity > 1 ? ` ×${it.quantity}` : ''}`).join(', ');
                   const method   = (s.paymentMethod || 'CASH').toUpperCase();
                   const badgeCls = PAY_BADGE[method] || 'bg-gray-100 text-gray-600';
+                  const isVan    = !!(s.routeId || s.vehicleId);
+                  const vehicle  = isVan && s.vehicleId ? vehicles.find(v => v.id === s.vehicleId) : null;
+                  const vanLabel = vehicle ? (vehicle.plateNumber || vehicle.name || 'VAN') : 'VAN';
 
                   return (
                     <div key={s.id || si}
-                      className="grid grid-cols-[1fr_180px_60px_90px_110px] gap-3 px-8 py-3 border-b border-black/5 last:border-0 hover:bg-white/60 transition-colors items-start">
+                      className="grid grid-cols-[1fr_180px_60px_70px_90px_110px] gap-3 px-8 py-3 border-b border-black/5 last:border-0 hover:bg-white/60 transition-colors items-start">
 
                       {/* Client */}
                       <div className="flex items-center gap-2 min-w-0">
@@ -691,6 +695,20 @@ const DailySalesDetail = ({ sales, clients, loading }) => {
 
                       {/* Total items */}
                       <span className="text-xs font-black text-ink-primary tabular-nums">{itemQty}</span>
+
+                      {/* Source badge */}
+                      {isVan
+                        ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-violet-50 text-violet-700 border border-violet-200">
+                            <Truck size={9} /> {vanLabel}
+                          </span>
+                        )
+                        : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-sky-50 text-sky-700 border border-sky-200">
+                            POS
+                          </span>
+                        )
+                      }
 
                       {/* Payment method */}
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit ${badgeCls}`}>

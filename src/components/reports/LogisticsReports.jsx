@@ -14,9 +14,9 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
  sales.forEach(s => {
  if (!s.vehicleId) return;
  const v = vehicles.find(veh => veh.id === s.vehicleId);
- const name = v?.plateNumber || v?.model || 'Unknown Vehicle';
+ const name = v?.plateNumber || v?.name || 'Unknown Vehicle';
  if (!stats[s.vehicleId]) stats[s.vehicleId] = { name, revenue: 0, deliveries: 0};
- stats[s.vehicleId].revenue += s.total || 0;
+ stats[s.vehicleId].revenue += s.totalAmount || 0;
  stats[s.vehicleId].deliveries += 1;
 });
  return Object.values(stats).sort((a, b) => b.revenue - a.revenue);
@@ -30,7 +30,7 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
  const r = routes.find(rt => rt.id === s.routeId);
  const name = r?.name || 'Unknown Route';
  if (!stats[s.routeId]) stats[s.routeId] = { name, revenue: 0, deliveries: 0};
- stats[s.routeId].revenue += s.total || 0;
+ stats[s.routeId].revenue += s.totalAmount || 0;
  stats[s.routeId].deliveries += 1;
 });
  return Object.values(stats).sort((a, b) => b.revenue - a.revenue).slice(0, 5);

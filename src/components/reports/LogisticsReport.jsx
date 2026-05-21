@@ -39,8 +39,8 @@ const LogisticsReport = () => {
       const vSales = sales.filter(s => s.vehicleId === v.id);
       return {
         id: v.id,
-        name: v.plateNumber || v.model || 'Unknown',
-        model: v.model,
+        name: v.plateNumber || v.name || 'Unknown',
+        model: v.name,
         revenue: vSales.reduce((acc, s) => acc + (s.totalAmount || 0), 0),
         deliveries: vSales.length
       };

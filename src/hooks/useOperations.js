@@ -133,6 +133,17 @@ export const useOperations = (tenantId) => {
     const routeId = rpcData;
     // Stops + IN_TRANSIT invoice updates handled inside dispatch_vehicle_route RPC (SECURITY DEFINER)
 
+    // Lock opening stock snapshot for vehicle ledger
+    try {
+      await supabase.rpc('lock_van_opening_stock', {
+        p_vehicle_id: routeData.vehicleId,
+        p_route_id:   routeId,
+        p_tenant_id:  tenantId,
+      });
+    } catch (lockErr) {
+      console.warn('lock_van_opening_stock warn (non-fatal):', lockErr);
+    }
+
     await fetchOperationsData();
     return { success: true, error: null };
     } catch (err) {
@@ -219,21 +230,29 @@ export const useOperations = (tenantId) => {
   // ── Van Sale ─────────────────────────────────────────────────────────
   // Records a direct cash/credit sale made from vehicle inventory.
   // vehicleLocId: inventory_locations.id for the vehicle (caller resolves it)
-  const recordVanSale = async (routeId, vehicleLocId, { clientName, items, totalAmount, paymentMethod }) => {
+  const recordVanSale = async (routeId, vehicleLocId, { clientName, items, totalAmount, paymentMethod, vehicleId }) => {
     const today = new Date().toISOString().split('T')[0];
     const saleId = crypto.randomUUID();
+
+    // Resolve vehicleId from inventory location if not passed directly
+    const resolvedVehicleId = vehicleId || (() => {
+      const loc = inventoryLocations.find(l => l.id === vehicleLocId);
+      return loc?.reference_id || null;
+    })();
 
     // 1. Insert sale record (same shape as POS sales)
     const { error: saleErr } = await supabase.from('sales').insert({
       id: saleId,
       shopId: null,
+      customerInfo: clientName ? { name: clientName } : null,
       items: items.map(i => ({
-        productId:   i.productId,
-        name:        i.productName,
-        quantity:    i.quantity,
-        sellingPrice: i.sellingPrice,
-        costPrice:   i.costPrice || 0,
-        taxRate:     0,
+        productId:    i.productId,
+        name:         i.productName,
+        quantity:     i.quantity,
+        rate:         i.sellingPrice,   // matches POS key so reports aggregate correctly
+        sellingPrice: i.sellingPrice,   // kept for backward compat
+        costPrice:    i.costPrice || 0,
+        taxRate:      0,
       })),
       totalAmount,
       paymentMethod: paymentMethod || 'CASH',
@@ -242,6 +261,8 @@ export const useOperations = (tenantId) => {
       bookedBy: null,
       tenant_id: tenantId,
       notes: `Van Sale — Route ${routeId}`,
+      vehicleId: resolvedVehicleId,
+      routeId,
     });
     if (saleErr) { console.error('recordVanSale sale insert error:', saleErr); return { success: false, error: saleErr }; }
 
@@ -251,7 +272,7 @@ export const useOperations = (tenantId) => {
         const { error: adjErr } = await supabase.rpc('adjust_inventory_atomic', {
           p_product_id: item.productId,
           p_location_id: vehicleLocId,
-          p_delta: -item.quantity,
+          p_amount: -item.quantity,
           p_reason: `Van Sale — Route ${routeId}`,
           p_tenant_id: tenantId,
         });
@@ -261,6 +282,87 @@ export const useOperations = (tenantId) => {
 
     await fetchOperationsData();
     return { success: true, error: null };
+  };
+
+  // ── Load Van (Warehouse → Vehicle inventory transfer) ─────────────────
+  // items: [{ productId, quantity }]
+  // Returns { success, transferred, errors }
+  const loadVan = async (vehicleId, items) => {
+    // 1. Ensure vehicle has an inventory_locations row (create if missing)
+    let { data: locRows } = await supabase
+      .from('inventory_locations')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('type', 'VEHICLE')
+      .eq('reference_id', vehicleId);
+
+    let vehicleLocId = locRows?.[0]?.id;
+
+    if (!vehicleLocId) {
+      const { data: newLoc, error: locErr } = await supabase
+        .from('inventory_locations')
+        .insert({ type: 'VEHICLE', reference_id: vehicleId, name: `Van – ${vehicleId}`, tenant_id: tenantId })
+        .select('id')
+        .single();
+      if (locErr) return { success: false, transferred: 0, errors: [locErr.message] };
+      vehicleLocId = newLoc.id;
+    }
+
+    // 2. Find warehouse location (MAIN-WH or first WAREHOUSE type)
+    let { data: whRows } = await supabase
+      .from('inventory_locations')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('type', 'WAREHOUSE')
+      .order('created_at', { ascending: true })
+      .limit(1);
+
+    const warehouseLocId = whRows?.[0]?.id;
+    if (!warehouseLocId) return { success: false, transferred: 0, errors: ['No warehouse location found'] };
+
+    // 3. Transfer each product: deduct warehouse + add vehicle
+    let transferred = 0;
+    const errors = [];
+
+    for (const { productId, quantity } of items) {
+      if (!quantity || quantity <= 0) continue;
+
+      // Deduct from warehouse
+      const { error: deductErr } = await supabase.rpc('adjust_inventory_atomic', {
+        p_product_id:  productId,
+        p_location_id: warehouseLocId,
+        p_amount:       -quantity,
+        p_reason:      `Van load to vehicle ${vehicleId}`,
+        p_tenant_id:   tenantId,
+      });
+      if (deductErr) { errors.push(`Deduct error (${productId}): ${deductErr.message}`); continue; }
+
+      // Add to vehicle
+      const { error: addErr } = await supabase.rpc('adjust_inventory_atomic', {
+        p_product_id:  productId,
+        p_location_id: vehicleLocId,
+        p_amount:       +quantity,
+        p_reason:      `Van load from warehouse`,
+        p_tenant_id:   tenantId,
+      });
+      if (addErr) {
+        // Rollback deduct
+        await supabase.rpc('adjust_inventory_atomic', {
+          p_product_id:  productId,
+          p_location_id: warehouseLocId,
+          p_amount:       +quantity,
+          p_reason:      'Rollback failed van load',
+          p_tenant_id:   tenantId,
+        });
+        errors.push(`Add error (${productId}): ${addErr.message}`);
+        continue;
+      }
+
+      transferred++;
+    }
+
+    await fetchOperationsData();
+    return { success: errors.length === 0, transferred, errors };
   };
 
   // ── Failed Delivery ────────────────────────────────────────────────────
@@ -309,6 +411,7 @@ export const useOperations = (tenantId) => {
     reconcileRoute,
     updateStopStatus,
     recordVanSale,
+    loadVan,
     markFailedDelivery,
     markDeliveredWithProof,
   };
