@@ -23,7 +23,7 @@ class BiometricService {
         authMessages: const <AuthMessages>[
           AndroidAuthMessages(
             signInTitle: 'Ledgr Security',
-            fingerprintHint: 'Verify your identity',
+            biometricHint: 'Verify your identity',
           ),
           IOSAuthMessages(
             lockOut: 'Please re-enable Touch ID / Face ID',

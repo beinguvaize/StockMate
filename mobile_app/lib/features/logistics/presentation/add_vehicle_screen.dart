@@ -51,7 +51,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
     if (v != null) {
       _nameController.text = v.name ?? '';
       _plateController.text = v.displayPlate == '—' ? '' : v.displayPlate;
-      _driverController.text = v.type ?? ''; // stored in `type` per existing model usage
+      _driverController.text = v.driverName ?? '';
       _selectedStatus = v.status ?? 'ACTIVE';
     }
   }

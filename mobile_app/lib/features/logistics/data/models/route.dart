@@ -25,18 +25,24 @@ class LogisticRoute {
     this.reconciledAt,
   });
 
+  static double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
+
   factory LogisticRoute.fromJson(Map<String, dynamic> j) => LogisticRoute(
         id:              j['id'] as String,
         // DB may have camelCase (legacy) or snake_case — try both
-        vehicleId:       (j['vehicleId'] ?? j['vehicle_id']) as String?,
-        driverId:        (j['driverId']  ?? j['driver_id'])  as String?,
-        location:        j['location']       as String?,
-        status:          j['status']         as String?,
-        date:            j['date']           as String?,
-        targetAmount:    (j['target_amount'] as num?)?.toDouble(),
-        actualCash:      (j['actual_cash']   as num?)?.toDouble(),
-        initialOdometer: ((j['initialOdometer'] ?? j['initial_odometer']) as num?)?.toDouble(),
-        finalOdometer:   (j['final_odometer'] as num?)?.toDouble(),
-        reconciledAt:    j['reconciled_at']  as String?,
+        vehicleId:       (j['vehicleId'] ?? j['vehicle_id'])?.toString(),
+        driverId:        (j['driverId']  ?? j['driver_id'])?.toString(),
+        location:        j['location']?.toString(),
+        status:          j['status']?.toString(),
+        date:            j['date']?.toString(),
+        targetAmount:    _toDouble(j['target_amount']),
+        actualCash:      _toDouble(j['actual_cash']),
+        initialOdometer: _toDouble(j['initialOdometer'] ?? j['initial_odometer']),
+        finalOdometer:   _toDouble(j['final_odometer']),
+        reconciledAt:    j['reconciled_at']?.toString(),
       );
 }

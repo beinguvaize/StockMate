@@ -69,7 +69,7 @@ class _VanSaleScreenState extends ConsumerState<VanSaleScreen> {
       'id':       e.item.productId,
       'name':     e.item.productName,
       'quantity': e.qty,
-      'price':    e.item.sellingPrice,
+      'rate':     e.item.sellingPrice,   // process_sale RPC expects 'rate'
     }).toList();
 
     final result = await placeVanSale(

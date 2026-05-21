@@ -23,17 +23,29 @@ class RouteStop {
     this.visitedAt,
   });
 
+  static double _toDouble(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0;
+  }
+
+  static int _toInt(dynamic v) {
+    if (v == null) return 0;
+    if (v is num) return v.toInt();
+    return int.tryParse(v.toString()) ?? 0;
+  }
+
   factory RouteStop.fromJson(Map<String, dynamic> j) => RouteStop(
-        id:            j['id'] as String,
-        routeId:       j['route_id'] as String,
-        invoiceId:     j['invoice_id'] as String?,
-        clientId:      j['client_id'] as String?,
-        clientName:    j['client_name'] as String?,
-        sequence:      (j['sequence'] as num?)?.toInt() ?? 0,
-        status:        j['status'] as String? ?? 'PENDING',
-        cashCollected: (j['cash_collected'] as num?)?.toDouble() ?? 0,
-        notes:         j['notes'] as String?,
-        visitedAt:     j['visited_at'] as String?,
+        id:            j['id'].toString(),
+        routeId:       j['route_id'].toString(),
+        invoiceId:     j['invoice_id']?.toString(),
+        clientId:      j['client_id']?.toString(),
+        clientName:    j['client_name']?.toString(),
+        sequence:      _toInt(j['sequence']),
+        status:        j['status']?.toString() ?? 'PENDING',
+        cashCollected: _toDouble(j['cash_collected']),
+        notes:         j['notes']?.toString(),
+        visitedAt:     j['visited_at']?.toString(),
       );
 
   RouteStop copyWith({String? status, double? cashCollected, String? notes}) => RouteStop(

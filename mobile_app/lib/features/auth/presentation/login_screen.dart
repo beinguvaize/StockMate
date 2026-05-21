@@ -80,7 +80,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               children: [
                 // ── Brand mark ─────────────────────────────────────
                 Text(
-                  'StockMate',
+                  'LedgrPro',
                   style: GoogleFonts.hankenGrotesk(
                     fontSize: 40,
                     fontWeight: FontWeight.w700,

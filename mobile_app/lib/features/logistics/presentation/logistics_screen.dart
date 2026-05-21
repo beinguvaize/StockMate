@@ -349,7 +349,7 @@ class _VehicleCard extends ConsumerWidget {
     final name = vehicle.name ?? 'Unnamed';
     final plate = vehicle.displayPlate;
     final status = vehicle.status ?? '';
-    final driver = vehicle.type ?? '';
+    final driver = vehicle.driverName ?? '';
 
     Color statusBg;
     Color statusFg;
@@ -607,10 +607,16 @@ class _VehicleDetailSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Column(
                 children: [
-                  if ((vehicle.type ?? '').isNotEmpty)
+                  if ((vehicle.driverName ?? '').isNotEmpty)
                     _DetailRow(
                       icon: LucideIcons.user,
                       label: 'Driver',
+                      value: vehicle.driverName!,
+                    ),
+                  if ((vehicle.type ?? '').isNotEmpty)
+                    _DetailRow(
+                      icon: LucideIcons.truck,
+                      label: 'Type',
                       value: vehicle.type!,
                     ),
                   if (vehicle.capacity != null)
@@ -894,9 +900,15 @@ class _RouteCard extends StatelessWidget {
         statusLabel = 'IN TRANSIT';
         break;
       case 'COMPLETED':
+      case 'RECONCILED':
         statusBg = AppColors.success.withValues(alpha: 0.12);
         statusFg = AppColors.success;
-        statusLabel = 'COMPLETED';
+        statusLabel = status.toUpperCase();
+        break;
+      case 'ACTIVE':
+        statusBg = Colors.indigo.withValues(alpha: 0.12);
+        statusFg = Colors.indigo;
+        statusLabel = 'ACTIVE';
         break;
       default:
         statusBg = AppColors.inkTertiary.withValues(alpha: 0.1);
@@ -910,7 +922,7 @@ class _RouteCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: () => Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const DeliveryScreen()),
+          MaterialPageRoute(builder: (_) => DeliveryScreen(routeId: route.id)),
         ),
         child: Ink(
           decoration: BoxDecoration(

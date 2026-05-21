@@ -26,22 +26,24 @@ final currencySymbolProvider = Provider<AsyncValue<String>>((ref) {
 });
 
 // ── Active route for the logged-in driver ────────────────────────────────────
-// Reads the single ACTIVE route where driver_id = current user.
+// Streams all routes, filters client-side for ACTIVE or IN_TRANSIT belonging
+// to the current driver. stream() only supports one .eq() filter so we apply
+// status + driver_id client-side.
 final activeRouteProvider = StreamProvider<LogisticRoute?>((ref) {
   final userId = supabase.auth.currentUser?.id;
   if (userId == null) return Stream.value(null);
 
+  const activeStatuses = {'ACTIVE', 'IN_TRANSIT'};
+
   return supabase
       .from('routes')
       .stream(primaryKey: ['id'])
-      .eq('status', 'ACTIVE')
-      // NOTE: stream() doesn't support .eq chaining like select().
-      // We filter driver_id client-side after.
       .map((rows) {
-        // Supabase stream returns snake_case; fall back to camelCase for legacy schemas
-        final match = rows.where((r) =>
-          (r['driver_id'] ?? r['driverId']) == userId
-        ).toList();
+        final match = rows.where((r) {
+          final status = (r['status'] as String?)?.toUpperCase() ?? '';
+          final driverId = r['driver_id'] ?? r['driverId'];
+          return activeStatuses.contains(status) && driverId == userId;
+        }).toList();
         if (match.isEmpty) return null;
         return LogisticRoute.fromJson(match.first);
       });
@@ -58,8 +60,10 @@ final routeStopsProvider = StreamProvider.family<List<RouteStop>, String>((ref, 
 });
 
 // ── Van stock for active route's vehicle ─────────────────────────────────────
-final vanStockProvider = FutureProvider.family<List<VanStockItem>, String>((ref, vehicleId) async {
-  // 1. Find inventory_location for this vehicle
+// StreamProvider: live-updates whenever inventory_balances change so VanSaleScreen
+// always shows fresh quantities after a sale without needing a manual refresh.
+final vanStockProvider = StreamProvider.family<List<VanStockItem>, String>((ref, vehicleId) async* {
+  // 1. Resolve the inventory_location id for this vehicle (one-time lookup)
   final locRes = await supabase
       .from('inventory_locations')
       .select('id')
@@ -67,17 +71,41 @@ final vanStockProvider = FutureProvider.family<List<VanStockItem>, String>((ref,
       .eq('reference_id', vehicleId)
       .maybeSingle();
 
-  if (locRes == null) return [];
+  if (locRes == null) { yield []; return; }
   final locationId = locRes['id'] as String;
 
-  // 2. Fetch balances with product name + price
-  final balRes = await supabase
+  // 2. Stream inventory_balances for this location; re-fetch products on every change
+  await for (final rows in supabase
       .from('inventory_balances')
-      .select('product_id, quantity, location_id, products(name, "sellingPrice")')
-      .eq('location_id', locationId)
-      .gt('quantity', 0);
+      .stream(primaryKey: ['product_id', 'location_id'])
+      .eq('location_id', locationId)) {
 
-  return (balRes as List).map((r) => VanStockItem.fromJson(r)).toList();
+    final withStock = (rows).where((r) => ((r['quantity'] as num?)?.toDouble() ?? 0) > 0).toList();
+    if (withStock.isEmpty) { yield []; continue; }
+
+    // Fetch product details in one round-trip
+    final productIds = withStock.map((r) => r['product_id'] as String).toList();
+    final prodRes = await supabase
+        .from('products')
+        .select('id, name, "sellingPrice"')
+        .inFilter('id', productIds);
+
+    final prodMap = <String, Map<String, dynamic>>{
+      for (final p in prodRes as List) (p['id'] as String): p as Map<String, dynamic>,
+    };
+
+    yield withStock.map((r) {
+      final prod = prodMap[r['product_id'] as String];
+      return VanStockItem(
+        productId:    r['product_id'] as String,
+        productName:  prod?['name'] as String? ?? r['product_id'] as String,
+        quantity:     (r['quantity'] as num?)?.toDouble() ?? 0,
+        sellingPrice: (prod?['sellingPrice'] as num?)?.toDouble() ?? 0,
+        locationId:   locationId,
+      );
+    }).toList()
+      ..sort((a, b) => a.productName.compareTo(b.productName));
+  }
 });
 
 // ── Update a stop status ──────────────────────────────────────────────────────

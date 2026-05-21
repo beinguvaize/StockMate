@@ -1,8 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class SupabaseConfig {
-  static const String url = 'https://tiywdsbaymrnqmlkxupj.supabase.co';
-  static const String anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRpeXdkc2JheW1ybnFtbGt4dXBqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM0Mjk1NDAsImV4cCI6MjA4OTAwNTU0MH0.1VvvVoGG44YUHZ3_evzIgaOEpHP0baFH3YyPA4MrjyY';
+  // PROD — LedgeproProd
+  static const String url = 'https://lmviftlynuhopzmvaxeu.supabase.co';
+  static const String anonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdmlmdGx5bnVob3B6bXZheGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMDUxMzEsImV4cCI6MjA4ODg4MTEzMX0.DX0HpM6jEYZrRx8Nl8mZxvTjvvMIY2AneJgnkS-e1xA';
   
   static Future<void> initialize() async {
     await Supabase.initialize(
