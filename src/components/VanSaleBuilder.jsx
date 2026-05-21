@@ -30,6 +30,7 @@ const VanSaleBuilder = ({
   onSubmit,
   onClose,
   sym = '₹',
+  pageMode = false,   // true → render as full page (no fixed overlay backdrop)
 }) => {
   const { addNotification } = useNotifications();
 
@@ -413,8 +414,11 @@ const VanSaleBuilder = ({
     <>
       {showCheckout && <CheckoutOverlay />}
 
-      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-stretch justify-center">
-        <div className="w-full max-w-6xl bg-canvas flex flex-col h-full">
+      <div className={pageMode
+        ? "w-full flex items-stretch justify-center"
+        : "fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-stretch justify-center"
+      }>
+        <div className={`bg-canvas flex flex-col ${pageMode ? 'w-full min-h-screen' : 'w-full max-w-6xl h-full'}`}>
 
           {/* Modal header */}
           <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-black/5 shrink-0">

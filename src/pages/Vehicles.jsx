@@ -1,6 +1,6 @@
 import React, { useState, useMemo, lazy, Suspense } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
-import VanSaleBuilder from '../components/VanSaleBuilder';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useOperations } from '../hooks/useOperations';
@@ -47,8 +47,9 @@ const serviceStatus = (d) => {
 
 // ── Component ────────────────────────────────────────────────────────────────
 const Vehicles = () => {
+  const navigate = useNavigate();
   const { hasPermission, hasRole } = useAuth();
-  const { currentTenantId, businessProfile } = useTenant();
+  const { currentTenantId, businessProfile, currentTenant } = useTenant();
   const sym = businessProfile?.currencySymbol || '';
 
   const {
@@ -362,8 +363,16 @@ const Vehicles = () => {
       })
       .sort((a, b) => a.productName.localeCompare(b.productName));
 
-    setVanSaleRoute({ ...route, _vehicleLocId: vehicleLoc?.id });
-    setVanSaleItems(items);
+    const vehicle = vehicles.find(v => v.id === vehicleId);
+    navigate(`/${currentTenant?.slug}/vehicles/van-sale`, {
+      state: {
+        route:        { ...route, _vehicleLocId: vehicleLoc?.id },
+        vehicle,
+        vanItems:     items,
+        clients,
+        vehicleLocId: vehicleLoc?.id,
+      },
+    });
   };
 
   // Reconcile (End Trip)
@@ -1674,31 +1683,7 @@ const Vehicles = () => {
         </div>
       )}
       {/* ── VAN SALE POS MODAL ───────────────────────────────────────────────── */}
-      {vanSaleRoute && (hasRole('DRIVER') || hasRole('OWNER') || hasRole('GLOBAL_ADMIN')) && (() => {
-        const vehicle = vehicles.find(v => v.id === (vanSaleRoute.vehicleId || vanSaleRoute['vehicleId']));
-        const handleVanSubmit = async ({ cart, clientId, clientName, paymentMethod, total, subtotal }) => {
-          const vehicleLocId = vanSaleRoute._vehicleLocId
-            || inventoryLocations.find(l => l.reference_id === (vanSaleRoute.vehicleId || vanSaleRoute['vehicleId']) && l.type === 'VEHICLE')?.id;
-          const { success, error } = await recordVanSale(vanSaleRoute.id, vehicleLocId, {
-            clientName,
-            items: cart.map(i => ({ productId: i.productId, productName: i.name, quantity: i.quantity, sellingPrice: i.price })),
-            totalAmount: total,
-            paymentMethod,
-            vehicleId: vanSaleRoute.vehicleId || vanSaleRoute['vehicleId'],
-          });
-          return { success, error };
-        };
-        return (
-          <VanSaleBuilder
-            vanItems={vanSaleItems}
-            route={vanSaleRoute}
-            vehicle={vehicle}
-            clients={clients}
-            onSubmit={handleVanSubmit}
-            onClose={() => setVanSaleRoute(null)}
-          />
-        );
-      })()}
+      {/* Van Sale → navigates to /vehicles/van-sale page */}
 
       {/* ── VAN STOCK DASHBOARD TAB ──────────────────────────────────────────── */}
       {activeTab === 'VAN_STOCK' && (() => {

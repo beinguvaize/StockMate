@@ -33,6 +33,7 @@ const AdminPanel       = lazy(() => import('./pages/AdminPanel'));
 const TenantSetup      = lazy(() => import('./pages/TenantSetup'));
 const SuperAdminPortal = lazy(() => import('./pages/admin/SuperAdminPortal'));
 const DataToolsPage    = lazy(() => import('./pages/DataToolsPage'));
+const VanSalePage      = lazy(() => import('./pages/VanSalePage'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const Onboarding       = lazy(() => import('./pages/Onboarding'));
 
@@ -155,6 +156,7 @@ function AppRoutes() {
         <Route path="onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
         <Route path="inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
         <Route path="vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
+        <Route path="vehicles/van-sale" element={<ProtectedRoute><VanSalePage /></ProtectedRoute>} />
         <Route path="sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
         <Route path="expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
         <Route path="settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
