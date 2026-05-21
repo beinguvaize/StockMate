@@ -1,4 +1,6 @@
 import React, { useState, useMemo, lazy, Suspense } from 'react';
+import { supabase } from '../lib/supabase';
+import VanSaleBuilder from '../components/VanSaleBuilder';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useOperations } from '../hooks/useOperations';
@@ -11,6 +13,7 @@ import {
   Fuel, Package, Check, XCircle, Clock, ChevronDown,
   ShoppingCart, MinusCircle, PackagePlus, Map,
   MapPin, AlertOctagon, Filter, RotateCcw,
+  BarChart2, TrendingDown, AlertCircle, Layers,
 } from 'lucide-react';
 import { todayISOInAppTZ } from '../lib/utils';
 
@@ -52,11 +55,11 @@ const Vehicles = () => {
     vehicles, addVehicle, updateVehicle, deleteVehicle,
     routes, dispatchRoute, reconcileRoute,
     deliveryInvoices, routeStops, updateStopStatus, recordVanSale,
-    markFailedDelivery, markDeliveredWithProof,
+    markFailedDelivery, markDeliveredWithProof, loadVan,
   } = useOperations(currentTenantId);
 
   const { products, inventoryLocations, inventoryBalances } = useInventory(currentTenantId);
-  const { employees } = usePeople(currentTenantId);
+  const { employees, clients } = usePeople(currentTenantId);
 
   // ── State ──────────────────────────────────────────────────────────────────
   const [activeTab,          setActiveTab]          = useState('DELIVERIES');
@@ -65,6 +68,8 @@ const Vehicles = () => {
   const [showDispatchModal,  setShowDispatchModal]  = useState(false);
   const [reconcileRoute_,    setReconcileRoute]     = useState(null);  // route obj
   const [reconcileCash,      setReconcileCash]      = useState('');
+  const [reconcileError,     setReconcileError]     = useState(null);
+  const [reconcileLoading,   setReconcileLoading]   = useState(false);
   const [vehicleForm,        setVehicleForm]        = useState(EMPTY_VEHICLE_FORM);
   const [editingVehicle,     setEditingVehicle]     = useState(null);
   const [selectedInvoices,   setSelectedInvoices]   = useState([]);   // ids for pending dispatch
@@ -79,13 +84,15 @@ const Vehicles = () => {
   // Van Load (dispatch)
   const [vanLoadItems, setVanLoadItems] = useState([]); // [{productId, productName, qty, sellingPrice, costPrice}]
 
+  // Load Van modal
+  const [loadVanVehicle,   setLoadVanVehicle]   = useState(null); // vehicle obj
+  const [loadVanItems,     setLoadVanItems]     = useState([]);   // [{productId, productName, qty, available}]
+  const [loadVanLoading,   setLoadVanLoading]   = useState(false);
+  const [loadVanError,     setLoadVanError]     = useState('');
+
   // Van Sale modal
   const [vanSaleRoute,    setVanSaleRoute]    = useState(null);
-  const [vanSaleItems,    setVanSaleItems]    = useState([]);   // [{productId, productName, qty, sellingPrice, costPrice}]
-  const [vanSaleClient,   setVanSaleClient]   = useState('Walk-in');
-  const [vanSaleMethod,   setVanSaleMethod]   = useState('CASH');
-  const [vanSaleError,    setVanSaleError]    = useState('');
-  const [vanSaleLoading,  setVanSaleLoading]  = useState(false);
+  const [vanSaleItems,    setVanSaleItems]    = useState([]);   // [{productId, productName, qty, sellingPrice, costPrice, maxQty}]
 
   // Reconcile returned stock (productId → returned qty)
   const [reconcileReturned, setReconcileReturned] = useState({});
@@ -186,6 +193,79 @@ const Vehicles = () => {
       return { ...item, [field]: field === 'qty' ? Math.max(1, parseInt(value) || 1) : value };
     }));
 
+  // ── Load Van helpers ──────────────────────────────────────────────────────
+  const getWarehouseStock = (productId) => {
+    const warehouseLoc = inventoryLocations.find(l => l.type === 'WAREHOUSE');
+    if (!warehouseLoc) return 0;
+    const bal = inventoryBalances.find(b => b.product_id === productId && b.location_id === warehouseLoc.id);
+    return bal?.quantity || 0;
+  };
+
+  const openLoadVan = (vehicle) => {
+    setLoadVanVehicle(vehicle);
+    setLoadVanError('');
+    // Start with top 5 products by warehouse stock
+    const warehouseLoc = inventoryLocations.find(l => l.type === 'WAREHOUSE');
+    const withStock = warehouseLoc
+      ? products
+          .map(p => ({
+            productId: p.id,
+            productName: p.name,
+            qty: 0,
+            available: inventoryBalances.find(b => b.product_id === p.id && b.location_id === warehouseLoc.id)?.quantity || 0,
+          }))
+          .filter(p => p.available > 0)
+          .sort((a, b) => b.available - a.available)
+          .slice(0, 8)
+      : [];
+    setLoadVanItems(withStock.length > 0 ? withStock : [{ productId: products[0]?.id || '', productName: products[0]?.name || '', qty: 0, available: 0 }]);
+  };
+
+  const addLoadVanRow = () => {
+    const p = products[0];
+    if (!p) return;
+    setLoadVanItems(prev => [...prev, { productId: p.id, productName: p.name, qty: 0, available: getWarehouseStock(p.id) }]);
+  };
+
+  const removeLoadVanRow = (idx) => setLoadVanItems(prev => prev.filter((_, i) => i !== idx));
+
+  const updateLoadVanRow = (idx, field, value) =>
+    setLoadVanItems(prev => prev.map((item, i) => {
+      if (i !== idx) return item;
+      if (field === 'productId') {
+        const p = products.find(pr => pr.id === value);
+        return p ? { ...item, productId: p.id, productName: p.name, available: getWarehouseStock(p.id), qty: 0 } : item;
+      }
+      return { ...item, [field]: field === 'qty' ? Math.max(0, parseInt(value) || 0) : value };
+    }));
+
+  const handleLoadVanSubmit = async (e) => {
+    e.preventDefault();
+    const activeItems = loadVanItems.filter(i => i.qty > 0);
+    if (!activeItems.length) { setLoadVanError('Set quantity > 0 for at least one product.'); return; }
+
+    // Validate against available stock
+    const overQty = activeItems.filter(i => i.qty > i.available);
+    if (overQty.length > 0) {
+      setLoadVanError(`Insufficient stock: ${overQty.map(i => `${i.productName} (only ${i.available} available)`).join(', ')}`);
+      return;
+    }
+
+    setLoadVanLoading(true);
+    setLoadVanError('');
+    const { success, transferred, errors } = await loadVan(
+      loadVanVehicle.id,
+      activeItems.map(i => ({ productId: i.productId, quantity: i.qty }))
+    );
+    setLoadVanLoading(false);
+
+    if (!success) {
+      setLoadVanError(errors.join(' | '));
+      return;
+    }
+    setLoadVanVehicle(null);
+  };
+
   const toggleInvoice = (id) =>
     setSelectedInvoices(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
@@ -238,87 +318,88 @@ const Vehicles = () => {
   };
 
   // Van Sale modal
-  const openVanSale = (route) => {
-    setVanSaleRoute(route);
-    setVanSaleClient('Walk-in');
-    setVanSaleMethod('CASH');
-    setVanSaleError('');
-    // Pre-populate from loaded van stock, qty starts at 0
-    const loaded = route.loaded_stock || [];
-    if (loaded.length > 0) {
-      setVanSaleItems(loaded.map(item => {
-        const prod = products.find(p => p.id === item.productId);
-        return {
-          productId:    item.productId,
-          productName:  prod?.name || item.productId,
-          qty:          0,
-          sellingPrice: item.sellingPrice || prod?.sellingPrice || 0,
-          costPrice:    item.costPrice    || prod?.costPrice    || 0,
-          maxQty:       item.quantity,
-        };
-      }));
-    } else if (products.length) {
-      const p = products[0];
-      setVanSaleItems([{ productId: p.id, productName: p.name, qty: 0, sellingPrice: p.sellingPrice || 0, costPrice: p.costPrice || 0, maxQty: null }]);
-    } else {
-      setVanSaleItems([]);
-    }
-  };
-  const addVanSaleItem = () => {
-    if (!products.length) return;
-    const p = products[0];
-    setVanSaleItems(prev => [...prev, { productId: p.id, productName: p.name, qty: 1, sellingPrice: p.sellingPrice || 0, costPrice: p.costPrice || 0 }]);
-  };
-  const removeVanSaleItem = (idx) => setVanSaleItems(prev => prev.filter((_, i) => i !== idx));
-  const updateVanSaleItem = (idx, field, value) =>
-    setVanSaleItems(prev => prev.map((item, i) => {
-      if (i !== idx) return item;
-      if (field === 'productId') {
-        const p = products.find(pr => pr.id === value);
-        return p ? { ...item, productId: p.id, productName: p.name, sellingPrice: p.sellingPrice || 0, costPrice: p.costPrice || 0 } : item;
-      }
-      return { ...item, [field]: field === 'qty' ? Math.max(1, parseInt(value) || 1) : field === 'sellingPrice' ? parseFloat(value) || 0 : value };
-    }));
-  const vanSaleTotal = vanSaleItems.reduce((s, i) => s + (i.sellingPrice * i.qty), 0);
+  const openVanSale = async (route) => {
+    const vehicleId = route.vehicleId || route['vehicleId'];
 
-  const handleVanSaleSubmit = async (e) => {
-    e.preventDefault();
-    const activeItems = vanSaleItems.filter(i => i.qty > 0);
-    if (!activeItems.length) { setVanSaleError('Select at least one product.'); return; }
-    setVanSaleLoading(true);
-    setVanSaleError('');
-    const vehicleLoc = inventoryLocations.find(l => l.reference_id === (vanSaleRoute.vehicleId || vanSaleRoute['vehicleId']));
-    const { success, error } = await recordVanSale(vanSaleRoute.id, vehicleLoc?.id, {
-      clientName:   vanSaleClient || 'Walk-in',
-      items:        activeItems.map(i => ({ ...i, quantity: i.qty })),
-      totalAmount:  activeItems.reduce((s, i) => s + i.sellingPrice * i.qty, 0),
-      paymentMethod: vanSaleMethod,
-    });
-    setVanSaleLoading(false);
-    if (!success) { setVanSaleError(error?.message || 'Failed to record sale.'); return; }
-    setVanSaleRoute(null);
+    // Prefer hook data; fetch from DB if hook hasn't loaded yet
+    let vehicleLoc = inventoryLocations.find(l => l.reference_id === vehicleId && l.type === 'VEHICLE');
+    let balances   = vehicleLoc
+      ? inventoryBalances.filter(b => b.location_id === vehicleLoc.id && b.quantity > 0)
+      : [];
+
+    if (!vehicleLoc || balances.length === 0) {
+      // Fetch location
+      const { data: locData } = await supabase
+        .from('inventory_locations')
+        .select('*')
+        .eq('type', 'VEHICLE')
+        .eq('reference_id', vehicleId)
+        .maybeSingle();
+      if (locData) {
+        vehicleLoc = locData;
+        // Fetch balances for this location
+        const { data: balData } = await supabase
+          .from('inventory_balances')
+          .select('*')
+          .eq('location_id', locData.id)
+          .gt('quantity', 0);
+        balances = balData || [];
+      }
+    }
+
+    // Build items from balances
+    const items = balances
+      .map(b => {
+        const prod = products.find(p => p.id === b.product_id);
+        return {
+          productId:    b.product_id,
+          productName:  prod?.name || b.product_id,
+          qty:          0,
+          sellingPrice: prod?.sellingPrice ?? prod?.selling_price ?? 0,
+          costPrice:    prod?.costPrice    ?? prod?.cost_price    ?? 0,
+          maxQty:       Number(b.quantity),
+        };
+      })
+      .sort((a, b) => a.productName.localeCompare(b.productName));
+
+    setVanSaleRoute({ ...route, _vehicleLocId: vehicleLoc?.id });
+    setVanSaleItems(items);
   };
 
   // Reconcile (End Trip)
+  // Stock stays on van by default — returned stock defaults to 0.
+  // Manager can optionally enter returned quantities if physically unloading.
   const openReconcile = (route) => {
     setReconcileRoute(route);
     setReconcileCash('');
-    // Pre-populate returned stock from loaded_stock if available
-    const loaded = route.loaded_stock || [];
+    setReconcileError(null);
+    // Default all returned quantities to 0 (stock stays on van)
+    const loaded = route.loadedStock || route.loaded_stock || [];
     const initReturned = {};
-    loaded.forEach(item => { initReturned[item.productId] = item.quantity; });
+    loaded.forEach(item => { initReturned[item.productId] = 0; });
     setReconcileReturned(initReturned);
   };
 
   const handleReconcile = async (e) => {
     e.preventDefault();
-    const loaded = reconcileRoute_.loaded_stock || [];
-    const returnedStock = loaded.map(item => ({
-      productId: item.productId,
-      quantity:  Math.max(0, Math.min(item.quantity, parseInt(reconcileReturned[item.productId] ?? item.quantity) || 0)),
-    }));
-    await reconcileRoute(reconcileRoute_.id, 0, returnedStock, parseFloat(reconcileCash) || 0);
+    setReconcileError(null);
+    setReconcileLoading(true);
+    const loaded = reconcileRoute_.loadedStock || reconcileRoute_.loaded_stock || [];
+    // Only include items where manager explicitly entered qty > 0 to return
+    const returnedStock = loaded
+      .map(item => ({
+        productId: item.productId,
+        quantity:  Math.max(0, Math.min(item.quantity, parseInt(reconcileReturned[item.productId] || 0) || 0)),
+      }))
+      .filter(item => item.quantity > 0); // skip zeros — stock stays on van
+    const result = await reconcileRoute(reconcileRoute_.id, 0, returnedStock, parseFloat(reconcileCash) || 0);
+    setReconcileLoading(false);
+    if (result?.success === false) {
+      setReconcileError(result.error?.message || result.error?.toString() || 'Reconciliation failed');
+      return;
+    }
     setReconcileRoute(null);
+    setReconcileError(null);
   };
 
   // Mark stop
@@ -370,9 +451,10 @@ const Vehicles = () => {
             {/* Tab switcher */}
             <div className="flex gap-0.5 bg-canvas p-1 rounded-xl border border-black/5">
               {[
-                { id: 'DELIVERIES', label: 'Deliveries', icon: Package },
-                { id: 'FLEET',      label: 'Fleet',      icon: Truck   },
-                { id: 'LIVE',       label: 'Live Map',   icon: Map     },
+                { id: 'DELIVERIES', label: 'Deliveries', icon: Package   },
+                { id: 'FLEET',      label: 'Fleet',      icon: Truck     },
+                { id: 'VAN_STOCK',  label: 'Stock',      icon: BarChart2 },
+                { id: 'LIVE',       label: 'Live Map',   icon: Map       },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -961,6 +1043,17 @@ const Vehicles = () => {
                         </div>
                       </div>
 
+                      {/* Load Van button */}
+                      {hasPermission('MANAGE_FLEET') && (
+                        <button
+                          onClick={e => { e.stopPropagation(); openLoadVan(v); }}
+                          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent-signature/10 border border-accent-signature/20 text-[10px] font-bold text-ink-primary hover:bg-accent-signature/20 transition-all"
+                        >
+                          <PackagePlus size={11} />
+                          Load Van Stock
+                        </button>
+                      )}
+
                       {v.nextServiceDate && (
                         <div className={`flex items-center gap-2 px-3 py-2 rounded-xl text-[9px] font-semibold ${
                           svcSt === 'overdue' ? 'bg-red-50 text-red-700 border border-red-100' :
@@ -990,6 +1083,133 @@ const Vehicles = () => {
           </div>
         )}
       </div>
+
+      {/* ── LOAD VAN MODAL ─────────────────────────────────────────────────────── */}
+      {loadVanVehicle && (
+        <div className="modal-overlay">
+          <div className="glass-modal !max-w-2xl">
+            {/* Header */}
+            <div className="flex justify-between items-start mb-6">
+              <div>
+                <h1 className="text-3xl font-black font-sora text-ink-primary leading-none tracking-tight uppercase">
+                  LOAD VAN<span className="text-accent-signature">.</span>
+                </h1>
+                <p className="text-[10px] font-semibold text-gray-400 mt-1 tracking-widest uppercase">
+                  Warehouse → {loadVanVehicle.name} · {loadVanVehicle.plate || loadVanVehicle.plateNumber}
+                </p>
+              </div>
+              <button
+                className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
+                onClick={() => setLoadVanVehicle(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleLoadVanSubmit} className="space-y-4">
+              {/* Product rows */}
+              <div className="space-y-2">
+                {loadVanItems.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-2 p-3 bg-canvas rounded-xl border border-black/5">
+                    {/* Product select */}
+                    <div className="flex-1 min-w-0">
+                      <select
+                        className="w-full bg-transparent text-sm font-semibold text-ink-primary outline-none"
+                        value={item.productId}
+                        onChange={e => updateLoadVanRow(idx, 'productId', e.target.value)}
+                      >
+                        {products.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                      <div className="text-[9px] font-semibold text-gray-400 mt-0.5">
+                        Available in warehouse: <span className={item.available < item.qty ? 'text-red-500' : 'text-green-600'}>{item.available} units</span>
+                      </div>
+                    </div>
+
+                    {/* Quantity */}
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button type="button"
+                        className="w-6 h-6 rounded-lg bg-black/5 text-xs font-bold flex items-center justify-center hover:bg-black/10"
+                        onClick={() => updateLoadVanRow(idx, 'qty', Math.max(0, item.qty - 1))}>−</button>
+                      <input
+                        type="number"
+                        min="0"
+                        max={item.available}
+                        className="w-14 text-center text-sm font-bold bg-white border border-black/10 rounded-lg py-1 outline-none focus:ring-2 focus:ring-accent-signature/30"
+                        value={item.qty}
+                        onChange={e => updateLoadVanRow(idx, 'qty', e.target.value)}
+                      />
+                      <button type="button"
+                        className="w-6 h-6 rounded-lg bg-black/5 text-xs font-bold flex items-center justify-center hover:bg-black/10"
+                        onClick={() => updateLoadVanRow(idx, 'qty', Math.min(item.available, item.qty + 1))}>+</button>
+                    </div>
+
+                    {/* Max btn */}
+                    <button type="button"
+                      className="text-[9px] font-bold text-accent-signature px-2 py-1 rounded-lg bg-accent-signature/10 hover:bg-accent-signature/20 transition-all shrink-0"
+                      onClick={() => updateLoadVanRow(idx, 'qty', item.available)}>MAX</button>
+
+                    {/* Remove row */}
+                    <button type="button"
+                      className="w-6 h-6 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center shrink-0 transition-all"
+                      onClick={() => removeLoadVanRow(idx)}>
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Add product row */}
+              <button type="button"
+                className="w-full py-2.5 rounded-xl border border-dashed border-black/15 text-[10px] font-bold text-gray-400 hover:border-accent-signature hover:text-ink-primary hover:bg-accent-signature/5 transition-all flex items-center justify-center gap-1.5"
+                onClick={addLoadVanRow}>
+                <PackagePlus size={12} /> Add Product
+              </button>
+
+              {/* Summary */}
+              {loadVanItems.some(i => i.qty > 0) && (
+                <div className="p-3 bg-green-50 border border-green-100 rounded-xl">
+                  <div className="text-[10px] font-bold text-green-700 uppercase tracking-widest mb-1">Transfer Summary</div>
+                  {loadVanItems.filter(i => i.qty > 0).map((item, idx) => (
+                    <div key={idx} className="flex justify-between text-xs text-green-800">
+                      <span>{item.productName}</span>
+                      <span className="font-bold">{item.qty} units</span>
+                    </div>
+                  ))}
+                  <div className="border-t border-green-200 mt-2 pt-2 flex justify-between text-xs font-black text-green-900">
+                    <span>Total items</span>
+                    <span>{loadVanItems.reduce((s, i) => s + i.qty, 0)} units</span>
+                  </div>
+                </div>
+              )}
+
+              {loadVanError && (
+                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700 font-semibold">
+                  ⚠ {loadVanError}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-2">
+                <button type="button"
+                  className="flex-1 py-3 rounded-xl border border-black/10 text-sm font-bold text-gray-500 hover:bg-black/5 transition-all"
+                  onClick={() => setLoadVanVehicle(null)}>
+                  Cancel
+                </button>
+                <button type="submit"
+                  disabled={loadVanLoading || !loadVanItems.some(i => i.qty > 0)}
+                  className="flex-1 py-3 rounded-xl bg-ink-primary text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-ink-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                  {loadVanLoading
+                    ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Loading...</>
+                    : <><PackagePlus size={14} /> Transfer to Van</>
+                  }
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* ── VEHICLE MODAL ──────────────────────────────────────────────────────── */}
       {showVehicleModal && (
@@ -1349,7 +1569,7 @@ const Vehicles = () => {
                 </p>
               </div>
               <button className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
-                onClick={() => setReconcileRoute(null)}>
+                onClick={() => { setReconcileRoute(null); setReconcileError(null); }}>
                 <X size={18} />
               </button>
             </div>
@@ -1379,11 +1599,12 @@ const Vehicles = () => {
             <form onSubmit={handleReconcile} className="space-y-4">
               {/* Returned Stock */}
               {(() => {
-                const loaded = reconcileRoute_.loaded_stock || [];
+                const loaded = reconcileRoute_.loadedStock || reconcileRoute_.loaded_stock || [];
                 if (loaded.length === 0) return null;
                 return (
                   <div>
-                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Van Stock — Returned Qty</p>
+                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Unload from Van (Optional)</p>
+                    <p className="text-[9px] text-gray-400 mb-2">Leave at 0 — stock stays on van for next trip</p>
                     <div className="space-y-2">
                       {loaded.map(item => {
                         const returned = parseInt(reconcileReturned[item.productId] ?? item.quantity) || 0;
@@ -1431,155 +1652,212 @@ const Vehicles = () => {
                 />
                 <p className="text-[9px] text-gray-400 mt-1">Includes invoice collections + van sales cash</p>
               </div>
+              {reconcileError && (
+                <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs text-red-700 font-medium">
+                  {reconcileError}
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-3 pt-2">
                 <button type="button"
                   className="px-6 py-3 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all"
-                  onClick={() => setReconcileRoute(null)}>Cancel</button>
-                <button type="submit" className="btn-signature !h-12 !text-sm flex items-center justify-center gap-3 px-6 !rounded-pill">
+                  disabled={reconcileLoading}
+                  onClick={() => { setReconcileRoute(null); setReconcileError(null); }}>Cancel</button>
+                <button type="submit" disabled={reconcileLoading}
+                  className="btn-signature !h-12 !text-sm flex items-center justify-center gap-3 px-6 !rounded-pill disabled:opacity-60">
+                  {reconcileLoading ? <span className="inline-block w-4 h-4 border-2 border-ink-primary/30 border-t-ink-primary rounded-full animate-spin" /> : null}
                   END TRIP
-                  <div className="icon-nest !w-8 !h-8"><CheckCircle2 size={18} /></div>
+                  {!reconcileLoading && <div className="icon-nest !w-8 !h-8"><CheckCircle2 size={18} /></div>}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
-      {/* ── VAN SALE MODAL — tap-to-sell (DRIVER / OWNER only) ───────────────── */}
+      {/* ── VAN SALE POS MODAL ───────────────────────────────────────────────── */}
       {vanSaleRoute && (hasRole('DRIVER') || hasRole('OWNER') || hasRole('GLOBAL_ADMIN')) && (() => {
-        const activeItems = vanSaleItems.filter(i => i.qty > 0);
-        const saleTotal   = activeItems.reduce((s, i) => s + i.sellingPrice * i.qty, 0);
-        const vanName     = vehicles.find(v => v.id === (vanSaleRoute.vehicleId || vanSaleRoute['vehicleId']))?.name || 'Vehicle';
+        const vehicle = vehicles.find(v => v.id === (vanSaleRoute.vehicleId || vanSaleRoute['vehicleId']));
+        const handleVanSubmit = async ({ cart, clientId, clientName, paymentMethod, total, subtotal }) => {
+          const vehicleLocId = vanSaleRoute._vehicleLocId
+            || inventoryLocations.find(l => l.reference_id === (vanSaleRoute.vehicleId || vanSaleRoute['vehicleId']) && l.type === 'VEHICLE')?.id;
+          const { success, error } = await recordVanSale(vanSaleRoute.id, vehicleLocId, {
+            clientName,
+            items: cart.map(i => ({ productId: i.productId, productName: i.name, quantity: i.quantity, sellingPrice: i.price })),
+            totalAmount: total,
+            paymentMethod,
+            vehicleId: vanSaleRoute.vehicleId || vanSaleRoute['vehicleId'],
+          });
+          return { success, error };
+        };
         return (
-          <div className="modal-overlay">
-            <div className="glass-modal !max-w-md !p-0 overflow-hidden flex flex-col max-h-[90vh]">
+          <VanSaleBuilder
+            vanItems={vanSaleItems}
+            route={vanSaleRoute}
+            vehicle={vehicle}
+            clients={clients}
+            onSubmit={handleVanSubmit}
+            onClose={() => setVanSaleRoute(null)}
+          />
+        );
+      })()}
 
-              {/* Header */}
-              <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
+      {/* ── VAN STOCK DASHBOARD TAB ──────────────────────────────────────────── */}
+      {activeTab === 'VAN_STOCK' && (() => {
+        // Build per-vehicle stock breakdown from inventory_balances
+        const vanStockData = vehicles.map(v => {
+          const loc = inventoryLocations.find(l => l.type === 'VEHICLE' && l.reference_id === v.id);
+          const balances = loc
+            ? inventoryBalances
+                .filter(b => b.location_id === loc.id && b.quantity > 0)
+                .map(b => {
+                  const prod = products.find(p => p.id === b.product_id);
+                  return {
+                    productId:   b.product_id,
+                    productName: prod?.name || b.product_id,
+                    category:    prod?.category || '',
+                    qty:         b.quantity,
+                    sellingPrice: prod?.sellingPrice || 0,
+                    value:       b.quantity * (prod?.sellingPrice || 0),
+                    isLow:       b.quantity < 5,
+                  };
+                })
+                .sort((a, b) => b.qty - a.qty)
+            : [];
+          const totalUnits  = balances.reduce((s, b) => s + b.qty, 0);
+          const totalValue  = balances.reduce((s, b) => s + b.value, 0);
+          const lowItems    = balances.filter(b => b.isLow).length;
+          const inTrip      = activeRoutes.some(r => (r.vehicleId || r['vehicleId']) === v.id);
+          return { vehicle: v, balances, totalUnits, totalValue, lowItems, inTrip };
+        });
+
+        const totalFleetUnits = vanStockData.reduce((s, d) => s + d.totalUnits, 0);
+        const totalFleetValue = vanStockData.reduce((s, d) => s + d.totalValue, 0);
+        const vansWithStock   = vanStockData.filter(d => d.totalUnits > 0).length;
+        const totalLowItems   = vanStockData.reduce((s, d) => s + d.lowItems, 0);
+
+        return (
+          <div className="space-y-5">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-8 bg-accent-signature rounded-pill" />
                 <div>
-                  <div className="text-base font-black text-ink-primary">Van Sale</div>
-                  <div className="text-[10px] text-gray-400 font-medium mt-0.5">{vanName}{vanSaleRoute.location ? ` · ${vanSaleRoute.location}` : ''}</div>
-                </div>
-                <button className="w-8 h-8 rounded-lg border border-black/8 flex items-center justify-center hover:bg-canvas transition-all"
-                  onClick={() => setVanSaleRoute(null)}>
-                  <X size={15} />
-                </button>
-              </div>
-
-              {/* Customer + payment — compact row */}
-              <div className="flex gap-2 px-5 py-3 border-b border-black/5 shrink-0">
-                <input type="text"
-                  className="flex-1 bg-canvas border border-black/8 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
-                  placeholder="Customer name"
-                  value={vanSaleClient}
-                  onChange={e => setVanSaleClient(e.target.value)} />
-                <div className="flex gap-1">
-                  {['CASH', 'UPI', 'CREDIT'].map(m => (
-                    <button key={m} type="button"
-                      onClick={() => setVanSaleMethod(m)}
-                      className={`px-2.5 py-2 rounded-lg text-[9px] font-black transition-all ${
-                        vanSaleMethod === m
-                          ? 'bg-ink-primary text-surface'
-                          : 'bg-canvas border border-black/8 text-gray-400 hover:text-ink-primary'
-                      }`}>
-                      {m}
-                    </button>
-                  ))}
+                  <h2 className="text-base font-bold text-ink-primary">Van Stock Dashboard</h2>
+                  <p className="text-[10px] text-gray-400">Live inventory across all vehicles</p>
                 </div>
               </div>
+            </div>
 
-              {/* Product tap grid */}
-              <div className="flex-1 overflow-y-auto px-5 py-4">
-                <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-3">Van Stock — Tap to sell</p>
-                <div className="space-y-2">
-                  {vanSaleItems.map((item, idx) => {
-                    const selected = item.qty > 0;
-                    return (
-                      <div key={item.productId}
-                        className={`flex items-center gap-3 rounded-xl border px-4 py-3 transition-all ${
-                          selected
-                            ? 'bg-ink-primary border-ink-primary shadow-sm'
-                            : 'bg-white border-black/5 hover:border-black/10'
-                        }`}>
-                        {/* Name + price */}
-                        <div className="flex-1 min-w-0">
-                          <div className={`text-sm font-semibold truncate ${selected ? 'text-surface' : 'text-ink-primary'}`}>
-                            {item.productName}
-                          </div>
-                          <div className={`text-[10px] font-bold mt-0.5 ${selected ? 'text-accent-signature' : 'text-gray-400'}`}>
-                            {sym}{Number(item.sellingPrice).toFixed(2)}
-                            {item.maxQty != null && (
-                              <span className={`ml-2 font-medium ${selected ? 'text-white/40' : 'text-gray-300'}`}>
-                                max {item.maxQty}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Qty stepper */}
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button type="button"
-                            onClick={() => updateVanSaleItem(idx, 'qty', Math.max(0, item.qty - 1))}
-                            className={`w-8 h-8 rounded-lg font-black text-base flex items-center justify-center transition-all ${
-                              selected
-                                ? 'bg-white/10 text-surface hover:bg-white/20'
-                                : 'bg-canvas border border-black/8 text-gray-400 hover:text-ink-primary'
-                            }`}>
-                            −
-                          </button>
-                          <span className={`w-8 text-center text-sm font-black tabular-nums ${selected ? 'text-surface' : 'text-gray-300'}`}>
-                            {item.qty}
-                          </span>
-                          <button type="button"
-                            onClick={() => updateVanSaleItem(idx, 'qty', item.maxQty != null ? Math.min(item.maxQty, item.qty + 1) : item.qty + 1)}
-                            className={`w-8 h-8 rounded-lg font-black text-base flex items-center justify-center transition-all ${
-                              selected
-                                ? 'bg-accent-signature text-ink-primary hover:opacity-90'
-                                : 'bg-accent-signature/10 border border-accent-signature/20 text-accent-signature hover:bg-accent-signature/20'
-                            }`}>
-                            +
-                          </button>
-                        </div>
-
-                        {/* Line total */}
-                        {selected && (
-                          <div className="text-sm font-black text-accent-signature tabular-nums shrink-0 w-16 text-right">
-                            {sym}{(item.qty * item.sellingPrice).toFixed(2)}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Footer — total + confirm */}
-              <div className="px-5 py-4 border-t border-black/5 shrink-0 space-y-3">
-                {vanSaleError && (
-                  <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg">
-                    <AlertTriangle size={12} className="text-red-500 shrink-0" />
-                    <span className="text-[10px] font-semibold text-red-600">{vanSaleError}</span>
-                  </div>
-                )}
-                <div className="flex items-center justify-between">
+            {/* Fleet-wide KPI bar */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: 'Fleet Stock',    value: `${totalFleetUnits.toLocaleString()} units`, sub: 'total on board',   color: 'bg-blue-50 border-blue-100 text-blue-700',   icon: Layers       },
+                { label: 'Fleet Value',    value: `${sym}${totalFleetValue.toLocaleString(undefined,{maximumFractionDigits:0})}`, sub: 'at selling price', color: 'bg-green-50 border-green-100 text-green-700', icon: BarChart2 },
+                { label: 'Vans w/ Stock',  value: `${vansWithStock} / ${vehicles.length}`,     sub: 'loaded',           color: 'bg-canvas border-black/8 text-gray-600',     icon: Truck        },
+                { label: 'Low Stock SKUs', value: `${totalLowItems}`,                           sub: '<5 units per van', color: totalLowItems > 0 ? 'bg-amber-50 border-amber-100 text-amber-700' : 'bg-canvas border-black/8 text-gray-500', icon: AlertCircle },
+              ].map(kpi => (
+                <div key={kpi.label} className={`flex items-center gap-3 p-3 rounded-2xl border ${kpi.color}`}>
+                  <kpi.icon size={18} className="shrink-0 opacity-70" />
                   <div>
-                    <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
-                      {activeItems.length} item{activeItems.length !== 1 ? 's' : ''} selected
+                    <div className="text-xs font-black">{kpi.value}</div>
+                    <div className="text-[9px] font-semibold uppercase tracking-widest opacity-70">{kpi.label}</div>
+                    <div className="text-[9px] opacity-50">{kpi.sub}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Per-vehicle cards */}
+            <div className="space-y-4">
+              {vanStockData.map(({ vehicle: v, balances, totalUnits, totalValue, lowItems, inTrip }) => (
+                <div key={v.id} className="bg-white border border-black/5 rounded-2xl overflow-hidden">
+                  {/* Vehicle header row */}
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-black/5 bg-canvas/40">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-8 rounded-pill ${inTrip ? 'bg-accent-signature' : 'bg-gray-200'}`} />
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-black text-ink-primary uppercase tracking-tight">{v.name}</span>
+                          {inTrip && (
+                            <span className="text-[8px] font-bold text-ink-primary bg-accent-signature px-2 py-0.5 rounded-pill">ON TRIP</span>
+                          )}
+                          {lowItems > 0 && (
+                            <span className="flex items-center gap-1 text-[8px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-pill">
+                              <AlertCircle size={8} />{lowItems} low
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[10px] text-gray-400 font-semibold">{v.plate} · {v.type}</div>
+                      </div>
                     </div>
-                    <div className="text-2xl font-black text-ink-primary tabular-nums leading-tight">
-                      {sym}{saleTotal.toFixed(2)}
+                    <div className="flex items-center gap-4 text-right">
+                      <div>
+                        <div className="text-sm font-black text-ink-primary">{totalUnits.toLocaleString()}</div>
+                        <div className="text-[9px] text-gray-400 font-semibold">units</div>
+                      </div>
+                      <div>
+                        <div className="text-sm font-black text-green-700">{sym}{totalValue.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+                        <div className="text-[9px] text-gray-400 font-semibold">value</div>
+                      </div>
+                      <button
+                        onClick={() => openLoadVan(v)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-signature/10 border border-accent-signature/20 text-[10px] font-bold text-ink-primary hover:bg-accent-signature/20 transition-all shrink-0"
+                      >
+                        <PackagePlus size={10} /> Load
+                      </button>
                     </div>
                   </div>
-                  <button
-                    onClick={handleVanSaleSubmit}
-                    disabled={vanSaleLoading || activeItems.length === 0}
-                    className="btn-signature !h-12 !px-8 !rounded-xl !text-sm flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
-                    {vanSaleLoading
-                      ? <span className="w-4 h-4 border-2 border-ink-primary/30 border-t-ink-primary rounded-full animate-spin" />
-                      : <><ShoppingCart size={15} /> Confirm Sale</>
-                    }
-                  </button>
+
+                  {/* Product rows */}
+                  {balances.length === 0 ? (
+                    <div className="px-5 py-6 text-center text-[11px] font-semibold text-gray-300">
+                      No stock on this van — use "Load" to transfer from warehouse
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-black/3">
+                      {balances.map(b => {
+                        const pct = Math.min(100, (b.qty / Math.max(...balances.map(x => x.qty), 1)) * 100);
+                        return (
+                          <div key={b.productId} className="flex items-center gap-3 px-5 py-2.5 hover:bg-canvas/50 transition-colors">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs font-semibold text-ink-primary truncate">{b.productName}</span>
+                                {b.isLow && <TrendingDown size={10} className="text-amber-500 shrink-0" />}
+                              </div>
+                              {b.category && (
+                                <span className="text-[9px] text-gray-400">{b.category}</span>
+                              )}
+                            </div>
+                            {/* Bar chart strip */}
+                            <div className="w-24 hidden sm:block">
+                              <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden">
+                                <div
+                                  className={`h-full rounded-full transition-all ${b.isLow ? 'bg-amber-400' : 'bg-accent-signature'}`}
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                            <div className="text-right shrink-0 w-16">
+                              <div className={`text-sm font-black ${b.isLow ? 'text-amber-600' : 'text-ink-primary'}`}>{b.qty}</div>
+                              <div className="text-[9px] text-gray-400">units</div>
+                            </div>
+                            <div className="text-right shrink-0 w-20 hidden sm:block">
+                              <div className="text-xs font-semibold text-gray-500">{sym}{b.value.toLocaleString(undefined,{maximumFractionDigits:0})}</div>
+                              <div className="text-[9px] text-gray-400">value</div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-              </div>
+              ))}
+
+              {vehicles.length === 0 && (
+                <div className="py-20 text-center bg-white border border-black/5 rounded-2xl">
+                  <Truck size={36} className="text-gray-200 mx-auto mb-3" />
+                  <p className="text-sm font-bold text-gray-400">No vehicles registered</p>
+                </div>
+              )}
             </div>
           </div>
         );

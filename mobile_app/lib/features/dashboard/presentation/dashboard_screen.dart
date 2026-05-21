@@ -14,6 +14,7 @@ import 'package:mobile_app/features/finance/presentation/add_expense_screen.dart
 import 'package:mobile_app/features/finance/presentation/finance_screen.dart';
 import 'package:mobile_app/features/hr/presentation/hr_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/inventory_screen.dart';
+import 'package:mobile_app/features/logistics/presentation/driver_route_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart';
 import 'package:mobile_app/features/menu/presentation/menu_screen.dart';
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
@@ -21,6 +22,7 @@ import 'package:mobile_app/features/reports/presentation/reports_screen.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
 import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
+import 'package:mobile_app/features/sales/presentation/sale_type_sheet.dart';
 import 'package:mobile_app/features/sales/presentation/sales_screen.dart';
 import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
 
@@ -43,7 +45,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     (icon: LucideIcons.layoutDashboard, label: 'Dashboard'),
     (icon: LucideIcons.shoppingCart,    label: 'Sales'),
     (icon: LucideIcons.package,         label: 'Inventory'),
-    (icon: LucideIcons.fileText,        label: 'Invoices'),
+    (icon: LucideIcons.truck,           label: 'My Route'),
     (icon: LucideIcons.moreHorizontal,  label: 'More'),
   ];
 
@@ -53,7 +55,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     DashboardHome(onTabSwitch: _switchTab),
     const SalesScreen(),
     const InventoryScreen(),
-    const InvoicesScreen(),
+    const DriverRouteScreen(),
     const MenuScreen(),
   ];
 
@@ -63,18 +65,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       key: _scaffoldKey,
       backgroundColor: AppColors.canvas,
       drawer: const _AppDrawer(),
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AddSaleScreen()),
-        ),
-        backgroundColor: AppColors.secondary,
-        foregroundColor: AppColors.primaryContainer,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        child: const Icon(LucideIcons.plus, size: 26),
-      ),
+      floatingActionButton: _selectedIndex == 1
+          ? FloatingActionButton(
+              heroTag: null,
+              onPressed: () {
+                final roles = ProviderScope.containerOf(context, listen: false)
+                    .read(tenantContextProvider)
+                    .value?.roles ?? [];
+                navigateToNewSale(context, roles);
+              },
+              backgroundColor: AppColors.secondary,
+              foregroundColor: AppColors.primaryContainer,
+              elevation: 4,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+              child: const Icon(LucideIcons.plus, size: 26),
+            )
+          : null,
       body: Column(
         children: [
           // ── Global app bar ────────────────────────────────────────
@@ -298,8 +304,14 @@ class _AppDrawer extends ConsumerWidget {
     ]),
   ];
 
-  void _navigate(BuildContext context, String label) {
+  void _navigate(BuildContext context, String label, {List<String> roles = const []}) {
     Navigator.pop(context); // close drawer
+    if (label == 'New Sale') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) navigateToNewSale(context, roles);
+      });
+      return;
+    }
     final Widget? screen = _screenFor(context, label);
     if (screen != null) {
       Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
@@ -327,6 +339,7 @@ class _AppDrawer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tenantAsync = ref.watch(tenantContextProvider);
+    final roles = tenantAsync.value?.roles ?? [];
 
     return Drawer(
       backgroundColor: AppColors.surface,
@@ -433,7 +446,7 @@ class _AppDrawer extends ConsumerWidget {
                       ),
                       ...section.items.map((item) => _DrawerTile(
                         item: item,
-                        onTap: () => _navigate(context, item.label),
+                        onTap: () => _navigate(context, item.label, roles: roles),
                       )),
                     ],
                   )).toList(),
@@ -720,7 +733,10 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
                 children: [
                   Expanded(
                     child: GestureDetector(
-                      onTap: () => _push(const AddSaleScreen()),
+                      onTap: () {
+                        final roles = ref.read(tenantContextProvider).value?.roles ?? [];
+                        navigateToNewSale(context, roles);
+                      },
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         decoration: BoxDecoration(

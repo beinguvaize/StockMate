@@ -3,11 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/data/models/route_stop.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
 import 'package:mobile_app/features/logistics/presentation/van_stock_screen.dart';
-import 'package:mobile_app/features/logistics/presentation/van_sale_screen.dart';
+import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 
 class DriverRouteScreen extends ConsumerStatefulWidget {
   const DriverRouteScreen({super.key});
@@ -78,11 +79,7 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
         ),
         data: (route) {
           if (route == null) {
-            return _NoRouteView(
-              onMakeSale: () => Navigator.push(context, MaterialPageRoute(
-                builder: (_) => const VanSaleScreen(),
-              )),
-            );
+            return const _NoRouteView();
           }
 
           return Column(
@@ -130,12 +127,23 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
       floatingActionButton: routeAsync.whenOrNull(
         data: (route) => route != null
             ? FloatingActionButton.extended(
-                onPressed: () => Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => VanSaleScreen(
-                    vehicleId: route.vehicleId,
-                    routeId:   route.id,
-                  ),
-                )),
+                onPressed: () async {
+                  // Look up van's inventory location, then open AddSaleScreen
+                  final locRes = await supabase
+                      .from('inventory_locations')
+                      .select('id')
+                      .eq('type', 'VEHICLE')
+                      .eq('reference_id', route.vehicleId ?? '')
+                      .maybeSingle();
+                  if (!context.mounted) return;
+                  Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => AddSaleScreen(
+                      vehicleId:  route.vehicleId,
+                      locationId: locRes?['id'] as String?,
+                      routeId:    route.id,
+                    ),
+                  ));
+                },
                 backgroundColor: AppColors.primaryContainer,
                 foregroundColor: AppColors.inkPrimary,
                 shape: const StadiumBorder(),
@@ -449,7 +457,7 @@ class _StopCardState extends ConsumerState<_StopCard> {
                           fontSize: 15,
                           color: AppColors.inkTertiary,
                         ),
-                        prefixText: '\$ ',
+                        prefixText: '${ref.watch(currencySymbolProvider).valueOrNull ?? ''} ',
                         prefixStyle: GoogleFonts.jetBrainsMono(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -554,12 +562,96 @@ class _ActionBtn extends StatelessWidget {
 }
 
 // ── Empty / no-route states ───────────────────────────────────────────────────
-class _NoRouteView extends StatelessWidget {
-  final VoidCallback onMakeSale;
-  const _NoRouteView({required this.onMakeSale});
+class _NoRouteView extends ConsumerWidget {
+  const _NoRouteView();
+
+  Future<void> _openVehiclePicker(BuildContext context, WidgetRef ref) async {
+    // Load VEHICLE-type inventory locations that have stock
+    final locRows = await supabase
+        .from('inventory_locations')
+        .select('id, reference_id, name')
+        .eq('type', 'VEHICLE');
+
+    if (!context.mounted) return;
+    if (locRows.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No vans have stock loaded.')),
+      );
+      return;
+    }
+
+    // Check which have stock > 0
+    final List<Map<String, dynamic>> vansWithStock = [];
+    for (final loc in locRows as List) {
+      final bal = await supabase
+          .from('inventory_balances')
+          .select('quantity')
+          .eq('location_id', loc['id'] as String)
+          .gt('quantity', 0)
+          .limit(1);
+      if ((bal as List).isNotEmpty) {
+        vansWithStock.add(loc as Map<String, dynamic>);
+      }
+    }
+
+    if (!context.mounted) return;
+    if (vansWithStock.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No vans have stock loaded. Load stock from web.')),
+      );
+      return;
+    }
+
+    // If exactly one, go straight in
+    if (vansWithStock.length == 1) {
+      final vehicleId  = vansWithStock.first['reference_id'] as String;
+      final locationId = vansWithStock.first['id'] as String;
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => AddSaleScreen(vehicleId: vehicleId, locationId: locationId),
+      ));
+      return;
+    }
+
+    // Multiple vans — show picker sheet; return Map with vehicleId + locationId
+    final picked = await showModalBottomSheet<Map<String, String>>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 16),
+            Text('Select Van',
+              style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w800, fontSize: 16)),
+            const SizedBox(height: 8),
+            ...vansWithStock.map((loc) => ListTile(
+              leading: const Icon(LucideIcons.truck),
+              title: Text(loc['name'] as String? ?? loc['reference_id'] as String),
+              onTap: () => Navigator.pop(ctx, {
+                'vehicleId':  loc['reference_id'] as String,
+                'locationId': loc['id'] as String,
+              }),
+            )),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+
+    if (picked != null && context.mounted) {
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => AddSaleScreen(
+          vehicleId:  picked['vehicleId'],
+          locationId: picked['locationId'],
+        ),
+      ));
+    }
+  }
 
   @override
-  Widget build(BuildContext context) => Center(
+  Widget build(BuildContext context, WidgetRef ref) => Center(
     child: Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -592,7 +684,7 @@ class _NoRouteView extends StatelessWidget {
           ),
           const SizedBox(height: 32),
           ElevatedButton.icon(
-            onPressed: onMakeSale,
+            onPressed: () => _openVehiclePicker(context, ref),
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryContainer,
               foregroundColor: AppColors.inkPrimary,

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
+import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/core/database/database.dart' hide Client;
 import 'package:mobile_scanner/mobile_scanner.dart';
@@ -29,7 +30,15 @@ class CartItem {
 // ─── POS Screen ───────────────────────────────────────────────────────────────
 
 class AddSaleScreen extends ConsumerStatefulWidget {
-  const AddSaleScreen({super.key});
+  /// When set, stock is sourced from this vehicle's inventory location (Van Sale).
+  /// When null, stock is sourced from warehouse (POS Sale).
+  final String? vehicleId;
+  final String? locationId;
+  final String? routeId;
+
+  const AddSaleScreen({super.key, this.vehicleId, this.locationId, this.routeId});
+
+  bool get isVanSale => vehicleId != null && locationId != null;
 
   @override
   ConsumerState<AddSaleScreen> createState() => _AddSaleScreenState();
@@ -98,6 +107,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     });
   }
 
+  void _deleteFromCart(Product p) {
+    setState(() => _cart.removeWhere((c) => c.product.id == p.id));
+  }
+
   int _cartQty(Product p) {
     final i = _cart.indexWhere((c) => c.product.id == p.id);
     return i != -1 ? _cart[i].quantity : 0;
@@ -156,6 +169,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         subtotal: _subtotal,
         selectedClient: _selectedClient,
         onComplete: (paymentMethod) => _submit(paymentMethod),
+        onRemove: _deleteFromCart,
       ),
     );
   }
@@ -225,8 +239,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         'p_payment_status':  ps,
         'p_date':            dateStr,
         'p_user_id':         userId,
-        'p_location_id':     null,
-        'p_route_id':        null,
+        'p_location_id':     widget.locationId,   // van locationId or null for warehouse
+        'p_route_id':        widget.routeId,
         'p_tenant_id':       tenantId,
         'p_delivery_method': 'PICKUP',
       };
@@ -272,6 +286,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
   @override
   Widget build(BuildContext context) {
     final productsAsync = ref.watch(productsProvider);
+    // Van sale: also watch live van stock for quantity limits
+    final vanStockAsync = widget.isVanSale
+        ? ref.watch(vanStockProvider(widget.vehicleId!))
+        : null;
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -279,11 +297,24 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
         error: (e, _) => Center(child: Text('Error: $e')),
         data: (allProducts) {
+          // ── Van mode: filter to van stock only, override qty with van qty ──
+          List<Product> displayProducts;
+          if (widget.isVanSale) {
+            final vanStock = vanStockAsync?.valueOrNull ?? [];
+            final vanQtyMap = {for (final v in vanStock) v.productId: v.quantity};
+            displayProducts = allProducts
+                .where((p) => vanQtyMap.containsKey(p.id) && (vanQtyMap[p.id] ?? 0) > 0)
+                .map((p) => p.copyWith(stock: vanQtyMap[p.id]!))
+                .toList();
+          } else {
+            displayProducts = allProducts;
+          }
+
           final categories = ['All', ...{
-            for (final p in allProducts) if (p.category != null && p.category!.isNotEmpty) p.category!
+            for (final p in displayProducts) if (p.category != null && p.category!.isNotEmpty) p.category!
           }];
 
-          final filtered = allProducts.where((p) {
+          final filtered = displayProducts.where((p) {
             final matchCat = _selectedCategory == null || p.category == _selectedCategory;
             final matchQ = _searchQuery.isEmpty ||
                 p.name.toLowerCase().contains(_searchQuery) ||
@@ -324,7 +355,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        'New Sale',
+                                        widget.isVanSale ? 'Van Sale' : 'New Sale',
                                         style: GoogleFonts.hankenGrotesk(
                                           fontSize: 24,
                                           fontWeight: FontWeight.w700,
@@ -333,10 +364,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                         ),
                                       ),
                                       Text(
-                                        'REGISTER 01',
+                                        widget.isVanSale ? 'ROADSIDE POS' : 'REGISTER 01',
                                         style: GoogleFonts.jetBrainsMono(
                                           fontSize: 10,
-                                          color: AppColors.inkTertiary,
+                                          color: widget.isVanSale ? AppColors.secondary : AppColors.inkTertiary,
                                           letterSpacing: 0.5,
                                         ),
                                       ),
@@ -1296,12 +1327,14 @@ class _CheckoutSheet extends StatefulWidget {
   final double subtotal;
   final Client? selectedClient;
   final Future<void> Function(String paymentMethod) onComplete;
+  final void Function(Product) onRemove;
 
   const _CheckoutSheet({
     required this.cart,
     required this.subtotal,
     required this.selectedClient,
     required this.onComplete,
+    required this.onRemove,
   });
 
   @override
@@ -1311,10 +1344,24 @@ class _CheckoutSheet extends StatefulWidget {
 class _CheckoutSheetState extends State<_CheckoutSheet> {
   String _paymentMethod = 'CASH';
   bool _isLoading = false;
+  late List<CartItem> _localCart;
+
+  @override
+  void initState() {
+    super.initState();
+    _localCart = List.from(widget.cart);
+  }
 
   static const _taxRate = 0.0;
-  double get _tax => widget.subtotal * _taxRate;
-  double get _total => widget.subtotal + _tax;
+  double get _subtotal => _localCart.fold(0, (s, c) => s + c.lineTotal);
+  double get _tax => _subtotal * _taxRate;
+  double get _total => _subtotal + _tax;
+
+  void _removeItem(CartItem item) {
+    setState(() => _localCart.removeWhere((c) => c.product.id == item.product.id));
+    widget.onRemove(item.product);
+    if (_localCart.isEmpty && mounted) Navigator.pop(context);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1369,7 +1416,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             borderRadius: BorderRadius.circular(99),
                           ),
                           child: Text(
-                            '${widget.cart.fold(0, (s, c) => s + c.quantity)} ITEMS',
+                            '${_localCart.fold(0, (s, c) => s + c.quantity)} ITEMS',
                             style: GoogleFonts.jetBrainsMono(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -1401,7 +1448,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                         boxShadow: [AppColors.cardShadow],
                       ),
                       child: Column(
-                        children: widget.cart.map((item) {
+                        children: _localCart.map((item) {
                           return Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Row(
@@ -1435,6 +1482,23 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.inkPrimary,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                GestureDetector(
+                                  onTap: () => _removeItem(item),
+                                  child: Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.danger.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Icon(
+                                      LucideIcons.x,
+                                      size: 12,
+                                      color: AppColors.danger,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -1485,7 +1549,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       ),
                       child: Column(
                         children: [
-                          _BillRow('Subtotal', '₹${widget.subtotal.toStringAsFixed(2)}'),
+                          _BillRow('Subtotal', '₹${_subtotal.toStringAsFixed(2)}'),
                           const SizedBox(height: 10),
                           _BillRow(
                               'Tax (${(_taxRate * 100).toStringAsFixed(0)}%)',

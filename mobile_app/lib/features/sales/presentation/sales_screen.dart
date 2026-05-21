@@ -94,7 +94,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
             // ── Stats row ──────────────────────────────────────────
             salesAsync.maybeWhen(
               data: (sales) {
-                final total = sales.fold(0.0, (sum, s) => sum + (s.totalAmount ?? 0));
+                final today = DateTime.now();
+                final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+                final todaySales = sales.where((s) => s.date == todayStr).toList();
+                final total = todaySales.fold(0.0, (sum, s) => sum + (s.totalAmount ?? 0));
+                final txCount = todaySales.length;
                 return Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
                   child: Row(
@@ -154,7 +158,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '${sales.length}',
+                                '$txCount',
                                 style: GoogleFonts.hankenGrotesk(
                                   fontSize: 28,
                                   fontWeight: FontWeight.w700,
