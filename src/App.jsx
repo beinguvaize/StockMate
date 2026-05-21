@@ -1,5 +1,10 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+
+// Electron loads via file:// — BrowserRouter breaks there, use HashRouter.
+const Router = (typeof window !== 'undefined' && window.electron?.isElectron)
+  ? HashRouter
+  : BrowserRouter;
 import { useAuth } from './context/AuthContext';
 import { useTenant } from './context/TenantContext';
 import AppLayout from './components/AppLayout';
