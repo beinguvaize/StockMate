@@ -19,7 +19,7 @@ import {
   TrendingUp, ShoppingBag, Clock, Package,
   User, Truck, Download, Calendar,
   ArrowUpRight, ArrowDownRight, Minus,
-  ChevronRight,
+  ChevronRight, ChevronDown,
 } from 'lucide-react';
 import useReportData from './useReportData';
 import { formatCurrency } from '../../lib/utils';
@@ -575,6 +575,144 @@ const BusinessReport = () => {
           )}
       </div>
 
+      {/* ── DETAILED DAILY SALES LOG ────────────────────────────────────── */}
+      <DailySalesDetail sales={sales} clients={clients} loading={salesLoading} />
+
+    </div>
+  );
+};
+
+/* ─── Detailed daily breakdown ────────────────────────────────────────────── */
+const PAY_BADGE = { CASH: 'bg-emerald-50 text-emerald-700', UPI: 'bg-indigo-50 text-indigo-700', CREDIT: 'bg-amber-50 text-amber-700', BANK: 'bg-blue-50 text-blue-700' };
+
+const DailySalesDetail = ({ sales, clients, loading }) => {
+  const [openDates, setOpenDates] = useState({});
+
+  const byDate = useMemo(() => {
+    const map = {};
+    sales.forEach(s => {
+      const d = s.date || 'Unknown';
+      if (!map[d]) map[d] = { date: d, sales: [], total: 0, orders: 0 };
+      map[d].sales.push(s);
+      map[d].total  += Number(s.totalAmount || 0);
+      map[d].orders += 1;
+    });
+    return Object.values(map).sort((a, b) => b.date.localeCompare(a.date));
+  }, [sales]);
+
+  const toggle = (date) => setOpenDates(prev => ({ ...prev, [date]: !prev[date] }));
+
+  if (loading) return (
+    <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-6 space-y-3">
+      {[...Array(4)].map((_, i) => <div key={i} className="h-12 bg-canvas animate-pulse rounded-xl" />)}
+    </div>
+  );
+  if (byDate.length === 0) return null;
+
+  return (
+    <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+      <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+        <SectionHead title="Daily Sales Detail" sub="product & client breakdown" />
+        <span className="text-[10px] font-black text-gray-400 bg-canvas px-2 py-1 rounded-full">
+          {byDate.length} days
+        </span>
+      </div>
+
+      {byDate.map(day => {
+        const isOpen = openDates[day.date] ?? (byDate.length === 1);
+        return (
+          <div key={day.date} className="border-b border-black/5 last:border-0">
+            {/* Day header — click to expand */}
+            <button
+              className="w-full flex items-center gap-4 px-6 py-4 hover:bg-canvas/40 transition-colors text-left"
+              onClick={() => toggle(day.date)}
+            >
+              <div className="w-9 h-9 rounded-xl bg-canvas flex items-center justify-center shrink-0">
+                <Calendar size={14} className="text-gray-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-black text-ink-primary">{day.date}</div>
+                <div className="text-[10px] text-gray-400 font-medium mt-0.5">
+                  {day.orders} {day.orders === 1 ? 'sale' : 'sales'}
+                </div>
+              </div>
+              <div className="text-base font-black text-ink-primary tabular-nums shrink-0">
+                {formatCurrency(day.total)}
+              </div>
+              <ChevronDown
+                size={14}
+                className={`text-gray-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {/* Expanded sales for this day */}
+            {isOpen && (
+              <div className="bg-canvas/30 border-t border-black/5">
+                {/* Column labels */}
+                <div className="grid grid-cols-[1fr_180px_60px_90px_110px] gap-3 px-8 py-2 border-b border-black/5">
+                  {['Client', 'Products', 'Items', 'Method', 'Amount'].map(h => (
+                    <span key={h} className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{h}</span>
+                  ))}
+                </div>
+
+                {day.sales.map((s, si) => {
+                  const cid      = s.customerInfo?.id || s.shopId || null;
+                  const cname    = (cid && clients.find(c => c.id === cid)?.name) || s.customerInfo?.name || 'Walk-in';
+                  const items    = Array.isArray(s.items) ? s.items : [];
+                  const itemQty  = items.reduce((acc, it) => acc + Number(it.quantity || 0), 0);
+                  const prodList = items.map(it => `${it.name}${it.quantity > 1 ? ` ×${it.quantity}` : ''}`).join(', ');
+                  const method   = (s.paymentMethod || 'CASH').toUpperCase();
+                  const badgeCls = PAY_BADGE[method] || 'bg-gray-100 text-gray-600';
+
+                  return (
+                    <div key={s.id || si}
+                      className="grid grid-cols-[1fr_180px_60px_90px_110px] gap-3 px-8 py-3 border-b border-black/5 last:border-0 hover:bg-white/60 transition-colors items-start">
+
+                      {/* Client */}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-6 h-6 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
+                          <span className="text-[9px] font-black text-accent-signature">{(cname[0]||'?').toUpperCase()}</span>
+                        </div>
+                        <span className="text-xs font-bold text-ink-primary truncate">{cname}</span>
+                      </div>
+
+                      {/* Products */}
+                      <div className="min-w-0">
+                        {items.length === 0
+                          ? <span className="text-xs text-gray-400 italic">—</span>
+                          : items.map((it, idx) => (
+                            <div key={idx} className="text-[11px] font-medium text-ink-secondary leading-snug truncate">
+                              {it.name}
+                              <span className="text-gray-400 ml-1">×{it.quantity} @ {formatCurrency(it.rate)}</span>
+                            </div>
+                          ))
+                        }
+                      </div>
+
+                      {/* Total items */}
+                      <span className="text-xs font-black text-ink-primary tabular-nums">{itemQty}</span>
+
+                      {/* Payment method */}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit ${badgeCls}`}>
+                        {method}
+                      </span>
+
+                      {/* Amount */}
+                      <span className="text-xs font-black text-ink-primary tabular-nums">{formatCurrency(s.totalAmount)}</span>
+                    </div>
+                  );
+                })}
+
+                {/* Day subtotal */}
+                <div className="flex justify-end px-8 py-2.5 border-t border-black/5 bg-white/40">
+                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-4">Day Total</span>
+                  <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(day.total)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 };
