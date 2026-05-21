@@ -1,10 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import ReportShell from '../components/reports/ReportShell';
-import SalesReport from '../components/reports/SalesReport';
+import BusinessReport from '../components/reports/BusinessReport';
 import InventoryReport from '../components/reports/InventoryReport';
 import ClientOutstandingReport from '../components/reports/ClientOutstandingReport';
-import PurchasesReport from '../components/reports/PurchasesReport';
 import ExpensesReport from '../components/reports/ExpensesReport';
 import HRReport from '../components/reports/HRReport';
 import LogisticsReport from '../components/reports/LogisticsReport';
@@ -32,7 +31,7 @@ import {
 
 const Reports = () => {
   const { hasPermission } = useAuth();
-  const [activeTab, setActiveTab] = useState('SALES');
+  const [activeTab, setActiveTab] = useState('BUSINESS');
   const [activeGroup, setActiveGroup] = useState('OPERATIONAL');
 
   // Three-level navigation: group → report
@@ -41,13 +40,12 @@ const Reports = () => {
   // COMPLIANCE: GST / tax filing returns (P1)
   const TABS = [
     // --- OPERATIONAL GROUP ---
-    { id: 'SALES',       group: 'OPERATIONAL', label: 'Sales',               icon: <TrendingUp size={18} />, component: <SalesReport />,              permission: 'sales' },
+    { id: 'BUSINESS',    group: 'OPERATIONAL', label: 'Business Report',     icon: <TrendingUp size={18} />, component: <BusinessReport />,           permission: 'sales' },
     { id: 'INVENTORY',   group: 'OPERATIONAL', label: 'Inventory',           icon: <Layers size={18} />,     component: <InventoryReport />,          permission: 'inventory' },
     { id: 'PROFITABILITY', group: 'OPERATIONAL', label: 'Product Margins',   icon: <Tag size={18} />,        component: <ProductProfitabilityReport />, permission: 'inventory' },
     { id: 'LOGISTICS',   group: 'OPERATIONAL', label: 'Deliveries',          icon: <Globe size={18} />,      component: <LogisticsReport />,          permission: 'inventory' },
     { id: 'HR',          group: 'OPERATIONAL', label: 'Staff & Payroll',     icon: <Briefcase size={18} />,  component: <HRReport />,                 permission: 'reports' },
     { id: 'CLIENTS',     group: 'OPERATIONAL', label: 'Clients',             icon: <UserCircle size={18} />, component: <ClientOutstandingReport />,  permission: 'clients' },
-    { id: 'PURCHASES',   group: 'OPERATIONAL', label: 'Purchases',           icon: <Truck size={18} />,      component: <PurchasesReport />,          permission: 'inventory' },
     { id: 'EXPENSES',    group: 'OPERATIONAL', label: 'Expenses',            icon: <DollarSign size={18} />, component: <ExpensesReport />,           permission: 'expenses' },
 
     // --- ACCOUNTING GROUP ---
