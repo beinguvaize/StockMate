@@ -418,7 +418,7 @@ const VanSaleBuilder = ({
         ? "w-full flex items-stretch justify-center"
         : "fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-stretch justify-center"
       }>
-        <div className={`bg-canvas flex flex-col ${pageMode ? 'w-full min-h-screen' : 'w-full max-w-6xl h-full'}`}>
+        <div className={`bg-canvas flex flex-col overflow-hidden ${pageMode ? 'w-full h-[calc(100vh-130px)]' : 'w-full max-w-6xl h-full'}`}>
 
           {/* Modal header */}
           <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-black/5 shrink-0">

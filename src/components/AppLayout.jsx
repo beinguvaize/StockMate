@@ -479,7 +479,7 @@ const Navbar = () => {
 
 const MainContent = () => {
   const location = useLocation();
-  const isSales = location.pathname.endsWith('/sales');
+  const isSales = location.pathname.endsWith('/sales') || location.pathname.endsWith('/van-sale');
   return (
     <main
       key={location.pathname}
