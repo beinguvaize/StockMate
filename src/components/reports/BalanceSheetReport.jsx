@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
 import { supabase } from '../../lib/supabase';
-import { useAppContext } from '../../context/AppContext';
+import { useTenant } from '../../context/TenantContext';
 
 /**
  * Balance Sheet Report
@@ -15,7 +15,7 @@ import { useAppContext } from '../../context/AppContext';
  * Computed from the General Ledger.
  */
 const BalanceSheetReport = () => {
-  const { currentTenantId } = useAppContext();
+  const { currentTenantId } = useTenant();
   const [gl, setGl] = useState({
     cash: 0, accountsReceivable: 0, inventory: 0, fixedAssets: 0,
     accountsPayable: 0, accruedPayroll: 0, taxPayable: 0,

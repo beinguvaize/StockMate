@@ -3,7 +3,7 @@ import ReportShell from './ReportShell';
 import { Scale, CheckCircle2, AlertTriangle, Receipt, Landmark } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
 import { supabase } from '../../lib/supabase';
-import { useAppContext } from '../../context/AppContext';
+import { useTenant } from '../../context/TenantContext';
 
 /**
  * Trial Balance Report
@@ -12,7 +12,7 @@ import { useAppContext } from '../../context/AppContext';
  * Total Debits MUST equal Total Credits (double-entry invariant).
  */
 const TrialBalanceReport = () => {
-  const { currentTenantId } = useAppContext();
+  const { currentTenantId } = useTenant();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
 
