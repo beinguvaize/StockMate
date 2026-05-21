@@ -28,6 +28,7 @@ const Modal = ({
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-black/5 bg-white shrink-0">
         <button
+          type="button"
           onClick={onClose}
           className="w-9 h-9 flex items-center justify-center rounded-full border border-black/5 hover:bg-canvas transition-all text-ink-primary shrink-0"
         >
@@ -46,6 +47,7 @@ const Modal = ({
           )}
         </div>
         <button
+          type="button"
           onClick={onClose}
           className="ml-auto w-8 h-8 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-gray-400 shrink-0"
         >

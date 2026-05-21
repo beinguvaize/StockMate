@@ -66,7 +66,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     }
     setImageFile(null);
     setShowPhotoLib(false);
-  }, [editingProduct, productCategories, isOpen]);
+  // NOTE: productCategories intentionally excluded — it changes reference on every
+  // refetch and would reset imageFile while the modal is open.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingProduct, isOpen]);
 
   const handleImageChange = (e) => {
     const file = e.target.files?.[0];
@@ -99,42 +102,43 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     setUploading(true);
     setSaveError(null);
 
-    let imageUrl = formData.image || '';
-    if (imageFile) {
-      const { url, error } = await uploadProductImage(imageFile, tenantId);
-      if (error) {
-        setSaveError('Image upload failed: ' + error);
-        setUploading(false);
+    try {
+      let imageUrl = formData.image || '';
+      if (imageFile) {
+        const { url, error } = await uploadProductImage(imageFile, tenantId);
+        if (error) {
+          setSaveError('Image upload failed: ' + error);
+          setUploading(false);
+          return;
+        }
+        imageUrl = url;
+      }
+
+      const parsedData = {
+        ...formData,
+        image: imageUrl,
+        costPrice:        parseFloat(formData.costPrice)        || 0,
+        sellingPrice:     parseFloat(formData.sellingPrice)     || 0,
+        stock:            parseInt(formData.stock)              || 0,
+        lowStockThreshold: parseInt(formData.lowStockThreshold) || 10,
+        taxRate:          parseFloat(formData.taxRate)          || 0,
+        min_margin:       parseFloat(formData.min_margin)       || 0,
+        tags: typeof formData.tags === 'string'
+          ? formData.tags.split(',').map(t => t.trim()).filter(Boolean)
+          : (Array.isArray(formData.tags) ? formData.tags : []),
+      };
+
+      const result = await onSave(parsedData);
+      if (result?.error) {
+        setSaveError(result.error.message || 'Failed to save product');
         return;
       }
-      imageUrl = url;
-    }
-
-    const parsedData = {
-      ...formData,
-      image: imageUrl,
-      costPrice: parseFloat(formData.costPrice) || 0,
-      sellingPrice: parseFloat(formData.sellingPrice) || 0,
-      stock: parseInt(formData.stock) || 0,
-      lowStockThreshold: parseInt(formData.lowStockThreshold) || 10,
-      taxRate: parseFloat(formData.taxRate) || 0,
-      tags: typeof formData.tags === 'string' ? formData.tags.split(',').map(t => t.trim()).filter(t => t) : formData.tags
-    };
-
-    let result;
-    try {
-      result = await onSave(parsedData);
+      onClose();
     } catch (err) {
-      setSaveError(err?.message || 'Unexpected error saving product');
+      setSaveError(err?.message || 'Unexpected error — please try again');
+    } finally {
       setUploading(false);
-      return;
     }
-    setUploading(false);
-    if (result?.error) {
-      setSaveError(result.error.message || 'Failed to save product');
-      return;
-    }
-    onClose();
   };
 
   return (

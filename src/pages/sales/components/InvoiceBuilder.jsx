@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign } from 'lucide-react';
+import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode } from 'lucide-react';
 import Button from '../../../shared/Button';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { useNotifications } from '../../../context/NotificationContext';
@@ -21,6 +21,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [clientSearch, setClientSearch]     = useState('');
   const [clientDropOpen, setClientDropOpen] = useState(false);
   const clientDropRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -82,13 +83,52 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     return out;
   }, [products, fifoCosts]);
 
+  // Auto-focus search on mount so barcode scanner fires straight in
+  useEffect(() => { searchInputRef.current?.focus(); }, []);
+
   const filteredProducts = useMemo(() => {
-    const q = searchTerm.toLowerCase();
+    const q = searchTerm.toLowerCase().trim();
+    if (!q) return products;
     return products.filter(p =>
-      (p.name || '').toLowerCase().includes(q) ||
-      (p.sku || '').toLowerCase().includes(q)
+      (p.name    || '').toLowerCase().includes(q) ||
+      (p.sku     || '').toLowerCase().includes(q) ||
+      (p.barcode || '').toLowerCase().includes(q)
     );
   }, [products, searchTerm]);
+
+  // Called when scanner (or user) presses Enter in search box
+  const handleSearchEnter = (e) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const q = searchTerm.trim();
+    if (!q) return;
+
+    // Exact barcode match first (fastest for scanner)
+    const exactBarcode = products.find(
+      p => p.barcode && p.barcode.toLowerCase() === q.toLowerCase()
+    );
+    if (exactBarcode) {
+      addToCart(exactBarcode);
+      setSearchTerm('');
+      return;
+    }
+
+    // Exact SKU match
+    const exactSku = products.find(
+      p => p.sku && p.sku.toLowerCase() === q.toLowerCase()
+    );
+    if (exactSku) {
+      addToCart(exactSku);
+      setSearchTerm('');
+      return;
+    }
+
+    // Single fuzzy result — add it
+    if (filteredProducts.length === 1) {
+      addToCart(filteredProducts[0]);
+      setSearchTerm('');
+    }
+  };
 
   const getAvailableStock = (productId) =>
     warehouseStock[productId] !== undefined
@@ -268,12 +308,18 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       <div className="flex-1 flex flex-col gap-4 overflow-hidden">
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-          <input 
-            type="text" 
-            placeholder="Search products by name or SKU..." 
-            className="w-full bg-white rounded-2xl py-4 pl-12 pr-4 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/20 shadow-sm font-medium"
+          <input
+            ref={searchInputRef}
+            type="text"
+            placeholder="Search by name, SKU or scan barcode…"
+            className="w-full bg-white rounded-2xl py-4 pl-12 pr-12 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/20 shadow-sm font-medium"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
+            onKeyDown={handleSearchEnter}
+          />
+          <ScanBarcode
+            size={18}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none"
           />
         </div>
         

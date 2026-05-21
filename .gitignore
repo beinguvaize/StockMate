@@ -43,3 +43,4 @@ full_build_log.txt
 .claude/
 supabase/backups/
 supabase.exe
+.vercel/
