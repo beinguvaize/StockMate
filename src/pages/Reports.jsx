@@ -21,12 +21,18 @@ import ProductProfitabilityReport from '../components/reports/ProductProfitabili
 // --- GST / Tax compliance reports (P1) ---
 import GSTR1Report from '../components/reports/GSTR1Report';
 import GSTR3BReport from '../components/reports/GSTR3BReport';
+// --- New operational reports ---
+import ClientStatementReport from '../components/reports/ClientStatementReport';
+import BillWiseProfitReport from '../components/reports/BillWiseProfitReport';
+import LowStockReport from '../components/reports/LowStockReport';
+import SalePurchaseByPartyReport from '../components/reports/SalePurchaseByPartyReport';
 
 import {
   TrendingUp, Package, UserCircle, Truck,
   DollarSign, Briefcase, Activity, Shield, Layers,
   Globe, Landmark, BarChart3, Scale, BookOpen, Droplets, FileWarning,
-  FileText, FileCheck, Target, CalendarRange, Receipt, Tag
+  FileText, FileCheck, Target, CalendarRange, Receipt, Tag,
+  BookMarked, BarChart2, AlertTriangle, Users,
 } from 'lucide-react';
 
 const Reports = () => {
@@ -46,7 +52,11 @@ const Reports = () => {
     { id: 'LOGISTICS',   group: 'OPERATIONAL', label: 'Deliveries',          icon: <Globe size={18} />,      component: <LogisticsReport />,          permission: 'inventory' },
     { id: 'HR',          group: 'OPERATIONAL', label: 'Staff & Payroll',     icon: <Briefcase size={18} />,  component: <HRReport />,                 permission: 'reports' },
     { id: 'CLIENTS',     group: 'OPERATIONAL', label: 'Clients',             icon: <UserCircle size={18} />, component: <ClientOutstandingReport />,  permission: 'clients' },
-    { id: 'EXPENSES',    group: 'OPERATIONAL', label: 'Expenses',            icon: <DollarSign size={18} />, component: <ExpensesReport />,           permission: 'expenses' },
+    { id: 'EXPENSES',    group: 'OPERATIONAL', label: 'Expenses',            icon: <DollarSign size={18} />,     component: <ExpensesReport />,               permission: 'expenses' },
+    { id: 'CLIENT_STATEMENT', group: 'OPERATIONAL', label: 'Client Statement', icon: <BookMarked size={18} />,   component: <ClientStatementReport />,        permission: 'clients' },
+    { id: 'BILL_PROFIT',      group: 'OPERATIONAL', label: 'Bill Profit',      icon: <BarChart2 size={18} />,    component: <BillWiseProfitReport />,         permission: 'sales' },
+    { id: 'LOW_STOCK',        group: 'OPERATIONAL', label: 'Low Stock',        icon: <AlertTriangle size={18} />,component: <LowStockReport />,               permission: 'inventory' },
+    { id: 'SALES_BY_PARTY',   group: 'OPERATIONAL', label: 'Sales by Party',   icon: <Users size={18} />,        component: <SalePurchaseByPartyReport />,    permission: 'sales' },
 
     // --- ACCOUNTING GROUP ---
     { id: 'BALANCE_SHEET', group: 'ACCOUNTING', label: 'Balance Sheet',       icon: <Scale size={18} />,       component: <BalanceSheetReport />,   permission: 'reports' },
