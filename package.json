@@ -18,11 +18,13 @@
     "electron:preview": "vite build --base=./ && electron .",
     "electron:build": "vite build --base=./ && electron-builder",
     "electron:build:win": "vite build --base=./ && electron-builder --win",
-    "electron:build:mac": "vite build --base=./ && electron-builder --mac"
+    "electron:build:mac": "vite build --base=./ && electron-builder --mac",
+    "electron:publish": "vite build --base=./ && electron-builder --publish always"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
     "@tailwindcss/vite": "^4.2.1",
+    "electron-updater": "^6.8.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.577.0",
     "qrcode.react": "^4.2.0",
@@ -69,8 +71,14 @@
       "dist/**/*",
       "electron/**/*"
     ],
+    "publish": {
+      "provider": "github",
+      "owner": "beinguvaize",
+      "repo": "StockMate"
+    },
     "win": {
       "target": "nsis",
+      "icon": "build/icon.ico",
       "artifactName": "StockMate-Setup-${version}.${ext}"
     },
     "nsis": {
@@ -80,6 +88,7 @@
     "mac": {
       "target": "dmg",
       "category": "public.app-category.business",
+      "icon": "build/icon.icns",
       "artifactName": "StockMate-${version}.${ext}"
     }
   }

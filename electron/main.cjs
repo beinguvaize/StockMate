@@ -6,6 +6,7 @@
  */
 const { app, BrowserWindow, shell, Menu } = require('electron');
 const path = require('path');
+const { autoUpdater } = require('electron-updater');
 
 const isDev = !app.isPackaged;
 
@@ -20,6 +21,7 @@ function createWindow() {
     backgroundColor: '#f4f4f0',
     show: false,
     title: 'StockMate',
+    icon: path.join(__dirname, '..', 'build', 'icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
@@ -69,6 +71,13 @@ app.whenReady().then(() => {
   );
 
   createWindow();
+
+  // Check GitHub Releases for updates (packaged builds only).
+  if (!isDev) {
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      console.error('[auto-update] check failed:', err);
+    });
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
