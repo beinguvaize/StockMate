@@ -41,6 +41,5 @@ server_log.txt
 build_log.txt
 full_build_log.txt
 .claude/
-supabase/backups/dev_schema_dump.sql
+supabase/backups/
 supabase.exe
-supabase
