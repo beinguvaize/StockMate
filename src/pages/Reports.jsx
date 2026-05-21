@@ -26,6 +26,11 @@ import ClientStatementReport from '../components/reports/ClientStatementReport';
 import BillWiseProfitReport from '../components/reports/BillWiseProfitReport';
 import LowStockReport from '../components/reports/LowStockReport';
 import SalePurchaseByPartyReport from '../components/reports/SalePurchaseByPartyReport';
+// --- New cross-analysis reports ---
+import PartyProfitReport from '../components/reports/PartyProfitReport';
+import CategoryProfitReport from '../components/reports/CategoryProfitReport';
+import AllTransactionsReport from '../components/reports/AllTransactionsReport';
+import ItemPartyReport from '../components/reports/ItemPartyReport';
 
 import {
   TrendingUp, Package, UserCircle, Truck,
@@ -33,6 +38,7 @@ import {
   Globe, Landmark, BarChart3, Scale, BookOpen, Droplets, FileWarning,
   FileText, FileCheck, Target, CalendarRange, Receipt, Tag,
   BookMarked, BarChart2, AlertTriangle, Users,
+  PieChart, ArrowLeftRight, GitFork,
 } from 'lucide-react';
 
 const Reports = () => {
@@ -57,6 +63,10 @@ const Reports = () => {
     { id: 'BILL_PROFIT',      group: 'OPERATIONAL', label: 'Bill Profit',      icon: <BarChart2 size={18} />,    component: <BillWiseProfitReport />,         permission: 'sales' },
     { id: 'LOW_STOCK',        group: 'OPERATIONAL', label: 'Low Stock',        icon: <AlertTriangle size={18} />,component: <LowStockReport />,               permission: 'inventory' },
     { id: 'SALES_BY_PARTY',   group: 'OPERATIONAL', label: 'Sales by Party',   icon: <Users size={18} />,        component: <SalePurchaseByPartyReport />,    permission: 'sales' },
+    { id: 'PARTY_PROFIT',     group: 'OPERATIONAL', label: 'Party Profit',     icon: <PieChart size={18} />,     component: <PartyProfitReport />,            permission: 'reports' },
+    { id: 'CATEGORY_PROFIT',  group: 'OPERATIONAL', label: 'Category Profit',  icon: <Tag size={18} />,          component: <CategoryProfitReport />,         permission: 'inventory' },
+    { id: 'ALL_TRANSACTIONS', group: 'OPERATIONAL', label: 'All Transactions', icon: <ArrowLeftRight size={18} />, component: <AllTransactionsReport />,      permission: 'reports' },
+    { id: 'ITEM_PARTY',       group: 'OPERATIONAL', label: 'Item × Party',     icon: <GitFork size={18} />,      component: <ItemPartyReport />,              permission: 'sales' },
 
     // --- ACCOUNTING GROUP ---
     { id: 'BALANCE_SHEET', group: 'ACCOUNTING', label: 'Balance Sheet',       icon: <Scale size={18} />,       component: <BalanceSheetReport />,   permission: 'reports' },
