@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.0.2
+
+- Manual update check via Help → Check for Updates.
+- In-app update banner with download progress and one-click
+  Restart & Update.
+
 ## 1.0.1
 
 - Fixed broken logo and image assets in the desktop app (Windows + macOS).
