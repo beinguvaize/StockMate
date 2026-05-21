@@ -11,6 +11,7 @@ import AppLayout from './components/AppLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalLoading from './components/GlobalLoading';
+import DesktopUpdater from './components/DesktopUpdater';
 
 // ── Eager (tiny, needed immediately) ────────────────────────────────────────
 import Login   from './pages/Login';
@@ -192,6 +193,7 @@ function App() {
       <ErrorBoundary>
         <AppRoutes />
       </ErrorBoundary>
+      <DesktopUpdater />
     </Router>
   );
 }

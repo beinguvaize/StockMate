@@ -4,13 +4,37 @@
  *  - dev:  loads the Vite dev server (http://localhost:5173)
  *  - prod: loads the built dist/index.html (file://)
  */
-const { app, BrowserWindow, shell, Menu } = require('electron');
+const { app, BrowserWindow, shell, Menu, ipcMain } = require('electron');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
 const isDev = !app.isPackaged;
 
 let mainWindow = null;
+
+autoUpdater.autoDownload = true;
+autoUpdater.autoInstallOnAppQuit = true;
+
+/* ── Update status → renderer ──────────────────────────────────────────── */
+function sendStatus(payload) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update:status', payload);
+  }
+}
+
+autoUpdater.on('checking-for-update', () => sendStatus({ state: 'checking' }));
+autoUpdater.on('update-available',     (i) => sendStatus({ state: 'available', version: i.version }));
+autoUpdater.on('update-not-available', () => sendStatus({ state: 'none' }));
+autoUpdater.on('download-progress',    (p) => sendStatus({ state: 'downloading', percent: Math.round(p.percent) }));
+autoUpdater.on('update-downloaded',    (i) => sendStatus({ state: 'downloaded', version: i.version }));
+autoUpdater.on('error',                (e) => sendStatus({ state: 'error', message: String(e && e.message || e) }));
+
+function checkForUpdates() {
+  if (isDev) { sendStatus({ state: 'dev' }); return; }
+  autoUpdater.checkForUpdates().catch((err) => {
+    sendStatus({ state: 'error', message: String(err && err.message || err) });
+  });
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -67,17 +91,19 @@ app.whenReady().then(() => {
       { role: 'editMenu' },
       { role: 'viewMenu' },
       { role: 'windowMenu' },
+      {
+        label: 'Help',
+        submenu: [
+          { label: 'Check for Updates…', click: () => checkForUpdates() },
+        ],
+      },
     ])
   );
 
   createWindow();
 
-  // Check GitHub Releases for updates (packaged builds only).
-  if (!isDev) {
-    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
-      console.error('[auto-update] check failed:', err);
-    });
-  }
+  // Check GitHub Releases for updates on launch (packaged builds only).
+  if (!isDev) checkForUpdates();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -87,3 +113,7 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
+
+/* ── IPC: renderer-triggered update actions ────────────────────────────── */
+ipcMain.handle('update:check', () => { checkForUpdates(); return true; });
+ipcMain.handle('update:install', () => { autoUpdater.quitAndInstall(); });
