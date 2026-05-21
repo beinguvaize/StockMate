@@ -1,0 +1,44 @@
+name: Release Desktop App
+
+# Push a version tag (e.g. v1.0.0) to build + publish installers.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and publish
+        env:
+          # GitHub token — auto-provided, used by electron-builder to upload
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Skip macOS code signing (no certs configured)
+          CSC_IDENTITY_AUTO_DISCOVERY: false
+          # Vite build-time env (set these as repository secrets)
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_BOOTSTRAP_ADMIN_EMAILS: ${{ secrets.VITE_BOOTSTRAP_ADMIN_EMAILS }}
+          VITE_ENV: production
+        run: npm run electron:publish
