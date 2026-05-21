@@ -765,7 +765,7 @@ const Dashboard = () => {
  <h3 className="text-3xl font-bold mt-1 text-ink-primary">{kpiData ? (kpiData.active_trips ?? (routes || []).filter(r => r.status === 'ACTIVE').length) : (routes || []).filter(r => r.status === 'ACTIVE').length}</h3>
  </div>
  <div className="w-12 h-12 rounded-lg bg-blue-50 flex items-center justify-center overflow-hidden border border-blue-100 shadow-sm">
- <img src="/assets/van.png" className="w-full h-full object-cover scale-150 transform hover:scale-175 transition-transform" alt="Van" />
+ <img src={`${import.meta.env.BASE_URL}assets/van.png`} className="w-full h-full object-cover scale-150 transform hover:scale-175 transition-transform" alt="Van" />
  </div>
  </div>
  <div className="flex items-center gap-2 text-sm text-gray-700 font-semibold">

@@ -87,8 +87,8 @@ const Login = () => {
  <div className="hidden lg:flex w-1/2 bg-white flex-col items-center justify-center gap-4">
   <img 
   className="w-[420px] max-w-[88%] block cursor-pointer transition-transform active:scale-95" 
-  src="/logo.png" 
-  alt="Ledgr Pro Logo" 
+  src={`${import.meta.env.BASE_URL}logo.png`}
+  alt="Ledgr Pro Logo"
   onClick={handleLogoClick}
   />
  <p className="text-[13px] text-[#747576] font-medium">
@@ -174,7 +174,7 @@ const Login = () => {
  >
  <img
  className={`btn-mark ${markSpin ? 'spin' : ''}`}
- src="/mark.png"
+ src={`${import.meta.env.BASE_URL}mark.png`}
  alt=""
  />
  <span className="font-arial font-bold text-[15px] text-[#111] relative z-1">LOG IN</span>

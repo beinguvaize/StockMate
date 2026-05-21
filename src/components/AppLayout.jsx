@@ -184,9 +184,9 @@ const Navbar = () => {
 
  {/* Branding */}
  <div className="flex items-center gap-4">
- <img 
- src="/logo.png" 
- alt="Ledger Logo" 
+ <img
+ src={`${import.meta.env.BASE_URL}logo.png`}
+ alt="Ledger Logo"
  className="h-10 md:h-14 w-auto object-contain mix-blend-multiply animate-in fade-in duration-700"
  />
  {currentTenant && (
@@ -351,7 +351,7 @@ const Navbar = () => {
  <div className="absolute left-0 top-0 bottom-0 w-[280px] bg-surface shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
  {/* Drawer Header */}
  <div className="flex items-center justify-between p-5 border-b border-black/5">
- <img src="/logo.png" alt="Logo" className="h-10 w-auto object-contain mix-blend-multiply" />
+ <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="h-10 w-auto object-contain mix-blend-multiply" />
  <button 
  onClick={() => setIsMobileMenuOpen(false)}
  className="w-9 h-9 rounded-xl bg-canvas flex items-center justify-center text-ink-primary"

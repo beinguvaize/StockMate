@@ -182,7 +182,7 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
  <div key={v.id} className="p-6 bg-canvas/30 rounded-xl border border-black/5 hover:bg-white hover:shadow-xl transition-all group">
  <div className="flex items-center gap-4 mb-6">
  <div className="w-12 h-12 rounded-lg bg-white group-hover:bg-ink-primary transition-all shadow-sm overflow-hidden flex items-center justify-center">
- <img src="/assets/van.png" className="w-full h-full object-cover" alt="Vehicle" />
+ <img src={`${import.meta.env.BASE_URL}assets/van.png`} className="w-full h-full object-cover" alt="Vehicle" />
  </div>
  <div>
  <div className="text-[11px] font-semibold text-ink-primary truncate">{v.plateNumber}</div>
