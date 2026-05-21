@@ -8,6 +8,7 @@ import { getDefaultAvatar } from '../lib/supabase';
 import NotificationStack from './NotificationStack';
 import GlobalLoading from './GlobalLoading';
 import AvatarPicker from './AvatarPicker';
+import SyncStatus from './SyncStatus';
 
 const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  const config = {
@@ -257,6 +258,7 @@ const Navbar = () => {
  {/* Right Section: Sync Status & User Profile */}
  <div className="flex items-center gap-3 sm:gap-4">
  <CloudStatus status={syncStatus} lastSyncedAt={lastSyncedAt} isOnline={isOnline} />
+ <SyncStatus />
 
  <div className="relative" ref={dropdownRef}>
  <button

@@ -4,6 +4,7 @@ import './index.css'
 import { AuthProvider } from './context/AuthContext'
 import { TenantProvider } from './context/TenantContext'
 import { NotificationProvider } from './context/NotificationContext'
+import { OfflineProvider } from './context/OfflineContext'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(
@@ -11,7 +12,9 @@ createRoot(document.getElementById('root')).render(
     <AuthProvider>
       <TenantProvider>
         <NotificationProvider>
-          <App />
+          <OfflineProvider>
+            <App />
+          </OfflineProvider>
         </NotificationProvider>
       </TenantProvider>
     </AuthProvider>

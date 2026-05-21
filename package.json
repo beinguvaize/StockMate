@@ -25,6 +25,7 @@
     "@supabase/supabase-js": "^2.99.1",
     "@tailwindcss/vite": "^4.2.1",
     "electron-updater": "^6.8.3",
+    "idb": "^8.0.3",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.577.0",
     "qrcode.react": "^4.2.0",
