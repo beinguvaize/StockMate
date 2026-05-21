@@ -1,6 +1,16 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
+// Reject a pending request after `ms` so a hung network call can never
+// freeze the app on the loading screen.
+const withTimeout = (promise, ms = 15000, label = 'request') =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out`)), ms)
+    ),
+  ]);
+
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
@@ -13,17 +23,23 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     // 1. Initial Session check
     const initSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+      const { data: { session } } = await withTimeout(
+        supabase.auth.getSession(), 15000, 'getSession'
+      );
       setSession(session);
 
       if (session?.user) {
         const userEmail = session.user.email?.toLowerCase();
         const isSuperUser = userEmail === 'uvaize@hotmail.com' || userEmail === 'gladmin@ledgrpro.ca';
-        const { data: profile } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', session.user.id)
-          .maybeSingle();
+        const { data: profile } = await withTimeout(
+          supabase
+            .from('users')
+            .select('*')
+            .eq('id', session.user.id)
+            .maybeSingle(),
+          15000, 'profile load'
+        );
 
         if (profile) {
           // Merge session email into profile to ensure bypass logic always has the data
@@ -49,7 +65,14 @@ export const AuthProvider = ({ children }) => {
           }
         }
       }
-      setLoading(false);
+      } catch (err) {
+        // Network/transient failure on first load — log and proceed so the
+        // app never hangs on the loading screen. User lands on login if no
+        // session could be restored.
+        console.error('[auth] initSession failed:', err);
+      } finally {
+        setLoading(false);
+      }
     };
 
     initSession();

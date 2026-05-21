@@ -5,6 +5,16 @@ import { isModuleAvailable } from '../lib/tenancy';
 import { cacheClear as libCacheClear } from '../lib/cache';
 import { setAppTZ } from '../lib/utils';
 
+// Reject a pending request after `ms` so a hung network call can never
+// freeze the app on the loading screen.
+const withTimeout = (promise, ms = 15000, label = 'request') =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out`)), ms)
+    ),
+  ]);
+
 const applyTZFromProfile = (profile) => {
   if (!profile) return;
   setAppTZ({
@@ -46,46 +56,58 @@ export const TenantProvider = ({ children }) => {
     const cu = currentUserRef.current;
     const initTenant = async () => {
       setLoading(true);
-      // 1. Priority: Impersonation
-      const impersonated = sessionStorage.getItem('nexus_impersonated_tenant');
-      if (impersonated) {
-        const tenant = JSON.parse(impersonated);
-        setCurrentTenant(tenant);
-        const { data: profile } = await supabase.from('business_profile').select('*').eq('tenant_id', tenant.id).maybeSingle();
-        if (profile) { setBusinessProfile(profile); applyTZFromProfile(profile); }
-        else setBusinessProfile({ currencySymbol: '$' });
-        setResolvedForUserId(cu?.id || null);
-        setLoading(false);
-        return;
-      }
-
-      // 2. Load tenant by tenant_id, or fallback to membership lookup
-      const resolvedTenantId = cu?.tenant_id;
-
-      if (resolvedTenantId) {
-        const [
-          { data: tenant },
-          { data: profile }
-        ] = await Promise.all([
-          supabase.from('tenants').select('*').eq('id', resolvedTenantId).maybeSingle(),
-          supabase.from('business_profile').select('*').eq('tenant_id', resolvedTenantId).maybeSingle()
-        ]);
-        if (tenant) setCurrentTenant(tenant);
-        if (profile) { setBusinessProfile(profile); applyTZFromProfile(profile); }
-      } else {
-        // tenant_id missing from profile — use tenant_member_read RLS policy
-        const { data: tenants } = await supabase.from('tenants').select('*').limit(1);
-        const tenant = tenants?.[0] || null;
-        if (tenant) {
+      try {
+        // 1. Priority: Impersonation
+        const impersonated = sessionStorage.getItem('nexus_impersonated_tenant');
+        if (impersonated) {
+          const tenant = JSON.parse(impersonated);
           setCurrentTenant(tenant);
-          const { data: profile } = await supabase.from('business_profile').select('*').eq('tenant_id', tenant.id).maybeSingle();
+          const { data: profile } = await withTimeout(
+            supabase.from('business_profile').select('*').eq('tenant_id', tenant.id).maybeSingle(),
+            15000, 'business profile'
+          );
           if (profile) { setBusinessProfile(profile); applyTZFromProfile(profile); }
           else setBusinessProfile({ currencySymbol: '$' });
+          return;
         }
-      }
 
-      setResolvedForUserId(cu?.id || null);
-      setLoading(false);
+        // 2. Load tenant by tenant_id, or fallback to membership lookup
+        const resolvedTenantId = cu?.tenant_id;
+
+        if (resolvedTenantId) {
+          const [
+            { data: tenant },
+            { data: profile }
+          ] = await withTimeout(Promise.all([
+            supabase.from('tenants').select('*').eq('id', resolvedTenantId).maybeSingle(),
+            supabase.from('business_profile').select('*').eq('tenant_id', resolvedTenantId).maybeSingle()
+          ]), 15000, 'tenant load');
+          if (tenant) setCurrentTenant(tenant);
+          if (profile) { setBusinessProfile(profile); applyTZFromProfile(profile); }
+        } else {
+          // tenant_id missing from profile — use tenant_member_read RLS policy
+          const { data: tenants } = await withTimeout(
+            supabase.from('tenants').select('*').limit(1), 15000, 'tenant lookup'
+          );
+          const tenant = tenants?.[0] || null;
+          if (tenant) {
+            setCurrentTenant(tenant);
+            const { data: profile } = await withTimeout(
+              supabase.from('business_profile').select('*').eq('tenant_id', tenant.id).maybeSingle(),
+              15000, 'business profile'
+            );
+            if (profile) { setBusinessProfile(profile); applyTZFromProfile(profile); }
+            else setBusinessProfile({ currencySymbol: '$' });
+          }
+        }
+      } catch (err) {
+        // Network/transient failure — log and proceed so the app never
+        // hangs on the loading screen.
+        console.error('[tenant] initTenant failed:', err);
+      } finally {
+        setResolvedForUserId(cu?.id ?? null);
+        setLoading(false);
+      }
     };
 
     if (cu) {
