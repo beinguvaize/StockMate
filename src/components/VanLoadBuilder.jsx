@@ -122,32 +122,40 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
   const vanName  = vehicle?.name || 'Vehicle';
   const vanPlate = vehicle?.plate || vehicle?.plateNumber || '';
 
-  /* ── Success screen ─────────────────────────────────────────────────── */
+  /* ── Success screen — single-page, premium ──────────────────────────── */
   if (done) {
     return (
-      <div className="fixed inset-0 z-50 bg-canvas flex items-center justify-center p-4">
-        <div className="w-full max-w-sm bg-white rounded-3xl border border-black/8 shadow-2xl overflow-hidden">
-          <div className="bg-emerald-500 px-6 pt-8 pb-10 text-white text-center">
-            <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
-              <CheckCircle2 size={30} className="text-white" />
+      <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
+        {/* Hero band */}
+        <div className="bg-emerald-500 text-white shrink-0">
+          <div className="max-w-5xl mx-auto w-full px-6 py-6 flex items-center gap-4">
+            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+              <CheckCircle2 size={26} className="text-white" />
             </div>
-            <div className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">{L.done}</div>
-            <div className="text-3xl font-black tabular-nums">{totalUnits} units</div>
-            <div className="text-[11px] opacity-60 mt-1">{vanName}</div>
-          </div>
-          <div className="px-6 py-5 space-y-1.5">
-            {loadList.map(c => (
-              <div key={c.productId} className="flex justify-between text-xs">
-                <span className="text-ink-secondary truncate">{c.name}</span>
-                <span className="font-bold tabular-nums text-ink-primary">×{c.quantity}</span>
-              </div>
-            ))}
-          </div>
-          <div className="px-6 pb-6">
+            <div className="flex-1 min-w-0">
+              <div className="text-[10px] font-black uppercase tracking-widest opacity-70">{L.done}</div>
+              <div className="text-2xl font-black tabular-nums leading-tight">{totalUnits} units</div>
+              <div className="text-[11px] opacity-70">{vanName} · {loadList.length} products</div>
+            </div>
             <button onClick={onClose}
-              className="w-full py-3 rounded-2xl bg-ink-primary text-white font-black text-sm hover:bg-ink-primary/90 transition-all">
+              className="shrink-0 px-6 h-11 rounded-xl bg-white text-emerald-700 font-black text-sm hover:bg-white/90 transition-all">
               Done
             </button>
+          </div>
+        </div>
+
+        {/* Product grid — fits one page via multi-column layout */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-5xl mx-auto w-full px-6 py-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+              {loadList.map(c => (
+                <div key={c.productId}
+                  className="flex items-center justify-between gap-2 bg-white border border-black/5 rounded-xl px-3 py-2.5 shadow-sm">
+                  <span className="text-xs font-semibold text-ink-primary truncate">{c.name}</span>
+                  <span className="text-xs font-black tabular-nums text-emerald-600 shrink-0">×{c.quantity}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
