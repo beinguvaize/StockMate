@@ -61,9 +61,11 @@ const ProductProfitabilityReport = () => {
     // Build product lookup
     const productById = new Map();
     const productBySku = new Map();
+    const productByName = new Map();
     products.forEach((p) => {
       productById.set(p.id, p);
-      if (p.sku) productBySku.set(String(p.sku).toLowerCase(), p);
+      if (p.sku)  productBySku.set(String(p.sku).toLowerCase(), p);
+      if (p.name) productByName.set(String(p.name).toLowerCase(), p);
     });
 
     // Seed accumulator with every product (so dead stock shows up too)
@@ -99,9 +101,13 @@ const ProductProfitabilityReport = () => {
         const unitPrice = Number(it?.rate ?? it?.price ?? it?.unitPrice ?? it?.sellingPrice ?? 0);
         if (qty <= 0) return;
 
-        // Resolve product — prefer productId, fall back to SKU match
+        // Resolve product — sale items may store the product key as
+        // `productId` (current POS) or `id` (legacy / van sales), then
+        // fall back to SKU and name.
         let prod = it?.productId ? productById.get(it.productId) : null;
-        if (!prod && it?.sku) prod = productBySku.get(String(it.sku).toLowerCase());
+        if (!prod && it?.id)   prod = productById.get(it.id);
+        if (!prod && it?.sku)  prod = productBySku.get(String(it.sku).toLowerCase());
+        if (!prod && it?.name) prod = productByName.get(String(it.name).toLowerCase());
         if (!prod) return; // unknown product — skip
 
         const bucket = acc[prod.id];

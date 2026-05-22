@@ -65,7 +65,7 @@ const InventoryReport = () => {
       if ((p.stock || 0) <= 0) return false;
       const hasSales = sales.some(s => {
         const isRecent = parseLocalDate(s.date) >= thresholdDate;
-        const includesProduct = s.items?.some(item => item.productId === p.id);
+        const includesProduct = s.items?.some(item => item.productId === p.id || item.id === p.id);
         return isRecent && includesProduct;
       });
       return !hasSales;
