@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/location/location_service.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/logistics/data/models/route_stop.dart';
@@ -109,6 +111,7 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
                       itemCount: stops.length,
                       itemBuilder: (context, i) => _StopCard(
                         stop: stops[i],
+                        vehicleId: route.vehicleId,
                         isExpanded: _expandedStopId == stops[i].id,
                         onTap: () => setState(() {
                           _expandedStopId = _expandedStopId == stops[i].id ? null : stops[i].id;
@@ -246,7 +249,13 @@ class _StopCard extends ConsumerStatefulWidget {
   final RouteStop stop;
   final bool isExpanded;
   final VoidCallback onTap;
-  const _StopCard({required this.stop, required this.isExpanded, required this.onTap});
+  final String? vehicleId;
+  const _StopCard({
+    required this.stop,
+    required this.isExpanded,
+    required this.onTap,
+    this.vehicleId,
+  });
 
   @override
   ConsumerState<_StopCard> createState() => _StopCardState();
@@ -310,6 +319,7 @@ class _StopCardState extends ConsumerState<_StopCard> {
         }).eq('id', invId);
       }
       await updateStopStatus(widget.stop.id, 'NO_SALE', cashCollected: 0);
+      await _captureLocation();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -323,6 +333,15 @@ class _StopCardState extends ConsumerState<_StopCard> {
 
   Future<String?> _askFailReason() =>
       _askText('Delivery Failed', 'Reason (e.g. customer unavailable)');
+
+  // Best-effort last-known-location capture at a delivery event.
+  Future<void> _captureLocation() async {
+    final vid = widget.vehicleId;
+    if (vid == null) return;
+    final tenantId = ref.read(tenantContextProvider).value?.tenantId;
+    if (tenantId == null) return;
+    await recordVehicleLocation(tenantId: tenantId, vehicleId: vid);
+  }
 
   // Mark a stop delivered, capturing optional proof of delivery on the invoice.
   Future<void> _markDelivered() async {
@@ -342,6 +361,7 @@ class _StopCardState extends ConsumerState<_StopCard> {
       }
       final cash = double.tryParse(_cashController.text) ?? 0;
       await updateStopStatus(widget.stop.id, 'DELIVERED', cashCollected: cash);
+      await _captureLocation();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

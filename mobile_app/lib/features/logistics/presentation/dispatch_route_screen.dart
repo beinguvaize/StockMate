@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/location/location_service.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 
@@ -159,6 +160,13 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
           'p_tenant_id': tenantId,
         });
       } catch (_) {}
+
+      // Capture last-known location at dispatch (best-effort).
+      await recordVehicleLocation(
+        tenantId: tenantId,
+        vehicleId: widget.vehicleId,
+        driverId: _driverId,
+      );
 
       if (!mounted) return;
       _snack('Route dispatched for ${widget.vehicleName}');
