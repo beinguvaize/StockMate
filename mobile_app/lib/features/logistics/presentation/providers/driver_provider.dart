@@ -25,13 +25,34 @@ final currencySymbolProvider = Provider<AsyncValue<String>>((ref) {
   );
 });
 
+// ── Current driver's employee id ─────────────────────────────────────────────
+// Routes are dispatched with the driver's EMPLOYEE id, but the app logs in as
+// an auth USER. employees.user_id links the two — resolve it here.
+final driverEmployeeIdProvider = FutureProvider<String?>((ref) async {
+  final userId = supabase.auth.currentUser?.id;
+  if (userId == null) return null;
+  try {
+    final row = await supabase
+        .from('employees')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+    return row?['id']?.toString();
+  } catch (_) {
+    return null;
+  }
+});
+
 // ── Active route for the logged-in driver ────────────────────────────────────
 // Streams all routes, filters client-side for ACTIVE or IN_TRANSIT belonging
-// to the current driver. stream() only supports one .eq() filter so we apply
-// status + driver_id client-side.
+// to the current driver. A route's driverId may be the auth user id OR the
+// linked employee id — match against both.
 final activeRouteProvider = StreamProvider<LogisticRoute?>((ref) {
   final userId = supabase.auth.currentUser?.id;
   if (userId == null) return Stream.value(null);
+
+  final empId = ref.watch(driverEmployeeIdProvider).asData?.value;
+  final driverIds = <String>{userId, ?empId};
 
   const activeStatuses = {'ACTIVE', 'IN_TRANSIT'};
 
@@ -41,8 +62,8 @@ final activeRouteProvider = StreamProvider<LogisticRoute?>((ref) {
       .map((rows) {
         final match = rows.where((r) {
           final status = (r['status'] as String?)?.toUpperCase() ?? '';
-          final driverId = r['driver_id'] ?? r['driverId'];
-          return activeStatuses.contains(status) && driverId == userId;
+          final driverId = (r['driver_id'] ?? r['driverId'])?.toString();
+          return activeStatuses.contains(status) && driverIds.contains(driverId);
         }).toList();
         if (match.isEmpty) return null;
         return LogisticRoute.fromJson(match.first);
