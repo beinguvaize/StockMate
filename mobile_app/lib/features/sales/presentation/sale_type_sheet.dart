@@ -26,7 +26,13 @@ Future<void> navigateToNewSale(BuildContext context, List<String> roles) {
 
 // ── Van sale resolver (shared by sheet + direct DRIVER path) ──────────────────
 
-Future<void> _resolveAndOpenVanSale(BuildContext context) async {
+// onBeforeNavigate is called AFTER all async data is resolved and
+// immediately BEFORE navigating — used to close the choice sheet so the
+// sheet-pop and the screen-push run back-to-back (no async gap → no race).
+Future<void> _resolveAndOpenVanSale(
+  BuildContext context, {
+  VoidCallback? onBeforeNavigate,
+}) async {
   final nav       = Navigator.of(context);
   final messenger = ScaffoldMessenger.of(context);
 
@@ -56,6 +62,7 @@ Future<void> _resolveAndOpenVanSale(BuildContext context) async {
   final locs = (await locQuery) as List<dynamic>;
 
   if (locs.isEmpty) {
+    onBeforeNavigate?.call();
     messenger.showSnackBar(
       const SnackBar(content: Text('No vehicles found. Load stock to a van first.')),
     );
@@ -75,13 +82,15 @@ Future<void> _resolveAndOpenVanSale(BuildContext context) async {
       .inFilter('id', vehicleIds)) as List<dynamic>;
 
   if (vehicles.isEmpty) {
+    onBeforeNavigate?.call();
     messenger.showSnackBar(const SnackBar(content: Text('No vehicles found.')));
     return;
   }
 
   if (vehicles.length == 1) {
     final vehicleId = vehicles[0]['id'] as String;
-    nav.push(MaterialPageRoute(
+    onBeforeNavigate?.call();          // close sheet
+    nav.push(MaterialPageRoute(        // push — same sync block, no race
       builder: (_) => AddSaleScreen(
         vehicleId: vehicleId,
         locationId: locMap[vehicleId],
@@ -91,6 +100,7 @@ Future<void> _resolveAndOpenVanSale(BuildContext context) async {
   }
 
   // Multiple vans — picker
+  onBeforeNavigate?.call();
   showModalBottomSheet(
     context: context,
     backgroundColor: AppColors.surface,
@@ -138,12 +148,17 @@ class _SaleTypeSheetState extends State<_SaleTypeSheet> {
   }
 
   Future<void> _goVan() async {
+    if (_loadingVan) return;
     setState(() => _loadingVan = true);
-    final sheetNav = Navigator.of(context);
+    final sheetNav  = Navigator.of(context);
     final parentCtx = widget.parentContext;
     try {
-      sheetNav.pop();
-      await _resolveAndOpenVanSale(parentCtx);
+      // Resolve data while the sheet stays open (spinner visible). The sheet
+      // is popped only once data is ready, right before navigation.
+      await _resolveAndOpenVanSale(
+        parentCtx,
+        onBeforeNavigate: () { if (sheetNav.canPop()) sheetNav.pop(); },
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingVan = false);
