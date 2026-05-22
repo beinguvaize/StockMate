@@ -613,7 +613,7 @@ const Invoices = () => {
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">GST Compliant Billing</p>
                 <h2 className="text-xl font-black text-ink-primary tracking-tight">New Invoice</h2>
               </div>
-              <button onClick={() => setShowCreator(false)} className="w-9 h-9 rounded-xl bg-canvas border border-black/5 flex items-center justify-center text-gray-400 hover:bg-rose-50 hover:text-rose-500 transition-all">
+              <button onClick={() => setShowCreator(false)} className="w-9 h-9 rounded-xl bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-400 hover:bg-rose-50 hover:text-rose-500 transition-all">
                 <X size={16} />
               </button>
             </div>
@@ -629,7 +629,7 @@ const Invoices = () => {
                   <div className="col-span-1 space-y-1.5">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Bill To</label>
                     <select
-                      className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-ink-primary/10 transition"
+                      className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-ink-primary/10 transition"
                       value={draft.clientId}
                       onChange={(e) => setDraft({ ...draft, clientId: e.target.value })}
                     >
@@ -652,13 +652,13 @@ const Invoices = () => {
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Invoice Date</label>
                     <input type="date"
-                      className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-ink-primary/10 transition"
+                      className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-ink-primary/10 transition"
                       value={draft.date} onChange={(e) => setDraft({ ...draft, date: e.target.value })} />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Due Date</label>
                     <input type="date"
-                      className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-ink-primary/10 transition"
+                      className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-ink-primary/10 transition"
                       value={draft.dueDate} onChange={(e) => setDraft({ ...draft, dueDate: e.target.value })} />
                   </div>
                 </div>
@@ -771,7 +771,7 @@ const Invoices = () => {
                   <textarea
                     rows={2}
                     placeholder="Payment instructions, bank details, thank you note…"
-                    className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-xs font-medium text-ink-primary outline-none focus:ring-2 focus:ring-ink-primary/10 transition resize-none"
+                    className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2.5 text-xs font-medium text-ink-primary outline-none focus:ring-2 focus:ring-ink-primary/10 transition resize-none"
                     value={draft.notes}
                     onChange={(e) => setDraft({ ...draft, notes: e.target.value })}
                   />

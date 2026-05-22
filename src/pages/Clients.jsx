@@ -222,7 +222,7 @@ const Clients = () => {
  </div>
 
  {/* Tab Navigation */}
- <div className="flex bg-canvas border border-black/5 rounded-lg p-1 shadow-sm overflow-x-auto no-scrollbar">
+ <div className="flex bg-white border border-gray-200 shadow-sm rounded-lg p-1 shadow-sm overflow-x-auto no-scrollbar">
  {[
  { id: 'DIRECTORY', label: 'Directory', icon: <Users size={14} />},
  { id: 'AGING', label: 'Aging Report', icon: <History size={14} />},
@@ -566,7 +566,7 @@ const Clients = () => {
                        ? 'bg-blue-50 text-blue-700 border-blue-200'
                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                    }`}>{formData.client_type}</span>
-                   <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-canvas border border-black/8 text-gray-600">{formData.price_tier}</span>
+                   <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-white border border-gray-200 shadow-sm text-gray-600">{formData.price_tier}</span>
                    {formData.credit_days > 0 && (
                      <span className="px-2.5 py-1 rounded-full text-[9px] font-black bg-orange-50 border border-orange-200 text-orange-700">Net {formData.credit_days}</span>
                    )}

@@ -98,7 +98,7 @@ const ReportFilterBar = ({
       <div className="flex flex-wrap items-center justify-between gap-4 bg-white/60 backdrop-blur-xl p-3 border border-white/20 rounded-[2.5rem] shadow-glass">
         
         {/* Left: Date Presets (Rule 5) */}
-        <div className="flex items-center gap-1.5 p-1 bg-canvas border border-black/5 rounded-pill overflow-x-auto no-scrollbar max-w-full">
+        <div className="flex items-center gap-1.5 p-1 bg-white border border-gray-200 shadow-sm rounded-pill overflow-x-auto no-scrollbar max-w-full">
           {datePresets.map(preset => {
             const isActive = filters.datePreset === preset.id;
             return (

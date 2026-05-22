@@ -155,7 +155,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
                 value={qty}
                 onChange={e => setQty(e.target.value)}
                 placeholder="0"
-                className="flex-1 text-center text-2xl font-black bg-canvas border border-black/8 rounded-2xl py-3 outline-none focus:ring-2 focus:ring-accent-signature/25 transition-all"
+                className="flex-1 text-center text-2xl font-black bg-white border border-gray-200 shadow-sm rounded-2xl py-3 outline-none focus:ring-2 focus:ring-accent-signature/25 transition-all"
               />
               <button
                 onClick={() => stepQty(1)}
@@ -173,7 +173,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
 
           {/* ── Preview bar ── */}
           {p && qtyNum > 0 && !overStock && (
-            <div className="flex items-center gap-3 px-4 py-3.5 bg-canvas border border-black/5 rounded-2xl">
+            <div className="flex items-center gap-3 px-4 py-3.5 bg-white border border-gray-200 shadow-sm rounded-2xl">
               <div className="flex-1 text-center">
                 <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest mb-0.5">Before</p>
                 <p className="text-lg font-black text-ink-primary">{currentStock}</p>
@@ -207,7 +207,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
             <select
               value={reason}
               onChange={e => { setReason(e.target.value); setCR(''); }}
-              className="w-full bg-canvas border border-black/8 rounded-2xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/25 transition-all appearance-none"
+              className="w-full bg-white border border-gray-200 shadow-sm rounded-2xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/25 transition-all appearance-none"
             >
               <option value="">Select a reason…</option>
               {REASONS.map(r => <option key={r} value={r}>{r}</option>)}
@@ -218,7 +218,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
                 placeholder="Describe the reason…"
                 value={customReason}
                 onChange={e => setCR(e.target.value)}
-                className="w-full bg-canvas border border-black/8 rounded-2xl px-4 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent-signature/25 transition-all mt-2"
+                className="w-full bg-white border border-gray-200 shadow-sm rounded-2xl px-4 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent-signature/25 transition-all mt-2"
               />
             )}
           </div>

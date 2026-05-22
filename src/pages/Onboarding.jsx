@@ -244,7 +244,7 @@ const Onboarding = () => {
                 </p>
                 <button
                   onClick={() => navigate(`/${slug}/settings`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-canvas border border-black/8 rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Open Settings <ChevronRight size={14} />
                 </button>
@@ -258,7 +258,7 @@ const Onboarding = () => {
                 </p>
                 <button
                   onClick={() => navigate(`/${slug}/inventory`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-canvas border border-black/8 rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Go to Inventory <ChevronRight size={14} />
                 </button>
@@ -272,7 +272,7 @@ const Onboarding = () => {
                 </p>
                 <button
                   onClick={() => navigate(`/${slug}/clients`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-canvas border border-black/8 rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Go to Clients <ChevronRight size={14} />
                 </button>
@@ -286,7 +286,7 @@ const Onboarding = () => {
                 </p>
                 <button
                   onClick={() => navigate(`/${slug}/sales`)}
-                  className="flex items-center gap-2 px-5 py-3 bg-canvas border border-black/8 rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
+                  className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-200 shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Go to Sales <ChevronRight size={14} />
                 </button>

@@ -431,7 +431,7 @@ const Orders = () => {
                       }`}>{order.order_type}</span>
                     )}
                     {!isInvoice && (
-                      <span className="text-[9px] font-bold bg-canvas border border-black/5 px-2 py-0.5 rounded-full text-gray-500">
+                      <span className="text-[9px] font-bold bg-white border border-gray-200 shadow-sm px-2 py-0.5 rounded-full text-gray-500">
                         {TIER_LABELS[order.price_tier] || order.price_tier}
                       </span>
                     )}
@@ -504,7 +504,7 @@ const Orders = () => {
                   {!isInvoice && order.status === 'DRAFT' && (
                     <button
                       onClick={() => openEdit(order)}
-                      className="w-8 h-8 rounded-xl bg-canvas border border-black/5 flex items-center justify-center text-gray-500 hover:text-ink-primary hover:bg-black/5 transition-all"
+                      className="w-8 h-8 rounded-xl bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-500 hover:text-ink-primary hover:bg-black/5 transition-all"
                     >
                       <Edit3 size={13} />
                     </button>
@@ -514,7 +514,7 @@ const Orders = () => {
                   {!isInvoice && !['INVOICED', 'CANCELLED'].includes(order.status) && (
                     <button
                       onClick={() => handleCancel(order)}
-                      className="w-8 h-8 rounded-xl bg-canvas border border-black/5 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
+                      className="w-8 h-8 rounded-xl bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
                       title="Cancel order"
                     >
                       <X size={13} />
@@ -525,7 +525,7 @@ const Orders = () => {
                   {!isInvoice && ['DRAFT', 'CANCELLED'].includes(order.status) && (
                     <button
                       onClick={() => handleDelete(order)}
-                      className="w-8 h-8 rounded-xl bg-canvas border border-black/5 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
+                      className="w-8 h-8 rounded-xl bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-all"
                       title="Delete order"
                     >
                       <Trash2 size={13} />
@@ -536,7 +536,7 @@ const Orders = () => {
                   {items.length > 0 && (
                     <button
                       onClick={() => setExpandedId(expanded ? null : order.id)}
-                      className="w-8 h-8 rounded-xl bg-canvas border border-black/5 flex items-center justify-center text-gray-400 hover:text-ink-primary transition-all"
+                      className="w-8 h-8 rounded-xl bg-white border border-gray-200 shadow-sm flex items-center justify-center text-gray-400 hover:text-ink-primary transition-all"
                     >
                       {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                     </button>
@@ -554,7 +554,7 @@ const Orders = () => {
                     {items.map((item, idx) => (
                       <div key={idx} className="flex items-center justify-between gap-4 bg-white rounded-xl px-4 py-2.5 border border-black/5">
                         <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-6 h-6 rounded-lg bg-canvas border border-black/5 flex items-center justify-center shrink-0">
+                          <div className="w-6 h-6 rounded-lg bg-white border border-gray-200 shadow-sm flex items-center justify-center shrink-0">
                             <Package size={10} className="text-gray-400" />
                           </div>
                           <span className="text-xs font-semibold text-ink-primary truncate">
@@ -619,7 +619,7 @@ const Orders = () => {
                   <div className="sm:col-span-2">
                     <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Client</label>
                     <select
-                      className="w-full bg-canvas border border-black/8 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all appearance-none"
+                      className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all appearance-none"
                       value={form.clientId}
                       onChange={e => onClientChange(e.target.value)}
                     >
@@ -656,7 +656,7 @@ const Orders = () => {
                   <div>
                     <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Price Tier</label>
                     <select
-                      className="w-full bg-canvas border border-black/8 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all appearance-none"
+                      className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all appearance-none"
                       value={form.priceTier}
                       onChange={e => setForm(prev => ({ ...prev, priceTier: e.target.value }))}
                     >
@@ -671,7 +671,7 @@ const Orders = () => {
                     <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Requested Date</label>
                     <input
                       type="date"
-                      className="w-full bg-canvas border border-black/8 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
+                      className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
                       value={form.requestedDate}
                       onChange={e => setForm(prev => ({ ...prev, requestedDate: e.target.value }))}
                     />
@@ -682,7 +682,7 @@ const Orders = () => {
                     <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Notes</label>
                     <input
                       type="text"
-                      className="w-full bg-canvas border border-black/8 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
+                      className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
                       placeholder="Special instructions..."
                       value={form.notes}
                       onChange={e => setForm(prev => ({ ...prev, notes: e.target.value }))}

@@ -469,12 +469,12 @@ const DayBook = () => {
           </button>
           {selectedDate !== today && (
             <button onClick={() => setSelectedDate(today)}
-              className="px-3 h-9 text-[9px] font-black uppercase tracking-widest bg-canvas border border-black/5 rounded-full hover:bg-white transition-all text-gray-500">
+              className="px-3 h-9 text-[9px] font-black uppercase tracking-widest bg-white border border-gray-200 shadow-sm rounded-full hover:bg-white transition-all text-gray-500">
               Today
             </button>
           )}
           <button onClick={() => setShowHistory(true)}
-            className="flex items-center gap-2 px-4 h-9 bg-canvas border border-black/5 text-gray-600 text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-white transition-all shadow-sm">
+            className="flex items-center gap-2 px-4 h-9 bg-white border border-gray-200 shadow-sm text-gray-600 text-[9px] font-black uppercase tracking-widest rounded-full hover:bg-white transition-all shadow-sm">
             <History size={12} />
             History
           </button>
@@ -536,7 +536,7 @@ const DayBook = () => {
               <span className="text-xs font-black text-ink-primary uppercase tracking-widest">
                 Transaction Log
               </span>
-              <span className="bg-canvas border border-black/5 text-[9px] font-black text-gray-400 px-2 py-0.5 rounded-full">
+              <span className="bg-white border border-gray-200 shadow-sm text-[9px] font-black text-gray-400 px-2 py-0.5 rounded-full">
                 {ledger.txCount}
               </span>
             </div>
@@ -701,14 +701,14 @@ const DayBook = () => {
                 {/* Carry forward button */}
                 {ledger.prevClosing !== null && !ledger.hasOpening && (
                   <button onClick={handleUseYesterdayClosing} disabled={isSaving}
-                    className="w-full h-10 flex items-center justify-center gap-2 bg-canvas border border-black/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-600 hover:bg-black/5 transition-all">
+                    className="w-full h-10 flex items-center justify-center gap-2 bg-white border border-gray-200 shadow-sm rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-600 hover:bg-black/5 transition-all">
                     <ChevronRight size={12} />
                     Use prev. closing ({cy}{fmt(ledger.prevClosing)})
                   </button>
                 )}
                 <div className="relative">
                   <input type="number" placeholder="Enter opening amount"
-                    className="w-full h-11 bg-canvas border border-black/5 rounded-xl px-4 pr-10 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                    className="w-full h-11 bg-white border border-gray-200 shadow-sm rounded-xl px-4 pr-10 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
                     value={openingInput}
                     onChange={e => setOpeningInput(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && handleSaveOpening()}
@@ -820,7 +820,7 @@ const DayBook = () => {
               </div>
               <div className="relative">
                 <input type="number" placeholder="Enter physical cash count"
-                  className="w-full h-10 bg-canvas border border-black/5 rounded-xl px-3 pr-8 text-xs font-black outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                  className="w-full h-10 bg-white border border-gray-200 shadow-sm rounded-xl px-3 pr-8 text-xs font-black outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
                   value={physicalCash}
                   onChange={e => setPhysicalCash(e.target.value)}
                 />
@@ -843,7 +843,7 @@ const DayBook = () => {
               {variance !== null && !isFuture && (
                 <button
                   onClick={handleSavePhysicalCash}
-                  className="w-full h-9 flex items-center justify-center gap-2 bg-canvas border border-black/5 rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-600 hover:bg-black/5 transition-all"
+                  className="w-full h-9 flex items-center justify-center gap-2 bg-white border border-gray-200 shadow-sm rounded-xl text-[9px] font-black uppercase tracking-widest text-gray-600 hover:bg-black/5 transition-all"
                 >
                   <Save size={11} /> Save Count
                 </button>

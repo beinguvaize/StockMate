@@ -114,7 +114,7 @@ const ReportDetailPanel = ({
                   {field.icon || <Info size={12} className="text-accent-signature" />}
                   {field.label}
                 </div>
-                <div className="text-sm font-bold text-ink-primary bg-canvas border border-black/5 p-4 rounded-2xl group-hover:bg-white group-hover:shadow-premium transition-all">
+                <div className="text-sm font-bold text-ink-primary bg-white border border-gray-200 shadow-sm p-4 rounded-2xl group-hover:bg-white group-hover:shadow-premium transition-all">
                   {renderValue(field, data[field.key])}
                 </div>
               </div>

@@ -48,7 +48,7 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  </div>
  
  <div className="flex flex-1 w-full md:w-auto items-center gap-3 justify-end">
- <div className="flex bg-canvas border border-black/5 rounded-lg p-1 shrink-0">
+ <div className="flex bg-white border border-gray-200 shadow-sm rounded-lg p-1 shrink-0">
  {['ALL', 'IN', 'OUT', 'ADJUST'].map(t => (
  <button
  key={t}
@@ -64,7 +64,7 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  <input 
  type="text" 
  placeholder="Filter activities..." 
- className="input-field !pl-10 !h-12 !py-0 !rounded-lg bg-canvas border border-black/5 shadow-inner text-[10px] font-bold"
+ className="input-field !pl-10 !h-12 !py-0 !rounded-lg bg-white border border-gray-200 shadow-sm shadow-inner text-[10px] font-bold"
  value={searchTerm}
  onChange={e => setSearchTerm(e.target.value)}
  />

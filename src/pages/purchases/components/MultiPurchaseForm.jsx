@@ -110,7 +110,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
     });
   };
 
-  const inp = 'w-full bg-canvas border border-black/5 rounded-lg p-2 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums';
+  const inp = 'w-full bg-white border border-gray-200 shadow-sm rounded-lg p-2 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums';
 
   return (
     <>
@@ -217,7 +217,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                   <div>
                     <select
                       required
-                      className={`w-full bg-canvas border border-black/5 rounded-lg p-2 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20 ${line.linked_product_id ? '' : 'text-gray-400'}`}
+                      className={`w-full bg-white border border-gray-200 shadow-sm rounded-lg p-2 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20 ${line.linked_product_id ? '' : 'text-gray-400'}`}
                       value={line.linked_product_id}
                       onChange={e => {
                         const prod = products.find(p => p.id === e.target.value);

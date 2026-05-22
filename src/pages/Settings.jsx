@@ -275,7 +275,7 @@ const Settings = () => {
  <input
  required
  type="text"
- className="input-field !rounded-lg !py-5 font-semibold text-2xl !bg-canvas border border-black/5"
+ className="input-field !rounded-lg !py-5 font-semibold text-2xl !bg-white border border-gray-200 shadow-sm"
  value={profileData.name}
  onChange={e => setProfileData({ ...profileData, name: e.target.value})}
  placeholder="Business Name..."
@@ -287,7 +287,7 @@ const Settings = () => {
  <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Contact Phone</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-canvas border border-black/5"
+ className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-200 shadow-sm"
  value={profileData.phone}
  onChange={e => setProfileData({ ...profileData, phone: e.target.value})}
  placeholder="Phone Number..."
@@ -297,7 +297,7 @@ const Settings = () => {
  <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Official Email</label>
  <input
  type="email"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-canvas border border-black/5"
+ className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-200 shadow-sm"
  value={profileData.email}
  onChange={e => setProfileData({ ...profileData, email: e.target.value})}
  placeholder="Email Address..."
@@ -309,7 +309,7 @@ const Settings = () => {
  <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Business Address</label>
  <textarea
  rows="3"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-canvas border border-black/5 w-full resize-none"
+ className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-200 shadow-sm w-full resize-none"
  value={profileData.address}
  onChange={e => setProfileData({ ...profileData, address: e.target.value})}
  placeholder="Full Physical Address..."
@@ -326,7 +326,7 @@ const Settings = () => {
  <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">GSTIN (GST Number)</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-canvas border border-black/5"
+ className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-200 shadow-sm"
  value={profileData.gst_no}
  onChange={e => setProfileData({ ...profileData, gst_no: e.target.value})}
  placeholder="GSTIN..."
@@ -336,7 +336,7 @@ const Settings = () => {
  <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">PAN Number</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-canvas border border-black/5"
+ className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-200 shadow-sm"
  value={profileData.pan_no}
  onChange={e => setProfileData({ ...profileData, pan_no: e.target.value})}
  placeholder="Permanent Account Number..."
@@ -403,7 +403,7 @@ const Settings = () => {
  <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Bank Name</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-canvas border border-black/5"
+ className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-200 shadow-sm"
  value={profileData.bank_name}
  onChange={e => setProfileData({ ...profileData, bank_name: e.target.value})}
  placeholder="e.g. HDFC Bank"
@@ -413,7 +413,7 @@ const Settings = () => {
  <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Account Number</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-canvas border border-black/5"
+ className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-200 shadow-sm"
  value={profileData.account_no}
  onChange={e => setProfileData({ ...profileData, account_no: e.target.value})}
  placeholder="Bank Account No..."
@@ -423,7 +423,7 @@ const Settings = () => {
  <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">IFSC Code</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-canvas border border-black/5"
+ className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-200 shadow-sm"
  value={profileData.ifsc_code}
  onChange={e => setProfileData({ ...profileData, ifsc_code: e.target.value})}
  placeholder="Bank IFSC..."
@@ -433,7 +433,7 @@ const Settings = () => {
  <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">UPI ID (for QR)</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-canvas border border-black/5"
+ className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-200 shadow-sm"
  value={profileData.upi_id}
  onChange={e => setProfileData({ ...profileData, upi_id: e.target.value})}
  placeholder="e.g. name@bank"
@@ -447,7 +447,7 @@ const Settings = () => {
  <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Country</label>
  <div className="relative">
  <Globe size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
- <select className="input-field !pl-16 !rounded-lg !py-2.5 font-medium text-sm appearance-none !bg-canvas border border-black/5" value={profileData.country} onChange={e => {
+ <select className="input-field !pl-16 !rounded-lg !py-2.5 font-medium text-sm appearance-none !bg-white border border-gray-200 shadow-sm" value={profileData.country} onChange={e => {
  const country = e.target.value;
  let currency = profileData.currency;
  let currencySymbol = profileData.currencySymbol;
@@ -471,7 +471,7 @@ const Settings = () => {
  <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Currency</label>
  <div className="relative">
  <Coins size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
- <select className="input-field !pl-16 !rounded-lg !py-2.5 font-medium text-sm appearance-none !bg-canvas border border-black/5" value={profileData.currency} onChange={e => setProfileData({ ...profileData, currency: e.target.value})}>
+ <select className="input-field !pl-16 !rounded-lg !py-2.5 font-medium text-sm appearance-none !bg-white border border-gray-200 shadow-sm" value={profileData.currency} onChange={e => setProfileData({ ...profileData, currency: e.target.value})}>
  <option value="INR">INR - INDIAN RUPEE</option>
  <option value="AED">AED - UAE DIRHAM</option>
  <option value="USD">USD - US DOLLAR</option>
@@ -520,7 +520,7 @@ const Settings = () => {
       <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Plan Details */}
         <div className="flex flex-col gap-4">
-          <div className="p-5 rounded-2xl bg-canvas border border-black/5">
+          <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-bold text-gray-700 uppercase">Current Plan</span>
               <Sparkles size={16} className="text-accent-signature" />
@@ -557,7 +557,7 @@ const Settings = () => {
 
         {/* Slug Management */}
         <div className="flex flex-col gap-4">
-          <div className="p-5 rounded-2xl bg-canvas border border-black/5">
+          <div className="p-5 rounded-2xl bg-white border border-gray-200 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Workspace Identifier (URL)</span>
               <Globe size={16} className="text-accent-signature" />
@@ -613,7 +613,7 @@ const Settings = () => {
  <input
  type="text"
  placeholder="New Category..."
- className="input-field !rounded-xl !py-2.5 font-bold text-sm bg-canvas border border-black/5 flex-1"
+ className="input-field !rounded-xl !py-2.5 font-bold text-sm bg-white border border-gray-200 shadow-sm flex-1"
  value={newCategory}
  onChange={e => setNewCategory(e.target.value)}
  onKeyPress={e => {
@@ -637,7 +637,7 @@ const Settings = () => {
  {/* Category List */}
  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
  {expenseCategories.map(cat => (
- <div key={cat} className="group flex items-center justify-between p-4 rounded-xl bg-canvas border border-black/5 hover:border-accent-signature/30 transition-all">
+ <div key={cat} className="group flex items-center justify-between p-4 rounded-xl bg-white border border-gray-200 shadow-sm hover:border-accent-signature/30 transition-all">
  {editingCategory === cat ? (
  <div className="flex items-center gap-2 w-full">
  <input
@@ -707,7 +707,7 @@ const Settings = () => {
  <input
  type="text"
  placeholder="New Category..."
- className="input-field !rounded-xl !py-2.5 font-bold text-sm bg-canvas border border-black/5 flex-1"
+ className="input-field !rounded-xl !py-2.5 font-bold text-sm bg-white border border-gray-200 shadow-sm flex-1"
  value={newProductCategory}
  onChange={e => setNewProductCategory(e.target.value)}
  onKeyPress={e => {
@@ -731,7 +731,7 @@ const Settings = () => {
  </div>
  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
  {productCategories.map(cat => (
- <div key={cat.id} className="group flex items-center justify-between p-4 rounded-xl bg-canvas border border-black/5 hover:border-accent-signature/30 transition-all">
+ <div key={cat.id} className="group flex items-center justify-between p-4 rounded-xl bg-white border border-gray-200 shadow-sm hover:border-accent-signature/30 transition-all">
  {editingProductCategory === cat.id ? (
  <div className="flex items-center gap-2 w-full">
  <input
@@ -794,7 +794,7 @@ const Settings = () => {
  <div className="flex items-center gap-4">
  <input
  type="number"
- className="input-field !max-w-[140px] !rounded-lg !py-2.5 !text-center !font-semibold !text-2xl bg-canvas border border-black/5"
+ className="input-field !max-w-[140px] !rounded-lg !py-2.5 !text-center !font-semibold !text-2xl bg-white border border-gray-200 shadow-sm"
  value={profileData.lowStockThreshold}
  onChange={e => setProfileData({ ...profileData, lowStockThreshold: parseInt(e.target.value) || 0})}
  />
@@ -911,7 +911,7 @@ const Settings = () => {
          value={billSettings.footer_message}
          onChange={e => setBillSettings(prev => ({ ...prev, footer_message: e.target.value }))}
          placeholder="e.g. Thank You • Visit Again"
-         className="w-full bg-canvas border border-black/8 rounded-xl px-4 py-3 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
+         className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-3 font-semibold text-sm outline-none focus:ring-2 focus:ring-accent-signature/30 transition-all"
        />
        <p className="text-[10px] text-gray-400 mt-1.5">Appears at the bottom of every printed bill. Leave blank to hide.</p>
      </div>
@@ -1015,7 +1015,7 @@ const Settings = () => {
          {/* Existing locations */}
          <div className="space-y-2">
            {inventoryLocations.map(loc => (
-             <div key={loc.id} className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-canvas border border-black/5">
+             <div key={loc.id} className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-white border border-gray-200 shadow-sm">
                <MapPin size={14} className="text-gray-400 shrink-0" />
                {editingLoc?.id === loc.id ? (
                  <div className="flex-1 flex gap-2">
@@ -1063,13 +1063,13 @@ const Settings = () => {
              value={newLocName}
              onChange={e => setNewLocName(e.target.value)}
              placeholder="Branch name (e.g. Kozhikode Outlet)"
-             className="flex-1 text-xs font-semibold bg-canvas border border-black/8 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-accent-signature/25"
+             className="flex-1 text-xs font-semibold bg-white border border-gray-200 shadow-sm rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-accent-signature/25"
            />
            <input
              value={newLocAddr}
              onChange={e => setNewLocAddr(e.target.value)}
              placeholder="Address (optional)"
-             className="flex-1 text-xs font-semibold bg-canvas border border-black/8 rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-accent-signature/25"
+             className="flex-1 text-xs font-semibold bg-white border border-gray-200 shadow-sm rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-accent-signature/25"
            />
            <button
              onClick={handleAddLocation}
@@ -1109,7 +1109,7 @@ const Settings = () => {
            Use this key to authenticate API requests. Keep it secret — treat like a password.
          </p>
          {apiKey ? (
-           <div className="flex items-center gap-3 p-4 rounded-2xl bg-canvas border border-black/8">
+           <div className="flex items-center gap-3 p-4 rounded-2xl bg-white border border-gray-200 shadow-sm">
              <Key size={14} className="text-gray-400 shrink-0" />
              <code className="flex-1 text-[11px] font-mono text-ink-primary tracking-tight truncate">
                {apiKeyVisible ? apiKey : '••••••••••••••••••••••••••••••••••••••••'}
@@ -1175,11 +1175,11 @@ const Settings = () => {
        </p>
        
        <div className="space-y-3 mb-10">
-         <div className="flex items-center gap-3 p-4 rounded-xl bg-canvas border border-black/5">
+         <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
            <div className="w-8 h-8 rounded-lg bg-ink-primary flex items-center justify-center text-accent-signature"><Database size={16} /></div>
            <span className="text-[10px] font-bold text-ink-primary uppercase tracking-wide text-left">Advanced Multi-Tenant Governance</span>
          </div>
-         <div className="flex items-center gap-3 p-4 rounded-xl bg-canvas border border-black/5">
+         <div className="flex items-center gap-3 p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
            <div className="w-8 h-8 rounded-lg bg-ink-primary flex items-center justify-center text-accent-signature"><Zap size={16} /></div>
            <span className="text-[10px] font-bold text-ink-primary uppercase tracking-wide text-left">Real-time Logistics Replication</span>
          </div>

@@ -158,7 +158,7 @@ const SalesReturnForm = ({ sale, clients, products = [], onSave, loading }) => {
           <input
             required
             type="date"
-            className="w-full bg-canvas border border-black/5 rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-white border border-gray-200 shadow-sm rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
             value={date}
             onChange={e => setDate(e.target.value)}
           />
@@ -167,7 +167,7 @@ const SalesReturnForm = ({ sale, clients, products = [], onSave, loading }) => {
           <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Reason</label>
           <input
             type="text"
-            className="w-full bg-canvas border border-black/5 rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-white border border-gray-200 shadow-sm rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="Damaged, wrong item..."
             value={reason}
             onChange={e => setReason(e.target.value)}

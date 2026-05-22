@@ -155,7 +155,7 @@ const Expenses = () => {
  <div className="flex items-center gap-3">
  <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Expenses<span className="text-accent-signature">.</span></h1>
  <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Operating costs & expenditure</span>
- <span className="hidden md:flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-canvas border border-black/5 px-2 py-1 rounded-lg">
+ <span className="hidden md:flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-white border border-gray-200 shadow-sm px-2 py-1 rounded-lg">
    {getFilterLabel()}: <span className="text-ink-primary font-black ml-1">{businessProfile?.currencySymbol || '₹'}{totalExpenses.toLocaleString()}</span>
  </span>
  </div>
@@ -216,13 +216,13 @@ const Expenses = () => {
  <input 
  type="text" 
  placeholder="Search expenses..." 
- className="w-full h-full pl-12 pr-5 rounded-pill bg-canvas border border-black/5 shadow-inner text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-black/20 focus:bg-white transition-all"
+ className="w-full h-full pl-12 pr-5 rounded-pill bg-white border border-gray-200 shadow-sm shadow-inner text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-black/20 focus:bg-white transition-all"
  value={searchTerm}
  onChange={e => setSearchTerm(e.target.value)}
  />
  </div>
 
- <div className="flex bg-canvas border border-black/5 rounded-pill p-1.5 shrink-0 ml-1 h-[56px] overflow-x-auto">
+ <div className="flex bg-white border border-gray-200 shadow-sm rounded-pill p-1.5 shrink-0 ml-1 h-[56px] overflow-x-auto">
  {['all', 'today', 'yesterday'].map(f => (
  <button
  key={f}

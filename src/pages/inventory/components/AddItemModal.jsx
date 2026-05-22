@@ -152,8 +152,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       subtitle={editingProduct ? 'Update product details' : 'Add new product to inventory'}
     >
       {(() => {
-        const inputCls = "w-full bg-canvas border border-black/5 !rounded-xl p-3 text-xs font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20";
-        const labelCls = "block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2";
+        const inputCls = "w-full bg-white border border-gray-200 rounded-xl px-3.5 py-3 text-xs font-bold text-ink-primary placeholder:text-gray-400 placeholder:font-medium outline-none transition-all hover:border-gray-300 focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 shadow-sm";
+        const labelCls = "block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2";
+        const Section = ({ children }) => (
+          <div className="flex items-center gap-2 pt-1.5">
+            <span className="w-1 h-3.5 rounded-full bg-accent-signature" />
+            <span className="text-[11px] font-black text-ink-primary uppercase tracking-widest">{children}</span>
+          </div>
+        );
         const c = parseFloat(formData.costPrice);
         const s = parseFloat(formData.sellingPrice);
         const showMargin = c > 0 && !isNaN(s);
@@ -162,6 +168,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
 
         return (
           <form onSubmit={handleSubmit} className="space-y-4">
+            <Section>Identity &amp; Classification</Section>
             {/* Row 1: Name full width */}
             <div>
               <label className={labelCls}>Name</label>
@@ -211,6 +218,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               </div>
             </div>
 
+            <Section>Pricing &amp; Units</Section>
             {/* Row 3: Cost | Selling | Unit */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
@@ -250,7 +258,8 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 <label className={labelCls}>
                   Conversion {formData.secondary_unit && `(1 ${formData.secondary_unit} = ? ${formData.unit})`}
                 </label>
-                <input type="number" step="0.0001" min="0" className={inputCls}
+                <input type="number" step="0.0001" min="0"
+                  className={`${inputCls} ${!formData.secondary_unit ? 'opacity-60 cursor-not-allowed !bg-gray-50 hover:!border-gray-200' : ''}`}
                   placeholder={`e.g. 24`}
                   disabled={!formData.secondary_unit}
                   value={formData.conversion_factor}
@@ -261,7 +270,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             {/* Margin indicator + floor guard */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {showMargin && (
-                <div className="flex items-center justify-between bg-canvas border border-black/5 rounded-xl px-4 py-2.5">
+                <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm self-end">
                   <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Current Margin</span>
                   <span className={`text-sm font-black tabular-nums ${marginColor}`}>
                     {margin.toFixed(1)}%{margin < 0 ? ' · loss' : margin < 10 ? ' · low' : ''}
@@ -280,6 +289,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               </div>
             </div>
 
+            <Section>Taxation</Section>
             {/* Tax Slab */}
             <div>
               <label className={labelCls}>GST Tax Slab</label>
@@ -289,10 +299,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     key={slab.value}
                     type="button"
                     onClick={() => setFormData({ ...formData, taxRate: slab.value })}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-black border transition-all ${
+                    className={`px-4 py-2 rounded-lg text-xs font-black border transition-all ${
                       Number(formData.taxRate) === slab.value
-                        ? 'bg-accent-signature text-button-text border-accent-signature shadow'
-                        : 'bg-canvas border-black/10 text-gray-500 hover:border-accent-signature/40'
+                        ? 'bg-accent-signature text-button-text border-accent-signature shadow-md scale-105'
+                        : 'bg-white border-gray-200 text-gray-500 shadow-sm hover:border-accent-signature/40 hover:text-ink-primary'
                     }`}
                   >
                     {slab.label}
@@ -302,12 +312,12 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               <p className="text-[10px] text-gray-400 mt-1">Applied on invoice & POS checkout</p>
             </div>
 
+            <Section>Product Photo</Section>
             {/* ── Product Photo ──────────────────────────────────────── */}
             <div>
-              <label className={labelCls}>Product Photo</label>
               <div className="flex gap-3 items-start">
                 {/* Preview */}
-                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-canvas border border-black/5 flex-shrink-0 flex items-center justify-center">
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-white border border-gray-200 shadow-sm flex-shrink-0 flex items-center justify-center">
                   {imagePreview ? (
                     <>
                       <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
@@ -329,14 +339,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-canvas border border-black/5 text-xs font-bold text-ink-primary hover:bg-accent-signature/5 transition-colors"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-gray-200 shadow-sm text-xs font-bold text-ink-primary hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
                   >
                     <Upload size={13} /> Upload New Photo
                   </button>
                   <button
                     type="button"
                     onClick={openPhotoLib}
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-canvas border border-black/5 text-xs font-bold text-ink-primary hover:bg-accent-signature/5 transition-colors"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-gray-200 shadow-sm text-xs font-bold text-ink-primary hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
                   >
                     <Images size={13} /> Choose from Library
                   </button>
@@ -354,7 +364,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
 
               {/* ── Photo Library Panel ── */}
               {showPhotoLib && (
-                <div className="mt-3 bg-canvas border border-black/5 rounded-xl p-3">
+                <div className="mt-3 bg-white border border-gray-200 shadow-sm rounded-xl p-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Recent Photos</span>
                     <button type="button" onClick={() => setShowPhotoLib(false)}>

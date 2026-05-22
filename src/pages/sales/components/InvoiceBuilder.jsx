@@ -345,7 +345,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               }`}
             >
               {/* Thumbnail / initial */}
-              <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden bg-canvas border border-black/5">
+              <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden bg-white border border-gray-200 shadow-sm">
                 {product.image
                   ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                   : <span className="text-[11px] font-black text-ink-primary/30 uppercase">{(product.name || '?').slice(0, 2)}</span>
@@ -694,7 +694,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
                 {cart.map((item, idx) => (
                   <div key={item.productId} className={`flex items-center gap-4 px-5 py-3.5 ${idx !== cart.length - 1 ? 'border-b border-black/5' : ''}`}>
-                    <div className="w-8 h-8 rounded-lg bg-canvas border border-black/8 flex items-center justify-center shrink-0">
+                    <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 shadow-sm flex items-center justify-center shrink-0">
                       <Package size={14} className="text-gray-400" />
                     </div>
                     <div className="flex-1 min-w-0">
@@ -816,7 +816,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       placeholder="Full delivery address…"
                       value={deliveryDetails.address}
                       onChange={e => setDeliveryDetails(p => ({ ...p, address: e.target.value }))}
-                      className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 resize-none"
+                      className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 resize-none"
                     />
                   </div>
 
@@ -826,7 +826,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       <input type="text" placeholder="e.g. North Zone"
                         value={deliveryDetails.zone}
                         onChange={e => setDeliveryDetails(p => ({ ...p, zone: e.target.value }))}
-                        className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                        className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
                       />
                     </div>
                     <div>
@@ -835,7 +835,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         value={deliveryDetails.date}
                         min={new Date().toISOString().split('T')[0]}
                         onChange={e => setDeliveryDetails(p => ({ ...p, date: e.target.value }))}
-                        className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                        className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
                       />
                     </div>
                   </div>
@@ -846,7 +846,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       <input type="number" placeholder="0" min="0"
                         value={deliveryDetails.fee}
                         onChange={e => setDeliveryDetails(p => ({ ...p, fee: e.target.value }))}
-                        className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                        className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
                       />
                     </div>
                     <div>
@@ -854,7 +854,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       <input type="text" placeholder="e.g. Call before"
                         value={deliveryDetails.notes}
                         onChange={e => setDeliveryDetails(p => ({ ...p, notes: e.target.value }))}
-                        className="w-full bg-canvas border border-black/8 rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                        className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
                       />
                     </div>
                   </div>
