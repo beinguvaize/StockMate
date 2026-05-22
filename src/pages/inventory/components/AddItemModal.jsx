@@ -16,7 +16,8 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
     costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
-    lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: 'STANDARD'
+    lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: 'STANDARD',
+    secondary_unit: '', conversion_factor: ''
   });
 
   const [imageFile, setImageFile]     = useState(null);
@@ -123,6 +124,8 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         lowStockThreshold: parseInt(formData.lowStockThreshold) || 10,
         taxRate:          parseFloat(formData.taxRate)          || 0,
         min_margin:       parseFloat(formData.min_margin)       || 0,
+        secondary_unit:   formData.secondary_unit?.trim() || null,
+        conversion_factor: parseFloat(formData.conversion_factor) || null,
         tags: typeof formData.tags === 'string'
           ? formData.tags.split(',').map(t => t.trim()).filter(Boolean)
           : (Array.isArray(formData.tags) ? formData.tags : []),
@@ -223,11 +226,35 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value})} />
               </div>
               <div>
-                <label className={labelCls}>Unit</label>
+                <label className={labelCls}>Base Unit</label>
                 <select className={inputCls} value={formData.unit}
                   onChange={e => setFormData({ ...formData, unit: e.target.value})}>
                   {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
+              </div>
+            </div>
+
+            {/* Alternate unit + conversion (optional) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>
+                  Alternate Unit <span className="text-gray-400 font-normal">— optional</span>
+                </label>
+                <select className={inputCls} value={formData.secondary_unit || ''}
+                  onChange={e => setFormData({ ...formData, secondary_unit: e.target.value })}>
+                  <option value="">None</option>
+                  {UNITS.filter(u => u !== formData.unit).map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className={labelCls}>
+                  Conversion {formData.secondary_unit && `(1 ${formData.secondary_unit} = ? ${formData.unit})`}
+                </label>
+                <input type="number" step="0.0001" min="0" className={inputCls}
+                  placeholder={`e.g. 24`}
+                  disabled={!formData.secondary_unit}
+                  value={formData.conversion_factor}
+                  onChange={e => setFormData({ ...formData, conversion_factor: e.target.value })} />
               </div>
             </div>
 

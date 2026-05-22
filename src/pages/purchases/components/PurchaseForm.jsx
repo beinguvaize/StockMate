@@ -23,6 +23,14 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
     [products, formData.linked_product_id]
   );
 
+  // Unit conversion — buy in base unit or the product's alternate unit.
+  const [purchaseUnit, setPurchaseUnit] = useState('BASE'); // BASE | SECONDARY
+  const convFactor = parseFloat(selectedProduct?.conversion_factor) || 0;
+  const hasAltUnit = !!selectedProduct?.secondary_unit && convFactor > 0;
+  const buyUnit = (purchaseUnit === 'SECONDARY' && hasAltUnit)
+    ? selectedProduct.secondary_unit
+    : (selectedProduct?.unit || 'unit');
+
   // Sync unit_price → total_amount
   const handleUnitPriceChange = (val) => {
     const q = parseFloat(formData.quantity);
@@ -56,12 +64,18 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
   };
 
   const unitCost = parseFloat(formData.unit_price) || null;
+  // Cost per BASE unit — what FIFO/inventory actually store.
+  const baseUnitCost = (unitCost && purchaseUnit === 'SECONDARY' && hasAltUnit)
+    ? unitCost / convFactor
+    : unitCost;
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    const q = parseFloat(formData.quantity);
+    let q = parseFloat(formData.quantity);
     const t = parseFloat(formData.total_amount);
-    const u = unitCost ?? (q > 0 && t > 0 ? t / q : 0);
+    // Convert quantity to the product's base unit when buying in the alternate unit.
+    if (purchaseUnit === 'SECONDARY' && hasAltUnit) q = q * convFactor;
+    const u = (q > 0 && t > 0) ? t / q : 0;
     onSave({
       ...formData,
       quantity: q,
@@ -98,7 +112,25 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           </select>
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Quantity</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+              Quantity {selectedProduct && <span className="text-gray-400">({buyUnit})</span>}
+            </label>
+            {hasAltUnit && (
+              <div className="flex items-center gap-0.5 bg-canvas border border-black/8 rounded-lg p-0.5">
+                {[
+                  { k: 'BASE', l: selectedProduct.unit },
+                  { k: 'SECONDARY', l: selectedProduct.secondary_unit },
+                ].map(o => (
+                  <button key={o.k} type="button"
+                    onClick={() => setPurchaseUnit(o.k)}
+                    className={`px-2 py-0.5 rounded text-[9px] font-black uppercase transition-all ${
+                      purchaseUnit === o.k ? 'bg-ink-primary text-white' : 'text-gray-400'
+                    }`}>{o.l}</button>
+                ))}
+              </div>
+            )}
+          </div>
           <input
             required
             type="number"
@@ -108,9 +140,16 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
             value={formData.quantity}
             onChange={e => handleQuantityChange(e.target.value)}
           />
+          {hasAltUnit && purchaseUnit === 'SECONDARY' && Number(formData.quantity) > 0 && (
+            <div className="mt-1 text-[9px] font-bold text-accent-signature">
+              = {(Number(formData.quantity) * convFactor).toLocaleString()} {selectedProduct.unit} stored
+            </div>
+          )}
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Unit Price</label>
+          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">
+            Unit Price {selectedProduct && <span className="text-gray-400">(per {buyUnit})</span>}
+          </label>
           <input
             type="number"
             className="w-full bg-canvas border border-black/5 rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
@@ -120,14 +159,14 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
             value={formData.unit_price}
             onChange={e => handleUnitPriceChange(e.target.value)}
           />
-          {unitCost !== null && selectedProduct?.costPrice > 0 && (
+          {baseUnitCost !== null && selectedProduct?.costPrice > 0 && (
             <div className="mt-1.5 text-[10px] font-bold">
-              <span className={unitCost > selectedProduct.costPrice ? 'text-amber-600' : 'text-emerald-600'}>
-                {unitCost > selectedProduct.costPrice ? '▲' : '▼'} vs last {formatCurrency(selectedProduct.costPrice)}
+              <span className={baseUnitCost > selectedProduct.costPrice ? 'text-amber-600' : 'text-emerald-600'}>
+                {baseUnitCost > selectedProduct.costPrice ? '▲' : '▼'} vs last {formatCurrency(selectedProduct.costPrice)}/{selectedProduct.unit}
               </span>
             </div>
           )}
-          {unitCost !== null && selectedProduct?.sellingPrice > 0 && unitCost > selectedProduct.sellingPrice && (
+          {baseUnitCost !== null && selectedProduct?.sellingPrice > 0 && baseUnitCost > selectedProduct.sellingPrice && (
             <div className="mt-1.5 flex items-start gap-1.5 text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
               <AlertTriangle size={11} className="shrink-0 mt-px" />
               <span>Unit cost is above the selling price ({formatCurrency(selectedProduct.sellingPrice)}). Check for a data-entry error.</span>
