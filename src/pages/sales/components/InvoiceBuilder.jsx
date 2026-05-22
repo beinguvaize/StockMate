@@ -87,9 +87,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   useEffect(() => { searchInputRef.current?.focus(); }, []);
 
   const filteredProducts = useMemo(() => {
+    // RAW materials are consume-only (manufacturing) — never sold at POS.
+    const sellable = products.filter(p => p.product_type !== 'RAW');
     const q = searchTerm.toLowerCase().trim();
-    if (!q) return products;
-    return products.filter(p =>
+    if (!q) return sellable;
+    return sellable.filter(p =>
       (p.name    || '').toLowerCase().includes(q) ||
       (p.sku     || '').toLowerCase().includes(q) ||
       (p.barcode || '').toLowerCase().includes(q)

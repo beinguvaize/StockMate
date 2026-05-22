@@ -16,7 +16,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
     costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
-    lowStockThreshold: 10, min_margin: 0, barcode: ''
+    lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: 'STANDARD'
   });
 
   const [imageFile, setImageFile]     = useState(null);
@@ -189,12 +189,23 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               </div>
             </div>
 
-            {/* Barcode */}
-            <div>
-              <label className={labelCls}>Barcode (EAN-13 / UPC / custom)</label>
-              <input type="text" className={`${inputCls} font-mono`} placeholder="Scan or type barcode…"
-                value={formData.barcode || ''}
-                onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
+            {/* Barcode | Product Type */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>Barcode (EAN-13 / UPC / custom)</label>
+                <input type="text" className={`${inputCls} font-mono`} placeholder="Scan or type barcode…"
+                  value={formData.barcode || ''}
+                  onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
+              </div>
+              <div>
+                <label className={labelCls}>Product Type</label>
+                <select className={inputCls} value={formData.product_type || 'STANDARD'}
+                  onChange={e => setFormData({ ...formData, product_type: e.target.value })}>
+                  <option value="STANDARD">Standard — bought &amp; sold</option>
+                  <option value="RAW">Raw material — consume-only (not sold)</option>
+                  <option value="FINISHED">Finished — manufactured</option>
+                </select>
+              </div>
             </div>
 
             {/* Row 3: Cost | Selling | Unit */}
@@ -205,8 +216,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value})} />
               </div>
               <div>
-                <label className={labelCls}>Selling Price (₹)</label>
-                <input required type="number" step="0.01" className={inputCls} placeholder="0.00"
+                <label className={labelCls}>
+                  Selling Price (₹){formData.product_type === 'RAW' && <span className="text-gray-400 font-normal"> — optional</span>}
+                </label>
+                <input required={formData.product_type !== 'RAW'} type="number" step="0.01" className={inputCls} placeholder="0.00"
                   value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value})} />
               </div>
               <div>

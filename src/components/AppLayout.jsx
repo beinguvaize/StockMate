@@ -2,7 +2,7 @@ import React, { useState, useRef} from 'react';
 import { NavLink, Outlet, Navigate, useParams, useLocation} from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload} from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory} from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { getDefaultAvatar } from '../lib/supabase';
 import NotificationStack from './NotificationStack';
@@ -106,6 +106,7 @@ const Navbar = () => {
 
  const moreNavItems = [
    navItem('Pipeline', '/orders', <ClipboardList size={20} />, 'sales'),
+   navItem('Manufacturing', '/manufacturing', <Factory size={20} />, 'inventory'),
    navItem('Suppliers', '/suppliers', <Truck size={20} />, 'suppliers'),
    navItem('Payroll', '/payroll', <Banknote size={20} />, 'payroll'),
    navItem('Day Book', '/daybook', <BookOpen size={20} />, 'daybook'),
