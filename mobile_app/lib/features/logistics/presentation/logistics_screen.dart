@@ -11,6 +11,7 @@ import 'package:mobile_app/features/logistics/presentation/delivery_screen.dart'
 import 'package:mobile_app/features/logistics/presentation/driver_route_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/load_van_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/dispatch_route_screen.dart';
+import 'package:mobile_app/features/logistics/presentation/fleet_stock_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
 
 class LogisticsScreen extends ConsumerWidget {
@@ -99,17 +100,44 @@ class LogisticsScreen extends ConsumerWidget {
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 28, 16, 12),
                     child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Icon(LucideIcons.truck,
-                            size: 14, color: AppColors.primary),
-                        const SizedBox(width: 6),
-                        Text(
-                          'FLEET VEHICLES',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 1.5,
-                            color: AppColors.primary,
+                        Row(
+                          children: [
+                            const Icon(LucideIcons.truck,
+                                size: 14, color: AppColors.primary),
+                            const SizedBox(width: 6),
+                            Text(
+                              'FLEET VEHICLES',
+                              style: GoogleFonts.jetBrainsMono(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1.5,
+                                color: AppColors.primary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        GestureDetector(
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const FleetStockScreen()),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                'STOCK ON BOARD',
+                                style: GoogleFonts.jetBrainsMono(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 1,
+                                  color: AppColors.secondary,
+                                ),
+                              ),
+                              const Icon(LucideIcons.chevronRight,
+                                  size: 14, color: AppColors.secondary),
+                            ],
                           ),
                         ),
                       ],
