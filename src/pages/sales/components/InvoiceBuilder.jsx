@@ -330,6 +330,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             const ms = marginStatus[product.id] || {};
             const stock = warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock;
             const outOfStock = stock <= 0;
+            const inCart  = cart.find(i => i.productId === product.id);
+            const cartQty = inCart ? inCart.quantity : 0;
             return (
             <div
               key={product.id}
@@ -341,15 +343,24 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   ? 'border-red-200 bg-red-50/40 hover:bg-red-50/70'
                   : ms.belowFloor
                   ? 'border-orange-200 bg-orange-50/30 hover:bg-orange-50/60'
+                  : inCart
+                  ? 'border-accent-signature/40 bg-accent-signature/5 hover:bg-accent-signature/10'
                   : 'border-transparent bg-white/60 hover:bg-white hover:border-accent-signature/20 hover:shadow-sm'
-              }`}
+              } ${inCart && !outOfStock ? 'ring-2 ring-inset ring-accent-signature/30' : ''}`}
             >
               {/* Thumbnail / initial */}
-              <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 overflow-hidden bg-white border border-gray-300 shadow-sm">
-                {product.image
-                  ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                  : <span className="text-[11px] font-black text-ink-primary/30 uppercase">{(product.name || '?').slice(0, 2)}</span>
-                }
+              <div className="relative flex-shrink-0">
+                <div className="w-8 h-8 rounded-md flex items-center justify-center overflow-hidden bg-white border border-gray-300 shadow-sm">
+                  {product.image
+                    ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                    : <span className="text-[11px] font-black text-ink-primary/30 uppercase">{(product.name || '?').slice(0, 2)}</span>
+                  }
+                </div>
+                {cartQty > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-accent-signature text-button-text text-[9px] font-black flex items-center justify-center shadow ring-2 ring-white">
+                    {cartQty}
+                  </span>
+                )}
               </div>
 
               {/* Name + SKU */}
