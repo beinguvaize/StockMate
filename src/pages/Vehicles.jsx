@@ -84,7 +84,28 @@ const Vehicles = () => {
   const [dispatchError, setDispatchError] = useState('');
 
   // Van Load (dispatch)
-  const [vanLoadItems, setVanLoadItems] = useState([]); // [{productId, productName, qty, sellingPrice, costPrice}]
+  // Van's current actual stock — loaded via the dedicated Load Van flow.
+  // Dispatch reads this read-only; it does not re-load the van.
+  const vanCurrentStock = useMemo(() => {
+    if (!dispatchForm.vehicleId) return [];
+    const loc = inventoryLocations.find(
+      l => l.type === 'VEHICLE' && l.reference_id === dispatchForm.vehicleId
+    );
+    if (!loc) return [];
+    return inventoryBalances
+      .filter(b => b.location_id === loc.id && Number(b.quantity) > 0)
+      .map(b => {
+        const p = products.find(pr => pr.id === b.product_id);
+        return {
+          productId:    b.product_id,
+          productName:  p?.name || b.product_id,
+          qty:          Number(b.quantity),
+          sellingPrice: p?.sellingPrice ?? p?.selling_price ?? 0,
+          costPrice:    p?.costPrice ?? p?.cost_price ?? 0,
+        };
+      })
+      .sort((a, b) => a.productName.localeCompare(b.productName));
+  }, [dispatchForm.vehicleId, inventoryLocations, inventoryBalances, products]);
 
   // Load Van modal
   const [loadVanVehicle,   setLoadVanVehicle]   = useState(null); // vehicle obj
@@ -171,26 +192,8 @@ const Vehicles = () => {
     setDispatchForm({ vehicleId: vehicles[0]?.id || '', driverId: '', location: '' });
     setSelectedInvoices(pendingDeliveries.map(i => i.id)); // pre-select all
     setDispatchError('');
-    setVanLoadItems([]);
     setShowDispatchModal(true);
   };
-
-  // Van Load helpers
-  const addVanLoadRow = () => {
-    if (!products.length) return;
-    const p = products[0];
-    setVanLoadItems(prev => [...prev, { productId: p.id, productName: p.name, qty: 1, sellingPrice: p.sellingPrice || 0, costPrice: p.costPrice || 0 }]);
-  };
-  const removeVanLoadRow = (idx) => setVanLoadItems(prev => prev.filter((_, i) => i !== idx));
-  const updateVanLoadRow = (idx, field, value) =>
-    setVanLoadItems(prev => prev.map((item, i) => {
-      if (i !== idx) return item;
-      if (field === 'productId') {
-        const p = products.find(pr => pr.id === value);
-        return p ? { ...item, productId: p.id, productName: p.name, sellingPrice: p.sellingPrice || 0, costPrice: p.costPrice || 0 } : item;
-      }
-      return { ...item, [field]: field === 'qty' ? Math.max(1, parseInt(value) || 1) : value };
-    }));
 
   // ── Load Van ──────────────────────────────────────────────────────────────
   // Opens the VanLoadBuilder POS-style flow. Warehouse→vehicle transfer
@@ -206,8 +209,8 @@ const Vehicles = () => {
     e.preventDefault();
     if (!dispatchForm.vehicleId) { setDispatchError('Select a vehicle.'); return; }
     if (!dispatchForm.driverId)  { setDispatchError('Select a driver.');  return; }
-    if (selectedInvoices.length === 0 && vanLoadItems.filter(i => i.qty > 0).length === 0) {
-      setDispatchError('Select at least 1 delivery or add van stock to load.');
+    if (selectedInvoices.length === 0 && vanCurrentStock.length === 0) {
+      setDispatchError('Select at least 1 delivery, or load the van first.');
       return;
     }
 
@@ -225,7 +228,7 @@ const Vehicles = () => {
           return s + (inv?.grand_total || 0);
         }, 0),
         assignedOrders:  selectedInvoices,
-        loadedStock:     vanLoadItems.filter(i => i.qty > 0).map(i => ({
+        loadedStock:     vanCurrentStock.map(i => ({
           productId:    i.productId,
           quantity:     i.qty,
           sellingPrice: i.sellingPrice,
@@ -1240,44 +1243,30 @@ const Vehicles = () => {
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-[10px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                        <PackagePlus size={11} /> Van Stock Load
-                        <span className="font-medium normal-case text-gray-300">(optional)</span>
+                        <PackagePlus size={11} /> Stock On Van
                       </h3>
-                      <button type="button"
-                        className="text-[9px] font-bold text-accent-signature hover:underline flex items-center gap-1"
-                        onClick={addVanLoadRow}>
-                        + Add Product
-                      </button>
+                      {vanCurrentStock.length > 0 && (
+                        <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full">
+                          Loaded
+                        </span>
+                      )}
                     </div>
-                    {vanLoadItems.length === 0 ? (
+                    {vanCurrentStock.length === 0 ? (
                       <div className="py-8 text-center text-[10px] text-gray-400 border border-dashed border-black/10 rounded-xl">
-                        No van stock — driver will only deliver invoices
+                        Van is empty — load it from Fleet → Load Van.<br />
+                        Driver will only deliver invoices.
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        {vanLoadItems.map((item, idx) => (
-                          <div key={idx} className="flex items-center gap-2 bg-white border border-black/8 rounded-xl px-3 py-2.5">
-                            <select
-                              className="flex-1 bg-transparent text-xs font-semibold outline-none"
-                              value={item.productId}
-                              onChange={e => updateVanLoadRow(idx, 'productId', e.target.value)}>
-                              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                            </select>
-                            <input
-                              type="number" min="1"
-                              className="w-16 bg-canvas border border-black/8 rounded-lg px-2 py-1 text-xs font-bold text-center outline-none"
-                              value={item.qty}
-                              onChange={e => updateVanLoadRow(idx, 'qty', e.target.value)} />
-                            <span className="text-[9px] text-gray-400 shrink-0">pcs</span>
-                            <button type="button" onClick={() => removeVanLoadRow(idx)}
-                              className="text-red-400 hover:text-red-600 transition-colors shrink-0">
-                              <MinusCircle size={14} />
-                            </button>
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                        {vanCurrentStock.map(item => (
+                          <div key={item.productId} className="flex items-center justify-between bg-white border border-black/8 rounded-xl px-3 py-2">
+                            <span className="text-xs font-semibold text-ink-primary truncate">{item.productName}</span>
+                            <span className="text-xs font-black text-ink-primary tabular-nums shrink-0 ml-2">{item.qty} <span className="text-[9px] text-gray-400 font-medium">pcs</span></span>
                           </div>
                         ))}
-                        <div className="flex justify-between text-[9px] text-gray-400 px-1">
-                          <span>{vanLoadItems.reduce((s, i) => s + i.qty, 0)} units total</span>
-                          <span className="font-bold text-ink-primary">{sym}{vanLoadItems.reduce((s, i) => s + i.qty * i.sellingPrice, 0).toFixed(2)} retail value</span>
+                        <div className="flex justify-between text-[9px] text-gray-400 px-1 pt-1">
+                          <span>{vanCurrentStock.reduce((s, i) => s + i.qty, 0)} units on van</span>
+                          <span className="font-bold text-ink-primary">{sym}{vanCurrentStock.reduce((s, i) => s + i.qty * i.sellingPrice, 0).toFixed(2)} retail value</span>
                         </div>
                       </div>
                     )}
@@ -1364,7 +1353,7 @@ const Vehicles = () => {
                 <div className="flex items-center gap-4">
                   <div className="flex-1 flex items-center gap-4 text-[10px] text-gray-400">
                     <span className="font-semibold">{selectedInvoices.length} deliveries</span>
-                    {vanLoadItems.length > 0 && <span>{vanLoadItems.reduce((s,i)=>s+i.qty,0)} van units</span>}
+                    {vanCurrentStock.length > 0 && <span>{vanCurrentStock.reduce((s,i)=>s+i.qty,0)} van units</span>}
                     <span className="text-gray-300">·</span>
                     <span>{todayISOInAppTZ()}</span>
                     <span className="ml-auto font-black text-sm text-ink-primary tabular-nums">
