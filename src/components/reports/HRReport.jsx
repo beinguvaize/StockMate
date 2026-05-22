@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import { 
   User, Briefcase, DollarSign, Calendar, Info, 
   Tag, Hash, Users, Banknote, LayoutGrid
@@ -111,7 +111,7 @@ const HRReport = () => {
     }
   };
 
-  return <ReportShell tabs={[workforceTab, auditTab]} />;
+  return <PremiumReportView title="HR & Payroll" tabs={[workforceTab, auditTab]} />;
 };
 
 export default HRReport;

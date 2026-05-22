@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import { DollarSign, Tag, Info, Calendar, Activity, Truck } from 'lucide-react';
 
 const ExpensesReport = () => {
@@ -60,7 +60,7 @@ const ExpensesReport = () => {
     ]
   };
 
-  return <ReportShell tabs={[expenseTab]} />;
+  return <PremiumReportView title="Expenses Report" tabs={[expenseTab]} />;
 };
 
 export default ExpensesReport;

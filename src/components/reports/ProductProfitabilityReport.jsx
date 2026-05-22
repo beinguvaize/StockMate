@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import {
   Tag, Package, TrendingUp, TrendingDown, DollarSign,
   Percent, Award, AlertTriangle, Layers, ShoppingCart, Barcode,
@@ -468,7 +468,7 @@ const ProductProfitabilityReport = () => {
   // Only show dead stock tab if there is any
   const tabs = deadStockRows.length > 0 ? [profitabilityTab, deadStockTab] : [profitabilityTab];
 
-  return <ReportShell tabs={tabs} />;
+  return <PremiumReportView title="Product Profitability" tabs={tabs} />;
 };
 
 export default ProductProfitabilityReport;

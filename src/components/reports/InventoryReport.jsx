@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import { parseLocalDate } from '../../lib/utils';
 import { 
   Package, Smartphone, Layers, AlertCircle, TrendingUp, 
@@ -161,7 +161,7 @@ const InventoryReport = () => {
     ]
   };
 
-  return <ReportShell tabs={[valuationTab, deadStockTab]} />;
+  return <PremiumReportView title="Inventory Report" tabs={[valuationTab, deadStockTab]} />;
 };
 
 export default InventoryReport;

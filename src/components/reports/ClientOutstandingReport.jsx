@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import { formatCurrency } from '../../lib/utils';
 import { UserCircle, Phone, CreditCard, AlertTriangle, TrendingUp, DollarSign, Calendar, Info } from 'lucide-react';
 
@@ -202,7 +202,7 @@ const ClientOutstandingReport = () => {
     ]
   };
 
-  return <ReportShell tabs={[clientTab]} />;
+  return <PremiumReportView title="Client Outstanding" tabs={[clientTab]} />;
 };
 
 export default ClientOutstandingReport;

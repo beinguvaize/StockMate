@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import { 
   Truck, Navigation, Fuel, Timer, MapPin, 
   Gauge, Download, Activity, Globe, TrendingUp
@@ -127,7 +127,7 @@ const LogisticsReport = () => {
     }
   };
 
-  return <ReportShell tabs={[fleetTab, routeTab]} />;
+  return <PremiumReportView title="Logistics Report" tabs={[fleetTab, routeTab]} />;
 };
 
 export default LogisticsReport;
