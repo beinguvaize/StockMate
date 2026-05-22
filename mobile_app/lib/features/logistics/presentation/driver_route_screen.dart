@@ -321,19 +321,49 @@ class _StopCardState extends ConsumerState<_StopCard> {
     }
   }
 
-  Future<String?> _askFailReason() {
+  Future<String?> _askFailReason() =>
+      _askText('Delivery Failed', 'Reason (e.g. customer unavailable)');
+
+  // Mark a stop delivered, capturing optional proof of delivery on the invoice.
+  Future<void> _markDelivered() async {
+    final proof = await _askText(
+      'Proof of Delivery',
+      'Note — e.g. received by Mr. Khan (optional)',
+    );
+    if (proof == null) return; // cancelled
+    setState(() => _loading = true);
+    try {
+      final invId = widget.stop.invoiceId;
+      if (invId != null) {
+        await supabase.from('invoices').update({
+          'delivery_status': 'DELIVERED',
+          'delivery_proof': proof.isEmpty ? 'Confirmed by driver' : proof,
+        }).eq('id', invId);
+      }
+      final cash = double.tryParse(_cashController.text) ?? 0;
+      await updateStopStatus(widget.stop.id, 'DELIVERED', cashCollected: cash);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not mark delivered: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<String?> _askText(String title, String hint) {
     final ctrl = TextEditingController();
     return showDialog<String>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delivery Failed'),
+        title: Text(title),
         content: TextField(
           controller: ctrl,
           autofocus: true,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            hintText: 'Reason (e.g. customer unavailable)',
-          ),
+          decoration: InputDecoration(hintText: hint),
         ),
         actions: [
           TextButton(
@@ -541,7 +571,7 @@ class _StopCardState extends ConsumerState<_StopCard> {
                             label: 'DELIVERED',
                             color: AppColors.success,
                             icon: LucideIcons.checkCircle2,
-                            onTap: () => _markStatus('DELIVERED'),
+                            onTap: _markDelivered,
                           ),
                           const SizedBox(width: 8),
                           _ActionBtn(

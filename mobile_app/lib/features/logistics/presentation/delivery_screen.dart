@@ -16,6 +16,7 @@ class DeliveryScreen extends ConsumerStatefulWidget {
 
 class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   final _odometerController = TextEditingController();
+  final _cashController = TextEditingController();
   List<Map<String, dynamic>> _routes = [];
   bool _loading = true;
   String? _error;
@@ -29,6 +30,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
   @override
   void dispose() {
     _odometerController.dispose();
+    _cashController.dispose();
     super.dispose();
   }
 
@@ -85,11 +87,12 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
       await supabase.rpc('reconcile_vehicle_route', params: {
         'p_route_id':       id,
         'p_final_odometer': odo,
-        'p_returned_stock': <dynamic>[],  // stock stays on van; manager reconciles on web if needed
-        'p_actual_cash':    0,
+        'p_returned_stock': <dynamic>[],  // stock stays on van by default
+        'p_actual_cash':    double.tryParse(_cashController.text) ?? 0,
         'p_tenant_id':      tenantId,
       });
       _odometerController.clear();
+      _cashController.clear();
       _loadRoutes();
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -121,6 +124,7 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
                       itemBuilder: (context, index) => _RouteCard(
                         route: _routes[index],
                         odometerController: _odometerController,
+                        cashController: _cashController,
                         onStartTransit: () => _updateStatus(_routes[index]['id'], 'IN_TRANSIT'),
                         onComplete:     () => _completeRoute(_routes[index]['id']),
                       ),
@@ -132,12 +136,14 @@ class _DeliveryScreenState extends ConsumerState<DeliveryScreen> {
 class _RouteCard extends StatelessWidget {
   final Map<String, dynamic> route;
   final TextEditingController odometerController;
+  final TextEditingController cashController;
   final VoidCallback onStartTransit;
   final VoidCallback onComplete;
 
   const _RouteCard({
     required this.route,
     required this.odometerController,
+    required this.cashController,
     required this.onStartTransit,
     required this.onComplete,
   });
@@ -204,6 +210,15 @@ class _RouteCard extends StatelessWidget {
                   keyboardType: TextInputType.number,
                   decoration: const InputDecoration(
                     labelText: 'Final Odometer Reading (km)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: cashController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Cash Collected (₹)',
                     border: OutlineInputBorder(),
                   ),
                 ),
