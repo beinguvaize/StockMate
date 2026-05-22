@@ -67,10 +67,12 @@ function calcItemRevenue(item) {
   return qty * rate;
 }
 
-function calcItemCost(item) {
-  const qty  = Number(item.quantity || 0);
-  const cost = Number(item.costPrice || 0);
-  return qty * cost;
+function calcItemCost(item, costById) {
+  const qty = Number(item.quantity || 0);
+  // Sale items rarely store costPrice — resolve from the products table.
+  const unit = Number(item.costPrice) ||
+    costById[item.id] || costById[item.productId] || 0;
+  return qty * unit;
 }
 
 const BillWiseProfitReport = () => {
@@ -86,6 +88,7 @@ const BillWiseProfitReport = () => {
     table: 'sales', select: 'id, date, totalAmount, customerInfo, shopId, items',
     dateColumn: 'date', filters,
   });
+  const { data: products } = useReportData({ table: 'products', select: 'id, costPrice' });
 
   const applyPreset = (id) => {
     setPreset(id);
@@ -98,12 +101,14 @@ const BillWiseProfitReport = () => {
   };
 
   const { rows, totals } = useMemo(() => {
+    const costById = {};
+    products.forEach(p => { costById[p.id] = Number(p.costPrice || 0); });
     const rows = sales.map(s => {
       const items   = Array.isArray(s.items) ? s.items : [];
       const revenue = items.length > 0
         ? items.reduce((acc, it) => acc + calcItemRevenue(it), 0)
         : Number(s.totalAmount || 0);
-      const cost    = items.reduce((acc, it) => acc + calcItemCost(it), 0);
+      const cost    = items.reduce((acc, it) => acc + calcItemCost(it, costById), 0);
       const profit  = revenue - cost;
       const margin  = revenue > 0 ? (profit / revenue) * 100 : 0;
       const customer = s.customerInfo?.name || 'Walk-in';
@@ -117,7 +122,7 @@ const BillWiseProfitReport = () => {
     const blendedMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
     return { rows, totals: { totalRevenue, totalCost, totalProfit, blendedMargin } };
-  }, [sales]);
+  }, [sales, products]);
 
   const exportCSV = () => {
     const r = [
