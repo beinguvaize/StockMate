@@ -120,14 +120,20 @@ const ClientStatementReport = () => {
       invoices.map(inv => inv.sale_id).filter(Boolean)
     );
 
+    // Display helpers — IDs already carry a type prefix (e.g. "INV-XXXX",
+    // "SAL-XXXX"), so the table just shows them verbatim. Dates are stored
+    // either as YYYY-MM-DD or as full timestamps; show only the date part.
+    const refOf  = (id, fallback) => (id ? String(id).toUpperCase() : fallback);
+    const dateOf = (d) => (d ? String(d).slice(0, 10) : '');
+
     // Sales: match by customerInfo.id or shopId
     sales.forEach(s => {
       const cid = s.customerInfo?.id || s.shopId;
       if (cid === clientId && !invoicedSaleIds.has(s.id)) {
         rows.push({
-          date:      s.date || '',
+          date:      dateOf(s.date),
           type:      'SALE',
-          ref:       `SALE-${(s.id || '').slice(0,8).toUpperCase()}`,
+          ref:       refOf(s.id, 'SALE'),
           debit:     Number(s.totalAmount || 0),
           credit:    0,
           raw:       s,
@@ -139,9 +145,9 @@ const ClientStatementReport = () => {
     invoices.forEach(inv => {
       if (inv.client_id === clientId) {
         rows.push({
-          date:      inv.date || '',
+          date:      dateOf(inv.date),
           type:      'INVOICE',
-          ref:       `INV-${(inv.id || '').slice(0,8).toUpperCase()}`,
+          ref:       refOf(inv.id, 'INV'),
           debit:     Number(inv.grand_total || 0),
           credit:    0,
           raw:       inv,
@@ -153,9 +159,9 @@ const ClientStatementReport = () => {
     payments.forEach(p => {
       if (p.client_id === clientId) {
         rows.push({
-          date:      p.date || '',
+          date:      dateOf(p.date),
           type:      'PAYMENT',
-          ref:       `PMT-${(p.id || '').slice(0,8).toUpperCase()}`,
+          ref:       refOf(p.id, 'PMT'),
           debit:     0,
           credit:    Number(p.amount || 0),
           raw:       p,
