@@ -561,8 +561,36 @@ class DashboardHome extends ConsumerStatefulWidget {
   ConsumerState<DashboardHome> createState() => _DashboardHomeState();
 }
 
-class _DashboardHomeState extends ConsumerState<DashboardHome> {
+class _DashboardHomeState extends ConsumerState<DashboardHome>
+    with WidgetsBindingObserver {
   bool _revenueVisible = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Refresh dashboard data when the app returns to the foreground.
+    if (state == AppLifecycleState.resumed) _refresh();
+  }
+
+  // Re-fetch all dashboard data — telemetry KPIs + recent sales.
+  Future<void> _refresh() async {
+    ref.invalidate(telemetryProvider);
+    ref.invalidate(recentSalesProvider);
+    try {
+      await ref.read(telemetryProvider.future);
+    } catch (_) {}
+  }
 
   void _push(Widget screen) =>
       Navigator.push(context, MaterialPageRoute(builder: (_) => screen));
@@ -577,11 +605,14 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
       backgroundColor: AppColors.canvas,
       body: SafeArea(
         top: false,
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+        child: RefreshIndicator(
+          onRefresh: _refresh,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
               // ── Greeting ─────────────────────────────────────────
               tenantAsync.when(
                 data: (ctx) {
@@ -1022,6 +1053,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome> {
               ),
             ],
           ),
+        ),
         ),
       ),
     );
