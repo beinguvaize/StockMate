@@ -294,6 +294,61 @@ class _StopCardState extends ConsumerState<_StopCard> {
     }
   }
 
+  // Failed delivery — re-queue the invoice for a future dispatch and
+  // record the reason (mirrors the web markFailedDelivery flow).
+  Future<void> _markFailed() async {
+    final reason = await _askFailReason();
+    if (reason == null) return; // cancelled
+    setState(() => _loading = true);
+    try {
+      final invId = widget.stop.invoiceId;
+      if (invId != null) {
+        await supabase.from('invoices').update({
+          'delivery_status':        'PENDING',
+          'failed_delivery_reason': reason.isEmpty ? 'Delivery failed' : reason,
+          'vehicle_route_id':       null,
+        }).eq('id', invId);
+      }
+      await updateStopStatus(widget.stop.id, 'NO_SALE', cashCollected: 0);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not mark failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<String?> _askFailReason() {
+    final ctrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delivery Failed'),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            hintText: 'Reason (e.g. customer unavailable)',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: const Text('Confirm'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final done = widget.stop.status != 'PENDING';
@@ -501,6 +556,13 @@ class _StopCardState extends ConsumerState<_StopCard> {
                             color: AppColors.danger,
                             icon: LucideIcons.xCircle,
                             onTap: () => _markStatus('NO_SALE'),
+                          ),
+                          const SizedBox(width: 8),
+                          _ActionBtn(
+                            label: 'FAILED',
+                            color: AppColors.warning,
+                            icon: LucideIcons.alertTriangle,
+                            onTap: _markFailed,
                           ),
                         ],
                       ),
