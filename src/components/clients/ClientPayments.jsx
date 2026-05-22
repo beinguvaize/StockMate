@@ -80,7 +80,7 @@ const ClientPayments = ({ clientPayments, clients, businessProfile }) => {
           <input
             type="text"
             placeholder="Search by client, method, notes…"
-            className="w-full h-11 pl-9 pr-4 rounded-pill bg-white border border-gray-200 shadow-sm text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-black/20 focus:bg-white transition-all"
+            className="w-full h-11 pl-9 pr-4 rounded-pill bg-white border border-gray-300 shadow-sm text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-black/20 focus:bg-white transition-all"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
           />

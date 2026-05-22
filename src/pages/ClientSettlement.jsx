@@ -285,7 +285,7 @@ const ClientSettlement = () => {
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Payment Date</label>
                 <input
                   required type="date"
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-3 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-3 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
                   value={paymentData.date}
                   onChange={e => setPaymentData({ ...paymentData, date: e.target.value })}
                 />
@@ -310,7 +310,7 @@ const ClientSettlement = () => {
                   </span>
                   <input
                     required type="number" step="0.01" placeholder="0.00"
-                    className="w-full bg-white border border-gray-200 shadow-sm rounded-xl pl-8 pr-4 py-3 text-xl font-black text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                    className="w-full bg-white border border-gray-300 shadow-sm rounded-xl pl-8 pr-4 py-3 text-xl font-black text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
                     value={paymentData.amount}
                     onChange={e => setPaymentData({ ...paymentData, amount: e.target.value })}
                   />
@@ -325,7 +325,7 @@ const ClientSettlement = () => {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Payment Method</label>
                 <select
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-3 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-3 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
                   value={paymentData.paymentMethod}
                   onChange={e => setPaymentData({ ...paymentData, paymentMethod: e.target.value })}
                 >
@@ -339,7 +339,7 @@ const ClientSettlement = () => {
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Notes (optional)</label>
                 <textarea
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 resize-none h-20 placeholder:text-gray-300"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 resize-none h-20 placeholder:text-gray-300"
                   placeholder="Cheque no, reference ID…"
                   value={paymentData.notes}
                   onChange={e => setPaymentData({ ...paymentData, notes: e.target.value })}
@@ -431,7 +431,7 @@ const ClientSettlement = () => {
                         <td className="py-4 px-4 text-[11px] font-semibold text-gray-400">{idx + 1}</td>
                         <td className="py-4 px-4">
                           <div className="flex items-center gap-3">
-                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${isSelected ? 'bg-ink-primary text-accent-signature' : 'bg-white border border-gray-200 shadow-sm text-gray-400'}`}>
+                            <div className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all ${isSelected ? 'bg-ink-primary text-accent-signature' : 'bg-white border border-gray-300 shadow-sm text-gray-400'}`}>
                               <Receipt size={15} />
                             </div>
                             <div>

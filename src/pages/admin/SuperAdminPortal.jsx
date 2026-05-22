@@ -416,7 +416,7 @@ const SuperAdminPortal = () => {
                   )}
                   {recentActivities.map((activity, idx) => (
                     <div key={activity.id + idx} className="flex gap-4 group cursor-default transition-all">
-                      <div className={`shrink-0 w-8 h-8 rounded-lg bg-white border border-gray-200 shadow-sm flex items-center justify-center ${activity.color} shadow-sm group-hover:scale-110 transition-transform`}>
+                      <div className={`shrink-0 w-8 h-8 rounded-lg bg-white border border-gray-300 shadow-sm flex items-center justify-center ${activity.color} shadow-sm group-hover:scale-110 transition-transform`}>
                         <activity.icon size={14} />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -463,13 +463,13 @@ const SuperAdminPortal = () => {
                 <div className="space-y-4">
                   <div>
                     <label className="block text-[10px] font-black text-ink-primary/60 uppercase mb-1.5 ml-1">Business Name</label>
-                    <input type="text" defaultValue={selectedTenant.name} ref={nameRef} autoComplete="off" className="w-full px-4 py-3 bg-white border border-gray-200 shadow-sm rounded-xl text-xs font-bold focus:ring-2 focus:ring-accent-signature/20 focus:border-accent-signature outline-none transition-all" />
+                    <input type="text" defaultValue={selectedTenant.name} ref={nameRef} autoComplete="off" className="w-full px-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-xs font-bold focus:ring-2 focus:ring-accent-signature/20 focus:border-accent-signature outline-none transition-all" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-black text-ink-primary/60 uppercase mb-1.5 ml-1">Workspace Slug</label>
                     <div className="relative">
                       <span className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary/30 text-xs font-bold">/</span>
-                      <input type="text" defaultValue={selectedTenant.slug} ref={slugRef} autoComplete="off" className="w-full pl-7 pr-4 py-3 bg-white border border-gray-200 shadow-sm rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-accent-signature/20 focus:border-accent-signature outline-none transition-all uppercase" />
+                      <input type="text" defaultValue={selectedTenant.slug} ref={slugRef} autoComplete="off" className="w-full pl-7 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-accent-signature/20 focus:border-accent-signature outline-none transition-all uppercase" />
                     </div>
                   </div>
                 </div>
@@ -591,7 +591,7 @@ const SuperAdminPortal = () => {
                       type="text" 
                       placeholder="e.g. ACME LOGISTICS LTD" 
                       autoComplete="off" 
-                      className="w-full px-5 py-4 bg-white border border-gray-200 shadow-sm rounded-2xl text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all uppercase placeholder:text-gray-300" 
+                      className="w-full px-5 py-4 bg-white border border-gray-300 shadow-sm rounded-2xl text-sm font-bold focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 outline-none transition-all uppercase placeholder:text-gray-300" 
                       value={provisioningData.businessName}
                       onChange={e => setProvisioningData({...provisioningData, businessName: e.target.value})}
                       disabled={isProvisioningLoading}

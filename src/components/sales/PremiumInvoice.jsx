@@ -172,7 +172,7 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  </div>
 
  {/* Billing Info */}
- <div className="bg-white border border-gray-200 shadow-sm rounded-lg p-5 flex flex-col md:flex-row justify-between gap-5">
+ <div className="bg-white border border-gray-300 shadow-sm rounded-lg p-5 flex flex-col md:flex-row justify-between gap-5">
  <div className="space-y-3">
  <div className="text-sm font-bold text-accent-signature">Bill To:</div>
  <div className="space-y-2">

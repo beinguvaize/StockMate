@@ -273,7 +273,7 @@ const VanSaleBuilder = ({
             <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
               {cart.map((item, idx) => (
                 <div key={item.productId} className={`flex items-center gap-4 px-5 py-3.5 ${idx !== cart.length - 1 ? 'border-b border-black/5' : ''}`}>
-                  <div className="w-8 h-8 rounded-lg bg-white border border-gray-200 shadow-sm flex items-center justify-center shrink-0">
+                  <div className="w-8 h-8 rounded-lg bg-white border border-gray-300 shadow-sm flex items-center justify-center shrink-0">
                     <Package size={14} className="text-gray-400" />
                   </div>
                   <div className="flex-1 min-w-0">
@@ -491,7 +491,7 @@ const VanSaleBuilder = ({
                       }`}
                     >
                       {/* Thumbnail */}
-                      <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-white border border-gray-200 shadow-sm">
+                      <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-white border border-gray-300 shadow-sm">
                         <span className="text-[11px] font-black text-ink-primary/30 uppercase">
                           {(item.productName || '?').slice(0, 2)}
                         </span>

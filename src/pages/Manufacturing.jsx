@@ -385,7 +385,7 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave }) => {
 };
 
 /* ── Shared bits ──────────────────────────────────────────────────── */
-const selCls = 'w-full bg-white border border-gray-200 shadow-sm rounded-xl px-3.5 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/25 focus:border-accent-signature/30 transition-all placeholder:text-gray-400 placeholder:font-normal';
+const selCls = 'w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3.5 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/25 focus:border-accent-signature/30 transition-all placeholder:text-gray-400 placeholder:font-normal';
 
 const Field = ({ label, hint, children }) => (
   <div className="mb-4">

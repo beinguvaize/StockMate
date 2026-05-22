@@ -268,7 +268,7 @@ const SupplierLedger = () => {
                   <input 
                     type="text" 
                     placeholder="Search by reference or notes..."
-                    className="w-full h-14 pl-16 pr-6 rounded-pill bg-white border border-gray-200 shadow-sm text-[10px] font-black uppercase tracking-widest outline-none focus:ring-8 focus:ring-accent-signature/5 transition-all shadow-inner"
+                    className="w-full h-14 pl-16 pr-6 rounded-pill bg-white border border-gray-300 shadow-sm text-[10px] font-black uppercase tracking-widest outline-none focus:ring-8 focus:ring-accent-signature/5 transition-all shadow-inner"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                   />

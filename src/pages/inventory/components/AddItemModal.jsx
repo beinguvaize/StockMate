@@ -152,7 +152,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       subtitle={editingProduct ? 'Update product details' : 'Add new product to inventory'}
     >
       {(() => {
-        const inputCls = "w-full bg-white border border-gray-200 rounded-xl px-3.5 py-3 text-xs font-bold text-ink-primary placeholder:text-gray-400 placeholder:font-medium outline-none transition-all hover:border-gray-300 focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 shadow-sm";
+        const inputCls = "w-full bg-white border border-gray-300 rounded-xl px-3.5 py-3 text-xs font-bold text-ink-primary placeholder:text-gray-400 placeholder:font-medium outline-none transition-all hover:border-gray-300 focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 shadow-sm";
         const labelCls = "block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2";
         const Section = ({ children }) => (
           <div className="flex items-center gap-2 pt-1.5">
@@ -270,7 +270,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             {/* Margin indicator + floor guard */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {showMargin && (
-                <div className="flex items-center justify-between bg-white border border-gray-200 rounded-xl px-4 py-3 shadow-sm self-end">
+                <div className="flex items-center justify-between bg-white border border-gray-300 rounded-xl px-4 py-3 shadow-sm self-end">
                   <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Current Margin</span>
                   <span className={`text-sm font-black tabular-nums ${marginColor}`}>
                     {margin.toFixed(1)}%{margin < 0 ? ' · loss' : margin < 10 ? ' · low' : ''}
@@ -317,7 +317,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             <div>
               <div className="flex gap-3 items-start">
                 {/* Preview */}
-                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-white border border-gray-200 shadow-sm flex-shrink-0 flex items-center justify-center">
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-white border border-gray-300 shadow-sm flex-shrink-0 flex items-center justify-center">
                   {imagePreview ? (
                     <>
                       <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
@@ -339,14 +339,14 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-gray-200 shadow-sm text-xs font-bold text-ink-primary hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-gray-300 shadow-sm text-xs font-bold text-ink-primary hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
                   >
                     <Upload size={13} /> Upload New Photo
                   </button>
                   <button
                     type="button"
                     onClick={openPhotoLib}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-gray-200 shadow-sm text-xs font-bold text-ink-primary hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-gray-300 shadow-sm text-xs font-bold text-ink-primary hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
                   >
                     <Images size={13} /> Choose from Library
                   </button>
@@ -364,7 +364,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
 
               {/* ── Photo Library Panel ── */}
               {showPhotoLib && (
-                <div className="mt-3 bg-white border border-gray-200 shadow-sm rounded-xl p-3">
+                <div className="mt-3 bg-white border border-gray-300 shadow-sm rounded-xl p-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Recent Photos</span>
                     <button type="button" onClick={() => setShowPhotoLib(false)}>

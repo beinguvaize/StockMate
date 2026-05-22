@@ -82,7 +82,7 @@ const EntityPicker = ({ label, items, selectedId, onSelect, loading, displayKey 
           placeholder={`Search ${label.toLowerCase()}...`}
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-200 shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
+          className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-300 shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
         />
       </div>
       {search && (
@@ -224,7 +224,7 @@ const ItemPartyReport = () => {
           </p>
         </div>
         <div className="flex-1" />
-        <div className="flex items-center gap-1 bg-white border border-gray-200 shadow-sm rounded-xl p-1 flex-wrap">
+        <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1 flex-wrap">
           {PRESETS.map(p => (
             <button key={p.id} onClick={() => applyPreset(p.id)}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
@@ -245,10 +245,10 @@ const ItemPartyReport = () => {
         <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-black/5 shadow-sm">
           <Calendar size={14} className="text-gray-400 shrink-0" />
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            className="bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
+            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
           <span className="text-gray-400 text-xs font-bold">to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            className="bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
+            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
           <button onClick={applyCustom}
             className="px-4 py-2 rounded-xl bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all">
             Apply
@@ -259,7 +259,7 @@ const ItemPartyReport = () => {
       {/* View toggle */}
       <div className="flex items-center gap-3">
         <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">View:</span>
-        <div className="flex items-center gap-1 bg-white border border-gray-200 shadow-sm rounded-xl p-1">
+        <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1">
           <button onClick={() => { setView('customer'); setProductId(''); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-black transition-all ${
               view === 'customer' ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary hover:bg-white'

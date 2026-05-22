@@ -257,7 +257,7 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
 
         {/* Tab pills */}
         {allowedTabs.length > 1 && (
-          <div className="flex items-center gap-1 bg-white border border-gray-200 shadow-sm rounded-xl p-1 flex-wrap">
+          <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1 flex-wrap">
             {allowedTabs.map(t => (
               <button key={t.id} onClick={() => setActiveId(t.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${

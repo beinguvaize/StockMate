@@ -201,7 +201,7 @@ const Suppliers = () => {
   <input 
   data-testid="search-suppliers-input"
   type="text" 
-  className="w-full h-full pl-16 pr-6 bg-white border border-gray-200 shadow-sm rounded-pill text-[13px] font-bold text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all placeholder:text-gray-400 uppercase tracking-wide" 
+  className="w-full h-full pl-16 pr-6 bg-white border border-gray-300 shadow-sm rounded-pill text-[13px] font-bold text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all placeholder:text-gray-400 uppercase tracking-wide" 
   placeholder="Search suppliers or contacts..."
   value={searchTerm}
   onChange={e => setSearchTerm(e.target.value)}

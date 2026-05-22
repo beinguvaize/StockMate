@@ -243,7 +243,7 @@ const Users = () => {
  <tr key={user.id} className={`group hover:bg-canvas transition-colors ${user.status !== 'ACTIVE' ? 'opacity-70 grayscale' : ''}`}>
  <td className="px-8 py-5">
  <div className="flex items-center gap-4">
- <div className="w-10 h-10 rounded-xl bg-white border border-gray-200 shadow-sm shadow-sm flex items-center justify-center text-ink-primary group-hover:bg-ink-primary group-hover:text-accent-signature transition-all duration-500">
+ <div className="w-10 h-10 rounded-xl bg-white border border-gray-300 shadow-sm shadow-sm flex items-center justify-center text-ink-primary group-hover:bg-ink-primary group-hover:text-accent-signature transition-all duration-500">
  {(() => { const Icon = ROLE_ICONS[primaryRole] || User; return <Icon size={18} />;})()}
  </div>
  <div>

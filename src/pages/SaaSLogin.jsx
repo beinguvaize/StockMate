@@ -174,7 +174,7 @@ const SaaSLogin = () => {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
-                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
                 />
               </div>
               <div className="relative">
@@ -185,7 +185,7 @@ const SaaSLogin = () => {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
-                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
                 />
               </div>
               <button
@@ -206,7 +206,7 @@ const SaaSLogin = () => {
                   value={name}
                   onChange={e => setName(e.target.value)}
                   required
-                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
                 />
               </div>
               <div className="relative">
@@ -217,7 +217,7 @@ const SaaSLogin = () => {
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
-                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
                 />
               </div>
               <div className="relative">
@@ -228,7 +228,7 @@ const SaaSLogin = () => {
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
-                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
                 />
               </div>
               <div className="relative">
@@ -239,7 +239,7 @@ const SaaSLogin = () => {
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   required
-                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-200 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
                 />
               </div>
               <button

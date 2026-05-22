@@ -85,7 +85,7 @@ const ClientDirectory = ({
       {/* Toolbar */}
       <div className="flex flex-wrap lg:flex-nowrap items-center justify-between bg-white border border-black/5 rounded-[2rem] shadow-sm p-2 gap-2">
         {/* Status filter */}
-        <div className="flex bg-white border border-gray-200 shadow-sm rounded-pill p-1.5 shrink-0">
+        <div className="flex bg-white border border-gray-300 shadow-sm rounded-pill p-1.5 shrink-0">
           {['ALL', 'ACTIVE', 'INACTIVE'].map(f => (
             <button
               key={f}
@@ -106,7 +106,7 @@ const ClientDirectory = ({
             <input
               type="text"
               placeholder="Search clients..."
-              className="w-full h-11 pl-10 pr-4 rounded-pill bg-white border border-gray-200 shadow-sm shadow-inner text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-black/20 focus:bg-white transition-all"
+              className="w-full h-11 pl-10 pr-4 rounded-pill bg-white border border-gray-300 shadow-sm shadow-inner text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-black/20 focus:bg-white transition-all"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />

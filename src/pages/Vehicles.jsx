@@ -384,7 +384,7 @@ const Vehicles = () => {
                   <span className="text-[9px] font-medium opacity-60">service due</span>
                 </div>
               )}
-              <div className="flex items-center gap-1 bg-white border border-gray-200 shadow-sm text-gray-500 px-2 py-1 rounded-lg">
+              <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm text-gray-500 px-2 py-1 rounded-lg">
                 <Truck size={10} className="opacity-40" />
                 <span className="text-[10px] font-black">{vehicles.length}</span>
                 <span className="text-[9px] font-medium text-gray-400">vehicles</span>
@@ -552,7 +552,7 @@ const Vehicles = () => {
                                   {(inv.invoice_number || inv.id).replace(/^#+/, '')}
                                 </span>
                                 {inv.delivery_date && (
-                                  <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-white border border-gray-200 shadow-sm text-gray-500 px-2 py-0.5 rounded-md">
+                                  <span className="inline-flex items-center gap-1 text-[9px] font-bold bg-white border border-gray-300 shadow-sm text-gray-500 px-2 py-0.5 rounded-md">
                                     <Calendar size={8} />
                                     {new Date(inv.delivery_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                                   </span>
@@ -736,7 +736,7 @@ const Vehicles = () => {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-bold text-ink-primary">{vehicle?.name || 'Vehicle'}</span>
                                 {vehicle?.plate && (
-                                  <span className="text-[9px] font-black text-gray-400 bg-white border border-gray-200 shadow-sm px-2 py-0.5 rounded font-mono tracking-widest">
+                                  <span className="text-[9px] font-black text-gray-400 bg-white border border-gray-300 shadow-sm px-2 py-0.5 rounded font-mono tracking-widest">
                                     {vehicle.plate}
                                   </span>
                                 )}
@@ -1114,34 +1114,34 @@ const Vehicles = () => {
               <div className="sm:col-span-2">
                 <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Vehicle Name *</label>
                 <input required type="text"
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
                   placeholder="e.g. Delivery Van 1"
                   value={vehicleForm.name} onChange={e => setVehicleForm({ ...vehicleForm, name: e.target.value })} />
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">License Plate *</label>
                 <input required type="text"
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20"
                   placeholder="e.g. KL01HHSHHS"
                   value={vehicleForm.plate} onChange={e => setVehicleForm({ ...vehicleForm, plate: e.target.value })} />
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Type</label>
-                <select className="w-full bg-white border border-gray-200 shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20 appearance-none"
+                <select className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20 appearance-none"
                   value={vehicleForm.type} onChange={e => setVehicleForm({ ...vehicleForm, type: e.target.value })}>
                   {VEHICLE_TYPES.map(t => <option key={t}>{t}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Status</label>
-                <select className="w-full bg-white border border-gray-200 shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20 appearance-none"
+                <select className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20 appearance-none"
                   value={vehicleForm.status} onChange={e => setVehicleForm({ ...vehicleForm, status: e.target.value })}>
                   {VEHICLE_STATUSES.map(s => <option key={s} value={s}>{STATUS_STYLES[s]?.label || s}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Fuel Type</label>
-                <select className="w-full bg-white border border-gray-200 shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20 appearance-none"
+                <select className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-semibold text-xs outline-none focus:ring-4 focus:ring-accent-signature/20 appearance-none"
                   value={vehicleForm.fuelType} onChange={e => setVehicleForm({ ...vehicleForm, fuelType: e.target.value })}>
                   {FUEL_TYPES.map(f => <option key={f}>{f}</option>)}
                 </select>
@@ -1149,34 +1149,34 @@ const Vehicles = () => {
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Capacity</label>
                 <input type="number" min="0"
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
                   placeholder="e.g. 100"
                   value={vehicleForm.capacity} onChange={e => setVehicleForm({ ...vehicleForm, capacity: e.target.value })} />
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Color</label>
                 <input type="text"
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
                   placeholder="e.g. White"
                   value={vehicleForm.color} onChange={e => setVehicleForm({ ...vehicleForm, color: e.target.value })} />
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Year</label>
                 <input type="number" min="1990" max="2099"
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
                   placeholder="e.g. 2022"
                   value={vehicleForm.year} onChange={e => setVehicleForm({ ...vehicleForm, year: e.target.value })} />
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Last Service Date</label>
                 <input type="date"
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
                   value={vehicleForm.lastServiceDate} onChange={e => setVehicleForm({ ...vehicleForm, lastServiceDate: e.target.value })} />
               </div>
               <div>
                 <label className="block text-[10px] font-semibold text-gray-500 mb-1.5">Next Service Date</label>
                 <input type="date"
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-lg p-3.5 font-medium text-sm outline-none focus:ring-4 focus:ring-accent-signature/20"
                   value={vehicleForm.nextServiceDate} onChange={e => setVehicleForm({ ...vehicleForm, nextServiceDate: e.target.value })} />
               </div>
               <div className="sm:col-span-2 grid grid-cols-2 gap-4 pt-2">
@@ -1480,7 +1480,7 @@ const Vehicles = () => {
                         const sold = Math.max(0, item.quantity - returned);
                         const prod = products.find(p => p.id === item.productId);
                         return (
-                          <div key={item.productId} className="flex items-center gap-3 bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2">
+                          <div key={item.productId} className="flex items-center gap-3 bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2">
                             <div className="flex-1 min-w-0">
                               <div className="text-xs font-bold text-ink-primary truncate">{prod?.name || item.productId}</div>
                               <div className="text-[9px] text-gray-400">Loaded: {item.quantity} · Sold: <span className="text-green-600 font-bold">{sold}</span></div>
@@ -1513,7 +1513,7 @@ const Vehicles = () => {
                 </label>
                 <input
                   type="number" step="0.01" min="0"
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-4 py-4 font-bold text-xl outline-none focus:ring-2 focus:ring-accent-signature/30 tabular-nums"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-4 font-bold text-xl outline-none focus:ring-2 focus:ring-accent-signature/30 tabular-nums"
                   placeholder="0.00"
                   value={reconcileCash}
                   onChange={e => setReconcileCash(e.target.value)}
@@ -1726,7 +1726,7 @@ const Vehicles = () => {
           </div>
 
           <Suspense fallback={
-            <div className="flex items-center justify-center h-64 rounded-3xl bg-white border border-gray-200 shadow-sm">
+            <div className="flex items-center justify-center h-64 rounded-3xl bg-white border border-gray-300 shadow-sm">
               <div className="text-sm text-gray-400">Loading map…</div>
             </div>
           }>
@@ -1756,7 +1756,7 @@ const Vehicles = () => {
                 <select
                   value={failedReason}
                   onChange={e => setFailedReason(e.target.value)}
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-red-200"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-red-200"
                 >
                   <option value="">Select reason…</option>
                   <option value="Customer unavailable">Customer unavailable</option>
@@ -1771,7 +1771,7 @@ const Vehicles = () => {
                 <input
                   type="text"
                   placeholder="Describe reason…"
-                  className="w-full bg-white border border-gray-200 shadow-sm rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-red-200"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-red-200"
                   onChange={e => setFailedReason(e.target.value)}
                 />
               )}

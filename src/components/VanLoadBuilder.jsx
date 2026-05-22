@@ -230,7 +230,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode 
                         ? 'border-accent-signature/30 bg-accent-signature/5 hover:bg-accent-signature/8'
                         : 'border-transparent bg-white/60 hover:bg-white hover:border-accent-signature/20 hover:shadow-sm'
                     }`}>
-                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-white border border-gray-200 shadow-sm">
+                    <div className="w-8 h-8 rounded-md flex items-center justify-center flex-shrink-0 bg-white border border-gray-300 shadow-sm">
                       <span className="text-[11px] font-black text-ink-primary/30 uppercase">
                         {(item.productName || '?').slice(0, 2)}
                       </span>

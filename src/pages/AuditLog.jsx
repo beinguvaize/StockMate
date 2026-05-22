@@ -227,7 +227,7 @@ const AuditLog = () => {
         <div className="flex flex-wrap items-center gap-4 bg-white/60 backdrop-blur-xl p-4 rounded-[2rem] border border-black/5 shadow-glass animate-in slide-in-from-top-4 duration-300">
 
           {/* Search */}
-          <div className="flex items-center gap-2 bg-white border border-gray-200 shadow-sm px-4 py-2.5 rounded-pill flex-1 min-w-[220px]">
+          <div className="flex items-center gap-2 bg-white border border-gray-300 shadow-sm px-4 py-2.5 rounded-pill flex-1 min-w-[220px]">
             <Search size={14} className="text-gray-400" />
             <input
               type="text"

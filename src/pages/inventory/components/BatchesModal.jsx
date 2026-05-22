@@ -50,13 +50,13 @@ const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
     >
       {/* Summary strip */}
       <div className="grid grid-cols-3 gap-3 mb-5">
-        <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
+        <div className="p-4 rounded-xl bg-white border border-gray-300 shadow-sm">
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">
             <Layers size={12} /> Open Batches
           </div>
           <div className="text-2xl font-black tabular-nums">{openBatches.length}</div>
         </div>
-        <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
+        <div className="p-4 rounded-xl bg-white border border-gray-300 shadow-sm">
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">
             <Package size={12} /> Total Qty
           </div>
@@ -65,7 +65,7 @@ const BatchesModal = ({ isOpen, onClose, product, currencySymbol = '₹' }) => {
             <span className="text-[10px] font-bold opacity-40 ml-1">{product?.unit || 'pcs'}</span>
           </div>
         </div>
-        <div className="p-4 rounded-xl bg-white border border-gray-200 shadow-sm">
+        <div className="p-4 rounded-xl bg-white border border-gray-300 shadow-sm">
           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-1">
             <TrendingUp size={12} /> Wtd Avg Cost
           </div>

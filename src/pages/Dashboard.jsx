@@ -521,7 +521,7 @@ const Dashboard = () => {
         </button>
         <button 
           onClick={() => navigate(`/${slug}/reports`)}
-          className="px-8 flex items-center justify-center rounded-full font-bold text-[11px] tracking-wide text-ink-primary bg-white border border-gray-200 shadow-sm hover:bg-white hover:shadow-premium transition-all uppercase"
+          className="px-8 flex items-center justify-center rounded-full font-bold text-[11px] tracking-wide text-ink-primary bg-white border border-gray-300 shadow-sm hover:bg-white hover:shadow-premium transition-all uppercase"
         >
           ANALYTICS BROWSER
         </button>

@@ -433,7 +433,7 @@ const ReportTable = ({
                 setPageSize(Number(e.target.value));
                 setPage(1);
               }}
-              className="bg-white border border-gray-200 shadow-sm rounded-lg px-2 py-1 text-[10px] font-black text-ink-primary outline-none cursor-pointer"
+              className="bg-white border border-gray-300 shadow-sm rounded-lg px-2 py-1 text-[10px] font-black text-ink-primary outline-none cursor-pointer"
             >
               {[25, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
             </select>
@@ -463,7 +463,7 @@ const ReportTable = ({
                   const val = Number(e.target.value);
                   if (val >= 1 && val <= totalPages) setPage(val);
                 }}
-                className="w-10 text-center bg-white border border-gray-200 shadow-sm rounded-lg py-1.5 text-[10px] font-black text-ink-primary outline-none font-mono"
+                className="w-10 text-center bg-white border border-gray-300 shadow-sm rounded-lg py-1.5 text-[10px] font-black text-ink-primary outline-none font-mono"
               />
               <span className="text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">of {totalPages || 1}</span>
             </div>

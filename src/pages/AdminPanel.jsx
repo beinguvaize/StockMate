@@ -152,7 +152,7 @@ const AdminPanel = () => {
               placeholder="Search tenants..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="input-field !pl-12 !rounded-xl !py-3 font-medium text-sm !bg-white border border-gray-200 shadow-sm w-full"
+              className="input-field !pl-12 !rounded-xl !py-3 font-medium text-sm !bg-white border border-gray-300 shadow-sm w-full"
             />
           </div>
           <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-black/5">
