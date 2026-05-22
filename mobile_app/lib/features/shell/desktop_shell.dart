@@ -188,6 +188,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                     data: (ctx) {
                       final roles = ctx?.roles ?? ['STAFF'];
                       final plan = ctx?.plan ?? 'STARTER';
+                      final permissions = ctx?.permissions;
                       return ListView(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 12,
@@ -196,8 +197,8 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                         children: _navItems.asMap().entries.map((entry) {
                           final i = entry.key;
                           final item = entry.value;
-                          final accessible =
-                              canAccess(item.feature, roles: roles, plan: plan);
+                          final accessible = canAccess(item.feature,
+                              roles: roles, plan: plan, permissions: permissions);
                           final isSelected = _selectedIndex == i && accessible;
 
                           return Tooltip(
@@ -473,8 +474,10 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                     data: (ctx) {
                       final roles = ctx?.roles ?? ['STAFF'];
                       final plan = ctx?.plan ?? 'STARTER';
+                      final permissions = ctx?.permissions;
                       final item = _navItems[_selectedIndex];
-                      if (!canAccess(item.feature, roles: roles, plan: plan)) {
+                      if (!canAccess(item.feature,
+                          roles: roles, plan: plan, permissions: permissions)) {
                         return _LockedScreen(feature: item.feature);
                       }
                       return item.screen;

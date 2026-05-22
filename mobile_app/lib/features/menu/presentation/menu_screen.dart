@@ -45,8 +45,8 @@ class MenuScreen extends ConsumerWidget {
                 data: (ctx) {
                   final roles = ctx?.userRoles ?? [];
                   final plan = ctx?.plan ?? 'STARTER';
+                  final permissions = ctx?.permissions;
                   final name = ctx?.userProfile.name ?? ctx?.userProfile.email ?? 'User';
-                  final isOwner = roles.contains('OWNER');
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,6 +136,7 @@ class MenuScreen extends ConsumerWidget {
                         feature: 'expenses',
                         roles: roles,
                         plan: plan,
+                        permissions: permissions,
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FinanceScreen())),
                       ),
                       _MenuCard(
@@ -146,6 +147,7 @@ class MenuScreen extends ConsumerWidget {
                         feature: 'daybook',
                         roles: roles,
                         plan: plan,
+                        permissions: permissions,
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DayBookScreen())),
                       ),
                       _MenuCard(
@@ -156,9 +158,10 @@ class MenuScreen extends ConsumerWidget {
                         feature: 'purchases',
                         roles: roles,
                         plan: plan,
+                        permissions: permissions,
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PurchasesScreen())),
                       ),
-                      if (!staffBlocked.contains('reports') || isOwner)
+                      if (canAccess('reports', roles: roles, plan: plan, permissions: permissions))
                         _MenuCard(
                           icon: LucideIcons.barChart2,
                           iconColor: AppColors.primary,
@@ -167,9 +170,10 @@ class MenuScreen extends ConsumerWidget {
                           feature: 'reports',
                           roles: roles,
                           plan: plan,
+                          permissions: permissions,
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())),
                         ),
-                      if (isOwner)
+                      if (canAccess('hr', roles: roles, plan: plan, permissions: permissions))
                         _MenuCard(
                           icon: LucideIcons.briefcase,
                           iconColor: const Color(0xFF673AB7),
@@ -178,9 +182,10 @@ class MenuScreen extends ConsumerWidget {
                           feature: 'hr',
                           roles: roles,
                           plan: plan,
+                          permissions: permissions,
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HRScreen())),
                         ),
-                      if (isOwner)
+                      if (canAccess('logistics', roles: roles, plan: plan, permissions: permissions))
                         _MenuCard(
                           icon: LucideIcons.truck,
                           iconColor: const Color(0xFFFF9800),
@@ -189,6 +194,7 @@ class MenuScreen extends ConsumerWidget {
                           feature: 'logistics',
                           roles: roles,
                           plan: plan,
+                          permissions: permissions,
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const LogisticsScreen())),
                         ),
                       _MenuCard(
@@ -199,6 +205,7 @@ class MenuScreen extends ConsumerWidget {
                         feature: 'logistics',
                         roles: roles,
                         plan: plan,
+                        permissions: permissions,
                         alwaysShow: true,
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverRouteScreen())),
                       ),
@@ -215,6 +222,7 @@ class MenuScreen extends ConsumerWidget {
                         feature: 'settings',
                         roles: roles,
                         plan: plan,
+                        permissions: permissions,
                         alwaysShow: true,
                         onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
                       ),
@@ -299,6 +307,7 @@ class _MenuCard extends StatelessWidget {
   final String feature;
   final List<String> roles;
   final String plan;
+  final Map<dynamic, dynamic>? permissions;
   final VoidCallback onTap;
   final bool alwaysShow;
 
@@ -311,15 +320,21 @@ class _MenuCard extends StatelessWidget {
     required this.roles,
     required this.plan,
     required this.onTap,
+    this.permissions,
     this.alwaysShow = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isOwner = roles.contains('OWNER');
-    final isRoleBlocked = staffBlocked.contains(feature) && !isOwner;
     final isPlanLocked = !planMeetsRequirement(feature, plan);
     final requiredPlan = requiredPlanFor(feature);
+    // Role check using the full web matrix (view action, plan already checked separately)
+    final isRoleBlocked = !hasModulePermission(
+      feature == 'logistics' ? 'vehicles' : (feature == 'pos' ? 'sales' : feature),
+      'view',
+      roles: roles,
+      permissions: permissions,
+    );
 
     if (isRoleBlocked && !alwaysShow) return const SizedBox.shrink();
 

@@ -9,6 +9,10 @@ class UserProfile {
   final String name;
   final List<String> roles;
   final String tenantId;
+  /// Granular permissions map from the `permissions` jsonb column on the users table.
+  /// Shape: { moduleKey: { 'view': bool, 'edit': bool } }
+  /// Null when the column is absent or the value is null/not a map.
+  final Map<dynamic, dynamic>? permissions;
 
   const UserProfile({
     required this.id,
@@ -16,15 +20,18 @@ class UserProfile {
     required this.name,
     required this.roles,
     required this.tenantId,
+    this.permissions,
   });
 
   factory UserProfile.fromMap(Map<String, dynamic> map) {
+    final rawPerms = map['permissions'];
     return UserProfile(
       id: map['id'] as String,
       email: map['email'] as String? ?? '',
       name: map['name'] as String? ?? '',
       roles: List<String>.from(map['roles'] as List? ?? []),
       tenantId: map['tenant_id'] as String? ?? '',
+      permissions: rawPerms is Map ? rawPerms : null,
     );
   }
 }
@@ -83,6 +90,9 @@ class TenantContext {
   List<String> get roles => userProfile.roles;
   String get plan => tenant.plan;
   String get tenantId => tenant.id;
+
+  /// Granular permissions map (from users.permissions jsonb). May be null.
+  Map<dynamic, dynamic>? get permissions => userProfile.permissions;
 
   bool get isOwner => userProfile.roles.contains('OWNER');
   bool get isStaff => userProfile.roles.contains('STAFF');

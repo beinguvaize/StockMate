@@ -12,6 +12,7 @@ const featureMinPlan = {
   'daybook': 'STARTER',
   'invoices': 'STARTER',
   'purchases': 'PRO',
+  'suppliers': 'PRO',
   'gstr': 'PRO',
   'reports': 'PRO',
   'hr': 'PRO',
@@ -20,36 +21,108 @@ const featureMinPlan = {
   'audit_log': 'ENTERPRISE',
 };
 
-// Role access — STAFF cannot access these features
-const staffBlocked = [
-  'reports',
-  'gstr',
-  'hr',
-  'users',
-  'audit_log',
-  'settings',
-];
+/// Mobile feature key → web module key alias map.
+/// Keys that don't appear here map 1:1.
+const _featureToModuleKey = <String, String>{
+  'logistics': 'vehicles',
+  'pos': 'sales',
+};
 
-/// Returns true if the user can access the given feature based on their plan and roles.
-/// First checks plan requirement, then role restrictions.
+String _toModuleKey(String feature) => _featureToModuleKey[feature] ?? feature;
+
+/// Faithful port of the web `hasPermission(moduleKey, action)` function.
+/// No plan check — pure role/permission logic.
+///
+/// [moduleKey]   — the web module key (already aliased before calling)
+/// [action]      — 'view' or 'edit'
+/// [roles]       — list of role strings from the user record
+/// [permissions] — optional granular permissions map: { moduleKey: { 'view': bool, 'edit': bool } }
+bool hasModulePermission(
+  String moduleKey,
+  String action, {
+  required List<String> roles,
+  Map<dynamic, dynamic>? permissions,
+}) {
+  if (roles.contains('GLOBAL_ADMIN')) return true;
+  if (roles.contains('OWNER')) return true;
+
+  if (roles.contains('STAFF')) {
+    if (action == 'view') return true;
+    return ['sales', 'clients', 'daybook'].contains(moduleKey);
+  }
+
+  if (roles.contains('SALES')) {
+    return ['sales', 'clients', 'daybook'].contains(moduleKey);
+  }
+
+  if (roles.contains('INVENTORY')) {
+    return ['inventory', 'purchases', 'suppliers'].contains(moduleKey);
+  }
+
+  if (roles.contains('DRIVER')) {
+    return ['vehicles', 'sales'].contains(moduleKey);
+  }
+
+  // CUSTOM / other roles — check granular permissions object
+  if (permissions != null) {
+    final modulePerms = permissions[moduleKey];
+    if (modulePerms is Map) {
+      final val = modulePerms[action];
+      return val == true;
+    }
+  }
+
+  return false;
+}
+
+/// Faithful port of the web `hasRole(role)` function.
+/// GLOBAL_ADMIN always returns true; otherwise checks exact role membership.
+bool hasRole(String role, List<String> roles) {
+  if (roles.contains('GLOBAL_ADMIN')) return true;
+  return roles.contains(role);
+}
+
+/// Returns true if the user can access [feature] for 'view' action AND edit if specified.
+///
+/// Checks plan gating first (unchanged), then applies the full web role matrix
+/// for the 'view' action via [hasModulePermission].
 bool canAccess(
   String feature, {
   required List<String> roles,
   required String plan,
+  Map<dynamic, dynamic>? permissions,
 }) {
-  // Check plan requirement
+  // Plan check — unchanged from original
   final minPlan = featureMinPlan[feature] ?? 'STARTER';
   final userPlanLevel = planOrder[plan] ?? 0;
   final requiredPlanLevel = planOrder[minPlan] ?? 0;
   if (userPlanLevel < requiredPlanLevel) return false;
 
-  // Check role restriction — if user is STAFF (and not OWNER), block staff-restricted features
-  final isOwner = roles.contains('OWNER');
-  if (!isOwner && roles.contains('STAFF')) {
-    if (staffBlocked.contains(feature)) return false;
-  }
+  // Role/permission check using web matrix (view action)
+  final moduleKey = _toModuleKey(feature);
+  return hasModulePermission(
+    moduleKey,
+    'view',
+    roles: roles,
+    permissions: permissions,
+  );
+}
 
-  return true;
+/// Returns true if the user can edit [feature].
+/// Uses the web role matrix with action='edit'.
+/// No plan check (caller should use canAccess for plan gate).
+bool canEdit(
+  String feature, {
+  required List<String> roles,
+  Map<dynamic, dynamic>? permissions,
+}) {
+  final moduleKey = _toModuleKey(feature);
+  return hasModulePermission(
+    moduleKey,
+    'edit',
+    roles: roles,
+    permissions: permissions,
+  );
 }
 
 /// Returns true if the user's plan meets the feature's minimum plan requirement.
