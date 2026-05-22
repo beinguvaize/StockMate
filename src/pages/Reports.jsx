@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import ReportShell from '../components/reports/ReportShell';
 import BusinessReport from '../components/reports/BusinessReport';
@@ -39,6 +39,7 @@ import {
   FileText, FileCheck, Target, CalendarRange, Receipt, Tag,
   BookMarked, BarChart2, AlertTriangle, Users,
   PieChart, ArrowLeftRight, GitFork,
+  Search, ChevronDown,
 } from 'lucide-react';
 
 const Reports = () => {
@@ -102,6 +103,21 @@ const Reports = () => {
     if (firstTab) setActiveTab(firstTab.id);
   };
 
+  // ── Searchable report dropdown ──────────────────────────────────────
+  const [tabSearch, setTabSearch]     = useState('');
+  const [tabDropOpen, setTabDropOpen] = useState(false);
+  const tabDropRef = useRef(null);
+  useEffect(() => {
+    const h = (e) => {
+      if (tabDropRef.current && !tabDropRef.current.contains(e.target)) setTabDropOpen(false);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+  const filteredTabs = visibleTabs.filter(t =>
+    t.label.toLowerCase().includes(tabSearch.toLowerCase())
+  );
+
   return (
     <div className="flex flex-col gap-6 w-full">
       {/* Universal Breadcrumb / Context Identifier */}
@@ -141,23 +157,53 @@ const Reports = () => {
         })}
       </div>
 
-      {/* Modern Tab Switcher (Rule 1) */}
-      <div className="no-print flex items-center gap-1.5 p-1.5 bg-white/60 backdrop-blur-3xl border border-black/5 rounded-[2.5rem] shadow-glass overflow-x-auto no-scrollbar scroll-smooth">
-        {visibleTabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`
-              flex items-center gap-3 px-8 py-3 rounded-full text-[10px] font-black transition-all whitespace-nowrap uppercase tracking-widest
-              ${activeTab === tab.id
-                ? 'bg-ink-primary text-white shadow-2xl scale-[1.05]'
-                : 'text-gray-500 hover:text-ink-primary hover:bg-white/40'}
-            `}
-          >
-            {tab.icon}
-            {tab.label}
-          </button>
-        ))}
+      {/* Searchable report selector */}
+      <div className="no-print relative w-full max-w-md" ref={tabDropRef}>
+        <button
+          onClick={() => setTabDropOpen(o => !o)}
+          className="w-full flex items-center gap-3 px-5 py-3 bg-white border border-black/5 rounded-2xl shadow-sm hover:border-black/15 transition-all"
+        >
+          <span className="text-accent-signature shrink-0">{currentTab?.icon}</span>
+          <span className="flex-1 text-left text-xs font-black uppercase tracking-widest text-ink-primary truncate">
+            {currentTab?.label || 'Select report'}
+          </span>
+          <ChevronDown size={16} className={`text-gray-400 shrink-0 transition-transform ${tabDropOpen ? 'rotate-180' : ''}`} />
+        </button>
+        {tabDropOpen && (
+          <div className="absolute z-50 mt-2 left-0 right-0 bg-white border border-black/10 rounded-2xl shadow-2xl overflow-hidden">
+            <div className="relative border-b border-black/5">
+              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                autoFocus
+                value={tabSearch}
+                onChange={e => setTabSearch(e.target.value)}
+                placeholder="Search reports…"
+                className="w-full pl-10 pr-4 py-3 text-xs font-semibold outline-none"
+              />
+            </div>
+            <div className="max-h-80 overflow-y-auto py-1">
+              {filteredTabs.length === 0 && (
+                <div className="px-4 py-6 text-center text-[11px] text-gray-400">
+                  No report matches "{tabSearch}"
+                </div>
+              )}
+              {filteredTabs.map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => { setActiveTab(tab.id); setTabDropOpen(false); setTabSearch(''); }}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors ${
+                    activeTab === tab.id
+                      ? 'bg-accent-signature/8 text-ink-primary'
+                      : 'text-gray-600 hover:bg-canvas'
+                  }`}
+                >
+                  <span className={activeTab === tab.id ? 'text-accent-signature' : 'text-gray-400'}>{tab.icon}</span>
+                  <span className="text-xs font-bold">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Active Report Node */}
