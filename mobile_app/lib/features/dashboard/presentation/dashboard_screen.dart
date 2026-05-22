@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/database/sync_status_pill.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/widgets/trial_banner.dart';
@@ -30,42 +31,59 @@ import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
 // Shell
 // ─────────────────────────────────────────────────────────────────────────────
 
-class DashboardScreen extends StatefulWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  State<DashboardScreen> createState() => _DashboardScreenState();
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
 }
 
-class _DashboardScreenState extends State<DashboardScreen> {
+typedef _NavTab = ({String feature, IconData icon, String label, Widget tab});
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _selectedIndex = 0;
   final _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  static const _navItems = [
-    (icon: LucideIcons.layoutDashboard, label: 'Dashboard'),
-    (icon: LucideIcons.shoppingCart,    label: 'Sales'),
-    (icon: LucideIcons.package,         label: 'Inventory'),
-    (icon: LucideIcons.truck,           label: 'My Route'),
-    (icon: LucideIcons.moreHorizontal,  label: 'More'),
+  // Master tab list. `feature` is the RBAC key; '__menu__' is always shown.
+  late final List<_NavTab> _allTabs = [
+    (feature: 'dashboard', icon: LucideIcons.layoutDashboard, label: 'Dashboard', tab: DashboardHome(onTabSwitch: _switchToFeature)),
+    (feature: 'sales',     icon: LucideIcons.shoppingCart,    label: 'Sales',     tab: const SalesScreen()),
+    (feature: 'inventory', icon: LucideIcons.package,         label: 'Inventory', tab: const InventoryScreen()),
+    (feature: 'logistics', icon: LucideIcons.truck,           label: 'My Route',  tab: const DriverRouteScreen()),
+    (feature: '__menu__',  icon: LucideIcons.moreHorizontal,  label: 'More',      tab: const MenuScreen()),
   ];
+
+  // Tabs the current user may see — filtered by the shared RBAC matrix.
+  List<_NavTab> _visibleTabs(List<String> roles, String plan, Map? permissions) {
+    return _allTabs.where((t) =>
+        t.feature == '__menu__' ||
+        canAccess(t.feature, roles: roles, plan: plan, permissions: permissions)
+    ).toList();
+  }
 
   void _switchTab(int index) => setState(() => _selectedIndex = index);
 
-  List<Widget> get _tabs => [
-    DashboardHome(onTabSwitch: _switchTab),
-    const SalesScreen(),
-    const InventoryScreen(),
-    const DriverRouteScreen(),
-    const MenuScreen(),
-  ];
+  // Jump to a tab by feature key (used by in-dashboard shortcuts).
+  void _switchToFeature(String feature) {
+    final ctx = ref.read(tenantContextProvider).value;
+    final visible = _visibleTabs(ctx?.roles ?? [], ctx?.plan ?? 'STARTER', ctx?.permissions);
+    final idx = visible.indexWhere((t) => t.feature == feature);
+    if (idx >= 0) setState(() => _selectedIndex = idx);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final ctx = ref.watch(tenantContextProvider).value;
+    final tabs = _visibleTabs(
+        ctx?.roles ?? [], ctx?.plan ?? 'STARTER', ctx?.permissions);
+    final selIdx = tabs.isEmpty ? 0 : _selectedIndex.clamp(0, tabs.length - 1);
+    final currentFeature = tabs.isEmpty ? '' : tabs[selIdx].feature;
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: AppColors.canvas,
       drawer: const _AppDrawer(),
-      floatingActionButton: _selectedIndex == 1
+      floatingActionButton: currentFeature == 'sales'
           ? FloatingActionButton(
               heroTag: null,
               onPressed: () {
@@ -95,7 +113,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 MediaQuery.removePadding(
                   context: context,
                   removeTop: true,
-                  child: IndexedStack(index: _selectedIndex, children: _tabs),
+                  child: IndexedStack(
+                    index: selIdx,
+                    children: tabs.map((t) => t.tab).toList(),
+                  ),
                 ),
 
           // Bottom nav
@@ -121,10 +142,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: _navItems.asMap().entries.map((e) {
+                    children: tabs.asMap().entries.map((e) {
                       final i = e.key;
                       final item = e.value;
-                      final isActive = _selectedIndex == i;
+                      final isActive = selIdx == i;
                       return GestureDetector(
                         onTap: () => _switchTab(i),
                         behavior: HitTestBehavior.opaque,
@@ -281,26 +302,26 @@ class _AppDrawer extends ConsumerWidget {
 
   static const _sections = [
     _DrawerSection(label: 'SALES & FINANCE', items: [
-      _DrawerItem(icon: LucideIcons.shoppingBag,  label: 'New Sale',      color: AppColors.primary),
-      _DrawerItem(icon: LucideIcons.shoppingCart,  label: 'Sales History', color: AppColors.primary),
-      _DrawerItem(icon: LucideIcons.fileText,      label: 'Invoices',      color: AppColors.primary),
-      _DrawerItem(icon: LucideIcons.creditCard,    label: 'Expenses',      color: AppColors.danger),
-      _DrawerItem(icon: LucideIcons.clipboardList, label: 'Purchases',     color: AppColors.warning),
-      _DrawerItem(icon: LucideIcons.bookOpen,      label: 'Day Book',      color: AppColors.info),
+      _DrawerItem(icon: LucideIcons.shoppingBag,  label: 'New Sale',      color: AppColors.primary, feature: 'sales'),
+      _DrawerItem(icon: LucideIcons.shoppingCart,  label: 'Sales History', color: AppColors.primary, feature: 'sales'),
+      _DrawerItem(icon: LucideIcons.fileText,      label: 'Invoices',      color: AppColors.primary, feature: 'invoices'),
+      _DrawerItem(icon: LucideIcons.creditCard,    label: 'Expenses',      color: AppColors.danger, feature: 'expenses'),
+      _DrawerItem(icon: LucideIcons.clipboardList, label: 'Purchases',     color: AppColors.warning, feature: 'purchases'),
+      _DrawerItem(icon: LucideIcons.bookOpen,      label: 'Day Book',      color: AppColors.info, feature: 'daybook'),
     ]),
     _DrawerSection(label: 'INVENTORY & CRM', items: [
-      _DrawerItem(icon: LucideIcons.package,  label: 'Inventory', color: Color(0xFF5b5f5a)),
-      _DrawerItem(icon: LucideIcons.users,    label: 'CRM',        color: AppColors.secondary),
+      _DrawerItem(icon: LucideIcons.package,  label: 'Inventory', color: Color(0xFF5b5f5a), feature: 'inventory'),
+      _DrawerItem(icon: LucideIcons.users,    label: 'CRM',        color: AppColors.secondary, feature: 'clients'),
     ]),
     _DrawerSection(label: 'INSIGHTS', items: [
-      _DrawerItem(icon: LucideIcons.barChart2, label: 'Reports', color: AppColors.primary),
+      _DrawerItem(icon: LucideIcons.barChart2, label: 'Reports', color: AppColors.primary, feature: 'reports'),
     ]),
     _DrawerSection(label: 'WORKFORCE & OPS', items: [
-      _DrawerItem(icon: LucideIcons.users2, label: 'HR & Payroll', color: AppColors.secondary),
-      _DrawerItem(icon: LucideIcons.truck,  label: 'Fleet',         color: Color(0xFF5b5f5a)),
+      _DrawerItem(icon: LucideIcons.users2, label: 'HR & Payroll', color: AppColors.secondary, feature: 'hr'),
+      _DrawerItem(icon: LucideIcons.truck,  label: 'Fleet',         color: Color(0xFF5b5f5a), feature: 'logistics'),
     ]),
     _DrawerSection(label: 'ACCOUNT', items: [
-      _DrawerItem(icon: LucideIcons.settings, label: 'Settings', color: AppColors.inkSecondary),
+      _DrawerItem(icon: LucideIcons.settings, label: 'Settings', color: AppColors.inkSecondary, feature: '__always__'),
     ]),
   ];
 
@@ -340,6 +361,21 @@ class _AppDrawer extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final tenantAsync = ref.watch(tenantContextProvider);
     final roles = tenantAsync.value?.roles ?? [];
+    final plan = tenantAsync.value?.plan ?? 'STARTER';
+    final permissions = tenantAsync.value?.permissions;
+    // Filter drawer by RBAC — drop items and empty sections the user can't access.
+    final sections = _sections
+        .map((s) => _DrawerSection(
+              label: s.label,
+              items: s.items
+                  .where((i) =>
+                      i.feature == '__always__' ||
+                      canAccess(i.feature,
+                          roles: roles, plan: plan, permissions: permissions))
+                  .toList(),
+            ))
+        .where((s) => s.items.isNotEmpty)
+        .toList();
 
     return Drawer(
       backgroundColor: AppColors.surface,
@@ -429,7 +465,7 @@ class _AppDrawer extends ConsumerWidget {
                 padding: const EdgeInsets.fromLTRB(12, 0, 12, 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _sections.map((section) => Column(
+                  children: sections.map((section) => Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
@@ -503,7 +539,13 @@ class _DrawerItem {
   final IconData icon;
   final String label;
   final Color color;
-  const _DrawerItem({required this.icon, required this.label, required this.color});
+  final String feature; // RBAC key; '__always__' = always shown
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.feature,
+  });
 }
 
 class _DrawerTile extends StatelessWidget {
@@ -554,7 +596,7 @@ class _DrawerTile extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class DashboardHome extends ConsumerStatefulWidget {
-  final void Function(int index) onTabSwitch;
+  final void Function(String feature) onTabSwitch;
   const DashboardHome({super.key, required this.onTabSwitch});
 
   @override
@@ -670,7 +712,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       value: _revenueVisible ? _fmtAmount(m.todaySales) : '••••••',
                       icon: LucideIcons.trendingUp,
                       isHero: true,
-                      onTap: () => widget.onTabSwitch(1),
+                      onTap: () => widget.onTabSwitch('sales'),
                       trailing: GestureDetector(
                         onTap: () => setState(() => _revenueVisible = !_revenueVisible),
                         child: Icon(
@@ -715,7 +757,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                             value: '${m.totalProducts}',
                             icon: LucideIcons.package,
                             accentColor: AppColors.primary,
-                            onTap: () => widget.onTabSwitch(2),
+                            onTap: () => widget.onTabSwitch('inventory'),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -727,7 +769,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                             accentColor: m.lowStockItems > 0
                                 ? const Color(0xFFe53935)
                                 : AppColors.secondary,
-                            onTap: () => widget.onTabSwitch(2),
+                            onTap: () => widget.onTabSwitch('inventory'),
                           ),
                         ),
                       ],
@@ -850,7 +892,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                           ],
                         ),
                         GestureDetector(
-                          onTap: () => widget.onTabSwitch(1),
+                          onTap: () => widget.onTabSwitch('sales'),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
@@ -954,7 +996,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                     ],
                   ),
                   GestureDetector(
-                    onTap: () => widget.onTabSwitch(1),
+                    onTap: () => widget.onTabSwitch('sales'),
                     child: Text(
                       'See All',
                       style: GoogleFonts.inter(
