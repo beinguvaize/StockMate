@@ -228,7 +228,7 @@ const RecipeModal = ({ products, onClose, onSave }) => {
     rows.some(r => r.productId && Number(r.quantity) > 0);
 
   return (
-    <Modal title="New Recipe" onClose={onClose}>
+    <Modal title="New Recipe" subtitle="Define the raw materials for a product" onClose={onClose}>
       <Field label="Finished Product">
         <select className={selCls} value={finishedId} onChange={e => setFinishedId(e.target.value)}>
           <option value="">Select product…</option>
@@ -236,26 +236,35 @@ const RecipeModal = ({ products, onClose, onSave }) => {
             <option key={p.id} value={p.id}>{p.name}</option>)}
         </select>
       </Field>
-      <Field label="Output Quantity (per build)">
+      <Field label="Output Quantity" hint="units made per build">
         <input type="number" min="1" className={selCls} value={outputQty}
           onChange={e => setOutputQty(e.target.value)} />
       </Field>
-      <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-2 mb-1">Raw Materials</div>
-      {rows.map((r, i) => (
-        <div key={i} className="flex items-center gap-2 mb-2">
-          <select className={`${selCls} flex-1`} value={r.productId} onChange={e => setRow(i, 'productId', e.target.value)}>
-            <option value="">Material…</option>
-            {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-          </select>
-          <input type="number" min="0" placeholder="Qty" className={`${selCls} w-20`}
-            value={r.quantity} onChange={e => setRow(i, 'quantity', e.target.value)} />
-          <button onClick={() => delRow(i)} className="text-gray-300 hover:text-red-400"><X size={14} /></button>
-        </div>
-      ))}
-      <button onClick={addRow} className="text-[11px] font-bold text-accent-signature hover:underline">+ Add material</button>
+
+      <div className="flex items-center justify-between mt-1 mb-2">
+        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Raw Materials</span>
+        <button onClick={addRow} type="button"
+          className="flex items-center gap-1 text-[11px] font-black text-accent-signature hover:underline">
+          <Plus size={12} /> Add
+        </button>
+      </div>
+      <div className="space-y-2">
+        {rows.map((r, i) => (
+          <div key={i} className="grid grid-cols-[1fr_92px_36px] gap-2 items-center">
+            <select className={selCls} value={r.productId} onChange={e => setRow(i, 'productId', e.target.value)}>
+              <option value="">Material…</option>
+              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <input type="number" min="0" placeholder="Qty" className={`${selCls} text-center`}
+              value={r.quantity} onChange={e => setRow(i, 'quantity', e.target.value)} />
+            <RowX onClick={() => delRow(i)} />
+          </div>
+        ))}
+      </div>
+
       <button disabled={!canSave || saving}
         onClick={async () => { setSaving(true); await onSave({ finishedProductId: finishedId, name: null, outputQty: Number(outputQty), components: rows }); setSaving(false); }}
-        className="w-full mt-5 h-12 rounded-xl bg-ink-primary text-white font-black text-sm disabled:opacity-40 transition-all">
+        className="w-full mt-6 h-13 py-3.5 rounded-2xl bg-ink-primary text-white font-black text-sm hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-ink-primary/20">
         {saving ? 'Saving…' : 'Save Recipe'}
       </button>
     </Modal>
@@ -285,7 +294,7 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave }) => {
   const canSave = bom && Number(qty) > 0;
 
   return (
-    <Modal title="New Build" onClose={onClose}>
+    <Modal title="New Build" subtitle="Create a production order from a recipe" onClose={onClose}>
       <Field label="Recipe">
         <select className={selCls} value={bomId} onChange={e => setBomId(e.target.value)}>
           <option value="">Select recipe…</option>
@@ -293,40 +302,45 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave }) => {
         </select>
       </Field>
       <Field label="Quantity to Produce">
-        <input type="number" min="1" className={selCls} value={qty} onChange={e => setQty(e.target.value)} />
+        <input type="number" min="1" placeholder="0" className={selCls} value={qty} onChange={e => setQty(e.target.value)} />
       </Field>
 
       {bom && (
-        <div className="bg-canvas rounded-xl p-3 mt-2">
-          <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">
-            Materials consumed
+        <div className="bg-canvas rounded-2xl border border-black/5 p-4 mb-4">
+          <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+            Materials Consumed
           </div>
           {materials.length === 0
-            ? <div className="text-[11px] text-gray-400">Set a quantity to see materials.</div>
-            : materials.map(m => (
-              <div key={m.productId} className="flex justify-between text-[11px]">
-                <span className="text-ink-secondary truncate">{productName(m.productId)}</span>
-                <span className="font-bold text-ink-primary tabular-nums">×{m.quantity}</span>
-              </div>
-            ))}
+            ? <div className="text-[11px] text-gray-400">Enter a quantity to see materials.</div>
+            : <div className="space-y-1">
+                {materials.map(m => (
+                  <div key={m.productId} className="flex justify-between text-xs">
+                    <span className="text-ink-secondary truncate">{productName(m.productId)}</span>
+                    <span className="font-black text-ink-primary tabular-nums">×{m.quantity}</span>
+                  </div>
+                ))}
+              </div>}
         </div>
       )}
 
-      <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mt-3 mb-1">
-        Other Costs (labor, overhead…)
+      <div className="flex items-center justify-between mt-1 mb-2">
+        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Other Costs</span>
+        <button onClick={() => setCosts(cs => [...cs, { label: '', amount: '' }])} type="button"
+          className="flex items-center gap-1 text-[11px] font-black text-accent-signature hover:underline">
+          <Plus size={12} /> Add
+        </button>
       </div>
-      {costs.map((c, i) => (
-        <div key={i} className="flex items-center gap-2 mb-2">
-          <input placeholder="Label" className={`${selCls} flex-1`} value={c.label}
-            onChange={e => setCost(i, 'label', e.target.value)} />
-          <input type="number" min="0" placeholder="Amount" className={`${selCls} w-24`} value={c.amount}
-            onChange={e => setCost(i, 'amount', e.target.value)} />
-          <button onClick={() => setCosts(cs => cs.filter((_, idx) => idx !== i))}
-            className="text-gray-300 hover:text-red-400"><X size={14} /></button>
-        </div>
-      ))}
-      <button onClick={() => setCosts(cs => [...cs, { label: '', amount: '' }])}
-        className="text-[11px] font-bold text-accent-signature hover:underline">+ Add cost</button>
+      <div className="space-y-2">
+        {costs.map((c, i) => (
+          <div key={i} className="grid grid-cols-[1fr_120px_36px] gap-2 items-center">
+            <input placeholder="e.g. Labor, electricity" className={selCls} value={c.label}
+              onChange={e => setCost(i, 'label', e.target.value)} />
+            <input type="number" min="0" placeholder="Amount" className={`${selCls} text-right`} value={c.amount}
+              onChange={e => setCost(i, 'amount', e.target.value)} />
+            <RowX onClick={() => setCosts(cs => cs.filter((_, idx) => idx !== i))} />
+          </div>
+        ))}
+      </div>
 
       <button disabled={!canSave || saving}
         onClick={async () => {
@@ -338,10 +352,10 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave }) => {
           });
           setSaving(false);
         }}
-        className="w-full mt-5 h-12 rounded-xl bg-ink-primary text-white font-black text-sm disabled:opacity-40 transition-all">
+        className="w-full mt-6 py-3.5 rounded-2xl bg-ink-primary text-white font-black text-sm hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-ink-primary/20">
         {saving ? 'Saving…' : 'Create Build (Draft)'}
       </button>
-      <p className="text-[10px] text-gray-400 text-center mt-2 flex items-center justify-center gap-1">
+      <p className="text-[10px] text-gray-400 text-center mt-3 flex items-center justify-center gap-1">
         <AlertTriangle size={10} /> Stock is consumed only when you Complete the build.
       </p>
     </Modal>
@@ -349,27 +363,43 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave }) => {
 };
 
 /* ── Shared bits ──────────────────────────────────────────────────── */
-const selCls = 'w-full bg-canvas border border-black/8 rounded-xl px-3 py-2.5 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20';
+const selCls = 'w-full bg-canvas border border-black/8 rounded-xl px-3.5 py-3 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/25 focus:border-accent-signature/30 transition-all placeholder:text-gray-400 placeholder:font-normal';
 
-const Field = ({ label, children }) => (
-  <div className="mb-3">
-    <label className="block text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5">{label}</label>
+const Field = ({ label, hint, children }) => (
+  <div className="mb-4">
+    <label className="flex items-baseline gap-2 mb-1.5">
+      <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{label}</span>
+      {hint && <span className="text-[10px] text-gray-300 font-medium">{hint}</span>}
+    </label>
     {children}
   </div>
 );
 
-const Modal = ({ title, onClose, children }) => (
-  <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-    <div className="w-full max-w-md bg-white rounded-3xl shadow-2xl max-h-[88vh] overflow-y-auto">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-black/5 sticky top-0 bg-white">
-        <h2 className="text-base font-black text-ink-primary flex items-center gap-2">
-          <Factory size={16} className="text-accent-signature" /> {title}
-        </h2>
-        <button onClick={onClose} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center text-gray-400 hover:text-ink-primary">
-          <X size={14} />
+// Compact icon button for removing a row.
+const RowX = ({ onClick }) => (
+  <button onClick={onClick} type="button"
+    className="w-9 h-9 rounded-xl flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all shrink-0">
+    <X size={14} strokeWidth={2.5} />
+  </button>
+);
+
+const Modal = ({ title, subtitle, onClose, children }) => (
+  <div className="fixed inset-0 z-50 bg-ink-primary/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+    <div className="w-full max-w-lg bg-white rounded-[1.75rem] shadow-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
+      <div className="flex items-center gap-3 px-6 py-5 border-b border-black/5 sticky top-0 bg-white z-10">
+        <div className="w-10 h-10 rounded-2xl bg-accent-signature/10 flex items-center justify-center shrink-0">
+          <Factory size={18} className="text-accent-signature" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base font-black text-ink-primary leading-tight">{title}</h2>
+          {subtitle && <p className="text-[11px] text-gray-400 font-medium">{subtitle}</p>}
+        </div>
+        <button onClick={onClose}
+          className="w-9 h-9 rounded-full border border-black/10 flex items-center justify-center text-gray-400 hover:text-ink-primary hover:border-black/25 transition-all shrink-0">
+          <X size={15} />
         </button>
       </div>
-      <div className="px-6 py-5">{children}</div>
+      <div className="px-6 py-6">{children}</div>
     </div>
   </div>
 );
