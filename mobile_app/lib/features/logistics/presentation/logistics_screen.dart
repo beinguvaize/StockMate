@@ -9,6 +9,8 @@ import 'package:mobile_app/features/logistics/data/models/vehicle.dart';
 import 'package:mobile_app/features/logistics/presentation/add_vehicle_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/delivery_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/driver_route_screen.dart';
+import 'package:mobile_app/features/logistics/presentation/load_van_screen.dart';
+import 'package:mobile_app/features/logistics/presentation/dispatch_route_screen.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
 
 class LogisticsScreen extends ConsumerWidget {
@@ -659,6 +661,44 @@ class _VehicleDetailSheet extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                             builder: (_) => const DriverRouteScreen()),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  // Load Van
+                  _SheetButton(
+                    icon: LucideIcons.packagePlus,
+                    label: 'Load Van',
+                    color: AppColors.info,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => LoadVanScreen(
+                            vehicleId: vehicle.id,
+                            vehicleName: vehicle.name ?? 'Vehicle',
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  // Dispatch Route
+                  _SheetButton(
+                    icon: LucideIcons.send,
+                    label: 'Dispatch Route',
+                    color: AppColors.primary,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => DispatchRouteScreen(
+                            vehicleId: vehicle.id,
+                            vehicleName: vehicle.name ?? 'Vehicle',
+                          ),
+                        ),
                       );
                     },
                   ),
