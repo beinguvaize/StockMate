@@ -1,6 +1,7 @@
 import React, { useState, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import VanLoadBuilder from '../components/VanLoadBuilder';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useOperations } from '../hooks/useOperations';
@@ -87,9 +88,6 @@ const Vehicles = () => {
 
   // Load Van modal
   const [loadVanVehicle,   setLoadVanVehicle]   = useState(null); // vehicle obj
-  const [loadVanItems,     setLoadVanItems]     = useState([]);   // [{productId, productName, qty, available}]
-  const [loadVanLoading,   setLoadVanLoading]   = useState(false);
-  const [loadVanError,     setLoadVanError]     = useState('');
 
   // Van Sale modal
   const [vanSaleRoute,    setVanSaleRoute]    = useState(null);
@@ -194,78 +192,10 @@ const Vehicles = () => {
       return { ...item, [field]: field === 'qty' ? Math.max(1, parseInt(value) || 1) : value };
     }));
 
-  // ── Load Van helpers ──────────────────────────────────────────────────────
-  const getWarehouseStock = (productId) => {
-    const warehouseLoc = inventoryLocations.find(l => l.type === 'WAREHOUSE');
-    if (!warehouseLoc) return 0;
-    const bal = inventoryBalances.find(b => b.product_id === productId && b.location_id === warehouseLoc.id);
-    return bal?.quantity || 0;
-  };
-
-  const openLoadVan = (vehicle) => {
-    setLoadVanVehicle(vehicle);
-    setLoadVanError('');
-    // Start with top 5 products by warehouse stock
-    const warehouseLoc = inventoryLocations.find(l => l.type === 'WAREHOUSE');
-    const withStock = warehouseLoc
-      ? products
-          .map(p => ({
-            productId: p.id,
-            productName: p.name,
-            qty: 0,
-            available: inventoryBalances.find(b => b.product_id === p.id && b.location_id === warehouseLoc.id)?.quantity || 0,
-          }))
-          .filter(p => p.available > 0)
-          .sort((a, b) => b.available - a.available)
-          .slice(0, 8)
-      : [];
-    setLoadVanItems(withStock.length > 0 ? withStock : [{ productId: products[0]?.id || '', productName: products[0]?.name || '', qty: 0, available: 0 }]);
-  };
-
-  const addLoadVanRow = () => {
-    const p = products[0];
-    if (!p) return;
-    setLoadVanItems(prev => [...prev, { productId: p.id, productName: p.name, qty: 0, available: getWarehouseStock(p.id) }]);
-  };
-
-  const removeLoadVanRow = (idx) => setLoadVanItems(prev => prev.filter((_, i) => i !== idx));
-
-  const updateLoadVanRow = (idx, field, value) =>
-    setLoadVanItems(prev => prev.map((item, i) => {
-      if (i !== idx) return item;
-      if (field === 'productId') {
-        const p = products.find(pr => pr.id === value);
-        return p ? { ...item, productId: p.id, productName: p.name, available: getWarehouseStock(p.id), qty: 0 } : item;
-      }
-      return { ...item, [field]: field === 'qty' ? Math.max(0, parseInt(value) || 0) : value };
-    }));
-
-  const handleLoadVanSubmit = async (e) => {
-    e.preventDefault();
-    const activeItems = loadVanItems.filter(i => i.qty > 0);
-    if (!activeItems.length) { setLoadVanError('Set quantity > 0 for at least one product.'); return; }
-
-    // Validate against available stock
-    const overQty = activeItems.filter(i => i.qty > i.available);
-    if (overQty.length > 0) {
-      setLoadVanError(`Insufficient stock: ${overQty.map(i => `${i.productName} (only ${i.available} available)`).join(', ')}`);
-      return;
-    }
-
-    setLoadVanLoading(true);
-    setLoadVanError('');
-    const { success, transferred, errors } = await loadVan(
-      loadVanVehicle.id,
-      activeItems.map(i => ({ productId: i.productId, quantity: i.qty }))
-    );
-    setLoadVanLoading(false);
-
-    if (!success) {
-      setLoadVanError(errors.join(' | '));
-      return;
-    }
-    setLoadVanVehicle(null);
-  };
+  // ── Load Van ──────────────────────────────────────────────────────────────
+  // Opens the VanLoadBuilder POS-style flow. Warehouse→vehicle transfer
+  // handled by loadVan() and the VanLoadBuilder component.
+  const openLoadVan = (vehicle) => setLoadVanVehicle(vehicle);
 
   const toggleInvoice = (id) =>
     setSelectedInvoices(prev =>
@@ -1093,132 +1023,37 @@ const Vehicles = () => {
         )}
       </div>
 
-      {/* ── LOAD VAN MODAL ─────────────────────────────────────────────────────── */}
-      {loadVanVehicle && (
-        <div className="modal-overlay">
-          <div className="glass-modal !max-w-2xl">
-            {/* Header */}
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h1 className="text-3xl font-black font-sora text-ink-primary leading-none tracking-tight uppercase">
-                  LOAD VAN<span className="text-accent-signature">.</span>
-                </h1>
-                <p className="text-[10px] font-semibold text-gray-400 mt-1 tracking-widest uppercase">
-                  Warehouse → {loadVanVehicle.name} · {loadVanVehicle.plate || loadVanVehicle.plateNumber}
-                </p>
-              </div>
-              <button
-                className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all"
-                onClick={() => setLoadVanVehicle(null)}
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleLoadVanSubmit} className="space-y-4">
-              {/* Product rows */}
-              <div className="space-y-2">
-                {loadVanItems.map((item, idx) => (
-                  <div key={idx} className="flex items-center gap-2 p-3 bg-canvas rounded-xl border border-black/5">
-                    {/* Product select */}
-                    <div className="flex-1 min-w-0">
-                      <select
-                        className="w-full bg-transparent text-sm font-semibold text-ink-primary outline-none"
-                        value={item.productId}
-                        onChange={e => updateLoadVanRow(idx, 'productId', e.target.value)}
-                      >
-                        {products.map(p => (
-                          <option key={p.id} value={p.id}>{p.name}</option>
-                        ))}
-                      </select>
-                      <div className="text-[9px] font-semibold text-gray-400 mt-0.5">
-                        Available in warehouse: <span className={item.available < item.qty ? 'text-red-500' : 'text-green-600'}>{item.available} units</span>
-                      </div>
-                    </div>
-
-                    {/* Quantity */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <button type="button"
-                        className="w-6 h-6 rounded-lg bg-black/5 text-xs font-bold flex items-center justify-center hover:bg-black/10"
-                        onClick={() => updateLoadVanRow(idx, 'qty', Math.max(0, item.qty - 1))}>−</button>
-                      <input
-                        type="number"
-                        min="0"
-                        max={item.available}
-                        className="w-14 text-center text-sm font-bold bg-white border border-black/10 rounded-lg py-1 outline-none focus:ring-2 focus:ring-accent-signature/30"
-                        value={item.qty}
-                        onChange={e => updateLoadVanRow(idx, 'qty', e.target.value)}
-                      />
-                      <button type="button"
-                        className="w-6 h-6 rounded-lg bg-black/5 text-xs font-bold flex items-center justify-center hover:bg-black/10"
-                        onClick={() => updateLoadVanRow(idx, 'qty', Math.min(item.available, item.qty + 1))}>+</button>
-                    </div>
-
-                    {/* Max btn */}
-                    <button type="button"
-                      className="text-[9px] font-bold text-accent-signature px-2 py-1 rounded-lg bg-accent-signature/10 hover:bg-accent-signature/20 transition-all shrink-0"
-                      onClick={() => updateLoadVanRow(idx, 'qty', item.available)}>MAX</button>
-
-                    {/* Remove row */}
-                    <button type="button"
-                      className="w-6 h-6 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center shrink-0 transition-all"
-                      onClick={() => removeLoadVanRow(idx)}>
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {/* Add product row */}
-              <button type="button"
-                className="w-full py-2.5 rounded-xl border border-dashed border-black/15 text-[10px] font-bold text-gray-400 hover:border-accent-signature hover:text-ink-primary hover:bg-accent-signature/5 transition-all flex items-center justify-center gap-1.5"
-                onClick={addLoadVanRow}>
-                <PackagePlus size={12} /> Add Product
-              </button>
-
-              {/* Summary */}
-              {loadVanItems.some(i => i.qty > 0) && (
-                <div className="p-3 bg-green-50 border border-green-100 rounded-xl">
-                  <div className="text-[10px] font-bold text-green-700 uppercase tracking-widest mb-1">Transfer Summary</div>
-                  {loadVanItems.filter(i => i.qty > 0).map((item, idx) => (
-                    <div key={idx} className="flex justify-between text-xs text-green-800">
-                      <span>{item.productName}</span>
-                      <span className="font-bold">{item.qty} units</span>
-                    </div>
-                  ))}
-                  <div className="border-t border-green-200 mt-2 pt-2 flex justify-between text-xs font-black text-green-900">
-                    <span>Total items</span>
-                    <span>{loadVanItems.reduce((s, i) => s + i.qty, 0)} units</span>
-                  </div>
-                </div>
-              )}
-
-              {loadVanError && (
-                <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-xs text-red-700 font-semibold">
-                  ⚠ {loadVanError}
-                </div>
-              )}
-
-              {/* Actions */}
-              <div className="flex gap-3 pt-2">
-                <button type="button"
-                  className="flex-1 py-3 rounded-xl border border-black/10 text-sm font-bold text-gray-500 hover:bg-black/5 transition-all"
-                  onClick={() => setLoadVanVehicle(null)}>
-                  Cancel
-                </button>
-                <button type="submit"
-                  disabled={loadVanLoading || !loadVanItems.some(i => i.qty > 0)}
-                  className="flex-1 py-3 rounded-xl bg-ink-primary text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-ink-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-                  {loadVanLoading
-                    ? <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Loading...</>
-                    : <><PackagePlus size={14} /> Transfer to Van</>
-                  }
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* ── LOAD VAN ─────────────────────────────────────────────────────── */}
+      {loadVanVehicle && (() => {
+        const whLoc = inventoryLocations.find(l => l.type === 'WAREHOUSE');
+        const warehouseItems = whLoc
+          ? products
+              .map(p => {
+                const bal = inventoryBalances.find(
+                  b => b.product_id === p.id && b.location_id === whLoc.id
+                );
+                return {
+                  productId:   p.id,
+                  productName: p.name,
+                  available:   Number(bal?.quantity || 0),
+                };
+              })
+              .filter(p => p.available > 0)
+              .sort((a, b) => a.productName.localeCompare(b.productName))
+          : [];
+        const handleLoad = async ({ items }) => {
+          const { success, errors } = await loadVan(loadVanVehicle.id, items);
+          return { success, error: success ? null : { message: (errors || []).join(' | ') } };
+        };
+        return (
+          <VanLoadBuilder
+            vehicle={loadVanVehicle}
+            warehouseItems={warehouseItems}
+            onSubmit={handleLoad}
+            onClose={() => setLoadVanVehicle(null)}
+          />
+        );
+      })()}
 
       {/* ── VEHICLE MODAL ──────────────────────────────────────────────────────── */}
       {showVehicleModal && (
