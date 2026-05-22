@@ -259,12 +259,14 @@ const ClientStatementReport = () => {
             className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-300 shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
           />
         </div>
-        {search && (
-          <div className="mt-2 bg-white border border-black/8 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+        {!selectedClient && (
+          <div className="mt-2 bg-white border border-gray-300 shadow-sm rounded-xl max-h-64 overflow-y-auto">
             {cLoading
               ? <div className="p-4 text-xs text-gray-400">Loading...</div>
+              : clients.length === 0
+              ? <div className="p-4 text-xs text-gray-400">No clients yet</div>
               : filteredClients.length === 0
-              ? <div className="p-4 text-xs text-gray-400">No clients found</div>
+              ? <div className="p-4 text-xs text-gray-400">No clients match "{search}"</div>
               : filteredClients.map(c => (
                 <button key={c.id} onClick={() => { setClientId(c.id); setSearch(''); }}
                   className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-black/5 last:border-0 ${clientId === c.id ? 'bg-accent-signature/5' : ''}`}>
