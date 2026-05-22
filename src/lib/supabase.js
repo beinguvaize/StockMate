@@ -33,6 +33,27 @@ if (
   console.warn('🚨 PRODUCTION Supabase project detected on localhost! Proceed with caution.');
 }
 
+// Hard ceiling on every supabase HTTP request. Without this, a stalled
+// socket (flaky wifi, captive portal, DB cold-start, desktop suspend/resume)
+// leaves hooks awaiting forever and the UI stuck on "Loading…". With a
+// timeout the request rejects, the hook's catch + auto-retry path kicks in,
+// and the page recovers on its own.
+const SUPABASE_FETCH_TIMEOUT_MS = 20000;
+
+const timedFetch = (input, init = {}) => {
+  const ctrl = new AbortController();
+  const timer = setTimeout(
+    () => ctrl.abort(new DOMException('supabase request timed out', 'TimeoutError')),
+    SUPABASE_FETCH_TIMEOUT_MS,
+  );
+  // Honour any caller-supplied abort signal too.
+  if (init.signal) {
+    if (init.signal.aborted) ctrl.abort(init.signal.reason);
+    else init.signal.addEventListener('abort', () => ctrl.abort(init.signal.reason), { once: true });
+  }
+  return fetch(input, { ...init, signal: ctrl.signal }).finally(() => clearTimeout(timer));
+};
+
 export const supabase = isSupabaseConfigured
   ? createClient(url, key, {
       auth: {
@@ -43,6 +64,7 @@ export const supabase = isSupabaseConfigured
         // Bypass browser-tabs-lock to prevent AbortError: Lock broken
         lock: async (_name, _acquireTimeout, fn) => fn(),
       },
+      global: { fetch: timedFetch },
     })
   : null;
 
