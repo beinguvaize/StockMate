@@ -57,7 +57,7 @@ const Vehicles = () => {
     vehicles, addVehicle, updateVehicle, deleteVehicle,
     routes, dispatchRoute, reconcileRoute,
     deliveryInvoices, routeStops, updateStopStatus, recordVanSale,
-    markFailedDelivery, markDeliveredWithProof, loadVan,
+    markFailedDelivery, markDeliveredWithProof, loadVan, unloadVan,
   } = useOperations(currentTenantId);
 
   const { products, inventoryLocations, inventoryBalances } = useInventory(currentTenantId);
@@ -109,6 +109,7 @@ const Vehicles = () => {
 
   // Load Van modal
   const [loadVanVehicle,   setLoadVanVehicle]   = useState(null); // vehicle obj
+  const [unloadVanVehicle, setUnloadVanVehicle] = useState(null); // vehicle obj
 
   // Van Sale modal
   const [vanSaleRoute,    setVanSaleRoute]    = useState(null);
@@ -199,6 +200,8 @@ const Vehicles = () => {
   // Opens the VanLoadBuilder POS-style flow. Warehouse→vehicle transfer
   // handled by loadVan() and the VanLoadBuilder component.
   const openLoadVan = (vehicle) => setLoadVanVehicle(vehicle);
+  // Unload Van — vehicle→warehouse transfer.
+  const openUnloadVan = (vehicle) => setUnloadVanVehicle(vehicle);
 
   const toggleInvoice = (id) =>
     setSelectedInvoices(prev =>
@@ -1058,6 +1061,39 @@ const Vehicles = () => {
         );
       })()}
 
+      {/* ── UNLOAD VAN ────────────────────────────────────────────────── */}
+      {unloadVanVehicle && (() => {
+        const vLoc = inventoryLocations.find(
+          l => l.type === 'VEHICLE' && l.reference_id === unloadVanVehicle.id
+        );
+        const vanItems = vLoc
+          ? inventoryBalances
+              .filter(b => b.location_id === vLoc.id && Number(b.quantity) > 0)
+              .map(b => {
+                const p = products.find(pr => pr.id === b.product_id);
+                return {
+                  productId:   b.product_id,
+                  productName: p?.name || b.product_id,
+                  available:   Number(b.quantity),
+                };
+              })
+              .sort((a, b) => a.productName.localeCompare(b.productName))
+          : [];
+        const handleUnload = async ({ items }) => {
+          const { success, errors } = await unloadVan(unloadVanVehicle.id, items);
+          return { success, error: success ? null : { message: (errors || []).join(' | ') } };
+        };
+        return (
+          <VanLoadBuilder
+            mode="unload"
+            vehicle={unloadVanVehicle}
+            warehouseItems={vanItems}
+            onSubmit={handleUnload}
+            onClose={() => setUnloadVanVehicle(null)}
+          />
+        );
+      })()}
+
       {/* ── VEHICLE MODAL ──────────────────────────────────────────────────────── */}
       {showVehicleModal && (
         <div className="modal-overlay">
@@ -1613,6 +1649,14 @@ const Vehicles = () => {
                       >
                         <PackagePlus size={10} /> Load
                       </button>
+                      {totalUnits > 0 && !inTrip && (
+                        <button
+                          onClick={() => openUnloadVan(v)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-700 hover:bg-amber-100 transition-all shrink-0"
+                        >
+                          <MinusCircle size={10} /> Unload
+                        </button>
+                      )}
                     </div>
                   </div>
 

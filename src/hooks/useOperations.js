@@ -365,6 +365,70 @@ export const useOperations = (tenantId) => {
     return { success: errors.length === 0, transferred, errors };
   };
 
+  // ── Unload Van (Vehicle → Warehouse inventory transfer) ───────────────
+  // Reverse of loadVan. items: [{ productId, quantity }]
+  const unloadVan = async (vehicleId, items) => {
+    // 1. Vehicle location
+    const { data: locRows } = await supabase
+      .from('inventory_locations')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('type', 'VEHICLE')
+      .eq('reference_id', vehicleId);
+    const vehicleLocId = locRows?.[0]?.id;
+    if (!vehicleLocId) return { success: false, transferred: 0, errors: ['Vehicle has no stock location'] };
+
+    // 2. Warehouse location
+    const { data: whRows } = await supabase
+      .from('inventory_locations')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('type', 'WAREHOUSE')
+      .order('created_at', { ascending: true })
+      .limit(1);
+    const warehouseLocId = whRows?.[0]?.id;
+    if (!warehouseLocId) return { success: false, transferred: 0, errors: ['No warehouse location found'] };
+
+    // 3. Transfer each product: deduct vehicle + add warehouse
+    let transferred = 0;
+    const errors = [];
+    for (const { productId, quantity } of items) {
+      if (!quantity || quantity <= 0) continue;
+
+      const { error: deductErr } = await supabase.rpc('adjust_inventory_atomic', {
+        p_product_id:  productId,
+        p_location_id: vehicleLocId,
+        p_amount:      -quantity,
+        p_reason:      `Van unload to warehouse`,
+        p_tenant_id:   tenantId,
+      });
+      if (deductErr) { errors.push(`Deduct error (${productId}): ${deductErr.message}`); continue; }
+
+      const { error: addErr } = await supabase.rpc('adjust_inventory_atomic', {
+        p_product_id:  productId,
+        p_location_id: warehouseLocId,
+        p_amount:      +quantity,
+        p_reason:      `Van unload from vehicle ${vehicleId}`,
+        p_tenant_id:   tenantId,
+      });
+      if (addErr) {
+        await supabase.rpc('adjust_inventory_atomic', {
+          p_product_id:  productId,
+          p_location_id: vehicleLocId,
+          p_amount:      +quantity,
+          p_reason:      'Rollback failed van unload',
+          p_tenant_id:   tenantId,
+        });
+        errors.push(`Add error (${productId}): ${addErr.message}`);
+        continue;
+      }
+      transferred++;
+    }
+
+    await fetchOperationsData();
+    return { success: errors.length === 0, transferred, errors };
+  };
+
   // ── Failed Delivery ────────────────────────────────────────────────────
   // Marks an invoice as FAILED, stores reason, resets to PENDING for re-queue.
   const markFailedDelivery = async (invoiceId, reason) => {
@@ -412,6 +476,7 @@ export const useOperations = (tenantId) => {
     updateStopStatus,
     recordVanSale,
     loadVan,
+    unloadVan,
     markFailedDelivery,
     markDeliveredWithProof,
   };

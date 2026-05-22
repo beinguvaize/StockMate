@@ -16,7 +16,20 @@ import {
 } from 'lucide-react';
 import { useNotifications } from '../context/NotificationContext';
 
-const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => {
+const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode = 'load' }) => {
+  const unload = mode === 'unload';
+  const L = {
+    title:   unload ? 'Unload Van'  : 'Load Van',
+    list:    unload ? 'Unload List' : 'Load List',
+    search:  unload ? 'Search van products…' : 'Search warehouse products…',
+    empty:   unload ? 'No stock on van.'     : 'No warehouse stock available.',
+    tap:     unload ? 'Tap products to unload' : 'Tap products to load',
+    inWord:  unload ? 'to unload' : 'to load',
+    stockTag: unload ? 'on van'   : 'in WH',
+    done:    unload ? 'Van Unloaded' : 'Van Loaded',
+    cta:     unload ? 'Unload Vehicle' : 'Load Vehicle',
+    cap:     unload ? 'Only %n on van' : 'Only %n in warehouse',
+  };
   const { addNotification } = useNotifications();
 
   const [loadList, setLoadList]     = useState([]);   // [{productId, name, quantity, max}]
@@ -48,7 +61,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => 
       const ex = prev.find(c => c.productId === item.productId);
       if (ex) {
         if (ex.quantity >= avail) {
-          addNotification(`Only ${avail} in warehouse`, 'error');
+          addNotification(L.cap.replace('%n', avail), 'error');
           return prev;
         }
         return prev.map(c => c.productId === item.productId
@@ -64,7 +77,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => 
     setLoadList(prev => prev.map(c => {
       if (c.productId !== pid) return c;
       const next = Math.max(0, c.quantity + delta);
-      if (next > avail) { addNotification(`Only ${avail} in warehouse`, 'error'); return c; }
+      if (next > avail) { addNotification(L.cap.replace('%n', avail), 'error'); return c; }
       return { ...c, quantity: next };
     }).filter(c => c.quantity > 0));
   };
@@ -75,7 +88,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => 
     const avail = maxOf(pid);
     if (qty === 0) { setLoadList(prev => prev.filter(c => c.productId !== pid)); return; }
     if (qty > avail) {
-      addNotification(`Only ${avail} in warehouse`, 'error');
+      addNotification(L.cap.replace('%n', avail), 'error');
       setLoadList(prev => prev.map(c => c.productId === pid ? { ...c, quantity: avail } : c));
       return;
     }
@@ -118,7 +131,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => 
             <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center mx-auto mb-3">
               <CheckCircle2 size={30} className="text-white" />
             </div>
-            <div className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">Van Loaded</div>
+            <div className="text-[10px] font-black uppercase tracking-widest opacity-70 mb-1">{L.done}</div>
             <div className="text-3xl font-black tabular-nums">{totalUnits} units</div>
             <div className="text-[11px] opacity-60 mt-1">{vanName}</div>
           </div>
@@ -153,7 +166,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => 
               <Truck size={15} className="text-blue-600" />
             </div>
             <div>
-              <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Load Van</div>
+              <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{L.title}</div>
               <div className="text-sm font-black text-ink-primary leading-tight">
                 {vanName}
                 {vanPlate && <span className="ml-2 text-[10px] font-mono text-gray-400">{vanPlate}</span>}
@@ -177,7 +190,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => 
               <input
                 ref={searchRef}
                 type="text"
-                placeholder="Search warehouse products…"
+                placeholder={L.search}
                 className="w-full bg-white rounded-2xl py-4 pl-12 pr-4 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/20 shadow-sm font-medium"
                 value={searchTerm}
                 onChange={e => setSearchTerm(e.target.value)}
@@ -192,7 +205,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => 
             <div className="flex flex-col gap-px overflow-y-auto pr-1 pb-4">
               {filtered.length === 0 && (
                 <div className="py-16 text-center text-sm text-gray-400">
-                  No warehouse stock available.
+                  {L.empty}
                 </div>
               )}
               {filtered.map(item => {
@@ -216,11 +229,11 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => 
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-ink-primary truncate leading-tight">{item.productName}</div>
-                      {inList && <div className="text-[10px] text-accent-signature font-bold">{inList.quantity} to load</div>}
+                      {inList && <div className="text-[10px] text-accent-signature font-bold">{inList.quantity} {L.inWord}</div>}
                     </div>
                     <div className="text-right flex-shrink-0">
                       <div className={`text-xs font-semibold ${out ? 'text-red-400' : 'text-gray-400'}`}>
-                        {out ? 'OUT' : `${stock} in WH`}
+                        {out ? 'OUT' : `${stock} ${L.stockTag}`}
                       </div>
                     </div>
                     {inList && (
@@ -239,7 +252,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => 
             <div className="px-4 py-3 border-b border-black/5 flex justify-between items-center bg-canvas/30">
               <div className="flex items-center gap-2">
                 <Warehouse size={18} className="text-accent-signature" />
-                <h2 className="font-semibold text-sm text-ink-primary">Load List</h2>
+                <h2 className="font-semibold text-sm text-ink-primary">{L.list}</h2>
               </div>
               <div className="bg-accent-signature text-button-text text-[10px] font-black px-2 py-1 rounded-pill ring-4 ring-accent-signature/10">
                 {totalUnits} units
@@ -284,7 +297,7 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => 
               {loadList.length === 0 && (
                 <div className="h-full flex flex-col items-center justify-center opacity-30 pointer-events-none p-10 text-center">
                   <Package size={48} className="mb-4" />
-                  <div className="text-xs font-bold uppercase tracking-widest">Tap products to load</div>
+                  <div className="text-xs font-bold uppercase tracking-widest">{L.tap}</div>
                 </div>
               )}
             </div>
@@ -301,8 +314,8 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => 
                 onClick={handleConfirm}
                 className="w-full h-14 rounded-xl bg-ink-primary text-white font-black text-sm flex items-center justify-center gap-2 hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/20">
                 {submitting
-                  ? <><span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> Loading…</>
-                  : <><ArrowRight size={16} /> Load Vehicle ({totalUnits})</>
+                  ? <><span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" /> Working…</>
+                  : <><ArrowRight size={16} /> {L.cta} ({totalUnits})</>
                 }
               </button>
             </div>
