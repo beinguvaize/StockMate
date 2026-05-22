@@ -217,11 +217,16 @@ const Manufacturing = () => {
 const RecipeModal = ({ products, onClose, onSave }) => {
   const [finishedId, setFinishedId] = useState('');
   const [outputQty, setOutputQty]   = useState('1');
-  const [rows, setRows]             = useState([{ productId: '', quantity: '' }]);
+  const [rows, setRows]             = useState([{ productId: '', quantity: '', unit: 'BASE' }]);
   const [saving, setSaving]         = useState(false);
 
-  const setRow = (i, k, v) => setRows(rs => rs.map((r, idx) => idx === i ? { ...r, [k]: v } : r));
-  const addRow = () => setRows(rs => [...rs, { productId: '', quantity: '' }]);
+  const setRow = (i, k, v) => setRows(rs => rs.map((r, idx) => {
+    if (idx !== i) return r;
+    const next = { ...r, [k]: v };
+    if (k === 'productId') next.unit = 'BASE'; // reset unit when product changes
+    return next;
+  }));
+  const addRow = () => setRows(rs => [...rs, { productId: '', quantity: '', unit: 'BASE' }]);
   const delRow = (i) => setRows(rs => rs.filter((_, idx) => idx !== i));
 
   const canSave = finishedId && Number(outputQty) > 0 &&
@@ -249,17 +254,25 @@ const RecipeModal = ({ products, onClose, onSave }) => {
         </button>
       </div>
       <div className="space-y-2">
-        {rows.map((r, i) => (
-          <div key={i} className="grid grid-cols-[1fr_92px_36px] gap-2 items-center">
-            <select className={selCls} value={r.productId} onChange={e => setRow(i, 'productId', e.target.value)}>
-              <option value="">Material…</option>
-              {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <input type="number" min="0" placeholder="Qty" className={`${selCls} text-center`}
-              value={r.quantity} onChange={e => setRow(i, 'quantity', e.target.value)} />
-            <RowX onClick={() => delRow(i)} />
-          </div>
-        ))}
+        {rows.map((r, i) => {
+          const rp = products.find(p => p.id === r.productId);
+          return (
+            <div key={i} className="grid grid-cols-[1fr_60px_84px_36px] gap-2 items-center">
+              <select className={selCls} value={r.productId} onChange={e => setRow(i, 'productId', e.target.value)}>
+                <option value="">Material…</option>
+                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+              </select>
+              <input type="number" min="0" placeholder="Qty" className={`${selCls} text-center`}
+                value={r.quantity} onChange={e => setRow(i, 'quantity', e.target.value)} />
+              <select className={selCls} value={r.unit} onChange={e => setRow(i, 'unit', e.target.value)}
+                disabled={!rp?.secondary_unit}>
+                <option value="BASE">{rp?.unit || 'unit'}</option>
+                {rp?.secondary_unit && <option value="SECONDARY">{rp.secondary_unit}</option>}
+              </select>
+              <RowX onClick={() => delRow(i)} />
+            </div>
+          );
+        })}
       </div>
 
       <button disabled={!canSave || saving}
@@ -280,14 +293,23 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave }) => {
 
   const bom = boms.find(b => b.id === bomId);
 
-  // Materials scaled from the BOM by qty / output_qty
+  // Materials scaled from the BOM by qty / output_qty.
+  // A component qty in the raw's SECONDARY unit is converted to base.
   const materials = useMemo(() => {
     if (!bom) return [];
     const factor = Number(qty) > 0 ? Number(qty) / Number(bom.output_qty || 1) : 0;
     return bomComponents
       .filter(c => c.bom_id === bom.id)
-      .map(c => ({ productId: c.raw_product_id, quantity: +(c.quantity * factor).toFixed(3) }));
-  }, [bom, qty, bomComponents]);
+      .map(c => {
+        const raw = products.find(p => p.id === c.raw_product_id);
+        const cf = (c.unit === 'SECONDARY' && Number(raw?.conversion_factor) > 0)
+          ? Number(raw.conversion_factor) : 1;
+        return {
+          productId: c.raw_product_id,
+          quantity: +(c.quantity * cf * factor).toFixed(3), // base units
+        };
+      });
+  }, [bom, qty, bomComponents, products]);
 
   const productName = (id) => products.find(p => p.id === id)?.name || id;
   const setCost = (i, k, v) => setCosts(cs => cs.map((c, idx) => idx === i ? { ...c, [k]: v } : c));

@@ -46,7 +46,11 @@ export function useManufacturing(tenantId) {
       if (error) return { success: false, error };
       const rows = (components || [])
         .filter(c => c.productId && Number(c.quantity) > 0)
-        .map(c => ({ tenant_id: tenantId, bom_id: bom.id, raw_product_id: c.productId, quantity: Number(c.quantity) }));
+        .map(c => ({
+          tenant_id: tenantId, bom_id: bom.id,
+          raw_product_id: c.productId, quantity: Number(c.quantity),
+          unit: c.unit === 'SECONDARY' ? 'SECONDARY' : 'BASE',
+        }));
       if (rows.length) {
         const { error: ce } = await supabase.from('bom_components').insert(rows);
         if (ce) return { success: false, error: ce };
