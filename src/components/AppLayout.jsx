@@ -257,7 +257,6 @@ const Navbar = () => {
 
  {/* Right Section: Sync Status & User Profile */}
  <div className="flex items-center gap-3 sm:gap-4">
- <CloudStatus status={syncStatus} lastSyncedAt={lastSyncedAt} isOnline={isOnline} />
  <SyncStatus />
 
  <div className="relative" ref={dropdownRef}>

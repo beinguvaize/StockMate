@@ -143,8 +143,8 @@ const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose }) => 
 
   /* ── Main UI ────────────────────────────────────────────────────────── */
   return (
-    <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm flex items-stretch justify-center">
-      <div className="w-full max-w-6xl bg-canvas flex flex-col h-full">
+    <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
+      <div className="w-full flex-1 flex flex-col overflow-hidden">
 
         {/* Header */}
         <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-black/5 shrink-0">
