@@ -254,6 +254,11 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                         {unitCost > product.costPrice ? '▲' : '▼'} ₹{product.costPrice}
                       </p>
                     )}
+                    {unitCost !== null && product?.sellingPrice > 0 && unitCost > product.sellingPrice && (
+                      <p className="text-[8px] font-bold mt-1 ml-1 text-red-600">
+                        ⚠ Above sell price ₹{product.sellingPrice}
+                      </p>
+                    )}
                   </div>
 
                   {/* Total */}

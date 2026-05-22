@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { PackagePlus, CheckCircle2, ShoppingBag } from 'lucide-react';
+import { PackagePlus, CheckCircle2, ShoppingBag, AlertTriangle } from 'lucide-react';
 import Button from '../../../shared/Button';
 import { UNITS } from '../../../lib/constants';
 import { formatCurrency, todayISOInAppTZ } from '../../../lib/utils';
@@ -125,6 +125,12 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
               <span className={unitCost > selectedProduct.costPrice ? 'text-amber-600' : 'text-emerald-600'}>
                 {unitCost > selectedProduct.costPrice ? '▲' : '▼'} vs last {formatCurrency(selectedProduct.costPrice)}
               </span>
+            </div>
+          )}
+          {unitCost !== null && selectedProduct?.sellingPrice > 0 && unitCost > selectedProduct.sellingPrice && (
+            <div className="mt-1.5 flex items-start gap-1.5 text-[10px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg px-2 py-1.5">
+              <AlertTriangle size={11} className="shrink-0 mt-px" />
+              <span>Unit cost is above the selling price ({formatCurrency(selectedProduct.sellingPrice)}). Check for a data-entry error.</span>
             </div>
           )}
         </div>
