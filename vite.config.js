@@ -4,11 +4,11 @@ import tailwindcss from '@tailwindcss/vite'
 
 // https://vite.dev/config/
 export default defineConfig({
-  // Relative asset paths so the same build works under the web origin
-  // AND Electron's file:// protocol (otherwise /assets/* 404s against
-  // the user's filesystem root and lazy-loaded route chunks never
-  // resolve — surfaces as a blank "loading" screen on desktop).
-  base: './',
+  // No `base` override here. Web build (vite build) must use the
+  // default absolute "/" so deep SPA routes like
+  // /tenant-slug/dashboard resolve /assets/* against the origin root.
+  // Electron's build scripts pass `--base=./` on the CLI to switch to
+  // relative paths for the file:// protocol.
   plugins: [
     react(),
     tailwindcss(),
