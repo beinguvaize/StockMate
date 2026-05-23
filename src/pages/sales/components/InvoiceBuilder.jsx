@@ -23,6 +23,19 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const clientDropRef = useRef(null);
   const searchInputRef = useRef(null);
 
+  // Track the most-recently punched product so we can scroll its cart row
+  // into view. Use a tick + ref pair so re-clicking the same product still
+  // re-triggers the scroll effect.
+  const lastAddedRef = useRef(null);
+  const cartScrollRef = useRef(null);
+  const [addTick, setAddTick] = useState(0);
+
+  useEffect(() => {
+    if (!lastAddedRef.current || !cartScrollRef.current) return;
+    const row = cartScrollRef.current.querySelector(`[data-cart-row="${lastAddedRef.current}"]`);
+    if (row) row.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [addTick]);
+
   // Close dropdown on outside click
   useEffect(() => {
     const handler = (e) => {
@@ -139,6 +152,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
   const addToCart = (product) => {
     const available = getAvailableStock(product.id);
+    lastAddedRef.current = product.id;
+    setAddTick(t => t + 1);
     setCart(prev => {
       const existing = prev.find(item => item.productId === product.id);
       if (existing) {
@@ -427,13 +442,14 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto">
+        <div ref={cartScrollRef} className="flex-1 overflow-y-auto scroll-smooth">
           {cart.map(item => {
             const cost = fifoCosts[item.productId] ?? 0;
             const belowCost = cost > 0 && item.price < cost;
             return (
               <div
                 key={item.productId}
+                data-cart-row={item.productId}
                 className={`grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 items-center px-4 py-2.5 border-b border-black/5 last:border-0 transition-colors ${
                   belowCost ? 'bg-red-50/60' : 'hover:bg-canvas/40'
                 }`}
