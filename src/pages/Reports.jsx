@@ -31,6 +31,7 @@ import PartyProfitReport from '../components/reports/PartyProfitReport';
 import CategoryProfitReport from '../components/reports/CategoryProfitReport';
 import AllTransactionsReport from '../components/reports/AllTransactionsReport';
 import ItemPartyReport from '../components/reports/ItemPartyReport';
+import ProductSalesReport from '../components/reports/ProductSalesReport';
 
 import {
   TrendingUp, Package, UserCircle, Truck,
@@ -68,6 +69,7 @@ const Reports = () => {
     { id: 'CATEGORY_PROFIT',  group: 'OPERATIONAL', label: 'Category Profit',  icon: <Tag size={18} />,          component: <CategoryProfitReport />,         permission: 'inventory' },
     { id: 'ALL_TRANSACTIONS', group: 'OPERATIONAL', label: 'All Transactions', icon: <ArrowLeftRight size={18} />, component: <AllTransactionsReport />,      permission: 'reports' },
     { id: 'ITEM_PARTY',       group: 'OPERATIONAL', label: 'Item × Party',     icon: <GitFork size={18} />,      component: <ItemPartyReport />,              permission: 'sales' },
+    { id: 'PRODUCT_SALES',    group: 'OPERATIONAL', label: 'Product Sales',    icon: <Package size={18} />,      component: <ProductSalesReport />,           permission: 'sales' },
 
     // --- ACCOUNTING GROUP ---
     { id: 'BALANCE_SHEET', group: 'ACCOUNTING', label: 'Balance Sheet',       icon: <Scale size={18} />,       component: <BalanceSheetReport />,   permission: 'reports' },
