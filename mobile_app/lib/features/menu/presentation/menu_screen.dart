@@ -6,6 +6,7 @@ import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/crm_screen.dart';
 import 'package:mobile_app/features/daybook/presentation/daybook_screen.dart';
 import 'package:mobile_app/features/finance/presentation/finance_screen.dart';
 import 'package:mobile_app/features/hr/presentation/hr_screen.dart';
@@ -128,6 +129,17 @@ class MenuScreen extends ConsumerWidget {
                       _SectionLabel('Modules'),
                       const SizedBox(height: 12),
 
+                      _MenuCard(
+                        icon: LucideIcons.users,
+                        iconColor: const Color(0xFF14b8a6),
+                        label: 'Clients & Suppliers',
+                        subtitle: 'Add, edit, view parties',
+                        feature: 'clients',
+                        roles: roles,
+                        plan: plan,
+                        permissions: permissions,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CRMScreen())),
+                      ),
                       _MenuCard(
                         icon: LucideIcons.wallet,
                         iconColor: const Color(0xFFe6a817),
