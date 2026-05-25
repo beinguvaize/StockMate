@@ -75,7 +75,8 @@
     "publish": {
       "provider": "github",
       "owner": "beinguvaize",
-      "repo": "StockMate"
+      "repo": "StockMate",
+      "releaseType": "release"
     },
     "win": {
       "target": "nsis",
