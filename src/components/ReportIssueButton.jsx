@@ -11,12 +11,9 @@ const SEVERITIES = [
 ];
 
 const ReportIssueButton = () => {
+  // All hooks run unconditionally — React requires stable hook order.
   const { currentTenantId } = useTenant();
   const { submit } = useBugReports(currentTenantId);
-
-  // Don't render on guest screens (login/welcome) — no tenant context.
-  if (!currentTenantId) return null;
-
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -24,6 +21,9 @@ const ReportIssueButton = () => {
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState(null);
+
+  // Don't render on guest screens (login/welcome) — no tenant context.
+  if (!currentTenantId) return null;
 
   const reset = () => {
     setTitle(''); setDescription(''); setSeverity('NORMAL');
