@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/core/update/auto_updater.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:mobile_app/features/settings/presentation/providers/settings_provider.dart';
@@ -358,7 +359,28 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 error: (_, __) => const SizedBox.shrink(),
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
+
+              // ── Check for app updates ────────────────────────────
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => AutoUpdater.instance.checkForUpdate(context),
+                  icon: const Icon(LucideIcons.downloadCloud, size: 16),
+                  label: const Text('Check for Updates'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: const BorderSide(color: AppColors.primary),
+                    ),
+                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
 
               // ── Logout ───────────────────────────────────────────
               SizedBox(
