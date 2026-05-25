@@ -17,6 +17,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
+  bool _showPassword = false;
   bool _isGoogleLoading = false;
 
   Future<void> _handleLogin() async {
@@ -138,12 +139,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Password field
+                      // Password field — with show/hide toggle
                       _buildTextField(
                         controller: _passwordController,
                         hint: 'Password',
                         icon: LucideIcons.lock,
-                        obscureText: true,
+                        obscureText: !_showPassword,
+                        suffix: IconButton(
+                          icon: Icon(
+                            _showPassword ? LucideIcons.eyeOff : LucideIcons.eye,
+                            size: 18,
+                            color: AppColors.inkTertiary,
+                          ),
+                          tooltip: _showPassword ? 'Hide password' : 'Show password',
+                          onPressed: () => setState(() => _showPassword = !_showPassword),
+                        ),
                       ),
                       const SizedBox(height: 32),
 
@@ -267,6 +277,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     required IconData icon,
     bool obscureText = false,
     TextInputType? keyboardType,
+    Widget? suffix,
   }) {
     return TextField(
       controller: controller,
@@ -277,6 +288,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         hintText: hint,
         hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.inkTertiary),
         prefixIcon: Icon(icon, size: 18, color: AppColors.inkTertiary),
+        suffixIcon: suffix,
         filled: true,
         fillColor: AppColors.surfaceContainer,
         border: OutlineInputBorder(
