@@ -82,6 +82,10 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
       try {
         ref.read(syncServiceProvider).sync();
         ref.read(syncServiceProvider).pullSync();
+        // Force-refresh every screen's data — covers the case where the
+        // realtime websocket dropped while backgrounded so events were
+        // missed (user opens app, sees stale data without re-navigating).
+        ref.read(realtimeSyncProvider).refreshAll();
       } catch (_) {/* ignore — providers may not be ready before login */}
     }
   }

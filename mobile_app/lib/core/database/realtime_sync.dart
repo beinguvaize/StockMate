@@ -5,6 +5,8 @@
 // On INSERT/UPDATE/DELETE for a watched table we invalidate the matching
 // Riverpod provider so the next watch re-fetches.
 
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -18,12 +20,21 @@ import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_p
 
 class RealtimeSync {
   RealtimeChannel? _channel;
-  String? _tenantId;
+  String?          _tenantId;
+  Timer?           _backstopTimer;
+  WidgetRef?       _ref;
+
+  /// Cellular networks regularly drop the websocket, so realtime events
+  /// can be missed. This timer re-invalidates the key providers every
+  /// 60s as a safety net — the user sees fresh data without having to
+  /// back out of the current screen and return.
+  static const Duration _backstopInterval = Duration(seconds: 60);
 
   void start(String tenantId, WidgetRef ref) {
     if (_tenantId == tenantId && _channel != null) return;
     stop();
     _tenantId = tenantId;
+    _ref = ref;
 
     final channel = supabase.channel('tenant-realtime-$tenantId');
 
@@ -73,14 +84,38 @@ class RealtimeSync {
     });
 
     _channel = channel;
+
+    // Backstop poll — invalidates every 60s in case the websocket dropped
+    // and missed events. Cheap (no network until something `watch`es).
+    _backstopTimer?.cancel();
+    _backstopTimer = Timer.periodic(_backstopInterval, (_) => refreshAll());
+  }
+
+  /// Force-refresh every provider the channel watches. Safe to call from
+  /// pull-to-refresh handlers and app-lifecycle resume.
+  void refreshAll() {
+    final ref = _ref;
+    if (ref == null) return;
+    try {
+      ref.invalidate(productsProvider);
+      ref.invalidate(clientsProvider);
+      ref.invalidate(recentSalesProvider);
+      ref.invalidate(expensesProvider);
+      ref.invalidate(telemetryProvider);
+    } catch (e) {
+      debugPrint('[realtime] refreshAll error: $e');
+    }
   }
 
   void stop() {
+    _backstopTimer?.cancel();
+    _backstopTimer = null;
     if (_channel != null) {
       supabase.removeChannel(_channel!);
       _channel = null;
     }
     _tenantId = null;
+    _ref = null;
   }
 }
 

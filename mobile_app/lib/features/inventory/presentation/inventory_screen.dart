@@ -161,7 +161,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
             // ── Product list ───────────────────────────────────────
             Expanded(
-              child: ref.watch(filteredProductsProvider).when(
+              child: RefreshIndicator(
+                onRefresh: () async {
+                  ref.invalidate(productsProvider);
+                  await ref.read(productsProvider.future);
+                },
+                child: ref.watch(filteredProductsProvider).when(
                 data: (allProducts) {
                   final products = allProducts.where((p) {
                     if (_filterIndex == 1) return p.stock > 0 && p.stock <= 10;
@@ -417,6 +422,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 error: (error, stack) => Center(
                   child: Text('Error loading inventory', style: GoogleFonts.inter(color: AppColors.danger)),
                 ),
+              ),
               ),
             ),
           ],
