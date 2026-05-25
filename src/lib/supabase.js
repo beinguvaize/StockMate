@@ -38,7 +38,7 @@ if (
 // leaves hooks awaiting forever and the UI stuck on "Loading…". With a
 // timeout the request rejects, the hook's catch + auto-retry path kicks in,
 // and the page recovers on its own.
-const SUPABASE_FETCH_TIMEOUT_MS = 20000;
+const SUPABASE_FETCH_TIMEOUT_MS = 30000;
 
 const timedFetch = (input, init = {}) => {
   const ctrl = new AbortController();
