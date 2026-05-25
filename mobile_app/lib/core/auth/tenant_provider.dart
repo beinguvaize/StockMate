@@ -118,7 +118,7 @@ final tenantContextProvider = FutureProvider<TenantContext?>((ref) async {
         .select()
         .eq('id', userId)
         .maybeSingle()
-        .timeout(const Duration(seconds: 5));
+        .timeout(const Duration(seconds: 20));
 
     if (userProfileData == null) return null;
 
@@ -131,15 +131,18 @@ final tenantContextProvider = FutureProvider<TenantContext?>((ref) async {
         .select()
         .eq('id', userProfile.tenantId)
         .maybeSingle()
-        .timeout(const Duration(seconds: 5));
+        .timeout(const Duration(seconds: 20));
 
     if (tenantData == null) return null;
 
     final tenant = Tenant.fromMap(tenantData);
 
     return TenantContext(userProfile: userProfile, tenant: tenant);
-  } catch (e) {
-    // Network timeout or RLS error — return null so app shows ContactAdmin
+  } catch (e, st) {
+    // Network timeout or RLS error — return null so app shows ContactAdmin.
+    // Log so the cause is visible in the device's debug console / Crashlytics.
+    // ignore: avoid_print
+    print('[tenantContextProvider] failed: $e\n$st');
     return null;
   }
 });
