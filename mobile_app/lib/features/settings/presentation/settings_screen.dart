@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/update/auto_updater.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:mobile_app/features/settings/presentation/providers/settings_provider.dart';
@@ -360,6 +361,29 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
 
               const SizedBox(height: 16),
+
+              // ── App version ──────────────────────────────────────
+              FutureBuilder<PackageInfo>(
+                future: PackageInfo.fromPlatform(),
+                builder: (context, snap) {
+                  final v = snap.data;
+                  final label = v == null
+                      ? 'StockMate'
+                      : 'StockMate · v${v.version} (build ${v.buildNumber})';
+                  return Center(
+                    child: Text(
+                      label,
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: AppColors.inkTertiary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 12),
 
               // ── Check for app updates ────────────────────────────
               SizedBox(
