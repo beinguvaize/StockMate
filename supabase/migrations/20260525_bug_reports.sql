@@ -39,3 +39,10 @@ returns trigger language plpgsql as $$ begin new.updated_at := now(); return new
 drop trigger if exists trg_bug_reports_updated on public.bug_reports;
 create trigger trg_bug_reports_updated before update on public.bug_reports
   for each row execute function public.bug_reports_touch_updated();
+
+-- Allow global admins to insert reports while impersonating a tenant
+-- (their current_tenant_id() resolves to their home tenant, not the
+-- impersonated one).
+drop policy if exists tenant_self_insert on public.bug_reports;
+create policy tenant_self_insert on public.bug_reports for insert
+  with check (tenant_id = current_tenant_id() or is_global_admin());
