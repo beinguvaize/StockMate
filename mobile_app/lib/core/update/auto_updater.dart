@@ -69,23 +69,49 @@ class AutoUpdater {
     return parse(latest) > parse(current);
   }
 
-  /// Main entry — called from app start.
-  /// Shows a dialog if a newer release is available.
-  Future<void> checkForUpdate(BuildContext context) async {
-    if (_checking || !Platform.isAndroid) return;
+  /// Main entry. Called silently from app launch (verbose=false) and
+  /// from the "Check for Updates" button in Settings (verbose=true).
+  /// In verbose mode the user always sees a toast describing the result.
+  Future<void> checkForUpdate(BuildContext context, {bool verbose = false}) async {
+    if (_checking) return;
+    if (!Platform.isAndroid) {
+      if (verbose) _toast(context, 'Auto-update is Android-only for now.');
+      return;
+    }
     _checking = true;
+    if (verbose) _toast(context, 'Checking for updates…');
     try {
       final info    = await PackageInfo.fromPlatform();
       final release = await _fetchLatest();
-      if (release == null) return;
-      if (!_isNewer(info.version, release.version)) return;
+      if (release == null) {
+        if (verbose && context.mounted) {
+          _toast(context, 'Could not reach GitHub. Try again later.');
+        }
+        return;
+      }
+      if (!_isNewer(info.version, release.version)) {
+        if (verbose && context.mounted) {
+          _toast(context, 'You’re on the latest version (v${info.version}).');
+        }
+        return;
+      }
       if (!context.mounted) return;
       await _showDialog(context, current: info.version, release: release);
     } catch (e) {
       debugPrint('[autoUpdater] check failed: $e');
+      if (verbose && context.mounted) {
+        _toast(context, 'Update check failed: $e');
+      }
     } finally {
       _checking = false;
     }
+  }
+
+  void _toast(BuildContext context, String msg) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
+    );
   }
 
   Future<void> _showDialog(BuildContext context, {required String current, required _ReleaseInfo release}) async {

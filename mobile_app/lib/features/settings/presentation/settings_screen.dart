@@ -389,7 +389,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => AutoUpdater.instance.checkForUpdate(context),
+                  onPressed: () => AutoUpdater.instance.checkForUpdate(context, verbose: true),
                   icon: const Icon(LucideIcons.downloadCloud, size: 16),
                   label: const Text('Check for Updates'),
                   style: OutlinedButton.styleFrom(
