@@ -1,6 +1,6 @@
-name: Release Desktop App
+name: Release Desktop + Mobile App
 
-# Push a version tag (e.g. v1.0.0) to build + publish installers.
+# Push a version tag (e.g. v1.0.0) to build + publish installers + APK.
 on:
   push:
     tags:
@@ -10,7 +10,7 @@ permissions:
   contents: write
 
 jobs:
-  release:
+  desktop:
     strategy:
       fail-fast: false
       matrix:
@@ -42,3 +42,44 @@ jobs:
           VITE_BOOTSTRAP_ADMIN_EMAILS: ${{ secrets.VITE_BOOTSTRAP_ADMIN_EMAILS }}
           VITE_ENV: production
         run: npm run electron:publish
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Pub get
+        working-directory: mobile_app
+        run: flutter pub get
+
+      - name: Build release APK
+        working-directory: mobile_app
+        run: flutter build apk --release
+
+      - name: Rename APK with version tag
+        working-directory: mobile_app
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          mv build/app/outputs/flutter-apk/app-release.apk \
+             build/app/outputs/flutter-apk/StockMate-${TAG}.apk
+
+      - name: Attach APK to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: mobile_app/build/app/outputs/flutter-apk/StockMate-*.apk
+          fail_on_unmatched_files: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/database/realtime_sync.dart';
+import 'package:mobile_app/core/update/auto_updater.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/auth/data/auth_provider.dart';
@@ -274,6 +275,9 @@ class _TenantGateState extends ConsumerState<_TenantGate> {
           ref.read(syncServiceProvider).pullSync();
           // ignore: unawaited_futures
           ref.read(syncServiceProvider).sync();
+          // Check GitHub Releases for a newer APK and prompt if found.
+          // ignore: unawaited_futures
+          AutoUpdater.instance.checkForUpdate(context);
         });
       }
 
