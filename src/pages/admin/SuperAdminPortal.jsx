@@ -10,6 +10,7 @@ import {
   Zap, Database, Globe, RefreshCcw, Mail, Settings, X, LogIn, ShieldAlert, Hash, LayoutDashboard, LogOut
 } from 'lucide-react';
 import ErrorDiagnosticsPanel from '../../components/admin/ErrorDiagnosticsPanel';
+import BugReportsAdmin from '../../components/admin/BugReportsAdmin';
 
 const SuperAdminPortal = () => {
   const { currentUser, logout } = useAuth();
@@ -245,6 +246,11 @@ const SuperAdminPortal = () => {
         <StatCard label="Platform Users" value={globalStats.activeUsers} icon={Users} color="bg-emerald-600" detail="REAL-TIME" />
         <StatCard label="System Integrity" value={globalStats.systemHealth} icon={Activity} color="bg-indigo-600" detail="STABLE" />
         <StatCard label="Database Volume" value={globalStats.dbSize} icon={Database} color="bg-purple-600" detail="94% FREE" />
+      </div>
+
+      {/* Bug Reports — tenant-submitted issues */}
+      <div className="mb-12">
+        <BugReportsAdmin tenants={tenants} />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

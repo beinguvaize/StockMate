@@ -12,6 +12,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import ErrorBoundary from './components/ErrorBoundary';
 import GlobalLoading from './components/GlobalLoading';
 import DesktopUpdater from './components/DesktopUpdater';
+import ReportIssueButton from './components/ReportIssueButton';
 
 // ── Eager (tiny, needed immediately) ────────────────────────────────────────
 import Login   from './pages/Login';
@@ -196,6 +197,7 @@ function App() {
         <AppRoutes />
       </ErrorBoundary>
       <DesktopUpdater />
+      <ReportIssueButton />
     </Router>
   );
 }
