@@ -203,6 +203,10 @@ Future<({bool success, String? error})> placeVanSale({
       'p_tenant_id':      tenantId,
       'p_route_id':       routeId,
     });
+    // Tag van-sale origin so reports show channel + app correctly.
+    try {
+      await supabase.from('sales').update({'source_app': 'VAN'}).eq('id', saleId);
+    } catch (_) {}
     return (success: true, error: null);
   } catch (e) {
     return (success: false, error: e.toString());

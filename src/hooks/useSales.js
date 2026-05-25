@@ -205,6 +205,14 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         return { error: rpcError };
       }
 
+      // Tag which client created the sale so reports can split
+      // web vs desktop traffic. Electron exposes "Electron" in the UA.
+      const sourceApp =
+        typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent)
+          ? 'DESKTOP'
+          : 'WEB';
+      await supabase.from('sales').update({ source_app: sourceApp }).eq('id', id);
+
       await fetchSales();
       return { success: true, id };
     },

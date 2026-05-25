@@ -250,6 +250,14 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
           .rpcOnlineOrQueue('process_sale', rpcParams);
       debugPrint(queued ? '[SALE] queued for offline sync' : '[SALE] RPC success');
 
+      // Tag the sale so reports can split mobile from web/desktop.
+      // process_sale doesn't take this column, so update after.
+      if (!queued) {
+        try {
+          await supabase.from('sales').update({'source_app': 'MOBILE'}).eq('id', saleId);
+        } catch (_) {}
+      }
+
       if (paymentMethod == 'CREDIT_SALE' && _selectedClient != null) {
         try {
           final currentOutstanding = _selectedClient!.outstandingBalance ?? 0;

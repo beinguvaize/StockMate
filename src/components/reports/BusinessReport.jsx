@@ -145,6 +145,7 @@ const BusinessReport = () => {
   const { data: purchases, loading: purchLoading }     = useReportData({ table: 'purchases', select: '*', dateColumn: 'date', filters });
   const { data: clients }                              = useReportData({ table: 'clients',   select: 'id, name, outstanding_balance' });
   const { data: vehicles }                             = useReportData({ table: 'vehicles',  select: 'id, plateNumber, name' });
+  const { data: users }                                = useReportData({ table: 'users',     select: 'id, name, email' });
 
   const loading = salesLoading || purchLoading;
 
@@ -577,7 +578,7 @@ const BusinessReport = () => {
       </div>
 
       {/* ── DETAILED DAILY SALES LOG ────────────────────────────────────── */}
-      <DailySalesDetail sales={sales} clients={clients} vehicles={vehicles} loading={salesLoading} />
+      <DailySalesDetail sales={sales} clients={clients} vehicles={vehicles} users={users} loading={salesLoading} />
 
     </div>
   );
@@ -586,7 +587,14 @@ const BusinessReport = () => {
 /* ─── Detailed daily breakdown ────────────────────────────────────────────── */
 const PAY_BADGE = { CASH: 'bg-emerald-50 text-emerald-700', UPI: 'bg-indigo-50 text-indigo-700', CREDIT: 'bg-amber-50 text-amber-700', BANK: 'bg-blue-50 text-blue-700' };
 
-const DailySalesDetail = ({ sales, clients, vehicles = [], loading }) => {
+const APP_BADGE = {
+  WEB:     'bg-sky-50 text-sky-700 border-sky-200',
+  DESKTOP: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  MOBILE:  'bg-emerald-50 text-emerald-700 border-emerald-200',
+  VAN:     'bg-violet-50 text-violet-700 border-violet-200',
+};
+
+const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }) => {
   const [openDates, setOpenDates] = useState({});
 
   const byDate = useMemo(() => {
@@ -650,8 +658,8 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], loading }) => {
             {isOpen && (
               <div className="bg-canvas/30 border-t border-black/5">
                 {/* Column labels */}
-                <div className="grid grid-cols-[1fr_180px_60px_70px_90px_110px] gap-3 px-8 py-2 border-b border-black/5">
-                  {['Client', 'Products', 'Items', 'Source', 'Method', 'Amount'].map(h => (
+                <div className="grid grid-cols-[1fr_160px_50px_70px_70px_110px_80px_110px] gap-3 px-8 py-2 border-b border-black/5">
+                  {['Client', 'Products', 'Items', 'Source', 'App', 'By', 'Method', 'Amount'].map(h => (
                     <span key={h} className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{h}</span>
                   ))}
                 </div>
@@ -664,13 +672,18 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], loading }) => {
                   const prodList = items.map(it => `${it.name}${it.quantity > 1 ? ` ×${it.quantity}` : ''}`).join(', ');
                   const method   = (s.paymentMethod || 'CASH').toUpperCase();
                   const badgeCls = PAY_BADGE[method] || 'bg-gray-100 text-gray-600';
-                  const isVan    = !!(s.routeId || s.vehicleId);
+                  const isVan    = !!(s.routeId || s.vehicleId) || s.source_app === 'VAN';
                   const vehicle  = isVan && s.vehicleId ? vehicles.find(v => v.id === s.vehicleId) : null;
                   const vanLabel = vehicle ? (vehicle.plateNumber || vehicle.name || 'VAN') : 'VAN';
+                  const app      = (s.source_app || 'WEB').toUpperCase();
+                  const appCls   = APP_BADGE[app] || APP_BADGE.WEB;
+                  const userId   = s.cashier_id || s.bookedBy || s.salesRepId;
+                  const user     = userId ? users.find(u => u.id === userId) : null;
+                  const byLabel  = user?.name || (user?.email ? user.email.split('@')[0] : '—');
 
                   return (
                     <div key={s.id || si}
-                      className="grid grid-cols-[1fr_180px_60px_70px_90px_110px] gap-3 px-8 py-3 border-b border-black/5 last:border-0 hover:bg-white/60 transition-colors items-start">
+                      className="grid grid-cols-[1fr_160px_50px_70px_70px_110px_80px_110px] gap-3 px-8 py-3 border-b border-black/5 last:border-0 hover:bg-white/60 transition-colors items-start">
 
                       {/* Client */}
                       <div className="flex items-center gap-2 min-w-0">
@@ -709,6 +722,16 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], loading }) => {
                           </span>
                         )
                       }
+
+                      {/* App / channel */}
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit border ${appCls}`}>
+                        {app}
+                      </span>
+
+                      {/* Sold by */}
+                      <span className="text-[11px] font-bold text-ink-secondary truncate" title={user?.email || ''}>
+                        {byLabel}
+                      </span>
 
                       {/* Payment method */}
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit ${badgeCls}`}>
