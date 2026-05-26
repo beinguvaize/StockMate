@@ -46,9 +46,9 @@ export const usePeople = (tenantId) => {
         { data: empData, error: empErr },
         { data: userData, error: userErr }
       ] = await Promise.all([
-        supabase.from('clients').select('*').eq('tenant_id', tenantId).order('name'),
-        supabase.from('suppliers').select('*').eq('tenant_id', tenantId).order('name'),
-        supabase.from('employees').select('*').eq('tenant_id', tenantId).order('name'),
+        supabase.from('clients').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+        supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+        supabase.from('employees').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
         supabase.from('users').select('*').eq('tenant_id', tenantId).order('name')
       ]);
 

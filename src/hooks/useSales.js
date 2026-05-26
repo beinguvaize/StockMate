@@ -44,7 +44,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         { data: clientsData, error: clientsErr },
         { data: invoicesData, error: invoicesErr }
       ] = await Promise.all([
-        supabase.from('sales').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false, nullsFirst: false }).limit(500),
+        supabase.from('sales').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(500),
         supabase.from('clients').select('*').eq('tenant_id', tenantId).order('name'),
         supabase.from('invoices').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(500)
       ]);

@@ -30,9 +30,9 @@ export const usePurchases = (tenantId) => {
         { data: supData, error: supErr },
         { data: retData, error: retErr },
       ] = await Promise.all([
-        supabase.from('purchases').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false, nullsFirst: false }).limit(200),
-        supabase.from('suppliers').select('*').eq('tenant_id', tenantId).order('name'),
-        supabase.from('purchase_returns').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(200),
+        supabase.from('purchases').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(200),
+        supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+        supabase.from('purchase_returns').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(200),
       ]);
 
       if (purErr) throw purErr;
