@@ -22,9 +22,10 @@ const _githubRepo = 'beinguvaize/StockMate';
 
 class _ReleaseInfo {
   final String version;       // e.g. "1.0.7"
-  final String apkUrl;        // direct download URL of the .apk asset
+  final String apkUrl;        // direct download URL of the .apk asset (empty = pending)
   final String releaseNotes;  // optional changelog body
   _ReleaseInfo({required this.version, required this.apkUrl, required this.releaseNotes});
+  factory _ReleaseInfo.noAsset() => _ReleaseInfo(version: '', apkUrl: '', releaseNotes: '');
 }
 
 class AutoUpdater {
@@ -45,12 +46,18 @@ class AutoUpdater {
     // small + we only need a few fields.
     final body = res.body;
     final tagMatch  = RegExp(r'"tag_name"\s*:\s*"([^"]+)"').firstMatch(body);
-    if (tagMatch == null) return null;
+    if (tagMatch == null) return _ReleaseInfo.noAsset();
     final notesMatch = RegExp(r'"body"\s*:\s*"((?:[^"\\]|\\.)*)"').firstMatch(body);
 
     // First .apk asset in the assets array
     final apkMatch = RegExp(r'"browser_download_url"\s*:\s*"([^"]+\.apk)"').firstMatch(body);
-    if (apkMatch == null) return null;
+    if (apkMatch == null) {
+      return _ReleaseInfo(
+        version: tagMatch.group(1)!.replaceFirst(RegExp(r'^v'), ''),
+        apkUrl: '',
+        releaseNotes: (notesMatch?.group(1) ?? '').replaceAll(r'\n', '\n').replaceAll(r'\"', '"'),
+      );
+    }
 
     return _ReleaseInfo(
       version: tagMatch.group(1)!.replaceFirst(RegExp(r'^v'), ''),
@@ -86,6 +93,14 @@ class AutoUpdater {
       if (release == null) {
         if (verbose && context.mounted) {
           _toast(context, 'Could not reach GitHub. Try again later.');
+        }
+        return;
+      }
+      if (release.apkUrl.isEmpty) {
+        if (verbose && context.mounted) {
+          _toast(context, release.version.isEmpty
+              ? 'Could not reach GitHub. Try again later.'
+              : 'Update v${release.version} is being prepared. Try again in a minute.');
         }
         return;
       }
