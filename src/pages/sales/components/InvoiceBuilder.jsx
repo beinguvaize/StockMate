@@ -637,17 +637,22 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           </div>
           <div className="space-y-2 mb-6">
             <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
-              <span>Subtotal</span>
-              <span>{formatCurrency(subtotal)}</span>
+              <span>{taxInclusive ? 'Subtotal (excl. tax)' : 'Subtotal'}</span>
+              <span>{formatCurrency(taxableAmount)}</span>
             </div>
             <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
-              <span>Tax</span>
+              <span>Tax{taxInclusive ? ' (included)' : ''}</span>
               <span>{formatCurrency(tax)}</span>
             </div>
             <div className="flex justify-between text-xl font-black text-ink-primary pt-2 border-t border-black/5">
               <span>Total</span>
               <span>{formatCurrency(total)}</span>
             </div>
+            {taxInclusive && (
+              <p className="text-[10px] text-gray-400 font-medium text-right">
+                Listed prices include GST — subtotal shown net of tax.
+              </p>
+            )}
           </div>
           
           {/* Below-cost hard block */}
