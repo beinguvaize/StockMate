@@ -111,33 +111,46 @@ final tenantContextProvider = FutureProvider<TenantContext?>((ref) async {
   final userId = ref.watch(userIdProvider);
   if (userId == null) return null;
 
-  try {
-    // Load user profile — 8s timeout so emulator network never hangs forever
+  // Retry with backoff — after a fresh sign-in the JWT can take a moment
+  // to propagate into the supabase client; the first query then 401s and
+  // RLS rejects the read. Three attempts give the session room to settle
+  // before we surface the "No Business Account" screen.
+  Future<TenantContext?> attempt() async {
     final userProfileData = await supabase
         .from('users')
         .select()
         .eq('id', userId)
         .maybeSingle()
         .timeout(const Duration(seconds: 20));
-
     if (userProfileData == null) return null;
 
     final userProfile = UserProfile.fromMap(userProfileData);
     if (userProfile.tenantId.isEmpty) return null;
 
-    // Load tenant
     final tenantData = await supabase
         .from('tenants')
         .select()
         .eq('id', userProfile.tenantId)
         .maybeSingle()
         .timeout(const Duration(seconds: 20));
-
     if (tenantData == null) return null;
 
-    final tenant = Tenant.fromMap(tenantData);
+    return TenantContext(userProfile: userProfile, tenant: Tenant.fromMap(tenantData));
+  }
 
-    return TenantContext(userProfile: userProfile, tenant: tenant);
+  try {
+    for (var i = 0; i < 3; i++) {
+      try {
+        final ctx = await attempt();
+        if (ctx != null) return ctx;
+      } catch (e) {
+        // ignore: avoid_print
+        print('[tenantContextProvider] attempt ${i + 1} failed: $e');
+        if (i == 2) rethrow;
+      }
+      await Future.delayed(Duration(milliseconds: 800 * (i + 1)));
+    }
+    return null;
   } catch (e, st) {
     // Network timeout or RLS error — return null so app shows ContactAdmin.
     // Log so the cause is visible in the device's debug console / Crashlytics.

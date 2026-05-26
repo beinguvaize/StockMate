@@ -324,11 +324,11 @@ class _SplashScreen extends StatelessWidget {
   }
 }
 
-class _ContactAdminScreen extends StatelessWidget {
+class _ContactAdminScreen extends ConsumerWidget {
   const _ContactAdminScreen();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: Center(
@@ -352,15 +352,24 @@ class _ContactAdminScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Your account is not linked to a business. Please contact your admin or sign up on the web.',
+                "We couldn't load your workspace. This usually clears up with a retry — sometimes the session needs a moment to settle.",
                 textAlign: TextAlign.center,
                 style: TextStyle(color: AppColors.inkSecondary, fontSize: 14),
               ),
               const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () async {
-                  await supabase.auth.signOut();
-                },
+              ElevatedButton.icon(
+                icon: const Icon(LucideIcons.refreshCw, size: 16),
+                onPressed: () => ref.invalidate(tenantContextProvider),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                ),
+                label: const Text('Retry'),
+              ),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () async => supabase.auth.signOut(),
                 child: const Text('Sign Out'),
               ),
             ],

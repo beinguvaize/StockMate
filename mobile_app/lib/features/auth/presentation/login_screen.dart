@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+// Keystore-backed credential storage for the "Remember me" feature.
+const _secureStore = FlutterSecureStorage(
+  aOptions: AndroidOptions(encryptedSharedPreferences: true),
+);
+const _kRememberEmail = 'ledgr.remember.email';
+const _kRememberPass  = 'ledgr.remember.password';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -19,16 +27,53 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   bool _isLoading = false;
   bool _showPassword = false;
   bool _isGoogleLoading = false;
+  bool _rememberMe = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _restoreRemembered();
+  }
+
+  Future<void> _restoreRemembered() async {
+    try {
+      final email = await _secureStore.read(key: _kRememberEmail);
+      final pass  = await _secureStore.read(key: _kRememberPass);
+      if (!mounted) return;
+      if (email != null && email.isNotEmpty) {
+        _emailController.text = email;
+        if (pass != null && pass.isNotEmpty) {
+          _passwordController.text = pass;
+          setState(() => _rememberMe = true);
+        }
+      }
+    } catch (_) {/* ignore — first install or platform refuses */}
+  }
+
+  Future<void> _persistRemembered(String email, String password) async {
+    try {
+      if (_rememberMe) {
+        await _secureStore.write(key: _kRememberEmail, value: email);
+        await _secureStore.write(key: _kRememberPass,  value: password);
+      } else {
+        await _secureStore.delete(key: _kRememberEmail);
+        await _secureStore.delete(key: _kRememberPass);
+      }
+    } catch (_) {/* ignore */}
+  }
 
   Future<void> _handleLogin() async {
     setState(() => _isLoading = true);
+    final email = _emailController.text.trim();
+    final pass  = _passwordController.text.trim();
     try {
       final response = await supabase.auth.signInWithPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        email: email,
+        password: pass,
       );
 
       if (response.session != null) {
+        await _persistRemembered(email, pass);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Login Successful')),
@@ -155,7 +200,36 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           onPressed: () => setState(() => _showPassword = !_showPassword),
                         ),
                       ),
-                      const SizedBox(height: 32),
+                      const SizedBox(height: 12),
+
+                      // Remember me
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _rememberMe,
+                            onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                            visualDensity: VisualDensity.compact,
+                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            activeColor: AppColors.primaryContainer,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: GestureDetector(
+                              onTap: () => setState(() => _rememberMe = !_rememberMe),
+                              child: Text(
+                                'Remember me on this device',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.inkSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 20),
 
                       // Sign In button
                       SizedBox(

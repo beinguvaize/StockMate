@@ -71,6 +71,9 @@ dependencies:
   http: ^1.2.0
   ota_update: ^7.0.0
 
+  # "Remember me" — secure credential storage backed by Android Keystore
+  flutter_secure_storage: ^9.2.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
