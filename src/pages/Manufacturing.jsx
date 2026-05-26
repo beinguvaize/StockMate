@@ -233,51 +233,75 @@ const RecipeModal = ({ products, onClose, onSave }) => {
     rows.some(r => r.productId && Number(r.quantity) > 0);
 
   return (
-    <Modal title="New Recipe" subtitle="Define the raw materials for a product" onClose={onClose}>
-      <Field label="Finished Product">
-        <select className={selCls} value={finishedId} onChange={e => setFinishedId(e.target.value)}>
-          <option value="">Select product…</option>
-          {products.filter(p => p.product_type !== 'RAW').map(p =>
-            <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-      </Field>
-      <Field label="Output Quantity" hint="units made per build">
-        <input type="number" min="1" className={selCls} value={outputQty}
-          onChange={e => setOutputQty(e.target.value)} />
-      </Field>
-
-      <div className="flex items-center justify-between mt-1 mb-2">
-        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Raw Materials</span>
-        <button onClick={addRow} type="button"
-          className="flex items-center gap-1 text-[11px] font-black text-accent-signature hover:underline">
-          <Plus size={12} /> Add
-        </button>
+    <Modal title="New Recipe" subtitle="Define the raw materials and output for a finished product" onClose={onClose} size="xl">
+      {/* Top: Finished product + output side-by-side */}
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-5 mb-6">
+        <Field label="Finished Product">
+          <select className={selCls} value={finishedId} onChange={e => setFinishedId(e.target.value)}>
+            <option value="">Select product…</option>
+            {products.filter(p => p.product_type !== 'RAW').map(p =>
+              <option key={p.id} value={p.id}>{p.name}</option>)}
+          </select>
+        </Field>
+        <Field label="Output Quantity" hint="units made per build">
+          <input type="number" min="1" className={selCls} value={outputQty}
+            onChange={e => setOutputQty(e.target.value)} />
+        </Field>
       </div>
-      <div className="space-y-2">
-        {rows.map((r, i) => {
-          const rp = products.find(p => p.id === r.productId);
-          return (
-            <div key={i} className="grid grid-cols-[1fr_60px_84px_36px] gap-2 items-center">
-              <select className={selCls} value={r.productId} onChange={e => setRow(i, 'productId', e.target.value)}>
-                <option value="">Material…</option>
-                {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
-              <input type="number" min="0" placeholder="Qty" className={`${selCls} text-center`}
-                value={r.quantity} onChange={e => setRow(i, 'quantity', e.target.value)} />
-              <select className={selCls} value={r.unit} onChange={e => setRow(i, 'unit', e.target.value)}
-                disabled={!rp?.secondary_unit}>
-                <option value="BASE">{rp?.unit || 'unit'}</option>
-                {rp?.secondary_unit && <option value="SECONDARY">{rp.secondary_unit}</option>}
-              </select>
-              <RowX onClick={() => delRow(i)} />
+
+      {/* Raw materials card */}
+      <div className="rounded-2xl border border-gray-200 bg-gradient-to-br from-canvas/40 to-white shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-gray-200 bg-white">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg bg-accent-signature/10 flex items-center justify-center">
+              <Factory size={13} className="text-accent-signature" />
             </div>
-          );
-        })}
+            <div>
+              <div className="text-xs font-black text-ink-primary uppercase tracking-wider">Raw Materials</div>
+              <div className="text-[10px] text-gray-400 font-medium">{rows.filter(r => r.productId && Number(r.quantity) > 0).length} component{rows.length === 1 ? '' : 's'}</div>
+            </div>
+          </div>
+          <button onClick={addRow} type="button"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-signature text-button-text text-[11px] font-black uppercase tracking-wider hover:bg-accent-signature/90 transition-all shadow-sm">
+            <Plus size={12} strokeWidth={3} /> Add Material
+          </button>
+        </div>
+
+        {/* Column header */}
+        <div className="grid grid-cols-[1fr_110px_110px_40px] gap-3 px-5 py-2 bg-canvas/40 border-b border-gray-200">
+          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Material</span>
+          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Quantity</span>
+          <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-center">Unit</span>
+          <span />
+        </div>
+
+        <div className="p-3 space-y-2">
+          {rows.map((r, i) => {
+            const rp = products.find(p => p.id === r.productId);
+            return (
+              <div key={i} className="grid grid-cols-[1fr_110px_110px_40px] gap-3 items-center">
+                <select className={selCls} value={r.productId} onChange={e => setRow(i, 'productId', e.target.value)}>
+                  <option value="">Material…</option>
+                  {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+                <input type="number" min="0" placeholder="0" className={`${selCls} text-center tabular-nums`}
+                  value={r.quantity} onChange={e => setRow(i, 'quantity', e.target.value)} />
+                <select className={selCls} value={r.unit} onChange={e => setRow(i, 'unit', e.target.value)}
+                  disabled={!rp?.secondary_unit}>
+                  <option value="BASE">{rp?.unit || 'unit'}</option>
+                  {rp?.secondary_unit && <option value="SECONDARY">{rp.secondary_unit}</option>}
+                </select>
+                <RowX onClick={() => delRow(i)} />
+              </div>
+            );
+          })}
+        </div>
       </div>
 
+      {/* Save */}
       <button disabled={!canSave || saving}
         onClick={async () => { setSaving(true); await onSave({ finishedProductId: finishedId, name: null, outputQty: Number(outputQty), components: rows }); setSaving(false); }}
-        className="w-full mt-6 h-13 py-3.5 rounded-2xl bg-ink-primary text-white font-black text-sm hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-ink-primary/20">
+        className="w-full mt-7 h-14 rounded-2xl bg-ink-primary text-white font-black text-sm tracking-wider uppercase hover:bg-ink-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-xl shadow-ink-primary/25">
         {saving ? 'Saving…' : 'Save Recipe'}
       </button>
     </Modal>
@@ -405,25 +429,28 @@ const RowX = ({ onClick }) => (
   </button>
 );
 
-const Modal = ({ title, subtitle, onClose, children }) => (
-  <div className="fixed inset-0 z-50 bg-ink-primary/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
-    <div className="w-full max-w-lg bg-white rounded-[1.75rem] shadow-2xl max-h-[90vh] overflow-y-auto animate-in zoom-in-95 duration-200">
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-black/5 sticky top-0 bg-white z-10">
-        <div className="w-10 h-10 rounded-2xl bg-accent-signature/10 flex items-center justify-center shrink-0">
-          <Factory size={18} className="text-accent-signature" />
+const Modal = ({ title, subtitle, onClose, children, size = 'lg' }) => {
+  const widthCls = size === 'xl' ? 'max-w-4xl' : size === 'md' ? 'max-w-xl' : 'max-w-2xl';
+  return (
+    <div className="fixed inset-0 z-50 bg-ink-primary/40 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+      <div className={`w-full ${widthCls} bg-white rounded-[2rem] shadow-2xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200`}>
+        <div className="flex items-center gap-4 px-8 py-6 border-b border-black/5 sticky top-0 bg-white/95 backdrop-blur z-10">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent-signature/15 to-accent-signature/5 border border-accent-signature/10 flex items-center justify-center shrink-0 shadow-sm">
+            <Factory size={20} className="text-accent-signature" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-black text-ink-primary leading-tight">{title}</h2>
+            {subtitle && <p className="text-xs text-gray-400 font-medium mt-0.5">{subtitle}</p>}
+          </div>
+          <button onClick={onClose}
+            className="w-10 h-10 rounded-full border border-black/10 flex items-center justify-center text-gray-400 hover:text-ink-primary hover:border-black/25 hover:rotate-90 transition-all shrink-0">
+            <X size={16} />
+          </button>
         </div>
-        <div className="flex-1 min-w-0">
-          <h2 className="text-base font-black text-ink-primary leading-tight">{title}</h2>
-          {subtitle && <p className="text-[11px] text-gray-400 font-medium">{subtitle}</p>}
-        </div>
-        <button onClick={onClose}
-          className="w-9 h-9 rounded-full border border-black/10 flex items-center justify-center text-gray-400 hover:text-ink-primary hover:border-black/25 transition-all shrink-0">
-          <X size={15} />
-        </button>
+        <div className="px-8 py-7">{children}</div>
       </div>
-      <div className="px-6 py-6">{children}</div>
     </div>
-  </div>
-);
+  );
+};
 
 export default Manufacturing;
