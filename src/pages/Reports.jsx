@@ -32,6 +32,7 @@ import CategoryProfitReport from '../components/reports/CategoryProfitReport';
 import AllTransactionsReport from '../components/reports/AllTransactionsReport';
 import ItemPartyReport from '../components/reports/ItemPartyReport';
 import ProductSalesReport from '../components/reports/ProductSalesReport';
+import PurchasesReport from '../components/reports/PurchasesReport';
 
 import {
   TrendingUp, Package, UserCircle, Truck,
@@ -40,7 +41,7 @@ import {
   FileText, FileCheck, Target, CalendarRange, Receipt, Tag,
   BookMarked, BarChart2, AlertTriangle, Users,
   PieChart, ArrowLeftRight, GitFork,
-  Search, ChevronDown,
+  Search, ChevronDown, ShoppingBag,
 } from 'lucide-react';
 
 const Reports = () => {
@@ -70,6 +71,7 @@ const Reports = () => {
     { id: 'ALL_TRANSACTIONS', group: 'OPERATIONAL', label: 'All Transactions', icon: <ArrowLeftRight size={18} />, component: <AllTransactionsReport />,      permission: 'reports' },
     { id: 'ITEM_PARTY',       group: 'OPERATIONAL', label: 'Item × Party',     icon: <GitFork size={18} />,      component: <ItemPartyReport />,              permission: 'sales' },
     { id: 'PRODUCT_SALES',    group: 'OPERATIONAL', label: 'Product Sales',    icon: <Package size={18} />,      component: <ProductSalesReport />,           permission: 'sales' },
+    { id: 'PURCHASES',        group: 'OPERATIONAL', label: 'Purchases',        icon: <ShoppingBag size={18} />,  component: <PurchasesReport />,              permission: 'purchases' },
 
     // --- ACCOUNTING GROUP ---
     { id: 'BALANCE_SHEET', group: 'ACCOUNTING', label: 'Balance Sheet',       icon: <Scale size={18} />,       component: <BalanceSheetReport />,   permission: 'reports' },

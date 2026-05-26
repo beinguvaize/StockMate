@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import { Truck, Package, User, Calendar, Info, BarChart2 } from 'lucide-react';
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
@@ -367,7 +367,7 @@ const PurchasesReport = () => {
     ],
   };
 
-  return <ReportShell tabs={[allTab, supplierTab, productTab]} />;
+  return <PremiumReportView title="Purchases" tabs={[allTab, supplierTab, productTab]} />;
 };
 
 export default PurchasesReport;
