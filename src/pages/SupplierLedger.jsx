@@ -19,13 +19,43 @@ const SupplierLedger = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { suppliers, loading: peoLoading } = usePeople(currentTenantId);
-  const { purchases, purchaseReturns, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, paySupplier, loading: purLoading } = usePurchases(currentTenantId);
   const { products, loading: invLoading } = useInventory(currentTenantId);
 
   const loading = peoLoading || purLoading || invLoading;
   const [searchTerm, setSearchTerm] = useState('');
   const [paymentFilter, setPaymentFilter] = useState('ALL'); // ALL | CASH | CREDIT
   const [expandedRow, setExpandedRow] = useState(null);
+
+  // Pay-supplier modal state
+  const [payOpen, setPayOpen]       = useState(false);
+  const [payAmount, setPayAmount]   = useState('');
+  const [payMethod, setPayMethod]   = useState('CASH');
+  const [payDate, setPayDate]       = useState(() => new Date().toISOString().slice(0,10));
+  const [payRef, setPayRef]         = useState('');
+  const [payNote, setPayNote]       = useState('');
+  const [paySubmitting, setPaySubmitting] = useState(false);
+  const [payError, setPayError]     = useState(null);
+
+  const openPay = () => {
+    setPayAmount(''); setPayMethod('CASH'); setPayRef(''); setPayNote('');
+    setPayError(null); setPayOpen(true);
+  };
+
+  const submitPay = async () => {
+    setPaySubmitting(true); setPayError(null);
+    const { error } = await paySupplier({
+      supplierId:  id,
+      amount:      payAmount,
+      method:      payMethod,
+      date:        payDate,
+      referenceNo: payRef,
+      note:        payNote,
+    });
+    setPaySubmitting(false);
+    if (error) { setPayError(error.message || 'Payment failed'); return; }
+    setPayOpen(false);
+  };
 
   const isCredit = (pt) => ['CREDIT','UDHAAR','POST-CAPITAL'].includes(String(pt || '').toUpperCase());
   const isCash = (pt) => ['CASH','PAID'].includes(String(pt || '').toUpperCase());
@@ -253,6 +283,15 @@ const SupplierLedger = () => {
                     {businessProfile?.currencySymbol}{metrics.payable.toLocaleString()}
                   </span>
                 </div>
+
+                {metrics.payable > 0 && hasPermission('purchases', 'edit') !== false && (
+                  <button
+                    onClick={openPay}
+                    className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-ink-primary text-white text-xs font-black uppercase tracking-widest hover:bg-ink-primary/90 transition-all shadow-md"
+                  >
+                    <CreditCard size={14} /> Record Payment to Supplier
+                  </button>
+                )}
              </div>
           </div>
         </div>
@@ -495,6 +534,75 @@ const SupplierLedger = () => {
           </div>
         </div>
       </div>
+
+      {/* Pay Supplier Modal */}
+      {payOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md bg-white rounded-2xl border border-black/5 shadow-2xl overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
+              <div>
+                <h2 className="text-base font-black text-ink-primary leading-none">Pay {supplier?.name || 'Supplier'}</h2>
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                  Outstanding: {businessProfile?.currencySymbol}{Math.round(metrics.payable).toLocaleString()}
+                </p>
+              </div>
+              <button onClick={() => setPayOpen(false)} className="text-gray-400 hover:text-ink-primary text-2xl leading-none">×</button>
+            </div>
+
+            <div className="p-5 space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Amount</label>
+                <input type="number" min="0" step="0.01" autoFocus
+                  value={payAmount} onChange={e => setPayAmount(e.target.value)}
+                  placeholder={String(Math.round(metrics.payable))}
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3.5 py-3 text-sm font-black text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 tabular-nums" />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Method</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {['CASH','BANK','UPI','CHEQUE','OTHER'].map(m => (
+                    <button key={m} type="button" onClick={() => setPayMethod(m)}
+                      className={`px-2 py-2 rounded-xl text-[10px] font-black uppercase tracking-wider border transition-all ${
+                        payMethod === m ? 'bg-ink-primary text-white border-ink-primary' : 'bg-white border-gray-300 text-gray-500 hover:border-accent-signature/40'
+                      }`}>{m}</button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Date</label>
+                  <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)}
+                    className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Reference no.</label>
+                  <input type="text" value={payRef} onChange={e => setPayRef(e.target.value)}
+                    placeholder="UPI / cheque no."
+                    className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-xs font-bold outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2">Note</label>
+                <input type="text" value={payNote} onChange={e => setPayNote(e.target.value)}
+                  placeholder="Optional remarks"
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-xs font-medium outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
+              </div>
+
+              {payError && (
+                <div className="text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">{payError}</div>
+              )}
+
+              <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)}
+                className="w-full py-3 rounded-xl bg-accent-signature text-button-text text-sm font-black disabled:opacity-50 transition-all">
+                {paySubmitting ? 'Saving…' : `Pay ${businessProfile?.currencySymbol}${Number(payAmount || 0).toLocaleString()}`}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
