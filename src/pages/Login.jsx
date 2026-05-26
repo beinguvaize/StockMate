@@ -92,7 +92,7 @@ const Login = () => {
   onClick={handleLogoClick}
   />
  <p className="text-[13px] text-[#747576] font-medium">
- Digital Asset Management. Reimagined.
+ Inventory, billing &amp; reports — built for Indian SMBs.
  </p>
  </div>
 
@@ -149,9 +149,18 @@ const Login = () => {
  onChange={(e) => setCredentials({ ...credentials, password: e.target.value})}
  />
  </div>
- <span className="block text-right text-[#747576] text-[12.5px] underline underline-offset-[3px] mt-[9px] cursor-pointer opacity-85">
+ <button type="button"
+  onClick={async () => {
+    if (!credentials.email) { setError('Enter your email above first, then tap Forgot Password.'); return; }
+    const { error } = await supabase.auth.resetPasswordForEmail(credentials.email, {
+      redirectTo: `${window.location.origin}/login`,
+    });
+    if (error) setError(error.message);
+    else setError('Check your inbox — reset link sent to ' + credentials.email);
+  }}
+  className="block text-right text-[#747576] text-[12.5px] underline underline-offset-[3px] mt-[9px] cursor-pointer opacity-85 hover:text-white hover:opacity-100 transition-all ml-auto bg-transparent border-0">
  Forgot Password?
- </span>
+ </button>
  </div>
 
           {error && (
@@ -209,6 +218,15 @@ const Login = () => {
    )}
    <span className="font-bold text-[14px] text-[#747576]">Continue with Google</span>
  </button>
+
+ {/* Signup CTA */}
+ <p className="mt-6 text-center text-[12.5px] text-[#747576]">
+   New to LedgrPro?{' '}
+   <button type="button" onClick={() => navigate('/')}
+     className="text-[#38e0a0] font-bold hover:underline cursor-pointer bg-transparent border-0">
+     Start your 3-month free trial →
+   </button>
+ </p>
  </div>
 
  <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2 text-[#747576] text-[11px] font-normal whitespace-nowrap z-1">

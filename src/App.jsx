@@ -16,6 +16,7 @@ import ReportIssueButton from './components/ReportIssueButton';
 
 // ── Eager (tiny, needed immediately) ────────────────────────────────────────
 import Login   from './pages/Login';
+import Landing from './pages/Landing';
 import NoAccess from './pages/NoAccess';
 
 // ── Lazy (loaded only when route is visited) ─────────────────────────────────
@@ -125,8 +126,8 @@ const RootRedirect = () => {
 
   if (currentUser) {
     const userEmail = currentUser.email?.toLowerCase();
-    const isGlobalAdmin = currentUser.roles?.includes('GLOBAL_ADMIN') || 
-                         userEmail === 'uvaize@hotmail.com' || 
+    const isGlobalAdmin = currentUser.roles?.includes('GLOBAL_ADMIN') ||
+                         userEmail === 'uvaize@hotmail.com' ||
                          userEmail === 'gladmin@ledgrpro.ca';
 
     if (isGlobalAdmin) return <Navigate to="/nexus-hq" replace />;
@@ -135,7 +136,8 @@ const RootRedirect = () => {
     return <Navigate to="/welcome" replace />;
   }
 
-  return <Navigate to="/login" replace />;
+  // Anonymous → marketing landing
+  return <Landing />;
 };
 
 function AppRoutes() {
