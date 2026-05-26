@@ -111,11 +111,30 @@ final tenantContextProvider = FutureProvider<TenantContext?>((ref) async {
   final userId = ref.watch(userIdProvider);
   if (userId == null) return null;
 
-  // Retry with backoff — after a fresh sign-in the JWT can take a moment
-  // to propagate into the supabase client; the first query then 401s and
-  // RLS rejects the read. Three attempts give the session room to settle
-  // before we surface the "No Business Account" screen.
+  // Bypass the post-sign-in RLS race by calling a SECURITY DEFINER RPC
+  // that returns both user profile and tenant in a single payload.
+  // Falls back to direct table reads on older backends.
   Future<TenantContext?> attempt() async {
+    try {
+      final rpcRes = await supabase
+          .rpc('get_my_tenant_context')
+          .timeout(const Duration(seconds: 20));
+      if (rpcRes != null) {
+        final json = Map<String, dynamic>.from(rpcRes as Map);
+        final userMap = json['user'] as Map?;
+        final tenantMap = json['tenant'] as Map?;
+        if (userMap == null) return null;
+        final userProfile = UserProfile.fromMap(Map<String, dynamic>.from(userMap));
+        if (tenantMap == null || userProfile.tenantId.isEmpty) return null;
+        final tenant = Tenant.fromMap(Map<String, dynamic>.from(tenantMap));
+        return TenantContext(userProfile: userProfile, tenant: tenant);
+      }
+    } catch (e) {
+      // ignore: avoid_print
+      print('[tenantContextProvider] RPC failed, falling back: $e');
+    }
+
+    // Fallback: legacy direct reads (RLS gated).
     final userProfileData = await supabase
         .from('users')
         .select()
