@@ -32,14 +32,29 @@ export const AuthProvider = ({ children }) => {
       if (session?.user) {
         const userEmail = session.user.email?.toLowerCase();
         const isSuperUser = userEmail === 'uvaize@hotmail.com' || userEmail === 'gladmin@ledgrpro.ca';
-        const { data: profile } = await withTimeout(
-          supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .maybeSingle(),
-          15000, 'profile load'
-        );
+
+        // Try network first, fall back to cached profile so offline launches
+        // can still hydrate the app once the user has logged in at least once.
+        let profile = null;
+        try {
+          const res = await withTimeout(
+            supabase.from('users').select('*').eq('id', session.user.id).maybeSingle(),
+            15000, 'profile load'
+          );
+          profile = res?.data || null;
+          if (profile) {
+            try {
+              const { setMeta } = await import('../lib/offline/cache.js');
+              await setMeta(`cachedProfile:${session.user.id}`, profile);
+            } catch (_) {/* ignore cache write fail */}
+          }
+        } catch (netErr) {
+          try {
+            const { getMeta } = await import('../lib/offline/cache.js');
+            profile = await getMeta(`cachedProfile:${session.user.id}`);
+            if (profile) console.info('[auth] offline → using cached profile');
+          } catch (_) {/* ignore cache read fail */}
+        }
 
         if (profile) {
           // Merge session email into profile to ensure bypass logic always has the data

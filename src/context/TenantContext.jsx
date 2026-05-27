@@ -75,13 +75,30 @@ export const TenantProvider = ({ children }) => {
         const resolvedTenantId = cu?.tenant_id;
 
         if (resolvedTenantId) {
-          const [
-            { data: tenant },
-            { data: profile }
-          ] = await withTimeout(Promise.all([
-            supabase.from('tenants').select('*').eq('id', resolvedTenantId).maybeSingle(),
-            supabase.from('business_profile').select('*').eq('tenant_id', resolvedTenantId).maybeSingle()
-          ]), 15000, 'tenant load');
+          // Try network. If offline, hydrate from cached snapshots so the
+          // app keeps running between syncs.
+          let tenant = null;
+          let profile = null;
+          try {
+            const res = await withTimeout(Promise.all([
+              supabase.from('tenants').select('*').eq('id', resolvedTenantId).maybeSingle(),
+              supabase.from('business_profile').select('*').eq('tenant_id', resolvedTenantId).maybeSingle(),
+            ]), 15000, 'tenant load');
+            tenant  = res[0]?.data || null;
+            profile = res[1]?.data || null;
+            try {
+              const { setMeta } = await import('../lib/offline/cache.js');
+              if (tenant)  await setMeta(`cachedTenant:${resolvedTenantId}`, tenant);
+              if (profile) await setMeta(`cachedBusinessProfile:${resolvedTenantId}`, profile);
+            } catch (_) {/* ignore cache write fail */}
+          } catch (netErr) {
+            try {
+              const { getMeta } = await import('../lib/offline/cache.js');
+              tenant  = await getMeta(`cachedTenant:${resolvedTenantId}`);
+              profile = await getMeta(`cachedBusinessProfile:${resolvedTenantId}`);
+              if (tenant) console.info('[tenant] offline → using cached tenant');
+            } catch (_) {/* ignore cache read fail */}
+          }
           if (tenant) setCurrentTenant(tenant);
           if (profile) { setBusinessProfile(profile); applyTZFromProfile(profile); }
         } else {
