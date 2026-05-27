@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import {
   FileText, Users, Globe, ShoppingBag, Layers, BookOpen,
   Building2, Hash, Receipt, Calendar, Tag, Download, ChevronDown
@@ -404,7 +404,7 @@ const GSTR1Report = () => {
         <ExportMenu gstr1={gstr1} gstin={businessGSTIN} />
       </div>
 
-      <ReportShell tabs={[b2bTab, b2clTab, b2csTab, hsnTab, docsTab]} />
+      <PremiumReportView title="GSTR-1" tabs={[b2bTab, b2clTab, b2csTab, hsnTab, docsTab]} />
     </div>
   );
 };

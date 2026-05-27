@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import {
   FileCheck, TrendingUp, Package, Globe, CheckCircle2,
   Landmark, Wallet, ArrowDownToLine, ArrowUpFromLine, Tag
@@ -231,7 +231,7 @@ const GSTR3BReport = () => {
         </div>
       </div>
 
-      <ReportShell tabs={[section3_1Tab, section3_2Tab, section4Tab, section6_1Tab]} />
+      <PremiumReportView title="GSTR-3B" tabs={[section3_1Tab, section3_2Tab, section4Tab, section6_1Tab]} />
     </div>
   );
 };
