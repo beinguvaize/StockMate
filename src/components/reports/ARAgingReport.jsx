@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import {
   AlertTriangle, UserCircle, Phone, Calendar, DollarSign,
   TrendingDown, Clock, FileWarning
@@ -303,7 +303,7 @@ const ARAgingReport = () => {
   // Only include invoice tab if we actually have invoices
   const tabs = invoiceAging.rows.length > 0 ? [summaryTab, invoiceTab] : [summaryTab];
 
-  return <ReportShell tabs={tabs} />;
+  return <PremiumReportView title="Customer Aging" tabs={tabs} />;
 };
 
 export default ARAgingReport;

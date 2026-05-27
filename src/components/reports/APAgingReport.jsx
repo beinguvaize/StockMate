@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import { parseLocalDate } from '../../lib/utils';
 import {
   AlertTriangle, Truck, Phone, Calendar, DollarSign,
@@ -406,7 +406,7 @@ const APAgingReport = () => {
         </span>
       </div>
 
-      <ReportShell tabs={tabs} />
+      <PremiumReportView title="Supplier Aging" tabs={tabs} />
     </div>
   );
 };

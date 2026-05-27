@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import { parseLocalDate, formatCurrency } from '../../lib/utils';
 import {
   DollarSign, TrendingUp, CreditCard, PieChart as PieChartIcon,
@@ -67,9 +67,9 @@ const FinancialReport = () => {
     const totalNet = totalRevenue - totalExpenses;
 
     const kpis = [
-      { id: 'rev', label: 'Gross Revenue', value: totalRevenue, trend: 15, trendDir: 'up', color: 'indigo', chartData: data.map(d => ({ value: d.revenue })) },
-      { id: 'exp', label: 'Operational Load', value: totalExpenses, trend: 5, trendDir: 'up', color: 'rose', chartData: data.map(d => ({ value: d.expenses })) },
-      { id: 'net', label: 'Net Liquidity', value: totalNet, trend: 10, trendDir: 'up', color: 'emerald', chartData: data.map(d => ({ value: d.net })) }
+      { id: 'rev', label: 'Total Revenue',    value: totalRevenue,  trendDir: 'none', color: 'indigo',  chartData: data.map(d => ({ value: d.revenue })) },
+      { id: 'exp', label: 'Total Expenses',   value: totalExpenses, trendDir: 'none', color: 'rose',    chartData: data.map(d => ({ value: d.expenses })) },
+      { id: 'net', label: 'Net Profit',       value: totalNet,      trendDir: totalNet >= 0 ? 'up' : 'down', color: totalNet >= 0 ? 'emerald' : 'rose', chartData: data.map(d => ({ value: d.net })) }
     ];
 
     return { data, totalRevenue, totalExpenses, totalNet, kpis };
@@ -99,10 +99,10 @@ const FinancialReport = () => {
     loading: loading,
     totals: { revenue: plMetrics.totalRevenue, expenses: plMetrics.totalExpenses, net: plMetrics.totalNet },
     columns: [
-      { key: 'month', label: 'Fiscal Node', sortable: true, width: 140, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
-      { key: 'revenue', label: 'Gross Yield', type: 'currency', align: 'right', sortable: true, width: 180 },
-      { key: 'expenses', label: 'Expenditure', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => <span className="text-red-500 font-bold">{formatCurrency(val)}</span> },
-      { key: 'net', label: 'Net Performance', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => <span className={val >= 0 ? 'text-emerald-500 font-black' : 'text-red-600 font-black'}>{formatCurrency(val)}</span> },
+      { key: 'month', label: 'Month', sortable: true, width: 140, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
+      { key: 'revenue', label: 'Revenue', type: 'currency', align: 'right', sortable: true, width: 180 },
+      { key: 'expenses', label: 'Expenses', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => <span className="text-red-500 font-bold">{formatCurrency(val)}</span> },
+      { key: 'net', label: 'Net Profit', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => <span className={val >= 0 ? 'text-emerald-500 font-black' : 'text-red-600 font-black'}>{formatCurrency(val)}</span> },
       { key: 'margin', label: 'Margin %', align: 'right', width: 100, render: (val) => (
         <span className={`px-2 py-1 rounded-full text-[9px] font-black ${val >= 20 ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
           {val}%
@@ -110,38 +110,38 @@ const FinancialReport = () => {
       )}
     ],
     kpis: plMetrics.kpis,
-    chartConfig: { 
-      title: "Revenue vs Expenditure Correlation", type: 'bar', data: plMetrics.data,
-      series: [{ key: 'revenue', name: 'Revenue', color: '#6366f1' }, { key: 'expenses', name: 'Expenses', color: '#f43f5e' }] 
+    chartConfig: {
+      title: "Revenue vs Expenses by Month", type: 'bar', data: plMetrics.data,
+      series: [{ key: 'revenue', name: 'Revenue', color: '#6366f1' }, { key: 'expenses', name: 'Expenses', color: '#f43f5e' }]
     }
   };
 
   const mixTab = {
     id: 'PAYMENT_MIX',
-    label: 'Payment Dynamics',
+    label: 'Payment Mix',
     icon: <CreditCard size={18} />,
     data: insightMetrics.paymentMix,
     loading: loading,
     totals: { value: plMetrics.totalRevenue },
     columns: [
-      { key: 'name', label: 'Payment Gateway', sortable: true, width: 220, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
-      { key: 'count', label: 'Events', align: 'right', width: 140, render: (val) => <span className="font-mono text-gray-400">{val} Transactions</span> },
-      { key: 'value', label: 'Aggregated Magnitude', type: 'currency', align: 'right', sortable: true, width: 180 },
-      { key: 'share', label: 'Wallet Share', align: 'right', width: 120, render: (_, row) => {
-        const s = (row.value / plMetrics.totalRevenue) * 100;
+      { key: 'name', label: 'Payment Method', sortable: true, width: 220, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
+      { key: 'count', label: 'Transactions', align: 'right', width: 140, render: (val) => <span className="font-mono text-gray-400">{val}</span> },
+      { key: 'value', label: 'Total Collected', type: 'currency', align: 'right', sortable: true, width: 180 },
+      { key: 'share', label: 'Share', align: 'right', width: 120, render: (_, row) => {
+        const s = plMetrics.totalRevenue > 0 ? (row.value / plMetrics.totalRevenue) * 100 : 0;
         return <span className="text-[10px] font-black text-accent-signature">{s.toFixed(1)}%</span>;
       }}
     ],
     kpis: [
-      { id: 'primary', label: 'Dominant Method', value: insightMetrics.paymentMix[0]?.value || 0, trend: 2, trendDir: 'up', color: 'indigo', chartData: [] },
-      { id: 'avg_val', label: 'Ticket Average', value: plMetrics.totalRevenue / (sales.length || 1), trend: 0, trendDir: 'none', color: 'emerald', chartData: [] }
+      { id: 'primary', label: 'Top Method',      value: insightMetrics.paymentMix[0]?.value || 0,        trendDir: 'none', color: 'indigo',  chartData: [] },
+      { id: 'avg_val', label: 'Avg Ticket Size', value: plMetrics.totalRevenue / (sales.length || 1),    trendDir: 'none', color: 'emerald', chartData: [] }
     ],
-    chartConfig: { 
-      title: "Wallet share distribution", type: 'pie', data: insightMetrics.paymentMix.map(m => ({ name: m.name, value: m.value }))
+    chartConfig: {
+      title: "Revenue by payment method", type: 'pie', data: insightMetrics.paymentMix.map(m => ({ name: m.name, value: m.value }))
     }
   };
 
-  return <ReportShell tabs={[plTab, mixTab]} />;
+  return <PremiumReportView title="Profit & Loss" tabs={[plTab, mixTab]} />;
 };
 
 export default FinancialReport;

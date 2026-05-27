@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import { Scale, CheckCircle2, AlertTriangle, Receipt, Landmark } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
 import { supabase } from '../../lib/supabase';
@@ -163,7 +163,7 @@ const TrialBalanceReport = () => {
         </div>
       </div>
 
-      <ReportShell tabs={[trialTab]} />
+      <PremiumReportView title="Trial Balance" tabs={[trialTab]} />
     </div>
   );
 };

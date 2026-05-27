@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import {
   ArrowDownCircle, ArrowUpCircle, Wallet, Briefcase,
   Building2, Droplets, TrendingUp, Calendar
@@ -222,7 +222,7 @@ const CashFlowReport = () => {
     ],
   };
 
-  return <ReportShell tabs={[cashTab]} />;
+  return <PremiumReportView title="Cash Flow" tabs={[cashTab]} />;
 };
 
 export default CashFlowReport;

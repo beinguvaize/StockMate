@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import {
   Landmark, Wallet, Package, Truck, CreditCard,
   TrendingUp, Scale, Building2, Layers, Receipt
@@ -205,7 +205,7 @@ const BalanceSheetReport = () => {
     ],
   };
 
-  return <ReportShell tabs={[balanceTab]} />;
+  return <PremiumReportView title="Balance Sheet" tabs={[balanceTab]} />;
 };
 
 export default BalanceSheetReport;

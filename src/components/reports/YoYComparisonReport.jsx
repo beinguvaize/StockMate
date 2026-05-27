@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import {
   TrendingUp, TrendingDown, Calendar, BarChart3,
   ArrowUpRight, ArrowDownRight, Minus, Layers,
@@ -556,7 +556,7 @@ const YoYComparisonReport = () => {
         </div>
       </div>
 
-      <ReportShell tabs={[overviewTab, revenueTab, expenseTab, categoryTab]} />
+      <PremiumReportView title="Year-over-Year" tabs={[overviewTab, revenueTab, expenseTab, categoryTab]} />
     </div>
   );
 };

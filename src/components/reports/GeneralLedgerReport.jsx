@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import { BookOpen, TrendingUp, TrendingDown, Calendar, Receipt, Tag, Landmark } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
 import { formatDate } from '../../lib/utils';
@@ -318,7 +318,7 @@ const GeneralLedgerReport = () => {
     ],
   };
 
-  return <ReportShell tabs={[journalTab, accountTab]} />;
+  return <PremiumReportView title="General Ledger" tabs={[journalTab, accountTab]} />;
 };
 
 export default GeneralLedgerReport;

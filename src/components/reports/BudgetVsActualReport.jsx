@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import useReportData from './useReportData';
-import ReportShell from './ReportShell';
+import PremiumReportView from './PremiumReportView';
 import {
   TrendingUp, Calendar, Copy, Sparkles, Wallet,
   CheckCircle2, AlertTriangle, Edit3, Cloud,
@@ -505,7 +505,7 @@ const BudgetVsActualReport = () => {
         </span>
       </div>
 
-      <ReportShell tabs={[expenseTab, revenueTab]} />
+      <PremiumReportView title="Budget vs Actual" tabs={[expenseTab, revenueTab]} />
     </div>
   );
 };
