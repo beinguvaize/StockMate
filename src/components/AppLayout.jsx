@@ -2,6 +2,7 @@ import React, { useState, useRef} from 'react';
 import { NavLink, Outlet, Navigate, useParams, useLocation} from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
+import SyncStatusButton from './SyncStatusButton';
 import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory} from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { getDefaultAvatar } from '../lib/supabase';
@@ -258,6 +259,7 @@ const Navbar = () => {
 
  {/* Right Section: Sync Status & User Profile */}
  <div className="flex items-center gap-3 sm:gap-4">
+ <SyncStatusButton />
  <SyncStatus />
 
  <div className="relative" ref={dropdownRef}>
