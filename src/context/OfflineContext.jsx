@@ -105,8 +105,12 @@ export function OfflineProvider({ children }) {
     return () => clearInterval(poll);
   }, []);
 
-  // ── Start / stop the sync engine ──
+  // ── Start / stop the sync engine — desktop only ──
   useEffect(() => {
+    const isDesktop =
+      typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent);
+    if (!isDesktop) return; // Web stays untouched — supabase-direct.
+
     try {
       startSync(onSyncComplete);
     } catch (err) {

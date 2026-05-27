@@ -33,8 +33,9 @@ export const AuthProvider = ({ children }) => {
         const userEmail = session.user.email?.toLowerCase();
         const isSuperUser = userEmail === 'uvaize@hotmail.com' || userEmail === 'gladmin@ledgrpro.ca';
 
-        // Try network first, fall back to cached profile so offline launches
-        // can still hydrate the app once the user has logged in at least once.
+        // Desktop-only offline support: cache profile + fall back to it
+        // when network fails. Web/mobile keep the original behaviour.
+        const isDesktop = typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent);
         let profile = null;
         try {
           const res = await withTimeout(
@@ -42,18 +43,20 @@ export const AuthProvider = ({ children }) => {
             15000, 'profile load'
           );
           profile = res?.data || null;
-          if (profile) {
+          if (profile && isDesktop) {
             try {
               const { setMeta } = await import('../lib/offline/cache.js');
               await setMeta(`cachedProfile:${session.user.id}`, profile);
             } catch (_) {/* ignore cache write fail */}
           }
         } catch (netErr) {
-          try {
-            const { getMeta } = await import('../lib/offline/cache.js');
-            profile = await getMeta(`cachedProfile:${session.user.id}`);
-            if (profile) console.info('[auth] offline → using cached profile');
-          } catch (_) {/* ignore cache read fail */}
+          if (isDesktop) {
+            try {
+              const { getMeta } = await import('../lib/offline/cache.js');
+              profile = await getMeta(`cachedProfile:${session.user.id}`);
+              if (profile) console.info('[auth] offline → using cached profile');
+            } catch (_) {/* ignore cache read fail */}
+          }
         }
 
         if (profile) {

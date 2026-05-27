@@ -75,8 +75,7 @@ export const TenantProvider = ({ children }) => {
         const resolvedTenantId = cu?.tenant_id;
 
         if (resolvedTenantId) {
-          // Try network. If offline, hydrate from cached snapshots so the
-          // app keeps running between syncs.
+          const isDesktop = typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent);
           let tenant = null;
           let profile = null;
           try {
@@ -86,18 +85,22 @@ export const TenantProvider = ({ children }) => {
             ]), 15000, 'tenant load');
             tenant  = res[0]?.data || null;
             profile = res[1]?.data || null;
-            try {
-              const { setMeta } = await import('../lib/offline/cache.js');
-              if (tenant)  await setMeta(`cachedTenant:${resolvedTenantId}`, tenant);
-              if (profile) await setMeta(`cachedBusinessProfile:${resolvedTenantId}`, profile);
-            } catch (_) {/* ignore cache write fail */}
+            if (isDesktop) {
+              try {
+                const { setMeta } = await import('../lib/offline/cache.js');
+                if (tenant)  await setMeta(`cachedTenant:${resolvedTenantId}`, tenant);
+                if (profile) await setMeta(`cachedBusinessProfile:${resolvedTenantId}`, profile);
+              } catch (_) {/* ignore cache write fail */}
+            }
           } catch (netErr) {
-            try {
-              const { getMeta } = await import('../lib/offline/cache.js');
-              tenant  = await getMeta(`cachedTenant:${resolvedTenantId}`);
-              profile = await getMeta(`cachedBusinessProfile:${resolvedTenantId}`);
-              if (tenant) console.info('[tenant] offline → using cached tenant');
-            } catch (_) {/* ignore cache read fail */}
+            if (isDesktop) {
+              try {
+                const { getMeta } = await import('../lib/offline/cache.js');
+                tenant  = await getMeta(`cachedTenant:${resolvedTenantId}`);
+                profile = await getMeta(`cachedBusinessProfile:${resolvedTenantId}`);
+                if (tenant) console.info('[tenant] offline → using cached tenant');
+              } catch (_) {/* ignore cache read fail */}
+            }
           }
           if (tenant) setCurrentTenant(tenant);
           if (profile) { setBusinessProfile(profile); applyTZFromProfile(profile); }

@@ -21,12 +21,27 @@
 import { putRecords, getRecords } from './cache.js';
 import { enqueue } from './outbox.js';
 
+// Offline scaffolding is desktop-only. Web users get the original
+// supabase-direct behaviour — no cache writes, no outbox.
+export const isElectron = () => {
+  if (typeof navigator === 'undefined') return false;
+  return /Electron/i.test(navigator.userAgent) || !!(typeof window !== 'undefined' && window.electron);
+};
+
 /**
  * Run a supabase select that returns { data, error }. Caches successful
  * results into IndexedDB. Falls back to the cached snapshot on any error
  * (network, timeout, RLS, etc).
  */
 export async function fetchWithCache(table, queryFn) {
+  // Web → pass through, no caching. Keeps web hooks 1:1 with previous
+  // behaviour so nothing on the cashier surface changes.
+  if (!isElectron()) {
+    const res = await queryFn();
+    if (res?.error) throw res.error;
+    return { data: Array.isArray(res?.data) ? res.data : [], fromCache: false, error: null };
+  }
+
   try {
     const res = await queryFn();
     if (res?.error) throw res.error;
@@ -50,6 +65,9 @@ export async function fetchWithCache(table, queryFn) {
  * Returns the outbox opId.
  */
 export async function queueMutation({ table, type = 'insert', payload }) {
+  // Outbox queue only meaningful on desktop. Web hooks should never call
+  // this — if they do, no-op so we don't grow web's IDB silently.
+  if (!isElectron()) return null;
   return enqueue({ table, type, payload });
 }
 
