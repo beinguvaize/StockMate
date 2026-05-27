@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useInventory } from '../../hooks/useInventory';
 import { useOrders } from '../../hooks/useOrders';
-import { Plus, History, PackagePlus, AlertCircle, Tag as TagIcon, TrendingUp, DollarSign, BarChart3, ShoppingBag } from 'lucide-react';
+import { Plus, History, PackagePlus, AlertCircle, Tag as TagIcon, TrendingUp, DollarSign, BarChart3, ShoppingBag, Search, X, Filter } from 'lucide-react';
 import Button from '../../shared/Button';
 import StockTable from './components/StockTable';
 import AddItemModal from './components/AddItemModal';
@@ -35,6 +35,43 @@ const Inventory = () => {
   const [adjustingProduct, setAdjustingProduct] = useState(null);
   const [adjustSaving,     setAdjustSaving]     = useState(false);
   const [showHistory,      setShowHistory]      = useState(false);
+
+  // Filter + search state
+  const [searchTerm,   setSearchTerm]   = useState('');
+  const [typeFilter,   setTypeFilter]   = useState('ALL');   // ALL | STANDARD | RAW | FINISHED
+  const [stockFilter,  setStockFilter]  = useState('ALL');   // ALL | IN | LOW | OUT
+  const [categoryFilter, setCategoryFilter] = useState('');
+
+  const categoryOptions = useMemo(() => {
+    const set = new Set(products.map(p => p.category).filter(Boolean));
+    return Array.from(set).sort();
+  }, [products]);
+
+  const filteredProducts = useMemo(() => {
+    const q = searchTerm.trim().toLowerCase();
+    return products.filter(p => {
+      if (q) {
+        const hay = `${p.name || ''} ${p.sku || ''} ${p.category || ''} ${p.barcode || ''}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (typeFilter !== 'ALL') {
+        if ((p.product_type || 'STANDARD').toUpperCase() !== typeFilter) return false;
+      }
+      if (categoryFilter && (p.category || '') !== categoryFilter) return false;
+      const stk = Number(p.stock || 0);
+      if (stockFilter === 'IN'  && stk <= 0) return false;
+      if (stockFilter === 'LOW' && !(stk > 0 && stk <= 5)) return false;
+      if (stockFilter === 'OUT' && stk !== 0) return false;
+      return true;
+    });
+  }, [products, searchTerm, typeFilter, stockFilter, categoryFilter]);
+
+  const activeFilterCount =
+    (searchTerm ? 1 : 0) + (typeFilter !== 'ALL' ? 1 : 0) +
+    (stockFilter !== 'ALL' ? 1 : 0) + (categoryFilter ? 1 : 0);
+  const clearAllFilters = () => {
+    setSearchTerm(''); setTypeFilter('ALL'); setStockFilter('ALL'); setCategoryFilter('');
+  };
 
   const kpis = useMemo(() => {
     const stockValue   = products.reduce((s, p) => s + (p.costPrice || 0) * (p.stock || 0), 0);
@@ -125,8 +162,75 @@ const Inventory = () => {
         ))}
       </div>
 
+      {/* ── Search + Filter toolbar ─────────────────────────────────── */}
+      <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-4 flex flex-col lg:flex-row gap-3 items-stretch lg:items-center">
+        <div className="relative flex-1 min-w-0">
+          <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input type="text" value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            placeholder="Search by name, SKU, category, barcode…"
+            className="w-full pl-10 pr-9 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-medium text-ink-primary placeholder:text-gray-400 placeholder:font-normal outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all" />
+          {searchTerm && (
+            <button onClick={() => setSearchTerm('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-ink-primary">
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        {/* Type chips */}
+        <div className="flex items-center gap-1 bg-canvas border border-gray-200 rounded-xl p-1">
+          {[
+            { id: 'ALL',      label: 'All' },
+            { id: 'STANDARD', label: 'Standard' },
+            { id: 'RAW',      label: 'Raw' },
+            { id: 'FINISHED', label: 'Finished' },
+          ].map(t => (
+            <button key={t.id} onClick={() => setTypeFilter(t.id)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all whitespace-nowrap ${
+                typeFilter === t.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
+              }`}>{t.label}</button>
+          ))}
+        </div>
+
+        {/* Stock chips */}
+        <div className="flex items-center gap-1 bg-canvas border border-gray-200 rounded-xl p-1">
+          {[
+            { id: 'ALL', label: 'All Stock' },
+            { id: 'IN',  label: 'In Stock' },
+            { id: 'LOW', label: 'Low' },
+            { id: 'OUT', label: 'Out' },
+          ].map(s => (
+            <button key={s.id} onClick={() => setStockFilter(s.id)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all whitespace-nowrap ${
+                stockFilter === s.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
+              }`}>{s.label}</button>
+          ))}
+        </div>
+
+        {/* Category select */}
+        <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
+          className="bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-xs font-bold text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all min-w-[140px]">
+          <option value="">All Categories</option>
+          {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+
+        {activeFilterCount > 0 && (
+          <button onClick={clearAllFilters}
+            className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-[11px] font-black text-red-500 hover:bg-red-50 transition-all whitespace-nowrap">
+            <X size={12} /> Clear ({activeFilterCount})
+          </button>
+        )}
+      </div>
+
+      {/* Result count */}
+      <div className="flex items-center gap-2 text-[11px] font-bold text-gray-500 uppercase tracking-widest -mt-2">
+        <Filter size={12} />
+        Showing {filteredProducts.length} of {products.length} products
+      </div>
+
       <StockTable
-        products={products}
+        products={filteredProducts}
         inventoryBalances={balances}
         onEdit={openEditModal}
         onDelete={(id) => { if (window.confirm('Delete this product?')) deleteProduct(id); }}

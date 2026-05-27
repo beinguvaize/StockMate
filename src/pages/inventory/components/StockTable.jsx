@@ -8,9 +8,16 @@ import Table from '../../../shared/Table';
 // Coerce once here so downstream rendering stays simple.
 const toNum = (v) => Number(v ?? 0);
 
+const TYPE_BADGE = {
+  STANDARD: { label: 'STANDARD', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
+  RAW:      { label: 'RAW',      cls: 'bg-amber-50 text-amber-700 border-amber-200' },
+  FINISHED: { label: 'FINISHED', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+};
+
 const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, onBatches, currencySymbol = '₹' }) => {
   const headers = [
     { label: 'Product' },
+    { label: 'Type',     className: 'hidden lg:table-cell text-center' },
     { label: 'Category', className: 'hidden md:table-cell' },
     { label: 'Cost / Sell Price', className: 'text-right' },
     { label: 'Tax', className: 'text-center hidden md:table-cell' },
@@ -39,6 +46,16 @@ const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, o
               <div className="text-[10px] font-bold text-gray-500 opacity-70">{product.sku}</div>
             </div>
           </div>
+        </td>
+        <td className="px-4 py-2 hidden lg:table-cell text-center">
+          {(() => {
+            const t = TYPE_BADGE[(product.product_type || 'STANDARD').toUpperCase()] || TYPE_BADGE.STANDARD;
+            return (
+              <span className={`inline-block text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${t.cls}`}>
+                {t.label}
+              </span>
+            );
+          })()}
         </td>
         <td className="px-4 py-2 hidden md:table-cell">
           <div className="text-sm font-semibold text-ink-primary opacity-70">{product.category}</div>
