@@ -71,7 +71,7 @@ const CategoryProfitReport = () => {
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
   const { data: sales,    loading: sLoading } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters });
-  const { data: products, loading: pLoading } = useReportData({ table: 'products', select: 'id, name, category' });
+  const { data: products, loading: pLoading } = useReportData({ table: 'products', select: 'id, name, category, costPrice' });
 
   const loading = sLoading || pLoading;
 
