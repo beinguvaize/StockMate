@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { fetchWithCache, queueMutation, isOfflineError } from '../lib/offline/hookAdapter';
 import { generateRef, todayISOInAppTZ } from '../lib/utils';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { getPlanLimits } from '../lib/tenancy';
@@ -39,23 +40,19 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     if (!initialLoadDone.current) setLoading(true);
     setError(null);
     try {
-      const [
-        { data: salesData, error: salesErr },
-        { data: clientsData, error: clientsErr },
-        { data: invoicesData, error: invoicesErr }
-      ] = await Promise.all([
-        supabase.from('sales').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(500),
-        supabase.from('clients').select('*').eq('tenant_id', tenantId).order('name'),
-        supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(500)
+      const [salesRes, clientsRes, invoicesRes] = await Promise.all([
+        fetchWithCache('sales',    () => supabase.from('sales').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(500)),
+        fetchWithCache('clients',  () => supabase.from('clients').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name')),
+        fetchWithCache('invoices', () => supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(500)),
       ]);
 
-      if (salesErr) throw salesErr;
-      if (clientsErr) throw clientsErr;
-      if (invoicesErr) throw invoicesErr;
+      setData((salesRes.data || []).map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
+      setClients((clientsRes.data || []).map(r => normalizeRow(r, NUMERIC_CLIENT_COLS)));
+      setInvoices((invoicesRes.data || []).map(r => normalizeRow(r, NUMERIC_INVOICE_COLS)));
 
-      setData((salesData || []).map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
-      setClients((clientsData || []).map(r => normalizeRow(r, NUMERIC_CLIENT_COLS)));
-      setInvoices((invoicesData || []).map(r => normalizeRow(r, NUMERIC_INVOICE_COLS)));
+      if (salesRes.fromCache && clientsRes.fromCache) {
+        setError('Showing cached data — tap Sync Now when online to refresh.');
+      }
     } catch (err) {
       console.error("useSales Fetch Error:", err);
       setError(err.message);
@@ -183,7 +180,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       const totalAmount = sale.totalAmount ?? 0;
       const paymentStatus = sale.status === 'COMPLETED' ? 'PAID' : (sale.status || 'PENDING');
 
-      const { error: rpcError } = await supabase.rpc('process_sale', {
+      const rpcParams = {
         p_id: id,
         p_shop_id: clientId,
         p_items: items,
@@ -198,9 +195,22 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         // RPC rejects the override for non-admins (defence-in-depth).
         p_tenant_id: tenantId || null,
         p_delivery_method: sale.fulfillmentType === 'DELIVERY' ? 'DELIVERY' : 'PICKUP',
-      });
+      };
+
+      const { error: rpcError } = await supabase.rpc('process_sale', rpcParams);
 
       if (rpcError) {
+        // If this is a network error (offline / timeout), queue the sale to
+        // the outbox so the cashier doesn't lose the transaction. Sync engine
+        // replays it via the same RPC on next "Sync Now".
+        if (isOfflineError(rpcError)) {
+          try {
+            await queueMutation({ table: 'process_sale', type: 'rpc', payload: rpcParams });
+            return { success: true, id, queued: true };
+          } catch (qErr) {
+            console.error('placeSale queue error:', qErr);
+          }
+        }
         console.error('placeSale RPC Error:', rpcError);
         return { error: rpcError };
       }

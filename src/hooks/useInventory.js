@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
+import { fetchWithCache } from '../lib/offline/hookAdapter';
 
 // Postgres `numeric` arrives as string over the wire (supabase-js preserves
 // precision). Mixing those with JS math causes subtle bugs: `0 + "100"` is
@@ -41,27 +42,22 @@ export const useInventory = (tenantId) => {
     if (!initialLoadDone.current) setLoading(true);
     setError(null);
     try {
-      const [
-        { data: prodData, error: prodErr },
-        { data: catData, error: catErr },
-        { data: balData, error: balErr },
-        { data: locData, error: locErr }
-      ] = await Promise.all([
-        supabase.from('products').select('*').eq('tenant_id', tenantId).order('name'),
-        supabase.from('product_categories').select('*').eq('tenant_id', tenantId).order('name'),
-        supabase.from('inventory_balances').select('*').eq('tenant_id', tenantId),
-        supabase.from('inventory_locations').select('*').eq('tenant_id', tenantId).order('name')
+      const [prodRes, catRes, balRes, locRes] = await Promise.all([
+        fetchWithCache('products',           () => supabase.from('products').select('*').eq('tenant_id', tenantId).order('name')),
+        fetchWithCache('product_categories', () => supabase.from('product_categories').select('*').eq('tenant_id', tenantId).order('name')),
+        fetchWithCache('inventory_balances', () => supabase.from('inventory_balances').select('*').eq('tenant_id', tenantId)),
+        fetchWithCache('inventory_locations',() => supabase.from('inventory_locations').select('*').eq('tenant_id', tenantId).order('name')),
       ]);
 
-      if (prodErr) throw prodErr;
-      if (catErr) throw catErr;
-      if (balErr) throw balErr;
-      if (locErr) throw locErr;
+      setProducts((prodRes.data || []).map(r => normalizeRow(r, NUMERIC_PRODUCT_COLS)));
+      setProductCategories(catRes.data || []);
+      setInventoryBalances((balRes.data || []).map(r => normalizeRow(r, NUMERIC_BALANCE_COLS)));
+      setInventoryLocations(locRes.data || []);
 
-      setProducts((prodData || []).map(r => normalizeRow(r, NUMERIC_PRODUCT_COLS)));
-      setProductCategories(catData || []);
-      setInventoryBalances((balData || []).map(r => normalizeRow(r, NUMERIC_BALANCE_COLS)));
-      setInventoryLocations(locData || []);
+      // If everything fell back to cache, surface as a soft offline notice.
+      if (prodRes.fromCache && catRes.fromCache) {
+        setError('Showing cached data — tap Sync Now when online to refresh.');
+      }
     } catch (err) {
       console.error("useInventory Fetch Error:", err);
       setError(err.message);

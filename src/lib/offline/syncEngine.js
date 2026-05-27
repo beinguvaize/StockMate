@@ -30,7 +30,9 @@ export const SYNCED_TABLES = [
   'day_book',
 ];
 
-const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+// Manual-only sync. Auto background interval disabled — user said "manual
+// sync option to update when needed". Set to 0 to skip the setInterval.
+const SYNC_INTERVAL_MS = 0;
 const MAX_NON_NETWORK_ATTEMPTS = 5;
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -62,7 +64,10 @@ export async function pushOutbox() {
     for (const op of ops) {
       try {
         let result;
-        if (op.type === 'insert') {
+        if (op.type === 'rpc') {
+          // op.table holds the RPC function name (e.g. "process_sale")
+          result = await supabase.rpc(op.table, op.payload);
+        } else if (op.type === 'insert') {
           result = await supabase.from(op.table).insert(op.payload);
         } else if (op.type === 'update') {
           result = await supabase.from(op.table).update(op.payload).eq('id', op.payload.id);
@@ -187,13 +192,15 @@ export function startSync(onSyncComplete) {
     }
   };
 
-  // Immediate first sync
+  // Immediate first sync (bootstrap cache).
   run();
 
-  // Periodic sync
-  _intervalId = setInterval(run, SYNC_INTERVAL_MS);
+  // Periodic auto-sync only if interval > 0 (disabled by default — manual).
+  if (SYNC_INTERVAL_MS > 0) {
+    _intervalId = setInterval(run, SYNC_INTERVAL_MS);
+  }
 
-  // Online listener
+  // Auto-sync when network restored (cheap, useful).
   _onlineHandler = () => run();
   window.addEventListener('online', _onlineHandler);
 }

@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
+import { fetchWithCache } from '../lib/offline/hookAdapter';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
 const PURCHASE_NUMERIC = ['quantity', 'total_amount', 'paid_amount', 'unit_price', 'tax'];
@@ -30,9 +31,9 @@ export const usePurchases = (tenantId) => {
         { data: supData, error: supErr },
         { data: retData, error: retErr },
       ] = await Promise.all([
-        supabase.from('purchases').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(200),
-        supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
-        supabase.from('purchase_returns').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(200),
+        fetchWithCache('purchases',        () => supabase.from('purchases').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(200)).then(r => ({ data: r.data, error: null })),
+        fetchWithCache('suppliers',        () => supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name')).then(r => ({ data: r.data, error: null })),
+        fetchWithCache('purchase_returns', () => supabase.from('purchase_returns').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(200)).then(r => ({ data: r.data, error: null })),
       ]);
 
       if (purErr) throw purErr;

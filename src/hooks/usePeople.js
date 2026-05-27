@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
+import { fetchWithCache } from '../lib/offline/hookAdapter';
 import { generateUUID } from '../lib/utils';
 
 const DEFAULT_PERMISSIONS = {
@@ -46,10 +47,10 @@ export const usePeople = (tenantId) => {
         { data: empData, error: empErr },
         { data: userData, error: userErr }
       ] = await Promise.all([
-        supabase.from('clients').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
-        supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
-        supabase.from('employees').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
-        supabase.from('users').select('*').eq('tenant_id', tenantId).order('name')
+        fetchWithCache('clients',   () => supabase.from('clients').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name')).then(r => ({ data: r.data, error: null })),
+        fetchWithCache('suppliers', () => supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name')).then(r => ({ data: r.data, error: null })),
+        fetchWithCache('employees', () => supabase.from('employees').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name')).then(r => ({ data: r.data, error: null })),
+        fetchWithCache('users',     () => supabase.from('users').select('*').eq('tenant_id', tenantId).order('name')).then(r => ({ data: r.data, error: null })),
       ]);
 
       if (cliErr) throw cliErr;
