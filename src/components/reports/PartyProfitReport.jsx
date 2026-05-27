@@ -65,8 +65,12 @@ const KPI = ({ label, value, icon: Icon, color = '#6366f1', loading }) => (
 function calcItemRevenue(item) {
   return Number(item.quantity || 0) * Number(item.rate || item.sellingPrice || 0);
 }
-function calcItemCost(item) {
-  return Number(item.quantity || 0) * Number(item.costPrice || 0);
+// Sale items don't carry costPrice — resolve from products lookup.
+function calcItemCost(item, costById) {
+  const qty  = Number(item.quantity || 0);
+  const unit = Number(item.costPrice) ||
+    (costById && (costById[item.id] || costById[item.productId])) || 0;
+  return qty * unit;
 }
 
 const PartyProfitReport = () => {
@@ -78,8 +82,9 @@ const PartyProfitReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: sales,   loading: sLoading } = useReportData({ table: 'sales',   select: '*', dateColumn: 'date', filters });
-  const { data: clients, loading: cLoading } = useReportData({ table: 'clients', select: 'id, name' });
+  const { data: sales,    loading: sLoading } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters });
+  const { data: clients,  loading: cLoading } = useReportData({ table: 'clients',  select: 'id, name' });
+  const { data: products }                     = useReportData({ table: 'products', select: 'id, costPrice' });
 
   const loading = sLoading || cLoading;
 
@@ -98,6 +103,12 @@ const PartyProfitReport = () => {
     return m;
   }, [clients]);
 
+  const costById = useMemo(() => {
+    const m = {};
+    products.forEach(p => { if (p.id) m[p.id] = Number(p.costPrice || 0); });
+    return m;
+  }, [products]);
+
   const { rows, kpis } = useMemo(() => {
     const partyMap = {};
 
@@ -112,7 +123,7 @@ const PartyProfitReport = () => {
       if (items.length > 0) {
         items.forEach(item => {
           partyMap[key].revenue += calcItemRevenue(item);
-          partyMap[key].cost    += calcItemCost(item);
+          partyMap[key].cost    += calcItemCost(item, costById);
         });
       } else {
         // No item breakdown — use totalAmount as revenue, cost unknown
@@ -142,7 +153,7 @@ const PartyProfitReport = () => {
         customerCount: rows.length,
       },
     };
-  }, [sales, clientMap]);
+  }, [sales, clientMap, costById]);
 
   const exportCSV = () => {
     const csvRows = [

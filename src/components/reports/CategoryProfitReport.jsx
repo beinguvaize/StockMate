@@ -84,10 +84,18 @@ const CategoryProfitReport = () => {
     if (customStart && customEnd) { setRange({ start: customStart, end: customEnd }); setShowCustom(false); }
   };
 
-  // Build product id → category map
-  const productCatMap = useMemo(() => {
+  // Build product id → category + costPrice map. Sales items don't carry
+  // costPrice (cart only saves rate/quantity), so COGS is resolved from
+  // the products table at report time — same as Bill Profit.
+  const productMap = useMemo(() => {
     const m = {};
-    products.forEach(p => { if (p.id) m[p.id] = p.category || 'Uncategorized'; });
+    products.forEach(p => {
+      if (!p.id) return;
+      m[p.id] = {
+        category: p.category || 'Uncategorized',
+        cost:     Number(p.costPrice || 0),
+      };
+    });
     return m;
   }, [products]);
 
@@ -98,11 +106,12 @@ const CategoryProfitReport = () => {
       const items = Array.isArray(s.items) ? s.items : [];
       items.forEach(item => {
         const pid      = item.id || item.productId || null;
-        const category = (pid && productCatMap[pid]) || item.category || 'Uncategorized';
+        const prod     = pid ? productMap[pid] : null;
+        const category = prod?.category || item.category || 'Uncategorized';
         if (!catMap[category]) catMap[category] = { category, units: 0, revenue: 0, cost: 0 };
         const qty  = Number(item.quantity || 0);
         const rate = Number(item.rate || item.sellingPrice || 0);
-        const cost = Number(item.costPrice || 0);
+        const cost = Number(item.costPrice ?? prod?.cost ?? 0);
         catMap[category].units   += qty;
         catMap[category].revenue += qty * rate;
         catMap[category].cost    += qty * cost;
