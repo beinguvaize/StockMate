@@ -141,7 +141,7 @@ const CategoryProfitReport = () => {
         blendedMargin,
       },
     };
-  }, [sales, productCatMap]);
+  }, [sales, productMap]);
 
   const exportCSV = () => {
     const csvRows = [
