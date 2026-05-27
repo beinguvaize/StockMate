@@ -13,6 +13,7 @@ import InvoiceBuilder from './components/InvoiceBuilder';
 import InvoiceList from './components/InvoiceList';
 import SalePrintDispatcher from './components/SalePrintDispatcher';
 import SalesReturnForm from './components/SalesReturnForm';
+import { calculateGST } from '../../lib/gstEngine';
 
 const SalesPage = () => {
   const { addNotification } = useNotifications();
@@ -33,35 +34,33 @@ const SalesPage = () => {
     const needsInvoice = (isCredit && hasClient) || isDelivery;
     if (needsInvoice) {
       const client = clients.find(c => c.id === saleData.clientId);
-      const invoiceItems = (saleData.items || []).map(i => ({
+      const draftItems = (saleData.items || []).map(i => ({
         name:     i.name,
         qty:      i.quantity,
         rate:     i.price,
         taxRate:  i.taxRate || 0,
-        total:    (i.price || 0) * (i.quantity || 1) * (1 + (i.taxRate || 0) / 100),
         sku:      i.sku || '',
         hsn_code: i.hsn_code || '',
         unit:     i.unit || 'PCS',
       }));
-      const taxableAmt   = invoiceItems.reduce((sum, i) => sum + i.rate * i.qty, 0);
-      const totalTax     = invoiceItems.reduce((sum, i) => sum + i.rate * i.qty * (i.taxRate / 100), 0);
-      const isInterstate = client?.state && businessProfile?.state
-        ? client.state.trim().toLowerCase() !== businessProfile.state.trim().toLowerCase()
-        : false;
+      // Single source of GST truth — keeps taxable/tax/grand consistent.
+      const gst = calculateGST(draftItems, businessProfile?.state || '', client?.state || '');
 
       await createInvoice({
         sale_id:         result.id,
         client_id:       saleData.clientId,
         client_name:     client?.name || 'Walk-in',
-        items:           invoiceItems,
-        grand_total:     saleData.totalAmount,
-        taxable_amount:  taxableAmt,
-        tax_total:       totalTax,
-        cgst_amount:     isInterstate ? 0 : totalTax / 2,
-        sgst_amount:     isInterstate ? 0 : totalTax / 2,
-        igst_amount:     isInterstate ? totalTax : 0,
-        is_interstate:   isInterstate,
-        paid_amount:     isCredit ? 0 : saleData.totalAmount,
+        items:           gst.items,
+        subtotal:        gst.subtotal,
+        taxable_amount:  gst.taxable,
+        tax_total:       gst.totalTax,
+        cgst_amount:     gst.cgst,
+        sgst_amount:     gst.sgst,
+        igst_amount:     gst.igst,
+        is_interstate:   gst.isInterstate,
+        round_off:       gst.roundOff,
+        grand_total:     gst.grandTotal,
+        paid_amount:     isCredit ? 0 : gst.grandTotal,
         payment_status:  isCredit ? 'UNPAID' : 'PAID',
         // Delivery tracking
         delivery_required: isDelivery,
