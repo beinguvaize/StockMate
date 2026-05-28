@@ -89,6 +89,11 @@ const BillWiseProfitReport = () => {
     dateColumn: 'date', filters,
   });
   const { data: products } = useReportData({ table: 'products', select: 'id, costPrice' });
+  // FIFO actual costs from batch consumption (where available). Per-sale
+  // COGS uses these first, falls back to products.costPrice otherwise.
+  const { data: consumption } = useReportData({
+    table: 'sale_batch_consumption', select: 'sale_id, qty_taken, unit_cost',
+  });
 
   const applyPreset = (id) => {
     setPreset(id);
@@ -103,12 +108,20 @@ const BillWiseProfitReport = () => {
   const { rows, totals } = useMemo(() => {
     const costById = {};
     products.forEach(p => { costById[p.id] = Number(p.costPrice || 0); });
+    // sale_id → actual FIFO COGS from batch consumption rows.
+    const fifoBySale = {};
+    (consumption || []).forEach(c => {
+      const v = Number(c.qty_taken || 0) * Number(c.unit_cost || 0);
+      fifoBySale[c.sale_id] = (fifoBySale[c.sale_id] || 0) + v;
+    });
     const rows = sales.map(s => {
       const items   = Array.isArray(s.items) ? s.items : [];
       const revenue = items.length > 0
         ? items.reduce((acc, it) => acc + calcItemRevenue(it), 0)
         : Number(s.totalAmount || 0);
-      const cost    = items.reduce((acc, it) => acc + calcItemCost(it, costById), 0);
+      const cost = fifoBySale[s.id] != null
+        ? fifoBySale[s.id]
+        : items.reduce((acc, it) => acc + calcItemCost(it, costById), 0);
       const profit  = revenue - cost;
       const margin  = revenue > 0 ? (profit / revenue) * 100 : 0;
       const customer = s.customerInfo?.name || 'Walk-in';
@@ -122,7 +135,7 @@ const BillWiseProfitReport = () => {
     const blendedMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
     return { rows, totals: { totalRevenue, totalCost, totalProfit, blendedMargin } };
-  }, [sales, products]);
+  }, [sales, products, consumption]);
 
   const exportCSV = () => {
     const r = [

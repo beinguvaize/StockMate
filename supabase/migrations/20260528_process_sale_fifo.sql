@@ -1,0 +1,6 @@
+-- Extend process_sale to write sale_batch_consumption rows + decrement
+-- product_batches.qty_remaining FIFO (oldest received_date first).
+-- Reports can now read historically-accurate per-batch cost instead of
+-- falling back to current products.costPrice.
+-- Applied to project lmviftlynuhopzmvaxeu on 2026-05-28.
+-- Function body lives in DB; this file marks the upgrade for replay.
