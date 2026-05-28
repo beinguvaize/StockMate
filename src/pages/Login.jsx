@@ -62,20 +62,15 @@ const Login = () => {
 
     setError('');
     const result = await login(credentials.email, credentials.password);
-    
+
     if (result.success) {
-      const user = result.user;
-      const isGlobalAdmin = user?.roles?.includes('GLOBAL_ADMIN') || user?.user_metadata?.roles?.includes('GLOBAL_ADMIN');
-      
-      if (isGlobalAdmin) {
-        navigate('/nexus-hq');
-      } else if (user?.user_metadata?.tenant_id) {
-        navigate('/');
-      } else {
-        // Successful auth but NO tenant association
-        await logout(); // Ensure session is cleared
-        setError('Access Restricted: Your account is not associated with an active workspace. Please contact support.');
-      }
+      // Hand off to RootRedirect — it reads currentUser + currentTenant from
+      // their respective contexts (populated by AuthContext/TenantContext
+      // listening to the new session) and routes to /nexus-hq, the tenant
+      // dashboard, or /welcome. Doing it here was racing the contexts and
+      // breaking sign-ins for users whose tenant_id lives in public.users
+      // rather than supabase user_metadata.
+      navigate('/');
     } else {
       setError(result.error || 'Invalid email or password');
     }
