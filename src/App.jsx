@@ -16,7 +16,8 @@ import ReportIssueButton from './components/ReportIssueButton';
 
 // ── Eager (tiny, needed immediately) ────────────────────────────────────────
 import Login   from './pages/Login';
-import Landing from './pages/Landing';
+// Landing page parked — RootRedirect now sends anonymous visitors to /login.
+// Keep the file (src/pages/Landing.jsx) for future re-enable; just don't import.
 import NoAccess from './pages/NoAccess';
 
 // ── Lazy (loaded only when route is visited) ─────────────────────────────────
@@ -136,8 +137,7 @@ const RootRedirect = () => {
     return <Navigate to="/welcome" replace />;
   }
 
-  // Anonymous → marketing landing
-  return <Landing />;
+  return <Navigate to="/login" replace />;
 };
 
 function AppRoutes() {
