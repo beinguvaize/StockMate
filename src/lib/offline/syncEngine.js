@@ -30,9 +30,8 @@ export const SYNCED_TABLES = [
   'day_book',
 ];
 
-// Manual-only sync. Auto background interval disabled — user said "manual
-// sync option to update when needed". Set to 0 to skip the setInterval.
-const SYNC_INTERVAL_MS = 0;
+// Default off. UI toggles auto-sync via startSync({ intervalMs }).
+const DEFAULT_AUTO_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes
 const MAX_NON_NETWORK_ATTEMPTS = 5;
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -182,7 +181,7 @@ export async function syncNow() {
  *
  * @param {function} [onSyncComplete] - optional callback(isoTimestamp) after each successful sync
  */
-export function startSync(onSyncComplete) {
+export function startSync(onSyncComplete, opts = {}) {
   stopSync(); // clear any previous handles
 
   const run = async () => {
@@ -195,15 +194,19 @@ export function startSync(onSyncComplete) {
   // Immediate first sync (bootstrap cache).
   run();
 
-  // Periodic auto-sync only if interval > 0 (disabled by default — manual).
-  if (SYNC_INTERVAL_MS > 0) {
-    _intervalId = setInterval(run, SYNC_INTERVAL_MS);
+  // Auto-sync interval (opts.intervalMs > 0 to enable). Caller decides
+  // — UI persists user toggle in localStorage and passes 10 min when on.
+  const intervalMs = Number(opts.intervalMs) || 0;
+  if (intervalMs > 0) {
+    _intervalId = setInterval(run, intervalMs);
   }
 
   // Auto-sync when network restored (cheap, useful).
   _onlineHandler = () => run();
   window.addEventListener('online', _onlineHandler);
 }
+
+export const AUTO_SYNC_INTERVAL_MS = DEFAULT_AUTO_INTERVAL_MS;
 
 /**
  * Stop the sync loop (interval + online listener).

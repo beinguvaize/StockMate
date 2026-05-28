@@ -20,8 +20,11 @@ import {
   stopSync,
   syncNow as engineSyncNow,
   getSyncing,
+  AUTO_SYNC_INTERVAL_MS,
 } from '../lib/offline/syncEngine.js';
 import { pendingCount as outboxPendingCount } from '../lib/offline/outbox.js';
+
+const AUTO_SYNC_LS_KEY = 'ledgr.autoSync';
 
 // ─── Context ─────────────────────────────────────────────────────────────────
 
@@ -31,6 +34,9 @@ const OfflineContext = createContext({
   lastSyncAt: null,
   pendingCount: 0,
   syncNow: async () => {},
+  autoSync: false,
+  setAutoSync: () => {},
+  autoSyncIntervalMs: AUTO_SYNC_INTERVAL_MS,
 });
 
 export function useOffline() {
@@ -46,6 +52,17 @@ export function OfflineProvider({ children }) {
   const [syncing, setSyncing] = useState(false);
   const [lastSyncAt, setLastSyncAt] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
+
+  // Auto-sync preference persisted in localStorage. Default OFF — user
+  // explicitly asked for manual sync + optional 10-min auto.
+  const [autoSync, setAutoSyncState] = useState(() => {
+    try { return localStorage.getItem(AUTO_SYNC_LS_KEY) === '1'; }
+    catch (_) { return false; }
+  });
+  const setAutoSync = useCallback((v) => {
+    setAutoSyncState(!!v);
+    try { localStorage.setItem(AUTO_SYNC_LS_KEY, v ? '1' : '0'); } catch (_) {}
+  }, []);
 
   // Ref to avoid stale closures in the syncNow callback
   const syncingRef = useRef(false);
@@ -106,24 +123,23 @@ export function OfflineProvider({ children }) {
   }, []);
 
   // ── Start / stop the sync engine — desktop only ──
+  // Restarts whenever the autoSync toggle changes so the new interval
+  // (or its absence) takes effect immediately.
   useEffect(() => {
     const isDesktop =
       typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent);
-    if (!isDesktop) return; // Web stays untouched — supabase-direct.
+    if (!isDesktop) return;
 
     try {
-      startSync(onSyncComplete);
+      startSync(onSyncComplete, { intervalMs: autoSync ? AUTO_SYNC_INTERVAL_MS : 0 });
     } catch (err) {
       console.error('[OfflineContext] startSync error:', err);
     }
     return () => {
-      try {
-        stopSync();
-      } catch (err) {
-        console.error('[OfflineContext] stopSync error:', err);
-      }
+      try { stopSync(); }
+      catch (err) { console.error('[OfflineContext] stopSync error:', err); }
     };
-  }, [onSyncComplete]);
+  }, [onSyncComplete, autoSync]);
 
   // ── Manual syncNow exposed to consumers ──
   const syncNow = useCallback(async () => {
@@ -147,6 +163,9 @@ export function OfflineProvider({ children }) {
     lastSyncAt,
     pendingCount,
     syncNow,
+    autoSync,
+    setAutoSync,
+    autoSyncIntervalMs: AUTO_SYNC_INTERVAL_MS,
   };
 
   return <OfflineContext.Provider value={value}>{children}</OfflineContext.Provider>;
