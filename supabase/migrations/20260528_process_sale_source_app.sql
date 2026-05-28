@@ -1,0 +1,6 @@
+-- Bake source_app into process_sale RPC so the sale row gets tagged at
+-- insert time instead of via a post-RPC UPDATE round trip.
+-- Web/desktop pass 'WEB' or 'DESKTOP' (Electron UA detect),
+-- mobile add-sale passes 'MOBILE', driver van flow passes 'VAN'.
+-- Applied to project lmviftlynuhopzmvaxeu on 2026-05-28.
+-- (Function body in repo too long for migration file; live def in DB.)

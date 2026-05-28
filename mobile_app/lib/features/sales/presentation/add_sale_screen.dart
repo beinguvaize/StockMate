@@ -243,20 +243,13 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         'p_route_id':        widget.routeId,
         'p_tenant_id':       tenantId,
         'p_delivery_method': 'PICKUP',
+        'p_source_app':      'MOBILE',
       };
 
       // Offline-first: try direct RPC, on network/transient failure queue it.
       final queued = await ref.read(syncServiceProvider)
           .rpcOnlineOrQueue('process_sale', rpcParams);
       debugPrint(queued ? '[SALE] queued for offline sync' : '[SALE] RPC success');
-
-      // Tag the sale so reports can split mobile from web/desktop.
-      // process_sale doesn't take this column, so update after.
-      if (!queued) {
-        try {
-          await supabase.from('sales').update({'source_app': 'MOBILE'}).eq('id', saleId);
-        } catch (_) {}
-      }
 
       if (paymentMethod == 'CREDIT_SALE' && _selectedClient != null) {
         try {

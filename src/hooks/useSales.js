@@ -180,6 +180,11 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       const totalAmount = sale.totalAmount ?? 0;
       const paymentStatus = sale.status === 'COMPLETED' ? 'PAID' : (sale.status || 'PENDING');
 
+      const sourceApp =
+        typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent)
+          ? 'DESKTOP'
+          : 'WEB';
+
       const rpcParams = {
         p_id: id,
         p_shop_id: clientId,
@@ -195,6 +200,8 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         // RPC rejects the override for non-admins (defence-in-depth).
         p_tenant_id: tenantId || null,
         p_delivery_method: sale.fulfillmentType === 'DELIVERY' ? 'DELIVERY' : 'PICKUP',
+        // source_app baked into INSERT (no post-RPC UPDATE needed).
+        p_source_app: sourceApp,
       };
 
       const { error: rpcError } = await supabase.rpc('process_sale', rpcParams);
@@ -215,14 +222,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         return { error: rpcError };
       }
 
-      // Tag which client created the sale so reports can split
-      // web vs desktop traffic. Electron exposes "Electron" in the UA.
-      const sourceApp =
-        typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent)
-          ? 'DESKTOP'
-          : 'WEB';
-      await supabase.from('sales').update({ source_app: sourceApp }).eq('id', id);
-
+      // source_app is now persisted by process_sale itself — no follow-up update needed.
       await fetchSales();
       return { success: true, id };
     },
