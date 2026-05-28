@@ -258,11 +258,33 @@ const Settings = () => {
  )}
  </div>
 
+ {/* ── Sticky tab strip — scrolls to each section ── */}
+ <div className="sticky top-2 z-30 bg-canvas/85 backdrop-blur-xl rounded-2xl border border-black/5 shadow-sm p-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar">
+   {[
+     { id: 'tab-business',   label: 'Business',   icon: <Building   size={13} /> },
+     { id: 'tab-workspace',  label: 'Workspace',  icon: <Zap        size={13} /> },
+     { id: 'tab-categories', label: 'Categories', icon: <Tag        size={13} /> },
+     { id: 'tab-locations',  label: 'Locations',  icon: <Database   size={13} /> },
+     { id: 'tab-billing',    label: 'Bill Template', icon: <FileUp  size={13} /> },
+     { id: 'tab-data',       label: 'Data Tools', icon: <RotateCcw  size={13} /> },
+     { id: 'tab-api',        label: 'API',        icon: <ShieldCheck size={13} /> },
+   ].map(t => (
+     <button key={t.id} type="button"
+       onClick={() => {
+         const el = document.getElementById(t.id);
+         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+       }}
+       className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest text-gray-500 hover:text-ink-primary hover:bg-white transition-all whitespace-nowrap">
+       {t.icon}{t.label}
+     </button>
+   ))}
+ </div>
+
  {/* Main Config Grid */}
  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
  {/* Left Panel: Primary Identity */}
  <div className="md:col-span-2 flex flex-col gap-5">
- <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium">
+ <div id="tab-business" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium">
  <div className="bg-ink-primary p-6 flex items-center gap-4">
  <Building size={20} className="text-accent-signature" />
  <h2 className="text-base font-bold font-semibold text-surface">Business Details</h2>
@@ -506,7 +528,7 @@ const Settings = () => {
 
   {/* Workspace Management - OWNER ONLY */}
   {isOwner && (
-    <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface mt-5">
+    <div id="tab-workspace" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface mt-5">
       <div className="bg-ink-primary p-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Shield size={20} className="text-accent-signature" />
@@ -598,7 +620,7 @@ const Settings = () => {
   )}
 
   {/* Expense Categories Management */}
- <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+ <div id="tab-categories" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
  <div className="bg-ink-primary p-6 flex items-center justify-between">
  <div className="flex items-center gap-4">
  <Tag size={20} className="text-accent-signature" />
@@ -807,7 +829,7 @@ const Settings = () => {
  {isOwner && <ThemePicker />}
 
  {/* ── Cash Bill / POS Receipt Layout ─────────────────────────────── */}
- <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+ <div id="tab-billing" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
    <div className="bg-ink-primary p-6 flex items-center justify-between">
      <div className="flex items-center gap-4">
        <Receipt size={20} className="text-accent-signature" />
@@ -928,7 +950,7 @@ const Settings = () => {
  </div>
 
  {/* Data Import / Export */}
- <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+ <div id="tab-data" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
  <div className="bg-ink-primary p-6 flex items-center justify-between">
  <div className="flex items-center gap-4">
  <FileUp size={20} className="text-accent-signature" />
@@ -992,7 +1014,7 @@ const Settings = () => {
 
 
  {/* ── Branches / Locations (PRO+) ── */}
- <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+ <div id="tab-locations" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
    <div className="bg-ink-primary p-6 flex items-center justify-between">
      <div className="flex items-center gap-4">
        <MapPin size={20} className="text-accent-signature" />
@@ -1085,7 +1107,7 @@ const Settings = () => {
  </div>
 
  {/* ── API Keys (Enterprise) ── */}
- <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+ <div id="tab-api" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
    <div className="bg-ink-primary p-6 flex items-center justify-between">
      <div className="flex items-center gap-4">
        <Key size={20} className="text-accent-signature" />
