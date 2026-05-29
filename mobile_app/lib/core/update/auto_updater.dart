@@ -34,36 +34,46 @@ class AutoUpdater {
 
   bool _checking = false;
 
-  /// Check GitHub for a newer release. Pure read — safe to call on app start.
+  /// Check GitHub for a newer mobile release. Pure read — safe to call on
+  /// app start.
+  ///
+  /// We don't use /releases/latest because the repo publishes both desktop
+  /// (`desktop-v*`) and mobile (`mobile-v*`) releases. /latest returns
+  /// whichever tag was pushed most recently, so a desktop drop would make
+  /// the mobile auto-updater pick a release that has only a .dmg asset and
+  /// surface "being prepared" forever. Instead we list recent releases and
+  /// pick the newest one whose tag matches our platform prefix.
   Future<_ReleaseInfo?> _fetchLatest() async {
     final res = await http
-        .get(Uri.parse('https://api.github.com/repos/$_githubRepo/releases/latest'),
+        .get(Uri.parse('https://api.github.com/repos/$_githubRepo/releases?per_page=20'),
             headers: {'Accept': 'application/vnd.github+json'})
         .timeout(const Duration(seconds: 10));
     if (res.statusCode != 200) return null;
 
-    // Parse without dart:convert dependency on the caller — release JSON is
-    // small + we only need a few fields.
     final body = res.body;
-    final tagMatch  = RegExp(r'"tag_name"\s*:\s*"([^"]+)"').firstMatch(body);
-    if (tagMatch == null) return _ReleaseInfo.noAsset();
-    final notesMatch = RegExp(r'"body"\s*:\s*"((?:[^"\\]|\\.)*)"').firstMatch(body);
+    // Split the array into individual release objects on the }, { boundary.
+    // Cheaper than pulling in dart:convert + a JSON model.
+    final releases = body.split(RegExp(r'\}\s*,\s*\{'));
+    for (final raw in releases) {
+      // Mobile releases only — keeps desktop tags (desktop-v*) out.
+      final tagMatch = RegExp(r'"tag_name"\s*:\s*"(mobile-[^"]+)"').firstMatch(raw);
+      if (tagMatch == null) continue;
+      final notesMatch = RegExp(r'"body"\s*:\s*"((?:[^"\\]|\\.)*)"').firstMatch(raw);
+      final apkMatch   = RegExp(r'"browser_download_url"\s*:\s*"([^"]+\.apk)"').firstMatch(raw);
 
-    // First .apk asset in the assets array
-    final apkMatch = RegExp(r'"browser_download_url"\s*:\s*"([^"]+\.apk)"').firstMatch(body);
-    if (apkMatch == null) {
+      final version = tagMatch.group(1)!
+          .replaceFirst(RegExp(r'^mobile-'), '')
+          .replaceFirst(RegExp(r'^v'), '');
+      final notes = (notesMatch?.group(1) ?? '')
+          .replaceAll(r'\n', '\n').replaceAll(r'\"', '"');
+
       return _ReleaseInfo(
-        version: tagMatch.group(1)!.replaceFirst(RegExp(r'^v'), ''),
-        apkUrl: '',
-        releaseNotes: (notesMatch?.group(1) ?? '').replaceAll(r'\n', '\n').replaceAll(r'\"', '"'),
+        version: version,
+        apkUrl: apkMatch?.group(1) ?? '',
+        releaseNotes: notes,
       );
     }
-
-    return _ReleaseInfo(
-      version: tagMatch.group(1)!.replaceFirst(RegExp(r'^v'), ''),
-      apkUrl: apkMatch.group(1)!,
-      releaseNotes: (notesMatch?.group(1) ?? '').replaceAll(r'\n', '\n').replaceAll(r'\"', '"'),
-    );
+    return _ReleaseInfo.noAsset();
   }
 
   /// True iff `latest` is strictly greater than `current` (semver, naive).
