@@ -12,10 +12,17 @@ final tenantProfileProvider = FutureProvider<Map<String, dynamic>?>((ref) async 
 
   final res = await supabase
       .from('business_profile')
-      .select('currencySymbol, businessName, country, upi_id')
+      .select('currencySymbol, name, country, upi_id, bank_name, account_no, ifsc_code')
       .eq('tenant_id', tenantId)
       .maybeSingle();
-  return res;
+  if (res == null) return null;
+  // Mirror `name` into `businessName` so existing call sites that read
+  // either key keep working — the source-of-truth column on the table
+  // is `name`; older code still reads `businessName`.
+  return {
+    ...res,
+    'businessName': res['name'],
+  };
 });
 
 /// Convenience: just the currency symbol, falls back to empty string.
