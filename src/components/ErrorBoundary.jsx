@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, RefreshCcw, Home} from 'lucide-react';
+import { goHref } from '../lib/nav';
 
 class ErrorBoundary extends React.Component {
  constructor(props) {
@@ -42,7 +43,7 @@ class ErrorBoundary extends React.Component {
 
  handleReset = () => {
  localStorage.clear();
- window.location.href = '/login';
+ goHref('/login');
 };
 
  render() {
@@ -77,7 +78,7 @@ class ErrorBoundary extends React.Component {
  
  <div className="grid grid-cols-2 gap-4">
  <button 
- onClick={() => window.location.href = '/'}
+ onClick={() => goHref('/')}
  className="flex items-center justify-center gap-2 bg-gray-50 text-ink-primary font-bold py-2 rounded-lg hover:bg-gray-100 transition-all text-xs"
  >
  <Home className="w-4 h-4" />

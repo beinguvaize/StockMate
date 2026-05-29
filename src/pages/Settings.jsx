@@ -7,6 +7,7 @@ import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
 import { useInventory } from '../hooks/useInventory';
 import { supabase } from '../lib/supabase';
+import { goHref } from '../lib/nav';
 import { hasFeature, PLANS } from '../lib/tenancy';
 import {
   Settings as SettingsIcon, Building, Shield, Bell, Save,
@@ -601,7 +602,7 @@ const Settings = () => {
                 setIsUpdatingSlug(true);
                 const success = await updateTenant({ slug: workspaceSlug });
                 if (success) {
-                  window.location.href = `/${workspaceSlug}/settings`;
+                  goHref(`/${workspaceSlug}/settings`);
                 }
                 setIsUpdatingSlug(false);
               }}

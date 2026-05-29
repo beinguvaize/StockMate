@@ -33,6 +33,19 @@ export const isElectron = () => {
  * results into IndexedDB. Falls back to the cached snapshot on any error
  * (network, timeout, RLS, etc).
  */
+// Hard ceiling on every desktop network read. If supabase doesn't respond
+// in this window we abandon it and fall back to the IDB cache. Without this,
+// an offline / unreachable PostgREST hangs the loading screen indefinitely.
+const NETWORK_TIMEOUT_MS = 3000;
+
+const withTimeout = (promise, ms, label = 'request') =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    ),
+  ]);
+
 export async function fetchWithCache(table, queryFn) {
   // Web → pass through, no caching. Keeps web hooks 1:1 with previous
   // behaviour so nothing on the cashier surface changes.
@@ -42,8 +55,19 @@ export async function fetchWithCache(table, queryFn) {
     return { data: Array.isArray(res?.data) ? res.data : [], fromCache: false, error: null };
   }
 
+  // Offline short-circuit: skip the network probe entirely when the OS
+  // says we're offline. Saves the 3s timeout + avoids spinner thrash.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    try {
+      const cached = await getRecords(table);
+      return { data: cached, fromCache: true, error: new Error('offline') };
+    } catch (_) {
+      return { data: [], fromCache: true, error: new Error('offline') };
+    }
+  }
+
   try {
-    const res = await queryFn();
+    const res = await withTimeout(queryFn(), NETWORK_TIMEOUT_MS, `${table} fetch`);
     if (res?.error) throw res.error;
     const rows = Array.isArray(res?.data) ? res.data : [];
     if (rows.length) {
@@ -85,4 +109,37 @@ export function isOfflineError(err) {
     msg.includes('abort') ||
     (typeof navigator !== 'undefined' && !navigator.onLine)
   );
+}
+
+/**
+ * Optimistic local cache mutation — used when a write was queued to the
+ * outbox so the UI reflects the change immediately without a sync.
+ * Desktop-only; web no-ops.
+ *
+ *   - upsertCachedRow('expenses', newExpense)
+ *   - decrementCachedStock([{ id, quantity }])
+ */
+export async function upsertCachedRow(table, row) {
+  if (!isElectron() || !row || !row.id) return;
+  try { await putRecords(table, [row]); } catch (_) {}
+}
+
+export async function decrementCachedStock(items = []) {
+  if (!isElectron() || !items.length) return;
+  try {
+    const cached = await getRecords('products');
+    if (!cached.length) return;
+    const decBy = new Map();
+    for (const it of items) {
+      const pid = it.id || it.productId;
+      const qty = Number(it.quantity || 0);
+      if (!pid || qty <= 0) continue;
+      decBy.set(pid, (decBy.get(pid) || 0) + qty);
+    }
+    if (!decBy.size) return;
+    const updated = cached
+      .filter(p => decBy.has(p.id))
+      .map(p => ({ ...p, stock: Math.max(0, Number(p.stock || 0) - decBy.get(p.id)) }));
+    if (updated.length) await putRecords('products', updated);
+  } catch (_) {/* ignore — cache is best-effort */}
 }

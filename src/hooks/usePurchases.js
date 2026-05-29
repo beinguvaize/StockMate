@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
-import { fetchWithCache } from '../lib/offline/hookAdapter';
+import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError } from '../lib/offline/hookAdapter';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
 const PURCHASE_NUMERIC = ['quantity', 'total_amount', 'paid_amount', 'unit_price', 'tax'];
@@ -86,7 +86,7 @@ export const usePurchases = (tenantId) => {
   }, [tenantId]);
 
   const add = async (purchase) => {
-    const { error: rpcError } = await supabase.rpc('process_purchase', {
+    const rpcParams = {
       p_id: purchase.id,
       p_product_id: purchase.linked_product_id,
       p_quantity: purchase.quantity,
@@ -97,13 +97,35 @@ export const usePurchases = (tenantId) => {
       p_notes: purchase.notes,
       p_user_id: purchase.userId,
       p_location_id: purchase.locationId || null,
-      p_tenant_id: tenantId
-    });
+      p_tenant_id: tenantId,
+    };
+    const { error: rpcError } = await supabase.rpc('process_purchase', rpcParams);
 
-    if (rpcError) return { error: rpcError };
-    
-    await fetchPurchases();
-    return { success: true };
+    if (!rpcError) { await fetchPurchases(); return { success: true }; }
+
+    if (isOfflineError(rpcError)) {
+      try {
+        await queueMutation({ table: 'process_purchase', type: 'rpc', payload: rpcParams });
+        const cachedRow = {
+          id: purchase.id,
+          tenant_id: tenantId,
+          linked_product_id: purchase.linked_product_id,
+          quantity: purchase.quantity,
+          total_amount: purchase.total_amount,
+          supplier_id: purchase.supplier_id || null,
+          supplier_name: purchase.supplier_name || null,
+          payment_type: purchase.payment_type,
+          date: purchase.date,
+          notes: purchase.notes || null,
+          status: 'PENDING',
+          created_at: new Date().toISOString(),
+        };
+        await upsertCachedRow('purchases', cachedRow);
+        setData(prev => normalizeNumericRows([cachedRow, ...prev], PURCHASE_NUMERIC));
+        return { success: true, queued: true };
+      } catch (qErr) { console.error('purchases add queue error:', qErr); }
+    }
+    return { error: rpcError };
   };
 
   const update = async (id, updates) => {

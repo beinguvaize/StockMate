@@ -56,6 +56,26 @@ export const AuthProvider = ({ children }) => {
               profile = await getMeta(`cachedProfile:${session.user.id}`);
               if (profile) console.info('[auth] offline → using cached profile');
             } catch (_) {/* ignore cache read fail */}
+
+            // Offline grace + subscription gate. If the bootstrap snapshot
+            // is missing, stale, or marks the subscription as suspended, we
+            // force the user back to the login screen instead of giving
+            // unauthorised offline access to cached data.
+            try {
+              const { loadBootstrap, isGraceValid, isSubscriptionActive } =
+                await import('../lib/offline/authGuard.js');
+              const bootstrap = await loadBootstrap();
+              const block =
+                !bootstrap ||
+                bootstrap.userId !== session.user.id ||
+                !isGraceValid(bootstrap) ||
+                !isSubscriptionActive(bootstrap);
+              if (block) {
+                console.warn('[auth] offline grace/subscription gate failed → signing out');
+                await supabase.auth.signOut();
+                profile = null;
+              }
+            } catch (_) {/* if guard fails, fall through with cached profile */}
           }
         }
 
@@ -68,6 +88,31 @@ export const AuthProvider = ({ children }) => {
              enrichedProfile.roles = [...(enrichedProfile.roles || []), 'GLOBAL_ADMIN', 'OWNER'];
           }
           setCurrentUser(enrichedProfile);
+
+          // Desktop: persist bootstrap snapshot (user + subscription) after
+          // a successful ONLINE validation so subsequent launches can run
+          // offline within the grace window. Fire-and-forget — never blocks UI.
+          if (isDesktop && enrichedProfile.tenant_id) {
+            (async () => {
+              try {
+                const { data: tenantRow } = await supabase
+                  .from('tenants')
+                  .select('plan, status')
+                  .eq('id', enrichedProfile.tenant_id)
+                  .maybeSingle();
+                const { saveBootstrap } = await import('../lib/offline/authGuard.js');
+                await saveBootstrap({
+                  userId: session.user.id,
+                  email: session.user.email,
+                  tenantId: enrichedProfile.tenant_id,
+                  subscription: {
+                    plan: tenantRow?.plan || 'STARTER',
+                    status: tenantRow?.status || 'ACTIVE',
+                  },
+                });
+              } catch (_) {/* ignore — bootstrap is best-effort */}
+            })();
+          }
         } else {
           // Provision superuser if match
           const newUserProfile = {
@@ -122,6 +167,31 @@ export const AuthProvider = ({ children }) => {
               enrichedProfile.roles = [...(enrichedProfile.roles || []), 'GLOBAL_ADMIN', 'OWNER'];
             }
             setCurrentUser(enrichedProfile);
+
+            // Desktop: write bootstrap snapshot on every fresh SIGNED_IN so
+            // grace timer resets and subscription status is current.
+            const isDesktopEvt = typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent);
+            if (isDesktopEvt && enrichedProfile.tenant_id) {
+              (async () => {
+                try {
+                  const { data: tenantRow } = await supabase
+                    .from('tenants')
+                    .select('plan, status')
+                    .eq('id', enrichedProfile.tenant_id)
+                    .maybeSingle();
+                  const { saveBootstrap } = await import('../lib/offline/authGuard.js');
+                  await saveBootstrap({
+                    userId: session.user.id,
+                    email: session.user.email,
+                    tenantId: enrichedProfile.tenant_id,
+                    subscription: {
+                      plan: tenantRow?.plan || 'STARTER',
+                      status: tenantRow?.status || 'ACTIVE',
+                    },
+                  });
+                } catch (_) {/* best-effort */}
+              })();
+            }
           } else {
             setCurrentUser({
               id: session.user.id,
@@ -191,6 +261,11 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     await supabase.auth.signOut();
     setCurrentUser(null);
+    // Clear desktop offline bootstrap so next launch requires online sign-in
+    try {
+      const { clearBootstrap, isElectron } = await import('../lib/offline/authGuard.js');
+      if (isElectron()) await clearBootstrap();
+    } catch (_) {/* ignore */}
   };
 
   const hasPermission = (moduleKey, action = 'view') => {

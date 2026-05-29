@@ -1,7 +1,8 @@
-import React, { useState} from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate} from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
+import { isElectron as isDesktopApp, loadBootstrap, isGraceValid, isSubscriptionActive, OFFLINE_GRACE_MS } from '../lib/offline/authGuard';
 
 const Login = () => {
   const [credentials, setCredentials] = useState({ email: '', password: ''});
@@ -13,6 +14,47 @@ const Login = () => {
   const { login, logout, loading} = useAuth();
   const navigate = useNavigate();
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Desktop offline status: track navigator.onLine + cached bootstrap so we can
+  // (a) show a clear "first sign-in requires internet" warning to fresh users,
+  // (b) tell returning users how many days of offline grace remain.
+  const [offlineState, setOfflineState] = useState({
+    desktop: false, online: true, bootstrap: null,
+  });
+  useEffect(() => {
+    if (!isDesktopApp()) return;
+    let cancelled = false;
+    const refresh = async () => {
+      const bootstrap = await loadBootstrap();
+      if (cancelled) return;
+      setOfflineState({
+        desktop: true,
+        online: typeof navigator !== 'undefined' ? navigator.onLine : true,
+        bootstrap,
+      });
+    };
+    refresh();
+    const onChange = () => refresh();
+    window.addEventListener('online',  onChange);
+    window.addEventListener('offline', onChange);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('online',  onChange);
+      window.removeEventListener('offline', onChange);
+    };
+  }, []);
+
+  const desktopOfflineFirstSignIn =
+    offlineState.desktop && !offlineState.online && !offlineState.bootstrap;
+  const desktopOfflineGraceExpired =
+    offlineState.desktop && !offlineState.online && offlineState.bootstrap &&
+    !isGraceValid(offlineState.bootstrap);
+  const desktopOfflineSubscriptionBlocked =
+    offlineState.desktop && !offlineState.online && offlineState.bootstrap &&
+    !isSubscriptionActive(offlineState.bootstrap);
+  const desktopOfflineGraceDaysLeft = offlineState.bootstrap?.validatedAt
+    ? Math.max(0, Math.ceil((OFFLINE_GRACE_MS - (Date.now() - offlineState.bootstrap.validatedAt)) / (24 * 60 * 60 * 1000)))
+    : 0;
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -48,7 +90,22 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
+    // Desktop: block first-time sign-in attempts while offline. supabase
+    // signInWithPassword requires a network round-trip and would just hang.
+    if (desktopOfflineFirstSignIn) {
+      setError('First sign-in requires an internet connection. Connect, then try again.');
+      return;
+    }
+    if (desktopOfflineSubscriptionBlocked) {
+      setError('Subscription is suspended. Reconnect to the internet to refresh your status.');
+      return;
+    }
+    if (desktopOfflineGraceExpired) {
+      setError('Offline grace period has expired. Connect to the internet to re-verify your account.');
+      return;
+    }
+
     setBtnClicked(false);
     setMarkSpin(false);
     setTimeout(() => {
@@ -102,6 +159,27 @@ const Login = () => {
  <h1 className="font-space font-bold text-[26px] text-white text-center mb-[34px]">
  WELCOME BACK
  </h1>
+
+ {offlineState.desktop && !offlineState.online && (
+   <div className={`mb-5 px-4 py-3 rounded-xl border text-[12px] leading-snug ${
+     desktopOfflineFirstSignIn || desktopOfflineGraceExpired || desktopOfflineSubscriptionBlocked
+       ? 'bg-red-500/10 border-red-500/30 text-red-300'
+       : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+   }`}>
+     {desktopOfflineFirstSignIn && (
+       <span><strong>Offline.</strong> First sign-in requires internet. Connect, then sign in.</span>
+     )}
+     {desktopOfflineSubscriptionBlocked && (
+       <span><strong>Subscription suspended.</strong> Reconnect to refresh status.</span>
+     )}
+     {desktopOfflineGraceExpired && (
+       <span><strong>Offline grace expired.</strong> Reconnect to re-verify your account.</span>
+     )}
+     {!desktopOfflineFirstSignIn && !desktopOfflineSubscriptionBlocked && !desktopOfflineGraceExpired && (
+       <span><strong>Working offline.</strong> {desktopOfflineGraceDaysLeft} day{desktopOfflineGraceDaysLeft === 1 ? '' : 's'} of offline access remaining. Connect to extend.</span>
+     )}
+   </div>
+ )}
 
  <form onSubmit={handleSubmit}>
  <div className="mb-[18px]">

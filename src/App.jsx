@@ -1,5 +1,6 @@
 import React, { lazy, Suspense } from 'react';
 import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { goHref } from './lib/nav';
 
 // Electron loads via file:// — BrowserRouter breaks there, use HashRouter.
 const Router = (typeof window !== 'undefined' && window.electron?.isElectron)
@@ -105,7 +106,7 @@ const TenantResolver = ({ children }) => {
         <div className="max-w-md w-full glass-panel border-red-500/20 p-8">
           <h1 className="text-xl font-bold text-white mb-2">Workspace Not Found</h1>
           <p className="text-gray-400 text-sm mb-6">The workspace /{tenantSlug} is inaccessible.</p>
-          <button onClick={() => window.location.href = "/"} className="btn-signature w-full">Go Home</button>
+          <button onClick={() => goHref("/")} className="btn-signature w-full">Go Home</button>
         </div>
       </div>
     );

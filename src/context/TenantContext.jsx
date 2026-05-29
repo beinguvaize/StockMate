@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { isModuleAvailable } from '../lib/tenancy';
 import { cacheClear as libCacheClear } from '../lib/cache';
 import { setAppTZ } from '../lib/utils';
+import { goHref } from '../lib/nav';
 
 // Reject a pending request after `ms` so a hung network call can never
 // freeze the app on the loading screen.
@@ -161,13 +162,13 @@ export const TenantProvider = ({ children }) => {
     setCurrentTenant(tenant);
     sessionStorage.setItem('nexus_impersonating', 'true');
     sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(tenant));
-    window.location.href = `/${tenant.slug}/dashboard`;
+    goHref(`/${tenant.slug}/dashboard`);
   };
 
   const stopImpersonating = () => {
     sessionStorage.removeItem('nexus_impersonating');
     sessionStorage.removeItem('nexus_impersonated_tenant');
-    window.location.href = '/nexus-hq';
+    goHref('/nexus-hq');
   };
 
   const isModuleAllowed = (moduleKey) => {

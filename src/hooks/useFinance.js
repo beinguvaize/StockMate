@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
+import { queueMutation, upsertCachedRow, isOfflineError } from '../lib/offline/hookAdapter';
 
 const EXPENSE_NUMERIC       = ['amount'];
 const DAYBOOK_NUMERIC       = ['opening_balance', 'closing_balance', 'total_sales', 'total_expenses'];
@@ -77,9 +78,17 @@ export const useFinance = (tenantId) => {
 
   const addExpense = async (expense) => {
     const id = crypto.randomUUID();
-    const { error } = await supabase
-      .from('expenses').insert({ id, ...toDbRow(expense), tenant_id: tenantId });
-    if (!error) await fetchFinanceData();
+    const row = { id, ...toDbRow(expense), tenant_id: tenantId };
+    const { error } = await supabase.from('expenses').insert(row);
+    if (!error) { await fetchFinanceData(); return { error: null }; }
+    if (isOfflineError(error)) {
+      try {
+        await queueMutation({ table: 'expenses', type: 'insert', payload: row });
+        await upsertCachedRow('expenses', row);
+        setExpenses(prev => normalizeNumericRows([row, ...prev], EXPENSE_NUMERIC));
+        return { error: null, queued: true };
+      } catch (qErr) { console.error('addExpense queue error:', qErr); }
+    }
     return { error };
   };
 

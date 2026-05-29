@@ -6,6 +6,7 @@ import {
   Check, Zap, Shield, Star
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { goHref } from '../lib/nav';
 
 const PLANS = [
   {
@@ -70,7 +71,7 @@ const TenantSetup = () => {
       if (data?.error) throw new Error(data.error);
 
       // Redirect to onboarding instead of dashboard directly
-      window.location.href = `/${data.slug}/onboarding`;
+      goHref(`/${data.slug}/onboarding`);
     } catch (err) {
       console.error('Setup error:', err);
       setError(err.message || 'Failed to create workspace. Please try again.');

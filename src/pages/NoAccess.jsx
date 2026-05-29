@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ShieldAlert, LogOut, Mail, RefreshCcw } from 'lucide-react';
+import { goHref } from '../lib/nav';
 
 const NoAccess = () => {
   const { logout, currentUser, isAdmin } = useAuth();
@@ -65,7 +66,7 @@ const NoAccess = () => {
               localStorage.clear();
               sessionStorage.clear();
               await logout();
-              window.location.href = '/login';
+              goHref('/login');
             }}
             className="w-full h-16 bg-accent-signature/10 border border-accent-signature/20 text-accent-signature font-bold font-sora rounded-2xl hover:bg-accent-signature/20 transition-all flex items-center justify-center gap-3 active:scale-[0.98]"
           >

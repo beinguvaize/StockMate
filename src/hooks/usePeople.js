@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
-import { fetchWithCache } from '../lib/offline/hookAdapter';
+import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError } from '../lib/offline/hookAdapter';
 import { generateUUID } from '../lib/utils';
 
 const DEFAULT_PERMISSIONS = {
@@ -80,9 +80,18 @@ export const usePeople = (tenantId) => {
 
   const addSupplier = async (supplier) => {
     const id = supplier.id || generateUUID();
-    const { error } = await supabase.from('suppliers').insert({ id, ...supplier, tenant_id: tenantId });
-    if (!error) await fetchPeopleData();
-    return { success: !error, error };
+    const row = { id, ...supplier, tenant_id: tenantId };
+    const { error } = await supabase.from('suppliers').insert(row);
+    if (!error) { await fetchPeopleData(); return { success: true, error: null }; }
+    if (isOfflineError(error)) {
+      try {
+        await queueMutation({ table: 'suppliers', type: 'insert', payload: row });
+        await upsertCachedRow('suppliers', row);
+        setSuppliers(prev => normalizeNumericRows([row, ...prev], SUPPLIER_NUMERIC));
+        return { success: true, error: null, queued: true };
+      } catch (qErr) { console.error('addSupplier queue error:', qErr); }
+    }
+    return { success: false, error };
   };
 
   const updateSupplier = async (supplier) => {
@@ -104,16 +113,22 @@ export const usePeople = (tenantId) => {
 
   const addClient = async (client) => {
     const id = generateUUID();
-    const { error } = await supabase
-      .from('clients')
-      .insert({ id, ...toClientRow(client), tenant_id: tenantId });
-    if (error) {
-      console.error('addClient error:', error);
-    } else {
-      // Fire refetch in background — don't block caller
+    const row = { id, ...toClientRow(client), tenant_id: tenantId };
+    const { error } = await supabase.from('clients').insert(row);
+    if (!error) {
       fetchPeopleData().catch(e => console.error('addClient refetch error:', e));
+      return { success: true, error: null };
     }
-    return { success: !error, error };
+    console.error('addClient error:', error);
+    if (isOfflineError(error)) {
+      try {
+        await queueMutation({ table: 'clients', type: 'insert', payload: row });
+        await upsertCachedRow('clients', row);
+        setClients(prev => normalizeNumericRows([row, ...prev], CLIENT_NUMERIC));
+        return { success: true, error: null, queued: true };
+      } catch (qErr) { console.error('addClient queue error:', qErr); }
+    }
+    return { success: false, error };
   };
 
   const updateClient = async (client) => {

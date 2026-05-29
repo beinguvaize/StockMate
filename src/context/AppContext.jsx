@@ -1476,7 +1476,7 @@ const AppProviderInner = ({ children }) => {
  appInitialized.current = false;
  setLoading(false);
  if (typeof window !== 'undefined') {
- window.location.href = '/login';
+ (await import('../lib/nav')).goHref('/login');
 }
 }
 });

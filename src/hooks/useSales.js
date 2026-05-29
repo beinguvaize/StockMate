@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { fetchWithCache, queueMutation, isOfflineError } from '../lib/offline/hookAdapter';
+import { fetchWithCache, queueMutation, isOfflineError, decrementCachedStock } from '../lib/offline/hookAdapter';
 import { generateRef, todayISOInAppTZ } from '../lib/utils';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { getPlanLimits } from '../lib/tenancy';
@@ -213,6 +213,8 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         if (isOfflineError(rpcError)) {
           try {
             await queueMutation({ table: 'process_sale', type: 'rpc', payload: rpcParams });
+            // Optimistic local stock decrement so cashier can't oversell while offline.
+            await decrementCachedStock(items);
             return { success: true, id, queued: true };
           } catch (qErr) {
             console.error('placeSale queue error:', qErr);
