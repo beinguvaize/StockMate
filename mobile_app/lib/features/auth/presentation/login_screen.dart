@@ -3,16 +3,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/biometric_service.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-// Keystore-backed credential storage for the "Remember me" feature.
+// Keystore-backed credential storage for the "Remember me" + biometric
+// unlock features. Both rely on the device hardware-backed keystore so the
+// stored password never leaves the secure enclave in plaintext.
 const _secureStore = FlutterSecureStorage(
   aOptions: AndroidOptions(encryptedSharedPreferences: true),
 );
-const _kRememberEmail = 'ledgr.remember.email';
-const _kRememberPass  = 'ledgr.remember.password';
+const _kRememberEmail   = 'ledgr.remember.email';
+const _kRememberPass    = 'ledgr.remember.password';
+const _kBiometricUnlock = 'ledgr.biometric.enabled';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -24,27 +28,62 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _biometric = BiometricService();
   bool _isLoading = false;
   bool _showPassword = false;
   bool _isGoogleLoading = false;
   bool _rememberMe = false;
+  bool _biometricEnabled = false;       // user opted-in for biometric unlock
+  bool _biometricAvailable = false;     // device + enrolment supports it
+  bool _biometricPromptShown = false;   // only auto-prompt once per screen mount
 
   @override
   void initState() {
     super.initState();
     _restoreRemembered();
+    _initBiometric();
+  }
+
+  Future<void> _initBiometric() async {
+    final available = await _biometric.isAvailable();
+    if (!mounted) return;
+    setState(() => _biometricAvailable = available);
+    // Auto-prompt only if: device supports biometrics, user previously
+    // enabled the feature, creds are stored, and we haven't prompted yet.
+    if (!_biometricPromptShown &&
+        available &&
+        _biometricEnabled &&
+        _emailController.text.isNotEmpty &&
+        _passwordController.text.isNotEmpty) {
+      _biometricPromptShown = true;
+      // Defer one frame so the UI is visible behind the prompt.
+      WidgetsBinding.instance.addPostFrameCallback((_) => _tryBiometricUnlock());
+    }
+  }
+
+  Future<void> _tryBiometricUnlock() async {
+    if (!_biometricAvailable) return;
+    final ok = await _biometric.authenticate(
+      reason: 'Unlock LedgrPro with biometrics',
+    );
+    if (!mounted || !ok) return;
+    await _handleLogin();
   }
 
   Future<void> _restoreRemembered() async {
     try {
       final email = await _secureStore.read(key: _kRememberEmail);
       final pass  = await _secureStore.read(key: _kRememberPass);
+      final bio   = await _secureStore.read(key: _kBiometricUnlock);
       if (!mounted) return;
       if (email != null && email.isNotEmpty) {
         _emailController.text = email;
         if (pass != null && pass.isNotEmpty) {
           _passwordController.text = pass;
-          setState(() => _rememberMe = true);
+          setState(() {
+            _rememberMe = true;
+            _biometricEnabled = bio == '1';
+          });
         }
       }
     } catch (_) {/* ignore — first install or platform refuses */}
@@ -58,6 +97,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       } else {
         await _secureStore.delete(key: _kRememberEmail);
         await _secureStore.delete(key: _kRememberPass);
+      }
+      // Biometric unlock only makes sense when Remember me is on (we need
+      // saved creds to auto-call signInWithPassword after the prompt).
+      if (_rememberMe && _biometricEnabled) {
+        await _secureStore.write(key: _kBiometricUnlock, value: '1');
+      } else {
+        await _secureStore.delete(key: _kBiometricUnlock);
       }
     } catch (_) {/* ignore */}
   }
@@ -207,7 +253,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         children: [
                           Checkbox(
                             value: _rememberMe,
-                            onChanged: (v) => setState(() => _rememberMe = v ?? false),
+                            onChanged: (v) => setState(() {
+                              _rememberMe = v ?? false;
+                              // Biometric requires saved creds.
+                              if (!_rememberMe) _biometricEnabled = false;
+                            }),
                             visualDensity: VisualDensity.compact,
                             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             activeColor: AppColors.primaryContainer,
@@ -215,7 +265,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           const SizedBox(width: 4),
                           Expanded(
                             child: GestureDetector(
-                              onTap: () => setState(() => _rememberMe = !_rememberMe),
+                              onTap: () => setState(() {
+                                _rememberMe = !_rememberMe;
+                                if (!_rememberMe) _biometricEnabled = false;
+                              }),
                               child: Text(
                                 'Remember me on this device',
                                 style: GoogleFonts.inter(
@@ -229,7 +282,59 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         ],
                       ),
 
+                      // Biometric unlock — only meaningful if device supports
+                      // it AND Remember me is on (we need saved creds).
+                      if (_biometricAvailable)
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: _biometricEnabled,
+                              onChanged: _rememberMe
+                                  ? (v) => setState(() => _biometricEnabled = v ?? false)
+                                  : null,
+                              visualDensity: VisualDensity.compact,
+                              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                              activeColor: AppColors.primaryContainer,
+                            ),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                _rememberMe
+                                    ? 'Unlock with Face ID / fingerprint'
+                                    : 'Unlock with Face ID (enable Remember me first)',
+                                style: GoogleFonts.inter(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: _rememberMe
+                                      ? AppColors.inkSecondary
+                                      : AppColors.inkTertiary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+
                       const SizedBox(height: 20),
+
+                      // Quick biometric trigger — visible when saved creds
+                      // exist + user previously enabled biometric unlock.
+                      if (_biometricAvailable &&
+                          _biometricEnabled &&
+                          _emailController.text.isNotEmpty &&
+                          _passwordController.text.isNotEmpty) ...[
+                        OutlinedButton.icon(
+                          onPressed: _isLoading ? null : _tryBiometricUnlock,
+                          icon: const Icon(LucideIcons.fingerprint, size: 18),
+                          label: const Text('Unlock with biometrics'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColors.primary,
+                            side: const BorderSide(color: AppColors.primaryContainer, width: 1.5),
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            shape: const StadiumBorder(),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
 
                       // Sign In button
                       SizedBox(

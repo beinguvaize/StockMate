@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/database/sync_service.dart';
 
@@ -13,7 +14,7 @@ class ProductRepository {
     try {
       await syncService.pullSync();
     } catch (e) {
-      print('Pull sync failed: $e');
+      debugPrint('Pull sync failed: $e');
     }
   }
 

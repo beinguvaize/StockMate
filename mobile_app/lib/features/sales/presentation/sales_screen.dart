@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.dart';
-import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 
@@ -33,59 +31,27 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
         toolbarHeight: 0,
         actions: const [],
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const AddSaleScreen()),
-        ),
-        backgroundColor: AppColors.secondary,
-        foregroundColor: AppColors.primaryContainer,
-        elevation: 4,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        child: const Icon(LucideIcons.plus, size: 26),
-      ),
+      // FAB provided by DashboardScreen's shell when sales tab is active.
+      // Avoids stacked duplicate FABs.
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Header ─────────────────────────────────────────────
+            // Title only — "New Sale" action lives on the shell-level FAB
+            // (see DashboardScreen build). Keeping a second button here
+            // duplicates the action and visually collides with the global
+            // SyncStatusPill rendered just above this row.
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Sales History',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 28,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkPrimary,
-                      letterSpacing: -0.3,
-                    ),
-                  ),
-                  GestureDetector(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (_) => const AddSaleScreen()),
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryContainer,
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Text(
-                        'New Sale',
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+              child: Text(
+                'Sales History',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.inkPrimary,
+                  letterSpacing: -0.3,
+                ),
               ),
             ),
 
@@ -96,7 +62,9 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               data: (sales) {
                 final today = DateTime.now();
                 final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-                final todaySales = sales.where((s) => s.date == todayStr).toList();
+                // DB may return DATE as "2026-05-27" or TIMESTAMP as
+                // "2026-05-27T00:00:00". startsWith handles both.
+                final todaySales = sales.where((s) => (s.date ?? '').startsWith(todayStr)).toList();
                 final total = todaySales.fold(0.0, (sum, s) => sum + (s.totalAmount ?? 0));
                 final txCount = todaySales.length;
                 return Padding(

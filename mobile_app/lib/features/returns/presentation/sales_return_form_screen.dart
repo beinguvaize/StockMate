@@ -6,7 +6,6 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
-import 'package:mobile_app/features/returns/data/repositories/returns_repository.dart';
 import 'package:mobile_app/features/returns/presentation/providers/returns_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 

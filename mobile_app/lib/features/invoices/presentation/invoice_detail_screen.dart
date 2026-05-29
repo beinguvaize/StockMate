@@ -448,6 +448,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
       builder: (_) => _ConvertSheet(invoice: invoice),
     );
     if (result == null) return; // cancelled
+    if (!context.mounted) return; // widget unmounted while sheet was open
 
     await _runConvertRpc(context, ref, result);
   }

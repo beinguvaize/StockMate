@@ -9,6 +9,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:mobile_app/features/settings/presentation/providers/settings_provider.dart';
+import 'package:mobile_app/features/settings/presentation/sync_diagnostics_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -239,6 +240,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       label: 'Offline Sync Engine',
                       subtitle: 'Background queue active',
                       trailing: const Icon(LucideIcons.checkCircle2, color: AppColors.success, size: 20),
+                    ),
+                    const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
+                    InkWell(
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SyncDiagnosticsScreen()),
+                      ),
+                      child: _SettingRow(
+                        icon: LucideIcons.activity,
+                        iconColor: AppColors.warning,
+                        label: 'Sync Diagnostics',
+                        subtitle: 'View pending/failed jobs, retry, export',
+                        trailing: const Icon(LucideIcons.chevronRight, color: AppColors.inkTertiary, size: 20),
+                      ),
                     ),
                   ],
                 ),

@@ -49,3 +49,4 @@ android/key.properties
 android/keystore/
 *.jks
 *.keystore
+android/upload-keystore.jks
