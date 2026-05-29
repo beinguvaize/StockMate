@@ -15,12 +15,12 @@ class SalesScreen extends ConsumerStatefulWidget {
 }
 
 class _SalesScreenState extends ConsumerState<SalesScreen> {
-  int _filterIndex = 0; // 0=All, 1=Paid, 2=Credit
+  int _filterIndex = 0; // 0=All, 1=Paid, 2=Credit, 3=Pending/Failed
 
   @override
   Widget build(BuildContext context) {
     final salesAsync = ref.watch(recentSalesProvider);
-    final filters = ['All', 'Paid', 'Credit'];
+    final filters = ['All', 'Paid', 'Credit', 'Failed'];
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -201,8 +201,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               child: salesAsync.when(
                 data: (allSales) {
                   final sales = allSales.where((s) {
-                    if (_filterIndex == 1) return s.paymentStatus == 'PAID';
-                    if (_filterIndex == 2) return s.paymentStatus != 'PAID';
+                    final st = (s.paymentStatus ?? '').toUpperCase();
+                    if (_filterIndex == 1) return st == 'PAID';
+                    if (_filterIndex == 2) return st == 'UNPAID' || st == 'PARTIAL';
+                    if (_filterIndex == 3) return st == 'PENDING' || st == 'VOIDED' || st == 'FAILED';
                     return true;
                   }).toList();
 
@@ -237,7 +239,15 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                       final customerName = (resolvedFromShop != null && resolvedFromShop.isNotEmpty)
                           ? resolvedFromShop
                           : sale.displayCustomerName;
-                      final isPaid = sale.paymentStatus == 'PAID';
+                      final saleStatus = (sale.paymentStatus ?? '').toUpperCase();
+                      final isPaid    = saleStatus == 'PAID';
+                      final isFailed  = saleStatus == 'VOIDED' || saleStatus == 'FAILED';
+                      final isPending = saleStatus == 'PENDING';
+                      String badgeLabel; Color badgeColor;
+                      if (isPaid)        { badgeLabel = 'Paid';    badgeColor = AppColors.success; }
+                      else if (isFailed) { badgeLabel = 'Failed';  badgeColor = AppColors.danger;  }
+                      else if (isPending){ badgeLabel = 'Pending'; badgeColor = AppColors.warning; }
+                      else               { badgeLabel = 'Credit';  badgeColor = AppColors.warning; }
                       final initial = customerName.isNotEmpty ? customerName[0].toUpperCase() : 'W';
 
                       return GestureDetector(
@@ -319,24 +329,23 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                   style: GoogleFonts.hankenGrotesk(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
-                                    color: AppColors.success,
+                                    color: isFailed ? AppColors.inkTertiary : AppColors.success,
+                                    decoration: isFailed ? TextDecoration.lineThrough : null,
                                   ),
                                 ),
                                 const SizedBox(height: 4),
                                 Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                   decoration: BoxDecoration(
-                                    color: isPaid
-                                        ? AppColors.success.withValues(alpha: 0.12)
-                                        : AppColors.warning.withValues(alpha: 0.12),
+                                    color: badgeColor.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
-                                    isPaid ? 'Paid' : 'Credit',
+                                    badgeLabel,
                                     style: GoogleFonts.inter(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
-                                      color: isPaid ? AppColors.success : AppColors.warning,
+                                      color: badgeColor,
                                     ),
                                   ),
                                 ),

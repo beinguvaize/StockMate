@@ -12,6 +12,9 @@ import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:mobile_app/features/settings/presentation/providers/settings_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
+import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
+import 'package:mobile_app/core/widgets/upi_qr_sheet.dart';
+import 'package:mobile_app/core/supabase/client.dart' as sb;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
@@ -315,7 +318,22 @@ class InvoiceDetailScreen extends ConsumerWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _showPaymentSheet(context, ref),
+                  // Failed / pending UPI sales re-open the QR sheet so the
+                  // cashier can ask the customer to retry the payment and
+                  // confirm receipt; on success we call unvoid_sale which
+                  // re-decrements stock and marks the row PAID.
+                  // Everything else falls through to the generic payment
+                  // sheet (cash / bank / etc.).
+                  onPressed: () {
+                    final pm = (invoice.paymentMethod ?? '').toUpperCase();
+                    final ps = invoice.paymentStatus.toUpperCase();
+                    final isUpiFailed = pm == 'UPI' && (ps == 'VOIDED' || ps == 'FAILED' || ps == 'PENDING');
+                    if (isUpiFailed) {
+                      _retryUpiPayment(context, ref, invoice);
+                    } else {
+                      _showPaymentSheet(context, ref);
+                    }
+                  },
                   icon: const Icon(LucideIcons.indianRupee, size: 16),
                   label: Text('Record Payment',
                       style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14)),
@@ -554,6 +572,61 @@ class InvoiceDetailScreen extends ConsumerWidget {
         ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Error: $e'), backgroundColor: AppColors.danger));
       }
+    }
+  }
+
+  /// Failed/voided UPI sale → re-open the QR sheet so the customer can
+  /// retry. On confirmed receipt we call unvoid_sale which re-decrements
+  /// stock and marks the row PAID. Cashier doesn't need to re-enter items.
+  Future<void> _retryUpiPayment(BuildContext context, WidgetRef ref, Invoice inv) async {
+    final supabase = sb.supabase;
+    try {
+      final profile = await ref.read(tenantProfileProvider.future);
+      final upiId    = profile?['upi_id'] as String?;
+      final merchant = (profile?['businessName'] as String?) ??
+                       (profile?['name'] as String?) ?? 'Merchant';
+      final symbol   = (profile?['currencySymbol'] as String?) ?? '₹';
+      if (upiId == null || upiId.isEmpty) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Add a UPI ID in Settings to retry payment.')),
+        );
+        return;
+      }
+
+      final confirmed = await UpiQrSheet.show(
+        context,
+        upiId: upiId,
+        merchantName: merchant,
+        amount: inv.grandTotal,
+        invoiceNo: inv.invoiceNumber ?? inv.id,
+        currencySymbol: symbol,
+      );
+
+      if (confirmed != true) return; // Cashier left it failed.
+
+      final userId = supabase.auth.currentUser?.id;
+      await supabase.rpc('unvoid_sale', params: {
+        'p_id': inv.id,
+        'p_paid_amount': inv.grandTotal,
+        'p_user_id': userId,
+      });
+
+      ref.invalidate(recentSalesProvider);
+
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment recorded. Sale marked PAID.'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      Navigator.pop(context); // Back to history
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to record payment: $e'), backgroundColor: AppColors.danger),
+      );
     }
   }
 
