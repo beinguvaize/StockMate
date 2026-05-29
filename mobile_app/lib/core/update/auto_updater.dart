@@ -129,23 +129,60 @@ class AutoUpdater {
     );
   }
 
+  // Strip github-flavored markdown (#, **, _, `) so the AlertDialog Text
+  // widget shows readable copy instead of literal symbols. Cheap
+  // alternative to pulling in flutter_markdown.
+  String _plain(String s) => s
+      .replaceAll(RegExp(r'^#+\s*', multiLine: true), '')
+      .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1')
+      .replaceAll(RegExp(r'\*([^*]+)\*'), r'$1')
+      .replaceAll(RegExp(r'`([^`]+)`'), r'$1')
+      .replaceAll(RegExp(r'_([^_]+)_'), r'$1');
+
+  // GitHub tag may include a product prefix (e.g. "mobile-v1.3.3").
+  // Display the bare semver to the user.
+  String _displayVersion(String raw) {
+    final m = RegExp(r'(\d+\.\d+\.\d+)').firstMatch(raw);
+    return m?.group(1) ?? raw;
+  }
+
   Future<void> _showDialog(BuildContext context, {required String current, required _ReleaseInfo release}) async {
+    final notes = _plain(release.releaseNotes).trim();
     await showDialog<void>(
       context: context,
       barrierDismissible: true,
       builder: (ctx) => AlertDialog(
         title: const Text('Update available'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('New version ${release.version} is available\n(you have $current).'),
-            if (release.releaseNotes.trim().isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(release.releaseNotes.trim(),
-                  style: const TextStyle(fontSize: 12, color: Colors.black54)),
-            ],
-          ],
+        content: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(ctx).size.height * 0.5,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('New version ${_displayVersion(release.version)} is available\n(you have $current).'),
+                if (notes.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Text(notes,
+                      style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                ],
+                const SizedBox(height: 16),
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.shade50,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'If install does not start, enable "Install unknown apps" for LedgrPro in Android Settings.',
+                    style: TextStyle(fontSize: 11, color: Colors.black87),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Later')),
