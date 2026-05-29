@@ -308,18 +308,33 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         }
       }
 
-      // Flip the PENDING UPI sale to PAID once the cashier confirms.
-      // If they tap "Not Received" (or dismiss), the sale stays PENDING
-      // and shows up in Sales History with that status — they can resolve
-      // it later from the invoice detail screen.
-      if (paymentMethod == 'UPI' && upiConfirmed == true) {
-        try {
-          await supabase.from('sales').update({
-            'paymentStatus': 'PAID',
-            'paidAmount': _subtotal,
-          }).eq('id', saleId);
-        } catch (e) {
-          debugPrint('[SALE] mark PAID failed: $e');
+      // Resolve the PENDING UPI sale.
+      //   Received → flip to PAID + paidAmount = total.
+      //   Not Received → fire void_sale RPC: rolls back stock, FIFO batches,
+      //     credit balance, marks the row VOIDED so it drops out of reports.
+      //     The cashier can immediately ring a fresh sale if the customer
+      //     wants to retry.
+      if (paymentMethod == 'UPI') {
+        if (upiConfirmed == true) {
+          try {
+            await supabase.from('sales').update({
+              'paymentStatus': 'PAID',
+              'paidAmount': _subtotal,
+            }).eq('id', saleId);
+          } catch (e) {
+            debugPrint('[SALE] mark PAID failed: $e');
+          }
+        } else {
+          // Not received OR dismissed → void everything.
+          try {
+            await supabase.rpc('void_sale', params: {
+              'p_id': saleId,
+              'p_reason': 'UPI payment not received',
+              'p_user_id': userId,
+            });
+          } catch (e) {
+            debugPrint('[SALE] void_sale failed: $e');
+          }
         }
       }
 

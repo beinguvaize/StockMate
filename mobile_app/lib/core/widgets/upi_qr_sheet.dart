@@ -169,7 +169,7 @@ class UpiQrSheet extends StatelessWidget {
                   child: OutlinedButton.icon(
                     onPressed: () => Navigator.pop(context, false),
                     icon: const Icon(LucideIcons.x, size: 16),
-                    label: const Text('Not Received'),
+                    label: const Text('Mark Failed'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: Colors.red.shade600,
                       side: BorderSide(color: Colors.red.shade300),
@@ -202,7 +202,8 @@ class UpiQrSheet extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Sale stays as PENDING until you confirm.',
+              'Mark Failed will void the sale and return stock. '
+              'The cashier can then ring a fresh transaction.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(
                 fontSize: 10.5, color: AppColors.inkTertiary,
