@@ -4,6 +4,7 @@ import {
  CreditCard, Building2, MapPin, Phone,
  Mail, Globe, ShieldCheck, Download
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { formatDate } from '../../lib/utils';
 
 const PremiumInvoice = ({ order, business, onClose}) => {
@@ -46,13 +47,12 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  gstin: ''
 });
 
- // UPI QR Generation URL (Google Charts API)
- // upi://pay?pa=UPI_ID&pn=NAME&am=AMOUNT&cu=INR
- const upiLink = business.upi_id 
- ? `upi://pay?pa=${business.upi_id}&pn=${encodeURIComponent(business.name)}&am=${order.totalAmount}&cu=INR`
- : null;
- const qrCodeUrl = upiLink 
- ? `https://chart.googleapis.com/chart?chs=150x150&cht=qr&chl=${encodeURIComponent(upiLink)}&choe=UTF-8`
+ // UPI deeplink (NPCI standard) — rendered locally via qrcode.react so we
+ // don't depend on the deprecated Google Charts API and the QR is visible
+ // offline too.
+ //   upi://pay?pa=VPA&pn=NAME&am=AMOUNT&cu=INR&tn=Invoice <id>
+ const upiLink = business.upi_id
+ ? `upi://pay?pa=${business.upi_id}&pn=${encodeURIComponent(business.name || business.businessName || 'Merchant')}&am=${Number(order.totalAmount).toFixed(2)}&cu=INR&tn=${encodeURIComponent('Invoice ' + (order.id || order.invoice_number || ''))}`
  : null;
 
  const handlePrint = () => {
@@ -260,9 +260,9 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-8">
  {/* Bank Details & QR */}
  <div className="flex gap-5 items-start">
- {qrCodeUrl && (
- <div className="bg-canvas p-3 rounded-lg border border-black/10 shrink-0">
- <img src={qrCodeUrl} alt="UPI QR" className="w-28 h-28" />
+ {upiLink && (
+ <div className="bg-white p-3 rounded-lg border border-black/10 shrink-0">
+ <QRCodeSVG value={upiLink} size={112} level="M" includeMargin={false} />
  </div>
  )}
  <div className="space-y-3 pt-2">

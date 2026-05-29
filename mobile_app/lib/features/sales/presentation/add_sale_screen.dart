@@ -13,6 +13,7 @@ import 'package:uuid/uuid.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/widgets/upi_qr_sheet.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 
@@ -264,6 +265,41 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       ref.invalidate(recentSalesProvider);
       ref.invalidate(productsProvider);
       try { ref.invalidate(telemetryProvider); } catch (_) {}
+
+      if (!mounted) return;
+
+      // UPI selected → show QR sheet so the customer can scan before we
+      // pop back to the home screen. Pulls upi_id from the cached business
+      // profile (synced on login + refreshed by the background pull).
+      if (paymentMethod == 'UPI') {
+        try {
+          final profile = await ref.read(tenantProfileProvider.future);
+          final upiId    = profile?['upi_id'] as String?;
+          final merchant = (profile?['businessName'] as String?) ??
+                           (profile?['name'] as String?) ?? 'Merchant';
+          final symbol   = (profile?['currencySymbol'] as String?) ?? '₹';
+          if (upiId != null && upiId.isNotEmpty) {
+            await UpiQrSheet.show(
+              context,
+              upiId: upiId,
+              merchantName: merchant,
+              amount: _subtotal,
+              invoiceNo: saleId,
+              currencySymbol: symbol,
+            );
+          } else if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Add a UPI ID in Settings to show a payment QR.'),
+                backgroundColor: Colors.orange,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        } catch (e) {
+          debugPrint('[SALE] UPI sheet failed: $e');
+        }
+      }
 
       if (!mounted) return;
       // Capture messenger BEFORE popping (after pop, context is invalid)
@@ -1523,7 +1559,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     const SizedBox(height: 12),
                     ...[
                       _PayMethod('CASH', 'Cash', 'Pay at counter', LucideIcons.banknote),
-                      _PayMethod('BANK', 'Bank Transfer', 'UPI / NEFT / RTGS', LucideIcons.building),
+                      _PayMethod('UPI', 'UPI / QR', 'Customer scans to pay', LucideIcons.qrCode),
+                      _PayMethod('BANK', 'Bank Transfer', 'NEFT / RTGS', LucideIcons.building),
                       if (widget.selectedClient != null)
                         _PayMethod('CREDIT_SALE', 'Credit Sale',
                             'Bill to ${widget.selectedClient!.name ?? "Client"}', LucideIcons.clock),

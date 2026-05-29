@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
-import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError } from '../lib/offline/hookAdapter';
+import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
 const PURCHASE_NUMERIC = ['quantity', 'total_amount', 'paid_amount', 'unit_price', 'tax'];
@@ -23,26 +23,29 @@ export const usePurchases = (tenantId) => {
       setLoading(false);
       return;
     }
-    if (!initialLoadDone.current) setLoading(true);
     setError(null);
     try {
-      const [
-        { data: purData, error: purErr },
-        { data: supData, error: supErr },
-        { data: retData, error: retErr },
-      ] = await Promise.all([
-        fetchWithCache('purchases',        () => supabase.from('purchases').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(200)).then(r => ({ data: r.data, error: null })),
-        fetchWithCache('suppliers',        () => supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name')).then(r => ({ data: r.data, error: null })),
-        fetchWithCache('purchase_returns', () => supabase.from('purchase_returns').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(200)).then(r => ({ data: r.data, error: null })),
+      const [purCached, supCached, retCached] = await Promise.all([
+        readCacheThenRevalidate(
+          'purchases',
+          () => supabase.from('purchases').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(200),
+          (rows) => setData(normalizeNumericRows(rows, PURCHASE_NUMERIC)),
+        ),
+        readCacheThenRevalidate(
+          'suppliers',
+          () => supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+          (rows) => setSuppliers(normalizeNumericRows(rows, SUPPLIER_NUMERIC)),
+        ),
+        readCacheThenRevalidate(
+          'purchase_returns',
+          () => supabase.from('purchase_returns').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(200),
+          (rows) => setPurchaseReturns(normalizeNumericRows(rows, RETURN_NUMERIC)),
+        ),
       ]);
 
-      if (purErr) throw purErr;
-      if (supErr) throw supErr;
-      if (retErr) throw retErr;
-
-      setData(normalizeNumericRows(purData, PURCHASE_NUMERIC));
-      setSuppliers(normalizeNumericRows(supData, SUPPLIER_NUMERIC));
-      setPurchaseReturns(normalizeNumericRows(retData, RETURN_NUMERIC));
+      setData(normalizeNumericRows(purCached, PURCHASE_NUMERIC));
+      setSuppliers(normalizeNumericRows(supCached, SUPPLIER_NUMERIC));
+      setPurchaseReturns(normalizeNumericRows(retCached, RETURN_NUMERIC));
     } catch (err) {
       console.error("usePurchases Fetch Error:", err);
       setError(err.message);

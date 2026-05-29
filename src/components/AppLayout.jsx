@@ -504,6 +504,21 @@ const AppLayout = () => {
   // Apply saved theme on every page load
   useTheme();
 
+  // Desktop one-time bulk pull-down splash. After the first online sign-in
+  // we download every tenant table into IDB so subsequent launches render
+  // every tab instantly from cache. Lazy import keeps the web bundle lean.
+  const [bulkSyncDismissed, setBulkSyncDismissed] = React.useState(false);
+  const [Splash, setSplash] = React.useState(null);
+  React.useEffect(() => {
+    const isElectron = typeof navigator !== 'undefined' &&
+      (/Electron/i.test(navigator.userAgent) || !!window?.electron);
+    if (!isElectron || bulkSyncDismissed || !currentTenant?.id) return;
+    (async () => {
+      const mod = await import('./BulkSyncSplash.jsx');
+      setSplash(() => mod.default);
+    })();
+  }, [currentTenant?.id, bulkSyncDismissed]);
+
   if (authLoading || tenantLoading) {
     return <GlobalLoading />;
   }
@@ -534,6 +549,10 @@ const AppLayout = () => {
       <NotificationStack />
 
       <MainContent />
+
+      {Splash && !bulkSyncDismissed && currentTenant?.id && (
+        <Splash tenantId={currentTenant.id} onDone={() => setBulkSyncDismissed(true)} />
+      )}
     </div>
   );
 };

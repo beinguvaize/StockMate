@@ -12,7 +12,7 @@ final tenantProfileProvider = FutureProvider<Map<String, dynamic>?>((ref) async 
 
   final res = await supabase
       .from('business_profile')
-      .select('currencySymbol, businessName, country')
+      .select('currencySymbol, businessName, country, upi_id')
       .eq('tenant_id', tenantId)
       .maybeSingle();
   return res;

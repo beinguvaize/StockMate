@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
-import { fetchWithCache } from '../lib/offline/hookAdapter';
+import { fetchWithCache, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
 
 // Postgres `numeric` arrives as string over the wire (supabase-js preserves
 // precision). Mixing those with JS math causes subtle bugs: `0 + "100"` is
@@ -39,25 +39,38 @@ export const useInventory = (tenantId) => {
       return;
     }
 
-    if (!initialLoadDone.current) setLoading(true);
     setError(null);
     try {
-      const [prodRes, catRes, balRes, locRes] = await Promise.all([
-        fetchWithCache('products',           () => supabase.from('products').select('*').eq('tenant_id', tenantId).order('name')),
-        fetchWithCache('product_categories', () => supabase.from('product_categories').select('*').eq('tenant_id', tenantId).order('name')),
-        fetchWithCache('inventory_balances', () => supabase.from('inventory_balances').select('*').eq('tenant_id', tenantId)),
-        fetchWithCache('inventory_locations',() => supabase.from('inventory_locations').select('*').eq('tenant_id', tenantId).order('name')),
+      // Cache-first: read every table from IDB synchronously, render
+      // immediately, then revalidate in the background. The
+      // onRefresh callbacks update state when fresh server data arrives.
+      const [cachedProds, cachedCats, cachedBals, cachedLocs] = await Promise.all([
+        readCacheThenRevalidate(
+          'products',
+          () => supabase.from('products').select('*').eq('tenant_id', tenantId).order('name'),
+          (rows) => setProducts(rows.map(r => normalizeRow(r, NUMERIC_PRODUCT_COLS))),
+        ),
+        readCacheThenRevalidate(
+          'product_categories',
+          () => supabase.from('product_categories').select('*').eq('tenant_id', tenantId).order('name'),
+          (rows) => setProductCategories(rows),
+        ),
+        readCacheThenRevalidate(
+          'inventory_balances',
+          () => supabase.from('inventory_balances').select('*').eq('tenant_id', tenantId),
+          (rows) => setInventoryBalances(rows.map(r => normalizeRow(r, NUMERIC_BALANCE_COLS))),
+        ),
+        readCacheThenRevalidate(
+          'inventory_locations',
+          () => supabase.from('inventory_locations').select('*').eq('tenant_id', tenantId).order('name'),
+          (rows) => setInventoryLocations(rows),
+        ),
       ]);
 
-      setProducts((prodRes.data || []).map(r => normalizeRow(r, NUMERIC_PRODUCT_COLS)));
-      setProductCategories(catRes.data || []);
-      setInventoryBalances((balRes.data || []).map(r => normalizeRow(r, NUMERIC_BALANCE_COLS)));
-      setInventoryLocations(locRes.data || []);
-
-      // If everything fell back to cache, surface as a soft offline notice.
-      if (prodRes.fromCache && catRes.fromCache) {
-        setError('Showing cached data — tap Sync Now when online to refresh.');
-      }
+      setProducts(cachedProds.map(r => normalizeRow(r, NUMERIC_PRODUCT_COLS)));
+      setProductCategories(cachedCats);
+      setInventoryBalances(cachedBals.map(r => normalizeRow(r, NUMERIC_BALANCE_COLS)));
+      setInventoryLocations(cachedLocs);
     } catch (err) {
       console.error("useInventory Fetch Error:", err);
       setError(err.message);

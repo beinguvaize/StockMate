@@ -19,15 +19,24 @@ export const SYNCED_TABLES = [
   'purchases',
   'clients',
   'products',
+  'product_categories',
   'suppliers',
   'expenses',
   'invoices',
   'inventory_balances',
   'inventory_locations',
+  'product_batches',
+  'sale_batch_consumption',
+  'movement_log',
   'routes',
+  'route_stops',
   'vehicles',
   'employees',
+  'users',
   'day_book',
+  'client_payments',
+  'purchase_returns',
+  'business_profile',
 ];
 
 // Default off. UI toggles auto-sync via startSync({ intervalMs }).
@@ -155,6 +164,79 @@ export async function pullDeltas() {
       // continue with next table
     }
   }
+}
+
+// ─── Bulk pull-down (one-shot after first online sign-in) ────────────────────
+//
+// `bulkSync` walks every tenant table in SYNCED_TABLES and copies the full
+// row set into IndexedDB. Runs ONCE after a fresh sign-in so subsequent
+// launches can render every tab from cache without a single network call.
+// Subsequent runs of `pullDeltas` keep the cache fresh.
+//
+// onProgress({ table, done, total }) — UI hook for the splash screen.
+
+const PAGE_SIZE = 1000;
+
+export async function bulkSync(tenantId, onProgress) {
+  if (!supabase || !tenantId) return { ok: false, error: 'missing tenant' };
+
+  const tables = SYNCED_TABLES;
+  let done = 0;
+  const errors = [];
+
+  for (const table of tables) {
+    try {
+      let from = 0;
+      // Page through to handle tenants with many invoices/sales/etc.
+      // Some tables (business_profile, users) may not have tenant_id; we
+      // try with the filter first and fall back to unfiltered if rejected.
+      while (true) {
+        let q = supabase.from(table).select('*').range(from, from + PAGE_SIZE - 1);
+        // tenant filter where applicable
+        try {
+          const { data, error } = await q.eq('tenant_id', tenantId);
+          if (error) throw error;
+          if (data && data.length) {
+            await putRecords(table, data);
+            // advance watermark to newest updated_at if column exists
+            const maxTs = data.reduce(
+              (m, r) => (r?.updated_at && r.updated_at > m ? r.updated_at : m), ''
+            );
+            if (maxTs) await setMeta(`lastSync:${table}`, maxTs);
+            if (data.length < PAGE_SIZE) break;
+            from += PAGE_SIZE;
+          } else break;
+        } catch (filterErr) {
+          // Retry without tenant filter (e.g. users for global admin)
+          if (String(filterErr.message || '').includes('column') && from === 0) {
+            const { data, error } = await supabase
+              .from(table)
+              .select('*')
+              .range(0, PAGE_SIZE - 1);
+            if (!error && data?.length) await putRecords(table, data);
+          }
+          break;
+        }
+      }
+    } catch (err) {
+      errors.push({ table, error: String(err.message || err) });
+      console.warn(`[bulkSync] ${table} failed:`, err);
+    } finally {
+      done += 1;
+      if (typeof onProgress === 'function') {
+        try { onProgress({ table, done, total: tables.length }); } catch (_) {}
+      }
+    }
+  }
+
+  // Mark as complete — used by the splash to skip on subsequent launches.
+  await setMeta('bulkSyncCompletedAt', new Date().toISOString());
+  return { ok: true, errors };
+}
+
+export async function isBulkSyncDone() {
+  const ts = await getMeta('bulkSyncCompletedAt');
+  return !!ts;
 }
 
 // ─── Orchestration ───────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
-import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError } from '../lib/offline/hookAdapter';
+import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
 import { generateUUID } from '../lib/utils';
 
 const DEFAULT_PERMISSIONS = {
@@ -39,29 +39,35 @@ export const usePeople = (tenantId) => {
       setLoading(false);
       return;
     }
-    if (!initialLoadDone.current) setLoading(true);
     try {
-      const [
-        { data: cliData, error: cliErr },
-        { data: supData, error: supErr },
-        { data: empData, error: empErr },
-        { data: userData, error: userErr }
-      ] = await Promise.all([
-        fetchWithCache('clients',   () => supabase.from('clients').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name')).then(r => ({ data: r.data, error: null })),
-        fetchWithCache('suppliers', () => supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name')).then(r => ({ data: r.data, error: null })),
-        fetchWithCache('employees', () => supabase.from('employees').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name')).then(r => ({ data: r.data, error: null })),
-        fetchWithCache('users',     () => supabase.from('users').select('*').eq('tenant_id', tenantId).order('name')).then(r => ({ data: r.data, error: null })),
+      // Cache-first reads — render immediately from IDB, refresh in background.
+      const [cliCached, supCached, empCached, userCached] = await Promise.all([
+        readCacheThenRevalidate(
+          'clients',
+          () => supabase.from('clients').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+          (rows) => setClients(normalizeNumericRows(rows, CLIENT_NUMERIC)),
+        ),
+        readCacheThenRevalidate(
+          'suppliers',
+          () => supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+          (rows) => setSuppliers(normalizeNumericRows(rows, SUPPLIER_NUMERIC)),
+        ),
+        readCacheThenRevalidate(
+          'employees',
+          () => supabase.from('employees').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+          (rows) => setEmployees(normalizeNumericRows(rows, EMPLOYEE_NUMERIC)),
+        ),
+        readCacheThenRevalidate(
+          'users',
+          () => supabase.from('users').select('*').eq('tenant_id', tenantId).order('name'),
+          (rows) => setUsers(rows),
+        ),
       ]);
 
-      if (cliErr) throw cliErr;
-      if (supErr) throw supErr;
-      if (empErr) throw empErr;
-      if (userErr) throw userErr;
-
-      setClients(normalizeNumericRows(cliData, CLIENT_NUMERIC));
-      setSuppliers(normalizeNumericRows(supData, SUPPLIER_NUMERIC));
-      setEmployees(normalizeNumericRows(empData, EMPLOYEE_NUMERIC));
-      setUsers(userData || []);
+      setClients(normalizeNumericRows(cliCached, CLIENT_NUMERIC));
+      setSuppliers(normalizeNumericRows(supCached, SUPPLIER_NUMERIC));
+      setEmployees(normalizeNumericRows(empCached, EMPLOYEE_NUMERIC));
+      setUsers(userCached);
     } catch (err) {
       console.error("usePeople Fetch Error:", err);
       setError(err.message);

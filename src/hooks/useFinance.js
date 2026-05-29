@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
-import { queueMutation, upsertCachedRow, isOfflineError } from '../lib/offline/hookAdapter';
+import { queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
 
 const EXPENSE_NUMERIC       = ['amount'];
 const DAYBOOK_NUMERIC       = ['opening_balance', 'closing_balance', 'total_sales', 'total_expenses'];
@@ -20,41 +20,34 @@ export const useFinance = (tenantId) => {
 
   const fetchFinanceData = useCallback(async () => {
     if (!tenantId) { setLoading(false); return; }
-    if (!initialLoadDone.current) setLoading(true);
     try {
-      const [
-        { data: expData,  error: expErr  },
-        { data: dbData,   error: dbErr   },
-        { data: cpData,   error: cpErr   },
-        { data: purData,  error: purErr  },
-      ] = await Promise.all([
-        supabase.from('expenses')
-          .select('*').eq('tenant_id', tenantId)
-          .order('date', { ascending: false }).limit(500),
-        supabase.from('day_book')
-          .select('*').eq('tenant_id', tenantId)
-          .order('date', { ascending: false }).limit(60),
-        // Client collections — cash/bank payments received from debtors
-        supabase.from('client_payments')
-          .select('id, amount, date, payment_method, notes, client_id, created_at')
-          .eq('tenant_id', tenantId)
-          .order('date', { ascending: false }).limit(500),
-        // All purchases — filtered by payment_type in DayBook for cash-only closing
-        supabase.from('purchases')
-          .select('id, total_amount, payment_type, date, supplier_id, created_at')
-          .eq('tenant_id', tenantId)
-          .order('date', { ascending: false }).limit(500),
+      const [expCached, dbCached, cpCached, purCached] = await Promise.all([
+        readCacheThenRevalidate(
+          'expenses',
+          () => supabase.from('expenses').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          (rows) => setExpenses(normalizeNumericRows(rows, EXPENSE_NUMERIC)),
+        ),
+        readCacheThenRevalidate(
+          'day_book',
+          () => supabase.from('day_book').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(60),
+          (rows) => setDayBook(normalizeNumericRows(rows, DAYBOOK_NUMERIC)),
+        ),
+        readCacheThenRevalidate(
+          'client_payments',
+          () => supabase.from('client_payments').select('id, amount, date, payment_method, notes, client_id, created_at').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          (rows) => setClientPayments(normalizeNumericRows(rows, CLIENT_PAYMENT_NUMERIC)),
+        ),
+        readCacheThenRevalidate(
+          'purchases',
+          () => supabase.from('purchases').select('id, total_amount, payment_type, date, supplier_id, created_at').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          (rows) => setPurchases(normalizeNumericRows(rows, PURCHASE_NUMERIC)),
+        ),
       ]);
 
-      if (expErr) throw expErr;
-      if (dbErr)  throw dbErr;
-      if (cpErr)  console.warn('client_payments fetch warn:', cpErr);
-      if (purErr) console.warn('purchases fetch warn:', purErr);
-
-      setExpenses(normalizeNumericRows(expData || [], EXPENSE_NUMERIC));
-      setDayBook(normalizeNumericRows(dbData   || [], DAYBOOK_NUMERIC));
-      setClientPayments(normalizeNumericRows(cpData  || [], CLIENT_PAYMENT_NUMERIC));
-      setPurchases(normalizeNumericRows(purData  || [], PURCHASE_NUMERIC));
+      setExpenses(normalizeNumericRows(expCached, EXPENSE_NUMERIC));
+      setDayBook(normalizeNumericRows(dbCached, DAYBOOK_NUMERIC));
+      setClientPayments(normalizeNumericRows(cpCached, CLIENT_PAYMENT_NUMERIC));
+      setPurchases(normalizeNumericRows(purCached, PURCHASE_NUMERIC));
     } catch (err) {
       console.error('useFinance error:', err);
       setError(err.message);

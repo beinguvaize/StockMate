@@ -242,6 +242,10 @@ All plans include a **60-day free trial**, no card required. Trial badge shown i
 - WhatsApp invoice delivery via Twilio.
 - Vendor portal (suppliers can submit POs).
 - Loyalty / store credit module.
+- **Razorpay UPI auto-confirmation (Approach 2)** — trigger when tenant count is high enough to justify gateway fees.
+  Settings → Connect Razorpay → enter key_id + key_secret. New edge function `razorpay-create-qr` generates dynamic QR
+  per sale; webhook `razorpay-webhook` flips `paymentStatus = PAID` automatically and emits a Supabase realtime event so
+  the cashier UI advances with no human reconciliation. Parked while we are in dev phase; revisit once paying customers > ~50.
 
 ---
 

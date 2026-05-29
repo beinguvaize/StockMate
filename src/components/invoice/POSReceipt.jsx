@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Printer } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
 import { formatDate } from '../../lib/utils';
 
 const LINE  = '--------------------------------';
@@ -221,7 +222,22 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose }) => {
         <div className="text-[10px] my-1">{LINE}</div>
         <div className="text-center text-[10px] space-y-0.5">
           {s.footer_message && <div className="font-bold">{s.footer_message}</div>}
-          {s.show_upi && biz.upi_id && <div className="mt-0.5">UPI: {biz.upi_id}</div>}
+          {s.show_upi && biz.upi_id && (
+            <>
+              <div className="mt-0.5">UPI: {biz.upi_id}</div>
+              {/* Render the UPI deeplink as a scannable QR so customers can
+                  pay directly from the printed/displayed receipt. */}
+              <div className="flex justify-center my-2">
+                <QRCodeSVG
+                  value={`upi://pay?pa=${biz.upi_id}&pn=${encodeURIComponent(biz.businessName || biz.name || 'Merchant')}&am=${Number(invoice?.grand_total || invoice?.totalAmount || 0).toFixed(2)}&cu=INR&tn=${encodeURIComponent('Invoice ' + (invoice?.invoice_number || invoice?.id || ''))}`}
+                  size={96}
+                  level="M"
+                  includeMargin={false}
+                />
+              </div>
+              <div className="text-center text-[10px] opacity-80">Scan to pay</div>
+            </>
+          )}
           {biz.invoice_terms && (
             <div className="text-[9px] text-gray-500 mt-1 whitespace-pre-wrap">
               {biz.invoice_terms.split('\n').slice(0, 2).join('\n')}

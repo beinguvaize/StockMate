@@ -21,6 +21,62 @@
 import { putRecords, getRecords } from './cache.js';
 import { enqueue } from './outbox.js';
 
+/**
+ * Cache-first read. Returns the cached snapshot SYNCHRONOUSLY from IDB so
+ * the hook can render immediately, then kicks the network fetch in the
+ * background; when that completes the caller is notified via the
+ * `onRefresh` callback so it can `setState` with the new rows.
+ *
+ * Web: passes straight through to the network — no cache layer.
+ *
+ *   const cached = await readCacheThenRevalidate(
+ *     'products',
+ *     () => supabase.from('products').select('*').eq('tenant_id', tid),
+ *     (fresh) => setProducts(fresh),
+ *   );
+ *   setProducts(cached);  // instant render
+ */
+export async function readCacheThenRevalidate(table, queryFn, onRefresh) {
+  if (!isElectron()) {
+    // Web: skip cache. Block until the network resolves so the existing
+    // hook contract stays the same.
+    try {
+      const res = await queryFn();
+      if (res?.error) throw res.error;
+      return Array.isArray(res?.data) ? res.data : [];
+    } catch (err) {
+      console.warn(`[hookAdapter] ${table} web fetch failed:`, err);
+      return [];
+    }
+  }
+
+  // Desktop: cache wins. Background revalidate.
+  const cached = await getRecords(table);
+
+  // Fire-and-forget revalidation. If offline or the query fails we keep
+  // the cached snapshot — never blank the UI.
+  (async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+      const res = await queryFn();
+      if (res?.error) throw res.error;
+      const rows = Array.isArray(res?.data) ? res.data : [];
+      if (rows.length) {
+        try { await putRecords(table, rows); } catch (_) {}
+      }
+      if (typeof onRefresh === 'function') {
+        try { onRefresh(rows); } catch (_) {}
+      }
+    } catch (err) {
+      // Network or RLS error → keep the cache. Don't surface — UI already
+      // rendered the cached rows.
+      console.warn(`[hookAdapter] ${table} revalidate failed:`, err?.message || err);
+    }
+  })();
+
+  return cached;
+}
+
 // Offline scaffolding is desktop-only. Web users get the original
 // supabase-direct behaviour — no cache writes, no outbox.
 export const isElectron = () => {
