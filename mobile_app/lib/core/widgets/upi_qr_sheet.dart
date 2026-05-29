@@ -19,7 +19,6 @@ class UpiQrSheet extends StatelessWidget {
   final double amount;
   final String invoiceNo;
   final String currencySymbol;
-  final VoidCallback? onMarkPaid;
 
   const UpiQrSheet({
     super.key,
@@ -28,7 +27,6 @@ class UpiQrSheet extends StatelessWidget {
     required this.amount,
     required this.invoiceNo,
     this.currencySymbol = '₹',
-    this.onMarkPaid,
   });
 
   /// upi://pay?pa=VPA&pn=NAME&am=AMOUNT&cu=INR&tn=Invoice X
@@ -162,29 +160,53 @@ class UpiQrSheet extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // Mark Paid CTA
-            if (onMarkPaid != null)
-              ElevatedButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  onMarkPaid?.call();
-                },
-                icon: const Icon(LucideIcons.checkCircle2, size: 18),
-                label: const Text('Mark as Paid'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: const StadiumBorder(),
-                  textStyle: GoogleFonts.inter(
-                    fontSize: 14, fontWeight: FontWeight.w700,
+            // Payment confirmation row: cashier asks the customer if their
+            // UPI app showed "Payment Successful", then taps the matching
+            // button. Until one is tapped the sale stays in PENDING state.
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.pop(context, false),
+                    icon: const Icon(LucideIcons.x, size: 16),
+                    label: const Text('Not Received'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red.shade600,
+                      side: BorderSide(color: Colors.red.shade300),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: const StadiumBorder(),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 13, fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.pop(context, true),
+                    icon: const Icon(LucideIcons.checkCircle2, size: 16),
+                    label: const Text('Payment Received'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: const StadiumBorder(),
+                      textStyle: GoogleFonts.inter(
+                        fontSize: 13, fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Sale stays as PENDING until you confirm.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 10.5, color: AppColors.inkTertiary,
               ),
-            const SizedBox(height: 6),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Close'),
             ),
           ],
         ),
@@ -192,19 +214,23 @@ class UpiQrSheet extends StatelessWidget {
     );
   }
 
-  /// Show as a modal bottom sheet.
-  static Future<void> show(
+  /// Show as a modal bottom sheet. Resolves to:
+  ///   true  → cashier confirmed payment received
+  ///   false → cashier confirmed NOT received
+  ///   null  → dismissed (treated same as 'not received' by callers)
+  static Future<bool?> show(
     BuildContext context, {
     required String upiId,
     required String merchantName,
     required double amount,
     required String invoiceNo,
     String currencySymbol = '₹',
-    VoidCallback? onMarkPaid,
   }) {
-    return showModalBottomSheet(
+    return showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
+      isDismissible: false,
+      enableDrag: false,
       backgroundColor: Colors.white,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -215,7 +241,6 @@ class UpiQrSheet extends StatelessWidget {
         amount: amount,
         invoiceNo: invoiceNo,
         currencySymbol: currencySymbol,
-        onMarkPaid: onMarkPaid,
       ),
     );
   }

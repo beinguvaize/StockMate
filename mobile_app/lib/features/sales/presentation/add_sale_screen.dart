@@ -218,7 +218,13 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       final dateStr = '${now.year}-${now.month.toString().padLeft(2,'0')}-${now.day.toString().padLeft(2,'0')}';
 
       final pm = paymentMethod == 'CREDIT_SALE' ? 'CREDIT' : paymentMethod;
-      final ps = paymentMethod == 'CREDIT_SALE' ? 'UNPAID' : 'PAID';
+      // UPI sales start as PENDING — the QR sheet's "Payment Received"
+      // button flips them to PAID once the cashier confirms.
+      final ps = paymentMethod == 'CREDIT_SALE'
+          ? 'UNPAID'
+          : paymentMethod == 'UPI'
+              ? 'PENDING'
+              : 'PAID';
 
       final tenantCtx = ref.read(tenantContextProvider).valueOrNull;
       final tenantId = tenantCtx?.tenantId;
@@ -268,9 +274,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
 
       if (!mounted) return;
 
-      // UPI selected → show QR sheet so the customer can scan before we
-      // pop back to the home screen. Pulls upi_id from the cached business
-      // profile (synced on login + refreshed by the background pull).
+      // UPI selected → show QR sheet so the customer can scan, then wait
+      // for the cashier to confirm whether the payment landed. The sale
+      // was inserted as PENDING; we flip it to PAID only on confirmation.
+      bool? upiConfirmed;
       if (paymentMethod == 'UPI') {
         try {
           final profile = await ref.read(tenantProfileProvider.future);
@@ -279,7 +286,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                            (profile?['name'] as String?) ?? 'Merchant';
           final symbol   = (profile?['currencySymbol'] as String?) ?? '₹';
           if (upiId != null && upiId.isNotEmpty) {
-            await UpiQrSheet.show(
+            upiConfirmed = await UpiQrSheet.show(
               context,
               upiId: upiId,
               merchantName: merchant,
@@ -298,6 +305,21 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
           }
         } catch (e) {
           debugPrint('[SALE] UPI sheet failed: $e');
+        }
+      }
+
+      // Flip the PENDING UPI sale to PAID once the cashier confirms.
+      // If they tap "Not Received" (or dismiss), the sale stays PENDING
+      // and shows up in Sales History with that status — they can resolve
+      // it later from the invoice detail screen.
+      if (paymentMethod == 'UPI' && upiConfirmed == true) {
+        try {
+          await supabase.from('sales').update({
+            'paymentStatus': 'PAID',
+            'paidAmount': _subtotal,
+          }).eq('id', saleId);
+        } catch (e) {
+          debugPrint('[SALE] mark PAID failed: $e');
         }
       }
 
