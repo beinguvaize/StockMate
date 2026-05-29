@@ -295,9 +295,9 @@ const Login = () => {
  {/* Signup CTA */}
  <p className="mt-6 text-center text-[12.5px] text-[#747576]">
    New to LedgrPro?{' '}
-   <button type="button" onClick={() => navigate('/')}
+   <button type="button" onClick={() => navigate('/register')}
      className="text-[#38e0a0] font-bold hover:underline cursor-pointer bg-transparent border-0">
-     Start your 3-month free trial →
+     Create an account →
    </button>
  </p>
  </div>

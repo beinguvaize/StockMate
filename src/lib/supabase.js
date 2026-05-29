@@ -14,6 +14,27 @@ const key = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
 export const isSupabaseConfigured = !!(url && key);
 
+// Stale-session guard. If the VITE_SUPABASE_URL baked into this build
+// differs from the URL the last cached session was issued for, the
+// persisted JWT will fail on the new project (PGRST/auth returns 401).
+// Detect the mismatch and wipe the supabase auth keys so the user is
+// forced to sign in fresh against the current project. Cheap, runs once
+// at module import.
+try {
+  if (typeof window !== 'undefined' && url) {
+    const PROJECT_KEY = 'sm-supabase-url';
+    const cachedUrl = window.localStorage.getItem(PROJECT_KEY);
+    if (cachedUrl && cachedUrl !== url) {
+      // Strip every supabase auth token blob so the SDK starts clean.
+      Object.keys(window.localStorage)
+        .filter((k) => k.startsWith('sb-') || k === 'sm-auth-token')
+        .forEach((k) => window.localStorage.removeItem(k));
+      console.warn('[supabase] project URL changed — cleared cached auth session');
+    }
+    window.localStorage.setItem(PROJECT_KEY, url);
+  }
+} catch (_) {/* private mode / restricted storage — ignore */}
+
 if (!isSupabaseConfigured) {
   console.error(
     '[supabase] Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY. ' +

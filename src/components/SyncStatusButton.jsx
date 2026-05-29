@@ -5,7 +5,8 @@
  * doesn't clutter for cashier-style use.
  */
 import React, { useState, useRef, useEffect } from 'react';
-import { RefreshCw, WifiOff, CheckCircle2, AlertCircle, ChevronDown, Zap } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { RefreshCw, WifiOff, CheckCircle2, AlertCircle, ChevronDown, Zap, Activity } from 'lucide-react';
 import { useOffline } from '../context/OfflineContext';
 
 const isElectron = () => {
@@ -28,6 +29,8 @@ const SyncStatusButton = () => {
   const { online, syncing, lastSyncAt, pendingCount, syncNow, autoSync, setAutoSync } = useOffline();
   const [menuOpen, setMenuOpen] = useState(false);
   const wrapperRef = useRef(null);
+  const navigate = useNavigate();
+  const { tenantSlug } = useParams();
 
   useEffect(() => {
     const onDoc = (e) => {
@@ -112,6 +115,15 @@ const SyncStatusButton = () => {
             disabled={!online || syncing}
             className="w-full mt-1 px-3 py-2 rounded-lg bg-ink-primary text-white text-[11px] font-black uppercase tracking-widest disabled:opacity-40">
             Sync Now
+          </button>
+
+          <button type="button"
+            onClick={() => {
+              setMenuOpen(false);
+              navigate(tenantSlug ? `/${tenantSlug}/sync-diagnostics` : '/sync-diagnostics');
+            }}
+            className="w-full mt-2 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-black/10 text-[11px] font-black uppercase tracking-widest hover:bg-canvas/40">
+            <Activity size={12} /> View Diagnostics
           </button>
         </div>
       )}

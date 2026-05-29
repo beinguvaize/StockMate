@@ -255,6 +255,44 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { success: false, error: error.message };
+
+    // Subscription gate: any sign-in (web, desktop, mobile) must hit the
+    // server. If the tenant is SUSPENDED / CANCELLED / EXPIRED, sign the
+    // user back out so an offline cached session can't bypass billing.
+    try {
+      const userId = data.user?.id;
+      if (userId) {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('tenant_id, roles')
+          .eq('id', userId)
+          .maybeSingle();
+
+        const isGlobalAdmin = (profile?.roles || []).includes('GLOBAL_ADMIN');
+        const tenantId = profile?.tenant_id;
+        if (tenantId && !isGlobalAdmin) {
+          const { data: tenant } = await supabase
+            .from('tenants')
+            .select('status, plan')
+            .eq('id', tenantId)
+            .maybeSingle();
+          const status = String(tenant?.status || 'ACTIVE').toUpperCase();
+          if (['SUSPENDED', 'CANCELLED', 'EXPIRED'].includes(status)) {
+            await supabase.auth.signOut();
+            return {
+              success: false,
+              error: `Account ${status.toLowerCase()}. Contact support to reactivate.`,
+            };
+          }
+        }
+      }
+    } catch (gateErr) {
+      // Don't lock anyone out on a transient lookup failure — RootRedirect
+      // will route them and the offline guard will catch SUSPENDED state
+      // on the next online launch via the bootstrap snapshot.
+      console.warn('[auth] subscription gate skipped:', gateErr?.message || gateErr);
+    }
+
     return { success: true, user: data.user };
   };
 

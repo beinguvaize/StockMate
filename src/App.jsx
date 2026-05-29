@@ -27,6 +27,8 @@ const Inventory        = lazy(() => import('./pages/inventory/index.jsx'));
 const Sales            = lazy(() => import('./pages/sales/index.jsx'));
 const Expenses         = lazy(() => import('./pages/Expenses'));
 const Settings         = lazy(() => import('./pages/Settings'));
+const SyncDiagnostics  = lazy(() => import('./pages/SyncDiagnostics'));
+const SaaSLogin        = lazy(() => import('./pages/SaaSLogin'));
 const Vehicles         = lazy(() => import('./pages/Vehicles'));
 const Users            = lazy(() => import('./pages/Users'));
 const Clients          = lazy(() => import('./pages/Clients'));
@@ -153,6 +155,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+      <Route path="/register" element={<GuestRoute><SaaSLogin /></GuestRoute>} />
       {/* /welcome — new user signup flow, auth required but NOT global admin */}
       <Route path="/welcome" element={<AuthRoute><TenantSetup /></AuthRoute>} />
       {/* /setup — legacy admin-only tenant provisioning */}
@@ -172,6 +175,7 @@ function AppRoutes() {
         <Route path="sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
         <Route path="expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
         <Route path="settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="sync-diagnostics" element={<ProtectedRoute><SyncDiagnostics /></ProtectedRoute>} />
         <Route path="audit-log" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
         <Route path="users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
         <Route path="clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />

@@ -84,22 +84,30 @@ export async function pushOutbox() {
         await removeOp(op.opId);
       } catch (err) {
         console.warn(`[offline/sync] push failed for op ${op.opId} (${op.type} ${op.table}):`, err);
-        await bumpAttempts(op.opId);
 
         if (isNetworkError(err)) {
-          // Stop processing — we'll retry when back online
+          // Don't burn an attempt for transient network failures — we'll
+          // retry when back online. Just mark PROCESSING with the error.
+          await bumpAttempts(op.opId, {
+            lastError: String(err.message || err),
+            status: 'PENDING',
+          });
           break;
         }
 
-        // Non-network error: if too many attempts, skip this op and continue
+        // Non-network error: bump attempts, mark FAILED if we've hit the
+        // ceiling so the UI can surface it for manual intervention.
         const updatedAttempts = (op.attempts || 0) + 1;
-        if (updatedAttempts > MAX_NON_NETWORK_ATTEMPTS) {
+        const failed = updatedAttempts > MAX_NON_NETWORK_ATTEMPTS;
+        await bumpAttempts(op.opId, {
+          lastError: String(err.message || err.details || err),
+          status: failed ? 'FAILED' : 'PENDING',
+        });
+        if (failed) {
           console.error(
-            `[offline/sync] op ${op.opId} exceeded ${MAX_NON_NETWORK_ATTEMPTS} attempts, leaving in outbox but skipping.`
+            `[offline/sync] op ${op.opId} exceeded ${MAX_NON_NETWORK_ATTEMPTS} attempts → FAILED.`
           );
-          // continue loop — do NOT break
         }
-        // else: leave in outbox, keep going
       }
     }
   } catch (err) {

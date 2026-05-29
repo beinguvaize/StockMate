@@ -63,11 +63,38 @@ const TenantSetup = () => {
     setError(null);
 
     try {
-      const { data, error: functionError } = await supabase.functions.invoke('create-tenant', {
-        body: { businessName: businessName.trim(), plan: selectedPlan }
-      });
+      // Explicitly grab the active session so the Authorization header
+      // reaches the edge function. supabase.functions.invoke is supposed
+      // to attach this for you, but in some embeds (Electron file://,
+      // certain SDK versions) it falls back to the anon key and the
+      // function rejects with 401.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error('You are not signed in. Please sign in again.');
+      }
 
-      if (functionError) throw functionError;
+      // Use a direct fetch so we have full control over the headers.
+      const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-tenant`;
+      const res = await fetch(fnUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+        },
+        body: JSON.stringify({ businessName: businessName.trim(), plan: selectedPlan }),
+      });
+      const data = await res.json();
+      if (res.status === 401) {
+        // Session JWT rejected by the edge function. Most often this means
+        // the cached supabase session was issued by a different project
+        // (e.g. user has an older build that pointed at prod, now we
+        // point at dev). Clear it and bounce back to /login so they can
+        // get a fresh token.
+        await supabase.auth.signOut();
+        throw new Error('Session expired. Please sign in again.');
+      }
+      if (!res.ok) throw new Error(data?.error || `HTTP ${res.status}`);
       if (data?.error) throw new Error(data.error);
 
       // Redirect to onboarding instead of dashboard directly

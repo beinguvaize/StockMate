@@ -65,18 +65,59 @@ export async function removeOp(opId) {
 }
 
 /**
- * Increment the `attempts` counter for an operation.
+ * Increment the `attempts` counter for an operation and, optionally,
+ * persist the most recent error message + an explicit status so the
+ * Sync Diagnostics screen can show why a job is stuck.
+ *
  * @param {string} opId
+ * @param {object} [meta] - { lastError, status }
  */
-export async function bumpAttempts(opId) {
+export async function bumpAttempts(opId, meta = {}) {
   try {
     const db = await getDb();
     if (!db) return;
     const op = await db.get('outbox', opId);
     if (!op) return;
-    await db.put('outbox', { ...op, attempts: (op.attempts || 0) + 1 });
+    await db.put('outbox', {
+      ...op,
+      attempts: (op.attempts || 0) + 1,
+      lastAttemptAt: new Date().toISOString(),
+      lastError: meta.lastError ?? op.lastError ?? null,
+      status:    meta.status    ?? op.status    ?? 'PENDING',
+    });
   } catch (err) {
     console.error('[offline/outbox] bumpAttempts error:', err);
+  }
+}
+
+/**
+ * Mark every FAILED op back to PENDING with a fresh attempt count of 0,
+ * used by the Sync Diagnostics "Retry All" button.
+ */
+export async function resetFailed() {
+  try {
+    const db = await getDb();
+    if (!db) return 0;
+    const all = await db.getAll('outbox');
+    let reset = 0;
+    const tx = db.transaction('outbox', 'readwrite');
+    for (const op of all) {
+      if (op.status === 'FAILED') {
+        await tx.store.put({
+          ...op,
+          status: 'PENDING',
+          attempts: 0,
+          lastError: null,
+          lastAttemptAt: null,
+        });
+        reset += 1;
+      }
+    }
+    await tx.done;
+    return reset;
+  } catch (err) {
+    console.error('[offline/outbox] resetFailed error:', err);
+    return 0;
   }
 }
 
