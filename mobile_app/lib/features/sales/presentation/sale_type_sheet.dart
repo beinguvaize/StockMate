@@ -33,7 +33,10 @@ Future<void> _resolveAndOpenVanSale(
   BuildContext context, {
   VoidCallback? onBeforeNavigate,
 }) async {
-  final nav       = Navigator.of(context);
+  // Push on the root navigator so the AddSaleScreen sits above the
+  // dashboard tab navigator (otherwise the navigation can silently
+  // route into an inner navigator and the user sees no change).
+  final nav       = Navigator.of(context, rootNavigator: true);
   final messenger = ScaffoldMessenger.of(context);
 
   // Resolve tenant_id
@@ -140,11 +143,14 @@ class _SaleTypeSheetState extends State<_SaleTypeSheet> {
   bool _loadingVan = false;
 
   void _goPOS() {
-    Navigator.pop(context);
-    Navigator.push(
-      widget.parentContext,
-      MaterialPageRoute(builder: (_) => const AddSaleScreen()),
-    );
+    // Sheet was opened with useRootNavigator:true, so we pop on the root
+    // and push on the same root — keeps the AddSaleScreen full-screen
+    // above any inner shell navigator instead of getting swallowed by
+    // the dashboard tab navigator (which made the tap appear to do
+    // nothing on some layouts).
+    final rootNav = Navigator.of(context, rootNavigator: true);
+    rootNav.pop();
+    rootNav.push(MaterialPageRoute(builder: (_) => const AddSaleScreen()));
   }
 
   Future<void> _goVan() async {
