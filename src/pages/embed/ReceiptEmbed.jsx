@@ -1,0 +1,103 @@
+/**
+ * /embed/receipt/:saleId
+ *
+ * Pixel-perfect POSReceipt for a given sale, rendered in a bare shell
+ * (no app chrome). Mobile WebView loads this URL, calls printToPdf,
+ * and the resulting PDF matches what web shows on screen — single
+ * source of truth for thermal-receipt layout.
+ *
+ * Auth: requires a valid Supabase session in the same browser context
+ * (mobile WebView ships the JWT in localStorage before navigating).
+ * Falls back to a friendly "Open in app" message otherwise.
+ */
+import React, { useEffect, useState } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
+import POSReceipt from '../../components/invoice/POSReceipt';
+import { supabase } from '../../lib/supabase';
+
+const saleToInvoice = (sale) => {
+  const items = (sale.items || []).map(i => {
+    const qty  = parseFloat(i.quantity || i.qty || 1);
+    const rate = parseFloat(i.price || i.sellingPrice || i.rate || 0);
+    const taxRate = parseFloat(i.taxRate ?? 0);
+    const taxAmount = qty * rate * taxRate / 100;
+    return {
+      name:     i.name || i.productName || 'Item',
+      sku:      i.sku || '',
+      hsn_code: i.hsn_code || i.hsn || '---',
+      qty, rate, taxRate, taxAmount,
+      unit:  i.unit || 'PCS',
+      total: qty * rate + taxAmount,
+    };
+  });
+  const taxableAmt = items.reduce((s, i) => s + i.qty * i.rate, 0);
+  const totalTax   = items.reduce((s, i) => s + i.taxAmount, 0);
+  const grandTotal = parseFloat(sale.totalAmount || taxableAmt + totalTax);
+  return {
+    id:             sale.id,
+    invoice_number: sale.id?.split('-').pop() || sale.id,
+    invoice_date:   sale.date,
+    items,
+    taxable_amount: taxableAmt,
+    tax_total:      totalTax,
+    cgst_amount:    totalTax / 2,
+    sgst_amount:    totalTax / 2,
+    grand_total:    grandTotal,
+    paid_amount:    parseFloat(sale.paidAmount || 0),
+    payment_status: (sale.paymentStatus === 'PAID') ? 'PAID' : 'UNPAID',
+    round_off:      0,
+  };
+};
+
+const ReceiptEmbed = () => {
+  const { saleId } = useParams();
+  const [params] = useSearchParams();
+  const tendered = params.get('tendered') ? Number(params.get('tendered')) : null;
+
+  const [state, setState] = useState({ loading: true, sale: null, client: null, business: null, error: null });
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: sale, error: sErr } = await supabase
+          .from('sales').select('*').eq('id', saleId).maybeSingle();
+        if (sErr) throw sErr;
+        if (!sale) throw new Error('Sale not found');
+
+        const [bizRes, cliRes] = await Promise.all([
+          supabase.from('business_profile').select('*').eq('tenant_id', sale.tenant_id).maybeSingle(),
+          sale.shopId
+            ? supabase.from('clients').select('*').eq('id', sale.shopId).maybeSingle()
+            : Promise.resolve({ data: null }),
+        ]);
+        if (cancelled) return;
+        setState({ loading: false, sale, client: cliRes?.data || null, business: bizRes?.data || null, error: null });
+      } catch (e) {
+        if (!cancelled) setState({ loading: false, sale: null, client: null, business: null, error: String(e.message || e) });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [saleId]);
+
+  if (state.loading) {
+    return <div style={{ padding: 24, fontFamily: 'monospace' }}>Loading receipt…</div>;
+  }
+  if (state.error) {
+    return <div style={{ padding: 24, fontFamily: 'monospace', color: '#c00' }}>Error: {state.error}</div>;
+  }
+
+  return (
+    <div style={{ background: '#fff', minHeight: '100vh', padding: 0 }}>
+      <POSReceipt
+        invoice={saleToInvoice(state.sale)}
+        businessProfile={state.business || {}}
+        client={state.client || { name: 'Walk-in' }}
+        tendered={tendered}
+        onClose={() => {}}
+      />
+    </div>
+  );
+};
+
+export default ReceiptEmbed;
