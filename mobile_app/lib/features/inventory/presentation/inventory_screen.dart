@@ -49,6 +49,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Mount the realtime channel so any product change (sale on another
+    // device, web edit, supplier-side stock update) auto-invalidates
+    // productsProvider while this screen is visible.
+    ref.watch(productsRealtimeSubscriberProvider);
+
     final filters = ['All', 'Low Stock', 'Out of Stock'];
 
     return Scaffold(

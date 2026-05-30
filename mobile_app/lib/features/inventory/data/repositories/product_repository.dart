@@ -38,13 +38,19 @@ class ProductRepository {
     }
   }
 
-  /// Get products (local-first)
-  Stream<List<Product>> watchProducts() {
-    return db.select(db.products).watch();
+  /// Get products (local-first). Tenant-scoped so a session that pulled
+  /// other tenants' rows in the past (e.g. global-admin switching
+  /// workspaces) doesn't leak SKUs into the active tenant's inventory.
+  Stream<List<Product>> watchProducts({String? tenantId}) {
+    final q = db.select(db.products);
+    if (tenantId != null) q.where((t) => t.tenantId.equals(tenantId));
+    return q.watch();
   }
 
-  Future<List<Product>> getCachedProducts() async {
-    return await db.select(db.products).get();
+  Future<List<Product>> getCachedProducts({String? tenantId}) async {
+    final q = db.select(db.products);
+    if (tenantId != null) q.where((t) => t.tenantId.equals(tenantId));
+    return await q.get();
   }
 
   /// Add a product with offline support
