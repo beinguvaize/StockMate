@@ -334,6 +334,70 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               ),
                             ),
                             const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
+                            // Extra bill toggles — match the receipt
+                            // renderer's bill_settings keys so the printed
+                            // / shared thermal receipt picks up changes
+                            // immediately (POSReceipt reads these).
+                            _SettingRow(
+                              icon: LucideIcons.mapPin,
+                              iconColor: AppColors.inkSecondary,
+                              label: 'Show Address',
+                              trailing: Switch(
+                                value: profile.showAddress ?? true,
+                                onChanged: (v) => _updateProfileField('show_address', v),
+                                activeThumbColor: AppColors.primary,
+                                activeTrackColor: AppColors.primaryContainer,
+                              ),
+                            ),
+                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
+                            _SettingRow(
+                              icon: LucideIcons.phone,
+                              iconColor: AppColors.inkSecondary,
+                              label: 'Show Phone',
+                              trailing: Switch(
+                                value: profile.showPhone ?? true,
+                                onChanged: (v) => _updateProfileField('show_phone', v),
+                                activeThumbColor: AppColors.primary,
+                                activeTrackColor: AppColors.primaryContainer,
+                              ),
+                            ),
+                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
+                            _SettingRow(
+                              icon: LucideIcons.user,
+                              iconColor: AppColors.inkSecondary,
+                              label: 'Show Customer Name',
+                              trailing: Switch(
+                                value: profile.showCustomerName ?? true,
+                                onChanged: (v) => _updateProfileField('show_customer_name', v),
+                                activeThumbColor: AppColors.primary,
+                                activeTrackColor: AppColors.primaryContainer,
+                              ),
+                            ),
+                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
+                            _SettingRow(
+                              icon: LucideIcons.qrCode,
+                              iconColor: AppColors.secondary,
+                              label: 'Show UPI QR',
+                              trailing: Switch(
+                                value: profile.showUpi ?? true,
+                                onChanged: (v) => _updateProfileField('show_upi', v),
+                                activeThumbColor: AppColors.primary,
+                                activeTrackColor: AppColors.primaryContainer,
+                              ),
+                            ),
+                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
+                            _SettingRow(
+                              icon: LucideIcons.tag,
+                              iconColor: AppColors.warning,
+                              label: 'Show Discount Line',
+                              trailing: Switch(
+                                value: profile.showDiscount ?? true,
+                                onChanged: (v) => _updateProfileField('show_discount', v),
+                                activeThumbColor: AppColors.primary,
+                                activeTrackColor: AppColors.primaryContainer,
+                              ),
+                            ),
+                            const Divider(color: AppColors.outlineVariant, height: 1, indent: 60),
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                               child: Row(

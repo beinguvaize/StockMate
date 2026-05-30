@@ -178,7 +178,12 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         rate: i.price ?? i.rate ?? 0,   // preserve unit price for returns/reports
       }));
       const totalAmount = sale.totalAmount ?? 0;
-      const paymentStatus = sale.status === 'COMPLETED' ? 'PAID' : (sale.status || 'PENDING');
+      const paymentStatus = sale.status === 'COMPLETED' ? 'PAID'
+                          : sale.status === 'PARTIAL'   ? 'PARTIAL'
+                          : (sale.status || 'PENDING');
+      // Caller may pass an explicit paidAmount; let the RPC's
+      // p_paid_amount path recompute status + push outstanding balance.
+      const paidAmount = typeof sale.paidAmount === 'number' ? sale.paidAmount : null;
 
       const sourceApp =
         typeof navigator !== 'undefined' && /Electron/i.test(navigator.userAgent)
@@ -202,6 +207,9 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         p_delivery_method: sale.fulfillmentType === 'DELIVERY' ? 'DELIVERY' : 'PICKUP',
         // source_app baked into INSERT (no post-RPC UPDATE needed).
         p_source_app: sourceApp,
+        // Only pass when the caller specified — RPC defaults to method
+        // behaviour when omitted.
+        ...(paidAmount !== null ? { p_paid_amount: paidAmount } : {}),
       };
 
       const { error: rpcError } = await supabase.rpc('process_sale', rpcParams);

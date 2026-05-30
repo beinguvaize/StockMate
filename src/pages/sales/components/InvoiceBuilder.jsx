@@ -13,6 +13,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [selectedClientId, setSelectedClientId] = useState('WALKIN');
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
+  // Cashier-entered "Amount Received". Empty = method default (full pay
+  // for CASH/UPI/BANK, 0 for CREDIT). > total → Change due. < total
+  // with registered client → Balance to outstanding ledger.
+  const [amountReceived, setAmountReceived] = useState('');
   const [fulfillmentType, setFulfillmentType] = useState('PICKUP'); // PICKUP | DELIVERY
   const [deliveryDetails, setDeliveryDetails] = useState({
     address: '', zone: '', date: '', notes: '', fee: '',
@@ -278,6 +282,21 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     setIsSubmitting(true);
     try {
       const isCreditSale = paymentMethod === 'CREDIT';
+      // Resolve effective paid amount + payment status from cashier input.
+      const explicitPaid = amountReceived.trim() === ''
+        ? null
+        : Math.max(0, parseFloat(amountReceived) || 0);
+      let resolvedPaid;
+      let resolvedStatus;
+      if (explicitPaid !== null) {
+        resolvedPaid   = Math.min(explicitPaid, total); // cap, change is cash
+        resolvedStatus = resolvedPaid >= total ? 'COMPLETED'
+                       : resolvedPaid > 0       ? 'PARTIAL'
+                                                : 'PENDING';
+      } else {
+        resolvedPaid   = isCreditSale ? 0 : total;
+        resolvedStatus = isCreditSale ? 'PENDING' : 'COMPLETED';
+      }
       const saleData = {
         id: generateRef('SAL'),
         clientId: selectedClientId,
@@ -286,9 +305,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         subtotal: taxableAmount,
         tax: Math.round(tax * 100) / 100,
         tax_mode: taxMode,
-        paidAmount: isCreditSale ? 0 : total,
+        paidAmount: resolvedPaid,
         paymentMethod,
-        status: isCreditSale ? 'PENDING' : 'COMPLETED',
+        status: resolvedStatus,
         fulfillmentType,
         deliveryAddress: deliveryDetails.address || null,
         deliveryZone:    deliveryDetails.zone    || null,
@@ -941,6 +960,33 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     </div>
                   </button>
                 </div>
+              </div>
+
+              {/* Amount Received — partial pay + change calc */}
+              <div>
+                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                  {paymentMethod === 'CREDIT' ? 'Part Payment Now (optional)' : 'Amount Received (optional)'}
+                </p>
+                <input
+                  type="number" step="0.01" min="0"
+                  placeholder={paymentMethod === 'CREDIT' ? 'e.g. 100 — rest to credit' : 'Leave blank if paid in full'}
+                  value={amountReceived}
+                  onChange={(e) => setAmountReceived(e.target.value)}
+                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                />
+                {amountReceived.trim() !== '' && (() => {
+                  const paid = Math.max(0, parseFloat(amountReceived) || 0);
+                  const diff = paid - total;
+                  if (diff === 0) return null;
+                  const isChange = diff > 0;
+                  const color = isChange ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200';
+                  return (
+                    <div className={`mt-2 px-3 py-2 rounded-xl border text-xs font-bold tabular-nums flex items-center justify-between ${color}`}>
+                      <span>{isChange ? 'Change due' : 'Balance to credit'}</span>
+                      <span>{formatCurrency(Math.abs(diff))}</span>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Confirm */}

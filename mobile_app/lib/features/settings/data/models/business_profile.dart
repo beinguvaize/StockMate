@@ -14,6 +14,12 @@ class BusinessProfile {
   final bool? showGstin;
   final bool? showCustomerGstin;
   final bool? showTaxBreakdown;
+  final bool? showAddress;
+  final bool? showPhone;
+  final bool? showCustomerName;
+  final bool? showUpi;
+  final bool? showDiscount;
+  final String? billTitle;
   final String? taxMode;
 
   BusinessProfile({
@@ -32,6 +38,12 @@ class BusinessProfile {
     this.showGstin,
     this.showCustomerGstin,
     this.showTaxBreakdown,
+    this.showAddress,
+    this.showPhone,
+    this.showCustomerName,
+    this.showUpi,
+    this.showDiscount,
+    this.billTitle,
     this.taxMode,
   });
 
@@ -52,6 +64,12 @@ class BusinessProfile {
       showGstin: json['show_gstin'] as bool?,
       showCustomerGstin: json['show_customer_gstin'] as bool?,
       showTaxBreakdown: json['show_tax_breakdown'] as bool?,
+      showAddress: json['show_address'] as bool?,
+      showPhone: json['show_phone'] as bool?,
+      showCustomerName: json['show_customer_name'] as bool?,
+      showUpi: json['show_upi'] as bool?,
+      showDiscount: json['show_discount'] as bool?,
+      billTitle: json['bill_title'] as String?,
       taxMode: json['tax_mode'] as String?,
     );
   }
