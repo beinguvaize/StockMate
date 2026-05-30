@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:ota_update/ota_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 /// GitHub repo to poll. Releases must publish an asset whose name ends
 /// in `.apk` (release.yml does this on tag push).
@@ -196,6 +197,14 @@ class AutoUpdater {
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Later')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final url = 'https://github.com/$_githubRepo/releases/latest';
+              await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
+            },
+            child: const Text('Open in Browser'),
+          ),
           FilledButton(
             onPressed: () {
               Navigator.pop(ctx);
@@ -209,9 +218,27 @@ class AutoUpdater {
   }
 
   /// Stream download + trigger Android installer.
+  /// If ota_update fails (permission, checksum, Android 12+ install
+  /// restrictions), shows a fallback "Open in Browser" button that
+  /// hands the user off to Chrome → GitHub Release → Android's own
+  /// download + install flow. That path works on every Android version
+  /// because the OS owns the install intent end-to-end.
   void _install(BuildContext context, String apkUrl) {
-    final progress = ValueNotifier<double>(0);
-    final stateMsg = ValueNotifier<String>('Starting download…');
+    final progress  = ValueNotifier<double>(0);
+    final stateMsg  = ValueNotifier<String>('Starting download…');
+    final hasFailed = ValueNotifier<bool>(false);
+
+    final githubReleaseUrl =
+        'https://github.com/$_githubRepo/releases/latest';
+
+    Future<void> openBrowserFallback() async {
+      Navigator.of(context, rootNavigator: true).pop();
+      final ok = await launchUrl(
+        Uri.parse(githubReleaseUrl),
+        mode: LaunchMode.externalApplication,
+      );
+      if (!ok && context.mounted) _toast(context, 'Could not open browser.');
+    }
 
     showDialog<void>(
       context: context,
@@ -230,8 +257,40 @@ class AutoUpdater {
               valueListenable: stateMsg,
               builder: (_, m, __) => Text(m, style: const TextStyle(fontSize: 12)),
             ),
+            const SizedBox(height: 8),
+            ValueListenableBuilder(
+              valueListenable: hasFailed,
+              builder: (_, failed, __) => failed
+                  ? Container(
+                      margin: const EdgeInsets.only(top: 8),
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Text(
+                        'In-app install blocked. Open the release page in Chrome to download and install manually.',
+                        style: TextStyle(fontSize: 11, color: Colors.black87),
+                      ),
+                    )
+                  : const SizedBox.shrink(),
+            ),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Close'),
+          ),
+          ValueListenableBuilder(
+            valueListenable: hasFailed,
+            builder: (_, failed, __) => FilledButton.icon(
+              onPressed: openBrowserFallback,
+              icon: const Icon(Icons.open_in_browser, size: 16),
+              label: Text(failed ? 'Open in Browser' : 'Use Browser Instead'),
+            ),
+          ),
+        ],
       ),
     );
 
@@ -249,15 +308,18 @@ class AutoUpdater {
               break;
             case OtaStatus.ALREADY_RUNNING_ERROR:
               stateMsg.value = 'Update already in progress.';
+              hasFailed.value = true;
               break;
             case OtaStatus.PERMISSION_NOT_GRANTED_ERROR:
-              stateMsg.value = 'Permission denied. Enable "Install unknown apps" in Settings.';
+              stateMsg.value = 'Install permission blocked. Use Browser fallback below.';
+              hasFailed.value = true;
               break;
             case OtaStatus.INTERNAL_ERROR:
             case OtaStatus.DOWNLOAD_ERROR:
             case OtaStatus.CHECKSUM_ERROR:
             case OtaStatus.INSTALLATION_ERROR:
               stateMsg.value = 'Update failed: ${event.value ?? 'unknown error'}';
+              hasFailed.value = true;
               break;
             case OtaStatus.INSTALLATION_DONE:
               stateMsg.value = 'Install complete.';
