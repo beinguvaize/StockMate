@@ -72,6 +72,13 @@ const CategoryProfitReport = () => {
 
   const { data: sales,    loading: sLoading } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters });
   const { data: products, loading: pLoading } = useReportData({ table: 'products', select: 'id, name, category, costPrice' });
+  // FIFO truth — when a sale's batches were consumed, use the actual
+  // unit_cost at that moment instead of the current products.costPrice.
+  // Same data BillWiseProfitReport reads, so the two reports now agree.
+  const { data: consumption } = useReportData({
+    table: 'sale_batch_consumption',
+    select: 'sale_id, product_id, qty_taken, unit_cost',
+  });
 
   const loading = sLoading || pLoading;
 
@@ -100,6 +107,16 @@ const CategoryProfitReport = () => {
   }, [products]);
 
   const { rows, kpis } = useMemo(() => {
+    // (sale_id, product_id) → FIFO cost actually consumed. Falls through
+    // to current products.costPrice when this sale has no batch trail
+    // (legacy data or no FIFO setup yet) — same fallback BillWiseProfit
+    // uses, so the two reports now match.
+    const fifoByKey = {};
+    (consumption || []).forEach(c => {
+      const k = `${c.sale_id}::${c.product_id}`;
+      fifoByKey[k] = (fifoByKey[k] || 0) + Number(c.qty_taken || 0) * Number(c.unit_cost || 0);
+    });
+
     const catMap = {};
 
     sales.forEach(s => {
@@ -111,10 +128,13 @@ const CategoryProfitReport = () => {
         if (!catMap[category]) catMap[category] = { category, units: 0, revenue: 0, cost: 0 };
         const qty  = Number(item.quantity || 0);
         const rate = Number(item.rate || item.sellingPrice || 0);
-        const cost = Number(item.costPrice ?? prod?.cost ?? 0);
+        const fifoCost = pid ? fifoByKey[`${s.id}::${pid}`] : undefined;
+        const cost = fifoCost != null
+          ? fifoCost
+          : qty * Number(item.costPrice ?? prod?.cost ?? 0);
         catMap[category].units   += qty;
         catMap[category].revenue += qty * rate;
-        catMap[category].cost    += qty * cost;
+        catMap[category].cost    += cost;
       });
     });
 
@@ -130,6 +150,7 @@ const CategoryProfitReport = () => {
       .sort((a, b) => b.revenue - a.revenue);
 
     const totalProfit   = rows.reduce((s, r) => s + r.profit, 0);
+    // (memo deps below already include consumption via productMap closure)
     const blendedMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
 
     return {
@@ -141,7 +162,7 @@ const CategoryProfitReport = () => {
         blendedMargin,
       },
     };
-  }, [sales, productMap]);
+  }, [sales, productMap, consumption]);
 
   const exportCSV = () => {
     const csvRows = [
