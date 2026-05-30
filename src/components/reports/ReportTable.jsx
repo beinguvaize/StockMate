@@ -205,14 +205,14 @@ const ReportTable = ({
 
   if (loading) {
     return (
-      <div className="w-full bg-white rounded-bento border border-black/5 overflow-hidden shadow-premium animate-pulse">
-        <div className="h-12 bg-canvas/50 border-b border-black/5" />
+      <div className="w-full bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm animate-pulse">
+        <div className="h-12 bg-slate-50 border-b border-slate-200" />
         {[...Array(8)].map((_, i) => (
-          <div key={i} className="h-16 border-b border-black/5 flex items-center px-6 gap-4">
-            <div className="h-4 w-24 bg-canvas rounded" />
-            <div className="h-4 flex-1 bg-canvas rounded" />
-            <div className="h-4 w-32 bg-canvas rounded" />
-            <div className="h-4 w-12 bg-canvas rounded" />
+          <div key={i} className="h-16 border-b border-slate-200 flex items-center px-6 gap-4">
+            <div className="h-4 w-24 bg-slate-50 rounded" />
+            <div className="h-4 flex-1 bg-slate-50 rounded" />
+            <div className="h-4 w-32 bg-slate-50 rounded" />
+            <div className="h-4 w-12 bg-slate-50 rounded" />
           </div>
         ))}
       </div>
@@ -224,16 +224,16 @@ const ReportTable = ({
       {/* Table Controls (Search + Column Toggle) */}
       <div className="flex justify-between items-center no-print">
         <div className="relative group w-full max-w-md">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-accent-signature transition-colors" size={16} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-accent-signature transition-colors" size={16} />
           <input 
             type="text" 
             placeholder={`Search across ${sortedData.length} records...`}
-            className="w-full bg-white border border-black/5 rounded-xl py-3 pl-12 pr-4 text-xs font-bold focus:ring-4 focus:ring-accent-signature/10 transition-all outline-none"
+            className="w-full bg-white border border-slate-200 rounded-xl py-3 pl-12 pr-4 text-xs font-bold focus:ring-4 focus:ring-accent-signature/10 transition-all outline-none"
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
           />
           {localSearch && (
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400 pointer-events-none uppercase">
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-slate-400 pointer-events-none uppercase">
               {sortedData.length} Results
             </div>
           )}
@@ -242,21 +242,21 @@ const ReportTable = ({
         <div className="flex items-center gap-3 relative column-toggle-container">
           <button 
             onClick={() => setShowColumnToggle(!showColumnToggle)}
-            className="flex items-center gap-2 px-6 py-3 bg-white border border-black/5 rounded-pill text-xs font-black text-ink-primary hover:bg-canvas transition-all shadow-sm"
+            className="flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 rounded-lg text-xs font-black text-slate-900 hover:bg-slate-50 transition-all shadow-sm"
           >
             <Columns size={14} className="text-accent-signature" />
             COLUMNS
           </button>
 
           {showColumnToggle && (
-            <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl border border-black/10 shadow-hover z-[100] p-4 animate-in fade-in zoom-in-95 duration-200">
-              <h4 className="text-[10px] font-black uppercase text-gray-400 mb-3 tracking-widest">Toggle Columns</h4>
+            <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-2xl border border-slate-200 shadow-md z-[100] p-4 animate-in fade-in zoom-in-95 duration-200">
+              <h4 className="text-[10px] font-black uppercase text-slate-400 mb-3 tracking-widest">Toggle Columns</h4>
               <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
                 {columns.map(col => (
                   <label key={col.key} className="flex items-center gap-3 cursor-pointer group">
                     <input 
                       type="checkbox" 
-                      className="w-4 h-4 rounded border-gray-300 text-ink-primary focus:ring-accent-signature"
+                      className="w-4 h-4 rounded border-gray-300 text-slate-900 focus:ring-accent-signature"
                       checked={visibleColumns.includes(col.key)}
                       onChange={() => {
                         if (visibleColumns.includes(col.key)) {
@@ -266,7 +266,7 @@ const ReportTable = ({
                         }
                       }}
                     />
-                    <span className="text-xs font-bold text-ink-primary group-hover:text-ink-secondary transition-colors uppercase tracking-tight">
+                    <span className="text-xs font-bold text-slate-900 group-hover:text-slate-700 transition-colors uppercase tracking-tight">
                       {col.label}
                     </span>
                   </label>
@@ -280,19 +280,19 @@ const ReportTable = ({
       {/* Main Table Container */}
       <div 
         ref={tableRef}
-        className="relative flex-1 bg-white rounded-[2rem] border border-black/5 shadow-premium overflow-auto custom-scrollbar group/table"
+        className="relative flex-1 bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-auto custom-scrollbar group/table"
       >
-        <table className="w-full border-separate border-spacing-0 text-left min-w-full">
+        <table className="report-table w-full border-separate border-spacing-0 text-left min-w-full">
           {/* Sticky Header */}
-          <thead className="sticky top-0 z-30 bg-white/80 backdrop-blur-3xl shadow-sm border-b border-black/5">
+          <thead className="sticky top-0 z-30 bg-white/80 backdrop-blur-3xl shadow-sm border-b border-slate-200">
             <tr>
               {columns.filter(c => visibleColumns.includes(c.key)).map((col, i) => (
                 <th 
                   key={col.key}
                   className={`
-                    group px-6 py-5 text-[10px] font-black uppercase text-gray-500 tracking-widest cursor-default relative select-none
-                    ${i === 0 ? 'sticky left-0 z-40 bg-white/95 border-r border-black/[0.03]' : ''}
-                    ${col.sortable ? 'cursor-pointer hover:text-ink-primary' : ''}
+                    group px-6 py-5 text-[10px] font-black uppercase text-slate-500 tracking-wider cursor-default relative select-none
+                    ${i === 0 ? 'sticky left-0 z-40 bg-white/95 border-r border-slate-100' : ''}
+                    ${col.sortable ? 'cursor-pointer hover:text-slate-900' : ''}
                   `}
                   style={{ width: columnWidths[col.key], minWidth: columnWidths[col.key] }}
                   onClick={() => handleSort(col.key)}
@@ -300,7 +300,7 @@ const ReportTable = ({
                   <div className={`flex items-center gap-2 ${col.align === 'right' ? 'justify-end' : ''}`}>
                     {col.label}
                     {col.sortable && (
-                      <div className={`transition-all ${sortKey === col.key ? 'text-accent-signature scale-110' : 'opacity-0 group-hover:opacity-100 text-gray-300'}`}>
+                      <div className={`transition-all ${sortKey === col.key ? 'text-accent-signature scale-110' : 'opacity-0 group-hover:opacity-100 text-slate-300'}`}>
                         {sortKey === col.key ? (
                           sortDir === 'asc' ? <ChevronUp size={14} /> : sortDir === 'desc' ? <ChevronDown size={14} /> : <ArrowUpDown size={12} />
                         ) : (
@@ -313,7 +313,7 @@ const ReportTable = ({
                   {/* Column Resizer */}
                   <div 
                     onMouseDown={(e) => onResizeStart(e, col.key)}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1/2 cursor-col-resize hover:bg-accent-signature/50 transition-colors z-50 border-r border-black/5"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 w-1.5 h-1/2 cursor-col-resize hover:bg-accent-signature/50 transition-colors z-50 border-r border-slate-200"
                   />
                 </th>
               ))}
@@ -339,7 +339,7 @@ const ReportTable = ({
                   onClick={() => onRowClick(row)}
                   className={`
                     group/row transition-all cursor-pointer select-none
-                    ${rowIndex % 2 === 1 ? 'bg-canvas/[0.02]' : 'bg-transparent'}
+                    ${rowIndex % 2 === 1 ? 'bg-slate-50/40' : 'bg-transparent'}
                     hover:bg-accent-signature/[0.04] active:bg-accent-signature/[0.08]
                   `}
                 >
@@ -347,8 +347,8 @@ const ReportTable = ({
                     <td 
                       key={col.key}
                       className={`
-                        px-6 py-4.5 text-[12px] font-bold text-ink-primary whitespace-nowrap border-x border-transparent
-                        ${colIndex === 0 ? 'sticky left-0 z-20 bg-white group-hover/row:bg-[#FAF9F5] transition-colors border-r border-black/[0.03]' : ''}
+                        px-6 py-4.5 text-[12px] font-bold text-slate-900 whitespace-nowrap border-x border-transparent
+                        ${colIndex === 0 ? 'sticky left-0 z-20 bg-white group-hover/row:bg-[#FAF9F5] transition-colors border-r border-slate-100' : ''}
                         ${col.align === 'right' ? 'text-right tabular-nums' : ''}
                       `}
                     >
@@ -419,21 +419,21 @@ const ReportTable = ({
       </div>
 
       {/* Pagination */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white px-8 py-5 rounded-[2rem] border border-black/5 shadow-sm no-print gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-center bg-white px-8 py-5 rounded-[2rem] border border-slate-200 shadow-sm no-print gap-4">
         <div className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-          Showing <span className="text-ink-primary">{(page - 1) * pageSize + 1}</span>–<span className="text-ink-primary">{Math.min(page * pageSize, sortedData.length)}</span> of <span className="text-ink-primary">{sortedData.length}</span> records
+          Showing <span className="text-slate-900">{(page - 1) * pageSize + 1}</span>–<span className="text-slate-900">{Math.min(page * pageSize, sortedData.length)}</span> of <span className="text-slate-900">{sortedData.length}</span> records
         </div>
         
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-gray-400 uppercase">Rows:</span>
+            <span className="text-[10px] font-bold text-slate-400 uppercase">Rows:</span>
             <select 
               value={pageSize}
               onChange={(e) => {
                 setPageSize(Number(e.target.value));
                 setPage(1);
               }}
-              className="bg-white border border-gray-300 shadow-sm rounded-lg px-2 py-1 text-[10px] font-black text-ink-primary outline-none cursor-pointer"
+              className="bg-white border border-gray-300 shadow-sm rounded-lg px-2 py-1 text-[10px] font-black text-slate-900 outline-none cursor-pointer"
             >
               {[25, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
             </select>
@@ -443,14 +443,14 @@ const ReportTable = ({
             <button 
               disabled={page === 1}
               onClick={() => setPage(1)}
-              className="p-2 rounded-full hover:bg-canvas disabled:opacity-20 transition-all text-ink-primary"
+              className="p-2 rounded-full hover:bg-slate-50 disabled:opacity-20 transition-all text-slate-900"
             >
               <ChevronsLeft size={16} />
             </button>
             <button 
               disabled={page === 1}
               onClick={() => setPage(page - 1)}
-              className="p-2 rounded-full hover:bg-canvas disabled:opacity-20 transition-all text-ink-primary"
+              className="p-2 rounded-full hover:bg-slate-50 disabled:opacity-20 transition-all text-slate-900"
             >
               <ChevronLeft size={16} />
             </button>
@@ -463,22 +463,22 @@ const ReportTable = ({
                   const val = Number(e.target.value);
                   if (val >= 1 && val <= totalPages) setPage(val);
                 }}
-                className="w-10 text-center bg-white border border-gray-300 shadow-sm rounded-lg py-1.5 text-[10px] font-black text-ink-primary outline-none font-mono"
+                className="w-10 text-center bg-white border border-gray-300 shadow-sm rounded-lg py-1.5 text-[10px] font-black text-slate-900 outline-none font-mono"
               />
-              <span className="text-[10px] font-bold text-gray-400 uppercase whitespace-nowrap">of {totalPages || 1}</span>
+              <span className="text-[10px] font-bold text-slate-400 uppercase whitespace-nowrap">of {totalPages || 1}</span>
             </div>
 
             <button 
               disabled={page === totalPages || totalPages === 0}
               onClick={() => setPage(page + 1)}
-              className="p-2 rounded-full hover:bg-canvas disabled:opacity-20 transition-all text-ink-primary"
+              className="p-2 rounded-full hover:bg-slate-50 disabled:opacity-20 transition-all text-slate-900"
             >
               <ChevronRight size={16} />
             </button>
             <button 
               disabled={page === totalPages || totalPages === 0}
               onClick={() => setPage(totalPages)}
-              className="p-2 rounded-full hover:bg-canvas disabled:opacity-20 transition-all text-ink-primary"
+              className="p-2 rounded-full hover:bg-slate-50 disabled:opacity-20 transition-all text-slate-900"
             >
               <ChevronsRight size={16} />
             </button>

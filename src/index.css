@@ -34,6 +34,51 @@ body {
     font-family: Arial, Helvetica, sans-serif !important;
 }
 
+/* Vendflow typography helpers — Plus Jakarta Sans for headers, JetBrains Mono
+   for numbers. Use .font-display on titles/th, .font-mono on numeric cells. */
+.font-display {
+    font-family: 'Plus Jakarta Sans', Inter, -apple-system, sans-serif !important;
+    letter-spacing: -0.01em;
+}
+.font-mono,
+table.report-table td.numeric,
+table.report-table .numeric {
+    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace !important;
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+}
+/* Global table polish (vendflow palette) applied via .report-table class */
+table.report-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+table.report-table thead th {
+    background: #f8fafc;            /* slate-50 */
+    border-bottom: 1px solid #e2e8f0;/* slate-200 */
+    color: #64748b;                  /* slate-500 */
+    font-family: 'Plus Jakarta Sans', Inter, sans-serif;
+    font-weight: 700;
+    font-size: 10px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    padding: 12px 16px;
+}
+table.report-table tbody td {
+    border-bottom: 1px solid #f1f5f9;/* slate-100 */
+    color: #0f172a;                  /* slate-900 */
+    font-size: 13px;
+    padding: 14px 16px;
+}
+table.report-table tbody tr:hover td {
+    background: #f8fafc;
+}
+table.report-table tbody td.right { text-align: right; }
+table.report-table tbody td.right.numeric,
+table.report-table tbody td.numeric {
+    font-feature-settings: 'tnum' 1;
+}
+
 /* Explicit paddings for arbitrary values used in Login.jsx */
 .pl-\[13px\] { padding-left: 13px !important; }
 .pr-\[13px\] { padding-right: 13px !important; }
