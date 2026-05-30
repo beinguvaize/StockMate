@@ -81,18 +81,31 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
   // Calculate row counts for filling up to 8 rows
   const minRows = 10;
   
-  // Map items to a consistent structure first (needed for fallback tax calc)
+  // Tax mode from business profile. INCLUSIVE = rate already includes GST.
+  // EXCLUSIVE = GST added on top of rate. Default EXCLUSIVE for legacy.
+  const taxMode = String(safeBusiness.tax_mode || invoice.tax_mode || 'EXCLUSIVE').toUpperCase();
+  const isInclusive = taxMode === 'INCLUSIVE';
+
+  // Map items to a consistent structure first (needed for fallback tax calc).
+  // For INCLUSIVE mode the rate already contains tax; back it out.
   const items = (invoice.items || []).map(item => {
     const qty  = parseFloat(item.qty || item.quantity || 0);
     const rate = parseFloat(item.rate || item.price || item.sellingPrice || 0);
     const taxRate = parseFloat(item.taxRate ?? 0);
-    const taxAmount = qty * rate * taxRate / 100;
+    const lineTotal = qty * rate;
+    const taxAmount = isInclusive
+      ? lineTotal - (lineTotal / (1 + taxRate / 100))
+      : lineTotal * taxRate / 100;
+    const taxable   = isInclusive
+      ? lineTotal - taxAmount
+      : lineTotal;
     return {
       name: item.name || 'Unnamed Product',
       sku: item.sku || item.hsn || '',
       hsn_code: item.hsn_code || item.hsn || '---',
-      qty, unit: item.unit || 'PCS', rate, taxRate, taxAmount,
-      total: qty * rate + taxAmount,
+      qty, unit: item.unit || 'PCS', rate, taxRate,
+      taxAmount, taxable,
+      total: isInclusive ? lineTotal : lineTotal + taxAmount,
     };
   });
 
@@ -103,7 +116,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
   const paidAmount    = parseFloat(invoice.paid_amount ?? 0);
   const outstandingBalance = parseFloat(safeClient.outstanding_balance ?? safeClient.outstanding ?? 0);
 
-  const derivedTaxable = items.reduce((s, i) => s + i.qty * i.rate, 0);
+  const derivedTaxable = items.reduce((s, i) => s + i.taxable,   0);
   const derivedTax     = items.reduce((s, i) => s + i.taxAmount, 0);
   const isInterstate   = invoice.is_interstate || invoice.isInterstate || false;
 
@@ -270,7 +283,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                 {items.map((item, idx) => {
                   const qty = parseFloat(item.qty || 0);
                   const rate = parseFloat(item.rate || 0);
-                  const taxable = qty * rate;
+                  const taxable = parseFloat(item.taxable ?? qty * rate);
                   const totalTaxItem = parseFloat(item.taxAmount || 0);
                   const cgstI = (invoice.is_interstate || invoice.isInterstate) ? 0 : totalTaxItem / 2;
                   const sgstI = cgstI;
@@ -356,9 +369,10 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                           const groups = {};
                           items.forEach(it => {
                             const k = it.hsn_code || '—';
-                            const qty = parseFloat(it.qty || 0);
-                            const rate = parseFloat(it.rate || 0);
-                            const tx = qty * rate;
+                            // HSN summary respects tax_mode — use the
+                            // already-derived taxable (inclusive: backed
+                            // out of rate; exclusive: qty*rate).
+                            const tx = parseFloat(it.taxable || 0);
                             const tr = parseFloat(it.taxRate || 18);
                             if (!groups[k]) groups[k] = { hsn: k, taxable: 0, rate: tr, cgst: 0, sgst: 0, igst: 0 };
                             groups[k].taxable += tx;
