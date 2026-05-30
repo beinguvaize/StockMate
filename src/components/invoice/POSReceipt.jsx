@@ -21,7 +21,10 @@ const resolveSettings = (raw) => { raw = raw ?? {}; return ({
   footer_message:      raw.footer_message      || 'Thank You for Your Business!',
 }); };
 
-const POSReceipt = ({ invoice, businessProfile, client, onClose }) => {
+// tendered: optional transient value (number) — when set + > grand total,
+// receipt renders "Tendered / Change" rows. Lost after print since cash
+// tendered isn't stored on the sale row.
+const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null }) => {
   const biz = businessProfile || {};
   const cli = client || { name: invoice?.client_name || 'Walk-in' };
   const s   = resolveSettings(biz.bill_settings);
@@ -203,9 +206,29 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose }) => {
                 <span>Paid</span>
                 <span>{fmt(paidAmount)}</span>
               </div>
+              {balance > 0.001 && (
+                <div className="flex justify-between font-bold">
+                  <span>Balance Due</span>
+                  <span>{fmt(balance)}</span>
+                </div>
+              )}
+            </div>
+          </>
+        )}
+
+        {/* Cash walk-in: cashier handed customer change. Render only when
+            caller passed the tendered amount and it overpays the total. */}
+        {tendered != null && tendered > grandTotal && (
+          <>
+            <div className="text-[10px] my-0.5">{LINE}</div>
+            <div className="text-[10px] space-y-0.5">
+              <div className="flex justify-between">
+                <span>Tendered</span>
+                <span>{fmt(tendered)}</span>
+              </div>
               <div className="flex justify-between font-bold">
-                <span>Balance Due</span>
-                <span>{fmt(balance)}</span>
+                <span>Change</span>
+                <span>{fmt(tendered - grandTotal)}</span>
               </div>
             </div>
           </>

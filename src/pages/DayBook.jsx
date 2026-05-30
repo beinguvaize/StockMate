@@ -12,6 +12,7 @@ import {
   Users, ShoppingCart, CheckCircle2, History
 } from 'lucide-react';
 import DailyLedgerDetail from '../components/reports/DailyLedgerDetail';
+import BankReconciliation from '../components/daybook/BankReconciliation';
 import { todayISOInAppTZ } from '../lib/utils';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -67,8 +68,9 @@ const KpiCard = ({ label, value, sub, icon, color = 'default', cy }) => {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 const DayBook = () => {
-  const { hasPermission } = useAuth();
+  const { hasPermission, currentUser } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
+  const currentUserId = currentUser?.id || null;
   const {
     expenses, dayBook, clientPayments, purchases,
     loading: finLoading, updateDayBook, getDayBookForDate, getPrevDayBook,
@@ -196,7 +198,7 @@ const DayBook = () => {
       cashIn, bankIn, cashOut, bankPurchPaid,
       totalReceipts, totalExpenses, cashPurchPaid, totalPurchPaid, totalPayments,
       entries: entriesWithBal,
-      sales: daySales, expenses: dayExpenses,
+      sales: daySales, expenses: dayExpenses, collect: dayCollect,
       txCount: entries.filter(e => e.type !== 'CREDIT_SALE').length,
       prevClosing: Number(prevRecord?.closing_balance) || null,
       expenseCount: dayExpenses.length,
@@ -868,6 +870,16 @@ const DayBook = () => {
 
         </div>
       </div>
+
+      {/* ── Bank Reconciliation ──────────────────────────────────────────── */}
+      <BankReconciliation
+        tenantId={currentTenantId}
+        currentUserId={currentUserId}
+        selectedDate={selectedDate}
+        daySales={ledger.sales}
+        dayCollect={ledger.collect}
+        dayExpenses={ledger.expenses}
+      />
 
       {/* ── Report modal ─────────────────────────────────────────────────────── */}
       {showReport && (
