@@ -16,6 +16,9 @@ const resolveSettings = (raw) => { raw = raw ?? {}; return ({
   show_customer_gstin: raw.show_customer_gstin ?? true,
   show_tax_breakdown:  raw.show_tax_breakdown  ?? true,
   show_upi:            raw.show_upi            ?? true,
+  // Separate toggle so business can put a QR on the GST invoice but not
+  // on every thermal POS slip (or vice versa).
+  show_upi_invoice:    raw.show_upi_invoice    ?? true,
   show_discount:       raw.show_discount       ?? true,
   bill_title:          raw.bill_title          || 'TAX INVOICE',
   footer_message:      raw.footer_message      || 'Thank You for Your Business!',
@@ -245,22 +248,39 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
         <div className="text-[10px] my-1">{LINE}</div>
         <div className="text-center text-[10px] space-y-0.5">
           {s.footer_message && <div className="font-bold">{s.footer_message}</div>}
-          {s.show_upi && biz.upi_id && (
-            <>
-              <div className="mt-0.5">UPI: {biz.upi_id}</div>
-              {/* Render the UPI deeplink as a scannable QR so customers can
-                  pay directly from the printed/displayed receipt. */}
-              <div className="flex justify-center my-2">
-                <QRCodeSVG
-                  value={`upi://pay?pa=${biz.upi_id}&pn=${encodeURIComponent(biz.businessName || biz.name || 'Merchant')}&am=${Number(invoice?.grand_total || invoice?.totalAmount || 0).toFixed(2)}&cu=INR&tn=${encodeURIComponent('Invoice ' + (invoice?.invoice_number || invoice?.id || ''))}`}
-                  size={96}
-                  level="M"
-                  includeMargin={false}
-                />
-              </div>
-              <div className="text-center text-[10px] opacity-80">Scan to pay</div>
-            </>
-          )}
+          {s.show_upi && biz.upi_id && (() => {
+            // Only render a "Scan to pay" QR when something is actually
+            // owed — paid sales hide the QR entirely (avoids confused
+            // re-payments) and the QR amount is the outstanding balance,
+            // not the gross bill, so partial-paid sales don't trigger
+            // an overpayment.
+            const total = Number(invoice?.grand_total || invoice?.totalAmount || 0);
+            const paid  = Number(invoice?.paid_amount  || invoice?.paidAmount   || 0);
+            const due   = Math.max(0, +(total - paid).toFixed(2));
+            if (invoice?.payment_status === 'PAID' || due <= 0) {
+              // Show UPI ID footer only — no QR — when sale already settled.
+              return <div className="mt-0.5">UPI: {biz.upi_id}</div>;
+            }
+            const note = `Sale ${invoice?.invoice_number || invoice?.id || ''} (Bal Due)`;
+            const upiUri =
+              `upi://pay?pa=${biz.upi_id}` +
+              `&pn=${encodeURIComponent(biz.businessName || biz.name || 'Merchant')}` +
+              `&am=${due.toFixed(2)}&cu=INR&tn=${encodeURIComponent(note)}`;
+            return (
+              <>
+                <div className="mt-0.5">UPI: {biz.upi_id}</div>
+                <div className="text-[10px] mt-0.5">
+                  Balance Due: <b>₹{due.toFixed(2)}</b>
+                </div>
+                <div className="flex justify-center my-2">
+                  <QRCodeSVG value={upiUri} size={96} level="M" includeMargin={false} />
+                </div>
+                <div className="text-center text-[10px] opacity-80">
+                  Scan to pay ₹{due.toFixed(2)}
+                </div>
+              </>
+            );
+          })()}
           {biz.invoice_terms && (
             <div className="text-[9px] text-gray-500 mt-1 whitespace-pre-wrap">
               {biz.invoice_terms.split('\n').slice(0, 2).join('\n')}

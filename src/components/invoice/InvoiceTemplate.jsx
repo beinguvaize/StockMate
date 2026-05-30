@@ -443,17 +443,30 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                       {safeBusiness.upi_id && <div><span className="text-slate-500">UPI:</span> <b>{safeBusiness.upi_id}</b></div>}
                     </div>
                   </div>
-                  {safeBusiness.upi_id && (
-                    <div className="shrink-0">
-                      <QRCodeSVG
-                        value={`upi://pay?pa=${safeBusiness.upi_id}&pn=${encodeURIComponent(safeBusiness.name || '')}&am=${grandTotal}&cu=INR&tn=Invoice ${encodeURIComponent(invoice.invoice_number)}`}
-                        size={70}
-                        level="M"
-                        includeMargin={false}
-                      />
-                      <div className="text-[8px] text-center text-slate-500 mt-0.5">Scan to pay</div>
-                    </div>
-                  )}
+                  {(() => {
+                    // QR shows only when bill_settings.show_upi_invoice is
+                    // ON (defaults true), UPI ID is set, and there is an
+                    // outstanding balance. PAID invoices hide the QR;
+                    // partial-paid use the balance, not gross.
+                    const billSettings = safeBusiness.bill_settings || {};
+                    const showQr = billSettings.show_upi_invoice ?? true;
+                    if (!showQr || !safeBusiness.upi_id) return null;
+                    const due = Math.max(0, +(grandTotal - paidAmount).toFixed(2));
+                    if (invoice.payment_status === 'PAID' || due <= 0) return null;
+                    const upiUri =
+                      `upi://pay?pa=${safeBusiness.upi_id}` +
+                      `&pn=${encodeURIComponent(safeBusiness.name || '')}` +
+                      `&am=${due.toFixed(2)}&cu=INR` +
+                      `&tn=${encodeURIComponent('Invoice ' + (invoice.invoice_number || ''))}`;
+                    return (
+                      <div className="shrink-0">
+                        <QRCodeSVG value={upiUri} size={70} level="M" includeMargin={false} />
+                        <div className="text-[8px] text-center text-slate-500 mt-0.5">
+                          Scan ₹{due.toFixed(2)}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="mt-3">
                   <div className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Terms & Conditions</div>
