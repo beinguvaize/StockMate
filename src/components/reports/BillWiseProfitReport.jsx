@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import useReportData from './useReportData';
 import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
+import DataTable, { inr, pct, signedColour } from '../ui/DataTable';
 
 const today = todayISOInAppTZ();
 
@@ -207,57 +208,53 @@ const BillWiseProfitReport = () => {
         <KPI label="Blended Margin" loading={loading} value={`${totals.blendedMargin.toFixed(1)}%`}  icon={TrendingUp}  color="#8b5cf6" />
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
-          <SectionHead title="Bill-wise Breakdown" sub={`${rows.length} bills`} />
-        </div>
+      {/* Table — vendflow-style DataTable */}
+      <DataTable
+        title="Bill-wise Breakdown"
+        subtitle={loading ? 'Loading…' : `${rows.length} bill${rows.length === 1 ? '' : 's'} for selected period`}
+        emptyMessage={loading ? 'Loading bills…' : 'No bills in this period.'}
+        columns={[
+          { key: 'date',     label: 'Date',      align: 'left'  },
+          { key: 'ref',      label: 'Reference', align: 'left'  },
+          { key: 'customer', label: 'Customer',  align: 'left'  },
+          { key: 'revenue',  label: 'Revenue',   align: 'right', numeric: true, fmt: inr },
+          { key: 'cost',     label: 'COGS',      align: 'right', numeric: true, fmt: inr },
+          { key: 'profit',   label: 'Gross Profit', align: 'right', numeric: true,
+            fmt: inr, className: signedColour },
+          { key: 'margin',   label: 'Margin',    align: 'right', numeric: true,
+            fmt: pct, className: signedColour },
+        ]}
+        rows={rows}
+        getRowKey={(r) => r.ref}
+      />
 
-        {loading ? (
-          <div className="p-6 space-y-3">
-            {[...Array(6)].map((_, i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}
+      {/* Totals footer — single matching strip below the table */}
+      {!loading && rows.length > 0 && (
+        <div className="bg-slate-50 rounded-2xl border border-slate-200 px-5 py-4 flex flex-wrap items-center gap-x-8 gap-y-2"
+             style={{ fontFamily: '"Plus Jakarta Sans", Inter, sans-serif' }}>
+          <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Totals</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Revenue</span>
+            <span className="text-sm font-bold text-slate-900 font-mono tabular-nums">{inr(totals.totalRevenue)}</span>
           </div>
-        ) : rows.length === 0 ? (
-          <div className="py-16 text-center text-sm text-gray-400">No data for selected period</div>
-        ) : (
-          <div>
-            <div className="grid grid-cols-[90px_160px_1fr_110px_110px_110px_90px] gap-3 px-6 py-2 bg-canvas/50 border-b border-black/5">
-              {['Date','Reference','Customer','Revenue','Cost','Profit','Margin %'].map(h => (
-                <span key={h} className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{h}</span>
-              ))}
-            </div>
-            {rows.map((row, i) => (
-              <div key={i} className="grid grid-cols-[90px_160px_1fr_110px_110px_110px_90px] gap-3 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
-                <span className="text-xs font-bold text-ink-secondary tabular-nums">{row.date}</span>
-                <span className="text-xs font-bold font-mono text-ink-primary truncate">{row.ref}</span>
-                <span className="text-xs font-bold text-ink-primary truncate">{row.customer}</span>
-                <span className="text-xs font-black text-ink-primary tabular-nums">{formatCurrency(row.revenue)}</span>
-                <span className="text-xs font-bold text-ink-secondary tabular-nums">{formatCurrency(row.cost)}</span>
-                <span className={`text-xs font-black tabular-nums ${row.profit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {formatCurrency(row.profit)}
-                </span>
-                <span className={`text-xs font-black tabular-nums ${row.margin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {row.margin.toFixed(1)}%
-                </span>
-              </div>
-            ))}
-            {/* Totals footer */}
-            <div className="grid grid-cols-[90px_160px_1fr_110px_110px_110px_90px] gap-3 px-6 py-3.5 border-t border-black/5 bg-canvas/30">
-              <span />
-              <span />
-              <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Totals</span>
-              <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(totals.totalRevenue)}</span>
-              <span className="text-sm font-black text-ink-secondary tabular-nums">{formatCurrency(totals.totalCost)}</span>
-              <span className={`text-sm font-black tabular-nums ${totals.totalProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                {formatCurrency(totals.totalProfit)}
-              </span>
-              <span className={`text-sm font-black tabular-nums ${totals.blendedMargin >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                {totals.blendedMargin.toFixed(1)}%
-              </span>
-            </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">COGS</span>
+            <span className="text-sm font-bold text-slate-900 font-mono tabular-nums">{inr(totals.totalCost)}</span>
           </div>
-        )}
-      </div>
+          <div className="flex items-baseline gap-2">
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Gross Profit</span>
+            <span className={`text-sm font-bold font-mono tabular-nums ${signedColour(totals.totalProfit)}`}>
+              {inr(totals.totalProfit)}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2 ml-auto">
+            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Blended Margin</span>
+            <span className={`text-base font-bold font-mono tabular-nums ${signedColour(totals.blendedMargin)}`}>
+              {pct(totals.blendedMargin)}
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

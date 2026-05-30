@@ -17,8 +17,10 @@ import ReportIssueButton from './components/ReportIssueButton';
 
 // ── Eager (tiny, needed immediately) ────────────────────────────────────────
 import Login   from './pages/Login';
-// Landing page parked — RootRedirect now sends anonymous visitors to /login.
-// Keep the file (src/pages/Landing.jsx) for future re-enable; just don't import.
+// Landing page re-enabled — RootRedirect now sends anonymous visitors to
+// the public marketing page at `/`. Authenticated users still skip past
+// it straight to their dashboard.
+const Landing = lazy(() => import('./pages/Landing'));
 import NoAccess from './pages/NoAccess';
 
 // ── Lazy (loaded only when route is visited) ─────────────────────────────────
@@ -140,7 +142,8 @@ const RootRedirect = () => {
     return <Navigate to="/welcome" replace />;
   }
 
-  return <Navigate to="/login" replace />;
+  // Unauthenticated visitor → render the public marketing landing page.
+  return <Landing />;
 };
 
 function AppRoutes() {
