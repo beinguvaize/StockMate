@@ -232,8 +232,14 @@ class AutoUpdater {
     final stateMsg  = ValueNotifier<String>('Starting download…');
     final hasFailed = ValueNotifier<bool>(false);
 
-    final githubReleaseUrl =
-        'https://github.com/$_githubRepo/releases/tag/mobile-v${release.version.isEmpty ? "latest" : release.version}';
+    // Extract semver from the apk asset URL (filename pattern
+    // StockMate-mobile-vX.Y.Z.apk) so the fallback lands on the
+    // matching mobile-v* release page, not /latest (which can return
+    // a desktop release if pushed later).
+    final verMatch = RegExp(r'v(\d+\.\d+\.\d+)').firstMatch(apkUrl);
+    final githubReleaseUrl = verMatch != null
+        ? 'https://github.com/$_githubRepo/releases/tag/mobile-v${verMatch.group(1)}'
+        : 'https://github.com/$_githubRepo/releases?q=mobile-';
 
     Future<void> openBrowserFallback() async {
       Navigator.of(context, rootNavigator: true).pop();
