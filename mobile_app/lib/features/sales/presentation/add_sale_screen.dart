@@ -169,7 +169,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         cart: _cart,
         subtotal: _subtotal,
         selectedClient: _selectedClient,
-        onComplete: (paymentMethod) => _submit(paymentMethod),
+        onComplete: (paymentMethod, paidAmount) => _submit(paymentMethod, paidAmount),
         onRemove: _deleteFromCart,
       ),
     );
@@ -198,7 +198,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     );
   }
 
-  Future<void> _submit(String paymentMethod) async {
+  Future<void> _submit(String paymentMethod, double? paidAmountOverride) async {
     if (_cart.isEmpty) {
       _showError('Cart is empty');
       return;
@@ -237,6 +237,12 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
 
       debugPrint('[SALE] calling process_sale id=$saleId user=$userId tenant=$tenantId items=${payloadItems.length} total=$_subtotal');
 
+      // If the cashier entered a specific amount paid, ship it. The RPC
+      // recomputes paymentStatus and pushes any unpaid balance to the
+      // client's outstanding ledger. Cash > total is treated as "change
+      // given" by the RPC (caps at total, doesn't store change).
+      final paidAmt = paidAmountOverride;
+
       final rpcParams = <String, dynamic>{
         'p_id':              saleId,
         'p_shop_id':         _selectedClient?.id,
@@ -251,6 +257,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         'p_tenant_id':       tenantId,
         'p_delivery_method': 'PICKUP',
         'p_source_app':      'MOBILE',
+        if (paidAmt != null) 'p_paid_amount': paidAmt,
       };
 
       // Offline-first: try direct RPC, on network/transient failure queue it.
@@ -1413,7 +1420,9 @@ class _CheckoutSheet extends StatefulWidget {
   final List<CartItem> cart;
   final double subtotal;
   final Client? selectedClient;
-  final Future<void> Function(String paymentMethod) onComplete;
+  // onComplete now receives an optional paidAmount. NULL means "use the
+  // method default" (CASH/UPI/BANK → full pay; CREDIT_SALE → 0).
+  final Future<void> Function(String paymentMethod, double? paidAmount) onComplete;
   final void Function(Product) onRemove;
 
   const _CheckoutSheet({
@@ -1432,12 +1441,38 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   String _paymentMethod = 'CASH';
   bool _isLoading = false;
   late List<CartItem> _localCart;
+  // Optional cashier-entered "Amount paid now". Empty/null → full pay
+  // for CASH/UPI/BANK, or 0 for CREDIT_SALE. When less than the bill
+  // total + client selected, balance lands in clients.outstanding_balance.
+  late TextEditingController _amountPaidCtrl;
 
   @override
   void initState() {
     super.initState();
     _localCart = List.from(widget.cart);
+    _amountPaidCtrl = TextEditingController();
   }
+
+  @override
+  void dispose() {
+    _amountPaidCtrl.dispose();
+    super.dispose();
+  }
+
+  double get _subtotalNow =>
+      _localCart.fold(0, (s, e) => s + e.lineTotal);
+
+  /// Effective paid amount considering payment method + cashier input.
+  double? get _effectivePaid {
+    final raw = _amountPaidCtrl.text.trim();
+    if (raw.isEmpty) return null;        // null → server picks default
+    final v = double.tryParse(raw);
+    if (v == null) return null;
+    return v;
+  }
+
+  double get _changeOrBalance =>
+      ((_effectivePaid ?? _subtotalNow) - _subtotalNow);
 
   static const _taxRate = 0.0;
   double get _subtotal => _localCart.fold(0, (s, c) => s + c.lineTotal);
@@ -1616,7 +1651,74 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             'Bill to ${widget.selectedClient!.name ?? "Client"}', LucideIcons.clock),
                     ].map((m) => _buildPaymentOption(m)),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 16),
+
+                    // ── Amount paid now ──────────────────────────
+                    // Optional. Empty = full pay for CASH/UPI/BANK, 0 for CREDIT.
+                    // < total + client present → balance to client outstanding.
+                    // > total (cash) → show change due.
+                    if (_paymentMethod != 'CREDIT_SALE') ...[
+                      Text(
+                        'Amount Received (optional)',
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 14, fontWeight: FontWeight.w700,
+                          color: AppColors.inkPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _amountPaidCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: 'Leave blank if customer paid in full',
+                          prefixText: '₹ ',
+                          filled: true,
+                          fillColor: AppColors.surfaceContainer,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      if (_effectivePaid != null) ...[
+                        const SizedBox(height: 8),
+                        _buildBalanceChip(),
+                      ],
+                      const SizedBox(height: 16),
+                    ] else ...[
+                      // Credit sale: cashier may collect a part-payment now.
+                      Text(
+                        'Part Payment Now (optional)',
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 14, fontWeight: FontWeight.w700,
+                          color: AppColors.inkPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: _amountPaidCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        onChanged: (_) => setState(() {}),
+                        decoration: InputDecoration(
+                          hintText: 'e.g. 100 — rest goes to client credit',
+                          prefixText: '₹ ',
+                          filled: true,
+                          fillColor: AppColors.surfaceContainer,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                      ),
+                      if (_effectivePaid != null) ...[
+                        const SizedBox(height: 8),
+                        _buildBalanceChip(),
+                      ],
+                      const SizedBox(height: 16),
+                    ],
+
+                    const SizedBox(height: 8),
 
                     // ── Bill details ──────────────────────────────
                     Text(
@@ -1682,7 +1784,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             ? null
                             : () async {
                                 setState(() => _isLoading = true);
-                                await widget.onComplete(_paymentMethod);
+                                await widget.onComplete(_paymentMethod, _effectivePaid);
                                 if (mounted) setState(() => _isLoading = false);
                               },
                         icon: _isLoading
@@ -1717,6 +1819,36 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // Renders Change due (paid > total) or Balance (paid < total).
+  Widget _buildBalanceChip() {
+    final diff = _changeOrBalance; // > 0 = change, < 0 = balance
+    if (diff == 0) return const SizedBox.shrink();
+    final isChange = diff > 0;
+    final label = isChange ? 'Change due' : 'Balance to credit';
+    final colour = isChange ? AppColors.secondary : AppColors.danger;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: colour.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: colour.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Icon(isChange ? LucideIcons.coins : LucideIcons.alertCircle,
+              size: 16, color: colour),
+          const SizedBox(width: 8),
+          Text(label, style: GoogleFonts.inter(
+              fontSize: 12, fontWeight: FontWeight.w700, color: colour)),
+          const Spacer(),
+          Text('₹${diff.abs().toStringAsFixed(2)}',
+              style: GoogleFonts.jetBrainsMono(
+                  fontSize: 14, fontWeight: FontWeight.w700, color: colour)),
+        ],
       ),
     );
   }
