@@ -973,6 +973,28 @@ const Settings = () => {
  <FileUp size={18} />
  </div>
  </button>
+
+ {/* Phase 3 — self-heal button. Recomputes every client's outstanding
+     balance from the sales ledger (the trigger keeps it correct going
+     forward; this is the manual escape hatch if a tenant ever sees a
+     stale number). */}
+ <button
+ className="w-full rounded-xl py-4 text-[11px] font-black uppercase tracking-widest border border-gray-300 bg-white hover:bg-gray-50 flex items-center justify-center gap-2 text-ink-primary disabled:opacity-50"
+ onClick={async () => {
+   if (!currentTenantId) return;
+   if (!window.confirm('Recompute every client\'s outstanding balance from the sales ledger?')) return;
+   const { data, error } = await supabase.rpc('recompute_client_outstanding', { p_tenant_id: currentTenantId });
+   if (error) { alert('Failed: ' + error.message); return; }
+   const changed = (data || []).filter(r => Math.abs(Number(r.delta) || 0) >= 0.01);
+   alert(changed.length
+     ? `Adjusted ${changed.length} client balance${changed.length === 1 ? '' : 's'}.\n\n` +
+       changed.slice(0, 10).map(r => `• ${r.client_name}: ${r.before_value} → ${r.after_value}`).join('\n')
+     : 'All client balances already match the ledger. No changes.');
+ }}
+ >
+ <RotateCcw size={14} />
+ Refresh Outstanding Balances
+ </button>
  </div>
  </div>
  </div>
