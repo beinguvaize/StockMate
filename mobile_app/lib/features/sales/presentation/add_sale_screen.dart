@@ -171,6 +171,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         selectedClient: _selectedClient,
         onComplete: (paymentMethod, paidAmount) => _submit(paymentMethod, paidAmount),
         onRemove: _deleteFromCart,
+        ref: ref,
       ),
     );
   }
@@ -1427,6 +1428,9 @@ class _CheckoutSheet extends StatefulWidget {
   // method default" (CASH/UPI/BANK → full pay; CREDIT_SALE → 0).
   final Future<void> Function(String paymentMethod, double? paidAmount) onComplete;
   final void Function(Product) onRemove;
+  // Pulled from parent so the checkout sheet can read business profile
+  // (tax_mode) without spinning up its own ConsumerStatefulWidget.
+  final WidgetRef ref;
 
   const _CheckoutSheet({
     required this.cart,
@@ -1434,6 +1438,7 @@ class _CheckoutSheet extends StatefulWidget {
     required this.selectedClient,
     required this.onComplete,
     required this.onRemove,
+    required this.ref,
   });
 
   @override
@@ -1477,10 +1482,49 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   double get _changeOrBalance =>
       ((_effectivePaid ?? _subtotalNow) - _subtotalNow);
 
-  static const _taxRate = 0.0;
-  double get _subtotal => _localCart.fold(0, (s, c) => s + c.lineTotal);
-  double get _tax => _subtotal * _taxRate;
-  double get _total => _subtotal + _tax;
+  // Tax math respects tenant tax_mode + per-product taxRate. INCLUSIVE
+  // means rate already contains tax — back it out for the Tax line.
+  // EXCLUSIVE means rate is base — add tax on top.
+  String get _taxMode {
+    final p = widget.ref.read(tenantProfileProvider).valueOrNull;
+    return (p?['tax_mode'] as String?)?.toUpperCase() ?? 'EXCLUSIVE';
+  }
+
+  double get _subtotal {
+    // For INCLUSIVE: backed-out taxable. For EXCLUSIVE: lineTotal as-is.
+    final inclusive = _taxMode == 'INCLUSIVE';
+    return _localCart.fold(0.0, (s, c) {
+      final r = (c.product.taxRate ?? 0).toDouble();
+      final line = c.lineTotal;
+      return s + (inclusive ? line / (1 + r / 100) : line);
+    });
+  }
+
+  double get _tax {
+    final inclusive = _taxMode == 'INCLUSIVE';
+    return _localCart.fold(0.0, (s, c) {
+      final r = (c.product.taxRate ?? 0).toDouble();
+      final line = c.lineTotal;
+      return s + (inclusive ? line - (line / (1 + r / 100)) : line * r / 100);
+    });
+  }
+
+  double get _total {
+    // INCLUSIVE: grand total = sum of line totals (rate already has tax).
+    // EXCLUSIVE: grand total = subtotal + tax.
+    final inclusive = _taxMode == 'INCLUSIVE';
+    if (inclusive) return _localCart.fold(0.0, (s, c) => s + c.lineTotal);
+    return _subtotal + _tax;
+  }
+
+  // Average effective tax rate (for display label) — weighted by line total.
+  double get _avgTaxRate {
+    final totalLine = _localCart.fold(0.0, (s, c) => s + c.lineTotal);
+    if (totalLine <= 0) return 0;
+    final weighted = _localCart.fold(0.0, (s, c) =>
+        s + c.lineTotal * (c.product.taxRate ?? 0).toDouble());
+    return weighted / totalLine;
+  }
 
   void _removeItem(CartItem item) {
     setState(() => _localCart.removeWhere((c) => c.product.id == item.product.id));
@@ -1742,10 +1786,12 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       ),
                       child: Column(
                         children: [
-                          _BillRow('Subtotal', '₹${_subtotal.toStringAsFixed(2)}'),
+                          _BillRow(
+                              _taxMode == 'INCLUSIVE' ? 'Taxable' : 'Subtotal',
+                              '₹${_subtotal.toStringAsFixed(2)}'),
                           const SizedBox(height: 10),
                           _BillRow(
-                              'Tax (${(_taxRate * 100).toStringAsFixed(0)}%)',
+                              'Tax (${_avgTaxRate.toStringAsFixed(_avgTaxRate % 1 == 0 ? 0 : 1)}%${_taxMode == 'INCLUSIVE' ? ' incl' : ''})',
                               '₹${_tax.toStringAsFixed(2)}'),
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 10),
