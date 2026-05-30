@@ -191,15 +191,26 @@ const ReportTable = ({
     navigator.clipboard.writeText(csv);
   };
 
-  // Render Cell content based on type
+  // Render Cell content based on type.
+  // If a column declares a render() *and* a type (e.g. currency), and the
+  // render returns a bare number, we still run it through the type formatter
+  // so callers like InventoryReport that compute derived numeric values via
+  // render don't ship raw "12593.600000000002" strings to the UI.
   const renderCell = (row, col) => {
-    if (col.render) return col.render(row[col.key], row);
+    if (col.render) {
+      const out = col.render(row[col.key], row);
+      if (typeof out === 'number') {
+        if (col.type === 'currency') return formatCurrency(out);
+        if (col.type === 'number')   return formatNumber(out);
+      }
+      return out;
+    }
     const val = row[col.key];
-    
+
     if (col.type === 'currency') return formatCurrency(val);
     if (col.type === 'date') return formatDate(val);
     if (col.type === 'number') return formatNumber(val);
-    
+
     return highlightMatch(val);
   };
 

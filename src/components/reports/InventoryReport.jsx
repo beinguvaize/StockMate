@@ -104,9 +104,19 @@ const InventoryReport = () => {
         </span>
       )},
       { key: 'costPrice', label: 'Unit Cost', type: 'currency', align: 'right', sortable: true, width: 130 },
-      { key: 'totalCost', label: 'Value (Cost)', type: 'currency', align: 'right', sortable: true, width: 150, render: (_, row) => (row.stock * row.costPrice) },
+      { key: 'totalCost', label: 'Value (Cost)', align: 'right', sortable: true, width: 150,
+        render: (_, row) => {
+          const v = (row.stock || 0) * (row.costPrice || 0);
+          return '₹' + v.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        } },
       { key: 'sellingPrice', label: 'Sell Price', type: 'currency', align: 'right', width: 130 },
-      { key: 'profit', label: 'Projected Profit', type: 'currency', align: 'right', width: 150, render: (_, row) => (row.stock * (row.sellingPrice - row.costPrice)) }
+      { key: 'profit', label: 'Projected Profit', align: 'right', width: 150,
+        render: (_, row) => {
+          const v = (row.stock || 0) * ((row.sellingPrice || 0) - (row.costPrice || 0));
+          const cls = v >= 0 ? 'text-emerald-600' : 'text-red-500';
+          const txt = '₹' + Math.abs(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return <span className={cls}>{v < 0 ? '−' : ''}{txt}</span>;
+        } }
     ],
     kpis: valuationMetrics.kpis,
     chartConfig: { title: "Asset distribution by category", type: 'pie', data: valuationMetrics.chartData },
@@ -135,7 +145,9 @@ const InventoryReport = () => {
       )},
       { key: 'category', label: 'Category', width: 140 },
       { key: 'stock', label: 'Dormant Units', align: 'right', width: 120, render: (val) => <span className="font-mono text-red-500 font-black">{val} Units</span> },
-      { key: 'costPrice', label: 'Frozen Value', type: 'currency', align: 'right', width: 150, render: (val, row) => val * row.stock },
+      { key: 'costPrice', label: 'Frozen Value', align: 'right', width: 150,
+        render: (val, row) => '₹' + ((val || 0) * (row.stock || 0))
+          .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
       { key: 'action', label: 'Action', width: 150, render: () => (
         <button className="flex items-center gap-2 px-4 py-1.5 bg-red-50 text-red-600 rounded-full text-[9px] font-black hover:bg-red-600 hover:text-white transition-all uppercase tracking-widest border border-red-100">
           Liquidate <ArrowRight size={12} />
