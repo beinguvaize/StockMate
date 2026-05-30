@@ -257,6 +257,11 @@ class SyncService {
 
   // ── Pull sync (server → local) ─────────────────────────────────────────────
 
+  /// Public helper: refresh ONLY the products table from supabase.
+  /// Used by the inventory provider so post-sale stock updates land in
+  /// Drift in ~300ms instead of waiting for a full 22-table pullSync.
+  Future<void> pullProductsOnly() => _pullProducts();
+
   /// Initial full sync from Supabase. RLS limits to the current tenant.
   /// Each table is independent — if one fails the others still proceed.
   Future<void> pullSync() async {
@@ -274,7 +279,15 @@ class SyncService {
 
   Future<void> _pullProducts() async {
     try {
-      final response = await supabase.from('products').select();
+      // Filter by current user's tenant. RLS already does this on the
+      // server but the local Drift cache has no tenant separation, so we
+      // must be explicit — otherwise a GLOBAL_ADMIN view pollutes the
+      // shared products table on every device.
+      final tenantId = supabase.auth.currentUser?.userMetadata?['tenant_id'] as String?
+          ?? (await supabase.from('users').select('tenant_id').eq('id', supabase.auth.currentUser!.id).maybeSingle())?['tenant_id'] as String?;
+      var q = supabase.from('products').select();
+      if (tenantId != null) q = q.eq('tenant_id', tenantId);
+      final response = await q;
       final List<dynamic> data = response as List<dynamic>;
       await db.batch((batch) {
         for (final item in data) {

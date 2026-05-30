@@ -9,12 +9,32 @@ class ProductRepository {
 
   ProductRepository({required this.db, required this.syncService});
 
-  /// Fetch from cloud and cache locally
+  /// Fetch from cloud and cache locally. Uses the targeted
+  /// pullProductsOnly so post-sale stock refreshes don't pay for a
+  /// 22-table full pullSync round-trip.
   Future<void> fetchAndCacheProducts() async {
     try {
-      await syncService.pullSync();
+      await syncService.pullProductsOnly();
     } catch (e) {
-      debugPrint('Pull sync failed: $e');
+      debugPrint('Pull products failed: $e');
+    }
+  }
+
+  /// Optimistic local stock decrement — used right after a sale fires so
+  /// the inventory tab reflects the new balance before the supabase
+  /// round-trip lands. Server is the source of truth; the next
+  /// fetchAndCacheProducts() overwrites with the authoritative value.
+  Future<void> decrementLocalStock(List<({String productId, double qty})> items) async {
+    for (final it in items) {
+      try {
+        final row = await (db.select(db.products)
+              ..where((t) => t.id.equals(it.productId)))
+            .getSingleOrNull();
+        if (row == null) continue;
+        final newStock = (row.stock - it.qty).clamp(0.0, double.infinity);
+        await (db.update(db.products)..where((t) => t.id.equals(it.productId)))
+            .write(ProductsCompanion(stock: Value(newStock)));
+      } catch (_) {/* best-effort */}
     }
   }
 

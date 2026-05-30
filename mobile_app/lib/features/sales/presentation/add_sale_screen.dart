@@ -267,6 +267,19 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         } catch (_) {}
       }
 
+      // Optimistic local stock decrement so the inventory tab + cart
+      // limits reflect the new balance immediately. The next provider
+      // re-run pulls the authoritative server value and overwrites this.
+      try {
+        final repo = ref.read(productRepositoryProvider);
+        await repo.decrementLocalStock(
+          payloadItems.map((it) => (
+            productId: it['id'] as String,
+            qty: (it['quantity'] as num).toDouble(),
+          )).toList(),
+        );
+      } catch (_) {/* best-effort */}
+
       // Refresh providers first, then navigate
       ref.invalidate(recentSalesProvider);
       ref.invalidate(productsProvider);
