@@ -206,12 +206,15 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     try {
       final saleId = 'SAL-${const Uuid().v4().substring(0, 8).toUpperCase()}';
 
-      // Items format mirrors web: { id, quantity, name, rate }
+      // Items format mirrors web: { id, quantity, name, rate, taxRate }
+      // taxRate snapshot at sale-time so invoice GST stays correct even
+      // if the product master is edited later.
       final payloadItems = _cart.map((c) => {
         'id':       c.product.id,
         'quantity': c.quantity,
         'name':     c.product.name,
         'rate':     c.unitPrice,
+        'taxRate':  c.product.taxRate ?? 0,
       }).toList();
 
       final now = DateTime.now();

@@ -176,6 +176,11 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         quantity: i.quantity,
         name: i.name,
         rate: i.price ?? i.rate ?? 0,   // preserve unit price for returns/reports
+        // Snapshot tax rate at sale-time so invoices keep correct GST
+        // even if the product master is later edited. Default 0 if the
+        // caller didn't include it (walk-in non-GST sale).
+        taxRate: Number(i.taxRate ?? i.tax_rate ?? 0),
+        hsn: i.hsn || i.hsn_code || null,
       }));
       const totalAmount = sale.totalAmount ?? 0;
       const paymentStatus = sale.status === 'COMPLETED' ? 'PAID'
