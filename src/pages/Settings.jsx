@@ -182,6 +182,9 @@ const Settings = () => {
     show_customer_gstin: true,
     show_tax_breakdown:  true,
     show_upi:            true,
+    // Separate toggle for GST invoice — receipts and invoices can be
+    // configured independently (e.g. show QR on slip, hide on tax bill).
+    show_upi_invoice:    true,
     show_discount:       true,
     bill_title:          'TAX INVOICE',
     footer_message:      'Thank You for Your Business!',
@@ -851,7 +854,8 @@ const Settings = () => {
            { key: 'show_address',  label: 'Business Address' },
            { key: 'show_phone',    label: 'Business Phone' },
            { key: 'show_gstin',    label: 'GSTIN / Tax Number' },
-           { key: 'show_upi',      label: 'UPI ID (payment footer)' },
+           { key: 'show_upi',         label: 'UPI / Pay QR on Thermal Receipt' },
+           { key: 'show_upi_invoice', label: 'UPI / Pay QR on GST Invoice' },
          ].map(({ key, label }) => (
            <div key={key} className="flex items-center justify-between py-2.5 border-b border-black/5 last:border-0">
              <span className="text-sm font-semibold text-ink-primary">{label}</span>
