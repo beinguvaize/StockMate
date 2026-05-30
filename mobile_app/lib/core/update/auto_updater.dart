@@ -200,7 +200,11 @@ class AutoUpdater {
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
-              final url = 'https://github.com/$_githubRepo/releases/latest';
+              // Link to the specific mobile release tag — /releases/latest
+              // returns whichever tag was pushed last (desktop releases
+              // hijack it), which would dump the user on the wrong
+              // download page.
+              final url = 'https://github.com/$_githubRepo/releases/tag/mobile-v${release.version}';
               await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
             },
             child: const Text('Open in Browser'),
@@ -229,7 +233,7 @@ class AutoUpdater {
     final hasFailed = ValueNotifier<bool>(false);
 
     final githubReleaseUrl =
-        'https://github.com/$_githubRepo/releases/latest';
+        'https://github.com/$_githubRepo/releases/tag/mobile-v${release.version.isEmpty ? "latest" : release.version}';
 
     Future<void> openBrowserFallback() async {
       Navigator.of(context, rootNavigator: true).pop();
