@@ -85,13 +85,12 @@ const InvoiceEmbed = () => {
   return (
     <div data-embed-ready="true" style={{ background: '#fff', minHeight: '100vh', padding: 0 }}>
       {/* Strip InvoiceTemplate's portal chrome so the captured PNG
-          contains only the printable A4 sheet. The component mounts
-          inside a fixed-position portal with a dark backdrop, a
-          DRAFT PREVIEW toolbar (close, zoom, share, print) and a
-          translated scale wrapper. None of that should appear in the
-          mobile PDF. The CSS overrides flatten the portal to normal
-          flow, hide the toolbar, and undo the scale transform so
-          html2canvas captures the sheet at native size. */}
+          contains only the printable A4 sheet. We hide the toolbar
+          (close / zoom / share / print row) and the backdrop, and
+          undo the scale transform on the sheet — but we deliberately
+          do NOT change the scroller's overflow / display because
+          flattening that block to display:block hid the sheet on
+          some Android WebView builds (blank capture). */}
       <style>{`
         body { background: #fff !important; }
         #invoice-template-portal {
@@ -101,27 +100,13 @@ const InvoiceEmbed = () => {
           backdrop-filter: none !important;
           -webkit-backdrop-filter: none !important;
           overflow: visible !important;
-          padding: 0 !important;
-          margin: 0 !important;
-          display: block !important;
-          height: auto !important;
-          min-height: 0 !important;
         }
-        /* Hide the toolbar (close / zoom / share / print row). */
-        #invoice-template-portal > div:first-child { display: none !important; }
-        /* Reset the scroller padding + zoom transform so the sheet
-           renders at full A4 size at the top of the page. */
-        #invoice-template-portal > div:nth-child(2) {
-          padding: 0 !important;
-          overflow: visible !important;
-          display: block !important;
-          flex: initial !important;
-        }
+        /* Toolbar (action bar at the top of the portal). */
+        #invoice-template-portal > .print-hidden { display: none !important; }
+        /* Zoom transform off so the sheet renders at native A4. */
         #invoice-print-area {
           transform: none !important;
           box-shadow: none !important;
-          margin: 0 !important;
-          padding: 12mm !important;
         }
       `}</style>
       <InvoiceTemplate
