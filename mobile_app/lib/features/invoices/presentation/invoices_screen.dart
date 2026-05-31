@@ -16,11 +16,16 @@ final invoicesProvider = FutureProvider<List<Invoice>>((ref) async {
   // (see src/pages/Invoices.jsx:185) so the phone has to use the same
   // key or the two surfaces show invoices in different orders even
   // though they read the same rows.
+  // invoice_date desc, then invoice_number desc — same key the web
+  // Invoices page now uses (see src/pages/Invoices.jsx). created_at
+  // can't be the tiebreaker because bulk-backfilled rows share an
+  // identical microsecond timestamp, which made the visible order
+  // diverge between phone and browser even on the same data.
   final response = await supabase
       .from('invoices')
       .select()
       .order('invoice_date', ascending: false)
-      .order('created_at', ascending: false)
+      .order('invoice_number', ascending: false)
       .limit(500);
   return (response as List).map((d) => Invoice.fromJson(d)).toList();
 });

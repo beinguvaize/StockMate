@@ -182,7 +182,18 @@ const Invoices = () => {
         const name = clientOf(inv)?.name?.toLowerCase() || '';
         return (inv.invoice_number || '').toLowerCase().includes(q) || name.includes(q);
       })
-      .sort((a, b) => new Date(b.invoice_date) - new Date(a.invoice_date));
+      // Sort by invoice_date desc, then invoice_number desc as a stable
+      // tiebreaker so same-day rows land in newest-number-first order
+      // on every load. created_at can't be the tiebreaker because
+      // bulk-backfilled rows share an identical microsecond timestamp
+      // and the visible order then differs between web and mobile (and
+      // even between page reloads).
+      .sort((a, b) => {
+        const ad = a.invoice_date || '';
+        const bd = b.invoice_date || '';
+        if (ad !== bd) return bd.localeCompare(ad);
+        return String(b.invoice_number || '').localeCompare(String(a.invoice_number || ''));
+      });
   }, [invoices, searchTerm, statusFilter, inDateRange, clientOf]);
 
   // ── export ────────────────────────────────────────────────────────
