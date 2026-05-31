@@ -433,7 +433,12 @@ class InvoiceDetailScreen extends ConsumerWidget {
         }
       }
       bytes ??= await _buildPdf(profile);
-      await Printing.layoutPdf(onLayout: (_) async => bytes!);
+      // GST invoice = A4. Without an explicit format the system dialog
+      // defaults to Letter, which crops the right edge of an A4 sheet.
+      await Printing.layoutPdf(
+        onLayout: (_) async => bytes!,
+        format: PdfPageFormat.a4,
+      );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
