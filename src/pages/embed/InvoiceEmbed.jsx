@@ -100,20 +100,27 @@ const InvoiceEmbed = () => {
               || document.querySelector('[data-embed-ready="true"]')
               || document.body;
       }
-      // The invoice sheet is w-[210mm] (~794 CSS px). On mobile
-      // WebView the viewport is narrower than that, so the sheet
-      // overflows horizontally and html2canvas captures a blank
-      // frame. windowWidth/windowHeight force it to render as if
-      // the viewport were exactly the sheet's bounding rect, so
-      // the entire A4 page is captured cleanly.
-      const rect = target.getBoundingClientRect();
+      // Invoice sheet is w-[210mm] (~794 CSS px). On a narrow mobile
+      // WebView the sheet overflows the viewport horizontally and the
+      // default html2canvas capture window matches the viewport — so
+      // the right edge of the sheet gets cropped. We force every
+      // dimension to match the sheet's natural scroll size so the
+      // entire A4 page lands in the canvas regardless of how narrow
+      // the actual phone viewport is.
+      const sheetW = Math.max(target.scrollWidth, 800);
+      const sheetH = Math.max(target.scrollHeight, 1200);
+      const rect = { width: sheetW, height: sheetH };
       const canvas = await html2canvas(target, {
         scale,
         useCORS:         true,
         backgroundColor: '#ffffff',
         logging:         false,
-        windowWidth:     Math.max(rect.width, 800),
-        windowHeight:    Math.max(rect.height, 1200),
+        width:           sheetW,
+        height:          sheetH,
+        windowWidth:     sheetW,
+        windowHeight:    sheetH,
+        scrollX:         0,
+        scrollY:         0,
       });
       return JSON.stringify({
         dataUrl: canvas.toDataURL('image/png'),
