@@ -63,8 +63,22 @@ class WebPrintService {
     });
 
     final completer = Completer<Uint8List?>();
-    // Offscreen overlay: 0×0 widget, mount briefly, dispose after.
-    final entry = OverlayEntry(builder: (_) => SizedBox.shrink(child: InAppWebView(
+    // Mount the WebView at a real A4-width size, positioned far off the
+    // left edge so the user never sees it. A 0×0 (SizedBox.shrink)
+    // WebView lays the page out at a near-zero CSS viewport, so the
+    // 794px-wide invoice sheet overflowed and only the left portion was
+    // painted — which is why html2canvas captured a right- and
+    // bottom-cropped invoice no matter what capture options we passed.
+    // 820 logical px is wide enough for the 210mm (~794px) sheet plus
+    // a little slack; height is generous so the full document paints.
+    const renderW = 820.0;
+    const renderH = 1400.0;
+    final entry = OverlayEntry(builder: (_) => Positioned(
+      left: -100000, // off-screen — laid out and painted, never visible
+      top: 0,
+      width: renderW,
+      height: renderH,
+      child: InAppWebView(
       initialUrlRequest: URLRequest(url: WebUri('about:blank')),
       initialSettings: InAppWebViewSettings(
         javaScriptEnabled: true,
@@ -143,7 +157,8 @@ class WebPrintService {
           }
         }
       },
-    )));
+    ),
+    ));
 
     // Mount overlay via the navigator-key — see binding in main.dart.
     final navKey = appNavigatorKey;
