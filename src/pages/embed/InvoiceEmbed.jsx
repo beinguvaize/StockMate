@@ -16,6 +16,28 @@ const InvoiceEmbed = () => {
   const [state, setState] = useState({ loading: true, invoice: null, client: null, business: null, error: null });
   const cloneHostRef = useRef(null);
 
+  // Force the WebView's layout viewport up to A4 width so the
+  // 794px-wide invoice sheet actually gets painted in full. Without
+  // this override, Android WebView lays out at the device's narrow
+  // viewport (~360 CSS px), the sheet overflows the viewport, and
+  // html2canvas captures only the visible area — leaving the right
+  // and bottom edges of the printed invoice cropped. We swap the
+  // viewport meta tag on mount and restore the original on unmount
+  // so the override never leaks into normal browser sessions.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const meta = document.querySelector('meta[name="viewport"]') ||
+      (() => {
+        const m = document.createElement('meta');
+        m.name = 'viewport';
+        document.head.appendChild(m);
+        return m;
+      })();
+    const prev = meta.getAttribute('content') || '';
+    meta.setAttribute('content', 'width=820, initial-scale=1, user-scalable=no');
+    return () => { meta.setAttribute('content', prev); };
+  }, []);
+
   // After InvoiceTemplate mounts its portal in document.body, copy the
   // A4 sheet's DOM into our embed-ready wrapper. The clone is laid out
   // in normal flow (no fixed-position parent, no dark backdrop) so
