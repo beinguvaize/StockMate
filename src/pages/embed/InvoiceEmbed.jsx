@@ -45,8 +45,11 @@ const InvoiceEmbed = () => {
     return <div style={{ padding: 24, fontFamily: 'monospace', color: '#c00' }}>Error: {state.error}</div>;
   }
 
+  // See ReceiptEmbed for why we expose a ready signal here.
+  if (typeof window !== 'undefined') window.__embedReady = true;
+
   return (
-    <div style={{ background: '#fff', minHeight: '100vh', padding: 0 }}>
+    <div data-embed-ready="true" style={{ background: '#fff', minHeight: '100vh', padding: 0 }}>
       <InvoiceTemplate
         invoice={state.invoice}
         businessProfile={state.business || {}}
