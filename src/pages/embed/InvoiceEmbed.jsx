@@ -66,13 +66,21 @@ const InvoiceEmbed = () => {
       if (!target) {
         target = document.querySelector('[data-embed-ready="true"]') || document.body;
       }
+      // The invoice sheet is w-[210mm] (~794 CSS px). On mobile
+      // WebView the viewport is narrower than that, so the sheet
+      // overflows horizontally and html2canvas captures a blank
+      // frame. windowWidth/windowHeight force it to render as if
+      // the viewport were exactly the sheet's bounding rect, so
+      // the entire A4 page is captured cleanly.
+      const rect = target.getBoundingClientRect();
       const canvas = await html2canvas(target, {
         scale,
         useCORS:         true,
         backgroundColor: '#ffffff',
         logging:         false,
+        windowWidth:     Math.max(rect.width, 800),
+        windowHeight:    Math.max(rect.height, 1200),
       });
-      const rect = target.getBoundingClientRect();
       return JSON.stringify({
         dataUrl: canvas.toDataURL('image/png'),
         cssW:    rect.width,
