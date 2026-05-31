@@ -10,14 +10,16 @@ import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart';
 
 // ─── Provider — reads from `invoices` table (same as web Invoices.jsx) ────────
 final invoicesProvider = FutureProvider<List<Invoice>>((ref) async {
-  // Sort by created_at (microsecond timestamp) to match the web list
-  // order exactly. The previous invoice_date sort was day-precision so
-  // same-day invoices were tiebroken at random — invoices appeared in
-  // a different sequence on phone vs browser even though both surfaces
-  // read the same rows from the same table.
+  // Match the web Invoices.jsx sort exactly: invoice_date desc with
+  // created_at desc as a stable tiebreaker for same-day rows. The web
+  // list sorts in JS by new Date(b.invoice_date) - new Date(a.invoice_date)
+  // (see src/pages/Invoices.jsx:185) so the phone has to use the same
+  // key or the two surfaces show invoices in different orders even
+  // though they read the same rows.
   final response = await supabase
       .from('invoices')
       .select()
+      .order('invoice_date', ascending: false)
       .order('created_at', ascending: false)
       .limit(500);
   return (response as List).map((d) => Invoice.fromJson(d)).toList();
