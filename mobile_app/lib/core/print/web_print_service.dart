@@ -82,12 +82,38 @@ class WebPrintService {
             await c.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
             return;
           }
-          // Embed page landed — wait for React to render then snapshot.
-          await Future.delayed(const Duration(milliseconds: 1200));
+          // Poll for the embed page's readiness flag instead of guessing
+          // a fixed delay. The page sets window.__embedReady = true once
+          // the Supabase fetch resolves and React commits the receipt /
+          // invoice DOM. If we snapshot before this, the PDF captures
+          // the "Loading…" frame and the user sees the wrong layout.
           try {
+            const maxWaitMs = 8000;
+            const stepMs    = 150;
+            var waited      = 0;
+            var ready       = false;
+            while (waited < maxWaitMs) {
+              final res = await c.evaluateJavascript(
+                source: 'window.__embedReady === true',
+              );
+              if (res == true || res?.toString() == 'true') {
+                ready = true;
+                break;
+              }
+              await Future.delayed(const Duration(milliseconds: stepMs));
+              waited += stepMs;
+            }
+            if (!ready) {
+              throw Exception('Embed page never signalled readiness within ${maxWaitMs}ms');
+            }
+            // Tiny grace for layout/font settle after the ready flag.
+            await Future.delayed(const Duration(milliseconds: 250));
             final bytes = await c.createPdf(
               pdfConfiguration: PDFConfiguration(),
             );
+            if (bytes == null || bytes.isEmpty) {
+              throw Exception('createPdf returned empty bytes');
+            }
             if (!completer.isCompleted) completer.complete(bytes);
           } catch (e) {
             if (!completer.isCompleted) completer.completeError(e);
