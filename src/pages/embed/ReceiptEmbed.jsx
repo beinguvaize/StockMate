@@ -109,17 +109,22 @@ const ReceiptEmbed = () => {
         document.getElementById('pos-receipt-sheet') ||
         document.querySelector('[data-embed-ready="true"]') ||
         document.body;
-      const canvas = await html2canvas(target, {
-        scale,
-        useCORS:         true,
-        backgroundColor: '#ffffff',
-        logging:         false,
-      });
       // Hand back the captured element's CSS dimensions so the mobile
       // side can size the PDF page to the receipt itself — not the
       // whole viewport, which would otherwise leave large blank space
       // on the printed slip.
       const rect = target.getBoundingClientRect();
+      const canvas = await html2canvas(target, {
+        scale,
+        useCORS:         true,
+        backgroundColor: '#ffffff',
+        logging:         false,
+        // Force the virtual viewport to be at least the sheet's own
+        // size so it's never partially off-screen on a narrow Android
+        // WebView (which would otherwise produce a blank capture).
+        windowWidth:     Math.max(rect.width, 320),
+        windowHeight:    Math.max(rect.height, 600),
+      });
       return JSON.stringify({
         dataUrl: canvas.toDataURL('image/png'),
         cssW:    rect.width,
