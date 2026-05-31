@@ -101,7 +101,14 @@ const ReceiptEmbed = () => {
     // web prints. Returns the data URL — Dart decodes + wraps in PDF.
     window.__renderToPng = async (opts = {}) => {
       const scale = opts.scale || (window.devicePixelRatio || 2);
-      const target = document.querySelector('[data-embed-ready="true"]') || document.body;
+      // Target only the receipt sheet itself (mounted directly when
+      // POSReceipt is in bare mode). Falls back to the embed-ready
+      // container if the sheet hasn't mounted yet — should never
+      // happen because we only set __embedReady after render.
+      const target =
+        document.getElementById('pos-receipt-sheet') ||
+        document.querySelector('[data-embed-ready="true"]') ||
+        document.body;
       const canvas = await html2canvas(target, {
         scale,
         useCORS:         true,
@@ -115,6 +122,7 @@ const ReceiptEmbed = () => {
   return (
     <div data-embed-ready="true" style={{ background: '#fff', minHeight: '100vh', padding: 0 }}>
       <POSReceipt
+        bare
         invoice={saleToInvoice(state.sale)}
         businessProfile={state.business || {}}
         client={state.client || { name: 'Walk-in' }}

@@ -27,7 +27,7 @@ const resolveSettings = (raw) => { raw = raw ?? {}; return ({
 // tendered: optional transient value (number) — when set + > grand total,
 // receipt renders "Tendered / Change" rows. Lost after print since cash
 // tendered isn't stored on the sale row.
-const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null }) => {
+const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null, bare = false }) => {
   const biz = businessProfile || {};
   const cli = client || { name: invoice?.client_name || 'Walk-in' };
   const s   = resolveSettings(biz.bill_settings);
@@ -103,33 +103,15 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
 
   const fmt  = (n) => n.toFixed(2);
 
-  return createPortal(
+  // The actual receipt body — same markup in both modes.
+  const sheet = (
     <div
-      id="pos-receipt-portal"
-      className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto py-8"
+      id="pos-receipt-sheet"
+      className={bare
+        ? 'bg-white font-mono text-[11px] leading-tight w-[302px] px-3 py-4'
+        : 'bg-white font-mono text-[11px] leading-tight w-[302px] px-3 py-4 shadow-2xl'}
+      style={{ fontFamily: "'Courier New', Courier, monospace" }}
     >
-      {/* Toolbar */}
-      <div className="print-hidden flex items-center gap-3 mb-6">
-        <button
-          onClick={() => window.print()}
-          className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full font-black text-[11px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
-        >
-          <Printer size={16} /> PRINT RECEIPT
-        </button>
-        <button
-          onClick={onClose}
-          className="w-10 h-10 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center transition-all"
-        >
-          <X size={18} />
-        </button>
-      </div>
-
-      {/* Receipt Sheet */}
-      <div
-        id="pos-receipt-sheet"
-        className="bg-white font-mono text-[11px] leading-tight w-[302px] px-3 py-4 shadow-2xl"
-        style={{ fontFamily: "'Courier New', Courier, monospace" }}
-      >
         {/* ── Business Header ─────────────────────────────── */}
         <div className="text-center mb-1">
           <div className="text-[14px] font-black uppercase tracking-wide">{biz.name || 'BUSINESS NAME'}</div>
@@ -312,6 +294,36 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
         </div>
         <div className="text-[10px] mt-1">{DLINE}</div>
       </div>
+  );
+
+  // Bare mode (mobile WebPrint embed): render inline on a white page,
+  // no portal, no toolbar, no backdrop. html2canvas would otherwise
+  // capture the dark backdrop + "PRINT RECEIPT" button into the PDF.
+  if (bare) {
+    return sheet;
+  }
+
+  return createPortal(
+    <div
+      id="pos-receipt-portal"
+      className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto py-8"
+    >
+      {/* Toolbar */}
+      <div className="print-hidden flex items-center gap-3 mb-6">
+        <button
+          onClick={() => window.print()}
+          className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full font-black text-[11px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
+        >
+          <Printer size={16} /> PRINT RECEIPT
+        </button>
+        <button
+          onClick={onClose}
+          className="w-10 h-10 rounded-full bg-white/10 text-white hover:bg-white/20 flex items-center justify-center transition-all"
+        >
+          <X size={18} />
+        </button>
+      </div>
+      {sheet}
     </div>,
     document.body
   );
