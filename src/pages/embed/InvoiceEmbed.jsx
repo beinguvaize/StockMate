@@ -51,7 +51,21 @@ const InvoiceEmbed = () => {
     window.__embedReady = true;
     window.__renderToPng = async (opts = {}) => {
       const scale = opts.scale || (window.devicePixelRatio || 2);
-      const target = document.querySelector('[data-embed-ready="true"]') || document.body;
+      // Target the invoice print sheet directly. InvoiceTemplate
+      // renders into a portal mounted on document.body (so the
+      // embed-ready wrapper doesn't contain it) and we want only the
+      // A4 sheet — not the dark toolbar / zoom bar — in the captured
+      // PNG. The wait loop below ensures the portal has actually
+      // committed before we snapshot.
+      let target = document.getElementById('invoice-print-area');
+      const start = Date.now();
+      while (!target && Date.now() - start < 2000) {
+        await new Promise(r => setTimeout(r, 100));
+        target = document.getElementById('invoice-print-area');
+      }
+      if (!target) {
+        target = document.querySelector('[data-embed-ready="true"]') || document.body;
+      }
       const canvas = await html2canvas(target, {
         scale,
         useCORS:         true,
