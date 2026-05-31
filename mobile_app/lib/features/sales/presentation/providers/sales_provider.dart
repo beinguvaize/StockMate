@@ -27,8 +27,15 @@ final recentSalesProvider = FutureProvider<List<Sale>>((ref) async {
     final db = ref.read(databaseProvider);
     final rows = await (db.select(db.sales)
           ..where((t) => t.tenantId.equals(ctx.tenantId))
-          ..orderBy([(t) => OrderingTerm(
-                expression: t.date, mode: OrderingMode.desc)])
+          // Drift schema has no createdAt yet so we order by date desc
+          // then id desc as a stable tiebreaker. Online path uses the
+          // server's created_at timestamp — this offline fallback is
+          // close enough for sales placed on different days, and only
+          // fires when supabase is unreachable.
+          ..orderBy([
+            (t) => OrderingTerm(expression: t.date, mode: OrderingMode.desc),
+            (t) => OrderingTerm(expression: t.id,   mode: OrderingMode.desc),
+          ])
           ..limit(500))
         .get();
     return rows

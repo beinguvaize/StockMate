@@ -6,6 +6,7 @@
  * matches web exactly.
  */
 import React, { useEffect, useState } from 'react';
+import html2canvas from 'html2canvas-pro';
 import { useParams } from 'react-router-dom';
 import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
 import { supabase } from '../../lib/supabase';
@@ -46,7 +47,20 @@ const InvoiceEmbed = () => {
   }
 
   // See ReceiptEmbed for why we expose a ready signal here.
-  if (typeof window !== 'undefined') window.__embedReady = true;
+  if (typeof window !== 'undefined') {
+    window.__embedReady = true;
+    window.__renderToPng = async (opts = {}) => {
+      const scale = opts.scale || (window.devicePixelRatio || 2);
+      const target = document.querySelector('[data-embed-ready="true"]') || document.body;
+      const canvas = await html2canvas(target, {
+        scale,
+        useCORS:         true,
+        backgroundColor: '#ffffff',
+        logging:         false,
+      });
+      return canvas.toDataURL('image/png');
+    };
+  }
 
   return (
     <div data-embed-ready="true" style={{ background: '#fff', minHeight: '100vh', padding: 0 }}>
