@@ -18,6 +18,7 @@ import 'package:mobile_app/core/supabase/client.dart' as sb;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:mobile_app/core/print/web_print_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 // ─── Line item ────────────────────────────────────────────────────────────────
@@ -381,7 +382,15 @@ class InvoiceDetailScreen extends ConsumerWidget {
 
   Future<void> _share(BuildContext context, BusinessProfile? profile) async {
     try {
-      final bytes = await _buildPdf(profile);
+      // Prefer web-rendered template for pixel parity. Fall back to local
+      // pw builder if offscreen WebView fails (no session, dev env, etc.).
+      Uint8List? bytes;
+      try {
+        bytes = await WebPrintService.renderInvoicePdf(invoice.id);
+      } catch (e) {
+        debugPrint('[print] web render failed, fallback to local: $e');
+      }
+      bytes ??= await _buildPdf(profile);
       await Printing.sharePdf(
           bytes: bytes,
           filename: 'invoice-${invoice.id.substring(0, 8)}.pdf');
@@ -395,8 +404,14 @@ class InvoiceDetailScreen extends ConsumerWidget {
 
   Future<void> _print(BuildContext context, BusinessProfile? profile) async {
     try {
-      final bytes = await _buildPdf(profile);
-      await Printing.layoutPdf(onLayout: (_) async => bytes);
+      Uint8List? bytes;
+      try {
+        bytes = await WebPrintService.renderInvoicePdf(invoice.id);
+      } catch (e) {
+        debugPrint('[print] web render failed, fallback to local: $e');
+      }
+      bytes ??= await _buildPdf(profile);
+      await Printing.layoutPdf(onLayout: (_) async => bytes!);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -407,7 +422,15 @@ class InvoiceDetailScreen extends ConsumerWidget {
 
   Future<void> _sharePosReceipt(BuildContext context, BusinessProfile? profile) async {
     try {
-      final bytes = await _buildPosReceiptPdf(profile);
+      Uint8List? bytes;
+      try {
+        // POS receipt embed expects sale id. Use back-link saleId when
+        // present (GST-invoice rows), else fall back to id (raw sale).
+        bytes = await WebPrintService.renderReceiptPdf(invoice.saleId ?? invoice.id);
+      } catch (e) {
+        debugPrint('[print] web render failed, fallback to local: $e');
+      }
+      bytes ??= await _buildPosReceiptPdf(profile);
       await Printing.sharePdf(
           bytes: bytes,
           filename: 'receipt-${invoice.id.substring(0, 8)}.pdf');
@@ -562,9 +585,17 @@ class InvoiceDetailScreen extends ConsumerWidget {
 
   Future<void> _printPosReceipt(BuildContext context, BusinessProfile? profile) async {
     try {
-      final bytes = await _buildPosReceiptPdf(profile);
+      Uint8List? bytes;
+      try {
+        // POS receipt embed expects sale id. Use back-link saleId when
+        // present (GST-invoice rows), else fall back to id (raw sale).
+        bytes = await WebPrintService.renderReceiptPdf(invoice.saleId ?? invoice.id);
+      } catch (e) {
+        debugPrint('[print] web render failed, fallback to local: $e');
+      }
+      bytes ??= await _buildPosReceiptPdf(profile);
       await Printing.layoutPdf(
-        onLayout: (_) async => bytes,
+        onLayout: (_) async => bytes!,
         format: PdfPageFormat.roll80, // 80mm thermal
       );
     } catch (e) {

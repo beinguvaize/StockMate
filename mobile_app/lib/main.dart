@@ -17,6 +17,7 @@ import 'package:mobile_app/features/shell/desktop_shell.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import 'package:mobile_app/core/database/sync_service.dart';
+import 'package:mobile_app/core/print/web_print_service.dart' show appNavigatorKey;
 
 // Providers
 final databaseProvider = Provider<AppDatabase>((ref) {
@@ -96,6 +97,8 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
     return MaterialApp(
       title: 'Ledgr ERP',
       debugShowCheckedModeBanner: false,
+      // WebPrintService mounts offscreen WebView via this navigator's overlay.
+      navigatorKey: appNavigatorKey,
       theme: ThemeData(
         colorScheme: const ColorScheme(
           brightness: Brightness.light,
