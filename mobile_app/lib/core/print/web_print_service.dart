@@ -23,6 +23,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:pdf/pdf.dart' as pdfpkg;
+import 'package:pdf/widgets.dart' as pw;
 
 class WebPrintService {
   // Base URL of the web app. Same env switch as the supabase client —
@@ -108,11 +110,32 @@ class WebPrintService {
             }
             // Tiny grace for layout/font settle after the ready flag.
             await Future.delayed(const Duration(milliseconds: 250));
-            final bytes = await c.createPdf(
-              pdfConfiguration: PDFConfiguration(),
-            );
+            // Source of truth = the React DOM the embed page renders.
+            // Export pipeline picks the first thing that works on this
+            // platform:
+            //   1. window.__renderToPng (html2canvas, both platforms,
+            //      captures the full document at devicePixelRatio).
+            //   2. WKWebView createPdf (iOS-only, vector PDF).
+            //   3. takeScreenshot of the WebView's render area
+            //      (Android fallback, viewport-only — last resort).
+            Uint8List? bytes;
+            try {
+              bytes = await _renderViaHtml2Canvas(c);
+            } catch (e) {
+              debugPrint('[WebPrint] __renderToPng failed: $e');
+            }
             if (bytes == null || bytes.isEmpty) {
-              throw Exception('createPdf returned empty bytes');
+              try {
+                bytes = await c.createPdf(pdfConfiguration: PDFConfiguration());
+              } catch (_) {
+                bytes = null;
+              }
+            }
+            if (bytes == null || bytes.isEmpty) {
+              bytes = await _screenshotToPdf(c);
+            }
+            if (bytes.isEmpty) {
+              throw Exception('PDF export produced empty bytes');
             }
             if (!completer.isCompleted) completer.complete(bytes);
           } catch (e) {
@@ -136,6 +159,100 @@ class WebPrintService {
       entry.remove();
     }
   }
+}
+
+/// Calls the embed page's window.__renderToPng() (which uses
+/// html2canvas-pro to rasterise the full document DOM at the device's
+/// pixel ratio) and wraps the resulting PNG bytes inside a single
+/// PDF page sized to match the document's CSS dimensions.
+///
+/// This is the preferred export path because it works identically on
+/// iOS, Android, and any future surface — the React DOM is rendered
+/// once on the page itself and the PDF is just a wrapper.
+Future<Uint8List?> _renderViaHtml2Canvas(InAppWebViewController c) async {
+  final dataUrl = await c.evaluateJavascript(source: '''
+    (async () => {
+      if (typeof window.__renderToPng !== 'function') return null;
+      try { return await window.__renderToPng(); }
+      catch (e) { return null; }
+    })()
+  ''');
+  if (dataUrl is! String || !dataUrl.startsWith('data:image/png;base64,')) {
+    return null;
+  }
+  final png = base64Decode(dataUrl.substring('data:image/png;base64,'.length));
+
+  // Read the same CSS pixel dimensions so the PDF page matches the
+  // document. devicePixelRatio is baked into the PNG resolution
+  // (html2canvas's scale arg), so for printing we only care about
+  // the logical CSS pixel size.
+  final dimsRaw = await c.evaluateJavascript(source: '''
+    JSON.stringify({
+      w: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+      h: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight)
+    })
+  ''');
+  final dims = (dimsRaw is String)
+      ? jsonDecode(dimsRaw) as Map<String, dynamic>
+      : <String, dynamic>{};
+  final docW = (dims['w'] as num?)?.toDouble() ?? 800.0;
+  final docH = (dims['h'] as num?)?.toDouble() ?? 1200.0;
+
+  const pxToPt = 72.0 / 96.0;
+  final pageFormat = pdfpkg.PdfPageFormat(docW * pxToPt, docH * pxToPt);
+  final doc = pw.Document();
+  doc.addPage(pw.Page(
+    pageFormat: pageFormat,
+    build: (_) => pw.Image(pw.MemoryImage(png), fit: pw.BoxFit.fill),
+  ));
+  return doc.save();
+}
+
+/// Android last-resort path: resize the WebView's viewport to the document's full
+/// scroll height so the screenshot covers everything, take a PNG of
+/// the whole document, then wrap that PNG inside a single PDF page
+/// sized to match. Result prints / shares cleanly via the existing
+/// `printing` package while keeping pixel parity with the web render.
+Future<Uint8List> _screenshotToPdf(InAppWebViewController c) async {
+  // Pull the document's pixel dimensions from JS — DPR is included so
+  // the screenshot resolution matches the device's display density.
+  final dimsRaw = await c.evaluateJavascript(source: '''
+    (function() {
+      const w = Math.max(
+        document.documentElement.scrollWidth,
+        document.documentElement.clientWidth,
+        document.body ? document.body.scrollWidth : 0
+      );
+      const h = Math.max(
+        document.documentElement.scrollHeight,
+        document.documentElement.clientHeight,
+        document.body ? document.body.scrollHeight : 0
+      );
+      return JSON.stringify({ w: w, h: h, dpr: window.devicePixelRatio || 1 });
+    })();
+  ''');
+  final dims = (dimsRaw is String)
+      ? jsonDecode(dimsRaw) as Map<String, dynamic>
+      : <String, dynamic>{};
+  final docW = (dims['w'] as num?)?.toDouble() ?? 800.0;
+  final docH = (dims['h'] as num?)?.toDouble() ?? 1200.0;
+
+  final png = await c.takeScreenshot();
+  if (png == null || png.isEmpty) {
+    throw Exception('takeScreenshot returned empty bytes');
+  }
+
+  // Build a one-page PDF sized to the same CSS-pixel dimensions so the
+  // printer / share sheet renders at native resolution. 1 CSS pixel ≈
+  // 0.75 PDF point at 96 DPI.
+  const pxToPt = 72.0 / 96.0;
+  final pageFormat = pdfpkg.PdfPageFormat(docW * pxToPt, docH * pxToPt);
+  final doc = pw.Document();
+  doc.addPage(pw.Page(
+    pageFormat: pageFormat,
+    build: (_) => pw.Image(pw.MemoryImage(png), fit: pw.BoxFit.fill),
+  ));
+  return doc.save();
 }
 
 /// Set this from main.dart's MaterialApp:

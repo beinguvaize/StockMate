@@ -11,6 +11,7 @@
  * Falls back to a friendly "Open in app" message otherwise.
  */
 import React, { useEffect, useState } from 'react';
+import html2canvas from 'html2canvas-pro';
 import { useParams, useSearchParams } from 'react-router-dom';
 import POSReceipt from '../../components/invoice/POSReceipt';
 import { supabase } from '../../lib/supabase';
@@ -92,7 +93,24 @@ const ReceiptEmbed = () => {
   // PDF often captures the "Loading…" frame and the user sees the
   // wrong layout because mobile silently falls back to its local pw
   // renderer.
-  if (typeof window !== 'undefined') window.__embedReady = true;
+  if (typeof window !== 'undefined') {
+    window.__embedReady = true;
+    // Expose an in-page renderer so mobile (Android in particular,
+    // where WebView has no native PDF export) can request a base64
+    // PNG of the full receipt rendered by the same React DOM that
+    // web prints. Returns the data URL — Dart decodes + wraps in PDF.
+    window.__renderToPng = async (opts = {}) => {
+      const scale = opts.scale || (window.devicePixelRatio || 2);
+      const target = document.querySelector('[data-embed-ready="true"]') || document.body;
+      const canvas = await html2canvas(target, {
+        scale,
+        useCORS:         true,
+        backgroundColor: '#ffffff',
+        logging:         false,
+      });
+      return canvas.toDataURL('image/png');
+    };
+  }
 
   return (
     <div data-embed-ready="true" style={{ background: '#fff', minHeight: '100vh', padding: 0 }}>
