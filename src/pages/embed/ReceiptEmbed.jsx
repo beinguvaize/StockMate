@@ -87,8 +87,15 @@ const ReceiptEmbed = () => {
     return <div style={{ padding: 24, fontFamily: 'monospace', color: '#c00' }}>Error: {state.error}</div>;
   }
 
+  // Signal readiness so the mobile WebPrintService can snapshot the
+  // page only after data fetch + DOM render are done. Without this the
+  // PDF often captures the "Loading…" frame and the user sees the
+  // wrong layout because mobile silently falls back to its local pw
+  // renderer.
+  if (typeof window !== 'undefined') window.__embedReady = true;
+
   return (
-    <div style={{ background: '#fff', minHeight: '100vh', padding: 0 }}>
+    <div data-embed-ready="true" style={{ background: '#fff', minHeight: '100vh', padding: 0 }}>
       <POSReceipt
         invoice={saleToInvoice(state.sale)}
         businessProfile={state.business || {}}
