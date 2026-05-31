@@ -64,6 +64,13 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
 
   if (!invoice) return null;
 
+  // Tax-mode aware line math. In INCLUSIVE mode the printed rate IS
+  // gross (customer pays exactly rate * qty); taxable is backed out per
+  // line so the subtotal + CGST + SGST add up to grand_total. In
+  // EXCLUSIVE mode the rate is net and tax is added on top.
+  const taxMode = (biz.tax_mode || 'EXCLUSIVE').toUpperCase();
+  const inclusive = taxMode === 'INCLUSIVE';
+
   const items = (invoice.items || []).map(i => ({
     name:    i.name || 'Item',
     qty:     parseFloat(i.qty || i.quantity || 1),
@@ -71,12 +78,28 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
     taxRate: parseFloat(i.taxRate ?? 0),
   }));
 
-  const taxable    = items.reduce((s, i) => s + i.qty * i.rate, 0);
-  const totalTax   = items.reduce((s, i) => s + i.qty * i.rate * i.taxRate / 100, 0);
-  const grandTotal = parseFloat(invoice.grand_total ?? taxable + totalTax);
+  const taxable = items.reduce((s, i) => {
+    const gross = i.qty * i.rate;
+    return s + (inclusive ? gross / (1 + i.taxRate / 100) : gross);
+  }, 0);
+  const totalTax = items.reduce((s, i) => {
+    const gross = i.qty * i.rate;
+    return s + (inclusive
+      ? gross - gross / (1 + i.taxRate / 100)
+      : gross * i.taxRate / 100);
+  }, 0);
+  const grandTotal = parseFloat(invoice.grand_total ?? (inclusive
+    ? items.reduce((s, i) => s + i.qty * i.rate, 0)
+    : taxable + totalTax));
   const paidAmount = parseFloat(invoice.paid_amount ?? 0);
   const balance    = grandTotal - paidAmount;
-  const discount   = Math.max(0, taxable - grandTotal + totalTax); // crude discount
+  // Read discount straight off the sale/invoice row. Old code derived
+  // it from a tax-vs-total delta which double-counted on inclusive
+  // sales and showed a phantom "Discount -41.40" against an equal
+  // CGST+SGST 41.40, producing a meaningless cancel-out on the slip.
+  const discount = Math.max(0, parseFloat(
+    invoice.discount_total ?? invoice.discountTotal ?? invoice.discount ?? 0
+  ));
 
   const fmt  = (n) => n.toFixed(2);
 

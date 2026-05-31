@@ -13,9 +13,15 @@ import InvoiceBuilder from './components/InvoiceBuilder';
 import InvoiceList from './components/InvoiceList';
 import SalePrintDispatcher from './components/SalePrintDispatcher';
 import SalesReturnForm from './components/SalesReturnForm';
+import ConvertToInvoiceSheet from './components/ConvertToInvoiceSheet';
 import { calculateGST } from '../../lib/gstEngine';
+import { supabase } from '../../lib/supabase';
 
 const SalesPage = () => {
+  // Sale picked for GST-invoice conversion. When set, the ConvertToInvoiceSheet
+  // modal opens and collects customer / GSTIN info before firing the RPC.
+  const [convertSale, setConvertSale] = useState(null);
+  const [convertSubmitting, setConvertSubmitting] = useState(false);
   const { addNotification } = useNotifications();
   const { currentTenantId, businessProfile, currentTenant } = useTenant();
   const { sales, clients, invoices, placeSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, convertSaleToInvoice, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
@@ -194,23 +200,90 @@ const SalesPage = () => {
             onPrint={printSale}
             onReturn={setReturnSale}
             onDispatch={dispatchSale}
-            onConvertToInvoice={async (sale) => {
-              const result = await convertSaleToInvoice(sale.id, {
-                client_id:   sale.shopId || sale.shop_id || null,
-                client_name: sale.customerInfo?.name || sale.customer_name || null,
-                due_days:    30,
-              });
-              if (result.error) {
-                alert('Convert failed: ' + result.error.message);
-              } else if (result.already_existed) {
-                alert(`Already converted: ${result.invoice_number}`);
-              } else {
-                alert(`Invoice ${result.invoice_number} created`);
+            onConvertToInvoice={(sale) => setConvertSale(sale)}
+          />
+        )}
+      </div>
+
+      {/* Convert to GST Invoice Modal — collects customer/GSTIN before RPC */}
+      <Modal
+        isOpen={!!convertSale}
+        onClose={() => !convertSubmitting && setConvertSale(null)}
+        title="Issue GST Tax Invoice"
+        subtitle={convertSale ? `From sale ${convertSale.id?.slice(0, 12) || ''}` : ''}
+      >
+        {convertSale && (
+          <ConvertToInvoiceSheet
+            sale={convertSale}
+            clients={clients}
+            submitting={convertSubmitting}
+            onCancel={() => setConvertSale(null)}
+            onSubmit={async (form) => {
+              setConvertSubmitting(true);
+              try {
+                // Brand-new customer → create the clients row first so the
+                // RPC has a stable client_id to attach the invoice to and
+                // future sales to the same customer can link directly.
+                let clientId = form.client_id;
+                if (!clientId && form.name && form.gstin) {
+                  try {
+                    const newId =
+                      'CLI-' + Date.now().toString(36).toUpperCase() +
+                      '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+                    const { data: ins, error: insErr } = await supabase
+                      .from('clients')
+                      .insert({
+                        id:                  newId,
+                        tenant_id:           currentTenantId,
+                        name:                form.name,
+                        phone:               form.phone || null,
+                        address:             form.address || null,
+                        gst_no:              form.gstin,
+                        gstin:               form.gstin,
+                        state:               form.place_of_supply || null,
+                        outstanding_balance: 0,
+                      })
+                      .select('id')
+                      .maybeSingle();
+                    if (insErr) {
+                      // eslint-disable-next-line no-console
+                      console.warn('[convert] client auto-create failed (non-fatal)', insErr);
+                    } else if (ins?.id) {
+                      clientId = ins.id;
+                    }
+                  } catch (cerr) {
+                    // eslint-disable-next-line no-console
+                    console.warn('[convert] client insert threw (non-fatal)', cerr);
+                  }
+                }
+
+                const result = await convertSaleToInvoice(convertSale.id, {
+                  client_id:        clientId,
+                  client_name:      form.name,
+                  gstin:            form.gstin,
+                  address:          form.address,
+                  phone:            form.phone,
+                  place_of_supply:  form.place_of_supply,
+                  due_days:         form.due_days,
+                  notes:            form.notes,
+                });
+                if (result.error) {
+                  throw result.error;
+                }
+                addNotification?.(
+                  result.already_existed
+                    ? `Already converted: ${result.invoice_number}`
+                    : `Invoice ${result.invoice_number} created`,
+                  'SYSTEM UPDATE'
+                );
+                setConvertSale(null);
+              } finally {
+                setConvertSubmitting(false);
               }
             }}
           />
         )}
-      </div>
+      </Modal>
 
       {/* Sales Return Modal */}
       <Modal
