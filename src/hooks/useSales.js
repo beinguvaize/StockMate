@@ -364,6 +364,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         p_series:          opts.series           ?? 'DEFAULT',
         p_due_days:        opts.due_days         ?? 0,
         p_notes:           opts.notes            ?? null,
+        p_phone:           opts.phone            ?? null,
       });
       if (error) return { error };
       await fetchSales();
