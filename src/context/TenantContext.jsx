@@ -58,9 +58,18 @@ export const TenantProvider = ({ children }) => {
     const initTenant = async () => {
       setLoading(true);
       try {
-        // 1. Priority: Impersonation
+        // 1. Priority: Impersonation — gated to verified GLOBAL_ADMIN only.
+        // Without this check, anyone who set sessionStorage manually
+        // (devtools, browser extension, replay attack) would have the UI
+        // flip into another tenant's chrome on next page load.
         const impersonated = sessionStorage.getItem('nexus_impersonated_tenant');
-        if (impersonated) {
+        const callerIsGlobalAdmin = !!cu?.roles?.includes?.('GLOBAL_ADMIN');
+        if (impersonated && !callerIsGlobalAdmin) {
+          // Stale or tampered impersonation flag — clear it.
+          sessionStorage.removeItem('nexus_impersonating');
+          sessionStorage.removeItem('nexus_impersonated_tenant');
+        }
+        if (impersonated && callerIsGlobalAdmin) {
           const tenant = JSON.parse(impersonated);
           setCurrentTenant(tenant);
           const { data: profile } = await withTimeout(
@@ -159,6 +168,18 @@ export const TenantProvider = ({ children }) => {
   };
 
   const impersonateTenant = (tenant) => {
+    // Hard gate. Even with the RLS helpers now reading roles strictly
+    // from public.users (so a non-admin can't actually exfiltrate data
+    // via JWT spoofing), we still refuse to flip the UI into another
+    // tenant's chrome unless the caller is a verified GLOBAL_ADMIN.
+    // Without this, anyone who set sessionStorage in devtools would
+    // see another workspace's branding + URL even though the queries
+    // returned zero rows — confusing and noisy in audit logs.
+    if (!currentUser?.roles?.includes('GLOBAL_ADMIN')) {
+      // eslint-disable-next-line no-console
+      console.warn('[security] impersonateTenant blocked — caller is not GLOBAL_ADMIN');
+      return;
+    }
     setCurrentTenant(tenant);
     sessionStorage.setItem('nexus_impersonating', 'true');
     sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(tenant));
@@ -231,7 +252,12 @@ export const TenantProvider = ({ children }) => {
     setIsMaintenance,
     cacheClear: libCacheClear,
     isSyncComplete,
-    isImpersonating: sessionStorage.getItem('nexus_impersonating') === 'true'
+    // Only treat the flag as real when the caller is a verified
+    // GLOBAL_ADMIN. Stops the impersonation banner / TenantResolver
+    // slug-bypass from firing when a non-admin sets the flag manually.
+    isImpersonating:
+      sessionStorage.getItem('nexus_impersonating') === 'true' &&
+      !!currentUser?.roles?.includes?.('GLOBAL_ADMIN'),
   };
 
   return <TenantContext.Provider value={value}>{children}</TenantContext.Provider>;
