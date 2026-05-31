@@ -389,6 +389,17 @@ class InvoiceDetailScreen extends ConsumerWidget {
         bytes = await WebPrintService.renderInvoicePdf(invoice.id);
       } catch (e) {
         debugPrint('[print] web render failed, fallback to local: $e');
+        // Surface the reason so silent layout mismatches between web
+        // and mobile can be diagnosed by the user instead of being
+        // hidden behind a "looks different" complaint.
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Using local layout — web render failed: $e'),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 6),
+          ));
+        }
       }
       bytes ??= await _buildPdf(profile);
       await Printing.sharePdf(
@@ -409,6 +420,17 @@ class InvoiceDetailScreen extends ConsumerWidget {
         bytes = await WebPrintService.renderInvoicePdf(invoice.id);
       } catch (e) {
         debugPrint('[print] web render failed, fallback to local: $e');
+        // Surface the reason so silent layout mismatches between web
+        // and mobile can be diagnosed by the user instead of being
+        // hidden behind a "looks different" complaint.
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Using local layout — web render failed: $e'),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 6),
+          ));
+        }
       }
       bytes ??= await _buildPdf(profile);
       await Printing.layoutPdf(onLayout: (_) async => bytes!);
@@ -429,6 +451,17 @@ class InvoiceDetailScreen extends ConsumerWidget {
         bytes = await WebPrintService.renderReceiptPdf(invoice.saleId ?? invoice.id);
       } catch (e) {
         debugPrint('[print] web render failed, fallback to local: $e');
+        // Surface the reason so silent layout mismatches between web
+        // and mobile can be diagnosed by the user instead of being
+        // hidden behind a "looks different" complaint.
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Using local layout — web render failed: $e'),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 6),
+          ));
+        }
       }
       bytes ??= await _buildPosReceiptPdf(profile);
       await Printing.sharePdf(
@@ -592,6 +625,17 @@ class InvoiceDetailScreen extends ConsumerWidget {
         bytes = await WebPrintService.renderReceiptPdf(invoice.saleId ?? invoice.id);
       } catch (e) {
         debugPrint('[print] web render failed, fallback to local: $e');
+        // Surface the reason so silent layout mismatches between web
+        // and mobile can be diagnosed by the user instead of being
+        // hidden behind a "looks different" complaint.
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Using local layout — web render failed: $e'),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            duration: const Duration(seconds: 6),
+          ));
+        }
       }
       bytes ??= await _buildPosReceiptPdf(profile);
       await Printing.layoutPdf(
