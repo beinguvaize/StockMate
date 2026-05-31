@@ -57,6 +57,23 @@ const ReceiptEmbed = () => {
 
   const [state, setState] = useState({ loading: true, sale: null, client: null, business: null, error: null });
 
+  // Override the viewport meta so the receipt slip is fully painted
+  // regardless of phone width. Receipts are narrower than invoices
+  // (302 CSS px) so 360 is enough; widening here costs nothing.
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const meta = document.querySelector('meta[name="viewport"]') ||
+      (() => {
+        const m = document.createElement('meta');
+        m.name = 'viewport';
+        document.head.appendChild(m);
+        return m;
+      })();
+    const prev = meta.getAttribute('content') || '';
+    meta.setAttribute('content', 'width=360, initial-scale=1, user-scalable=no');
+    return () => { meta.setAttribute('content', prev); };
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
