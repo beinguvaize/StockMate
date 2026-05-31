@@ -46,7 +46,9 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
     address:         linkedClient?.address || ci.address || '',
     phone:           linkedClient?.phone || ci.phone || '',
     place_of_supply: linkedClient?.state || ci.placeOfSupply || '',
-    due_days:        30,
+    // Honour each client's own credit_days when linked. Falls back to
+    // 30 only for walk-ins / clients with no custom terms recorded.
+    due_days:        Number(linkedClient?.credit_days ?? linkedClient?.creditDays ?? 30),
     notes:           '',
   });
   const [error, setError] = useState(null);
@@ -70,6 +72,8 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
     address:         c.address || prev.address,
     phone:           c.phone || prev.phone,
     place_of_supply: c.state || prev.place_of_supply,
+    // Pre-fill due days from the picked client's stored credit terms.
+    due_days:        Number(c.credit_days ?? c.creditDays ?? prev.due_days),
   }));
 
   const handleSubmit = async (e) => {
@@ -183,7 +187,12 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
       </Field>
 
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Due in (days)">
+        <Field
+          label="Due in (days)"
+          hint={form.client_id
+            ? "Pre-filled from this client's credit terms — override if needed"
+            : 'Default 30 — override if needed'}
+        >
           <input
             type="number"
             min={0}
