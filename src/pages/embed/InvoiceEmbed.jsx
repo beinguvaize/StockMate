@@ -5,7 +5,7 @@
  * bare (no app chrome). Mobile WebView loads this URL → printToPdf →
  * matches web exactly.
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas-pro';
 import { useParams } from 'react-router-dom';
 import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
@@ -14,6 +14,39 @@ import { supabase } from '../../lib/supabase';
 const InvoiceEmbed = () => {
   const { invoiceId } = useParams();
   const [state, setState] = useState({ loading: true, invoice: null, client: null, business: null, error: null });
+  const cloneHostRef = useRef(null);
+
+  // After InvoiceTemplate mounts its portal in document.body, copy the
+  // A4 sheet's DOM into our embed-ready wrapper. The clone is laid out
+  // in normal flow (no fixed-position parent, no dark backdrop) so
+  // html2canvas-pro captures it cleanly on Android WebView. The
+  // original portal stays in the document so any state / event
+  // handlers continue to work.
+  useEffect(() => {
+    if (state.loading || !state.invoice) return;
+    const tryClone = () => {
+      const host = cloneHostRef.current;
+      const orig = document.getElementById('invoice-print-area');
+      if (!host || !orig) return false;
+      if (host.childElementCount > 0) return true;
+      const clone = orig.cloneNode(true);
+      // Strip the inline scale transform — embed renders at native A4.
+      clone.style.transform   = 'none';
+      clone.style.boxShadow   = 'none';
+      clone.style.margin      = '0 auto';
+      clone.removeAttribute('id');
+      clone.setAttribute('data-invoice-clone', 'true');
+      host.appendChild(clone);
+      return true;
+    };
+    if (tryClone()) return;
+    // Portal mounts in the next tick; poll briefly.
+    const t0 = Date.now();
+    const id = setInterval(() => {
+      if (tryClone() || Date.now() - t0 > 3000) clearInterval(id);
+    }, 80);
+    return () => clearInterval(id);
+  }, [state.loading, state.invoice]);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,20 +84,21 @@ const InvoiceEmbed = () => {
     window.__embedReady = true;
     window.__renderToPng = async (opts = {}) => {
       const scale = opts.scale || (window.devicePixelRatio || 2);
-      // Target the invoice print sheet directly. InvoiceTemplate
-      // renders into a portal mounted on document.body (so the
-      // embed-ready wrapper doesn't contain it) and we want only the
-      // A4 sheet — not the dark toolbar / zoom bar — in the captured
-      // PNG. The wait loop below ensures the portal has actually
-      // committed before we snapshot.
-      let target = document.getElementById('invoice-print-area');
+      // We snapshot the clone we placed inside the embed-ready wrapper
+      // (see useEffect above) rather than the original portal's
+      // #invoice-print-area. The clone sits in normal flow, off the
+      // fixed-position dark backdrop, which is the layout shape
+      // html2canvas-pro reliably captures on Android WebView.
+      let target = document.querySelector('[data-invoice-clone="true"]');
       const start = Date.now();
-      while (!target && Date.now() - start < 2000) {
+      while (!target && Date.now() - start < 3000) {
         await new Promise(r => setTimeout(r, 100));
-        target = document.getElementById('invoice-print-area');
+        target = document.querySelector('[data-invoice-clone="true"]');
       }
       if (!target) {
-        target = document.querySelector('[data-embed-ready="true"]') || document.body;
+        target = document.getElementById('invoice-print-area')
+              || document.querySelector('[data-embed-ready="true"]')
+              || document.body;
       }
       // The invoice sheet is w-[210mm] (~794 CSS px). On mobile
       // WebView the viewport is narrower than that, so the sheet
@@ -101,20 +135,18 @@ const InvoiceEmbed = () => {
           some Android WebView builds (blank capture). */}
       <style>{`
         body { background: #fff !important; }
+        /* Render InvoiceTemplate's portal offscreen — the user sees
+           only the cloned A4 sheet we copy into
+           [data-invoice-clone="true"]. display:none would unmount
+           the portal contents so the clone source disappears; pushing
+           the portal off-viewport keeps it laid out and visible to
+           our cloneNode() while staying invisible to the user. */
         #invoice-template-portal {
-          position: static !important;
-          inset: auto !important;
-          background: #fff !important;
-          backdrop-filter: none !important;
-          -webkit-backdrop-filter: none !important;
-          overflow: visible !important;
-        }
-        /* Toolbar (action bar at the top of the portal). */
-        #invoice-template-portal > .print-hidden { display: none !important; }
-        /* Zoom transform off so the sheet renders at native A4. */
-        #invoice-print-area {
-          transform: none !important;
-          box-shadow: none !important;
+          position: fixed !important;
+          left: -99999px !important;
+          top: 0 !important;
+          visibility: hidden !important;
+          pointer-events: none !important;
         }
       `}</style>
       <InvoiceTemplate
@@ -123,6 +155,10 @@ const InvoiceEmbed = () => {
         client={state.client || { name: 'Walk-in' }}
         onClose={() => {}}
       />
+      {/* Host for the cloned A4 sheet — this is what html2canvas
+          actually snapshots, NOT the portal-mounted original. The
+          original is hidden by CSS so the user only sees the clone. */}
+      <div ref={cloneHostRef} style={{ background: '#fff' }} />
     </div>
   );
 };
