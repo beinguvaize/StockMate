@@ -199,7 +199,13 @@ export const SalesProvider = ({ children }) => {
     if (!isSupabaseConfigured) return;
     setSyncStatus('SYNCING');
 
-    const { data: invNumber, error: rpcError } = await supabase.rpc('get_next_invoice_number');
+    // Canonical issuer — returns INV/<FY>/<NNNN>. Replaces the legacy
+    // get_next_invoice_number() that emitted "INV-YY-NNNN" and clashed
+    // with the format the convert-to-invoice RPC produces.
+    const { data: invNumber, error: rpcError } = await supabase.rpc(
+      'issue_invoice_number',
+      { p_tenant_id: currentTenantId, p_series: 'INV' }
+    );
     if (rpcError) {
       console.error('Error getting invoice number:', rpcError);
       addNotification('Numbering system failure', 'error');

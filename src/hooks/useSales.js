@@ -286,7 +286,25 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         }
       }
       const id = draft.id || generateRef('INV');
-      const invoiceNumber = draft.invoice_number || `#${id.split('-').pop()}`;
+      // Always mint canonical INV/<FY>/<NNNN> via the shared issuer RPC.
+      // Old path hand-rolled "#<TAIL>" which produced rows like "#UK8OC9"
+      // and broke search / sort / GST filings. Fall back to the legacy
+      // tail format only if the RPC fails (offline, rare).
+      let invoiceNumber = draft.invoice_number;
+      if (!invoiceNumber) {
+        try {
+          const { data: issued, error: issueErr } = await supabase.rpc(
+            'issue_invoice_number',
+            { p_tenant_id: tenantId, p_series: 'INV' }
+          );
+          if (issueErr) throw issueErr;
+          invoiceNumber = issued;
+        } catch (e) {
+          // eslint-disable-next-line no-console
+          console.warn('[createInvoice] issue_invoice_number failed, falling back', e);
+          invoiceNumber = `INV-${id.split('-').pop()}`;
+        }
+      }
       const row = {
         id,
         tenant_id: tenantId,
@@ -361,7 +379,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         p_gstin:           opts.gstin            ?? null,
         p_address:         opts.address          ?? null,
         p_place_of_supply: opts.place_of_supply  ?? null,
-        p_series:          opts.series           ?? 'DEFAULT',
+        p_series:          opts.series           ?? 'INV',
         p_due_days:        opts.due_days         ?? 0,
         p_notes:           opts.notes            ?? null,
         p_phone:           opts.phone            ?? null,
