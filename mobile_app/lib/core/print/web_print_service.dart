@@ -170,39 +170,60 @@ class WebPrintService {
 /// iOS, Android, and any future surface — the React DOM is rendered
 /// once on the page itself and the PDF is just a wrapper.
 Future<Uint8List?> _renderViaHtml2Canvas(InAppWebViewController c) async {
-  final dataUrl = await c.evaluateJavascript(source: '''
+  // The embed page's __renderToPng now returns a JSON payload that
+  // includes the captured element's own CSS dimensions, so the PDF
+  // page can be sized to the receipt / invoice itself instead of to
+  // the document scroll height. Without this the slip rendered with
+  // a tall white tail (the rest of the viewport) and the share-sheet
+  // preview showed wasted blank space.
+  final raw = await c.evaluateJavascript(source: '''
     (async () => {
       if (typeof window.__renderToPng !== 'function') return null;
       try { return await window.__renderToPng(); }
       catch (e) { return null; }
     })()
   ''');
-  if (dataUrl is! String || !dataUrl.startsWith('data:image/png;base64,')) {
+  if (raw is! String || raw.isEmpty) return null;
+
+  String? dataUrl;
+  double? cssW;
+  double? cssH;
+  try {
+    final payload = jsonDecode(raw) as Map<String, dynamic>;
+    dataUrl = payload['dataUrl'] as String?;
+    cssW    = (payload['cssW'] as num?)?.toDouble();
+    cssH    = (payload['cssH'] as num?)?.toDouble();
+  } catch (_) {
+    // Older embed builds returned the raw data URL directly.
+    dataUrl = raw;
+  }
+  if (dataUrl == null || !dataUrl.startsWith('data:image/png;base64,')) {
     return null;
   }
   final png = base64Decode(dataUrl.substring('data:image/png;base64,'.length));
 
-  // Read the same CSS pixel dimensions so the PDF page matches the
-  // document. devicePixelRatio is baked into the PNG resolution
-  // (html2canvas's scale arg), so for printing we only care about
-  // the logical CSS pixel size.
-  final dimsRaw = await c.evaluateJavascript(source: '''
-    JSON.stringify({
-      w: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
-      h: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight)
-    })
-  ''');
-  final dims = (dimsRaw is String)
-      ? jsonDecode(dimsRaw) as Map<String, dynamic>
-      : <String, dynamic>{};
-  final docW = (dims['w'] as num?)?.toDouble() ?? 800.0;
-  final docH = (dims['h'] as num?)?.toDouble() ?? 1200.0;
+  // If the embed didn't tell us the captured size, fall back to the
+  // document scroll dimensions (best-effort; older behaviour).
+  if (cssW == null || cssH == null || cssW <= 0 || cssH <= 0) {
+    final dimsRaw = await c.evaluateJavascript(source: '''
+      JSON.stringify({
+        w: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+        h: Math.max(document.documentElement.scrollHeight, document.body.scrollHeight)
+      })
+    ''');
+    final dims = (dimsRaw is String)
+        ? jsonDecode(dimsRaw) as Map<String, dynamic>
+        : <String, dynamic>{};
+    cssW = (dims['w'] as num?)?.toDouble() ?? 800.0;
+    cssH = (dims['h'] as num?)?.toDouble() ?? 1200.0;
+  }
 
   const pxToPt = 72.0 / 96.0;
-  final pageFormat = pdfpkg.PdfPageFormat(docW * pxToPt, docH * pxToPt);
+  final pageFormat = pdfpkg.PdfPageFormat(cssW * pxToPt, cssH * pxToPt);
   final doc = pw.Document();
   doc.addPage(pw.Page(
     pageFormat: pageFormat,
+    margin: pw.EdgeInsets.zero,
     build: (_) => pw.Image(pw.MemoryImage(png), fit: pw.BoxFit.fill),
   ));
   return doc.save();
