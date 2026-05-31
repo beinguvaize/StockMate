@@ -233,30 +233,22 @@ Future<Uint8List?> _renderViaHtml2Canvas(InAppWebViewController c) async {
     cssH = (dims['h'] as num?)?.toDouble() ?? 1200.0;
   }
 
-  // Pick the closest standard paper size based on the captured aspect
-  // so the printer's "fit to page" logic doesn't crop the right edge
-  // or stretch the bottom off. Receipt aspect (narrow, tall) → 80mm
-  // thermal roll. Invoice aspect (~1:√2) → A4. Anything else falls
-  // back to the captured element's own dimensions.
-  final aspect = cssH / cssW;
-  pdfpkg.PdfPageFormat pageFormat;
-  if (cssW < 400) {
-    // Receipt slip — 80mm wide, height proportional to captured aspect.
-    pageFormat = pdfpkg.PdfPageFormat(
-      pdfpkg.PdfPageFormat.roll80.width,
-      pdfpkg.PdfPageFormat.roll80.width * aspect,
-    );
-  } else {
-    // Wider documents — assume A4 so the system print dialog doesn't
-    // re-scale and crop. The image keeps its captured aspect via
-    // BoxFit.contain, letterboxed if needed.
-    pageFormat = pdfpkg.PdfPageFormat.a4;
-  }
+  // Size the PDF page to the captured content exactly — the embed
+  // page reports cssW / cssH as the receipt's / invoice's own bounding
+  // rect (tight to the sheet), so the page has no white margin or
+  // trailing blank space. Receipt cssW ≈ 302 px → ~80mm; invoice
+  // cssW ≈ 794 px → ~210mm (A4 width). 1 CSS px = 0.75 PDF pt at 96dpi.
+  // Because the page aspect now matches the image aspect we use
+  // BoxFit.fill — the image covers the page edge-to-edge with no
+  // letterbox. The offscreen WebView is mounted at full A4 width
+  // (see _render) so nothing is cropped before capture.
+  const pxToPt = 72.0 / 96.0;
+  final pageFormat = pdfpkg.PdfPageFormat(cssW * pxToPt, cssH * pxToPt);
   final doc = pw.Document();
   doc.addPage(pw.Page(
     pageFormat: pageFormat,
     margin: pw.EdgeInsets.zero,
-    build: (_) => pw.Image(pw.MemoryImage(png), fit: pw.BoxFit.contain),
+    build: (_) => pw.Image(pw.MemoryImage(png), fit: pw.BoxFit.fill),
   ));
   return doc.save();
 }
