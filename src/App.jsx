@@ -208,14 +208,28 @@ function AppRoutes() {
   );
 }
 
+// Hide the floating chrome (DesktopUpdater toast + ReportIssueButton)
+// on bare embed routes. Mobile's WebPrintService rasterises the
+// embed page; floating widgets would otherwise show up in the
+// captured PDF and the share preview.
+const FloatingChrome = () => {
+  const { pathname } = useLocation();
+  if (pathname.startsWith('/embed/')) return null;
+  return (
+    <>
+      <DesktopUpdater />
+      <ReportIssueButton />
+    </>
+  );
+};
+
 function App() {
   return (
     <Router>
       <ErrorBoundary>
         <AppRoutes />
       </ErrorBoundary>
-      <DesktopUpdater />
-      <ReportIssueButton />
+      <FloatingChrome />
     </Router>
   );
 }

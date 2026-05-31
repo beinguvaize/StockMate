@@ -72,12 +72,58 @@ const InvoiceEmbed = () => {
         backgroundColor: '#ffffff',
         logging:         false,
       });
-      return canvas.toDataURL('image/png');
+      const rect = target.getBoundingClientRect();
+      return JSON.stringify({
+        dataUrl: canvas.toDataURL('image/png'),
+        cssW:    rect.width,
+        cssH:    rect.height,
+        scale,
+      });
     };
   }
 
   return (
     <div data-embed-ready="true" style={{ background: '#fff', minHeight: '100vh', padding: 0 }}>
+      {/* Strip InvoiceTemplate's portal chrome so the captured PNG
+          contains only the printable A4 sheet. The component mounts
+          inside a fixed-position portal with a dark backdrop, a
+          DRAFT PREVIEW toolbar (close, zoom, share, print) and a
+          translated scale wrapper. None of that should appear in the
+          mobile PDF. The CSS overrides flatten the portal to normal
+          flow, hide the toolbar, and undo the scale transform so
+          html2canvas captures the sheet at native size. */}
+      <style>{`
+        body { background: #fff !important; }
+        #invoice-template-portal {
+          position: static !important;
+          inset: auto !important;
+          background: #fff !important;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
+          overflow: visible !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          display: block !important;
+          height: auto !important;
+          min-height: 0 !important;
+        }
+        /* Hide the toolbar (close / zoom / share / print row). */
+        #invoice-template-portal > div:first-child { display: none !important; }
+        /* Reset the scroller padding + zoom transform so the sheet
+           renders at full A4 size at the top of the page. */
+        #invoice-template-portal > div:nth-child(2) {
+          padding: 0 !important;
+          overflow: visible !important;
+          display: block !important;
+          flex: initial !important;
+        }
+        #invoice-print-area {
+          transform: none !important;
+          box-shadow: none !important;
+          margin: 0 !important;
+          padding: 12mm !important;
+        }
+      `}</style>
       <InvoiceTemplate
         invoice={state.invoice}
         businessProfile={state.business || {}}

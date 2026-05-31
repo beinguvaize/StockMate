@@ -115,7 +115,17 @@ const ReceiptEmbed = () => {
         backgroundColor: '#ffffff',
         logging:         false,
       });
-      return canvas.toDataURL('image/png');
+      // Hand back the captured element's CSS dimensions so the mobile
+      // side can size the PDF page to the receipt itself — not the
+      // whole viewport, which would otherwise leave large blank space
+      // on the printed slip.
+      const rect = target.getBoundingClientRect();
+      return JSON.stringify({
+        dataUrl: canvas.toDataURL('image/png'),
+        cssW:    rect.width,
+        cssH:    rect.height,
+        scale,
+      });
     };
   }
 
