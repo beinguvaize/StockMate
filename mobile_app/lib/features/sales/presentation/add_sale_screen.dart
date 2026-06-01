@@ -17,6 +17,23 @@ import 'package:mobile_app/core/widgets/upi_qr_sheet.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 
+// POS stores (non-vehicle inventory locations) for the multi-store
+// store picker. Cached per session.
+final posStoresProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return [];
+  final res = await supabase
+      .from('inventory_locations')
+      .select('id, name, type')
+      .eq('tenant_id', ctx.tenantId)
+      .isFilter('deleted_at', null)
+      .order('created_at');
+  return (res as List)
+      .cast<Map<String, dynamic>>()
+      .where((l) => (l['type'] ?? 'WAREHOUSE') != 'VEHICLE')
+      .toList();
+});
+
 // ─── Cart model ───────────────────────────────────────────────────────────────
 
 class CartItem {
@@ -51,6 +68,9 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
   String _searchQuery = '';
   String? _selectedCategory;
   final List<CartItem> _cart = [];
+  // Store the POS sale is rung at (multi-store). Null = let process_sale
+  // resolve the default warehouse. Only used for non-van POS sales.
+  String? _posStoreId;
 
   @override
   void initState() {
@@ -256,7 +276,9 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         'p_payment_status':  ps,
         'p_date':            dateStr,
         'p_user_id':         userId,
-        'p_location_id':     widget.locationId,   // van locationId or null for warehouse
+        // Van sale → vehicle location; POS → cashier-picked store (or null
+        // for the default warehouse when single-store).
+        'p_location_id':     widget.locationId ?? _posStoreId,
         'p_route_id':        widget.routeId,
         'p_tenant_id':       tenantId,
         'p_delivery_method': 'PICKUP',
@@ -389,6 +411,14 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         ? ref.watch(vanStockProvider(widget.vehicleId!))
         : null;
 
+    // Multi-store POS: load stores + default the picker to the first one.
+    final stores = widget.isVanSale
+        ? const <Map<String, dynamic>>[]
+        : (ref.watch(posStoresProvider).valueOrNull ?? const []);
+    if (stores.length > 1 && _posStoreId == null) {
+      _posStoreId = stores.first['id'] as String?;
+    }
+
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: productsAsync.when(
@@ -461,14 +491,31 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                           letterSpacing: -0.3,
                                         ),
                                       ),
-                                      Text(
-                                        widget.isVanSale ? 'ROADSIDE POS' : 'REGISTER 01',
-                                        style: GoogleFonts.jetBrainsMono(
-                                          fontSize: 10,
-                                          color: widget.isVanSale ? AppColors.secondary : AppColors.inkTertiary,
-                                          letterSpacing: 0.5,
+                                      if (!widget.isVanSale && stores.length > 1)
+                                        PopupMenuButton<String>(
+                                          initialValue: _posStoreId,
+                                          onSelected: (v) => setState(() => _posStoreId = v),
+                                          itemBuilder: (_) => [
+                                            for (final s in stores)
+                                              PopupMenuItem(value: s['id'] as String, child: Text(s['name'] ?? 'Store')),
+                                          ],
+                                          child: Row(mainAxisSize: MainAxisSize.min, children: [
+                                            Text(
+                                              (stores.firstWhere((s) => s['id'] == _posStoreId, orElse: () => stores.first)['name'] ?? 'Store').toString().toUpperCase(),
+                                              style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppColors.primary, letterSpacing: 0.5, fontWeight: FontWeight.w700),
+                                            ),
+                                            const Icon(LucideIcons.chevronDown, size: 12, color: AppColors.primary),
+                                          ]),
+                                        )
+                                      else
+                                        Text(
+                                          widget.isVanSale ? 'ROADSIDE POS' : 'REGISTER 01',
+                                          style: GoogleFonts.jetBrainsMono(
+                                            fontSize: 10,
+                                            color: widget.isVanSale ? AppColors.secondary : AppColors.inkTertiary,
+                                            letterSpacing: 0.5,
+                                          ),
                                         ),
-                                      ),
                                     ],
                                   ),
                                 ),

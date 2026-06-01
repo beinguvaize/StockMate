@@ -82,7 +82,9 @@ const SalesPage = () => {
     refetchInventory();
     return result;
   };
-  const { products, inventoryBalances, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
+  const { products, inventoryBalances, inventoryLocations, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
+  // Stores where POS sales are rung (warehouses/branches, not vehicles).
+  const posStores = (inventoryLocations || []).filter(l => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
   const { users: staff = [] } = usePeople(currentTenantId);
 
   const [activeTab, setActiveTab] = useState('pos'); // 'pos' or 'history'
@@ -98,6 +100,23 @@ const SalesPage = () => {
     setReturnSale(null);
     addNotification('Return processed — stock restored.', 'success');
   };
+
+  // Fast-moving products — rank by total quantity sold over the recent
+  // sales window so the POS "Quick add" tiles surface what actually moves.
+  const topSellingIds = React.useMemo(() => {
+    const cutoff = Date.now() - 60 * 86400000; // last 60 days
+    const qty = {};
+    (sales || []).forEach(s => {
+      const t = new Date(s.created_at || s.date).getTime();
+      if (!isNaN(t) && t < cutoff) return;
+      (Array.isArray(s.items) ? s.items : []).forEach(i => {
+        const id = i.id || i.productId;
+        if (!id) return;
+        qty[id] = (qty[id] || 0) + (Number(i.quantity) || 0);
+      });
+    });
+    return Object.entries(qty).sort((a, b) => b[1] - a[1]).map(([id]) => id);
+  }, [sales]);
 
   const printSale = (sale) => setPrintingSale(sale);
   const printingClient = printingSale
@@ -188,6 +207,8 @@ const SalesPage = () => {
             currentTenantId={currentTenantId}
             taxMode={businessProfile?.tax_mode || 'EXCLUSIVE'}
             businessProfile={businessProfile}
+            topSellingIds={topSellingIds}
+            stores={posStores}
           />
         ) : (
           <InvoiceList
