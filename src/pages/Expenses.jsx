@@ -44,8 +44,36 @@ const Expenses = () => {
   const isViewOnly = false; // Placeholder for legacy view mode
  
  const [searchTerm, setSearchTerm] = useState('');
- const [filterType, setFilterType] = useState('all'); // 'all', 'today', 'yesterday', 'custom'
+ const [filterType, setFilterType] = useState('all'); // all|today|yesterday|week|month|lastmonth|range
  const [filterDate, setFilterDate] = useState('');
+ const [rangeFrom, setRangeFrom] = useState('');
+ const [rangeTo, setRangeTo] = useState('');
+
+ // Resolve the active filter into an inclusive [from,to] YYYY-MM-DD window.
+ // null on either side = unbounded. 'all' = fully unbounded.
+ const dateWindow = useMemo(() => {
+   const d = new Date();
+   const ymd = (x) => {
+     const y = x.getFullYear(), m = String(x.getMonth()+1).padStart(2,'0'), dd = String(x.getDate()).padStart(2,'0');
+     return `${y}-${m}-${dd}`;
+   };
+   const today = ymd(d);
+   if (filterType === 'today') return { from: today, to: today };
+   if (filterType === 'yesterday') { const y = new Date(d); y.setDate(d.getDate()-1); return { from: ymd(y), to: ymd(y) }; }
+   if (filterType === 'week') { const s = new Date(d); const dow = (s.getDay()+6)%7; s.setDate(d.getDate()-dow); return { from: ymd(s), to: today }; }
+   if (filterType === 'month') { const s = new Date(d.getFullYear(), d.getMonth(), 1); return { from: ymd(s), to: today }; }
+   if (filterType === 'lastmonth') { const s = new Date(d.getFullYear(), d.getMonth()-1, 1); const e = new Date(d.getFullYear(), d.getMonth(), 0); return { from: ymd(s), to: ymd(e) }; }
+   if (filterType === 'range') return { from: rangeFrom || null, to: rangeTo || null };
+   return { from: null, to: null };
+ }, [filterType, rangeFrom, rangeTo]);
+
+ const inWindow = (dateStr) => {
+   if (!dateStr) return false;
+   const d = dateStr.split('T')[0];
+   if (dateWindow.from && d < dateWindow.from) return false;
+   if (dateWindow.to && d > dateWindow.to) return false;
+   return true;
+ };
  const [categoryFilter, setCategoryFilter] = useState('ALL');
  const [sortKey, setSortKey] = useState('date');   // 'date' | 'amount' | 'category'
  const [sortDir, setSortDir] = useState('desc');   // 'asc' | 'desc'
@@ -88,11 +116,6 @@ const Expenses = () => {
  const filteredExpenses = useMemo(() => {
  if (!Array.isArray(expenses)) return [];
 
- const today = getLocalDate(new Date());
- const yesterdayDate = new Date();
- yesterdayDate.setDate(yesterdayDate.getDate() - 1);
- const yesterday = getLocalDate(yesterdayDate);
-
  const q = searchTerm.toLowerCase();
  return expenses
  .filter(e => {
@@ -102,11 +125,11 @@ const Expenses = () => {
  (e.category || '').toLowerCase().includes(q);
 
  const expenseDate = getLocalDate(e.date);
-
- let matchesDate = true;
- if (filterType === 'today') matchesDate = expenseDate === today;
- else if (filterType === 'yesterday') matchesDate = expenseDate === yesterday;
- else if (filterType === 'custom') matchesDate = !filterDate || expenseDate === filterDate;
+ const matchesDate = (() => {
+   if (dateWindow.from && expenseDate < dateWindow.from) return false;
+   if (dateWindow.to && expenseDate > dateWindow.to) return false;
+   return true;
+ })();
 
  const matchesCategory = categoryFilter === 'ALL' || (e.category || 'Other') === categoryFilter;
 
@@ -120,29 +143,25 @@ const Expenses = () => {
    const ad = (a.date || ''); const bd = (b.date || '');
    return (ad < bd ? -1 : ad > bd ? 1 : 0) * dir;
  });
-}, [expenses, searchTerm, filterType, filterDate, categoryFilter, sortKey, sortDir]);
+}, [expenses, searchTerm, dateWindow, categoryFilter, sortKey, sortDir]);
 
- // Per-category totals over the date-filtered set (ignores category
+ // Per-category totals over the date-windowed set (ignores category
  // filter so the chips always show every category's count + spend).
  const categoryBreakdown = useMemo(() => {
-   const today2 = getLocalDate(new Date());
-   const yd = new Date(); yd.setDate(yd.getDate() - 1);
-   const yday = getLocalDate(yd);
-   const inDate = (e) => {
-     const d = getLocalDate(e.date);
-     if (filterType === 'today') return d === today2;
-     if (filterType === 'yesterday') return d === yday;
-     if (filterType === 'custom') return !filterDate || d === filterDate;
-     return true;
-   };
    const map = {};
-   expenses.filter(e => e && inDate(e)).forEach(e => {
+   expenses.filter(e => {
+     if (!e) return false;
+     const d = getLocalDate(e.date);
+     if (dateWindow.from && d < dateWindow.from) return false;
+     if (dateWindow.to && d > dateWindow.to) return false;
+     return true;
+   }).forEach(e => {
      const c = e.category || 'Other';
      if (!map[c]) map[c] = { count: 0, total: 0 };
      map[c].count += 1; map[c].total += parseFloat(e.amount) || 0;
    });
    return map;
- }, [expenses, filterType, filterDate]);
+ }, [expenses, dateWindow]);
 
  // CSV export of the currently filtered + sorted rows.
  const exportCSV = () => {
@@ -171,7 +190,7 @@ const Expenses = () => {
  };
 
  // Reset the pagination window whenever the result set changes.
- useEffect(() => { setVisibleCount(50); }, [searchTerm, filterType, filterDate, categoryFilter, sortKey, sortDir]);
+ useEffect(() => { setVisibleCount(50); }, [searchTerm, dateWindow, categoryFilter, sortKey, sortDir]);
  const pagedExpenses = useMemo(() => filteredExpenses.slice(0, visibleCount), [filteredExpenses, visibleCount]);
 
  const totalExpenses = useMemo(() => {
@@ -369,40 +388,45 @@ const Expenses = () => {
  </div>
 
  <div className="flex bg-white border border-gray-300 shadow-sm rounded-pill p-1.5 shrink-0 ml-1 h-[56px] overflow-x-auto">
- {['all', 'today', 'yesterday'].map(f => (
+ {[
+   { k: 'all',       label: 'All' },
+   { k: 'today',     label: 'Today' },
+   { k: 'yesterday', label: 'Prev' },
+   { k: 'week',      label: 'Week' },
+   { k: 'month',     label: 'Month' },
+   { k: 'lastmonth', label: 'Last Mo' },
+ ].map(({ k, label }) => (
  <button
- key={f}
- onClick={() => setFilterType(f)}
- className={`px-5 py-2 rounded-pill text-[11px] font-bold tracking-wider transition-all capitalize ${filterType === f ? 'bg-ink-primary text-white shadow-md' : 'text-gray-500 hover:text-ink-primary hover:bg-black/5'}`}
+ key={k}
+ onClick={() => setFilterType(k)}
+ className={`px-4 py-2 rounded-pill text-[11px] font-bold tracking-wider transition-all whitespace-nowrap ${filterType === k ? 'bg-ink-primary text-white shadow-md' : 'text-gray-500 hover:text-ink-primary hover:bg-black/5'}`}
  >
- {f === 'yesterday' ? 'Prev' : f}
+ {label}
  </button>
  ))}
- <div className="relative group/date pr-3 flex items-center border-l border-black/10 ml-1 pl-3">
- <Calendar size={14} className={`mr-2 transition-colors ${filterType === 'custom' ? 'text-accent-signature' : 'text-gray-500 opacity-70 group-hover/date:opacity-100'}`} />
- <input 
- type="date" 
- className="bg-transparent text-[11px] font-bold text-ink-primary focus:outline-none w-24 cursor-pointer"
- value={filterDate}
- onChange={e => {
- setFilterDate(e.target.value);
- setFilterType('custom');
-}}
- />
- {filterDate && (
- <button 
- onClick={() => {
- setFilterDate('');
- setFilterType('all');
-}}
- className="ml-2 text-gray-500 opacity-70 hover:opacity-100 hover:text-red-500 transition-colors"
+ <button
+   onClick={() => setFilterType('range')}
+   className={`px-4 py-2 rounded-pill text-[11px] font-bold tracking-wider transition-all whitespace-nowrap flex items-center gap-1.5 ${filterType === 'range' ? 'bg-ink-primary text-white shadow-md' : 'text-gray-500 hover:text-ink-primary hover:bg-black/5'}`}
  >
- <X size={14} />
+   <Calendar size={13} /> Range
  </button>
+ </div>
+ </div>
+
+ {/* Custom from–to range inputs — shown when Range is active. */}
+ {filterType === 'range' && (
+ <div className="flex flex-wrap items-center gap-2 mb-3 -mt-4">
+   <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">From</span>
+   <input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)}
+     className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary outline-none focus:border-accent-signature/40" />
+   <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">To</span>
+   <input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)}
+     className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary outline-none focus:border-accent-signature/40" />
+   {(rangeFrom || rangeTo) && (
+     <button onClick={() => { setRangeFrom(''); setRangeTo(''); }} className="text-[11px] font-bold text-gray-400 hover:text-red-500">Clear</button>
+   )}
+ </div>
  )}
- </div>
- </div>
- </div>
 
  {/* Category filter chips — quick filter with per-category spend. */}
  <div className="flex flex-wrap items-center gap-2 mb-3">
