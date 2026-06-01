@@ -242,10 +242,19 @@ class SyncService {
     }
   }
 
-  /// One-shot retry for FAILED jobs — used by manual "Retry sync" button.
+  /// One-shot manual retry — used by the "Retry sync" button.
+  ///
+  /// Resets BOTH FAILED jobs and PENDING jobs that are still parked
+  /// behind their exponential-backoff timer (nextAttemptAt in the
+  /// future). Without the PENDING reset, a job that failed a few times
+  /// — e.g. while a server-side bug like an RPC overload was being
+  /// fixed — would sit unsynced for up to an hour with no way for the
+  /// cashier to push it immediately. For a POS that's unacceptable:
+  /// staff need to confirm a sale reached the server on demand.
   Future<void> retryFailed() async {
     await (db.update(db.syncMutations)
-          ..where((t) => t.status.equals('FAILED')))
+          ..where((t) =>
+              t.status.equals('FAILED') | t.status.equals('PENDING')))
         .write(SyncMutationsCompanion(
           status: const Value('PENDING'),
           attempts: const Value(0),
