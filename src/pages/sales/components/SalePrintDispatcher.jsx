@@ -38,7 +38,11 @@ const saleToInvoice = (sale) => {
     is_interstate:  false,
     grand_total:    grandTotal,
     paid_amount:    parseFloat(sale.paidAmount || 0),
-    payment_status: (sale.status === 'COMPLETED' || sale.paymentStatus === 'PAID') ? 'PAID' : 'UNPAID',
+    // Preserve the real status (esp. VOIDED/FAILED) so POSReceipt can
+    // suppress the payment-due line + scan-to-pay QR on cancelled sales.
+    payment_status: (sale.status === 'COMPLETED')
+      ? 'PAID'
+      : (sale.paymentStatus || 'UNPAID').toUpperCase(),
     round_off:      0,
   };
 };
