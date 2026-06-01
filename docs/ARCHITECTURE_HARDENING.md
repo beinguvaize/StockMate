@@ -45,14 +45,16 @@ Resolved (dev):
 - [x] `create_staff_account` — legacy 4-arg dropped, 5-arg kept. No live
   caller (staff created via the edge function). (prod still has both)
 
-Open (dev still flagged):
-- [ ] `recompute_client_outstanding` — 0-arg (stale) vs `(uuid, text)`
-  (current). Low blast. Drop the 0-arg after confirming nothing calls it.
-- [ ] `adjust_inventory_atomic` — 6-arg vs 9-arg. **High blast (stock
-  writes).** Check which the live stock-adjust path uses; keep that.
-- [ ] `dispatch_vehicle_route` — 10-arg vs a different 6-arg param set.
-  **High blast (van dispatch).** Needs careful caller analysis — the two
-  signatures take genuinely different parameters.
+Resolved (dev) — `supabase/migrations/20260601_defuse_duplicate_overloads.sql`:
+- [x] `recompute_client_outstanding` — was a **false positive**: the
+  0-arg is a trigger function (returns `trigger`), never REST-callable.
+  The guard now excludes trigger functions, so this no longer flags.
+- [x] `adjust_inventory_atomic` — dropped 6-arg; kept 9-arg superset (all
+  extras default, adds movement logging). All callers pass base args only.
+- [x] `dispatch_vehicle_route` — dropped legacy 6-arg (text[] invoice ids,
+  no caller); kept the 10-arg both surfaces call.
+
+**Dev is now at 0 overloads.**
 
 Open (prod only — not yet touched, defuse during the dev→prod sync):
 - [ ] `get_next_invoice_number` (both), `create_staff_account` (4-arg) —
