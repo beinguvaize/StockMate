@@ -21,6 +21,11 @@ const PAY_ICON = {
 // Helpers
 // ------------------------------------------------------------------
 const isPaidStatus = (s) => s === 'PAID' || s === 'COMPLETED';
+// Voided / failed / cancelled sales collect no money and represent no
+// revenue. They must NOT fall into the "pending" bucket (which would
+// inflate the Due total and Pending count) — they get their own red
+// "Failed" badge, matching how the mobile app labels them.
+const isVoidStatus = (s) => s === 'VOIDED' || s === 'FAILED' || s === 'CANCELLED';
 
 const shortRef = (id) => {
   if (!id) return '';
@@ -153,15 +158,18 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
 
   // ---------- Summary ----------
   const summary = useMemo(() => {
-    let revenue = 0, paid = 0, pending = 0, pendingAmt = 0;
+    let revenue = 0, paid = 0, pending = 0, pendingAmt = 0, failed = 0;
     for (const s of sales) {
       if (!inDateRange(s)) continue;
+      const status = getStatus(s);
+      // Voided sales: no revenue, no pending, counted separately.
+      if (isVoidStatus(status)) { failed++; continue; }
       const amt = Number(s.totalAmount) || 0;
       revenue += amt;
-      if (isPaidStatus(getStatus(s))) paid++;
+      if (isPaidStatus(status)) paid++;
       else { pending++; pendingAmt += outstandingOf(s); }
     }
-    return { revenue, paid, pending, pendingAmt, count: paid + pending };
+    return { revenue, paid, pending, pendingAmt, failed, count: paid + pending + failed };
   }, [sales, inDateRange]);
 
   // ---------- Filtered rows ----------
@@ -171,7 +179,9 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
       if (!inDateRange(sale)) return false;
       const status = getStatus(sale);
       if (statusFilter === 'PAID' && !isPaidStatus(status)) return false;
-      if (statusFilter === 'PENDING' && isPaidStatus(status)) return false;
+      // Pending tab = genuinely owed money; exclude paid AND voided.
+      if (statusFilter === 'PENDING' && (isPaidStatus(status) || isVoidStatus(status))) return false;
+      if (statusFilter === 'FAILED' && !isVoidStatus(status)) return false;
       if (!q) return true;
       const name = getClientName(sale).toLowerCase();
       return (sale.id || '').toLowerCase().includes(q) || name.includes(q);
@@ -227,6 +237,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
     const clientName = getClientName(sale);
     const status = getStatus(sale);
     const paid = isPaidStatus(status);
+    const voided = isVoidStatus(status);
     const payMethod = (sale.paymentMethod || '').toUpperCase();
     const PayIcon = PAY_ICON[payMethod] || Wallet;
     const qty = itemCount(sale);
@@ -268,8 +279,8 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           </span>
         </td>
         <td className="px-4 py-4 text-right">
-          <div className="text-sm font-bold text-ink-primary tabular-nums">{formatCurrency(sale.totalAmount)}</div>
-          {!paid && outstanding > 0 && (
+          <div className={`text-sm font-bold tabular-nums ${voided ? 'text-gray-400 line-through' : 'text-ink-primary'}`}>{formatCurrency(sale.totalAmount)}</div>
+          {!paid && !voided && outstanding > 0 && (
             <div className="text-[11px] font-semibold text-amber-600 tabular-nums mt-0.5">
               Due: {formatCurrency(outstanding)}
             </div>
@@ -278,12 +289,14 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
         <td className="px-4 py-4 text-center">
           <div className="flex flex-col items-center gap-1">
             <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${
-              paid
+              voided
+                ? 'bg-red-50 text-red-700 ring-1 ring-red-200/60'
+                : paid
                 ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60'
                 : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/60'
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${paid ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              {paid ? 'Paid' : 'Pending'}
+              <span className={`w-1.5 h-1.5 rounded-full ${voided ? 'bg-red-500' : paid ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              {voided ? 'Failed' : paid ? 'Paid' : 'Pending'}
             </span>
             {deliveryBadge && (
               <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ring-1 ${deliveryBadge.bg} ${deliveryBadge.text} ${deliveryBadge.ring}`}>
@@ -307,7 +320,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
         </td>
         <td className="px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
-            {!paid && onSettle && (
+            {!paid && !voided && onSettle && (
               <button
                 onClick={() => { setDetailSale(sale); setSettleInput(String(outstanding)); }}
                 title="Settle Payment"
@@ -445,6 +458,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           <StatusTab k="ALL" label="All" count={summary.count} />
           <StatusTab k="PAID" label="Paid" count={summary.paid} />
           <StatusTab k="PENDING" label="Pending" count={summary.pending} />
+          {summary.failed > 0 && <StatusTab k="FAILED" label="Failed" count={summary.failed} />}
           <button
             onClick={handleExport}
             disabled={!filteredSales.length}
@@ -520,6 +534,7 @@ const SaleDetail = ({
   const items = Array.isArray(sale.items) ? sale.items : [];
   const status = (sale.paymentStatus ?? sale.status ?? 'PENDING').toUpperCase();
   const paid = isPaidStatus(status);
+  const voided = isVoidStatus(status);
 
   return (
     <div className="space-y-5">
@@ -529,10 +544,10 @@ const SaleDetail = ({
         <MetaRow icon={User} label="Client" value={clientName} />
         <MetaRow icon={User} label="Cashier" value={cashier || '—'} />
         <MetaRow
-          icon={paid ? CheckCircle2 : AlertCircle}
+          icon={voided ? AlertCircle : paid ? CheckCircle2 : AlertCircle}
           label="Status"
-          value={paid ? 'Paid' : 'Pending'}
-          tone={paid ? 'emerald' : 'amber'}
+          value={voided ? 'Failed / Voided' : paid ? 'Paid' : 'Pending'}
+          tone={voided ? 'red' : paid ? 'emerald' : 'amber'}
         />
       </div>
 
@@ -572,14 +587,17 @@ const SaleDetail = ({
         {Number(sale.paidAmount) > 0 && (
           <TotalRow label="Paid" value={formatCurrency(sale.paidAmount)} tone="emerald" />
         )}
-        {!paid && outstanding > 0 && (
+        {!paid && !voided && outstanding > 0 && (
           <TotalRow label="Outstanding" value={formatCurrency(outstanding)} tone="amber" bold />
+        )}
+        {voided && (
+          <TotalRow label="Status" value="Voided — no payment due" tone="red" bold />
         )}
       </div>
 
       {/* Settle + print */}
       <div className="flex items-center gap-2">
-        {!paid && onSettle && (
+        {!paid && !voided && onSettle && (
           <div className="flex items-center gap-2 flex-1">
             <input
               type="number"
@@ -613,6 +631,7 @@ const MetaRow = ({ icon: Icon, label, value, tone }) => {
   const toneCls =
     tone === 'emerald' ? 'text-emerald-600'
     : tone === 'amber' ? 'text-amber-600'
+    : tone === 'red' ? 'text-red-600'
     : 'text-ink-primary';
   return (
     <div className="flex items-start gap-2.5 p-3 bg-canvas rounded-xl">
@@ -629,6 +648,7 @@ const TotalRow = ({ label, value, bold, tone }) => {
   const toneCls =
     tone === 'emerald' ? 'text-emerald-600'
     : tone === 'amber' ? 'text-amber-600'
+    : tone === 'red' ? 'text-red-600'
     : 'text-ink-primary';
   return (
     <div className="flex items-center justify-between">
