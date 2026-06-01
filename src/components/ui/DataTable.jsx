@@ -2,7 +2,7 @@
  * DataTable — vendflow-style report table primitive.
  *
  * Design contract:
- *   - Plus Jakarta Sans (font-display via inline) for headers / titles.
+ *   - Sora (font-display via inline) for headers / titles.
  *   - Inter for body text (default sans).
  *   - JetBrains Mono w/ tabular-nums for every number cell so columns
  *     align without grid hacks.
@@ -32,7 +32,7 @@ import React, { useState } from 'react';
 import { ChevronRight } from 'lucide-react';
 
 const NUM_CLS = 'font-mono tabular-nums';
-const DISPLAY = '"Plus Jakarta Sans", Inter, sans-serif';
+const DISPLAY = '"Sora", Inter, sans-serif';
 
 const cellAlign = (a) =>
   a === 'right' ? 'text-right' :

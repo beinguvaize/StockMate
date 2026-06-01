@@ -231,7 +231,7 @@ const BillWiseProfitReport = () => {
       {/* Totals footer — single matching strip below the table */}
       {!loading && rows.length > 0 && (
         <div className="bg-slate-50 rounded-2xl border border-slate-200 px-5 py-4 flex flex-wrap items-center gap-x-8 gap-y-2"
-             style={{ fontFamily: '"Plus Jakarta Sans", Inter, sans-serif' }}>
+             style={{ fontFamily: '"Sora", Inter, sans-serif' }}>
           <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Totals</span>
           <div className="flex items-baseline gap-2">
             <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Revenue</span>

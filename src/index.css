@@ -5,7 +5,10 @@
  * glassmorphism values, or layout tokens are permitted.
  */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&family=Sora:wght@100..800&family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Typography (v1.1): Sora = display/headings, Inter = body/UI,
+   JetBrains Mono = numbers. Dropped DM Sans, Bebas Neue and Plus Jakarta
+   Sans — three unused/duplicated families — to cut font downloads. */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 /* Global blur strip — no backdrop-filter anywhere */
@@ -24,22 +27,20 @@ body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
+/* Display font — Sora. Used on titles, headings, KPI numbers. */
 .font-sora,
+.font-display,
 .font-bebas,
 .font-space {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: 'Sora', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    letter-spacing: -0.01em;
 }
 
 .font-arial {
     font-family: Arial, Helvetica, sans-serif !important;
 }
 
-/* Vendflow typography helpers — Plus Jakarta Sans for headers, JetBrains Mono
-   for numbers. Use .font-display on titles/th, .font-mono on numeric cells. */
-.font-display {
-    font-family: 'Plus Jakarta Sans', Inter, -apple-system, sans-serif !important;
-    letter-spacing: -0.01em;
-}
+/* Use .font-display / .font-sora on titles + th, .font-mono on numeric cells. */
 .font-mono,
 table.report-table td.numeric,
 table.report-table .numeric {
@@ -57,7 +58,7 @@ table.report-table thead th {
     background: #f8fafc;            /* slate-50 */
     border-bottom: 1px solid #e2e8f0;/* slate-200 */
     color: #64748b;                  /* slate-500 */
-    font-family: 'Plus Jakarta Sans', Inter, sans-serif;
+    font-family: 'Sora', Inter, sans-serif;
     font-weight: 700;
     font-size: 10px;
     letter-spacing: 0.08em;
