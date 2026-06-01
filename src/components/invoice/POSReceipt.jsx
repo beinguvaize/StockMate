@@ -93,6 +93,11 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
     : taxable + totalTax));
   const paidAmount = parseFloat(invoice.paid_amount ?? 0);
   const balance    = grandTotal - paidAmount;
+  // A voided / failed / cancelled sale owes nothing — its receipt must
+  // not show "PAYMENT DUE", a balance, or a scan-to-pay QR.
+  const status  = String(invoice.payment_status ?? '').toUpperCase();
+  const isVoid  = status === 'VOIDED' || status === 'FAILED' || status === 'CANCELLED';
+  const isPaid  = status === 'PAID';
   // Read discount straight off the sale/invoice row. Old code derived
   // it from a tax-vs-total delta which double-counted on inclusive
   // sales and showed a phantom "Discount -41.40" against an equal
@@ -214,7 +219,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
                 <span>Paid</span>
                 <span>{fmt(paidAmount)}</span>
               </div>
-              {balance > 0.001 && (
+              {!isVoid && balance > 0.001 && (
                 <div className="flex justify-between font-bold">
                   <span>Balance Due</span>
                   <span>{fmt(balance)}</span>
@@ -246,7 +251,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
 
         {/* ── Payment status ───────────────────────────────── */}
         <div className="text-center text-[10px] font-bold uppercase tracking-widest">
-          {invoice.payment_status === 'PAID' ? '*** PAID ***' : '*** PAYMENT DUE ***'}
+          {isVoid ? '*** VOIDED ***' : isPaid ? '*** PAID ***' : '*** PAYMENT DUE ***'}
         </div>
 
         {/* ── Footer ───────────────────────────────────────── */}
@@ -262,8 +267,8 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
             const total = Number(invoice?.grand_total || invoice?.totalAmount || 0);
             const paid  = Number(invoice?.paid_amount  || invoice?.paidAmount   || 0);
             const due   = Math.max(0, +(total - paid).toFixed(2));
-            if (invoice?.payment_status === 'PAID' || due <= 0) {
-              // Show UPI ID footer only — no QR — when sale already settled.
+            if (isVoid || isPaid || due <= 0) {
+              // Voided or settled → show UPI ID footer only, never a QR.
               return <div className="mt-0.5">UPI: {biz.upi_id}</div>;
             }
             const note = `Sale ${invoice?.invoice_number || invoice?.id || ''} (Bal Due)`;

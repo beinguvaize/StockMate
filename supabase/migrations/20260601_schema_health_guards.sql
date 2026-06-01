@@ -26,6 +26,12 @@ STABLE
 SECURITY DEFINER
 SET search_path TO 'public'
 AS $$
+  -- Only REST-exposed functions can collide into PGRST203. Trigger
+  -- functions (prorettype = trigger) are never offered as RPC
+  -- candidates, so a trigger fn sharing a name with a real RPC is NOT
+  -- a sync risk — exclude them to avoid false positives (e.g.
+  -- recompute_client_outstanding: the trigger version vs the manual
+  -- (uuid, text) RPC).
   SELECT p.proname::text AS function_name,
          COUNT(*)        AS overload_count,
          string_agg(pg_get_function_identity_arguments(p.oid), ' || '
@@ -33,6 +39,7 @@ AS $$
     FROM pg_proc p
     JOIN pg_namespace n ON n.oid = p.pronamespace
    WHERE n.nspname = 'public'
+     AND p.prorettype <> 'pg_catalog.trigger'::regtype
    GROUP BY p.proname
   HAVING COUNT(*) > 1;
 $$;

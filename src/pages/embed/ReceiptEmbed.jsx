@@ -45,7 +45,10 @@ const saleToInvoice = (sale) => {
     sgst_amount:    totalTax / 2,
     grand_total:    grandTotal,
     paid_amount:    parseFloat(sale.paidAmount || 0),
-    payment_status: (sale.paymentStatus === 'PAID') ? 'PAID' : 'UNPAID',
+    // Pass the real status through. Collapsing everything non-PAID to
+    // UNPAID hid VOIDED, so a voided sale's receipt still printed
+    // "PAYMENT DUE" + a scan-to-pay QR for money that's been cancelled.
+    payment_status: (sale.paymentStatus || 'UNPAID').toUpperCase(),
     round_off:      0,
   };
 };

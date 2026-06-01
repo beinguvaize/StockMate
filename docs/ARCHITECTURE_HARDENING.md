@@ -31,14 +31,41 @@ Zero user-facing change. Highest ROI.
 
 Wired in `.github/workflows/schema-guard.yml` (runs on PRs into main).
 
-**Known debt surfaced by the overload guard (clean up dev-first, per-caller):**
-- `create_staff_account` — 2 signatures (4-arg vs 5-arg).
-- `get_next_invoice_number` — 2 signatures (0-arg vs 1-arg). Superseded by
-  `issue_invoice_number`; callers should migrate then drop both.
-- `process_purchase_return` — 3 signatures.
+### Duplicate-overload backlog
 
-Each is a latent PGRST203. Resolve one at a time: confirm the live caller's
-signature, drop the rest, dev → prod.
+Each is a latent PGRST203. **Procedure per function:** grep callers in
+`src/` + `mobile_app/lib/` → confirm the live signature → drop the other
+signatures on **dev** → re-run the guard → only then apply the same drop
+on **prod**. Do one function per work block; never bulk-drop high-blast
+functions in a long/tired session.
+
+Resolved (dev):
+- [x] `get_next_invoice_number` — both signatures dropped; AppContext +
+  SalesContext now call `issue_invoice_number`. (prod still has them)
+- [x] `create_staff_account` — legacy 4-arg dropped, 5-arg kept. No live
+  caller (staff created via the edge function). (prod still has both)
+
+Resolved (dev) — `supabase/migrations/20260601_defuse_duplicate_overloads.sql`:
+- [x] `recompute_client_outstanding` — was a **false positive**: the
+  0-arg is a trigger function (returns `trigger`), never REST-callable.
+  The guard now excludes trigger functions, so this no longer flags.
+- [x] `adjust_inventory_atomic` — dropped 6-arg; kept 9-arg superset (all
+  extras default, adds movement logging). All callers pass base args only.
+- [x] `dispatch_vehicle_route` — dropped legacy 6-arg (text[] invoice ids,
+  no caller); kept the 10-arg both surfaces call.
+
+**Dev is now at 0 overloads.**
+
+Open (prod only — not yet touched, defuse during the dev→prod sync):
+- [ ] `get_next_invoice_number` (both), `create_staff_account` (4-arg) —
+  mirror the dev drops above.
+- [ ] `process_purchase_return` — 3 signatures on prod (two 12-arg, one
+  13-arg with `p_location_id`). Both web + mobile callers pass 13 args
+  incl. location → keep the 13-arg, drop the two 12-arg.
+
+**Sequencing rule:** finish all dev defusals first, then do one clean
+dev→prod migration sync, then re-run the guard against both. Avoids a
+half-defused prod state.
 
 ## Phase 2 — One source of truth for business rules
 
