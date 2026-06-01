@@ -15,6 +15,7 @@ export const useFinance = (tenantId) => {
   const [clientPayments,  setClientPayments] = useState([]);
   const [purchases,       setPurchases]      = useState([]);
   const [recurringTemplates, setRecurringTemplates] = useState([]);
+  const [customCategories, setCustomCategories] = useState([]);
   const [loading,         setLoading]        = useState(true);
   const [error,           setError]          = useState(null);
   const initialLoadDone = useRef(false);
@@ -57,6 +58,13 @@ export const useFinance = (tenantId) => {
         .select('*').eq('tenant_id', tenantId).is('deleted_at', null)
         .order('created_at', { ascending: false });
       setRecurringTemplates(normalizeNumericRows(tpls || [], EXPENSE_NUMERIC));
+
+      // Custom expense categories (per-tenant, stored in settings).
+      const { data: catSetting } = await supabase
+        .from('settings').select('value')
+        .eq('key', 'expense_categories').eq('tenant_id', tenantId).maybeSingle();
+      const arr = Array.isArray(catSetting?.value) ? catSetting.value : [];
+      setCustomCategories(arr.filter(Boolean));
     } catch (err) {
       console.error('useFinance error:', err);
       setError(err.message);
@@ -115,6 +123,21 @@ export const useFinance = (tenantId) => {
     if (!error) await fetchFinanceData();
     return { error };
   };
+
+  // ── Custom expense categories ──────────────────────────────────────
+  const DEFAULT_CATEGORIES = ['Petrol','Food','Salary','Rent','Utility','Purchase',
+                              'Maintenance','Credit Card Payment','Delivery Charge','Other'];
+
+  const saveCategories = async (list) => {
+    const clean = Array.from(new Set(list.map(s => (s || '').trim()).filter(Boolean)));
+    const { error } = await supabase.from('settings')
+      .upsert({ key: 'expense_categories', value: clean, tenant_id: tenantId },
+              { onConflict: 'key,tenant_id' });
+    if (!error) setCustomCategories(clean);
+    return { error };
+  };
+  const addExpenseCategory    = (name) => saveCategories([...customCategories, name]);
+  const deleteExpenseCategory = (name) => saveCategories(customCategories.filter(c => c !== name));
 
   // ── Recurring expense templates ────────────────────────────────────
   const addRecurringTemplate = async (tpl) => {
@@ -178,7 +201,13 @@ export const useFinance = (tenantId) => {
       const sorted = [...dayBook].sort((a, b) => b.date.localeCompare(a.date));
       return sorted.find(d => d.date < date) || null;
     },
-    expenseCategories: ['Petrol','Food','Salary','Rent','Utility','Purchase',
-                        'Maintenance','Credit Card Payment','Delivery Charge','Other'],
+    // Defaults + any custom categories the tenant added, deduped, with
+    // "Other" kept last.
+    expenseCategories: (() => {
+      const merged = Array.from(new Set([...DEFAULT_CATEGORIES, ...customCategories]));
+      return [...merged.filter(c => c !== 'Other'), 'Other'];
+    })(),
+    customCategories,
+    addExpenseCategory, deleteExpenseCategory,
   };
 };

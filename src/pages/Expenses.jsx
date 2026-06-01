@@ -37,7 +37,9 @@ const Expenses = () => {
     expenses, addExpense, updateExpense, deleteExpense,
     expenseCategories, loading,
     recurringTemplates, addRecurringTemplate, setRecurringActive, deleteRecurringTemplate,
+    customCategories, addExpenseCategory, deleteExpenseCategory,
   } = useFinance(currentTenantId);
+  const [newCategory, setNewCategory] = useState('');
   
   const isViewOnly = false; // Placeholder for legacy view mode
  
@@ -707,19 +709,50 @@ const Expenses = () => {
      <select
        className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
        value={formData.category}
-       onChange={e => setFormData({...formData, category: e.target.value})}
+       onChange={e => {
+         if (e.target.value === '__ADD__') { setNewCategory(''); return; }
+         setFormData({...formData, category: e.target.value});
+       }}
      >
-       <option value="Other">Other</option>
-       <option value="Petrol">Petrol</option>
-       <option value="Food">Food</option>
-       <option value="Salary">Salary</option>
-       <option value="Rent">Rent</option>
-       <option value="Utility">Utility</option>
-       <option value="Purchase">Purchase</option>
-       <option value="Maintenance">Maintenance</option>
-       <option value="Credit Card Payment">Credit Card Payment</option>
-       <option value="Delivery Charge">Delivery Charge</option>
+       {expenseCategories.map(c => <option key={c} value={c}>{c}</option>)}
      </select>
+     {/* Quick add a new category inline. */}
+     <div className="flex items-center gap-2 mt-2">
+       <input
+         type="text"
+         value={newCategory}
+         onChange={e => setNewCategory(e.target.value)}
+         placeholder="+ New category"
+         className="flex-1 bg-canvas border border-black/8 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary outline-none focus:border-accent-signature/40 placeholder:text-gray-400"
+       />
+       <button
+         type="button"
+         disabled={!newCategory.trim()}
+         onClick={async () => {
+           const name = newCategory.trim();
+           if (!name) return;
+           await addExpenseCategory(name);
+           setFormData(f => ({ ...f, category: name }));
+           setNewCategory('');
+         }}
+         className="px-3 py-1.5 rounded-lg bg-accent-signature/10 text-accent-signature text-xs font-bold disabled:opacity-40"
+       >Add</button>
+     </div>
+     {customCategories.length > 0 && (
+       <div className="flex flex-wrap gap-1.5 mt-2">
+         {customCategories.map(c => (
+           <span key={c} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-pill bg-gray-100 text-gray-600 text-[10px] font-bold">
+             {c}
+             <button
+               type="button"
+               title="Remove category"
+               onClick={() => { if (window.confirm(`Remove category "${c}"? Existing expenses keep it.`)) deleteExpenseCategory(c); }}
+               className="text-gray-400 hover:text-red-500"
+             >✕</button>
+           </span>
+         ))}
+       </div>
+     )}
    </div>
    <div>
      <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Paid Via</label>
