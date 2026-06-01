@@ -100,6 +100,32 @@ Kills root cause #1 at the source.
 10. **Feature flags.** New features default-off per tenant/plan so they
     cannot affect existing flows until explicitly enabled.
 
+## Scaling notes (index audit — 2026-06-01)
+
+Indexing on hot tables (sales, expenses, invoices, purchases,
+client_payments, clients, products) is already mature: each has
+`(tenant_id, id)`, `(tenant_id, created_at)`, category/status
+composites, and `updated_at` (for incremental sync). Not a current
+bottleneck. Deferred items, in priority order, for when scale demands:
+
+1. **Move report/dashboard aggregation server-side.** Lists + totals
+   currently fetch `select('*').limit(500)` and sum/filter in JS. Caps
+   results and loads slow past ~10k rows/tenant. Return summaries from
+   RPCs / views instead (the pattern already used by
+   audit_outstanding_drift + FIFO COGS).
+2. **Add `(tenant_id, date)` on the business-date column** when reports
+   go server-side. Today the `idx_*_tenant_date` indexes actually cover
+   `created_at`, not the `date` text column the period filter uses.
+3. **Incremental pull sync.** pullSync fetches ~22 tables on resume;
+   switch to "rows changed since last sync" via `updated_at`.
+4. **Drop duplicate indexes.** sales/expenses/purchases/client_payments
+   each carry two identical `(tenant_id, created_at)` indexes
+   (`_tenant_date` + `_tenant_created`). Drop one of each to cut write
+   amplification — only worth it at high write volume.
+
+Applied now: `idx_recurring_templates_tenant` (the one table that had
+only a PK).
+
 ## Operating rules (already in CLAUDE.md)
 
 - Never trust `auth.jwt() -> 'user_metadata'` for authorization (#4).
