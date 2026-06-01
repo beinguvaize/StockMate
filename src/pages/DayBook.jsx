@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
 import { useSales } from '../hooks/useSales';
+import { useInventory } from '../hooks/useInventory';
 import {
   Calendar, Save, ChevronLeft, ChevronRight,
   ArrowUpRight, ArrowDownRight, RefreshCcw,
@@ -76,11 +77,16 @@ const DayBook = () => {
     loading: finLoading, updateDayBook, getDayBookForDate, getPrevDayBook,
   } = useFinance(currentTenantId);
   const { sales, loading: salesLoading } = useSales(currentTenantId);
+  const { inventoryLocations } = useInventory(currentTenantId);
+
+  const ALL_STORES = '00000000-0000-0000-0000-000000000000';
+  const posStores = (inventoryLocations || []).filter(l => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
 
   const cy = businessProfile?.currencySymbol || '₹';
   const today = todayISOInAppTZ();
 
   const [selectedDate,  setSelectedDate]  = useState(today);
+  const [storeFilter,   setStoreFilter]   = useState(ALL_STORES); // ALL_STORES = whole business
   const [openingInput,  setOpeningInput]  = useState('');
   const [physicalCash,  setPhysicalCash]  = useState('');
   const [isSaving,      setIsSaving]      = useState(false);
@@ -90,7 +96,10 @@ const DayBook = () => {
 
   // ── Ledger computation ────────────────────────────────────────────────────
   const ledger = useMemo(() => {
-    const daySales      = (sales      || []).filter(s => s.date === selectedDate);
+    // When a specific store is selected, segment sales by their store
+    // (location_id). "All stores" (sentinel) keeps the whole-business view.
+    const storeMatch = (s) => storeFilter === ALL_STORES || (s.location_id || ALL_STORES) === storeFilter;
+    const daySales      = (sales      || []).filter(s => s.date === selectedDate && storeMatch(s));
     const dayExpenses   = (expenses   || []).filter(e => e.date === selectedDate);
     const dayCollect    = (clientPayments || []).filter(p => p.date === selectedDate);
     const dayPurchases  = (purchases  || []).filter(p => p.date === selectedDate);
@@ -126,8 +135,8 @@ const DayBook = () => {
     const totalPayments  = cashOut + bankPurchPaid; // full display total
 
     // ── Balances ─────────────────────────────────────────────────────────────
-    const record      = getDayBookForDate(selectedDate);
-    const prevRecord  = getPrevDayBook(selectedDate);
+    const record      = getDayBookForDate(selectedDate, storeFilter);
+    const prevRecord  = getPrevDayBook(selectedDate, storeFilter);
     const openingBal  = Number(record?.opening_balance) || 0;
     // Closing = cash only (bank receipts/payments don't move the cash drawer)
     const closingBal  = openingBal + cashIn - cashOut;
@@ -204,7 +213,7 @@ const DayBook = () => {
       expenseCount: dayExpenses.length,
       collectCount: dayCollect.length,
     };
-  }, [sales, expenses, clientPayments, purchases, selectedDate, getDayBookForDate, getPrevDayBook]);
+  }, [sales, expenses, clientPayments, purchases, selectedDate, storeFilter, getDayBookForDate, getPrevDayBook]);
 
   const isDeficit  = ledger.closingBal < 0;
   const variance   = physicalCash !== '' ? (parseFloat(physicalCash) || 0) - ledger.closingBal : null;
@@ -213,7 +222,7 @@ const DayBook = () => {
   // Load saved physical cash when date changes
   React.useEffect(() => {
     setPhysicalCash(ledger.savedPhysicalCash != null ? String(ledger.savedPhysicalCash) : '');
-  }, [selectedDate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedDate, storeFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Actions ───────────────────────────────────────────────────────────────
   const handleSaveOpening = async () => {
@@ -221,6 +230,7 @@ const DayBook = () => {
     setIsSaving(true);
     const { error } = await updateDayBook({
       date: selectedDate,
+      location_id: storeFilter,
       opening_balance: parseFloat(openingInput),
     });
     if (error) console.error('Save opening error:', error);
@@ -233,6 +243,7 @@ const DayBook = () => {
     setIsSaving(true);
     const { error } = await updateDayBook({
       date: selectedDate,
+      location_id: storeFilter,
       opening_balance: ledger.prevClosing,
     });
     if (error) console.error('Carry forward error:', error);
@@ -245,6 +256,7 @@ const DayBook = () => {
     const v = Math.round((pc - ledger.closingBal) * 100) / 100;
     await updateDayBook({
       date:            selectedDate,
+      location_id:     storeFilter,
       opening_balance: ledger.openingBal,
       physical_cash:   pc,
       variance:        v,
@@ -257,6 +269,7 @@ const DayBook = () => {
     const pc = parseFloat(physicalCash);
     const { error } = await updateDayBook({
       date:             selectedDate,
+      location_id:      storeFilter,
       opening_balance:  ledger.openingBal,
       closing_balance:  ledger.closingBal,
       total_sales:      ledger.cashSales + ledger.bankSales + ledger.creditSales,
@@ -448,6 +461,17 @@ const DayBook = () => {
             Day Book<span className="text-accent-signature">.</span>
           </h1>
           <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Cash & transaction ledger</span>
+          {/* Store filter — per-store cash drawer when the tenant has >1 store. */}
+          {posStores.length > 1 && (
+            <select
+              value={storeFilter}
+              onChange={e => setStoreFilter(e.target.value)}
+              className="ml-1 bg-white border border-black/8 rounded-pill px-3 py-1.5 text-[11px] font-bold text-ink-primary outline-none cursor-pointer shadow-sm"
+            >
+              <option value={ALL_STORES}>All Stores</option>
+              {posStores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          )}
         </div>
 
         {/* Date nav */}

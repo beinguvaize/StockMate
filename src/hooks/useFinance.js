@@ -175,15 +175,20 @@ export const useFinance = (tenantId) => {
     return { error };
   };
 
+  // The all-zero UUID is the "All stores" aggregate drawer.
+  const ALL_STORES = '00000000-0000-0000-0000-000000000000';
+
   const updateDayBook = async (record) => {
-    const existing = dayBook.find(d => d.date === record.date);
+    const loc = record.location_id || ALL_STORES;
+    const existing = dayBook.find(d => d.date === record.date && (d.location_id || ALL_STORES) === loc);
     const payload = {
-      id: existing?.id || `DB-${record.date}-${tenantId}`.slice(0, 40),
+      id: existing?.id || `DB-${record.date}-${loc.slice(0, 8)}-${tenantId}`.slice(0, 60),
       ...record,
+      location_id: loc,
       tenant_id: tenantId,
     };
     const { error } = await supabase
-      .from('day_book').upsert(payload, { onConflict: 'tenant_id,date' });
+      .from('day_book').upsert(payload, { onConflict: 'tenant_id,date,location_id' });
     if (!error) await fetchFinanceData();
     return { error };
   };
@@ -196,9 +201,13 @@ export const useFinance = (tenantId) => {
     recurringTemplates,
     addRecurringTemplate, setRecurringActive, deleteRecurringTemplate,
     updateDayBook,
-    getDayBookForDate: (date) => dayBook.find(d => d.date === date),
-    getPrevDayBook:    (date) => {
-      const sorted = [...dayBook].sort((a, b) => b.date.localeCompare(a.date));
+    getDayBookForDate: (date, locationId = ALL_STORES) =>
+      dayBook.find(d => d.date === date && (d.location_id || ALL_STORES) === (locationId || ALL_STORES)),
+    getPrevDayBook:    (date, locationId = ALL_STORES) => {
+      const loc = locationId || ALL_STORES;
+      const sorted = [...dayBook]
+        .filter(d => (d.location_id || ALL_STORES) === loc)
+        .sort((a, b) => b.date.localeCompare(a.date));
       return sorted.find(d => d.date < date) || null;
     },
     // Defaults + any custom categories the tenant added, deduped, with
