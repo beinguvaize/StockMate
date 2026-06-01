@@ -6,7 +6,7 @@ import { useNotifications } from '../../../context/NotificationContext';
 import { supabase } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 
-const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [] }) => {
+const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [], stores = [] }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
   const { addNotification } = useNotifications();
   const [cart, setCart] = useState([]);
@@ -24,6 +24,16 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   useEffect(() => {
     try { localStorage.setItem('pos_view_mode', viewMode); } catch { /* ignore */ }
   }, [viewMode]);
+  // Store the sale is rung at (multi-store). Persisted per device.
+  const [storeId, setStoreId] = useState(() => {
+    try { return localStorage.getItem('pos_store_id') || ''; } catch { return ''; }
+  });
+  useEffect(() => {
+    if (stores.length && !stores.some(s => s.id === storeId)) setStoreId(stores[0].id);
+  }, [stores]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    try { if (storeId) localStorage.setItem('pos_store_id', storeId); } catch { /* ignore */ }
+  }, [storeId]);
   // Cashier-entered "Amount Received". Empty = method default (full pay
   // for CASH/UPI/BANK, 0 for CREDIT). > total → Change due. < total
   // with registered client → Balance to outstanding ledger.
@@ -347,6 +357,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         deliveryDate:    deliveryDetails.date    || null,
         deliveryNotes:   deliveryDetails.notes   || null,
         deliveryFee:     parseFloat(deliveryDetails.fee) || 0,
+        locationId:      storeId || null,
       };
       const result = await onPlaceSale(saleData);
       if (result && result.error) {
@@ -597,8 +608,24 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             <CartIcon size={18} className="text-accent-signature" />
             <h2 className="font-semibold text-sm text-ink-primary">Cart</h2>
           </div>
-          <div className="bg-accent-signature text-button-text text-[10px] font-black px-2 py-1 rounded-pill ring-4 ring-accent-signature/10">
-            {cart.reduce((acc, i) => acc + i.quantity, 0)} items
+          <div className="flex items-center gap-2">
+            {/* Store selector — only when the tenant has more than one POS
+                store. Tags the sale with where it was rung. */}
+            {stores.length > 1 && (
+              <div className="flex items-center gap-1.5 bg-white border border-black/8 rounded-pill pl-2.5 pr-1 py-1">
+                <Store size={12} className="text-gray-400" />
+                <select
+                  value={storeId}
+                  onChange={e => setStoreId(e.target.value)}
+                  className="text-[11px] font-bold text-ink-primary bg-transparent outline-none cursor-pointer pr-1"
+                >
+                  {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div className="bg-accent-signature text-button-text text-[10px] font-black px-2 py-1 rounded-pill ring-4 ring-accent-signature/10">
+              {cart.reduce((acc, i) => acc + i.quantity, 0)} items
+            </div>
           </div>
         </div>
 

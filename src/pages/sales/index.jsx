@@ -82,7 +82,9 @@ const SalesPage = () => {
     refetchInventory();
     return result;
   };
-  const { products, inventoryBalances, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
+  const { products, inventoryBalances, inventoryLocations, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
+  // Stores where POS sales are rung (warehouses/branches, not vehicles).
+  const posStores = (inventoryLocations || []).filter(l => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
   const { users: staff = [] } = usePeople(currentTenantId);
 
   const [activeTab, setActiveTab] = useState('pos'); // 'pos' or 'history'
@@ -206,6 +208,7 @@ const SalesPage = () => {
             taxMode={businessProfile?.tax_mode || 'EXCLUSIVE'}
             businessProfile={businessProfile}
             topSellingIds={topSellingIds}
+            stores={posStores}
           />
         ) : (
           <InvoiceList
