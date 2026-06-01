@@ -187,6 +187,7 @@ const SalesPage = () => {
             onPlaceSale={addSale}
             currentTenantId={currentTenantId}
             taxMode={businessProfile?.tax_mode || 'EXCLUSIVE'}
+            businessProfile={businessProfile}
           />
         ) : (
           <InvoiceList
