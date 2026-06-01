@@ -4,7 +4,7 @@ import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
 import {
   Plus, Search, Calendar, FileText, X, Save, TrendingDown,
-  DollarSign, Briefcase, Layers, Receipt
+  DollarSign, Briefcase, Layers, Receipt, Download
 } from 'lucide-react';
 import { todayISOInAppTZ } from '../lib/utils';
 
@@ -22,6 +22,14 @@ const Expenses = () => {
  const [searchTerm, setSearchTerm] = useState('');
  const [filterType, setFilterType] = useState('all'); // 'all', 'today', 'yesterday', 'custom'
  const [filterDate, setFilterDate] = useState('');
+ const [categoryFilter, setCategoryFilter] = useState('ALL');
+ const [sortKey, setSortKey] = useState('date');   // 'date' | 'amount' | 'category'
+ const [sortDir, setSortDir] = useState('desc');   // 'asc' | 'desc'
+
+ const toggleSort = (key) => {
+   if (sortKey === key) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); }
+   else { setSortKey(key); setSortDir(key === 'amount' ? 'desc' : 'desc'); }
+ };
  const [isAdding, setIsAdding] = useState(false);
  const [editingExpense, setEditingExpense] = useState(null);
  const [saving, setSaving] = useState(false);
@@ -56,23 +64,79 @@ const Expenses = () => {
  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
  const yesterday = getLocalDate(yesterdayDate);
 
+ const q = searchTerm.toLowerCase();
  return expenses
  .filter(e => {
  if (!e) return false;
- const matchesSearch = (e.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
- (e.category || '').toLowerCase().includes(searchTerm.toLowerCase());
- 
+ // Search note + category (was searching e.title, which doesn't exist).
+ const matchesSearch = (e.note || '').toLowerCase().includes(q) ||
+ (e.category || '').toLowerCase().includes(q);
+
  const expenseDate = getLocalDate(e.date);
- 
+
  let matchesDate = true;
  if (filterType === 'today') matchesDate = expenseDate === today;
  else if (filterType === 'yesterday') matchesDate = expenseDate === yesterday;
  else if (filterType === 'custom') matchesDate = !filterDate || expenseDate === filterDate;
- 
- return matchesSearch && matchesDate;
+
+ const matchesCategory = categoryFilter === 'ALL' || (e.category || 'Other') === categoryFilter;
+
+ return matchesSearch && matchesDate && matchesCategory;
 })
- .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
-}, [expenses, searchTerm, filterType, filterDate]);
+ .sort((a, b) => {
+   const dir = sortDir === 'asc' ? 1 : -1;
+   if (sortKey === 'amount') return ((parseFloat(a.amount) || 0) - (parseFloat(b.amount) || 0)) * dir;
+   if (sortKey === 'category') return ((a.category || '').localeCompare(b.category || '')) * dir;
+   // date (string compare on YYYY-MM-DD is chronologically correct)
+   const ad = (a.date || ''); const bd = (b.date || '');
+   return (ad < bd ? -1 : ad > bd ? 1 : 0) * dir;
+ });
+}, [expenses, searchTerm, filterType, filterDate, categoryFilter, sortKey, sortDir]);
+
+ // Per-category totals over the date-filtered set (ignores category
+ // filter so the chips always show every category's count + spend).
+ const categoryBreakdown = useMemo(() => {
+   const today2 = getLocalDate(new Date());
+   const yd = new Date(); yd.setDate(yd.getDate() - 1);
+   const yday = getLocalDate(yd);
+   const inDate = (e) => {
+     const d = getLocalDate(e.date);
+     if (filterType === 'today') return d === today2;
+     if (filterType === 'yesterday') return d === yday;
+     if (filterType === 'custom') return !filterDate || d === filterDate;
+     return true;
+   };
+   const map = {};
+   expenses.filter(e => e && inDate(e)).forEach(e => {
+     const c = e.category || 'Other';
+     if (!map[c]) map[c] = { count: 0, total: 0 };
+     map[c].count += 1; map[c].total += parseFloat(e.amount) || 0;
+   });
+   return map;
+ }, [expenses, filterType, filterDate]);
+
+ // CSV export of the currently filtered + sorted rows.
+ const exportCSV = () => {
+   const rows = filteredExpenses.map(e => ({
+     Date: (e.date || '').split('T')[0],
+     Description: e.note || '',
+     Category: e.category || 'Other',
+     PaidVia: e.payment_method || 'CASH',
+     Amount: parseFloat(e.amount) || 0,
+   }));
+   if (!rows.length) return;
+   const headers = Object.keys(rows[0]);
+   const csv = [headers.join(','),
+     ...rows.map(r => headers.map(h => {
+       const v = String(r[h] ?? '');
+       return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+     }).join(','))].join('\n');
+   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+   const url = URL.createObjectURL(blob);
+   const a = document.createElement('a');
+   a.href = url; a.download = `expenses-${new Date().toISOString().slice(0,10)}.csv`;
+   a.click(); URL.revokeObjectURL(url);
+ };
 
  const totalExpenses = useMemo(() => {
  return filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
@@ -285,6 +349,30 @@ const Expenses = () => {
  </div>
  </div>
 
+ {/* Category filter chips — quick filter with per-category spend. */}
+ <div className="flex flex-wrap items-center gap-2 mb-3">
+   <button
+     onClick={() => setCategoryFilter('ALL')}
+     className={`px-3.5 py-1.5 rounded-pill text-[11px] font-bold transition-colors ${categoryFilter === 'ALL' ? 'bg-ink-primary text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+   >
+     All
+   </button>
+   {Object.entries(categoryBreakdown)
+     .sort((a, b) => b[1].total - a[1].total)
+     .map(([cat, info]) => (
+     <button
+       key={cat}
+       onClick={() => setCategoryFilter(cat === categoryFilter ? 'ALL' : cat)}
+       className={`px-3.5 py-1.5 rounded-pill text-[11px] font-bold transition-colors flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-ink-primary text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+     >
+       {cat}
+       <span className={`tabular-nums ${categoryFilter === cat ? 'text-white/60' : 'text-gray-400'}`}>
+         {businessProfile?.currencySymbol || '₹'}{Math.round(info.total).toLocaleString('en-IN')}
+       </span>
+     </button>
+   ))}
+ </div>
+
  {/* Expenses Table/Ledger */}
  <div className="glass-panel !p-0 !rounded-bento border border-black/5 shadow-premium overflow-hidden">
  <div className="bg-ink-primary px-6 py-4 flex items-center justify-between">
@@ -299,10 +387,19 @@ const Expenses = () => {
      </p>
    </div>
  </div>
- <div className="text-right">
-   <div className="text-[9px] font-bold uppercase tracking-widest text-white/40">Total</div>
-   <div className="text-base font-black text-surface tabular-nums leading-tight">
-     {businessProfile?.currencySymbol || '₹'}{Math.round(filteredExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)).toLocaleString('en-IN')}
+ <div className="flex items-center gap-4">
+   <button
+     onClick={exportCSV}
+     disabled={filteredExpenses.length === 0}
+     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-surface text-[10px] font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+   >
+     <Download size={13} /> Export
+   </button>
+   <div className="text-right">
+     <div className="text-[9px] font-bold uppercase tracking-widest text-white/40">Total</div>
+     <div className="text-base font-black text-surface tabular-nums leading-tight">
+       {businessProfile?.currencySymbol || '₹'}{Math.round(filteredExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)).toLocaleString('en-IN')}
+     </div>
    </div>
  </div>
  </div>
@@ -343,9 +440,21 @@ const Expenses = () => {
  <thead>
  <tr className="border-b border-black/5 bg-canvas/60">
  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">Expense</th>
- <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-center">Category</th>
- <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-center">Date</th>
- <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-right">Amount</th>
+ <th className="px-3 py-3 text-center">
+   <button onClick={() => toggleSort('category')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors">
+     Category {sortKey === 'category' && <span>{sortDir === 'asc' ? '↑' : '↓'}</span>}
+   </button>
+ </th>
+ <th className="px-3 py-3 text-center">
+   <button onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors">
+     Date {sortKey === 'date' && <span>{sortDir === 'asc' ? '↑' : '↓'}</span>}
+   </button>
+ </th>
+ <th className="px-3 py-3 text-right">
+   <button onClick={() => toggleSort('amount')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors ml-auto">
+     Amount {sortKey === 'amount' && <span>{sortDir === 'asc' ? '↑' : '↓'}</span>}
+   </button>
+ </th>
  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-right w-px">Actions</th>
  </tr>
  </thead>
@@ -369,7 +478,14 @@ const Expenses = () => {
  <div className="flex items-center gap-3">
    <span className={`w-2 h-2 rounded-full shrink-0 ${catStyle.dot}`} />
    <div className="min-w-0">
-     <div className="text-sm font-bold text-ink-primary truncate">{expense.note || '—'}</div>
+     <div className="flex items-center gap-1.5">
+       <span className="text-sm font-bold text-ink-primary truncate">{expense.note || '—'}</span>
+       {expense.recurring_template_id && (
+         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-pill bg-accent-signature/10 text-accent-signature text-[8px] font-black uppercase tracking-wide shrink-0" title="Auto-generated from a recurring template">
+           ↻ Recurring
+         </span>
+       )}
+     </div>
      <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-0.5">
        via {expense.payment_method || 'CASH'}
      </div>
