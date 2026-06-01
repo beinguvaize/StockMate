@@ -230,7 +230,7 @@ const ReportFilterBar = ({
                 >
                   {item.label}
                   {filters[item.key] && filters[item.key] !== 'ALL' ? (
-                    <span className="ml-2 w-4 h-4 rounded-full bg-accent-signature text-ink-primary flex items-center justify-center text-[8px] font-black translate-x-1">
+                    <span className="ml-2 w-4 h-4 rounded-full bg-accent-signature text-button-text flex items-center justify-center text-[8px] font-black translate-x-1">
                       1
                     </span>
                   ) : <ChevronDown size={14} className="text-accent-signature" />}

@@ -254,7 +254,7 @@ const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = 
       <div className="px-5 pt-5 pb-3 border-b border-slate-200 flex flex-wrap items-center gap-3">
         <div className="flex-1 min-w-[200px]">
           <h3 className="text-lg font-bold text-slate-900 tracking-tight"
-              style={{ fontFamily: '"Plus Jakarta Sans", Inter, sans-serif' }}>
+              style={{ fontFamily: '"Sora", Inter, sans-serif' }}>
             Bank Reconciliation
           </h3>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -306,7 +306,7 @@ const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = 
           <tr>
             {['Date', 'Type', 'Amount', 'Reference', 'Description', 'Matched to', ''].map(h => (
               <th key={h} className="text-left text-[10px] font-bold uppercase tracking-wider text-slate-500 px-4 py-3"
-                  style={{ fontFamily: '"Plus Jakarta Sans", Inter, sans-serif' }}>{h}</th>
+                  style={{ fontFamily: '"Sora", Inter, sans-serif' }}>{h}</th>
             ))}
           </tr>
         </thead>

@@ -1,11 +1,17 @@
-/* 
- * ⚠️ STRICT DESIGN LOCK: THEME VERSION 1.0 (LOCKED)
- * ------------------------------------------------
- * This design system is FINAL. No adjustments to brand colors, 
- * glassmorphism values, or layout tokens are permitted.
+/*
+ * Design system — THEME VERSION 1.1 (OPEN)
+ * ----------------------------------------
+ * The previous "strict lock" is lifted: the design is actively evolving
+ * (typography, POS layout, expense UI). Change brand colors, tokens,
+ * fonts and layout freely. Keep edits consistent with the existing
+ * accent-signature / canvas / ink-primary token set and document any
+ * brand-color change here.
  */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&family=Sora:wght@100..800&family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;900&family=Plus+Jakarta+Sans:wght@500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+/* Typography (v1.1): Sora = display/headings, Inter = body/UI,
+   JetBrains Mono = numbers. Dropped DM Sans, Bebas Neue and Plus Jakarta
+   Sans — three unused/duplicated families — to cut font downloads. */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 @import "tailwindcss";
 
 /* Global blur strip — no backdrop-filter anywhere */
@@ -24,22 +30,20 @@ body {
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
 }
 
+/* Display font — Sora. Used on titles, headings, KPI numbers. */
 .font-sora,
+.font-display,
 .font-bebas,
 .font-space {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-family: 'Sora', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    letter-spacing: -0.01em;
 }
 
 .font-arial {
     font-family: Arial, Helvetica, sans-serif !important;
 }
 
-/* Vendflow typography helpers — Plus Jakarta Sans for headers, JetBrains Mono
-   for numbers. Use .font-display on titles/th, .font-mono on numeric cells. */
-.font-display {
-    font-family: 'Plus Jakarta Sans', Inter, -apple-system, sans-serif !important;
-    letter-spacing: -0.01em;
-}
+/* Use .font-display / .font-sora on titles + th, .font-mono on numeric cells. */
 .font-mono,
 table.report-table td.numeric,
 table.report-table .numeric {
@@ -57,7 +61,7 @@ table.report-table thead th {
     background: #f8fafc;            /* slate-50 */
     border-bottom: 1px solid #e2e8f0;/* slate-200 */
     color: #64748b;                  /* slate-500 */
-    font-family: 'Plus Jakarta Sans', Inter, sans-serif;
+    font-family: 'Sora', Inter, sans-serif;
     font-weight: 700;
     font-size: 10px;
     letter-spacing: 0.08em;
@@ -224,7 +228,7 @@ table.report-table tbody td.numeric {
 /* White theme: any element with black bg must show white text */
 [data-theme="white"] .bg-ink-primary { color: #FFFFFF; }
 [data-theme="white"] .bg-ink-primary * { color: #FFFFFF; }
-[data-theme="white"] .bg-ink-primary .text-accent-signature { color: #C8F135; }
+[data-theme="white"] .bg-ink-primary .text-accent-signature { color: #6366F1; }
 [data-theme="white"] .bg-ink-primary .text-gray-400,
 [data-theme="white"] .bg-ink-primary .text-gray-500,
 [data-theme="white"] .bg-ink-primary .text-gray-600 { color: rgba(255,255,255,0.55); }
@@ -298,12 +302,12 @@ table.report-table tbody td.numeric {
   --color-ink-primary: #F5F5F0;
   --color-ink-secondary: #A3A3A3;
   --color-ink-tertiary: #737373;
-  --color-accent-signature: #C8F135;
-  --color-accent-signature-hover: #b8e224;
+  --color-accent-signature: #6366F1;
+  --color-accent-signature-hover: #4F46E5;
   --color-button-text: #111111;
   --bg-color: #0F0F0F;
-  --accent-lime: #C8F135;
-  --accent-lime-hover: #b8e224;
+  --accent-lime: #6366F1;
+  --accent-lime-hover: #4F46E5;
   --text-main: #F5F5F0;
   --surface: #1A1A1A;
   --border-color: rgba(255,255,255,0.08);
@@ -319,35 +323,36 @@ table.report-table tbody td.numeric {
   border-color: rgba(255,255,255,0.06);
 }
 
-/* LOCKET THEME: DO NOT MODIFY BRAND TOKENS */
+/* Brand tokens — Indigo Premium (theme 1.1). Everything reads these, so
+   the whole app re-skins from here. */
 @theme {
-  --color-canvas: #F5F5F0;
+  --color-canvas: #F8F9FC;          /* cool off-white page */
   --color-surface: #FFFFFF;
-  --color-ink-primary: #111111;
-  --color-ink-secondary: #4a4a4a;
-  --color-ink-tertiary: #6B7280;
-  --color-accent-signature: #C8F135;
-  --color-accent-signature-hover: #b8e224;
-  --color-button-text: #111111;
+  --color-ink-primary: #1E1B2E;     /* near-black with a violet cast */
+  --color-ink-secondary: #4B5563;
+  --color-ink-tertiary: #9CA3AF;
+  --color-accent-signature: #6366F1;       /* indigo */
+  --color-accent-signature-hover: #4F46E5; /* indigo-600 */
+  --color-button-text: #FFFFFF;            /* white text on indigo */
 
   --radius-bento: 2rem;
   --radius-pill: 9999px;
 
-  --shadow-premium: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 40px -10px rgba(0, 0, 0, 0.12);
-  --shadow-hover: 0 20px 80px -20px rgba(0, 0, 0, 0.15);
-  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.04);
+  --shadow-premium: 0 4px 6px -1px rgba(30, 27, 46, 0.05), 0 10px 40px -10px rgba(30, 27, 46, 0.12);
+  --shadow-hover: 0 20px 80px -20px rgba(30, 27, 46, 0.15);
+  --shadow-glass: 0 8px 32px 0 rgba(30, 27, 46, 0.04);
 }
 
 :root {
-  /* Premium SaaS Design Tokens - Legacy support for explicit CSS vars if needed */
-  --bg-color: #F5F5F0;
-  --bg-gradient: linear-gradient(135deg, #F5F5F0 0%, #EBEBE6 100%);
-  --accent-lime: #C8F135;
-  --accent-lime-hover: #b8e224;
-  --text-main: #111111;
-  --text-muted: #4a4a4a;
+  /* Legacy explicit CSS vars — kept in sync with the Indigo @theme. */
+  --bg-color: #F8F9FC;
+  --bg-gradient: linear-gradient(135deg, #F8F9FC 0%, #EEF0F7 100%);
+  --accent-lime: #6366F1;       /* legacy name, now indigo */
+  --accent-lime-hover: #4F46E5;
+  --text-main: #1E1B2E;
+  --text-muted: #4B5563;
   --surface: #FFFFFF;
-  --border-color: rgba(0, 0, 0, 0.05);
+  --border-color: rgba(30, 27, 46, 0.06);
   
   --radius-sm: 12px;
   --radius-md: 20px;

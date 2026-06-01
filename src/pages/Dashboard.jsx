@@ -978,7 +978,7 @@ const Dashboard = () => {
  <Bar 
  dataKey="value" 
  name="Revenue" 
- fill="#C8F135" 
+ fill="#6366F1" 
  radius={[6, 6, 0, 0]}
  barSize={32}
  animationDuration={2000}

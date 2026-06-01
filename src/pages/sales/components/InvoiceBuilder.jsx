@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode } from 'lucide-react';
+import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
 import Button from '../../../shared/Button';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { useNotifications } from '../../../context/NotificationContext';
@@ -14,6 +14,16 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [selectedClientId, setSelectedClientId] = useState('WALKIN');
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [categoryFilter, setCategoryFilter] = useState('ALL');
+  // POS product view ('list' | 'grid') — persisted per device so the
+  // cashier's choice survives a refresh.
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem('pos_view_mode') === 'grid' ? 'grid' : 'list'; }
+    catch { return 'list'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('pos_view_mode', viewMode); } catch { /* ignore */ }
+  }, [viewMode]);
   // Cashier-entered "Amount Received". Empty = method default (full pay
   // for CASH/UPI/BANK, 0 for CREDIT). > total → Change due. < total
   // with registered client → Balance to outstanding ledger.
@@ -104,9 +114,17 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   // Auto-focus search on mount so barcode scanner fires straight in
   useEffect(() => { searchInputRef.current?.focus(); }, []);
 
+  // Category quick-filter for the product list.
+  const productCategories = useMemo(() => {
+    const set = new Set();
+    products.forEach(p => { if (p.product_type !== 'RAW' && p.category) set.add(p.category); });
+    return Array.from(set).sort();
+  }, [products]);
+
   const filteredProducts = useMemo(() => {
     // RAW materials are consume-only (manufacturing) — never sold at POS.
-    const sellable = products.filter(p => p.product_type !== 'RAW');
+    let sellable = products.filter(p => p.product_type !== 'RAW');
+    if (categoryFilter !== 'ALL') sellable = sellable.filter(p => p.category === categoryFilter);
     const q = searchTerm.toLowerCase().trim();
     if (!q) return sellable;
     return sellable.filter(p =>
@@ -114,7 +132,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       (p.sku     || '').toLowerCase().includes(q) ||
       (p.barcode || '').toLowerCase().includes(q)
     );
-  }, [products, searchTerm]);
+  }, [products, searchTerm, categoryFilter]);
+
+  // Most-sold / top sellable products for the empty-cart quick-add tiles.
+  const quickAddProducts = useMemo(() => {
+    return products
+      .filter(p => p.product_type !== 'RAW')
+      .filter(p => (warehouseStock[p.id] ?? p.stock ?? 0) > 0)
+      .slice(0, 6);
+  }, [products, warehouseStock]);
 
   // Called when scanner (or user) presses Enter in search box
   const handleSearchEnter = (e) => {
@@ -359,12 +385,102 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none"
           />
         </div>
-        
+
+        {/* Category chips + list/grid toggle */}
+        <div className="flex items-center gap-2 shrink-0">
+          {productCategories.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mb-1 flex-1">
+              <button
+                onClick={() => setCategoryFilter('ALL')}
+                className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === 'ALL' ? 'bg-ink-primary text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+              >All</button>
+              {productCategories.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setCategoryFilter(c === categoryFilter ? 'ALL' : c)}
+                  className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === c ? 'bg-ink-primary text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+                >{c}</button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center bg-white border border-black/8 rounded-lg p-0.5 shrink-0 ml-auto">
+            <button onClick={() => setViewMode('list')} aria-label="List view"
+              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-ink-primary text-white' : 'text-gray-400 hover:text-ink-primary'}`}>
+              <List size={15} />
+            </button>
+            <button onClick={() => setViewMode('grid')} aria-label="Grid view"
+              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-ink-primary text-white' : 'text-gray-400 hover:text-ink-primary'}`}>
+              <LayoutGrid size={15} />
+            </button>
+          </div>
+        </div>
+
+        {/* GRID view — product cards with quick-add ×1/×5/×10. */}
+        {viewMode === 'grid' && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 overflow-y-auto pr-1 pb-4 content-start">
+          {filteredProducts.map(product => {
+            const ms = marginStatus[product.id] || {};
+            const stock = warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock;
+            const outOfStock = stock <= 0;
+            const lowStock = !outOfStock && stock <= (product.lowStockThreshold || 10);
+            const inCart = cart.find(i => i.productId === product.id);
+            const cartQty = inCart ? inCart.quantity : 0;
+            return (
+            <div key={product.id}
+              className={`relative rounded-2xl border p-3 flex flex-col transition-all ${
+                outOfStock ? 'opacity-40 border-transparent bg-white/60' :
+                inCart ? 'border-accent-signature/40 bg-accent-signature/5' :
+                'border-black/8 bg-white hover:border-accent-signature/30 hover:shadow-sm'
+              }`}>
+              {cartQty > 0 && (
+                <span className="absolute top-2 right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-accent-signature text-button-text text-[9px] font-black flex items-center justify-center shadow ring-2 ring-white">{cartQty}</span>
+              )}
+              <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center mb-2">
+                {product.image
+                  ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                  : <span className="text-xs font-black text-ink-primary/30 uppercase">{(product.name||'?').slice(0,2)}</span>}
+              </div>
+              <div className="text-sm font-bold text-ink-primary leading-tight line-clamp-2 mb-1">{product.name}</div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className={`text-sm font-black ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>{formatCurrency(product.sellingPrice)}</span>
+                {product.taxRate > 0 && <span className="text-[9px] font-black px-1 rounded bg-blue-50 text-blue-500">{product.taxRate}%</span>}
+              </div>
+              <div className={`text-[11px] font-semibold mb-2 ${outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : 'text-gray-400'}`}>
+                {outOfStock ? 'OUT OF STOCK' : lowStock ? `${stock} stk · low` : `${stock} stk`}
+              </div>
+              {!outOfStock && (
+                cartQty > 0 ? (
+                  <div className="mt-auto flex items-center justify-between gap-1">
+                    <button type="button" onClick={() => updateQuantity(product.id, -1)}
+                      className="w-8 h-8 rounded-lg bg-white border border-black/10 text-ink-primary flex items-center justify-center hover:bg-black/5">
+                      <Minus size={14} />
+                    </button>
+                    <span className="text-sm font-black text-ink-primary tabular-nums">{cartQty}</span>
+                    <button type="button" onClick={() => addToCart(product)}
+                      className="w-8 h-8 rounded-lg bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90">
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => addToCart(product)}
+                    className="mt-auto w-full py-2 rounded-lg bg-canvas hover:bg-accent-signature hover:text-button-text text-xs font-black text-ink-primary transition-colors flex items-center justify-center gap-1.5">
+                    <Plus size={14} /> Add
+                  </button>
+                )
+              )}
+            </div>
+            );
+          })}
+        </div>
+        )}
+
+        {viewMode === 'list' && (
         <div className="flex flex-col gap-px overflow-y-auto pr-1 pb-4">
           {filteredProducts.map(product => {
             const ms = marginStatus[product.id] || {};
             const stock = warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock;
             const outOfStock = stock <= 0;
+            const lowStock = !outOfStock && stock <= (product.lowStockThreshold || 10);
             const inCart  = cart.find(i => i.productId === product.id);
             const cartQty = inCart ? inCart.quantity : 0;
             return (
@@ -417,9 +533,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   )}
                 </div>
                 <div className={`text-xs font-semibold mt-0.5 ${
-                  outOfStock ? 'text-red-400' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-gray-400'
+                  outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-gray-400'
                 }`}>
-                  {outOfStock ? 'OUT' : `${stock} stk`}
+                  {outOfStock ? 'OUT' : lowStock ? `${stock} stk · low` : `${stock} stk`}
                 </div>
               </div>
 
@@ -432,10 +548,39 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   {ms.isLoss ? 'LOSS' : 'LOW'}
                 </div>
               )}
+
+              {/* Add / quantity stepper. When the item is in the cart show
+                  −/qty/+; otherwise a single + that's always a clear tap
+                  target (the whole row is still clickable too). */}
+              {!outOfStock && (
+                cartQty > 0 ? (
+                  <div className="flex items-center gap-1 flex-shrink-0" onClick={e => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(product.id, -1)}
+                      className="w-7 h-7 rounded-lg bg-white border border-black/10 text-ink-primary flex items-center justify-center hover:bg-black/5"
+                    ><Minus size={13} /></button>
+                    <span className="w-6 text-center text-sm font-black text-ink-primary tabular-nums">{cartQty}</span>
+                    <button
+                      type="button"
+                      onClick={() => updateQuantity(product.id, 1)}
+                      className="w-7 h-7 rounded-lg bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90"
+                    ><Plus size={13} /></button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); addToCart(product); }}
+                    aria-label={`Add ${product.name}`}
+                    className="w-7 h-7 rounded-lg bg-canvas text-gray-500 flex items-center justify-center opacity-60 group-hover:opacity-100 hover:bg-accent-signature hover:text-button-text transition-all flex-shrink-0"
+                  ><Plus size={14} /></button>
+                )
+              )}
             </div>
             );
           })}
         </div>
+        )}
       </div>
 
       {/* Cart Area */}
@@ -540,9 +685,27 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             );
           })}
           {cart.length === 0 && (
-            <div className="h-full flex flex-col items-center justify-center opacity-30 pointer-events-none p-10 text-center">
-              <Package size={48} className="mb-4" />
-              <div className="text-xs font-bold uppercase tracking-widest">Cart is empty</div>
+            <div className="h-full flex flex-col items-center justify-center p-6 text-center">
+              <Package size={40} className="mb-3 opacity-20" />
+              <div className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-5">Cart is empty</div>
+              {quickAddProducts.length > 0 && (
+                <div className="w-full">
+                  <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2.5">Quick add</div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {quickAddProducts.map(p => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => addToCart(p)}
+                        className="px-3 py-2.5 rounded-xl border border-black/8 bg-white hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-colors text-left"
+                      >
+                        <div className="text-xs font-bold text-ink-primary truncate">{p.name}</div>
+                        <div className="text-[11px] font-semibold text-gray-400 tabular-nums mt-0.5">{formatCurrency(p.sellingPrice)}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
