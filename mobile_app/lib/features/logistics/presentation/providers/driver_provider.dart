@@ -12,7 +12,12 @@ final tenantProfileProvider = FutureProvider<Map<String, dynamic>?>((ref) async 
 
   final res = await supabase
       .from('business_profile')
-      .select('currencySymbol, name, country, upi_id, bank_name, account_no, ifsc_code')
+      // tax_mode + bill_settings are required by the checkout sheet so it
+      // can back tax out of the price on INCLUSIVE tenants. They were
+      // missing from this select, so _taxMode always fell back to
+      // EXCLUSIVE and an INCLUSIVE tenant's checkout added tax on top of
+      // a price that already contained it.
+      .select('currencySymbol, name, country, upi_id, bank_name, account_no, ifsc_code, tax_mode, bill_settings, gst_no, state')
       .eq('tenant_id', tenantId)
       .maybeSingle();
   if (res == null) return null;
