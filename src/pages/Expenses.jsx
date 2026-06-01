@@ -4,7 +4,7 @@ import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
 import {
   Plus, Search, Calendar, FileText, X, Save, TrendingDown,
-  DollarSign, Briefcase, Layers
+  DollarSign, Briefcase, Layers, Receipt
 } from 'lucide-react';
 import { todayISOInAppTZ } from '../lib/utils';
 
@@ -418,114 +418,134 @@ const Expenses = () => {
  {isAdding && (
  <div className="modal-overlay">
  <div className="glass-modal">
- <div className="flex justify-between items-start mb-5">
- <div>
- <h2 className="text-3xl font-semibold text-ink-primary leading-none mb-2">
- {editingExpense ? 'EDIT EXPENSE.' : 'NEW EXPENSE.'}
- </h2>
- <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">
- LOG BUSINESS EXPENDITURE DETAILS
- </p>
- </div>
- <button 
- onClick={handleCloseModal}
- className="w-10 h-10 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary"
- >
- <X size={18} />
- </button>
+ {/* ── Header ───────────────────────────────────────── */}
+ <div className="flex items-center justify-between mb-6">
+   <div className="flex items-center gap-3.5">
+     <div className="w-11 h-11 rounded-2xl bg-accent-signature/10 flex items-center justify-center text-accent-signature shrink-0">
+       <Receipt size={20} strokeWidth={2.2} />
+     </div>
+     <div>
+       <h2 className="text-xl font-black font-sora text-ink-primary leading-tight tracking-tight">
+         {editingExpense ? 'Edit Expense' : 'New Expense'}
+       </h2>
+       <p className="text-[11px] font-medium text-gray-400 mt-0.5">
+         Log business expenditure details
+       </p>
+     </div>
+   </div>
+   <button
+     onClick={handleCloseModal}
+     aria-label="Close"
+     className="w-9 h-9 rounded-full border border-black/8 flex items-center justify-center hover:bg-black/5 transition-colors cursor-pointer text-gray-500"
+   >
+     <X size={16} />
+   </button>
  </div>
 
  <form onSubmit={handleSubmit} className="space-y-5">
- <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
- <div className="md:col-span-2">
-   <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Description / Notes <span className="text-gray-400 font-normal">(optional)</span></label>
+
+ {/* ── Amount — hero focal point ──────────────────────── */}
+ <div className="rounded-2xl bg-accent-signature/5 border border-accent-signature/15 px-5 py-4 focus-within:border-accent-signature/40 focus-within:ring-4 focus-within:ring-accent-signature/10 transition-all">
+   <label htmlFor="exp-amount" className="block text-[11px] font-bold uppercase tracking-widest text-accent-signature/80 mb-1">Amount</label>
+   <div className="flex items-center">
+     <span className="text-3xl font-black text-ink-primary/30 mr-2 leading-none">{businessProfile?.currencySymbol || '₹'}</span>
+     <input
+       id="exp-amount"
+       required
+       autoFocus
+       type="number"
+       step="0.01"
+       min="0.01"
+       inputMode="decimal"
+       placeholder="0.00"
+       className="flex-1 w-full bg-transparent border-none p-0 font-black text-4xl text-ink-primary outline-none tabular-nums placeholder:text-ink-primary/20"
+       value={formData.amount}
+       onChange={e => setFormData({...formData, amount: e.target.value})}
+     />
+   </div>
+ </div>
+
+ {/* ── Category + Paid Via ────────────────────────────── */}
+ <div className="grid grid-cols-2 gap-3">
+   <div>
+     <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Category</label>
+     <select
+       className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
+       value={formData.category}
+       onChange={e => setFormData({...formData, category: e.target.value})}
+     >
+       <option value="Other">Other</option>
+       <option value="Petrol">Petrol</option>
+       <option value="Food">Food</option>
+       <option value="Salary">Salary</option>
+       <option value="Rent">Rent</option>
+       <option value="Utility">Utility</option>
+       <option value="Purchase">Purchase</option>
+       <option value="Maintenance">Maintenance</option>
+       <option value="Credit Card Payment">Credit Card Payment</option>
+       <option value="Delivery Charge">Delivery Charge</option>
+     </select>
+   </div>
+   <div>
+     <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Paid Via</label>
+     <select
+       className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
+       value={formData.payment_method}
+       onChange={e => setFormData({...formData, payment_method: e.target.value})}
+     >
+       <option value="CASH">Cash</option>
+       <option value="UPI">UPI</option>
+       <option value="BANK">Bank Transfer</option>
+       <option value="CARD">Card</option>
+     </select>
+   </div>
+ </div>
+
+ {/* ── Date ───────────────────────────────────────────── */}
+ <div>
+   <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Date</label>
+   <input
+     type="date"
+     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all"
+     value={formData.date}
+     onChange={e => setFormData({...formData, date: e.target.value})}
+   />
+ </div>
+
+ {/* ── Description (optional) ──────────────────────────── */}
+ <div>
+   <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">
+     Description <span className="text-gray-400 font-medium normal-case tracking-normal">· optional</span>
+   </label>
    <textarea
-     rows={3}
-     placeholder="E.g. Fuel for delivery van, rent payment, office supplies..."
-     className="w-full bg-canvas border-none rounded-lg p-5 font-medium text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all resize-none"
+     rows={2}
+     placeholder="E.g. Fuel for delivery van, office supplies…"
+     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-medium text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all resize-none placeholder:text-gray-400"
      value={formData.note}
      onChange={e => setFormData({...formData, note: e.target.value})}
    />
  </div>
- 
- <div>
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Amount</label>
- <div className="relative">
- <div className="absolute left-6 top-1/2 -translate-y-1/2 text-2xl font-semibold text-ink-primary opacity-20">
- {businessProfile?.currencySymbol || '₹'}
- </div>
- <input 
- required
- type="number"
- step="0.01"
- min="0.01"
- className="w-full bg-canvas border-none rounded-lg p-5 pl-14 font-semibold text-2xl text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all tabular-nums"
- value={formData.amount} 
- onChange={e => setFormData({...formData, amount: e.target.value})} 
- />
- </div>
- </div>
 
- <div>
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Category</label>
- <select 
- className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer" 
- value={formData.category} 
- onChange={e => setFormData({...formData, category: e.target.value})}
- >
- <option value="Other">OTHER (DEFAULT)</option>
- <option value="Petrol">PETROL</option>
- <option value="Food">FOOD</option>
- <option value="Salary">SALARY</option>
- <option value="Rent">RENT</option>
- <option value="Utility">UTILITY</option>
- <option value="Purchase">PURCHASE</option>
- <option value="Maintenance">MAINTENANCE</option>
- <option value="Credit Card Payment">CREDIT CARD PAYMENT</option>
- <option value="Delivery Charge">DELIVERY CHARGE</option>
- </select>
- </div>
-
- <div>
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Paid Via</label>
- <select
- className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer"
- value={formData.payment_method}
- onChange={e => setFormData({...formData, payment_method: e.target.value})}
- >
- <option value="CASH">CASH</option>
- <option value="UPI">UPI</option>
- <option value="BANK">BANK TRANSFER</option>
- <option value="CARD">CARD</option>
- </select>
- </div>
-
- <div>
- <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Date</label>
- <input
- type="date"
- className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
- value={formData.date}
- onChange={e => setFormData({...formData, date: e.target.value})}
- />
- </div>
-
- </div>
-
- {/* Repeat monthly — only for new expenses. Creates a recurring
-     template the nightly job clones each month on this date's day. */}
+ {/* ── Repeat monthly (new expense only) ──────────────── */}
  {!editingExpense && (
-   <label className="flex items-center justify-between gap-3 p-4 rounded-lg bg-canvas cursor-pointer">
-     <div>
-       <div className="text-sm font-semibold text-ink-primary">Repeat monthly</div>
-       <div className="text-[10px] text-gray-500">
-         Auto-logs this expense every month on day {parseInt((formData.date || '').split('-')[2], 10) || 1}.
+   <label className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl border border-black/8 bg-white cursor-pointer hover:border-black/15 transition-colors">
+     <div className="flex items-center gap-3">
+       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.repeat_monthly ? 'bg-accent-signature/10 text-accent-signature' : 'bg-canvas text-gray-400'}`}>
+         <Calendar size={16} />
+       </div>
+       <div>
+         <div className="text-sm font-bold text-ink-primary">Repeat monthly</div>
+         <div className="text-[11px] text-gray-500">
+           Auto-logs on day {parseInt((formData.date || '').split('-')[2], 10) || 1} every month
+         </div>
        </div>
      </div>
      <button
        type="button"
+       role="switch"
+       aria-checked={formData.repeat_monthly}
        onClick={() => setFormData({ ...formData, repeat_monthly: !formData.repeat_monthly })}
-       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${formData.repeat_monthly ? 'bg-accent-signature' : 'bg-black/10'}`}
+       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.repeat_monthly ? 'bg-accent-signature' : 'bg-black/15'}`}
      >
        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.repeat_monthly ? 'translate-x-5' : 'translate-x-0'}`} />
      </button>
@@ -533,17 +553,20 @@ const Expenses = () => {
  )}
 
  {formError && (
-   <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
+   <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold" role="alert">
      {formError}
    </div>
  )}
 
- <div className="grid grid-cols-2 gap-4 pt-4">
- <button type="button" className="px-8 py-2 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all cursor-pointer" onClick={handleCloseModal} disabled={saving}>Cancel</button>
- <button type="submit" disabled={saving} className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill disabled:opacity-60 disabled:cursor-not-allowed">
-   {saving ? 'SAVING...' : (editingExpense ? 'SAVE CHANGES' : 'LOG EXPENSE')}
-   {!saving && <div className="icon-nest !w-10 !h-10 ml-4"><Save size={22} /></div>}
- </button>
+ {/* ── Footer ─────────────────────────────────────────── */}
+ <div className="flex items-center gap-3 pt-2">
+   <button type="button" className="px-6 py-3.5 rounded-pill border border-black/10 font-bold text-ink-primary text-xs uppercase tracking-wide hover:bg-black/5 transition-colors cursor-pointer disabled:opacity-50" onClick={handleCloseModal} disabled={saving}>
+     Cancel
+   </button>
+   <button type="submit" disabled={saving} className="btn-signature flex-1 !h-13 !text-xs !uppercase !tracking-widest flex items-center justify-center gap-2.5 px-6 !rounded-pill disabled:opacity-60 disabled:cursor-not-allowed">
+     {saving ? 'Saving…' : (editingExpense ? 'Save Changes' : 'Log Expense')}
+     {!saving && <Save size={16} />}
+   </button>
  </div>
  </form>
  </div>
