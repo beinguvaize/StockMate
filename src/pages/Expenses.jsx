@@ -8,6 +8,28 @@ import {
 } from 'lucide-react';
 import { todayISOInAppTZ } from '../lib/utils';
 
+// Category → dot + pill colour. Shared by the table rows and the mobile
+// cards so both stay visually consistent.
+const catStyleOf = (category) => {
+  const c = (category || '').toLowerCase();
+  if (c === 'petrol') return { dot: 'bg-orange-400', pill: 'bg-orange-50 text-orange-600' };
+  if (c === 'food') return { dot: 'bg-red-400', pill: 'bg-red-50 text-red-600' };
+  if (c === 'salary') return { dot: 'bg-emerald-400', pill: 'bg-emerald-50 text-emerald-600' };
+  if (c === 'rent') return { dot: 'bg-blue-400', pill: 'bg-blue-50 text-blue-600' };
+  if (c === 'utility') return { dot: 'bg-amber-400', pill: 'bg-amber-50 text-amber-700' };
+  if (c === 'purchase') return { dot: 'bg-purple-400', pill: 'bg-purple-50 text-purple-600' };
+  if (c === 'maintenance') return { dot: 'bg-teal-400', pill: 'bg-teal-50 text-teal-600' };
+  if (c.includes('credit')) return { dot: 'bg-fuchsia-400', pill: 'bg-fuchsia-50 text-fuchsia-600' };
+  if (c.includes('delivery')) return { dot: 'bg-sky-400', pill: 'bg-sky-50 text-sky-600' };
+  return { dot: 'bg-gray-300', pill: 'bg-gray-100 text-gray-500' };
+};
+
+const fmtDate = (raw) => {
+  if (!raw) return '—';
+  const [y, m, d] = (raw.split('T')[0]).split('-');
+  return new Date(+y, +m - 1, +d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+};
+
 const Expenses = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
@@ -25,6 +47,7 @@ const Expenses = () => {
  const [categoryFilter, setCategoryFilter] = useState('ALL');
  const [sortKey, setSortKey] = useState('date');   // 'date' | 'amount' | 'category'
  const [sortDir, setSortDir] = useState('desc');   // 'asc' | 'desc'
+ const [visibleCount, setVisibleCount] = useState(50); // pagination window
 
  const toggleSort = (key) => {
    if (sortKey === key) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); }
@@ -137,6 +160,10 @@ const Expenses = () => {
    a.href = url; a.download = `expenses-${new Date().toISOString().slice(0,10)}.csv`;
    a.click(); URL.revokeObjectURL(url);
  };
+
+ // Reset the pagination window whenever the result set changes.
+ useEffect(() => { setVisibleCount(50); }, [searchTerm, filterType, filterDate, categoryFilter, sortKey, sortDir]);
+ const pagedExpenses = useMemo(() => filteredExpenses.slice(0, visibleCount), [filteredExpenses, visibleCount]);
 
  const totalExpenses = useMemo(() => {
  return filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
@@ -435,10 +462,11 @@ const Expenses = () => {
    </div>
  )}
 
- <div className="overflow-x-auto">
+ {/* Desktop table — hidden on small screens (mobile cards below). */}
+ <div className="hidden sm:block overflow-x-auto max-h-[60vh] overflow-y-auto">
  <table className="w-full text-left border-collapse">
- <thead>
- <tr className="border-b border-black/5 bg-canvas/60">
+ <thead className="sticky top-0 z-10">
+ <tr className="border-b border-black/5 bg-canvas">
  <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">Expense</th>
  <th className="px-3 py-3 text-center">
    <button onClick={() => toggleSort('category')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors">
@@ -459,19 +487,8 @@ const Expenses = () => {
  </tr>
  </thead>
  <tbody className="divide-y divide-black/5 bg-white font-inter">
- {filteredExpenses.map(expense => {
- const cat = (expense.category || '').toLowerCase();
- const catStyle =
-   cat === 'petrol' ? { dot: 'bg-orange-400', pill: 'bg-orange-50 text-orange-600' } :
-   cat === 'food' ? { dot: 'bg-red-400', pill: 'bg-red-50 text-red-600' } :
-   cat === 'salary' ? { dot: 'bg-emerald-400', pill: 'bg-emerald-50 text-emerald-600' } :
-   cat === 'rent' ? { dot: 'bg-blue-400', pill: 'bg-blue-50 text-blue-600' } :
-   cat === 'utility' ? { dot: 'bg-amber-400', pill: 'bg-amber-50 text-amber-700' } :
-   cat === 'purchase' ? { dot: 'bg-purple-400', pill: 'bg-purple-50 text-purple-600' } :
-   cat === 'maintenance' ? { dot: 'bg-teal-400', pill: 'bg-teal-50 text-teal-600' } :
-   cat.includes('credit') ? { dot: 'bg-fuchsia-400', pill: 'bg-fuchsia-50 text-fuchsia-600' } :
-   cat.includes('delivery') ? { dot: 'bg-sky-400', pill: 'bg-sky-50 text-sky-600' } :
-   { dot: 'bg-gray-300', pill: 'bg-gray-100 text-gray-500' };
+ {pagedExpenses.map(expense => {
+ const catStyle = catStyleOf(expense.category);
  return (
  <tr key={expense.id} className="group hover:bg-canvas/50 transition-colors">
  <td className="px-6 py-3.5">
@@ -500,10 +517,7 @@ const Expenses = () => {
  <td className="px-3 py-3.5 text-center">
  <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
  <Calendar size={11} className="opacity-50" />
- {expense.date ? (() => {
-   const [y, m, d] = (expense.date.split('T')[0]).split('-');
-   return new Date(+y, +m - 1, +d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
- })() : '—'}
+ {fmtDate(expense.date)}
  </div>
  </td>
  <td className="px-3 py-3.5 text-right">
@@ -540,12 +554,63 @@ const Expenses = () => {
  </table>
  </div>
 
+ {/* Mobile cards — shown below sm breakpoint where a table cramps. */}
+ <div className="sm:hidden divide-y divide-black/5">
+ {pagedExpenses.map(expense => {
+   const catStyle = catStyleOf(expense.category);
+   return (
+   <div key={expense.id} className="p-4 flex items-start gap-3">
+     <span className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1.5 ${catStyle.dot}`} />
+     <div className="flex-1 min-w-0">
+       <div className="flex items-center justify-between gap-2">
+         <span className="text-sm font-bold text-ink-primary truncate">{expense.note || '—'}</span>
+         <span className="text-base font-black text-ink-primary tabular-nums shrink-0">
+           {businessProfile?.currencySymbol || '₹'}{parseFloat(expense.amount).toLocaleString('en-IN')}
+         </span>
+       </div>
+       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+         <span className={`inline-block px-2 py-0.5 rounded-pill text-[10px] font-bold ${catStyle.pill}`}>{expense.category || 'Other'}</span>
+         <span className="text-[10px] font-semibold text-gray-400">{fmtDate(expense.date)}</span>
+         <span className="text-[10px] font-semibold text-gray-400 uppercase">via {expense.payment_method || 'CASH'}</span>
+         {expense.recurring_template_id && (
+           <span className="text-[8px] font-black uppercase text-accent-signature">↻ Recurring</span>
+         )}
+       </div>
+       <div className="flex items-center gap-2 mt-2">
+         {hasPermission('EDIT_EXPENSE') && (
+           <button onClick={() => handleEdit(expense)} className="text-[11px] font-bold text-accent-signature">Edit</button>
+         )}
+         {hasPermission('DELETE_EXPENSE') && (
+           <button onClick={() => { if(window.confirm('Delete record?')) deleteExpense(expense.id); }} className="text-[11px] font-bold text-red-500">Delete</button>
+         )}
+       </div>
+     </div>
+   </div>
+   );
+ })}
+ </div>
+
+ {/* Load more — pagination window grows by 50 at a time. */}
+ {filteredExpenses.length > visibleCount && (
+   <div className="p-4 text-center border-t border-black/5">
+     <button
+       onClick={() => setVisibleCount(v => v + 50)}
+       className="px-5 py-2 rounded-pill bg-canvas hover:bg-black/5 text-xs font-bold text-ink-primary transition-colors"
+     >
+       Load more · {filteredExpenses.length - visibleCount} remaining
+     </button>
+   </div>
+ )}
+
  {filteredExpenses.length === 0 && (
- <div className="p-32 text-center">
+ <div className="p-20 sm:p-32 text-center">
  <div className="flex justify-center mb-6 opacity-10">
  <Layers size={64} strokeWidth={1} />
  </div>
- <p className="text-sm font-semibold text-[#747576]">No expenses found</p>
+ <p className="text-sm font-semibold text-[#747576] mb-4">No expenses found</p>
+ <button onClick={() => setIsAdding(true)} className="btn-signature !text-xs inline-flex items-center gap-2 px-5 py-2.5 !rounded-pill">
+   <Plus size={14} /> Log your first expense
+ </button>
  </div>
  )}
  </div>
