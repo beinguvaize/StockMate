@@ -15,7 +15,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
-  const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
+  // POS product view ('list' | 'grid') — persisted per device so the
+  // cashier's choice survives a refresh.
+  const [viewMode, setViewMode] = useState(() => {
+    try { return localStorage.getItem('pos_view_mode') === 'grid' ? 'grid' : 'list'; }
+    catch { return 'list'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('pos_view_mode', viewMode); } catch { /* ignore */ }
+  }, [viewMode]);
   // Cashier-entered "Amount Received". Empty = method default (full pay
   // for CASH/UPI/BANK, 0 for CREDIT). > total → Change due. < total
   // with registered client → Balance to outstanding ledger.
