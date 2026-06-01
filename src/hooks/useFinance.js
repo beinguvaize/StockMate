@@ -14,6 +14,7 @@ export const useFinance = (tenantId) => {
   const [dayBook,         setDayBook]        = useState([]);
   const [clientPayments,  setClientPayments] = useState([]);
   const [purchases,       setPurchases]      = useState([]);
+  const [recurringTemplates, setRecurringTemplates] = useState([]);
   const [loading,         setLoading]        = useState(true);
   const [error,           setError]          = useState(null);
   const initialLoadDone = useRef(false);
@@ -48,6 +49,14 @@ export const useFinance = (tenantId) => {
       setDayBook(normalizeNumericRows(dbCached, DAYBOOK_NUMERIC));
       setClientPayments(normalizeNumericRows(cpCached, CLIENT_PAYMENT_NUMERIC));
       setPurchases(normalizeNumericRows(purCached, PURCHASE_NUMERIC));
+
+      // Recurring templates — small table, fetched directly (online-only
+      // is fine: they only drive the nightly generator + the manage list).
+      const { data: tpls } = await supabase
+        .from('recurring_expense_templates')
+        .select('*').eq('tenant_id', tenantId).is('deleted_at', null)
+        .order('created_at', { ascending: false });
+      setRecurringTemplates(normalizeNumericRows(tpls || [], EXPENSE_NUMERIC));
     } catch (err) {
       console.error('useFinance error:', err);
       setError(err.message);
@@ -103,6 +112,42 @@ export const useFinance = (tenantId) => {
     return { error };
   };
 
+  // ── Recurring expense templates ────────────────────────────────────
+  const addRecurringTemplate = async (tpl) => {
+    const row = {
+      id: 'RET-' + (crypto.randomUUID?.() || Date.now().toString(36)),
+      tenant_id:      tenantId,
+      note:           tpl.note ?? null,
+      amount:         tpl.amount,
+      category:       tpl.category ?? 'Other',
+      payment_method: tpl.payment_method ?? 'CASH',
+      frequency:      'MONTHLY',
+      day_of_month:   Math.min(Math.max(parseInt(tpl.day_of_month, 10) || 1, 1), 28),
+      active:         true,
+    };
+    const { error } = await supabase.from('recurring_expense_templates').insert(row);
+    if (!error) await fetchFinanceData();
+    return { error };
+  };
+
+  const setRecurringActive = async (id, active) => {
+    const { error } = await supabase
+      .from('recurring_expense_templates').update({ active })
+      .eq('id', id).eq('tenant_id', tenantId);
+    if (!error) await fetchFinanceData();
+    return { error };
+  };
+
+  const deleteRecurringTemplate = async (id) => {
+    // Soft delete so historical generated rows keep their back-link.
+    const { error } = await supabase
+      .from('recurring_expense_templates')
+      .update({ deleted_at: new Date().toISOString(), active: false })
+      .eq('id', id).eq('tenant_id', tenantId);
+    if (!error) await fetchFinanceData();
+    return { error };
+  };
+
   const updateDayBook = async (record) => {
     const existing = dayBook.find(d => d.date === record.date);
     const payload = {
@@ -121,6 +166,8 @@ export const useFinance = (tenantId) => {
     loading, error,
     refetch:          fetchFinanceData,
     addExpense, updateExpense, deleteExpense,
+    recurringTemplates,
+    addRecurringTemplate, setRecurringActive, deleteRecurringTemplate,
     updateDayBook,
     getDayBookForDate: (date) => dayBook.find(d => d.date === date),
     getPrevDayBook:    (date) => {

@@ -1,0 +1,35 @@
+# Nightly generation of due recurring expenses (rent, salary, subs).
+#
+# Calls generate_due_recurring_expenses() on prod. The RPC is idempotent
+# within a month, so re-runs are safe. Any rows it returns are echoed for
+# the run log.
+#
+# Required repo secrets (already used by nightly-audit):
+#   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY
+
+name: Nightly · Generate recurring expenses
+
+on:
+  schedule:
+    # 01:00 UTC = 06:30 IST — before shops open, after midnight rollover.
+    - cron: '0 1 * * *'
+  workflow_dispatch:
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate due recurring expenses (prod)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -euo pipefail
+          resp=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/generate_due_recurring_expenses" \
+            -H "apikey: $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SUPABASE_SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+          count=$(echo "$resp" | jq 'length')
+          echo "Generated $count recurring expense(s)."
+          echo "$resp" | jq

@@ -11,9 +11,10 @@ import { todayISOInAppTZ } from '../lib/utils';
 const Expenses = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
-  const { 
-    expenses, addExpense, updateExpense, deleteExpense, 
-    expenseCategories, loading 
+  const {
+    expenses, addExpense, updateExpense, deleteExpense,
+    expenseCategories, loading,
+    recurringTemplates, addRecurringTemplate, setRecurringActive, deleteRecurringTemplate,
   } = useFinance(currentTenantId);
   
   const isViewOnly = false; // Placeholder for legacy view mode
@@ -31,6 +32,7 @@ const Expenses = () => {
    category: 'Other',
    date: todayISOInAppTZ(),
    payment_method: 'CASH',
+   repeat_monthly: false,
  });
 
 
@@ -110,6 +112,25 @@ const Expenses = () => {
  const { error } = editingExpense
    ? await updateExpense({ ...expenseData, id: editingExpense.id })
    : await addExpense(expenseData);
+
+ // When "Repeat monthly" is on for a NEW expense, also create a
+ // recurring template. The day-of-month is taken from the chosen date;
+ // the nightly generator clones it every following month. The expense
+ // just logged covers the current month, so the template won't double-
+ // generate today (its last_generated stays null until the next run on
+ // a matching day, and the guard skips the current month after that).
+ if (!error && !editingExpense && formData.repeat_monthly) {
+   const dom = parseInt((formData.date || todayISOInAppTZ()).split('-')[2], 10) || 1;
+   const { error: tplErr } = await addRecurringTemplate({
+     note: note, amount, category: formData.category,
+     payment_method: formData.payment_method, day_of_month: dom,
+   });
+   if (tplErr) {
+     setSaving(false);
+     setFormError('Expense saved, but recurring setup failed: ' + (tplErr.message || ''));
+     return;
+   }
+ }
  setSaving(false);
 
  if (error) {
@@ -119,7 +140,7 @@ const Expenses = () => {
 
  setIsAdding(false);
  setEditingExpense(null);
- setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH' });
+ setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false });
 };
 
  const handleEdit = (expense) => {
@@ -131,6 +152,7 @@ const Expenses = () => {
      category: expense.category || 'Other',
      date: expense.date ? expense.date.split('T')[0] : todayISOInAppTZ(),
      payment_method: expense.payment_method || 'CASH',
+     repeat_monthly: false, // editing an existing one-off never re-arms recurring
    });
    setIsAdding(true);
  };
@@ -140,7 +162,7 @@ const Expenses = () => {
    setEditingExpense(null);
    setFormError('');
    setSaving(false);
-   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH' });
+   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false });
  };
 
  useEffect(() => {
@@ -269,7 +291,38 @@ const Expenses = () => {
  <Briefcase size={16} className="text-accent-signature" />
  <h2 className="text-[10px] font-semibold text-surface">Expense History</h2>
  </div>
- 
+
+ {/* Recurring templates — active monthly auto-logs. Toggle pause or
+     remove. The nightly job clones each on its day-of-month. */}
+ {recurringTemplates && recurringTemplates.length > 0 && (
+   <div className="mb-3 rounded-2xl border border-black/5 bg-white p-4">
+     <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+       Recurring · {recurringTemplates.length}
+     </div>
+     <div className="flex flex-wrap gap-2">
+       {recurringTemplates.map(t => (
+         <div key={t.id} className={`flex items-center gap-2 rounded-pill border px-3 py-1.5 text-xs ${t.active ? 'border-accent-signature/30 bg-accent-signature/5' : 'border-black/10 bg-gray-50 opacity-60'}`}>
+           <span className="font-bold text-ink-primary">{t.note || t.category}</span>
+           <span className="tabular-nums text-gray-600">{formatCurrency(t.amount)}</span>
+           <span className="text-[9px] text-gray-400">day {Math.min(t.day_of_month, 28)} · {t.payment_method}</span>
+           <button
+             type="button"
+             title={t.active ? 'Pause' : 'Resume'}
+             onClick={() => setRecurringActive(t.id, !t.active)}
+             className="text-[9px] font-bold uppercase text-accent-signature hover:underline"
+           >{t.active ? 'Pause' : 'Resume'}</button>
+           <button
+             type="button"
+             title="Remove"
+             onClick={() => { if (window.confirm('Remove this recurring expense?')) deleteRecurringTemplate(t.id); }}
+             className="text-gray-400 hover:text-red-500"
+           >✕</button>
+         </div>
+       ))}
+     </div>
+   </div>
+ )}
+
  <div className="overflow-x-auto">
  <table className="w-full text-left border-collapse">
  <thead>
@@ -458,6 +511,26 @@ const Expenses = () => {
  </div>
 
  </div>
+
+ {/* Repeat monthly — only for new expenses. Creates a recurring
+     template the nightly job clones each month on this date's day. */}
+ {!editingExpense && (
+   <label className="flex items-center justify-between gap-3 p-4 rounded-lg bg-canvas cursor-pointer">
+     <div>
+       <div className="text-sm font-semibold text-ink-primary">Repeat monthly</div>
+       <div className="text-[10px] text-gray-500">
+         Auto-logs this expense every month on day {parseInt((formData.date || '').split('-')[2], 10) || 1}.
+       </div>
+     </div>
+     <button
+       type="button"
+       onClick={() => setFormData({ ...formData, repeat_monthly: !formData.repeat_monthly })}
+       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none ${formData.repeat_monthly ? 'bg-accent-signature' : 'bg-black/10'}`}
+     >
+       <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.repeat_monthly ? 'translate-x-5' : 'translate-x-0'}`} />
+     </button>
+   </label>
+ )}
 
  {formError && (
    <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-xs font-semibold">
