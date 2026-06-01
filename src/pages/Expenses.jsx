@@ -64,6 +64,9 @@ const Expenses = () => {
    date: todayISOInAppTZ(),
    payment_method: 'CASH',
    repeat_monthly: false,
+   gst_claimable: false,
+   gst_rate: '18',
+   vendor_gstin: '',
  });
 
 
@@ -146,6 +149,9 @@ const Expenses = () => {
      Category: e.category || 'Other',
      PaidVia: e.payment_method || 'CASH',
      Amount: parseFloat(e.amount) || 0,
+     GST_Rate: e.gst_rate ?? '',
+     ITC_Amount: parseFloat(e.gst_amount) || 0,
+     Vendor_GSTIN: e.vendor_gstin || '',
    }));
    if (!rows.length) return;
    const headers = Object.keys(rows[0]);
@@ -168,6 +174,12 @@ const Expenses = () => {
  const totalExpenses = useMemo(() => {
  return filteredExpenses.reduce((sum, e) => sum + (parseFloat(e.amount) || 0), 0);
 }, [filteredExpenses]);
+
+ // Claimable input tax credit over the filtered set (only rows with a
+ // vendor GSTIN count as valid ITC).
+ const totalITC = useMemo(() =>
+   filteredExpenses.reduce((s, e) => s + (e.vendor_gstin ? (parseFloat(e.gst_amount) || 0) : 0), 0),
+ [filteredExpenses]);
 
  const dailyAvg = useMemo(() => {
  if (filteredExpenses.length === 0) return 0;
@@ -197,7 +209,17 @@ const Expenses = () => {
  // Description is optional now — fall back to the category label so the
  // row is never noteless in the list.
  const note = (formData.note || '').trim() || formData.category;
- const expenseData = { ...formData, note, amount };
+
+ // GST/ITC: when claimable, back the tax component out of the (inclusive)
+ // amount: gst = amount − amount/(1 + rate/100). Stored as the ITC value.
+ let gst_rate = null, gst_amount = 0, vendor_gstin = null;
+ if (formData.gst_claimable) {
+   const r = parseFloat(formData.gst_rate) || 0;
+   gst_rate = r;
+   gst_amount = r > 0 ? +(amount - amount / (1 + r / 100)).toFixed(2) : 0;
+   vendor_gstin = (formData.vendor_gstin || '').trim().toUpperCase() || null;
+ }
+ const expenseData = { ...formData, note, amount, gst_rate, gst_amount, vendor_gstin };
 
  setSaving(true);
  const { error } = editingExpense
@@ -231,7 +253,7 @@ const Expenses = () => {
 
  setIsAdding(false);
  setEditingExpense(null);
- setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false });
+ setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false, gst_claimable: false, gst_rate: '18', vendor_gstin: '' });
 };
 
  const handleEdit = (expense) => {
@@ -244,6 +266,9 @@ const Expenses = () => {
      date: expense.date ? expense.date.split('T')[0] : todayISOInAppTZ(),
      payment_method: expense.payment_method || 'CASH',
      repeat_monthly: false, // editing an existing one-off never re-arms recurring
+     gst_claimable: !!expense.vendor_gstin || Number(expense.gst_amount) > 0,
+     gst_rate: expense.gst_rate ? String(expense.gst_rate) : '18',
+     vendor_gstin: expense.vendor_gstin || '',
    });
    setIsAdding(true);
  };
@@ -253,7 +278,7 @@ const Expenses = () => {
    setEditingExpense(null);
    setFormError('');
    setSaving(false);
-   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false });
+   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false, gst_claimable: false, gst_rate: '18', vendor_gstin: '' });
  };
 
  useEffect(() => {
@@ -422,10 +447,18 @@ const Expenses = () => {
    >
      <Download size={13} /> Export
    </button>
+   {totalITC > 0 && (
+     <div className="text-right">
+       <div className="text-[9px] font-bold uppercase tracking-widest text-accent-signature/70">ITC</div>
+       <div className="text-base font-black text-accent-signature tabular-nums leading-tight">
+         {businessProfile?.currencySymbol || '₹'}{Math.round(totalITC).toLocaleString('en-IN')}
+       </div>
+     </div>
+   )}
    <div className="text-right">
      <div className="text-[9px] font-bold uppercase tracking-widest text-white/40">Total</div>
      <div className="text-base font-black text-surface tabular-nums leading-tight">
-       {businessProfile?.currencySymbol || '₹'}{Math.round(filteredExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)).toLocaleString('en-IN')}
+       {businessProfile?.currencySymbol || '₹'}{Math.round(totalExpenses).toLocaleString('en-IN')}
      </div>
    </div>
  </div>
@@ -726,6 +759,72 @@ const Expenses = () => {
      value={formData.note}
      onChange={e => setFormData({...formData, note: e.target.value})}
    />
+ </div>
+
+ {/* ── GST / input tax credit ─────────────────────────── */}
+ <div className="rounded-xl border border-black/8 bg-white overflow-hidden">
+   <label className="flex items-center justify-between gap-3 px-4 py-3.5 cursor-pointer">
+     <div className="flex items-center gap-3">
+       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.gst_claimable ? 'bg-accent-signature/10 text-accent-signature' : 'bg-canvas text-gray-400'}`}>
+         <Receipt size={16} />
+       </div>
+       <div>
+         <div className="text-sm font-bold text-ink-primary">Claim GST (input tax credit)</div>
+         <div className="text-[11px] text-gray-500">For registered vendors with a GSTIN</div>
+       </div>
+     </div>
+     <button
+       type="button"
+       role="switch"
+       aria-checked={formData.gst_claimable}
+       onClick={() => setFormData({ ...formData, gst_claimable: !formData.gst_claimable })}
+       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.gst_claimable ? 'bg-accent-signature' : 'bg-black/15'}`}
+     >
+       <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.gst_claimable ? 'translate-x-5' : 'translate-x-0'}`} />
+     </button>
+   </label>
+   {formData.gst_claimable && (
+     <div className="px-4 pb-4 pt-1 border-t border-black/5 space-y-3">
+       <div className="grid grid-cols-2 gap-3">
+         <div>
+           <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">GST Rate</label>
+           <select
+             className="w-full bg-canvas border border-black/10 rounded-xl px-3 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
+             value={formData.gst_rate}
+             onChange={e => setFormData({ ...formData, gst_rate: e.target.value })}
+           >
+             <option value="5">5%</option>
+             <option value="12">12%</option>
+             <option value="18">18%</option>
+             <option value="28">28%</option>
+             <option value="0">0% / Exempt</option>
+           </select>
+         </div>
+         <div>
+           <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">ITC (incl.)</label>
+           <div className="px-3 py-2.5 rounded-xl bg-accent-signature/5 border border-accent-signature/15 text-sm font-black text-accent-signature tabular-nums">
+             {(() => {
+               const amt = parseFloat(formData.amount) || 0;
+               const r = parseFloat(formData.gst_rate) || 0;
+               const g = r > 0 ? amt - amt / (1 + r / 100) : 0;
+               return `${businessProfile?.currencySymbol || '₹'}${g.toFixed(2)}`;
+             })()}
+           </div>
+         </div>
+       </div>
+       <div>
+         <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Vendor GSTIN</label>
+         <input
+           type="text"
+           maxLength={15}
+           placeholder="29ABCDE1234F1Z5"
+           className="w-full bg-canvas border border-black/10 rounded-xl px-3 py-2.5 font-semibold text-sm uppercase tracking-wide text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:normal-case"
+           value={formData.vendor_gstin}
+           onChange={e => setFormData({ ...formData, vendor_gstin: e.target.value.toUpperCase() })}
+         />
+       </div>
+     </div>
+   )}
  </div>
 
  {/* ── Repeat monthly (new expense only) ──────────────── */}

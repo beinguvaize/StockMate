@@ -79,6 +79,10 @@ export const useFinance = (tenantId) => {
     // How the expense was paid (CASH/UPI/BANK/CARD). Defaults to CASH so
     // older callers that don't send it stay valid.
     payment_method: (expense.payment_method ?? 'CASH'),
+    // GST input-tax-credit capture (optional).
+    gst_rate:     expense.gst_rate ?? null,
+    gst_amount:   expense.gst_amount ?? 0,
+    vendor_gstin: (expense.vendor_gstin ?? null) || null,
   });
 
   const addExpense = async (expense) => {
