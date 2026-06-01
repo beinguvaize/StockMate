@@ -6,7 +6,7 @@ import { useNotifications } from '../../../context/NotificationContext';
 import { supabase } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 
-const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE' }) => {
+const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
   const { addNotification } = useNotifications();
   const [cart, setCart] = useState([]);
