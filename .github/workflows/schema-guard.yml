@@ -1,0 +1,47 @@
+# Schema-health guard — Phase 1 of the architecture-hardening plan.
+#
+# Runs on every PR into main and on demand. Two checks:
+#   1. No duplicate RPC overloads on dev (PGRST203 prevention).
+#   2. Dev and prod public schemas are identical (drift prevention).
+#
+# Both call read-only RPCs (audit_function_overloads, schema_signature)
+# created in supabase/migrations/20260601_schema_health_guards.sql.
+#
+# Required repo secrets:
+#   DEV_SUPABASE_URL          https://tiywdsbaymrnqmlkxupj.supabase.co
+#   DEV_SERVICE_ROLE_KEY      dev service_role JWT
+#   SUPABASE_URL              https://lmviftlynuhopzmvaxeu.supabase.co  (prod)
+#   SUPABASE_SERVICE_ROLE_KEY prod service_role JWT
+
+name: Schema guard
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: No duplicate RPC overloads (dev)
+        env:
+          SUPABASE_URL: ${{ secrets.DEV_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.DEV_SERVICE_ROLE_KEY }}
+        run: bash scripts/check-rpc-overloads.sh
+
+      - name: No duplicate RPC overloads (prod)
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: bash scripts/check-rpc-overloads.sh
+
+      - name: Dev↔prod schema drift
+        env:
+          DEV_SUPABASE_URL: ${{ secrets.DEV_SUPABASE_URL }}
+          DEV_SERVICE_ROLE_KEY: ${{ secrets.DEV_SERVICE_ROLE_KEY }}
+          PROD_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          PROD_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: bash scripts/check-schema-drift.sh
