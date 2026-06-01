@@ -234,11 +234,19 @@ export const useOperations = (tenantId) => {
     const today = new Date().toISOString().split('T')[0];
     const saleId = crypto.randomUUID();
 
-    // Resolve vehicleId from inventory location if not passed directly
-    const resolvedVehicleId = vehicleId || (() => {
-      const loc = inventoryLocations.find(l => l.id === vehicleLocId);
-      return loc?.reference_id || null;
-    })();
+    // Resolve vehicleId from the inventory location if not passed
+    // directly. useOperations doesn't hold the locations list, so look
+    // the single row up from supabase (only runs on the rare path where
+    // the caller didn't already pass vehicleId).
+    let resolvedVehicleId = vehicleId || null;
+    if (!resolvedVehicleId && vehicleLocId) {
+      const { data: loc } = await supabase
+        .from('inventory_locations')
+        .select('reference_id')
+        .eq('id', vehicleLocId)
+        .maybeSingle();
+      resolvedVehicleId = loc?.reference_id || null;
+    }
 
     // 1. Insert sale record (same shape as POS sales)
     const { error: saleErr } = await supabase.from('sales').insert({
