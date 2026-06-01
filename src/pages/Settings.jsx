@@ -69,9 +69,29 @@ const Settings = () => {
     expenseCategories, addExpenseCategory, updateExpenseCategory, deleteExpenseCategory
   } = useFinance(currentTenantId);
   const {
+    products,
     productCategories, addProductCategory, updateProductCategory, deleteProductCategory,
     inventoryLocations, addLocation, updateLocation, deleteLocation,
   } = useInventory(currentTenantId);
+
+  // Categories that products actually use but that aren't in the managed
+  // product_categories table yet. Lets the owner import + then rename/
+  // delete the categories already in use.
+  const unmanagedCategories = React.useMemo(() => {
+    const managed = new Set((productCategories || []).map(c => (c.name || '').toLowerCase()));
+    const used = new Set();
+    (products || []).forEach(p => {
+      const c = (p.category || '').trim();
+      if (c && !managed.has(c.toLowerCase())) used.add(c);
+    });
+    return Array.from(used).sort();
+  }, [products, productCategories]);
+
+  const importUnmanagedCategories = async () => {
+    for (const name of unmanagedCategories) {
+      await addProductCategory(name);
+    }
+  };
 
   // Fallback for missing businessProfile during load
   const profile = businessProfile || {};
@@ -755,6 +775,23 @@ const Settings = () => {
  <Plus size={20} />
  </button>
  </div>
+ {/* Categories used by products but not yet managed — import to edit/delete. */}
+ {unmanagedCategories.length > 0 && (
+ <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+   <div className="flex items-center justify-between mb-2">
+     <p className="text-xs font-bold text-amber-700">{unmanagedCategories.length} categor{unmanagedCategories.length === 1 ? 'y' : 'ies'} in use but not managed</p>
+     <button onClick={importUnmanagedCategories} className="text-[11px] font-black uppercase tracking-wide text-amber-700 underline">Import all</button>
+   </div>
+   <div className="flex flex-wrap gap-1.5">
+     {unmanagedCategories.map(c => (
+       <button key={c} onClick={() => addProductCategory(c)}
+         className="px-2.5 py-1 rounded-pill bg-white border border-amber-200 text-amber-700 text-[11px] font-bold hover:bg-amber-100"
+         title="Add to managed list">+ {c}</button>
+     ))}
+   </div>
+ </div>
+ )}
+
  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
  {productCategories.map(cat => (
  <div key={cat.id} className="group flex items-center justify-between p-4 rounded-xl bg-white border border-gray-300 shadow-sm hover:border-accent-signature/30 transition-all">
