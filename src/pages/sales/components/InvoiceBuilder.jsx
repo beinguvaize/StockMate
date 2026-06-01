@@ -399,6 +399,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             const ms = marginStatus[product.id] || {};
             const stock = warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock;
             const outOfStock = stock <= 0;
+            const lowStock = !outOfStock && stock <= (product.lowStockThreshold || 10);
             const inCart  = cart.find(i => i.productId === product.id);
             const cartQty = inCart ? inCart.quantity : 0;
             return (
@@ -451,9 +452,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   )}
                 </div>
                 <div className={`text-xs font-semibold mt-0.5 ${
-                  outOfStock ? 'text-red-400' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-gray-400'
+                  outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-gray-400'
                 }`}>
-                  {outOfStock ? 'OUT' : `${stock} stk`}
+                  {outOfStock ? 'OUT' : lowStock ? `${stock} stk · low` : `${stock} stk`}
                 </div>
               </div>
 
