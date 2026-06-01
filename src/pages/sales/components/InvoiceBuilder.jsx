@@ -203,22 +203,6 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     });
   };
 
-  // Add N units at once (quick-keys ×5 / ×10). Caps at available stock.
-  const addQty = (product, n) => {
-    const available = getAvailableStock(product.id);
-    if (available <= 0) { addNotification(`${product.name} is out of stock`, 'error'); return; }
-    lastAddedRef.current = product.id;
-    setAddTick(t => t + 1);
-    setCart(prev => {
-      const existing = prev.find(i => i.productId === product.id);
-      const current = existing ? existing.quantity : 0;
-      const next = Math.min(current + n, available);
-      if (next === current) { addNotification(`Only ${available} units in stock`, 'error'); return prev; }
-      if (existing) return prev.map(i => i.productId === product.id ? { ...i, quantity: next } : i);
-      return [...prev, { productId: product.id, name: product.name, price: product.sellingPrice, quantity: next, taxRate: product.taxRate || 0 }];
-    });
-  };
-
   const updateQuantity = (productId, delta) => {
     const available = getAvailableStock(productId);
     setCart(prev => prev.map(item => {
@@ -457,14 +441,24 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 {outOfStock ? 'OUT OF STOCK' : lowStock ? `${stock} stk · low` : `${stock} stk`}
               </div>
               {!outOfStock && (
-                <div className="mt-auto grid grid-cols-3 gap-1">
-                  {[1,5,10].map(n => (
-                    <button key={n} type="button" onClick={() => addQty(product, n)}
-                      className="py-1.5 rounded-lg bg-canvas hover:bg-accent-signature hover:text-button-text text-[11px] font-black text-ink-primary transition-colors">
-                      +{n}
+                cartQty > 0 ? (
+                  <div className="mt-auto flex items-center justify-between gap-1">
+                    <button type="button" onClick={() => updateQuantity(product.id, -1)}
+                      className="w-8 h-8 rounded-lg bg-white border border-black/10 text-ink-primary flex items-center justify-center hover:bg-black/5">
+                      <Minus size={14} />
                     </button>
-                  ))}
-                </div>
+                    <span className="text-sm font-black text-ink-primary tabular-nums">{cartQty}</span>
+                    <button type="button" onClick={() => addToCart(product)}
+                      className="w-8 h-8 rounded-lg bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90">
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <button type="button" onClick={() => addToCart(product)}
+                    className="mt-auto w-full py-2 rounded-lg bg-canvas hover:bg-accent-signature hover:text-button-text text-xs font-black text-ink-primary transition-colors flex items-center justify-center gap-1.5">
+                    <Plus size={14} /> Add
+                  </button>
+                )
               )}
             </div>
             );
