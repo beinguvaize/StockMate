@@ -6,7 +6,7 @@ import { useNotifications } from '../../../context/NotificationContext';
 import { supabase } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 
-const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null }) => {
+const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [] }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
   const { addNotification } = useNotifications();
   const [cart, setCart] = useState([]);
@@ -134,13 +134,19 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     );
   }, [products, searchTerm, categoryFilter]);
 
-  // Most-sold / top sellable products for the empty-cart quick-add tiles.
+  // Quick-add tiles = fast-moving products. Rank by recent sales volume
+  // (topSellingIds from the parent); fall back to catalogue order for any
+  // remaining slots so there are always tiles even before sales history.
   const quickAddProducts = useMemo(() => {
-    return products
-      .filter(p => p.product_type !== 'RAW')
-      .filter(p => (warehouseStock[p.id] ?? p.stock ?? 0) > 0)
-      .slice(0, 6);
-  }, [products, warehouseStock]);
+    const inStock = (p) => p.product_type !== 'RAW' && (warehouseStock[p.id] ?? p.stock ?? 0) > 0;
+    const byId = new Map(products.map(p => [p.id, p]));
+    const ranked = topSellingIds
+      .map(id => byId.get(id))
+      .filter(p => p && inStock(p));
+    const seen = new Set(ranked.map(p => p.id));
+    const filler = products.filter(p => inStock(p) && !seen.has(p.id));
+    return [...ranked, ...filler].slice(0, 6);
+  }, [products, warehouseStock, topSellingIds]);
 
   // Called when scanner (or user) presses Enter in search box
   const handleSearchEnter = (e) => {

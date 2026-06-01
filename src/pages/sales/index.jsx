@@ -99,6 +99,23 @@ const SalesPage = () => {
     addNotification('Return processed — stock restored.', 'success');
   };
 
+  // Fast-moving products — rank by total quantity sold over the recent
+  // sales window so the POS "Quick add" tiles surface what actually moves.
+  const topSellingIds = React.useMemo(() => {
+    const cutoff = Date.now() - 60 * 86400000; // last 60 days
+    const qty = {};
+    (sales || []).forEach(s => {
+      const t = new Date(s.created_at || s.date).getTime();
+      if (!isNaN(t) && t < cutoff) return;
+      (Array.isArray(s.items) ? s.items : []).forEach(i => {
+        const id = i.id || i.productId;
+        if (!id) return;
+        qty[id] = (qty[id] || 0) + (Number(i.quantity) || 0);
+      });
+    });
+    return Object.entries(qty).sort((a, b) => b[1] - a[1]).map(([id]) => id);
+  }, [sales]);
+
   const printSale = (sale) => setPrintingSale(sale);
   const printingClient = printingSale
     ? clients.find(c => c.id === (printingSale.shopId ?? printingSale.shop_id ?? printingSale.clientId)) || null
@@ -188,6 +205,7 @@ const SalesPage = () => {
             currentTenantId={currentTenantId}
             taxMode={businessProfile?.tax_mode || 'EXCLUSIVE'}
             businessProfile={businessProfile}
+            topSellingIds={topSellingIds}
           />
         ) : (
           <InvoiceList
