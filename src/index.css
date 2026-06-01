@@ -1,8 +1,11 @@
-/* 
- * ⚠️ STRICT DESIGN LOCK: THEME VERSION 1.0 (LOCKED)
- * ------------------------------------------------
- * This design system is FINAL. No adjustments to brand colors, 
- * glassmorphism values, or layout tokens are permitted.
+/*
+ * Design system — THEME VERSION 1.1 (OPEN)
+ * ----------------------------------------
+ * The previous "strict lock" is lifted: the design is actively evolving
+ * (typography, POS layout, expense UI). Change brand colors, tokens,
+ * fonts and layout freely. Keep edits consistent with the existing
+ * accent-signature / canvas / ink-primary token set and document any
+ * brand-color change here.
  */
 
 /* Typography (v1.1): Sora = display/headings, Inter = body/UI,
