@@ -30,6 +30,7 @@ const Expenses = () => {
    amount: '',
    category: 'Other',
    date: todayISOInAppTZ(),
+   payment_method: 'CASH',
  });
 
 
@@ -100,7 +101,10 @@ const Expenses = () => {
    setFormError('Amount must be greater than 0.');
    return;
  }
- const expenseData = { ...formData, amount };
+ // Description is optional now — fall back to the category label so the
+ // row is never noteless in the list.
+ const note = (formData.note || '').trim() || formData.category;
+ const expenseData = { ...formData, note, amount };
 
  setSaving(true);
  const { error } = editingExpense
@@ -115,7 +119,7 @@ const Expenses = () => {
 
  setIsAdding(false);
  setEditingExpense(null);
- setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ() });
+ setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH' });
 };
 
  const handleEdit = (expense) => {
@@ -126,6 +130,7 @@ const Expenses = () => {
      amount: (expense.amount || 0).toString(),
      category: expense.category || 'Other',
      date: expense.date ? expense.date.split('T')[0] : todayISOInAppTZ(),
+     payment_method: expense.payment_method || 'CASH',
    });
    setIsAdding(true);
  };
@@ -135,7 +140,7 @@ const Expenses = () => {
    setEditingExpense(null);
    setFormError('');
    setSaving(false);
-   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ() });
+   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH' });
  };
 
  useEffect(() => {
@@ -283,6 +288,9 @@ const Expenses = () => {
  <div className="text-xs font-semibold text-ink-primary">
    {expense.note || '—'}
  </div>
+ <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
+   via {expense.payment_method || 'CASH'}
+ </div>
  </td>
  <td className="p-1.5 text-center">
  <span className={`px-3 py-1 rounded-pill text-[9px] font-semibold border ${
@@ -377,9 +385,8 @@ const Expenses = () => {
  <form onSubmit={handleSubmit} className="space-y-5">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
  <div className="md:col-span-2">
-   <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Description / Notes</label>
+   <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Description / Notes <span className="text-gray-400 font-normal">(optional)</span></label>
    <textarea
-     required
      rows={3}
      placeholder="E.g. Fuel for delivery van, rent payment, office supplies..."
      className="w-full bg-canvas border-none rounded-lg p-5 font-medium text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all resize-none"
@@ -427,12 +434,26 @@ const Expenses = () => {
  </div>
 
  <div>
+ <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Paid Via</label>
+ <select
+ className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer"
+ value={formData.payment_method}
+ onChange={e => setFormData({...formData, payment_method: e.target.value})}
+ >
+ <option value="CASH">CASH</option>
+ <option value="UPI">UPI</option>
+ <option value="BANK">BANK TRANSFER</option>
+ <option value="CARD">CARD</option>
+ </select>
+ </div>
+
+ <div>
  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Date</label>
- <input 
- type="date" 
- className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all" 
- value={formData.date} 
- onChange={e => setFormData({...formData, date: e.target.value})} 
+ <input
+ type="date"
+ className="w-full bg-canvas border-none rounded-lg p-5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
+ value={formData.date}
+ onChange={e => setFormData({...formData, date: e.target.value})}
  />
  </div>
 

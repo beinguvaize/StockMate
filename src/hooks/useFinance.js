@@ -67,6 +67,9 @@ export const useFinance = (tenantId) => {
     amount:   expense.amount   ?? null,
     date:     expense.date     ?? null,
     note:     expense.note ?? expense.notes ?? expense.title ?? null,
+    // How the expense was paid (CASH/UPI/BANK/CARD). Defaults to CASH so
+    // older callers that don't send it stay valid.
+    payment_method: (expense.payment_method ?? 'CASH'),
   });
 
   const addExpense = async (expense) => {
