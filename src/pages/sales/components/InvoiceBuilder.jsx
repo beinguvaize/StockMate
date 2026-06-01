@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode } from 'lucide-react';
+import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
 import Button from '../../../shared/Button';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { useNotifications } from '../../../context/NotificationContext';
@@ -15,6 +15,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [categoryFilter, setCategoryFilter] = useState('ALL');
+  const [viewMode, setViewMode] = useState('list'); // 'list' | 'grid'
   // Cashier-entered "Amount Received". Empty = method default (full pay
   // for CASH/UPI/BANK, 0 for CREDIT). > total → Change due. < total
   // with registered client → Balance to outstanding ledger.
@@ -202,6 +203,22 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     });
   };
 
+  // Add N units at once (quick-keys ×5 / ×10). Caps at available stock.
+  const addQty = (product, n) => {
+    const available = getAvailableStock(product.id);
+    if (available <= 0) { addNotification(`${product.name} is out of stock`, 'error'); return; }
+    lastAddedRef.current = product.id;
+    setAddTick(t => t + 1);
+    setCart(prev => {
+      const existing = prev.find(i => i.productId === product.id);
+      const current = existing ? existing.quantity : 0;
+      const next = Math.min(current + n, available);
+      if (next === current) { addNotification(`Only ${available} units in stock`, 'error'); return prev; }
+      if (existing) return prev.map(i => i.productId === product.id ? { ...i, quantity: next } : i);
+      return [...prev, { productId: product.id, name: product.name, price: product.sellingPrice, quantity: next, taxRate: product.taxRate || 0 }];
+    });
+  };
+
   const updateQuantity = (productId, delta) => {
     const available = getAvailableStock(productId);
     setCart(prev => prev.map(item => {
@@ -377,23 +394,85 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           />
         </div>
 
-        {/* Category quick-filter chips */}
-        {productCategories.length > 0 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mb-1 shrink-0">
-            <button
-              onClick={() => setCategoryFilter('ALL')}
-              className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === 'ALL' ? 'bg-ink-primary text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
-            >All</button>
-            {productCategories.map(c => (
+        {/* Category chips + list/grid toggle */}
+        <div className="flex items-center gap-2 shrink-0">
+          {productCategories.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mb-1 flex-1">
               <button
-                key={c}
-                onClick={() => setCategoryFilter(c === categoryFilter ? 'ALL' : c)}
-                className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === c ? 'bg-ink-primary text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
-              >{c}</button>
-            ))}
+                onClick={() => setCategoryFilter('ALL')}
+                className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === 'ALL' ? 'bg-ink-primary text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+              >All</button>
+              {productCategories.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setCategoryFilter(c === categoryFilter ? 'ALL' : c)}
+                  className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === c ? 'bg-ink-primary text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+                >{c}</button>
+              ))}
+            </div>
+          )}
+          <div className="flex items-center bg-white border border-black/8 rounded-lg p-0.5 shrink-0 ml-auto">
+            <button onClick={() => setViewMode('list')} aria-label="List view"
+              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-ink-primary text-white' : 'text-gray-400 hover:text-ink-primary'}`}>
+              <List size={15} />
+            </button>
+            <button onClick={() => setViewMode('grid')} aria-label="Grid view"
+              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-ink-primary text-white' : 'text-gray-400 hover:text-ink-primary'}`}>
+              <LayoutGrid size={15} />
+            </button>
           </div>
+        </div>
+
+        {/* GRID view — product cards with quick-add ×1/×5/×10. */}
+        {viewMode === 'grid' && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-2.5 overflow-y-auto pr-1 pb-4 content-start">
+          {filteredProducts.map(product => {
+            const ms = marginStatus[product.id] || {};
+            const stock = warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock;
+            const outOfStock = stock <= 0;
+            const lowStock = !outOfStock && stock <= (product.lowStockThreshold || 10);
+            const inCart = cart.find(i => i.productId === product.id);
+            const cartQty = inCart ? inCart.quantity : 0;
+            return (
+            <div key={product.id}
+              className={`relative rounded-2xl border p-3 flex flex-col transition-all ${
+                outOfStock ? 'opacity-40 border-transparent bg-white/60' :
+                inCart ? 'border-accent-signature/40 bg-accent-signature/5' :
+                'border-black/8 bg-white hover:border-accent-signature/30 hover:shadow-sm'
+              }`}>
+              {cartQty > 0 && (
+                <span className="absolute top-2 right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-accent-signature text-button-text text-[9px] font-black flex items-center justify-center shadow ring-2 ring-white">{cartQty}</span>
+              )}
+              <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center mb-2">
+                {product.image
+                  ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                  : <span className="text-xs font-black text-ink-primary/30 uppercase">{(product.name||'?').slice(0,2)}</span>}
+              </div>
+              <div className="text-sm font-bold text-ink-primary leading-tight line-clamp-2 mb-1">{product.name}</div>
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className={`text-sm font-black ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>{formatCurrency(product.sellingPrice)}</span>
+                {product.taxRate > 0 && <span className="text-[9px] font-black px-1 rounded bg-blue-50 text-blue-500">{product.taxRate}%</span>}
+              </div>
+              <div className={`text-[11px] font-semibold mb-2 ${outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : 'text-gray-400'}`}>
+                {outOfStock ? 'OUT OF STOCK' : lowStock ? `${stock} stk · low` : `${stock} stk`}
+              </div>
+              {!outOfStock && (
+                <div className="mt-auto grid grid-cols-3 gap-1">
+                  {[1,5,10].map(n => (
+                    <button key={n} type="button" onClick={() => addQty(product, n)}
+                      className="py-1.5 rounded-lg bg-canvas hover:bg-accent-signature hover:text-button-text text-[11px] font-black text-ink-primary transition-colors">
+                      +{n}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            );
+          })}
+        </div>
         )}
 
+        {viewMode === 'list' && (
         <div className="flex flex-col gap-px overflow-y-auto pr-1 pb-4">
           {filteredProducts.map(product => {
             const ms = marginStatus[product.id] || {};
@@ -499,6 +578,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             );
           })}
         </div>
+        )}
       </div>
 
       {/* Cart Area */}
