@@ -37,6 +37,8 @@ const SaaSLogin        = lazy(() => import('./pages/SaaSLogin'));
 // the mobile WebView injects into localStorage before navigation.
 const ReceiptEmbed     = lazy(() => import('./pages/embed/ReceiptEmbed'));
 const InvoiceEmbed     = lazy(() => import('./pages/embed/InvoiceEmbed'));
+// Customer-facing UPI QR for dual-monitor POS. Param-only, no auth.
+const PayQrScreen      = lazy(() => import('./pages/embed/PayQrScreen'));
 const Vehicles         = lazy(() => import('./pages/Vehicles'));
 const Users            = lazy(() => import('./pages/Users'));
 const Clients          = lazy(() => import('./pages/Clients'));
@@ -165,6 +167,7 @@ function AppRoutes() {
       <Route path="/" element={<RootRedirect />} />
       <Route path="/embed/receipt/:saleId"    element={<ReceiptEmbed />} />
       <Route path="/embed/invoice/:invoiceId" element={<InvoiceEmbed />} />
+      <Route path="/embed/payqr"              element={<PayQrScreen />} />
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
       <Route path="/register" element={<GuestRoute><SaaSLogin /></GuestRoute>} />
       {/* /welcome — new user signup flow, auth required but NOT global admin */}

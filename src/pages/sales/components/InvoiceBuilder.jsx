@@ -4,8 +4,9 @@ import Button from '../../../shared/Button';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { useNotifications } from '../../../context/NotificationContext';
 import { supabase } from '../../../lib/supabase';
+import { QRCodeSVG } from 'qrcode.react';
 
-const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE' }) => {
+const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
   const { addNotification } = useNotifications();
   const [cart, setCart] = useState([]);
@@ -961,6 +962,54 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   </button>
                 </div>
               </div>
+
+              {/* UPI QR — shown when UPI selected. Cashier sees it inline;
+                  "Show on customer screen" pops out a full-screen QR to
+                  drag onto a second (customer-facing) monitor. Display
+                  only — the cashier still confirms receipt below. */}
+              {paymentMethod === 'UPI' && (() => {
+                const upiId = businessProfile?.upi_id;
+                if (!upiId) {
+                  return (
+                    <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 text-xs font-semibold text-amber-700">
+                      Add a UPI ID in Settings to show a payment QR.
+                    </div>
+                  );
+                }
+                const merchant = businessProfile?.businessName || businessProfile?.name || 'Merchant';
+                const note = `Sale ${formatCurrency(total)}`;
+                const upiUri =
+                  `upi://pay?pa=${upiId}` +
+                  `&pn=${encodeURIComponent(merchant)}` +
+                  `&am=${Number(total).toFixed(2)}&cu=INR&tn=${encodeURIComponent(note)}`;
+                const popoutUrl =
+                  `/embed/payqr?pa=${encodeURIComponent(upiId)}` +
+                  `&pn=${encodeURIComponent(merchant)}` +
+                  `&am=${Number(total).toFixed(2)}` +
+                  `&tn=${encodeURIComponent(note)}` +
+                  `&cur=${encodeURIComponent(businessProfile?.currencySymbol || '₹')}`;
+                return (
+                  <div className="rounded-2xl border-2 border-accent-signature/20 bg-accent-signature/5 p-4 flex flex-col items-center gap-3">
+                    <div className="bg-white p-3 rounded-xl border border-black/5">
+                      <QRCodeSVG value={upiUri} size={150} level="M" includeMargin={false} />
+                    </div>
+                    <div className="text-sm font-black text-ink-primary tabular-nums">
+                      {formatCurrency(total)}
+                    </div>
+                    <div className="text-[10px] text-gray-500">UPI: <b>{upiId}</b></div>
+                    <button
+                      type="button"
+                      onClick={() => window.open(
+                        popoutUrl, 'payqr',
+                        'width=520,height=720,menubar=no,toolbar=no,location=no,status=no'
+                      )}
+                      className="text-xs font-bold text-accent-signature underline"
+                    >
+                      Show on customer screen ↗
+                    </button>
+                  </div>
+                );
+              })()}
 
               {/* Amount Received — partial pay + change calc */}
               <div>
