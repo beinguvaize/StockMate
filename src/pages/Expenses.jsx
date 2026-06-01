@@ -287,9 +287,24 @@ const Expenses = () => {
 
  {/* Expenses Table/Ledger */}
  <div className="glass-panel !p-0 !rounded-bento border border-black/5 shadow-premium overflow-hidden">
- <div className="bg-ink-primary p-4 flex items-center gap-4">
- <Briefcase size={16} className="text-accent-signature" />
- <h2 className="text-[10px] font-semibold text-surface">Expense History</h2>
+ <div className="bg-ink-primary px-6 py-4 flex items-center justify-between">
+ <div className="flex items-center gap-3">
+   <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
+     <Briefcase size={15} className="text-accent-signature" />
+   </div>
+   <div>
+     <h2 className="text-sm font-black text-surface leading-none tracking-tight">Expense History</h2>
+     <p className="text-[10px] font-medium text-white/40 mt-1">
+       {filteredExpenses.length} {filteredExpenses.length === 1 ? 'entry' : 'entries'}
+     </p>
+   </div>
+ </div>
+ <div className="text-right">
+   <div className="text-[9px] font-bold uppercase tracking-widest text-white/40">Total</div>
+   <div className="text-base font-black text-surface tabular-nums leading-tight">
+     {businessProfile?.currencySymbol || '₹'}{Math.round(filteredExpenses.reduce((s, e) => s + (parseFloat(e.amount) || 0), 0)).toLocaleString('en-IN')}
+   </div>
+ </div>
  </div>
 
  {/* Recurring templates — active monthly auto-logs. Toggle pause or
@@ -326,71 +341,76 @@ const Expenses = () => {
  <div className="overflow-x-auto">
  <table className="w-full text-left border-collapse">
  <thead>
- <tr className="border-b border-black/5 bg-canvas">
- <th className="p-1.5 pl-8 text-[10px] font-semibold text-gray-700 opacity-70">Expense Name</th>
- <th className="p-1.5 text-[10px] font-semibold text-gray-700 opacity-70 text-center">Category</th>
- <th className="p-1.5 text-[10px] font-semibold text-gray-700 opacity-70 text-center">Date</th>
- <th className="p-1.5 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Amount</th>
- <th className="p-1.5 pr-8 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Actions</th>
+ <tr className="border-b border-black/5 bg-canvas/60">
+ <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">Expense</th>
+ <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-center">Category</th>
+ <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-center">Date</th>
+ <th className="px-3 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-right">Amount</th>
+ <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-right w-px">Actions</th>
  </tr>
  </thead>
  <tbody className="divide-y divide-black/5 bg-white font-inter">
- {filteredExpenses.map(expense => (
- <tr key={expense.id} className="group hover:bg-canvas transition-colors">
- <td className="p-1.5 pl-8">
- <div className="text-xs font-semibold text-ink-primary">
-   {expense.note || '—'}
- </div>
- <div className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">
-   via {expense.payment_method || 'CASH'}
+ {filteredExpenses.map(expense => {
+ const cat = (expense.category || '').toLowerCase();
+ const catStyle =
+   cat === 'petrol' ? { dot: 'bg-orange-400', pill: 'bg-orange-50 text-orange-600' } :
+   cat === 'food' ? { dot: 'bg-red-400', pill: 'bg-red-50 text-red-600' } :
+   cat === 'salary' ? { dot: 'bg-emerald-400', pill: 'bg-emerald-50 text-emerald-600' } :
+   cat === 'rent' ? { dot: 'bg-blue-400', pill: 'bg-blue-50 text-blue-600' } :
+   cat === 'utility' ? { dot: 'bg-amber-400', pill: 'bg-amber-50 text-amber-700' } :
+   cat === 'purchase' ? { dot: 'bg-purple-400', pill: 'bg-purple-50 text-purple-600' } :
+   cat === 'maintenance' ? { dot: 'bg-teal-400', pill: 'bg-teal-50 text-teal-600' } :
+   cat.includes('credit') ? { dot: 'bg-fuchsia-400', pill: 'bg-fuchsia-50 text-fuchsia-600' } :
+   cat.includes('delivery') ? { dot: 'bg-sky-400', pill: 'bg-sky-50 text-sky-600' } :
+   { dot: 'bg-gray-300', pill: 'bg-gray-100 text-gray-500' };
+ return (
+ <tr key={expense.id} className="group hover:bg-canvas/50 transition-colors">
+ <td className="px-6 py-3.5">
+ <div className="flex items-center gap-3">
+   <span className={`w-2 h-2 rounded-full shrink-0 ${catStyle.dot}`} />
+   <div className="min-w-0">
+     <div className="text-sm font-bold text-ink-primary truncate">{expense.note || '—'}</div>
+     <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-0.5">
+       via {expense.payment_method || 'CASH'}
+     </div>
+   </div>
  </div>
  </td>
- <td className="p-1.5 text-center">
- <span className={`px-3 py-1 rounded-pill text-[9px] font-semibold border ${
- (expense.category || '').toLowerCase() === 'petrol' ? 'bg-orange-50 text-orange-600 border-orange-100' :
- (expense.category || '').toLowerCase() === 'food' ? 'bg-red-50 text-red-600 border-red-100' :
- (expense.category || '').toLowerCase() === 'salary' ? 'bg-green-50 text-green-600 border-green-100' :
- (expense.category || '').toLowerCase() === 'rent' ? 'bg-blue-50 text-blue-600 border-blue-100' :
- (expense.category || '').toLowerCase() === 'utility' ? 'bg-yellow-50 text-yellow-600 border-yellow-100' :
- (expense.category || '').toLowerCase() === 'purchase' ? 'bg-purple-50 text-purple-600 border-purple-100' :
- (expense.category || '').toLowerCase() === 'maintenance' ? 'bg-teal-50 text-teal-600 border-teal-100' :
- (expense.category || '').toLowerCase().includes('credit') ? 'bg-fuchsia-50 text-fuchsia-600 border-fuchsia-100' :
- (expense.category || '').toLowerCase().includes('delivery') ? 'bg-sky-50 text-sky-600 border-sky-100' :
- 'bg-gray-100 text-[#747576] border-gray-200'
-}`}>
+ <td className="px-3 py-3.5 text-center">
+ <span className={`inline-block px-2.5 py-1 rounded-pill text-[10px] font-bold ${catStyle.pill}`}>
  {expense.category || 'Other'}
  </span>
  </td>
- <td className="p-1.5 text-center">
- <div className="flex items-center justify-center gap-2 text-[10px] font-bold text-gray-700">
- <Calendar size={10} className="opacity-60" />
+ <td className="px-3 py-3.5 text-center">
+ <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
+ <Calendar size={11} className="opacity-50" />
  {expense.date ? (() => {
    const [y, m, d] = (expense.date.split('T')[0]).split('-');
    return new Date(+y, +m - 1, +d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
  })() : '—'}
  </div>
  </td>
- <td className="p-1.5 text-right">
- <div className="text-base font-semibold text-ink-primary">
- {businessProfile?.currencySymbol || '₹'}{parseFloat(expense.amount).toLocaleString()}
+ <td className="px-3 py-3.5 text-right">
+ <div className="text-base font-black text-ink-primary tabular-nums">
+ {businessProfile?.currencySymbol || '₹'}{parseFloat(expense.amount).toLocaleString('en-IN')}
  </div>
  </td>
- <td className="p-1.5 pr-8 text-right">
- <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+ <td className="px-6 py-3.5 text-right">
+ <div className="flex items-center justify-end gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
  {hasPermission('EDIT_EXPENSE') && (
- <button 
- className="w-8 h-8 rounded-xl bg-accent-signature/20 text-ink-primary flex items-center justify-center hover:scale-110 transition-all border border-black/5"
+ <button
+ aria-label="Edit expense"
+ className="w-8 h-8 rounded-lg bg-canvas text-gray-500 flex items-center justify-center hover:bg-accent-signature/15 hover:text-accent-signature transition-colors"
  onClick={() => handleEdit(expense)}
  >
  <FileText size={14} />
  </button>
  )}
  {hasPermission('DELETE_EXPENSE') && (
- <button 
- className="w-8 h-8 rounded-xl bg-red-50 text-red-500 flex items-center justify-center hover:scale-110 transition-all border border-red-100"
- onClick={() => {
- if(window.confirm('Delete record?')) deleteExpense(expense.id);
-}}
+ <button
+ aria-label="Delete expense"
+ className="w-8 h-8 rounded-lg bg-canvas text-gray-500 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"
+ onClick={() => { if(window.confirm('Delete record?')) deleteExpense(expense.id); }}
  >
  <X size={14} />
  </button>
@@ -398,7 +418,8 @@ const Expenses = () => {
  </div>
  </td>
  </tr>
- ))}
+ );
+ })}
  </tbody>
  </table>
  </div>
