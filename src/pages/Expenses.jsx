@@ -72,9 +72,7 @@ const Expenses = () => {
  });
 
 
- const filteredExpenses = useMemo(() => {
- if (!Array.isArray(expenses)) return [];
- 
+ // Component-scope so both filteredExpenses and categoryBreakdown can use it.
  const getLocalDate = (date) => {
  if (!date) return '';
  try {
@@ -86,6 +84,9 @@ const Expenses = () => {
  return `${year}-${month}-${day}`;
 } catch (e) { return '';}
 };
+
+ const filteredExpenses = useMemo(() => {
+ if (!Array.isArray(expenses)) return [];
 
  const today = getLocalDate(new Date());
  const yesterdayDate = new Date();
