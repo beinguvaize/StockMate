@@ -612,7 +612,7 @@ const Settings = () => {
               className={`w-full h-12 rounded-xl text-xs font-bold transition-all ${
                 workspaceSlug === currentTenant?.slug 
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                : 'bg-accent-signature text-ink-primary shadow-premium'
+                : 'bg-accent-signature text-button-text shadow-premium'
               }`}
             >
               {isUpdatingSlug ? 'UPDATING WORKSPACE...' : 'UPDATE WORKSPACE URL'}

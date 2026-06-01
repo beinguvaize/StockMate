@@ -140,7 +140,7 @@ const Onboarding = () => {
             <React.Fragment key={step.id}>
               <div className={`flex items-center justify-center w-7 h-7 rounded-full border-2 text-[10px] font-black transition-all ${
                 completed.has(step.id)
-                  ? 'bg-accent-signature border-accent-signature text-black'
+                  ? 'bg-accent-signature border-accent-signature text-button-text'
                   : i === currentStep
                   ? 'border-ink-primary bg-ink-primary text-white'
                   : 'border-black/10 bg-white text-gray-400'
@@ -297,7 +297,7 @@ const Onboarding = () => {
               {isLastStep ? (
                 <button
                   onClick={goToDashboard}
-                  className="flex-1 flex items-center justify-center gap-2 py-4 bg-accent-signature text-black rounded-2xl text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
+                  className="flex-1 flex items-center justify-center gap-2 py-4 bg-accent-signature text-button-text rounded-2xl text-[12px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
                 >
                   Go to Dashboard <ArrowRight size={14} />
                 </button>

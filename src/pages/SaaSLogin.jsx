@@ -245,7 +245,7 @@ const SaaSLogin = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent-signature text-black text-[12px] font-black uppercase tracking-widest hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 mt-2"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent-signature text-button-text text-[12px] font-black uppercase tracking-widest hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 mt-2"
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <>Start Free Trial <ArrowRight size={14} /></>}
               </button>

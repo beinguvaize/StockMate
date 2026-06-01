@@ -491,7 +491,7 @@ const Users = () => {
 }`}
  >
  <div className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 transition-all ${
- isSelected ? 'bg-accent-signature text-ink-primary' : 'bg-canvas'
+ isSelected ? 'bg-accent-signature text-button-text' : 'bg-canvas'
 }`}>
  <RoleIcon size={12} />
  </div>
