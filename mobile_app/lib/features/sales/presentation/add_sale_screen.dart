@@ -1902,10 +1902,46 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     );
   }
 
+  // Show the UPI QR immediately when the cashier taps the UPI/QR tile,
+  // using the current bill total, so the customer can scan and pay
+  // before the sale is completed. This is preview-only — it does not
+  // create or resolve the sale. The post-Complete confirm flow in
+  // _submit still runs and is what actually marks the sale PAID.
+  Future<void> _showUpiPreview() async {
+    try {
+      final profile  = await widget.ref.read(tenantProfileProvider.future);
+      final upiId    = profile?['upi_id'] as String?;
+      final merchant = (profile?['businessName'] as String?) ??
+                       (profile?['name'] as String?) ?? 'Merchant';
+      if (!mounted) return;
+      if (upiId == null || upiId.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Add a UPI ID in Settings to show a payment QR.'),
+        ));
+        return;
+      }
+      await UpiQrSheet.show(
+        context,
+        upiId: upiId,
+        merchantName: merchant,
+        amount: _total,
+        invoiceNo: 'PREVIEW',
+        // Preview only — hide the "Payment Received" confirm button so
+        // staff don't mistake this for completing the sale.
+        confirmable: false,
+      );
+    } catch (e) {
+      debugPrint('[SALE] UPI preview failed: $e');
+    }
+  }
+
   Widget _buildPaymentOption(_PayMethod m) {
     final isActive = _paymentMethod == m.key;
     return GestureDetector(
-      onTap: () => setState(() => _paymentMethod = m.key),
+      onTap: () {
+        setState(() => _paymentMethod = m.key);
+        if (m.key == 'UPI') _showUpiPreview();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         margin: const EdgeInsets.only(bottom: 10),
