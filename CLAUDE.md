@@ -62,6 +62,36 @@ UI should not flip into another tenant's chrome for non-admins.
 
 ---
 
+## SUPABASE RPC: never ship a second overload
+
+PostgREST cannot disambiguate two functions with the same name when a
+caller omits the parameter that differs between them. It returns
+PGRST203 "Could not choose the best candidate function" and the call
+fails. This bit us twice — `convert_sale_to_invoice` (10-arg vs
+11-arg `p_phone`) and `process_sale` (13-arg vs 14-arg
+`p_paid_amount`) — and in the second case it silently blocked every
+mobile sale from syncing.
+
+### Rules
+
+1. To add a parameter to an existing RPC, **alter it in place** with
+   `CREATE OR REPLACE FUNCTION` and give the new param a DEFAULT. Do
+   NOT create a second overload with a different arity.
+2. If a migration ever does introduce a second overload, it must
+   `DROP FUNCTION` the old signature in the **same** migration so only
+   one version is ever live.
+3. New params go at the **end** of the signature with a DEFAULT so old
+   callers (cached web bundles, older mobile builds) keep resolving.
+4. Before shipping an RPC change, check for duplicates:
+   ```sql
+   SELECT oid::regprocedure::text, pronargs
+   FROM pg_proc WHERE proname = '<fn>' ORDER BY pronargs;
+   ```
+   More than one row = a sync-breaking overload is live. Drop the
+   stale one (dev first, then prod, with confirmation).
+
+---
+
 ## Environment + deploy
 
 - Dev first, prod after sign-off. Two Supabase projects:
