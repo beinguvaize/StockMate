@@ -6,7 +6,7 @@ import {
   Plus, Search, Calendar, FileText, X, Save, TrendingDown,
   DollarSign, Briefcase, Layers, Receipt, Download
 } from 'lucide-react';
-import { todayISOInAppTZ } from '../lib/utils';
+import { todayISOInAppTZ, formatCurrency } from '../lib/utils';
 
 // Category → dot + pill colour. Shared by the table rows and the mobile
 // cards so both stay visually consistent.
