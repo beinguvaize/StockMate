@@ -468,8 +468,14 @@ const AppProviderInner = ({ children }) => {
     if (!isSupabaseConfigured) return;
     setSyncStatus('SYNCING');
     
-    // 1. Get atomic invoice number via RPC
-    const { data: invNumber, error: rpcError } = await supabase.rpc('get_next_invoice_number');
+    // 1. Get atomic invoice number via the canonical issuer RPC.
+    // Replaces the legacy get_next_invoice_number() which emitted the
+    // old "INV-YY-NNNN" format and is being dropped — issue_invoice_number
+    // returns the standard INV/<FY>/<NNNN> shape used everywhere else.
+    const { data: invNumber, error: rpcError } = await supabase.rpc(
+      'issue_invoice_number',
+      { p_tenant_id: currentTenantId, p_series: 'INV' }
+    );
     if (rpcError) {
       console.error("Error getting invoice number:", rpcError);
       addNotification("Numbering system failure", "error");
