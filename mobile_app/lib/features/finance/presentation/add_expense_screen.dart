@@ -27,6 +27,12 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   late String _selectedCategory;
   bool _isLoading = false;
   String? _formError;
+  // Parity with web expense form.
+  String _paymentMethod = 'CASH';           // CASH | UPI | BANK | CARD
+  bool _gstClaimable = false;
+  String _gstRate = '18';
+  late final TextEditingController _gstinController;
+  bool _repeatMonthly = false;
 
   bool get _isEditMode => widget.expense != null;
 
@@ -55,12 +61,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     _selectedDate = e?.date != null
         ? DateTime.tryParse(e!.date!) ?? DateTime.now()
         : DateTime.now();
+    _gstinController = TextEditingController();
   }
 
   @override
   void dispose() {
     _noteController.dispose();
     _amountController.dispose();
+    _gstinController.dispose();
     super.dispose();
   }
 
@@ -104,16 +112,28 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
       return;
     }
 
-    final note = _noteController.text.trim();
-    if (note.isEmpty) {
-      setState(() => _formError = 'Description required.');
-      return;
-    }
+    // Description optional — fall back to the category label (matches web).
+    final note = _noteController.text.trim().isEmpty
+        ? _selectedCategory
+        : _noteController.text.trim();
 
     final tenantCtx = ref.read(tenantContextProvider).valueOrNull;
     if (tenantCtx == null) {
       setState(() => _formError = 'No tenant context — please sign out and back in.');
       return;
+    }
+
+    // GST input-tax-credit: back the tax out of the inclusive amount.
+    double? gstRate;
+    double gstAmount = 0;
+    String? vendorGstin;
+    if (_gstClaimable) {
+      gstRate = double.tryParse(_gstRate) ?? 0;
+      gstAmount = gstRate > 0
+          ? double.parse((amount - amount / (1 + gstRate / 100)).toStringAsFixed(2))
+          : 0;
+      final g = _gstinController.text.trim().toUpperCase();
+      vendorGstin = g.isEmpty ? null : g;
     }
 
     setState(() => _isLoading = true);
@@ -125,6 +145,10 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           'amount': amount,
           'date': _selectedDate.toIso8601String().split('T')[0],
           'note': note,
+          'payment_method': _paymentMethod,
+          'gst_rate': gstRate,
+          'gst_amount': gstAmount,
+          'vendor_gstin': vendorGstin,
         };
         await supabase
             .from('expenses')
@@ -153,10 +177,32 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           'amount': amount,
           'date': _selectedDate.toIso8601String().split('T')[0],
           'note': note,
+          'payment_method': _paymentMethod,
+          'gst_rate': gstRate,
+          'gst_amount': gstAmount,
+          'vendor_gstin': vendorGstin,
           'tenant_id': tenantCtx.tenantId,
         };
 
         final queued = await ref.read(syncServiceProvider).upsertOnlineOrQueue('expenses', row);
+
+        // Repeat monthly → create a recurring template (online best-effort;
+        // the nightly job clones it each month). Mirrors the web flow.
+        if (_repeatMonthly) {
+          try {
+            await supabase.from('recurring_expense_templates').insert({
+              'id': 'RET-${DateTime.now().millisecondsSinceEpoch}',
+              'tenant_id': tenantCtx.tenantId,
+              'note': note,
+              'amount': amount,
+              'category': _selectedCategory,
+              'payment_method': _paymentMethod,
+              'frequency': 'MONTHLY',
+              'day_of_month': _selectedDate.day.clamp(1, 28),
+              'active': true,
+            });
+          } catch (_) {/* non-fatal — expense still saved */}
+        }
 
         if (mounted) {
           ref.invalidate(expensesProvider);
@@ -354,6 +400,122 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                               ),
                             ),
                           ),
+                        ),
+                      ),
+                    ),
+
+                    // ── PAID VIA ────────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('PAID VIA', style: GoogleFonts.publicSans(
+                            fontSize: 11, fontWeight: FontWeight.w800,
+                            letterSpacing: 1, color: AppColors.inkTertiary)),
+                          const SizedBox(height: 8),
+                          Row(children: [
+                            for (final m in const ['CASH','UPI','BANK','CARD'])
+                              Expanded(child: Padding(
+                                padding: const EdgeInsets.only(right: 6),
+                                child: GestureDetector(
+                                  onTap: () => setState(() => _paymentMethod = m),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(vertical: 10),
+                                    alignment: Alignment.center,
+                                    decoration: BoxDecoration(
+                                      color: _paymentMethod == m ? AppColors.primary.withValues(alpha: 0.12) : Colors.white,
+                                      border: Border.all(color: _paymentMethod == m ? AppColors.primary : AppColors.outlineVariant),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(m, style: GoogleFonts.publicSans(
+                                      fontSize: 11, fontWeight: FontWeight.w800,
+                                      color: _paymentMethod == m ? AppColors.primary : AppColors.inkSecondary)),
+                                  ),
+                                ),
+                              )),
+                          ]),
+                        ],
+                      ),
+                    ),
+
+                    // ── GST / ITC ───────────────────────────────────
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.outlineVariant),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(children: [
+                          SwitchListTile(
+                            value: _gstClaimable,
+                            onChanged: (v) => setState(() => _gstClaimable = v),
+                            activeColor: AppColors.primary,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                            title: Text('Claim GST (ITC)', style: GoogleFonts.publicSans(
+                              fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
+                            subtitle: Text('For registered vendors with a GSTIN', style: GoogleFonts.publicSans(
+                              fontSize: 11, color: AppColors.inkTertiary)),
+                          ),
+                          if (_gstClaimable) Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                            child: Column(children: [
+                              Row(children: [
+                                for (final r in const ['5','12','18','28'])
+                                  Expanded(child: Padding(
+                                    padding: const EdgeInsets.only(right: 6),
+                                    child: GestureDetector(
+                                      onTap: () => setState(() => _gstRate = r),
+                                      child: Container(
+                                        padding: const EdgeInsets.symmetric(vertical: 8),
+                                        alignment: Alignment.center,
+                                        decoration: BoxDecoration(
+                                          color: _gstRate == r ? AppColors.primary.withValues(alpha: 0.12) : Colors.white,
+                                          border: Border.all(color: _gstRate == r ? AppColors.primary : AppColors.outlineVariant),
+                                          borderRadius: BorderRadius.circular(10),
+                                        ),
+                                        child: Text('$r%', style: GoogleFonts.publicSans(
+                                          fontSize: 12, fontWeight: FontWeight.w800,
+                                          color: _gstRate == r ? AppColors.primary : AppColors.inkSecondary)),
+                                      ),
+                                    ),
+                                  )),
+                              ]),
+                              const SizedBox(height: 10),
+                              TextField(
+                                controller: _gstinController,
+                                textCapitalization: TextCapitalization.characters,
+                                style: GoogleFonts.publicSans(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
+                                decoration: InputDecoration(
+                                  hintText: 'Vendor GSTIN',
+                                  isDense: true,
+                                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                              ),
+                            ]),
+                          ),
+                        ]),
+                      ),
+                    ),
+
+                    // ── REPEAT MONTHLY (add mode only) ──────────────
+                    if (!_isEditMode) Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.outlineVariant),
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: SwitchListTile(
+                          value: _repeatMonthly,
+                          onChanged: (v) => setState(() => _repeatMonthly = v),
+                          activeColor: AppColors.primary,
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 14),
+                          title: Text('Repeat monthly', style: GoogleFonts.publicSans(
+                            fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
+                          subtitle: Text('Auto-logs on day ${_selectedDate.day.clamp(1, 28)} every month', style: GoogleFonts.publicSans(
+                            fontSize: 11, color: AppColors.inkTertiary)),
                         ),
                       ),
                     ),
