@@ -558,7 +558,7 @@ const Expenses = () => {
  <tr key={expense.id} className="group hover:bg-accent-signature/[0.03] transition-colors">
  <td className="px-6 py-4">
  <div className="flex items-center gap-3.5">
-   <span className={`w-1.5 h-9 rounded-full shrink-0 ${catStyle.dot}`} />
+   <span className={`w-1 h-9 rounded-sm shrink-0 ${catStyle.dot}`} />
    <div className="min-w-0">
      <div className="flex items-center gap-1.5">
        <span className="text-sm font-bold text-ink-primary truncate">{expense.note || '—'}</span>
