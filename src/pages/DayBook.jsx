@@ -100,7 +100,7 @@ const DayBook = () => {
     // (location_id). "All stores" (sentinel) keeps the whole-business view.
     const storeMatch = (s) => storeFilter === ALL_STORES || (s.location_id || ALL_STORES) === storeFilter;
     const daySales      = (sales      || []).filter(s => s.date === selectedDate && storeMatch(s));
-    const dayExpenses   = (expenses   || []).filter(e => e.date === selectedDate);
+    const dayExpenses   = (expenses   || []).filter(e => e.date === selectedDate && storeMatch(e));
     const dayCollect    = (clientPayments || []).filter(p => p.date === selectedDate);
     const dayPurchases  = (purchases  || []).filter(p => p.date === selectedDate);
 

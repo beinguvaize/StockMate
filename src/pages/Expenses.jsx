@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect} from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
+import { useInventory } from '../hooks/useInventory';
 import {
   Plus, Search, Calendar, FileText, X, Save, TrendingDown,
   DollarSign, Briefcase, Layers, Receipt, Download
@@ -33,6 +34,8 @@ const fmtDate = (raw) => {
 const Expenses = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
+  const { inventoryLocations } = useInventory(currentTenantId);
+  const posStores = (inventoryLocations || []).filter(l => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
   const {
     expenses, addExpense, updateExpense, deleteExpense,
     expenseCategories, loading,
@@ -97,6 +100,7 @@ const Expenses = () => {
    gst_claimable: false,
    gst_rate: '18',
    vendor_gstin: '',
+   location_id: '',
  });
 
 
@@ -241,7 +245,7 @@ const Expenses = () => {
    gst_amount = r > 0 ? +(amount - amount / (1 + r / 100)).toFixed(2) : 0;
    vendor_gstin = (formData.vendor_gstin || '').trim().toUpperCase() || null;
  }
- const expenseData = { ...formData, note, amount, gst_rate, gst_amount, vendor_gstin };
+ const expenseData = { ...formData, note, amount, gst_rate, gst_amount, vendor_gstin, location_id: formData.location_id || null };
 
  setSaving(true);
  const { error } = editingExpense
@@ -275,7 +279,7 @@ const Expenses = () => {
 
  setIsAdding(false);
  setEditingExpense(null);
- setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false, gst_claimable: false, gst_rate: '18', vendor_gstin: '' });
+ setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false, gst_claimable: false, gst_rate: '18', vendor_gstin: '', location_id: '' });
 };
 
  const handleEdit = (expense) => {
@@ -291,6 +295,7 @@ const Expenses = () => {
      gst_claimable: !!expense.vendor_gstin || Number(expense.gst_amount) > 0,
      gst_rate: expense.gst_rate ? String(expense.gst_rate) : '18',
      vendor_gstin: expense.vendor_gstin || '',
+     location_id: expense.location_id || '',
    });
    setIsAdding(true);
  };
@@ -300,7 +305,7 @@ const Expenses = () => {
    setEditingExpense(null);
    setFormError('');
    setSaving(false);
-   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false, gst_claimable: false, gst_rate: '18', vendor_gstin: '' });
+   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false, gst_claimable: false, gst_rate: '18', vendor_gstin: '', location_id: '' });
  };
 
  useEffect(() => {
@@ -804,6 +809,21 @@ const Expenses = () => {
      onChange={e => setFormData({...formData, date: e.target.value})}
    />
  </div>
+
+ {/* ── Paid from store (multi-store only) ──────────────── */}
+ {posStores.length > 1 && (
+ <div>
+   <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Paid From Store</label>
+   <select
+     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
+     value={formData.location_id}
+     onChange={e => setFormData({...formData, location_id: e.target.value})}
+   >
+     <option value="">Business-wide (no store)</option>
+     {posStores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+   </select>
+ </div>
+ )}
 
  {/* ── Description (optional) ──────────────────────────── */}
  <div>
