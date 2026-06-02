@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/features/sales/presentation/add_sale_screen.dart' show posStoresProvider;
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/finance/data/models/expense.dart';
 import 'package:mobile_app/features/finance/presentation/providers/finance_provider.dart';
@@ -33,6 +34,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   String _gstRate = '18';
   late final TextEditingController _gstinController;
   bool _repeatMonthly = false;
+  String? _storeId; // store/till this expense was paid from (multi-store)
 
   bool get _isEditMode => widget.expense != null;
 
@@ -149,6 +151,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           'gst_rate': gstRate,
           'gst_amount': gstAmount,
           'vendor_gstin': vendorGstin,
+          'location_id': _storeId,
         };
         await supabase
             .from('expenses')
@@ -181,6 +184,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
           'gst_rate': gstRate,
           'gst_amount': gstAmount,
           'vendor_gstin': vendorGstin,
+          'location_id': _storeId,
           'tenant_id': tenantCtx.tenantId,
         };
 
@@ -231,6 +235,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final stores = ref.watch(posStoresProvider).valueOrNull ?? const [];
     return Scaffold(
       backgroundColor: const Color(0xFFF8F6F6), // warm off-white per spec
       body: SafeArea(
@@ -496,6 +501,42 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                             ]),
                           ),
                         ]),
+                      ),
+                    ),
+
+                    // ── PAID FROM STORE (multi-store only) ──────────
+                    if (stores.length > 1) Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('PAID FROM STORE', style: GoogleFonts.publicSans(
+                            fontSize: 11, fontWeight: FontWeight.w800,
+                            letterSpacing: 1, color: AppColors.inkTertiary)),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: AppColors.outlineVariant),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String?>(
+                                isExpanded: true,
+                                value: _storeId,
+                                hint: Text('Business-wide', style: GoogleFonts.publicSans(
+                                  fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.inkSecondary)),
+                                items: [
+                                  DropdownMenuItem<String?>(value: null, child: Text('Business-wide', style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w600))),
+                                  for (final s in stores)
+                                    DropdownMenuItem<String?>(value: s['id'] as String, child: Text(s['name'] ?? 'Store', style: GoogleFonts.publicSans(fontSize: 14, fontWeight: FontWeight.w600))),
+                                ],
+                                onChanged: (v) => setState(() => _storeId = v),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
 

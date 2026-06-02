@@ -91,6 +91,8 @@ export const useFinance = (tenantId) => {
     gst_rate:     expense.gst_rate ?? null,
     gst_amount:   expense.gst_amount ?? 0,
     vendor_gstin: (expense.vendor_gstin ?? null) || null,
+    // Store/till this expense was paid from. null = business-wide.
+    location_id:  expense.location_id ?? null,
   });
 
   const addExpense = async (expense) => {
