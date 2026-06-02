@@ -531,34 +531,34 @@ const Expenses = () => {
  <div className="hidden sm:block overflow-x-auto max-h-[60vh] overflow-y-auto">
  <table className="w-full text-left border-collapse">
  <thead className="sticky top-0 z-10">
- <tr className="border-b border-black/5 bg-canvas">
- <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400">Expense</th>
- <th className="px-3 py-3 text-center">
-   <button onClick={() => toggleSort('category')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors">
-     Category {sortKey === 'category' && <span>{sortDir === 'asc' ? '↑' : '↓'}</span>}
+ <tr className="border-b border-black/10 bg-canvas/80 backdrop-blur-sm">
+ <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">Expense</th>
+ <th className="px-4 py-3.5 text-left">
+   <button onClick={() => toggleSort('category')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-ink-primary transition-colors">
+     Category <span className={`transition-opacity ${sortKey === 'category' ? 'opacity-100 text-accent-signature' : 'opacity-30'}`}>{sortKey === 'category' && sortDir === 'asc' ? '↑' : '↓'}</span>
    </button>
  </th>
- <th className="px-3 py-3 text-center">
-   <button onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors">
-     Date {sortKey === 'date' && <span>{sortDir === 'asc' ? '↑' : '↓'}</span>}
+ <th className="px-4 py-3.5 text-left">
+   <button onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-ink-primary transition-colors">
+     Date <span className={`transition-opacity ${sortKey === 'date' ? 'opacity-100 text-accent-signature' : 'opacity-30'}`}>{sortKey === 'date' && sortDir === 'asc' ? '↑' : '↓'}</span>
    </button>
  </th>
- <th className="px-3 py-3 text-right">
-   <button onClick={() => toggleSort('amount')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors ml-auto">
-     Amount {sortKey === 'amount' && <span>{sortDir === 'asc' ? '↑' : '↓'}</span>}
+ <th className="px-4 py-3.5 text-right">
+   <button onClick={() => toggleSort('amount')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-ink-primary transition-colors ml-auto">
+     Amount <span className={`transition-opacity ${sortKey === 'amount' ? 'opacity-100 text-accent-signature' : 'opacity-30'}`}>{sortKey === 'amount' && sortDir === 'asc' ? '↑' : '↓'}</span>
    </button>
  </th>
- <th className="px-6 py-3 text-[10px] font-bold uppercase tracking-widest text-gray-400 text-right w-px">Actions</th>
+ <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-gray-500 text-right w-px">Actions</th>
  </tr>
  </thead>
- <tbody className="divide-y divide-black/5 bg-white font-inter">
+ <tbody className="divide-y divide-black/[0.04] bg-white font-inter">
  {pagedExpenses.map(expense => {
  const catStyle = catStyleOf(expense.category);
  return (
- <tr key={expense.id} className="group hover:bg-canvas/50 transition-colors">
- <td className="px-6 py-3.5">
- <div className="flex items-center gap-3">
-   <span className={`w-2 h-2 rounded-full shrink-0 ${catStyle.dot}`} />
+ <tr key={expense.id} className="group hover:bg-accent-signature/[0.03] transition-colors">
+ <td className="px-6 py-4">
+ <div className="flex items-center gap-3.5">
+   <span className={`w-1.5 h-9 rounded-full shrink-0 ${catStyle.dot}`} />
    <div className="min-w-0">
      <div className="flex items-center gap-1.5">
        <span className="text-sm font-bold text-ink-primary truncate">{expense.note || '—'}</span>
@@ -574,24 +574,24 @@ const Expenses = () => {
    </div>
  </div>
  </td>
- <td className="px-3 py-3.5 text-center">
+ <td className="px-4 py-4 text-left">
  <span className={`inline-block px-2.5 py-1 rounded-pill text-[10px] font-bold ${catStyle.pill}`}>
  {expense.category || 'Other'}
  </span>
  </td>
- <td className="px-3 py-3.5 text-center">
- <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500">
- <Calendar size={11} className="opacity-50" />
+ <td className="px-4 py-4 text-left">
+ <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 tabular-nums">
+ <Calendar size={11} className="opacity-40" />
  {fmtDate(expense.date)}
  </div>
  </td>
- <td className="px-3 py-3.5 text-right">
- <div className="text-base font-black text-ink-primary tabular-nums">
- {businessProfile?.currencySymbol || '₹'}{parseFloat(expense.amount).toLocaleString('en-IN')}
+ <td className="px-4 py-4 text-right">
+ <div className="text-base font-black text-ink-primary tabular-nums tracking-tight">
+ <span className="text-gray-300 mr-0.5 font-bold">{businessProfile?.currencySymbol || '₹'}</span>{parseFloat(expense.amount).toLocaleString('en-IN')}
  </div>
  </td>
- <td className="px-6 py-3.5 text-right">
- <div className="flex items-center justify-end gap-1.5 opacity-40 group-hover:opacity-100 transition-opacity">
+ <td className="px-6 py-4 text-right">
+ <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
  {hasPermission('EDIT_EXPENSE') && (
  <button
  aria-label="Edit expense"
