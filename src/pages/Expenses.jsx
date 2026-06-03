@@ -487,19 +487,24 @@ const Expenses = () => {
  <div className="hidden sm:block overflow-x-auto">
  <table className="w-full text-left border-collapse">
  <thead className="sticky top-0 z-10">
- <tr className="border-b border-black/10 bg-white">
- <th className="px-6 py-3 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400">Description</th>
- <th className="px-4 py-3 text-left">
-   <button onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors">
+ <tr className="border-b border-black/10 bg-canvas/80 backdrop-blur-sm">
+ <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">Expense</th>
+ <th className="px-4 py-3.5 text-left">
+   <button onClick={() => toggleSort('category')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-ink-primary transition-colors">
+     Category <span className={`transition-opacity ${sortKey === 'category' ? 'opacity-100 text-amber-600' : 'opacity-30'}`}>{sortKey === 'category' && sortDir === 'asc' ? '↑' : '↓'}</span>
+   </button>
+ </th>
+ <th className="px-4 py-3.5 text-left">
+   <button onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-ink-primary transition-colors">
      Date <span className={`transition-opacity ${sortKey === 'date' ? 'opacity-100 text-amber-600' : 'opacity-30'}`}>{sortKey === 'date' && sortDir === 'asc' ? '↑' : '↓'}</span>
    </button>
  </th>
- <th className="px-4 py-3 text-right">
-   <button onClick={() => toggleSort('amount')} className="inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors ml-auto">
+ <th className="px-4 py-3.5 text-right">
+   <button onClick={() => toggleSort('amount')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-ink-primary transition-colors ml-auto">
      Amount <span className={`transition-opacity ${sortKey === 'amount' ? 'opacity-100 text-amber-600' : 'opacity-30'}`}>{sortKey === 'amount' && sortDir === 'asc' ? '↑' : '↓'}</span>
    </button>
  </th>
- <th className="px-6 py-3 w-px"></th>
+ <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-gray-500 text-right w-px">Actions</th>
  </tr>
  </thead>
  <tbody className="divide-y divide-black/[0.04] bg-white font-inter">
@@ -508,22 +513,27 @@ const Expenses = () => {
  return (
  <tr key={expense.id} className="group hover:bg-amber-500/[0.04] transition-colors">
  <td className="px-6 py-3">
- <div className="min-w-0">
-   <div className="flex items-center gap-1.5">
-     <span className="text-[14px] font-bold text-ink-primary truncate">{expense.note || '—'}</span>
-     {expense.recurring_template_id && (
-       <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-pill bg-amber-100 text-amber-700 text-[8px] font-black uppercase tracking-wide shrink-0" title="Auto-generated from a recurring template">
-         ↻ Recurring
-       </span>
-     )}
-   </div>
-   <div className="flex items-center gap-1.5 mt-0.5">
-     <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${catStyle.dot}`} />
-     <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
-       {expense.category || 'Other'} · via {expense.payment_method || 'CASH'}
-     </span>
+ <div className="flex items-center gap-3.5">
+   <span className={`w-1 h-8 rounded-sm shrink-0 ${catStyle.dot}`} />
+   <div className="min-w-0">
+     <div className="flex items-center gap-1.5">
+       <span className="text-[14px] font-bold text-ink-primary truncate">{expense.note || '—'}</span>
+       {expense.recurring_template_id && (
+         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-pill bg-amber-100 text-amber-700 text-[8px] font-black uppercase tracking-wide shrink-0" title="Auto-generated from a recurring template">
+           ↻ Recurring
+         </span>
+       )}
+     </div>
+     <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-0.5">
+       via {expense.payment_method || 'CASH'}
+     </div>
    </div>
  </div>
+ </td>
+ <td className="px-4 py-3 text-left">
+ <span className={`inline-block px-2.5 py-1 rounded-pill text-[10px] font-bold ${catStyle.pill}`}>
+ {expense.category || 'Other'}
+ </span>
  </td>
  <td className="px-4 py-3 text-left">
  <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 font-mono">
