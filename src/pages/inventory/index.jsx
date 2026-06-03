@@ -142,21 +142,21 @@ const Inventory = () => {
       {/* KPI Ribbon */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
         {[
-          { label: 'Total Products', value: products.length, suffix: 'ITEMS', icon: <PackagePlus size={36} strokeWidth={1.5} />, color: 'text-ink-primary' },
-          { label: 'Total Units',    value: kpis.totalUnits, suffix: 'PCS',   icon: <ShoppingBag size={36} strokeWidth={1.5} />,  color: 'text-blue-400' },
-          { label: 'Stock Value',    value: `₹${Math.round(kpis.stockValue).toLocaleString()}`,  icon: <DollarSign size={36} strokeWidth={1.5} />,  color: 'text-amber-500' },
-          { label: 'Retail Value',   value: `₹${Math.round(kpis.retailValue).toLocaleString()}`, icon: <TrendingUp size={36} strokeWidth={1.5} />,  color: 'text-emerald-500' },
-          { label: 'Low Stock',      value: kpis.lowStock,   suffix: 'SKUs',  icon: <AlertCircle size={36} strokeWidth={1.5} />,  color: 'text-orange-400' },
-          { label: 'Out of Stock',   value: kpis.outOfStock, suffix: 'SKUs',  icon: <BarChart3 size={36} strokeWidth={1.5} />,    color: 'text-red-400' },
+          { label: 'Total Products', value: products.length, suffix: 'ITEMS', icon: <PackagePlus size={36} strokeWidth={1.5} />, color: 'text-stone-400' },
+          { label: 'Total Units',    value: kpis.totalUnits, suffix: 'PCS',   icon: <ShoppingBag size={36} strokeWidth={1.5} />,  color: 'text-stone-400' },
+          { label: 'Stock Value',    value: `₹${Math.round(kpis.stockValue).toLocaleString('en-IN')}`,  icon: <DollarSign size={36} strokeWidth={1.5} />,  color: 'text-amber-500', money: true },
+          { label: 'Retail Value',   value: `₹${Math.round(kpis.retailValue).toLocaleString('en-IN')}`, icon: <TrendingUp size={36} strokeWidth={1.5} />,  color: 'text-amber-500', money: true },
+          { label: 'Low Stock',      value: kpis.lowStock,   suffix: 'SKUs',  icon: <AlertCircle size={36} strokeWidth={1.5} />,  color: 'text-amber-500', warn: kpis.lowStock > 0 ? 'low' : null },
+          { label: 'Out of Stock',   value: kpis.outOfStock, suffix: 'SKUs',  icon: <BarChart3 size={36} strokeWidth={1.5} />,    color: 'text-red-400', warn: kpis.outOfStock > 0 ? 'out' : null },
         ].map((m, i) => (
-          <div key={i} className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+          <div key={i} className="p-5 bg-white border border-black/[0.07] rounded-2xl shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
             <div className={`absolute top-4 right-4 opacity-[0.07] group-hover:opacity-[0.13] transition-opacity pointer-events-none ${m.color}`}>
               {m.icon}
             </div>
             <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-1">{m.label}</span>
-            <div className="text-2xl font-black text-ink-primary tabular-nums leading-tight">
-              {m.value}
-              {m.suffix && <span className="text-xs font-bold opacity-30 ml-1">{m.suffix}</span>}
+            <div className={`font-mono text-2xl font-bold tabular-nums leading-tight ${m.warn === 'low' ? 'text-amber-600' : m.warn === 'out' ? 'text-red-600' : 'text-ink-primary'}`}>
+              {m.money ? <><span className="text-amber-400 text-lg mr-0.5">₹</span>{String(m.value).replace('₹','')}</> : m.value}
+              {m.suffix && <span className="text-[11px] font-bold opacity-30 ml-1">{m.suffix}</span>}
             </div>
           </div>
         ))}
