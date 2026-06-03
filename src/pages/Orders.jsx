@@ -325,7 +325,7 @@ const Orders = () => {
               <Icon size={38} strokeWidth={2} />
             </div>
             <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-1 block">{label}</span>
-            <div className="text-2xl font-black text-ink-primary tabular-nums leading-tight">{value}</div>
+            <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums leading-tight">{value}</div>
           </div>
         ))}
       </div>

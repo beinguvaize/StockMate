@@ -160,7 +160,7 @@ const Suppliers = () => {
   </div>
   <div className="relative z-10 flex flex-col">
   <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Suppliers</span>
-  <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
+  <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
   {suppliers.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">TOTAL</span>
   </div>
   </div>
@@ -172,7 +172,7 @@ const Suppliers = () => {
   </div>
   <div className="relative z-10 flex flex-col">
   <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Total Purchased</span>
-  <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
+  <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
   <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
   {purchases.reduce((sum, p) => sum + Number(p.total_amount ?? p.total_cost ?? 0), 0).toLocaleString()}
   </div>
@@ -185,7 +185,7 @@ const Suppliers = () => {
   </div>
   <div className="relative z-10 flex flex-col">
   <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Purchase Orders</span>
-  <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
+  <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
   {purchases.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">TOTAL</span>
   </div>
   </div>
