@@ -8,7 +8,7 @@ import { usePurchases } from '../hooks/usePurchases';
 import { useFinance } from '../hooks/useFinance';
 import { usePeople } from '../hooks/usePeople';
 import { useOperations } from '../hooks/useOperations';
-import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, LayoutDashboard, Activity, Users, Calendar} from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, ArrowUpRight, ArrowDownRight, LayoutDashboard, Activity, Users, Calendar} from 'lucide-react';
 import { useNavigate} from 'react-router-dom';
 import DailyRevenueTrendChart from '../components/DailyRevenueTrendChart';
 import { todayISOInAppTZ, formatDate, parseLocalDate } from '../lib/utils';
@@ -581,24 +581,34 @@ const Dashboard = () => {
  </div>
  </div>
 
- <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-black/[0.07] shadow-sm">
+ <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
  {[
-   { label: `${datePreset} Sales`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_sales ?? rangeSales) : rangeSales), icon: <Banknote size={14} /> },
-   { label: `${datePreset} Expenses`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses), icon: <TrendingDown size={14} /> },
-   { label: 'Cash Balance', value: Math.round(currentCashBalance), icon: <DollarSign size={14} /> },
-   { label: 'Outstanding', value: Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding), icon: <Activity size={14} /> },
-   { label: `${datePreset} Purchases`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases), icon: <ShoppingBag size={14} /> },
-   { label: 'Salary Pending', value: Math.round(salariesPending), icon: <Users size={14} /> },
- ].map((m, i) => (
-   <div key={i} className="bg-white px-4 py-3.5 flex flex-col gap-1.5 hover:bg-amber-500/[0.03] transition-colors">
-     <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-widest">
-       <span className="text-stone-300">{m.icon}</span>{m.label}
+   { label: `${datePreset} Sales`,     value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_sales ?? rangeSales) : rangeSales),             icon: <Banknote size={16} />,    tone: 'emerald', delta: kpiData?.sales_delta_pct },
+   { label: `${datePreset} Expenses`,  value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses),    icon: <TrendingDown size={16} />, tone: 'rose',    delta: kpiData?.expenses_delta_pct },
+   { label: 'Cash Balance',            value: Math.round(currentCashBalance),                                                                                icon: <DollarSign size={16} />,  tone: 'amber' },
+   { label: 'Outstanding',             value: Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding),               icon: <Activity size={16} />,    tone: 'amber' },
+   { label: `${datePreset} Purchases`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases), icon: <ShoppingBag size={16} />, tone: 'slate' },
+   { label: 'Salary Pending',          value: Math.round(salariesPending),                                                                                   icon: <Users size={16} />,       tone: 'slate' },
+ ].map((m, i) => {
+   const chip = { emerald: 'bg-emerald-50 text-emerald-600', rose: 'bg-rose-50 text-rose-500', amber: 'bg-amber-50 text-amber-600', slate: 'bg-slate-100 text-slate-500' }[m.tone];
+   const d = typeof m.delta === 'number' ? m.delta : null;
+   return (
+   <div key={i} className="bg-white rounded-2xl border border-black/[0.07] shadow-sm p-4 flex flex-col gap-2 hover:shadow-md transition-shadow">
+     <div className="flex items-center justify-between">
+       <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${chip}`}>{m.icon}</span>
+       {d !== null && (
+         <span className={`inline-flex items-center gap-0.5 text-[10px] font-bold ${d > 0 ? 'text-emerald-600' : d < 0 ? 'text-rose-500' : 'text-gray-400'}`}>
+           {d > 0 ? <ArrowUpRight size={12} /> : d < 0 ? <ArrowDownRight size={12} /> : null}{Math.abs(d).toFixed(1)}%
+         </span>
+       )}
      </div>
-     <div className="font-mono text-xl font-bold tabular-nums leading-none text-ink-primary">
+     <div className="font-mono text-[22px] font-bold tabular-nums leading-none text-ink-primary mt-1">
        <span className="text-amber-400 text-sm mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{m.value.toLocaleString('en-IN')}
      </div>
+     <div className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{m.label}</div>
    </div>
- ))}
+   );
+ })}
  </div>
  </div>
  
