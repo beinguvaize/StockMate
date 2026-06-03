@@ -133,9 +133,18 @@ const Inventory = () => {
           <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Manage products and stock</span>
         </div>
         <div className="flex gap-2 items-center">
-          <Button variant="secondary" icon={TagIcon} onClick={() => setShowPriceLists(true)}>Price Lists</Button>
-          <Button variant="secondary" icon={History} onClick={() => setShowHistory(true)}>History</Button>
-          <Button variant="amber" icon={Plus} onClick={openAddModal}>Add Product</Button>
+          <button onClick={() => setShowPriceLists(true)}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-white border border-black/[0.08] text-ink-primary text-xs font-bold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
+            <TagIcon size={15} className="text-gray-400" /> Price Lists
+          </button>
+          <button onClick={() => setShowHistory(true)}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-white border border-black/[0.08] text-ink-primary text-xs font-bold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
+            <History size={15} className="text-gray-400" /> History
+          </button>
+          <button onClick={openAddModal}
+            className="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 shadow-md shadow-amber-600/25 transition-colors">
+            <Plus size={16} strokeWidth={2.5} /> Add Product
+          </button>
         </div>
       </div>
 
