@@ -544,8 +544,8 @@ const Payroll = () => {
   <td className="py-6 text-right">
   <input type="number" className="w-24 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-red-500 outline-none focus:ring-4 focus:ring-red-500/10 shadow-sm" value={item.deductions} onChange={e => updatePayRunItem(item.employeeId, 'deductions', e.target.value)} />
   </td>
-  <td className="py-6 text-right font-semibold text-2xl text-ink-primary tabular-nums">
-  {businessProfile?.currencySymbol || ''}{Math.round(item.netPay).toLocaleString()}
+  <td className="py-6 text-right font-mono font-bold text-xl text-ink-primary tabular-nums">
+  {businessProfile?.currencySymbol || ''}{Math.round(item.netPay).toLocaleString('en-IN')}
   </td>
   </tr>
   ))}
