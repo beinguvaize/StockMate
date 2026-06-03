@@ -11,24 +11,24 @@
  *
  * Data logic stays in the report components — this only changes the chrome.
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line,
   PieChart, Pie, Cell, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from 'recharts';
-import { TrendingUp, TrendingDown, Minus, Download, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Download, BarChart3, FileSpreadsheet, Printer, FileText, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import ReportTable from './ReportTable';
-import { exportToCSV, safeFilename } from '../../lib/reportExport';
+import { exportToCSV, exportExcel, printReport, letterheadFrom, safeFilename } from '../../lib/reportExport';
 import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 
 /* ─── Colour tokens ───────────────────────────────────────────────────────── */
 const COLOR_HEX = {
-  indigo: '#6366f1', emerald: '#10b981', amber: '#f59e0b', rose: '#ef4444',
+  indigo: '#D97706', emerald: '#10b981', amber: '#f59e0b', rose: '#ef4444',
   orange: '#f97316', sky: '#0ea5e9', violet: '#8b5cf6', blue: '#3b82f6',
 };
-const PIE_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+const PIE_COLORS = ['#D97706', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
 /* ─── Value formatting ────────────────────────────────────────────────────── */
 const MONEY_RE = /value|revenue|profit|capital|payroll|disburs|outstanding|magnitude|burn|salary|\brev\b|balance|amount|spend|yield|cost/i;
@@ -45,7 +45,7 @@ const kpiDisplay = (label, value) => {
 };
 
 /* ─── Mini sparkline ──────────────────────────────────────────────────────── */
-const Spark = ({ data = [], color = '#6366f1' }) => {
+const Spark = ({ data = [], color = '#D97706' }) => {
   if (!data || data.length < 2) return <div className="h-9" />;
   const id = `prk_${color.replace('#', '')}`;
   return (
@@ -85,7 +85,7 @@ const KPI = ({ card, loading }) => {
       </div>
       {loading
         ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-        : <div className="text-2xl font-black text-ink-primary tabular-nums leading-none truncate">
+        : <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums leading-none truncate">
             {kpiDisplay(card.label, card.value)}
           </div>
       }
@@ -126,7 +126,7 @@ const ChartTip = ({ active, payload, label }) => {
 const ChartPanel = ({ config, loading }) => {
   if (!config) return null;
   const { title, type = 'bar', data = [], series } = config;
-  const ser = series && series.length ? series : [{ key: 'value', name: 'Value', color: '#6366f1' }];
+  const ser = series && series.length ? series : [{ key: 'value', name: 'Value', color: '#D97706' }];
 
   const axisTick = { fontSize: 10, fill: '#9ca3af', fontWeight: 600 };
   const yFmt = v => (v >= 100000 ? `₹${(v/100000).toFixed(1)}L` : v >= 1000 ? `₹${(v/1000).toFixed(0)}k` : v);
@@ -205,7 +205,14 @@ const ChartPanel = ({ config, loading }) => {
    ════════════════════════════════════════════════════════════════════════════ */
 const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
   const { hasPermission } = useAuth();
-  const { businessProfile } = useTenant();
+  const { businessProfile, currentTenant } = useTenant();
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportMenuRef = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) setExportOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
 
   const allowedTabs = useMemo(
     () => tabs.filter(t => !t.permission || hasPermission(t.permission, 'view')),
@@ -230,13 +237,46 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
   const kpis    = activeTab.kpis || [];
   const loading = !!activeTab.loading;
 
-  const onExport = () => {
+  // Data columns for export (skip UI-only synthetic columns prefixed '_').
+  const exportCols = (activeTab.columns || []).filter(c => c.key && !String(c.key).startsWith('_'));
+  const fname = safeFilename(`${activeTab.label}_${todayISOInAppTZ()}`);
+  const lh = letterheadFrom(businessProfile || {}, currentTenant || {});
+  const fmtCell = (col, v) => (col.type === 'currency' && v != null && v !== '')
+    ? Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : (v ?? '');
+
+  const doCSV = () => {
+    setExportOpen(false);
     if (activeTab.onExportCSV) { activeTab.onExportCSV(); return; }
-    exportToCSV({
-      filename: safeFilename(`${activeTab.label}_${todayISOInAppTZ()}`),
-      columns:  activeTab.columns || [],
-      data:     activeTab.data || [],
-      totals:   activeTab.totals || null,
+    exportToCSV({ filename: fname, columns: exportCols, data: activeTab.data || [], totals: activeTab.totals || null });
+  };
+  const doExcel = () => {
+    setExportOpen(false);
+    exportExcel({ filename: fname, sheets: [{
+      name: activeTab.label,
+      columns: exportCols.map(c => ({ key: c.key, label: c.label || c.key, width: c.width ? c.width / 8 : undefined })),
+      rows: (activeTab.data || []).map(r => {
+        const o = {}; exportCols.forEach(c => { o[c.key] = fmtCell(c, r[c.key]); }); return o;
+      }),
+      total: activeTab.totals || null,
+    }] });
+  };
+  const doPDF = () => {
+    setExportOpen(false);
+    // Build a clean enterprise table (avoids cloning styled app DOM).
+    const align = (c) => c.align === 'right' || c.type === 'currency' ? ' align="right"' : '';
+    const head = `<tr>${exportCols.map(c => `<th${align(c)}>${c.label || c.key}</th>`).join('')}</tr>`;
+    const body = (activeTab.data || []).map(r =>
+      `<tr>${exportCols.map(c => `<td${align(c)}>${fmtCell(c, r[c.key])}</td>`).join('')}</tr>`
+    ).join('');
+    const totalRow = activeTab.totals
+      ? `<tr class="total-row">${exportCols.map((c, i) => `<td${align(c)}>${i === 0 ? 'TOTAL' : fmtCell(c, activeTab.totals[c.key])}</td>`).join('')}</tr>`
+      : '';
+    printReport({
+      html: `<table><thead>${head}</thead><tbody>${body}${totalRow}</tbody></table>`,
+      title: `${title} — ${activeTab.label}`,
+      subtitle: subtitle || '',
+      letterhead: lh,
     });
   };
 
@@ -271,10 +311,25 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
           </div>
         )}
 
-        <button onClick={onExport}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-black/8 bg-white text-xs font-black text-ink-primary hover:border-black/20 hover:shadow-sm transition-all">
-          <Download size={13} /> Export CSV
-        </button>
+        <div className="relative no-print" ref={exportMenuRef}>
+          <button onClick={() => setExportOpen(o => !o)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 text-white text-xs font-black hover:bg-amber-700 shadow-md shadow-amber-600/25 transition-all">
+            <Download size={13} /> Export <ChevronDown size={12} className={`transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {exportOpen && (
+            <div className="absolute right-0 mt-2 w-44 rounded-xl bg-white border border-black/10 shadow-xl overflow-hidden z-40 py-1">
+              <button onClick={doExcel} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
+                <FileSpreadsheet size={15} className="text-emerald-600" /> Excel (.xlsx)
+              </button>
+              <button onClick={doPDF} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
+                <Printer size={15} className="text-amber-600" /> PDF / Print
+              </button>
+              <button onClick={doCSV} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
+                <FileText size={15} className="text-gray-400" /> CSV
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── KPI ROW ────────────────────────────────────────────────────── */}

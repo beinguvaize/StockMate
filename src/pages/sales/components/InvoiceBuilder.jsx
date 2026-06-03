@@ -38,6 +38,16 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   // for CASH/UPI/BANK, 0 for CREDIT). > total → Change due. < total
   // with registered client → Balance to outstanding ledger.
   const [amountReceived, setAmountReceived] = useState('');
+  // Order-level discount (flat amount). Subtracted from the gross total.
+  const [discount, setDiscount] = useState('');
+  // Parked/held sales — persisted per device so a half-rung sale survives.
+  const [parked, setParked] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('pos_parked') || '[]'); } catch { return []; }
+  });
+  const persistParked = (list) => {
+    setParked(list);
+    try { localStorage.setItem('pos_parked', JSON.stringify(list)); } catch { /* ignore */ }
+  };
   const [fulfillmentType, setFulfillmentType] = useState('PICKUP'); // PICKUP | DELIVERY
   const [deliveryDetails, setDeliveryDetails] = useState({
     address: '', zone: '', date: '', notes: '', fee: '',
@@ -278,7 +288,30 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   }, 0);
   const taxableAmount = taxInclusive ? subtotal - tax : subtotal;
   const deliveryFeeAmt = fulfillmentType === 'DELIVERY' ? (parseFloat(deliveryDetails.fee) || 0) : 0;
-  const total = taxInclusive ? subtotal + deliveryFeeAmt : subtotal + tax + deliveryFeeAmt;
+  const grossTotal = taxInclusive ? subtotal + deliveryFeeAmt : subtotal + tax + deliveryFeeAmt;
+  // Flat order discount, clamped to [0, grossTotal].
+  const discountAmt = Math.min(Math.max(parseFloat(discount) || 0, 0), grossTotal);
+  const total = grossTotal - discountAmt;
+
+  // Park the current cart (hold sale) and start fresh.
+  const holdSale = () => {
+    if (!cart.length) { addNotification('Cart is empty', 'error'); return; }
+    const entry = {
+      id: generateRef('HOLD'),
+      label: (cart[0]?.name || 'Sale') + (cart.length > 1 ? ` +${cart.length - 1}` : ''),
+      cart, selectedClientId, discount, ts: Date.now(),
+    };
+    persistParked([entry, ...parked].slice(0, 20));
+    setCart([]); setDiscount(''); setSelectedClientId('WALKIN'); setAmountReceived('');
+    addNotification('Sale held', 'success');
+  };
+  const resumeSale = (entry) => {
+    if (cart.length) { holdSale(); } // park current before swapping
+    setCart(entry.cart || []);
+    setSelectedClientId(entry.selectedClientId || 'WALKIN');
+    setDiscount(entry.discount || '');
+    persistParked(parked.filter(p => p.id !== entry.id));
+  };
 
   // Credit sales require a real client (so outstanding_balance has a target).
   // Block the CREDIT button when the cart is attached to WALKIN — auto-revert
@@ -358,6 +391,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         deliveryNotes:   deliveryDetails.notes   || null,
         deliveryFee:     parseFloat(deliveryDetails.fee) || 0,
         locationId:      storeId || null,
+        discount:        discountAmt,
       };
       const result = await onPlaceSale(saleData);
       if (result && result.error) {
@@ -372,6 +406,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         'success'
       );
       setCart([]);
+      setDiscount('');
+      setAmountReceived('');
       setFulfillmentType('PICKUP');
       setDeliveryDetails({ address: '', zone: '', date: '', notes: '', fee: '' });
       setShowCheckout(false);
@@ -409,13 +445,13 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mb-1 flex-1">
               <button
                 onClick={() => setCategoryFilter('ALL')}
-                className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === 'ALL' ? 'bg-ink-primary text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+                className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === 'ALL' ? 'bg-amber-600 text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
               >All</button>
               {productCategories.map(c => (
                 <button
                   key={c}
                   onClick={() => setCategoryFilter(c === categoryFilter ? 'ALL' : c)}
-                  className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === c ? 'bg-ink-primary text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+                  className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === c ? 'bg-amber-600 text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
                 >{c}</button>
               ))}
             </div>
@@ -459,7 +495,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               </div>
               <div className="text-sm font-bold text-ink-primary leading-tight line-clamp-2 mb-1">{product.name}</div>
               <div className="flex items-center gap-1.5 mb-1">
-                <span className={`text-sm font-black ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>{formatCurrency(product.sellingPrice)}</span>
+                <span className={`font-mono text-sm font-bold tabular-nums ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>{formatCurrency(product.sellingPrice)}</span>
                 {product.taxRate > 0 && <span className="text-[9px] font-black px-1 rounded bg-blue-50 text-blue-500">{product.taxRate}%</span>}
               </div>
               <div className={`text-[11px] font-semibold mb-2 ${outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : 'text-gray-400'}`}>
@@ -623,11 +659,31 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 </select>
               </div>
             )}
+            {cart.length > 0 && (
+              <button onClick={holdSale} title="Hold sale"
+                className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-pill border border-black/10 text-gray-500 hover:border-amber-400 hover:text-amber-700 transition-colors">
+                ⏸ Hold
+              </button>
+            )}
             <div className="bg-accent-signature text-button-text text-[10px] font-black px-2 py-1 rounded-pill ring-4 ring-accent-signature/10">
               {cart.reduce((acc, i) => acc + i.quantity, 0)} items
             </div>
           </div>
         </div>
+
+        {/* Parked / held sales — tap to resume. */}
+        {parked.length > 0 && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-amber-50/60 border-b border-amber-200/50 overflow-x-auto">
+            <span className="text-[9px] font-black uppercase tracking-widest text-amber-700 shrink-0">Held · {parked.length}</span>
+            {parked.map(p => (
+              <button key={p.id} onClick={() => resumeSale(p)}
+                className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-pill bg-white border border-amber-200 text-[11px] font-bold text-ink-primary hover:border-amber-400 transition-colors">
+                {p.label}
+                <span onClick={(e) => { e.stopPropagation(); persistParked(parked.filter(x => x.id !== p.id)); }} className="text-gray-300 hover:text-red-500">✕</span>
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Column headers */}
         {cart.length > 0 && (
@@ -703,7 +759,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 </div>
 
                 {/* Line total */}
-                <div className="text-sm font-black text-ink-primary tabular-nums text-right">
+                <div className="font-mono text-sm font-bold text-ink-primary tabular-nums text-right">
                   {formatCurrency(item.price * item.quantity)}
                 </div>
 
@@ -851,18 +907,37 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               )}
             </div>
           </div>
+          {/* Order discount (flat amount) */}
+          <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-black/[0.03] border border-black/8 focus-within:border-amber-400">
+            <span className="text-amber-500 text-sm font-bold">%</span>
+            <input
+              type="number" min="0" inputMode="decimal" placeholder="Discount (flat ₹)"
+              className="flex-1 bg-transparent outline-none text-[13px] font-semibold font-mono text-ink-primary placeholder:text-gray-400 placeholder:font-sans"
+              value={discount}
+              onChange={e => setDiscount(e.target.value)}
+            />
+            {discountAmt > 0 && (
+              <button onClick={() => setDiscount('')} className="text-gray-400 hover:text-red-500"><X size={13} /></button>
+            )}
+          </div>
           <div className="space-y-2 mb-6">
             <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
               <span>{taxInclusive ? 'Subtotal (excl. tax)' : 'Subtotal'}</span>
-              <span>{formatCurrency(taxableAmount)}</span>
+              <span className="font-mono tabular-nums">{formatCurrency(taxableAmount)}</span>
             </div>
             <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
               <span>Tax{taxInclusive ? ' (included)' : ''}</span>
-              <span>{formatCurrency(tax)}</span>
+              <span className="font-mono tabular-nums">{formatCurrency(tax)}</span>
             </div>
+            {discountAmt > 0 && (
+              <div className="flex justify-between text-xs font-bold text-red-500 uppercase tracking-widest">
+                <span>Discount</span>
+                <span className="font-mono tabular-nums">−{formatCurrency(discountAmt)}</span>
+              </div>
+            )}
             <div className="flex justify-between text-xl font-black text-ink-primary pt-2 border-t border-black/5">
               <span>Total</span>
-              <span>{formatCurrency(total)}</span>
+              <span className="font-mono tabular-nums">{formatCurrency(total)}</span>
             </div>
             {taxInclusive && (
               <p className="text-[10px] text-gray-400 font-medium text-right">
@@ -978,8 +1053,14 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     <span className="tabular-nums">+ {formatCurrency(deliveryFeeAmt)}</span>
                   </div>
                 )}
+                {discountAmt > 0 && (
+                  <div className="flex justify-between text-xs font-bold text-red-500 items-center">
+                    <span>Discount</span>
+                    <span className="tabular-nums">− {formatCurrency(discountAmt)}</span>
+                  </div>
+                )}
                 <div className="border-t border-black/8 pt-2 flex justify-between text-base font-black text-ink-primary">
-                  <span>Total</span><span className="tabular-nums">{formatCurrency(total)}</span>
+                  <span>Total</span><span className="font-mono tabular-nums">{formatCurrency(total)}</span>
                 </div>
               </div>
 

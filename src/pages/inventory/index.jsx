@@ -11,6 +11,7 @@ import BatchesModal from './components/BatchesModal';
 import PriceListsModal from './components/PriceListsModal';
 import StockAdjustModal from './components/StockAdjustModal';
 import StockHistoryModal from './components/StockHistoryModal';
+import { LoadingBlock } from '../../components/ui/States';
 
 const Inventory = () => {
   const { currentUser, isOwner } = useAuth();
@@ -117,46 +118,51 @@ const Inventory = () => {
     }
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center p-20">
-      <div className="text-sm font-bold opacity-50 animate-pulse">Loading products...</div>
-    </div>
-  );
+  if (loading) return <LoadingBlock label="Loading inventory…" />;
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
       <div className="flex justify-between items-center py-2 border-b border-black/5">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
-            Inventory<span className="text-accent-signature">.</span>
+            Inventory<span className="text-amber-500">.</span>
           </h1>
           <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Manage products and stock</span>
         </div>
         <div className="flex gap-2 items-center">
-          <Button variant="secondary" icon={TagIcon} onClick={() => setShowPriceLists(true)}>Price Lists</Button>
-          <Button variant="secondary" icon={History} onClick={() => setShowHistory(true)}>History</Button>
-          <Button icon={Plus} onClick={openAddModal}>Add Product</Button>
+          <button onClick={() => setShowPriceLists(true)}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-white border border-black/[0.08] text-ink-primary text-xs font-bold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
+            <TagIcon size={15} className="text-gray-400" /> Price Lists
+          </button>
+          <button onClick={() => setShowHistory(true)}
+            className="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-white border border-black/[0.08] text-ink-primary text-xs font-bold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
+            <History size={15} className="text-gray-400" /> History
+          </button>
+          <button onClick={openAddModal}
+            className="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 shadow-md shadow-amber-600/25 transition-colors">
+            <Plus size={16} strokeWidth={2.5} /> Add Product
+          </button>
         </div>
       </div>
 
-      {/* KPI Ribbon */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+      {/* KPI Ribbon — compact stat strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-black/[0.07] shadow-sm">
         {[
-          { label: 'Total Products', value: products.length, suffix: 'ITEMS', icon: <PackagePlus size={36} strokeWidth={1.5} />, color: 'text-ink-primary' },
-          { label: 'Total Units',    value: kpis.totalUnits, suffix: 'PCS',   icon: <ShoppingBag size={36} strokeWidth={1.5} />,  color: 'text-blue-400' },
-          { label: 'Stock Value',    value: `₹${Math.round(kpis.stockValue).toLocaleString()}`,  icon: <DollarSign size={36} strokeWidth={1.5} />,  color: 'text-accent-signature' },
-          { label: 'Retail Value',   value: `₹${Math.round(kpis.retailValue).toLocaleString()}`, icon: <TrendingUp size={36} strokeWidth={1.5} />,  color: 'text-emerald-500' },
-          { label: 'Low Stock',      value: kpis.lowStock,   suffix: 'SKUs',  icon: <AlertCircle size={36} strokeWidth={1.5} />,  color: 'text-orange-400' },
-          { label: 'Out of Stock',   value: kpis.outOfStock, suffix: 'SKUs',  icon: <BarChart3 size={36} strokeWidth={1.5} />,    color: 'text-red-400' },
+          { label: 'Total Products', value: products.length, suffix: 'items', icon: <PackagePlus size={14} />, money: false },
+          { label: 'Total Units',    value: kpis.totalUnits.toLocaleString('en-IN'), suffix: 'pcs', icon: <ShoppingBag size={14} />, money: false },
+          { label: 'Stock Value',    value: Math.round(kpis.stockValue).toLocaleString('en-IN'),  icon: <DollarSign size={14} />, money: true },
+          { label: 'Retail Value',   value: Math.round(kpis.retailValue).toLocaleString('en-IN'), icon: <TrendingUp size={14} />, money: true },
+          { label: 'Low Stock',      value: kpis.lowStock,   suffix: 'SKUs', icon: <AlertCircle size={14} />, warn: kpis.lowStock > 0 ? 'low' : null },
+          { label: 'Out of Stock',   value: kpis.outOfStock, suffix: 'SKUs', icon: <BarChart3 size={14} />,   warn: kpis.outOfStock > 0 ? 'out' : null },
         ].map((m, i) => (
-          <div key={i} className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
-            <div className={`absolute top-4 right-4 opacity-[0.07] group-hover:opacity-[0.13] transition-opacity pointer-events-none ${m.color}`}>
-              {m.icon}
+          <div key={i} className="bg-white px-4 py-3.5 flex flex-col gap-1.5 hover:bg-amber-500/[0.03] transition-colors">
+            <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-widest">
+              <span className={m.warn === 'out' ? 'text-red-400' : m.warn === 'low' ? 'text-amber-500' : 'text-stone-300'}>{m.icon}</span>
+              {m.label}
             </div>
-            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-1">{m.label}</span>
-            <div className="text-2xl font-black text-ink-primary tabular-nums leading-tight">
-              {m.value}
-              {m.suffix && <span className="text-xs font-bold opacity-30 ml-1">{m.suffix}</span>}
+            <div className={`font-mono text-xl font-bold tabular-nums leading-none ${m.warn === 'low' ? 'text-amber-600' : m.warn === 'out' ? 'text-red-600' : 'text-ink-primary'}`}>
+              {m.money && <span className="text-amber-400 text-sm mr-0.5">₹</span>}{m.value}
+              {m.suffix && <span className="text-[10px] font-bold text-gray-300 ml-1 lowercase">{m.suffix}</span>}
             </div>
           </div>
         ))}
@@ -169,7 +175,7 @@ const Inventory = () => {
           <input type="text" value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Search by name, SKU, category, barcode…"
-            className="w-full pl-10 pr-9 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-medium text-ink-primary placeholder:text-gray-400 placeholder:font-normal outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all" />
+            className="w-full pl-10 pr-9 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-medium text-ink-primary placeholder:text-gray-400 placeholder:font-normal outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all" />
           {searchTerm && (
             <button onClick={() => setSearchTerm('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-ink-primary">
@@ -188,7 +194,7 @@ const Inventory = () => {
           ].map(t => (
             <button key={t.id} onClick={() => setTypeFilter(t.id)}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all whitespace-nowrap ${
-                typeFilter === t.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
+                typeFilter === t.id ? 'bg-amber-600 text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
               }`}>{t.label}</button>
           ))}
         </div>
@@ -203,14 +209,14 @@ const Inventory = () => {
           ].map(s => (
             <button key={s.id} onClick={() => setStockFilter(s.id)}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all whitespace-nowrap ${
-                stockFilter === s.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
+                stockFilter === s.id ? 'bg-amber-600 text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
               }`}>{s.label}</button>
           ))}
         </div>
 
         {/* Category select */}
         <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
-          className="bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-xs font-bold text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all min-w-[140px]">
+          className="bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-xs font-bold text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all min-w-[140px]">
           <option value="">All Categories</option>
           {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -232,6 +238,7 @@ const Inventory = () => {
       <StockTable
         products={filteredProducts}
         inventoryBalances={balances}
+        currencySymbol={businessProfile?.currencySymbol || '₹'}
         onEdit={openEditModal}
         onDelete={(id) => { if (window.confirm('Delete this product?')) deleteProduct(id); }}
         onAdjust={isOwner ? (product) => setAdjustingProduct(product) : null}

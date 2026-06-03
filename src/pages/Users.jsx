@@ -39,7 +39,7 @@ const ROLE_ICONS = {
 const ROLE_COLORS = {
   OWNER: { bg: 'rgba(59, 130, 246, 0.05)', color: '#3b82f6'},
   SALES: { bg: 'rgba(16, 185, 129, 0.05)', color: '#10b981'},
-  INVENTORY: { bg: 'rgba(79, 70, 229, 0.05)', color: '#4f46e5'},
+  INVENTORY: { bg: 'rgba(79, 70, 229, 0.05)', color: '#B45309'},
   STAFF: { bg: 'rgba(116, 117, 118, 0.05)', color: '#747576'},
   DRIVER: { bg: 'rgba(245, 158, 11, 0.05)', color: '#f59e0b'},
 };

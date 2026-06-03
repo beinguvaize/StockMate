@@ -47,7 +47,7 @@ const ExpensesReport = () => {
       { key: 'category', label: 'Expense Quadrant', sortable: true, width: 180, render: (val) => <span className="text-[10px] font-black uppercase text-accent-signature bg-accent-signature/5 px-2.5 py-1 rounded-full border border-accent-signature/10">{val || 'GENERAL'}</span> },
       { key: 'note', label: 'Operational Note', width: 250, render: (val) => <span className="text-gray-500 font-semibold italic">{val || 'No Detail'}</span> },
       { key: 'amount', label: 'Magnitude', type: 'currency', align: 'right', sortable: true, width: 150 },
-      { key: 'route_id', label: 'Logistics Link', width: 150, render: (val) => val ? <div className="flex items-center gap-2 text-indigo-500 font-bold"><Truck size={12} /> {val.slice(0, 8)}</div> : '—' }
+      { key: 'route_id', label: 'Logistics Link', width: 150, render: (val) => val ? <div className="flex items-center gap-2 text-amber-500 font-bold"><Truck size={12} /> {val.slice(0, 8)}</div> : '—' }
     ],
     kpis: metrics.kpis,
     chartConfig: { title: "Burn Rate by Operational Quadrant", type: 'pie', data: metrics.chartData },

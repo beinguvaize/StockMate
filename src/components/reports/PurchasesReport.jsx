@@ -1,7 +1,23 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
 import { Truck, Package, User, Calendar, Info, BarChart2 } from 'lucide-react';
+
+/* ─── Period presets ──────────────────────────────────────────────────────── */
+const pad = n => String(n).padStart(2, '0');
+const fmtD = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const presetRange = (id) => {
+  const now = new Date(); const today = fmtD(now);
+  switch (id) {
+    case 'TODAY':   return { start: today, end: today };
+    case 'WEEK':    { const m = new Date(now); m.setDate(now.getDate() - now.getDay() + 1); return { start: fmtD(m), end: today }; }
+    case 'MONTH':   return { start: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, end: today };
+    case 'QUARTER': { const q = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1); return { start: fmtD(q), end: today }; }
+    case 'YEAR':    return { start: `${now.getFullYear()}-01-01`, end: today };
+    default:        return { start: today, end: today };
+  }
+};
+const PERIODS = [['TODAY', 'Today'], ['WEEK', 'This Week'], ['MONTH', 'This Month'], ['QUARTER', 'Quarter'], ['YEAR', 'This Year'], ['CUSTOM', 'Custom']];
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */
 const payBadge = (method) => {
@@ -37,10 +53,25 @@ const statusBadge = (status) => {
    PurchasesReport
    ════════════════════════════════════════════════════════════════════════════ */
 const PurchasesReport = () => {
+  const [preset, setPreset] = useState('MONTH');
+  const [range, setRange] = useState(() => presetRange('MONTH'));
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+  const [showCustom, setShowCustom] = useState(false);
+  const filters = useMemo(() => ({ dateRange: range }), [range]);
+
+  const applyPreset = (id) => {
+    setPreset(id);
+    if (id !== 'CUSTOM') { setRange(presetRange(id)); setShowCustom(false); }
+    else setShowCustom(true);
+  };
+  const applyCustom = () => { if (customStart && customEnd) { setRange({ start: customStart, end: customEnd }); setShowCustom(false); } };
+
   const { data: purchases, loading } = useReportData({
     table: 'purchases',
     select: '*',
     dateColumn: 'date',
+    filters,
   });
 
   const { data: products } = useReportData({
@@ -154,7 +185,7 @@ const PurchasesReport = () => {
       title: 'Procurement Value Over Time',
       type: 'area',
       data: metrics.chartData,
-      series: [{ key: 'amount', name: 'Amount', color: '#6366f1' }],
+      series: [{ key: 'amount', name: 'Amount', color: '#D97706' }],
     },
     columns: [
       { key: 'date', label: 'Date', type: 'date', sortable: true, width: 130 },
@@ -232,7 +263,7 @@ const PurchasesReport = () => {
       title: 'Spend by Supplier',
       type: 'bar',
       data: supplierData.slice(0, 8).map(s => ({ name: s.supplierName, value: s.totalAmount })),
-      series: [{ key: 'value', name: 'Spend', color: '#6366f1' }],
+      series: [{ key: 'value', name: 'Spend', color: '#D97706' }],
     },
     columns: [
       {
@@ -273,11 +304,11 @@ const PurchasesReport = () => {
             <div className="flex items-center gap-2 justify-end">
               <div className="w-16 h-1.5 rounded-full bg-canvas overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-indigo-500"
+                  className="h-full rounded-full bg-amber-500"
                   style={{ width: `${Math.min(100, pct)}%` }}
                 />
               </div>
-              <span className="text-[10px] font-black text-indigo-500 tabular-nums w-10 text-right">
+              <span className="text-[10px] font-black text-amber-500 tabular-nums w-10 text-right">
                 {pct.toFixed(1)}%
               </span>
             </div>
@@ -367,7 +398,36 @@ const PurchasesReport = () => {
     ],
   };
 
-  return <PremiumReportView title="Purchases" tabs={[allTab, supplierTab, productTab]} />;
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Period filter */}
+      <div className="flex items-center gap-2 flex-wrap no-print">
+        <div className="flex items-center gap-0.5 p-1 rounded-xl bg-black/[0.04]">
+          {PERIODS.map(([id, label]) => (
+            <button key={id} onClick={() => applyPreset(id)}
+              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                preset === id ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/20' : 'text-gray-500 hover:text-ink-primary'
+              }`}>
+              {id === 'CUSTOM' && <Calendar size={12} />}{label}
+            </button>
+          ))}
+        </div>
+        <span className="text-[11px] font-mono font-semibold text-gray-400">{range.start} → {range.end}</span>
+        {showCustom && (
+          <div className="flex items-center gap-2">
+            <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
+              className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-mono outline-none focus:border-amber-400" />
+            <span className="text-gray-400">–</span>
+            <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
+              className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-mono outline-none focus:border-amber-400" />
+            <button onClick={applyCustom} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-[11px] font-bold">Apply</button>
+          </div>
+        )}
+      </div>
+
+      <PremiumReportView title="Purchases" subtitle={`${range.start} → ${range.end}`} tabs={[allTab, supplierTab, productTab]} />
+    </div>
+  );
 };
 
 export default PurchasesReport;

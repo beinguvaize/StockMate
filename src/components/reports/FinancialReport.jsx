@@ -112,7 +112,7 @@ const FinancialReport = () => {
     kpis: plMetrics.kpis,
     chartConfig: {
       title: "Revenue vs Expenses by Month", type: 'bar', data: plMetrics.data,
-      series: [{ key: 'revenue', name: 'Revenue', color: '#6366f1' }, { key: 'expenses', name: 'Expenses', color: '#f43f5e' }]
+      series: [{ key: 'revenue', name: 'Revenue', color: '#D97706' }, { key: 'expenses', name: 'Expenses', color: '#f43f5e' }]
     }
   };
 

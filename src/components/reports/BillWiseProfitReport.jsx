@@ -49,7 +49,7 @@ const SectionHead = ({ title, sub }) => (
   </div>
 );
 
-const KPI = ({ label, value, icon: Icon, color = '#6366f1', loading }) => (
+const KPI = ({ label, value, icon: Icon, color = '#D97706', loading }) => (
   <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
     <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
       <Icon size={16} style={{ color }} />
@@ -202,7 +202,7 @@ const BillWiseProfitReport = () => {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPI label="Total Revenue" loading={loading} value={formatCurrency(totals.totalRevenue)}      icon={TrendingUp}  color="#6366f1" />
+        <KPI label="Total Revenue" loading={loading} value={formatCurrency(totals.totalRevenue)}      icon={TrendingUp}  color="#D97706" />
         <KPI label="Total Cost"    loading={loading} value={formatCurrency(totals.totalCost)}         icon={DollarSign}  color="#f59e0b" />
         <KPI label="Total Profit"  loading={loading} value={formatCurrency(totals.totalProfit)}       icon={BarChart3}   color="#10b981" />
         <KPI label="Blended Margin" loading={loading} value={`${totals.blendedMargin.toFixed(1)}%`}  icon={TrendingUp}  color="#8b5cf6" />

@@ -55,7 +55,7 @@ const BulkSyncSplash = ({ tenantId, onDone }) => {
     <div className="fixed inset-0 z-[9999] bg-[#0f1f17]/95 backdrop-blur-sm flex items-center justify-center">
       <div className="w-[420px] bg-white rounded-3xl shadow-2xl p-8">
         <div className="flex flex-col items-center text-center">
-          <div className="w-16 h-16 rounded-2xl bg-[#6366F1]/15 flex items-center justify-center mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-[#D97706]/15 flex items-center justify-center mb-4">
             {phase === 'running' && <Loader2 size={28} className="text-[#0f1f17] animate-spin" />}
             {phase === 'done'    && <CheckCircle2 size={28} className="text-emerald-500" />}
             {phase === 'error'   && <AlertTriangle size={28} className="text-red-500" />}
@@ -77,7 +77,7 @@ const BulkSyncSplash = ({ tenantId, onDone }) => {
           {/* Progress bar */}
           <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
             <div
-              className="h-full bg-[#6366F1] transition-all duration-300"
+              className="h-full bg-[#D97706] transition-all duration-300"
               style={{ width: `${phase === 'done' ? 100 : pct}%` }}
             />
           </div>

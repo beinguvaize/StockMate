@@ -107,7 +107,7 @@ const TrialBalanceReport = () => {
         key: 'type', label: 'Type', width: 120,
         render: (val) => (
           <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase ${
-            val === 'ASSET' ? 'bg-indigo-50 text-indigo-600' :
+            val === 'ASSET' ? 'bg-amber-50 text-amber-600' :
             val === 'LIABILITY' ? 'bg-rose-50 text-rose-600' :
             val === 'EQUITY' ? 'bg-emerald-50 text-emerald-600' :
             val === 'REVENUE' ? 'bg-sky-50 text-sky-600' :
@@ -118,7 +118,7 @@ const TrialBalanceReport = () => {
       { key: 'category', label: 'Classification', width: 180, render: (val) => <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{val}</span> },
       {
         key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 160,
-        render: (val) => val > 0 ? <span className="font-black text-indigo-600">{formatINR(val)}</span> : <span className="text-gray-300">—</span>,
+        render: (val) => val > 0 ? <span className="font-black text-amber-600">{formatINR(val)}</span> : <span className="text-gray-300">—</span>,
       },
       {
         key: 'credit', label: 'Credit', type: 'currency', align: 'right', sortable: true, width: 160,
@@ -131,7 +131,7 @@ const TrialBalanceReport = () => {
       type: 'bar',
       data: chartData,
       series: [
-        { key: 'Debit', name: 'Debit', color: '#6366f1' },
+        { key: 'Debit', name: 'Debit', color: '#D97706' },
         { key: 'Credit', name: 'Credit', color: '#10b981' },
       ],
     },

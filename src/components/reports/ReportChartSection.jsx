@@ -21,7 +21,7 @@ import { ChevronUp, ChevronDown, BarChart3, PieChart as PieIcon, LineChart as Li
 const ReportChartSection = ({ 
   data = [], 
   type = 'bar', 
-  series = [{ key: 'value', name: 'Value', color: '#6366f1' }],
+  series = [{ key: 'value', name: 'Value', color: '#D97706' }],
   onSegmentClick = () => {},
   title = "Analytical Projection",
   isLoading = false
@@ -29,7 +29,7 @@ const ReportChartSection = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeSegment, setActiveSegment] = useState(null);
 
-  const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+  const COLORS = ['#D97706', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
   const formatCurrency = (val) => {
     if (val >= 100000) return `₹ ${(val / 100000).toFixed(1)}L`;

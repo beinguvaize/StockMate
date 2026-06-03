@@ -39,7 +39,7 @@ const SummaryCard = ({ label, value, sub, tone }) => {
   return (
     <div className="bg-white rounded-2xl border border-black/5 px-4 py-3">
       <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</div>
-      <div className={`text-xl font-bold mt-0.5 ${cls}`}>{value}</div>
+      <div className={`font-mono text-xl font-bold tabular-nums mt-0.5 ${cls}`}>{value}</div>
       {sub && <div className="text-[11px] font-semibold text-gray-500 mt-0.5">{sub}</div>}
     </div>
   );
@@ -298,7 +298,7 @@ const Invoices = () => {
           <div className="text-[11px] font-medium text-gray-500 mt-0.5">{client?.gstin || client?.gst_no || 'URD'}</div>
         </td>
         <td className="px-4 py-4 text-right">
-          <div className="text-sm font-bold text-ink-primary tabular-nums">{formatCurrency(inv.grand_total)}</div>
+          <div className="font-mono text-sm font-bold text-ink-primary tabular-nums">{formatCurrency(inv.grand_total)}</div>
           {out > 0 && status !== 'PAID' && (
             <div className="text-[11px] font-semibold text-amber-600 tabular-nums mt-0.5">Due: {formatCurrency(out)}</div>
           )}

@@ -130,7 +130,7 @@ const AdminPanel = () => {
           {[
             { label: 'Total Tenants', value: totalTenants, icon: <Building2 size={20} />, color: 'text-blue-600 bg-blue-50' },
             { label: 'Active', value: activeTenants, icon: <Activity size={20} />, color: 'text-green-600 bg-green-50' },
-            { label: 'Total Users', value: totalUsers, icon: <Users size={20} />, color: 'text-indigo-600 bg-indigo-50' },
+            { label: 'Total Users', value: totalUsers, icon: <Users size={20} />, color: 'text-amber-600 bg-amber-50' },
             { label: 'Enterprise', value: enterpriseTenants, icon: <Crown size={20} />, color: 'text-purple-600 bg-purple-50' },
           ].map((kpi, i) => (
             <div key={i} className="glass-panel !rounded-bento p-5 border border-black/5">

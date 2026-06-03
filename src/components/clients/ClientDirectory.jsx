@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTenant } from '../../context/TenantContext';
+import { EmptyState } from '../ui/States';
 import {
   UserCircle, Plus, Edit3, Trash2, Check,
   Phone, AlertCircle, Search, TrendingUp, Users, CreditCard, Clock,
@@ -37,47 +38,23 @@ const ClientDirectory = ({
   return (
     <div className="space-y-6">
 
-      {/* KPI Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* KPI Row — compact mono/amber strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-black/[0.07] shadow-sm">
         {[
-          {
-            label: 'Total Clients',
-            value: filteredClients.length,
-            suffix: 'Accounts',
-            icon: <Users size={36} strokeWidth={1.5} />,
-            color: 'text-accent-signature',
-          },
-          {
-            label: 'Total Receivables',
-            value: `${sym}${Math.round(topMetrics.totalReceivables || 0).toLocaleString()}`,
-            icon: <CreditCard size={36} strokeWidth={1.5} />,
-            color: 'text-ink-primary',
-          },
-          {
-            label: 'Top Debtor',
-            value: `${sym}${Math.round(topMetrics.topDebtor?.amount || 0).toLocaleString()}`,
-            sub: topMetrics.topDebtor?.name !== 'None' ? topMetrics.topDebtor?.name : 'No Exposure',
-            icon: <TrendingUp size={36} strokeWidth={1.5} />,
-            color: 'text-red-400',
-          },
-          {
-            label: 'Pending Collections',
-            value: topMetrics.pendingCollections || 0,
-            suffix: 'Accounts',
-            icon: <Clock size={36} strokeWidth={1.5} />,
-            color: 'text-orange-400',
-          },
+          { label: 'Total Clients', value: filteredClients.length, suffix: 'accounts', icon: <Users size={14} /> },
+          { label: 'Total Receivables', value: Math.round(topMetrics.totalReceivables || 0).toLocaleString('en-IN'), money: true, icon: <CreditCard size={14} /> },
+          { label: 'Top Debtor', value: Math.round(topMetrics.topDebtor?.amount || 0).toLocaleString('en-IN'), money: true, sub: topMetrics.topDebtor?.name !== 'None' ? topMetrics.topDebtor?.name : 'No exposure', icon: <TrendingUp size={14} /> },
+          { label: 'Pending Collections', value: topMetrics.pendingCollections || 0, suffix: 'accounts', icon: <Clock size={14} /> },
         ].map((m, i) => (
-          <div key={i} className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
-            <div className={`absolute top-4 right-4 opacity-[0.07] group-hover:opacity-[0.13] transition-opacity pointer-events-none ${m.color}`}>
-              {m.icon}
+          <div key={i} className="bg-white px-4 py-3.5 flex flex-col gap-1.5 hover:bg-amber-500/[0.03] transition-colors">
+            <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-widest">
+              <span className="text-stone-300">{m.icon}</span>{m.label}
             </div>
-            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-1">{m.label}</span>
-            <div className="text-2xl font-black text-ink-primary tabular-nums leading-tight">
-              {m.value}
-              {m.suffix && <span className="text-xs font-bold opacity-30 ml-1">{m.suffix}</span>}
+            <div className="font-mono text-xl font-bold tabular-nums leading-none text-ink-primary">
+              {m.money && <span className="text-amber-400 text-sm mr-0.5">{sym}</span>}{m.value}
+              {m.suffix && <span className="text-[10px] font-bold text-gray-300 ml-1 lowercase">{m.suffix}</span>}
             </div>
-            {m.sub && <div className="text-[10px] font-semibold text-gray-500 mt-1 truncate">{m.sub}</div>}
+            {m.sub && <div className="text-[10px] font-semibold text-gray-400 truncate">{m.sub}</div>}
           </div>
         ))}
       </div>
@@ -129,14 +106,13 @@ const ClientDirectory = ({
 
       {/* Client Cards */}
       {filteredClients.length === 0 ? (
-        <div className="bg-white p-24 rounded-[2.5rem] text-center border border-black/5 shadow-sm">
-          <UserCircle size={56} className="mx-auto mb-4 opacity-10" strokeWidth={1} />
-          <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No clients found</p>
-          {hasPermission('clients', 'edit') && (
-            <button onClick={openAdd} className="mt-6 btn-signature text-xs font-bold">
-              ADD FIRST CLIENT
-            </button>
-          )}
+        <div className="bg-white rounded-2xl border border-black/5 shadow-sm">
+          <EmptyState
+            icon={UserCircle}
+            title={searchTerm || statusFilter !== 'ALL' ? 'No matching clients' : 'No clients yet'}
+            description={searchTerm || statusFilter !== 'ALL' ? 'Try a different search or clear filters.' : 'Add your first client to start tracking receivables and sales.'}
+            action={hasPermission('clients', 'edit') ? { label: 'Add client', icon: <Plus size={14} />, onClick: openAdd } : null}
+          />
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
@@ -219,15 +195,15 @@ const ClientDirectory = ({
 
                 {/* Revenue */}
                 <div className="text-right">
-                  <div className="text-sm font-bold text-ink-primary tabular-nums">
-                    {sym}{Math.round(stats.totalSales).toLocaleString()}
+                  <div className="font-mono text-sm font-bold text-ink-primary tabular-nums">
+                    <span className="text-amber-400 mr-0.5">{sym}</span>{Math.round(stats.totalSales).toLocaleString('en-IN')}
                   </div>
                 </div>
 
                 {/* Outstanding */}
                 <div className="text-right">
-                  <div className={`text-sm font-bold tabular-nums ${cleared ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {sym}{Math.round(outstanding).toLocaleString()}
+                  <div className={`font-mono text-sm font-bold tabular-nums ${cleared ? 'text-emerald-500' : 'text-red-500'}`}>
+                    {sym}{Math.round(outstanding).toLocaleString('en-IN')}
                   </div>
                   <div className={`text-[9px] font-semibold mt-0.5 flex items-center justify-end gap-0.5 ${cleared ? 'text-emerald-500' : 'text-red-400'}`}>
                     {cleared ? <><Check size={8} /> Cleared</> : <><AlertCircle size={8} /> Unpaid</>}

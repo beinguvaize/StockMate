@@ -59,7 +59,7 @@ function presetRange(id) {
 }
 
 /* ─── Mini sparkline ──────────────────────────────────────────────────────── */
-const Spark = ({ data = [], color = '#6366f1' }) => (
+const Spark = ({ data = [], color = '#D97706' }) => (
   <ResponsiveContainer width="100%" height={36}>
     <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
       <defs>
@@ -75,7 +75,7 @@ const Spark = ({ data = [], color = '#6366f1' }) => (
 );
 
 /* ─── KPI card ────────────────────────────────────────────────────────────── */
-const KPI = ({ label, value, sub, spark, color = '#6366f1', icon: Icon, loading }) => (
+const KPI = ({ label, value, sub, spark, color = '#D97706', icon: Icon, loading }) => (
   <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
     <div className="flex items-center justify-between">
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center`}
@@ -93,7 +93,7 @@ const KPI = ({ label, value, sub, spark, color = '#6366f1', icon: Icon, loading 
     </div>
     {loading
       ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="text-2xl font-black text-ink-primary tabular-nums leading-none">{value}</div>
+      : <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums leading-none">{value}</div>
     }
     <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</div>
     {spark && spark.length > 1 && <Spark data={spark} color={color} />}
@@ -224,6 +224,25 @@ const BusinessReport = () => {
     return { totalRevenue, totalOrders, aov, dailyTrend, paymentSplit, topProducts, topClients, outstanding };
   }, [sales, clients]);
 
+  /* ── Full transaction ledger (every sale in the period) ───────────────── */
+  const transactions = useMemo(() => {
+    const resolveName = (s) => {
+      const cid = s.customerInfo?.id || s.shopId || null;
+      return (cid && clients.find(c => c.id === cid)?.name) || s.customerInfo?.name || 'Walk-in';
+    };
+    return [...sales]
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .map(s => ({
+        date:    s.date || '',
+        ref:     (s.id || '').slice(0, 8).toUpperCase(),
+        client:  resolveName(s),
+        items:   Array.isArray(s.items) ? s.items.reduce((n, i) => n + Number(i.quantity || 0), 0) : 0,
+        payment: (s.paymentMethod || 'CASH').toUpperCase(),
+        status:  (s.paymentStatus || s.status || 'PAID').toUpperCase(),
+        amount:  Number(s.totalAmount || 0),
+      }));
+  }, [sales, clients]);
+
   /* ── Purchases aggregations ─────────────────────────────────────────── */
   const purchMetrics = useMemo(() => {
     const total      = purchases.reduce((s, p) => s + Number(p.total_amount || 0), 0);
@@ -263,7 +282,7 @@ const BusinessReport = () => {
   }, [sales, range]);
 
   /* ── Bar colours ────────────────────────────────────────────────────── */
-  const PAY_COLORS = { CASH: '#10b981', UPI: '#6366f1', CREDIT: '#f59e0b', BANK: '#3b82f6', CARD: '#8b5cf6' };
+  const PAY_COLORS = { CASH: '#10b981', UPI: '#D97706', CREDIT: '#f59e0b', BANK: '#3b82f6', CARD: '#8b5cf6' };
 
   /* ════════════════════════════════════════════════════════════════════════
      RENDER
@@ -331,7 +350,7 @@ const BusinessReport = () => {
         <KPI label="Total Revenue"   loading={salesLoading}
           value={formatCurrency(salesMetrics.totalRevenue)}
           spark={salesMetrics.dailyTrend.map(d => ({ v: d.revenue }))}
-          icon={TrendingUp} color="#6366f1" />
+          icon={TrendingUp} color="#D97706" />
         <KPI label="Total Orders"    loading={salesLoading}
           value={salesMetrics.totalOrders}
           spark={salesMetrics.dailyTrend.map(d => ({ v: d.orders }))}
@@ -362,8 +381,8 @@ const BusinessReport = () => {
                 <AreaChart data={salesMetrics.dailyTrend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%"   stopColor="#6366f1" stopOpacity={0.2} />
-                      <stop offset="100%" stopColor="#6366f1" stopOpacity={0}   />
+                      <stop offset="0%"   stopColor="#D97706" stopOpacity={0.2} />
+                      <stop offset="100%" stopColor="#D97706" stopOpacity={0}   />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
@@ -371,8 +390,8 @@ const BusinessReport = () => {
                   <YAxis tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 600 }} axisLine={false} tickLine={false}
                     tickFormatter={v => `₹${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
                   <Tooltip content={<ChartTip />} />
-                  <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#6366f1" strokeWidth={2}
-                    fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: '#6366f1', strokeWidth: 0 }} />
+                  <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#D97706" strokeWidth={2}
+                    fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: '#D97706', strokeWidth: 0 }} />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -528,6 +547,62 @@ const BusinessReport = () => {
         </div>
       </div>
 
+      {/* ── ALL TRANSACTIONS (full period ledger) ───────────────────────── */}
+      <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+        <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+          <SectionHead title="All Transactions" sub="every sale in period" />
+          {!salesLoading && (
+            <span className="text-[10px] font-black text-gray-400 bg-canvas px-2 py-1 rounded-full">{transactions.length} sales</span>
+          )}
+        </div>
+        {salesLoading
+          ? <div className="p-6 space-y-3">{[...Array(6)].map((_,i)=><div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}</div>
+          : transactions.length === 0
+          ? <div className="py-16 text-center text-sm text-gray-400">No transactions for selected period</div>
+          : (
+            <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
+              <table className="w-full text-left">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-canvas/80 backdrop-blur-sm border-b border-black/10">
+                    {[['Date','left'],['Ref','left'],['Client','left'],['Items','right'],['Payment','center'],['Status','center'],['Amount','right']].map(([h,a]) => (
+                      <th key={h} className={`px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 ${a==='right'?'text-right':a==='center'?'text-center':''}`}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((t, i) => (
+                    <tr key={i} className="border-b border-black/[0.04] hover:bg-amber-500/[0.04] transition-colors">
+                      <td className="px-4 py-2.5 font-mono text-[12px] text-gray-500 whitespace-nowrap">{t.date}</td>
+                      <td className="px-4 py-2.5 font-mono text-[11px] text-gray-400 uppercase whitespace-nowrap">{t.ref}</td>
+                      <td className="px-4 py-2.5 text-[13px] font-bold text-ink-primary truncate max-w-[200px]">{t.client}</td>
+                      <td className="px-4 py-2.5 text-right font-mono text-[12px] text-gray-500">{t.items}</td>
+                      <td className="px-4 py-2.5 text-center"><span className="text-[10px] font-bold uppercase text-gray-500">{t.payment}</span></td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                          t.status==='PAID'||t.status==='COMPLETED' ? 'bg-emerald-50 text-emerald-600' :
+                          t.status==='PARTIAL' ? 'bg-amber-50 text-amber-700' :
+                          t.status==='PENDING'||t.status==='UNPAID' ? 'bg-rose-50 text-rose-600' : 'bg-gray-100 text-gray-500'
+                        }`}>{t.status==='UNPAID'?'Pending':t.status.charAt(0)+t.status.slice(1).toLowerCase()}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono text-[13px] font-bold text-ink-primary whitespace-nowrap">
+                        <span className="text-amber-400 mr-0.5">{'₹'}</span>{Math.round(t.amount).toLocaleString('en-IN')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-black/15 bg-canvas/40 sticky bottom-0">
+                    <td className="px-4 py-3 font-mono text-[11px] font-black uppercase tracking-widest text-gray-500" colSpan={6}>Total · {transactions.length} sales</td>
+                    <td className="px-4 py-3 text-right font-mono text-[14px] font-black text-ink-primary whitespace-nowrap">
+                      <span className="text-amber-400 mr-0.5">{'₹'}</span>{Math.round(salesMetrics.totalRevenue).toLocaleString('en-IN')}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+      </div>
+
       {/* ── PURCHASES ───────────────────────────────────────────────────── */}
       <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
         <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
@@ -566,9 +641,9 @@ const BusinessReport = () => {
                   <span className="font-mono text-ink-secondary text-sm">{s.orders}</span>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-1.5 rounded-full bg-canvas overflow-hidden">
-                      <div className="h-full rounded-full bg-violet-500" style={{ width: `${Math.min(100, s.share)}%` }} />
+                      <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, s.share)}%` }} />
                     </div>
-                    <span className="text-[9px] font-black text-violet-600 w-8 text-right">{s.share.toFixed(0)}%</span>
+                    <span className="text-[9px] font-black text-amber-600 w-8 text-right">{s.share.toFixed(0)}%</span>
                   </div>
                   <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(s.amount)}</span>
                 </div>
@@ -585,13 +660,13 @@ const BusinessReport = () => {
 };
 
 /* ─── Detailed daily breakdown ────────────────────────────────────────────── */
-const PAY_BADGE = { CASH: 'bg-emerald-50 text-emerald-700', UPI: 'bg-indigo-50 text-indigo-700', CREDIT: 'bg-amber-50 text-amber-700', BANK: 'bg-blue-50 text-blue-700' };
+const PAY_BADGE = { CASH: 'bg-emerald-50 text-emerald-700', UPI: 'bg-amber-50 text-amber-700', CREDIT: 'bg-amber-50 text-amber-700', BANK: 'bg-blue-50 text-blue-700' };
 
 const APP_BADGE = {
   WEB:     'bg-sky-50 text-sky-700 border-sky-200',
-  DESKTOP: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+  DESKTOP: 'bg-amber-50 text-amber-700 border-amber-200',
   MOBILE:  'bg-emerald-50 text-emerald-700 border-emerald-200',
-  VAN:     'bg-violet-50 text-violet-700 border-violet-200',
+  VAN:     'bg-amber-50 text-amber-700 border-amber-200',
 };
 
 const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }) => {
@@ -712,7 +787,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                       {/* Source badge */}
                       {isVan
                         ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-violet-50 text-violet-700 border border-violet-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-amber-50 text-amber-700 border border-amber-200">
                             <Truck size={9} /> {vanLabel}
                           </span>
                         )

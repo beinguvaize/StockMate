@@ -36,7 +36,7 @@ const WeeklySalesBarChart = React.memo(({ data, currencySymbol }) => (
       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 700}} />
       <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `${currencySymbol}${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
       <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
-      <Bar dataKey="value" fill="#2563EB" radius={[4, 4, 0, 0]} barSize={32} />
+      <Bar dataKey="value" fill="#D97706" radius={[4, 4, 0, 0]} barSize={32} />
     </BarChart>
   </ResponsiveContainer>
 ));
@@ -46,15 +46,15 @@ const MonthlyComparisonAreaChart = React.memo(({ data, currencySymbol }) => (
     <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0}}>
       <defs>
         <linearGradient id="fillThisMonth" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="5%" stopColor="#2563EB" stopOpacity={0.2}/>
-          <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
+          <stop offset="5%" stopColor="#D97706" stopOpacity={0.2}/>
+          <stop offset="95%" stopColor="#D97706" stopOpacity={0}/>
         </linearGradient>
       </defs>
       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
       <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} />
       <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `${currencySymbol}${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
       <RechartsTooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
-      <Area type="monotone" dataKey="thisMonth" name="This Month" stroke="#2563EB" strokeWidth={2} fillOpacity={1} fill="url(#fillThisMonth)" />
+      <Area type="monotone" dataKey="thisMonth" name="This Month" stroke="#D97706" strokeWidth={2} fillOpacity={1} fill="url(#fillThisMonth)" />
       <Area type="monotone" dataKey="lastMonth" name="Last Month" stroke="#94A3B8" strokeWidth={2} strokeDasharray="5 5" fill="none" />
     </AreaChart>
   </ResponsiveContainer>
@@ -344,10 +344,10 @@ const Dashboard = () => {
  const COLORS = [
  '#3b82f6', // blue-500
  '#ec4899', // pink-500
- '#8b5cf6', // violet-500
+ '#8b5cf6', // amber-500
  '#10b981', // emerald-500
  '#f59e0b', // amber-500
- '#6366f1', // indigo-500
+ '#D97706', // amber-500
  '#ef4444', // red-500
  '#06b6d4', // cyan-500
  '#84cc16', // lime-500
@@ -581,90 +581,24 @@ const Dashboard = () => {
  </div>
  </div>
 
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
- {/* Sales Card */}
- <div className="p-6 rounded-[2.5rem] bg-white text-ink-primary relative overflow-hidden group shadow-sm border border-black/5 hover:border-black/10 transition-all">
- <div className="absolute top-5 right-5 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-green-500">
- <Banknote size={48} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col h-full">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">{datePreset} Sales</span>
- <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_sales ?? rangeSales) : rangeSales).toLocaleString()}
- </div>
- </div>
- </div>
-
- {/* Expenses Card */}
- <div className="p-6 rounded-[2.5rem] bg-white text-ink-primary relative overflow-hidden group shadow-sm border border-black/5 hover:border-black/10 transition-all">
- <div className="absolute top-5 right-5 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-red-500">
- <TrendingDown size={48} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col h-full">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">{datePreset} Expenses</span>
- <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses).toLocaleString()}
- </div>
- </div>
- </div>
-
- {/* Cash Balance Card */}
- <div className="p-6 rounded-[2.5rem] bg-white text-ink-primary relative overflow-hidden group shadow-sm border border-black/5 hover:border-black/10 transition-all">
- <div className="absolute top-5 right-5 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-blue-500">
- <DollarSign size={48} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col h-full">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">Current Cash Balance</span>
- <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(currentCashBalance).toLocaleString()}
- </div>
- </div>
- </div>
-
- {/* Collections Card */}
- <div className="p-6 rounded-[2.5rem] bg-white text-ink-primary relative overflow-hidden group shadow-sm border border-black/5 hover:border-black/10 transition-all">
- <div className="absolute top-5 right-5 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-orange-500">
- <Activity size={48} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col h-full">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">Outstanding Collections</span>
- <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding).toLocaleString()}
- </div>
- </div>
- </div>
-
- {/* Purchases Card */}
- <div className="p-6 rounded-[2.5rem] bg-white text-ink-primary relative overflow-hidden group shadow-sm border border-black/5 hover:border-black/10 transition-all">
- <div className="absolute top-5 right-5 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-purple-500">
- <ShoppingBag size={48} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col h-full">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">{datePreset} Purchases</span>
- <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases).toLocaleString()}
- </div>
- </div>
- </div>
-
- {/* Salaries Pending Card */}
- <div className="p-6 rounded-[2.5rem] bg-white text-ink-primary relative overflow-hidden group shadow-sm border border-black/5 hover:border-black/10 transition-all">
- <div className="absolute top-5 right-5 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-yellow-500">
- <Users size={48} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col h-full">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">Salary Pending</span>
- <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(salariesPending).toLocaleString()}
- </div>
- </div>
- </div>
+ <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-black/[0.07] shadow-sm">
+ {[
+   { label: `${datePreset} Sales`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_sales ?? rangeSales) : rangeSales), icon: <Banknote size={14} /> },
+   { label: `${datePreset} Expenses`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses), icon: <TrendingDown size={14} /> },
+   { label: 'Cash Balance', value: Math.round(currentCashBalance), icon: <DollarSign size={14} /> },
+   { label: 'Outstanding', value: Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding), icon: <Activity size={14} /> },
+   { label: `${datePreset} Purchases`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases), icon: <ShoppingBag size={14} /> },
+   { label: 'Salary Pending', value: Math.round(salariesPending), icon: <Users size={14} /> },
+ ].map((m, i) => (
+   <div key={i} className="bg-white px-4 py-3.5 flex flex-col gap-1.5 hover:bg-amber-500/[0.03] transition-colors">
+     <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-widest">
+       <span className="text-stone-300">{m.icon}</span>{m.label}
+     </div>
+     <div className="font-mono text-xl font-bold tabular-nums leading-none text-ink-primary">
+       <span className="text-amber-400 text-sm mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{m.value.toLocaleString('en-IN')}
+     </div>
+   </div>
+ ))}
  </div>
  </div>
  
@@ -978,7 +912,7 @@ const Dashboard = () => {
  <Bar 
  dataKey="value" 
  name="Revenue" 
- fill="#6366F1" 
+ fill="#D97706" 
  radius={[6, 6, 0, 0]}
  barSize={32}
  animationDuration={2000}
@@ -1106,7 +1040,7 @@ const Dashboard = () => {
  <div className="bg-white rounded-[1.5rem] border border-black/5 shadow-sm flex flex-col h-[400px] overflow-hidden">
    <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
      <div className="flex items-center gap-2">
-       <Activity size={13} className="text-indigo-500" />
+       <Activity size={13} className="text-amber-500" />
        <span className="text-xs font-black text-ink-primary uppercase tracking-wide">Top Debtors</span>
      </div>
    </div>
@@ -1129,7 +1063,7 @@ const Dashboard = () => {
                </div>
                <div className="flex items-center gap-2 shrink-0 ml-3">
                  <span className={`text-xs font-black tabular-nums ${amtColor}`}>₹{Math.round(out).toLocaleString()}</span>
-                 <button onClick={() => navigate(`/${slug}/clients`)} className="text-[9px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 border border-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+                 <button onClick={() => navigate(`/${slug}/clients`)} className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
                    Collect
                  </button>
                </div>

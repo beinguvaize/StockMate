@@ -28,10 +28,10 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  config.circle = 'bg-gray-400';
 } else if (status === 'SYNCING') {
  config.label = 'Syncing...';
- config.bg = 'bg-indigo-50';
- config.border = 'border-indigo-100';
- config.text = 'text-indigo-600';
- config.circle = 'bg-indigo-500';
+ config.bg = 'bg-amber-50';
+ config.border = 'border-amber-100';
+ config.text = 'text-amber-600';
+ config.circle = 'bg-amber-500';
 } else if (status === 'ERROR') {
  config.label = 'Sync Delayed';
  config.bg = 'bg-amber-50';

@@ -158,7 +158,7 @@ const CashFlowReport = () => {
     const colors = {
       OPERATING: 'bg-emerald-50 text-emerald-600',
       INVESTING: 'bg-amber-50 text-amber-600',
-      FINANCING: 'bg-indigo-50 text-indigo-600',
+      FINANCING: 'bg-amber-50 text-amber-600',
       SUMMARY: 'bg-ink-primary text-white',
     };
     return (

@@ -42,7 +42,7 @@ const PayrollHeader = ({
               <Users size={16} className="text-ink-primary" />
             </div>
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Staff</span>
-            <div className="text-3xl font-black text-ink-primary tabular-nums leading-none">
+            <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums leading-none">
               {activeEmployeesCount}
             </div>
           </div>
@@ -52,9 +52,9 @@ const PayrollHeader = ({
               <Banknote size={16} className="text-ink-primary/70" />
             </div>
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Monthly Payroll</span>
-            <div className="text-2xl font-black text-ink-primary tabular-nums leading-none">
-              <span className="text-base font-semibold opacity-30 mr-0.5">{currencySymbol}</span>
-              {totalMonthlyPayroll.toLocaleString()}
+            <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums leading-none">
+              <span className="text-amber-400 text-base mr-0.5">{currencySymbol}</span>
+              {totalMonthlyPayroll.toLocaleString('en-IN')}
             </div>
           </div>
 

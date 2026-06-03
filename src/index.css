@@ -274,9 +274,9 @@ table.report-table tbody td.numeric {
   --color-ink-primary: #1C1208;
   --color-ink-secondary: #4A3010;
   --color-ink-tertiary: #92692A;
-  --color-accent-signature: #F59E0B;
-  --color-accent-signature-hover: #D97706;
-  --color-button-text: #111111;
+  --color-accent-signature: #D97706;
+  --color-accent-signature-hover: #B45309;
+  --color-button-text: #FFFFFF;
   --bg-color: #FFFBF0;
   --accent-lime: #F59E0B;
   --accent-lime-hover: #D97706;
@@ -331,9 +331,9 @@ table.report-table tbody td.numeric {
   --color-ink-primary: #1E1B2E;     /* near-black with a violet cast */
   --color-ink-secondary: #4B5563;
   --color-ink-tertiary: #9CA3AF;
-  --color-accent-signature: #6366F1;       /* indigo */
-  --color-accent-signature-hover: #4F46E5; /* indigo-600 */
-  --color-button-text: #FFFFFF;            /* white text on indigo */
+  --color-accent-signature: #D97706;       /* amber-600 (brand) */
+  --color-accent-signature-hover: #B45309; /* amber-700 */
+  --color-button-text: #FFFFFF;            /* white text on amber */
 
   --radius-bento: 2rem;
   --radius-pill: 9999px;
@@ -347,8 +347,8 @@ table.report-table tbody td.numeric {
   /* Legacy explicit CSS vars — kept in sync with the Indigo @theme. */
   --bg-color: #F8F9FC;
   --bg-gradient: linear-gradient(135deg, #F8F9FC 0%, #EEF0F7 100%);
-  --accent-lime: #6366F1;       /* legacy name, now indigo */
-  --accent-lime-hover: #4F46E5;
+  --accent-lime: #D97706;       /* legacy name, now amber */
+  --accent-lime-hover: #B45309;
   --text-main: #1E1B2E;
   --text-muted: #4B5563;
   --surface: #FFFFFF;

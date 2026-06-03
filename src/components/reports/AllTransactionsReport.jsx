@@ -50,7 +50,7 @@ const SectionHead = ({ title, sub }) => (
   </div>
 );
 
-const KPI = ({ label, value, icon: Icon, color = '#6366f1', loading }) => (
+const KPI = ({ label, value, icon: Icon, color = '#D97706', loading }) => (
   <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
     <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
       <Icon size={16} style={{ color }} />
@@ -67,7 +67,7 @@ const TYPE_FILTERS = ['ALL', 'Sale', 'Payment', 'Purchase', 'Expense'];
 
 const TYPE_STYLE = {
   Sale:     { bg: 'bg-emerald-50', text: 'text-emerald-700' },
-  Payment:  { bg: 'bg-violet-50',  text: 'text-violet-700' },
+  Payment:  { bg: 'bg-amber-50',  text: 'text-amber-700' },
   Purchase: { bg: 'bg-blue-50',    text: 'text-blue-700' },
   Expense:  { bg: 'bg-red-50',     text: 'text-red-600' },
 };
@@ -240,7 +240,7 @@ const AllTransactionsReport = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <KPI label="Money In"    loading={loading} value={formatCurrency(kpis.totalIn)}  icon={ArrowDownLeft}  color="#10b981" />
         <KPI label="Money Out"   loading={loading} value={formatCurrency(kpis.totalOut)} icon={ArrowUpRight}   color="#ef4444" />
-        <KPI label="Net Flow"    loading={loading} value={formatCurrency(kpis.net)}      icon={kpis.net >= 0 ? TrendingUp : TrendingDown} color={kpis.net >= 0 ? '#6366f1' : '#f59e0b'} />
+        <KPI label="Net Flow"    loading={loading} value={formatCurrency(kpis.net)}      icon={kpis.net >= 0 ? TrendingUp : TrendingDown} color={kpis.net >= 0 ? '#D97706' : '#f59e0b'} />
         <KPI label="Transactions" loading={loading} value={kpis.count}                  icon={Hash}           color="#8b5cf6" />
       </div>
 
