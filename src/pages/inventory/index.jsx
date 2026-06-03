@@ -11,6 +11,7 @@ import BatchesModal from './components/BatchesModal';
 import PriceListsModal from './components/PriceListsModal';
 import StockAdjustModal from './components/StockAdjustModal';
 import StockHistoryModal from './components/StockHistoryModal';
+import { LoadingBlock } from '../../components/ui/States';
 
 const Inventory = () => {
   const { currentUser, isOwner } = useAuth();
@@ -117,11 +118,7 @@ const Inventory = () => {
     }
   };
 
-  if (loading) return (
-    <div className="flex items-center justify-center p-20">
-      <div className="text-sm font-bold opacity-50 animate-pulse">Loading products...</div>
-    </div>
-  );
+  if (loading) return <LoadingBlock label="Loading inventory…" />;
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">

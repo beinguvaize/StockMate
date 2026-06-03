@@ -8,6 +8,7 @@ import {
   DollarSign, Briefcase, Layers, Receipt, Download
 } from 'lucide-react';
 import { todayISOInAppTZ, formatCurrency } from '../lib/utils';
+import { EmptyState } from '../components/ui/States';
 
 // Category → dot + pill colour. Shared by the table rows and the mobile
 // cards so both stay visually consistent.
@@ -607,15 +608,12 @@ const Expenses = () => {
  )}
 
  {filteredExpenses.length === 0 && (
- <div className="p-20 sm:p-32 text-center">
- <div className="flex justify-center mb-6 opacity-10">
- <Layers size={64} strokeWidth={1} />
- </div>
- <p className="text-sm font-semibold text-[#747576] mb-4">No expenses found</p>
- <button onClick={() => setIsAdding(true)} className="btn-signature !text-xs inline-flex items-center gap-2 px-5 py-2.5 !rounded-pill">
-   <Plus size={14} /> Log your first expense
- </button>
- </div>
+ <EmptyState
+   icon={Receipt}
+   title="No expenses found"
+   description={filterType === 'all' ? 'Log your first business expense to start tracking spend.' : 'No expenses in this period. Try a wider range or clear filters.'}
+   action={hasPermission('ADD_EXPENSE') ? { label: 'Log expense', icon: <Plus size={14} />, onClick: () => setIsAdding(true) } : null}
+ />
  )}
  </div>
 
