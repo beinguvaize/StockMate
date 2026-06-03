@@ -195,7 +195,7 @@ const PurchasesPage = () => {
           <div className="text-sm font-black text-rose-500">−{ret.quantity}</div>
         </td>
         <td className="px-4 py-3 text-right">
-          <div className="text-sm font-black text-rose-600">{formatCurrency(ret.total_amount)}</div>
+          <div className="font-mono text-sm font-bold text-rose-600 tabular-nums">{formatCurrency(ret.total_amount)}</div>
         </td>
         <td className="px-4 py-3">
           <div className="text-xs text-gray-500">{ret.reason || '—'}</div>
@@ -224,7 +224,7 @@ const PurchasesPage = () => {
           <div className="text-sm font-black text-emerald-500">+{pur.quantity}</div>
         </td>
         <td className="px-4 py-3 text-right">
-          <div className="text-sm font-black text-ink-primary">{formatCurrency(pur.total_amount)}</div>
+          <div className="font-mono text-sm font-bold text-ink-primary tabular-nums">{formatCurrency(pur.total_amount)}</div>
         </td>
         <td className="px-4 py-3 text-center">
           {(() => {
