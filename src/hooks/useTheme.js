@@ -24,7 +24,7 @@ const applyTheme = (key) => {
 export const useTheme = () => {
   const { currentTenantId, businessProfile, updateBusinessProfile } = useTenant();
 
-  const currentTheme = businessProfile?.theme || 'signature';
+  const currentTheme = businessProfile?.theme || 'amber';
 
   // Apply on mount + whenever businessProfile changes
   useEffect(() => {
