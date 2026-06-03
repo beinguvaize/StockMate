@@ -93,7 +93,7 @@ const KPI = ({ label, value, sub, spark, color = '#6366f1', icon: Icon, loading 
     </div>
     {loading
       ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="text-2xl font-black text-ink-primary tabular-nums leading-none">{value}</div>
+      : <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums leading-none">{value}</div>
     }
     <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</div>
     {spark && spark.length > 1 && <Spark data={spark} color={color} />}
