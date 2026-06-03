@@ -135,7 +135,7 @@ const Inventory = () => {
         <div className="flex gap-2 items-center">
           <Button variant="secondary" icon={TagIcon} onClick={() => setShowPriceLists(true)}>Price Lists</Button>
           <Button variant="secondary" icon={History} onClick={() => setShowHistory(true)}>History</Button>
-          <Button icon={Plus} onClick={openAddModal}>Add Product</Button>
+          <Button variant="amber" icon={Plus} onClick={openAddModal}>Add Product</Button>
         </div>
       </div>
 
