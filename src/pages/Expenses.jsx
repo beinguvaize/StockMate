@@ -340,16 +340,16 @@ const Expenses = () => {
  {/* Header Section */}
  <div className="flex justify-between items-center py-2 border-b border-black/5">
  <div className="flex items-center gap-3">
- <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Expenses<span className="text-accent-signature">.</span></h1>
+ <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Expenses<span className="text-amber-500">.</span></h1>
  <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Operating costs & expenditure</span>
- <span className="hidden md:flex items-center gap-1 text-[10px] font-bold text-gray-500 bg-white border border-gray-300 shadow-sm px-2 py-1 rounded-lg">
-   {getFilterLabel()}: <span className="text-ink-primary font-black ml-1">{businessProfile?.currencySymbol || '₹'}{totalExpenses.toLocaleString()}</span>
+ <span className="hidden md:flex items-center gap-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg font-mono">
+   {getFilterLabel()}: <span className="text-amber-800 font-bold ml-0.5">{businessProfile?.currencySymbol || '₹'}{Math.round(totalExpenses).toLocaleString('en-IN')}</span>
  </span>
  </div>
  <div className="flex items-center gap-2">
  {hasPermission('ADD_EXPENSE') && (
- <button className="btn-signature flex items-center gap-2 text-xs font-black" onClick={() => setIsAdding(true)}>
- <Plus size={12} /> Add Expense
+ <button className="flex items-center gap-2 text-xs font-black px-4 py-2.5 rounded-pill bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/25 transition-colors" onClick={() => setIsAdding(true)}>
+ <Plus size={14} strokeWidth={2.5} /> Add Expense
  </button>
  )}
  </div>
@@ -358,11 +358,11 @@ const Expenses = () => {
  {/* Interactive Utility Row */}
  <div className="flex flex-wrap lg:flex-nowrap items-center justify-between bg-white backdrop-blur-xl border border-black/5 rounded-[2rem] shadow-sm p-2 min-h-[72px] w-full gap-2 mb-8">
  <div className="flex-1 flex items-center h-[56px] relative group min-w-[300px]">
- <Search size={16} className="absolute left-5 text-ink-primary opacity-30 group-focus-within:opacity-100 transition-opacity z-10" />
- <input 
- type="text" 
- placeholder="Search expenses..." 
- className="w-full h-full pl-12 pr-5 rounded-pill bg-white border border-gray-300 shadow-sm shadow-inner text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-black/20 focus:bg-white transition-all"
+ <Search size={16} className="absolute left-5 text-amber-500 opacity-50 group-focus-within:opacity-100 transition-opacity z-10" />
+ <input
+ type="text"
+ placeholder="Search expenses..."
+ className="w-full h-full pl-12 pr-5 rounded-pill bg-white border border-gray-300 shadow-sm text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/15 transition-all"
  value={searchTerm}
  onChange={e => setSearchTerm(e.target.value)}
  />
@@ -399,10 +399,10 @@ const Expenses = () => {
  <div className="flex flex-wrap items-center gap-2 mb-3 -mt-4">
    <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">From</span>
    <input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)}
-     className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary outline-none focus:border-accent-signature/40" />
+     className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary font-mono outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/15" />
    <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">To</span>
    <input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)}
-     className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary outline-none focus:border-accent-signature/40" />
+     className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary font-mono outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/15" />
    {(rangeFrom || rangeTo) && (
      <button onClick={() => { setRangeFrom(''); setRangeTo(''); }} className="text-[11px] font-bold text-gray-400 hover:text-red-500">Clear</button>
    )}
@@ -426,7 +426,7 @@ const Expenses = () => {
        className={`px-3.5 py-1.5 rounded-pill text-[11px] font-bold transition-colors flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-amber-600 text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
      >
        {cat}
-       <span className={`tabular-nums ${categoryFilter === cat ? 'text-white/60' : 'text-gray-400'}`}>
+       <span className={`font-mono tabular-nums ${categoryFilter === cat ? 'text-white/70' : 'text-amber-600/70'}`}>
          {businessProfile?.currencySymbol || '₹'}{Math.round(info.total).toLocaleString('en-IN')}
        </span>
      </button>
@@ -463,15 +463,15 @@ const Expenses = () => {
      </div>
      <div className="flex flex-wrap gap-2">
        {recurringTemplates.map(t => (
-         <div key={t.id} className={`flex items-center gap-2 rounded-pill border px-3 py-1.5 text-xs ${t.active ? 'border-accent-signature/30 bg-accent-signature/5' : 'border-black/10 bg-gray-50 opacity-60'}`}>
+         <div key={t.id} className={`flex items-center gap-2 rounded-pill border px-3 py-1.5 text-xs ${t.active ? 'border-amber-300 bg-amber-50' : 'border-black/10 bg-gray-50 opacity-60'}`}>
            <span className="font-bold text-ink-primary">{t.note || t.category}</span>
-           <span className="tabular-nums text-gray-600">{formatCurrency(t.amount)}</span>
+           <span className="font-mono tabular-nums text-amber-700">{formatCurrency(t.amount)}</span>
            <span className="text-[9px] text-gray-400">day {Math.min(t.day_of_month, 28)} · {t.payment_method}</span>
            <button
              type="button"
              title={t.active ? 'Pause' : 'Resume'}
              onClick={() => setRecurringActive(t.id, !t.active)}
-             className="text-[9px] font-bold uppercase text-accent-signature hover:underline"
+             className="text-[9px] font-bold uppercase text-amber-600 hover:underline"
            >{t.active ? 'Pause' : 'Resume'}</button>
            <button
              type="button"
@@ -493,17 +493,17 @@ const Expenses = () => {
  <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">Expense</th>
  <th className="px-4 py-3.5 text-left">
    <button onClick={() => toggleSort('category')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-ink-primary transition-colors">
-     Category <span className={`transition-opacity ${sortKey === 'category' ? 'opacity-100 text-accent-signature' : 'opacity-30'}`}>{sortKey === 'category' && sortDir === 'asc' ? '↑' : '↓'}</span>
+     Category <span className={`transition-opacity ${sortKey === 'category' ? 'opacity-100 text-amber-600' : 'opacity-30'}`}>{sortKey === 'category' && sortDir === 'asc' ? '↑' : '↓'}</span>
    </button>
  </th>
  <th className="px-4 py-3.5 text-left">
    <button onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-ink-primary transition-colors">
-     Date <span className={`transition-opacity ${sortKey === 'date' ? 'opacity-100 text-accent-signature' : 'opacity-30'}`}>{sortKey === 'date' && sortDir === 'asc' ? '↑' : '↓'}</span>
+     Date <span className={`transition-opacity ${sortKey === 'date' ? 'opacity-100 text-amber-600' : 'opacity-30'}`}>{sortKey === 'date' && sortDir === 'asc' ? '↑' : '↓'}</span>
    </button>
  </th>
  <th className="px-4 py-3.5 text-right">
    <button onClick={() => toggleSort('amount')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-ink-primary transition-colors ml-auto">
-     Amount <span className={`transition-opacity ${sortKey === 'amount' ? 'opacity-100 text-accent-signature' : 'opacity-30'}`}>{sortKey === 'amount' && sortDir === 'asc' ? '↑' : '↓'}</span>
+     Amount <span className={`transition-opacity ${sortKey === 'amount' ? 'opacity-100 text-amber-600' : 'opacity-30'}`}>{sortKey === 'amount' && sortDir === 'asc' ? '↑' : '↓'}</span>
    </button>
  </th>
  <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-gray-500 text-right w-px">Actions</th>
@@ -556,7 +556,7 @@ const Expenses = () => {
  {hasPermission('EDIT_EXPENSE') && (
  <button
  aria-label="Edit expense"
- className="w-8 h-8 rounded-lg bg-canvas text-gray-500 flex items-center justify-center hover:bg-accent-signature/15 hover:text-accent-signature transition-colors"
+ className="w-8 h-8 rounded-lg bg-canvas text-gray-500 flex items-center justify-center hover:bg-amber-100 hover:text-amber-700 transition-colors"
  onClick={() => handleEdit(expense)}
  >
  <FileText size={14} />
@@ -590,21 +590,21 @@ const Expenses = () => {
      <div className="flex-1 min-w-0">
        <div className="flex items-center justify-between gap-2">
          <span className="text-sm font-bold text-ink-primary truncate">{expense.note || '—'}</span>
-         <span className="text-base font-black text-ink-primary tabular-nums shrink-0">
-           {businessProfile?.currencySymbol || '₹'}{parseFloat(expense.amount).toLocaleString('en-IN')}
+         <span className="font-mono text-base font-bold text-ink-primary tabular-nums shrink-0">
+           <span className="text-amber-400 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{parseFloat(expense.amount).toLocaleString('en-IN')}
          </span>
        </div>
        <div className="flex items-center gap-2 mt-1.5 flex-wrap">
          <span className={`inline-block px-2 py-0.5 rounded-pill text-[10px] font-bold ${catStyle.pill}`}>{expense.category || 'Other'}</span>
-         <span className="text-[10px] font-semibold text-gray-400">{fmtDate(expense.date)}</span>
+         <span className="text-[10px] font-semibold text-gray-400 font-mono">{fmtDate(expense.date)}</span>
          <span className="text-[10px] font-semibold text-gray-400 uppercase">via {expense.payment_method || 'CASH'}</span>
          {expense.recurring_template_id && (
-           <span className="text-[8px] font-black uppercase text-accent-signature">↻ Recurring</span>
+           <span className="text-[8px] font-black uppercase text-amber-600">↻ Recurring</span>
          )}
        </div>
        <div className="flex items-center gap-2 mt-2">
          {hasPermission('EDIT_EXPENSE') && (
-           <button onClick={() => handleEdit(expense)} className="text-[11px] font-bold text-accent-signature">Edit</button>
+           <button onClick={() => handleEdit(expense)} className="text-[11px] font-bold text-amber-600">Edit</button>
          )}
          {hasPermission('DELETE_EXPENSE') && (
            <button onClick={() => { if(window.confirm('Delete record?')) deleteExpense(expense.id); }} className="text-[11px] font-bold text-red-500">Delete</button>
@@ -711,7 +711,7 @@ const Expenses = () => {
  {/* ── Header ───────────────────────────────────────── */}
  <div className="flex items-center justify-between mb-6">
    <div className="flex items-center gap-3.5">
-     <div className="w-11 h-11 rounded-2xl bg-accent-signature/10 flex items-center justify-center text-accent-signature shrink-0">
+     <div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
        <Receipt size={20} strokeWidth={2.2} />
      </div>
      <div>
@@ -735,10 +735,10 @@ const Expenses = () => {
  <form onSubmit={handleSubmit} className="space-y-5">
 
  {/* ── Amount — hero focal point ──────────────────────── */}
- <div className="rounded-2xl bg-accent-signature/5 border border-accent-signature/15 px-5 py-4 focus-within:border-accent-signature/40 focus-within:ring-4 focus-within:ring-accent-signature/10 transition-all">
-   <label htmlFor="exp-amount" className="block text-[11px] font-bold uppercase tracking-widest text-accent-signature/80 mb-1">Amount</label>
+ <div className="rounded-2xl bg-amber-500/5 border border-amber-500/15 px-5 py-4 focus-within:border-amber-500/40 focus-within:ring-4 focus-within:ring-amber-500/10 transition-all">
+   <label htmlFor="exp-amount" className="block text-[11px] font-bold uppercase tracking-widest text-amber-500/80 mb-1">Amount</label>
    <div className="flex items-center">
-     <span className="text-3xl font-black text-ink-primary/30 mr-2 leading-none">{businessProfile?.currencySymbol || '₹'}</span>
+     <span className="font-mono text-3xl font-bold text-amber-400 mr-2 leading-none">{businessProfile?.currencySymbol || '₹'}</span>
      <input
        id="exp-amount"
        required
@@ -748,7 +748,7 @@ const Expenses = () => {
        min="0.01"
        inputMode="decimal"
        placeholder="0.00"
-       className="flex-1 w-full bg-transparent border-none p-0 font-black text-4xl text-ink-primary outline-none tabular-nums placeholder:text-ink-primary/20"
+       className="flex-1 w-full bg-transparent border-none p-0 font-mono font-bold text-4xl text-ink-primary outline-none tabular-nums placeholder:text-ink-primary/20"
        value={formData.amount}
        onChange={e => setFormData({...formData, amount: e.target.value})}
      />
@@ -760,7 +760,7 @@ const Expenses = () => {
    <div>
      <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Category</label>
      <select
-       className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
+       className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all appearance-none cursor-pointer"
        value={formData.category}
        onChange={e => {
          if (e.target.value === '__ADD__') { setNewCategory(''); return; }
@@ -776,7 +776,7 @@ const Expenses = () => {
          value={newCategory}
          onChange={e => setNewCategory(e.target.value)}
          placeholder="+ New category"
-         className="flex-1 bg-canvas border border-black/8 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary outline-none focus:border-accent-signature/40 placeholder:text-gray-400"
+         className="flex-1 bg-canvas border border-black/8 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary outline-none focus:border-amber-500/40 placeholder:text-gray-400"
        />
        <button
          type="button"
@@ -788,7 +788,7 @@ const Expenses = () => {
            setFormData(f => ({ ...f, category: name }));
            setNewCategory('');
          }}
-         className="px-3 py-1.5 rounded-lg bg-accent-signature/10 text-accent-signature text-xs font-bold disabled:opacity-40"
+         className="px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-500 text-xs font-bold disabled:opacity-40"
        >Add</button>
      </div>
      {customCategories.length > 0 && (
@@ -810,7 +810,7 @@ const Expenses = () => {
    <div>
      <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Paid Via</label>
      <select
-       className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
+       className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all appearance-none cursor-pointer"
        value={formData.payment_method}
        onChange={e => setFormData({...formData, payment_method: e.target.value})}
      >
@@ -827,7 +827,7 @@ const Expenses = () => {
    <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Date</label>
    <input
      type="date"
-     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all"
+     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all"
      value={formData.date}
      onChange={e => setFormData({...formData, date: e.target.value})}
    />
@@ -838,7 +838,7 @@ const Expenses = () => {
  <div>
    <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Paid From Store</label>
    <select
-     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
+     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all appearance-none cursor-pointer"
      value={formData.location_id}
      onChange={e => setFormData({...formData, location_id: e.target.value})}
    >
@@ -856,7 +856,7 @@ const Expenses = () => {
    <textarea
      rows={2}
      placeholder="E.g. Fuel for delivery van, office supplies…"
-     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-medium text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all resize-none placeholder:text-gray-400"
+     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-medium text-sm text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all resize-none placeholder:text-gray-400"
      value={formData.note}
      onChange={e => setFormData({...formData, note: e.target.value})}
    />
@@ -866,7 +866,7 @@ const Expenses = () => {
  <div className="rounded-xl border border-black/8 bg-white overflow-hidden">
    <label className="flex items-center justify-between gap-3 px-4 py-3.5 cursor-pointer">
      <div className="flex items-center gap-3">
-       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.gst_claimable ? 'bg-accent-signature/10 text-accent-signature' : 'bg-canvas text-gray-400'}`}>
+       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.gst_claimable ? 'bg-amber-500/10 text-amber-500' : 'bg-canvas text-gray-400'}`}>
          <Receipt size={16} />
        </div>
        <div>
@@ -879,7 +879,7 @@ const Expenses = () => {
        role="switch"
        aria-checked={formData.gst_claimable}
        onClick={() => setFormData({ ...formData, gst_claimable: !formData.gst_claimable })}
-       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.gst_claimable ? 'bg-accent-signature' : 'bg-black/15'}`}
+       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-amber-500/20 shrink-0 ${formData.gst_claimable ? 'bg-amber-500' : 'bg-black/15'}`}
      >
        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.gst_claimable ? 'translate-x-5' : 'translate-x-0'}`} />
      </button>
@@ -890,7 +890,7 @@ const Expenses = () => {
          <div>
            <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">GST Rate</label>
            <select
-             className="w-full bg-canvas border border-black/10 rounded-xl px-3 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
+             className="w-full bg-canvas border border-black/10 rounded-xl px-3 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all appearance-none cursor-pointer"
              value={formData.gst_rate}
              onChange={e => setFormData({ ...formData, gst_rate: e.target.value })}
            >
@@ -903,7 +903,7 @@ const Expenses = () => {
          </div>
          <div>
            <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">ITC (incl.)</label>
-           <div className="px-3 py-2.5 rounded-xl bg-accent-signature/5 border border-accent-signature/15 text-sm font-black text-accent-signature tabular-nums">
+           <div className="px-3 py-2.5 rounded-xl bg-amber-500/5 border border-amber-500/15 text-sm font-bold text-amber-600 tabular-nums font-mono">
              {(() => {
                const amt = parseFloat(formData.amount) || 0;
                const r = parseFloat(formData.gst_rate) || 0;
@@ -919,7 +919,7 @@ const Expenses = () => {
            type="text"
            maxLength={15}
            placeholder="29ABCDE1234F1Z5"
-           className="w-full bg-canvas border border-black/10 rounded-xl px-3 py-2.5 font-semibold text-sm uppercase tracking-wide text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:normal-case"
+           className="w-full bg-canvas border border-black/10 rounded-xl px-3 py-2.5 font-semibold text-sm uppercase tracking-wide text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:normal-case"
            value={formData.vendor_gstin}
            onChange={e => setFormData({ ...formData, vendor_gstin: e.target.value.toUpperCase() })}
          />
@@ -932,7 +932,7 @@ const Expenses = () => {
  {!editingExpense && (
    <label className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl border border-black/8 bg-white cursor-pointer hover:border-black/15 transition-colors">
      <div className="flex items-center gap-3">
-       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.repeat_monthly ? 'bg-accent-signature/10 text-accent-signature' : 'bg-canvas text-gray-400'}`}>
+       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.repeat_monthly ? 'bg-amber-500/10 text-amber-500' : 'bg-canvas text-gray-400'}`}>
          <Calendar size={16} />
        </div>
        <div>
@@ -947,7 +947,7 @@ const Expenses = () => {
        role="switch"
        aria-checked={formData.repeat_monthly}
        onClick={() => setFormData({ ...formData, repeat_monthly: !formData.repeat_monthly })}
-       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.repeat_monthly ? 'bg-accent-signature' : 'bg-black/15'}`}
+       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-amber-500/20 shrink-0 ${formData.repeat_monthly ? 'bg-amber-500' : 'bg-black/15'}`}
      >
        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.repeat_monthly ? 'translate-x-5' : 'translate-x-0'}`} />
      </button>
@@ -965,7 +965,7 @@ const Expenses = () => {
    <button type="button" className="px-6 py-3.5 rounded-pill border border-black/10 font-bold text-ink-primary text-xs uppercase tracking-wide hover:bg-black/5 transition-colors cursor-pointer disabled:opacity-50" onClick={handleCloseModal} disabled={saving}>
      Cancel
    </button>
-   <button type="submit" disabled={saving} className="btn-signature flex-1 !h-13 !text-xs !uppercase !tracking-widest flex items-center justify-center gap-2.5 px-6 !rounded-pill disabled:opacity-60 disabled:cursor-not-allowed">
+   <button type="submit" disabled={saving} className="flex-1 h-[52px] text-xs uppercase tracking-widest font-black flex items-center justify-center gap-2.5 px-6 rounded-pill bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/25 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
      {saving ? 'Saving…' : (editingExpense ? 'Save Changes' : 'Log Expense')}
      {!saving && <Save size={16} />}
    </button>
