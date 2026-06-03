@@ -238,6 +238,13 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       }
 
       // source_app is now persisted by process_sale itself — no follow-up update needed.
+      // Discount is stored separately (process_sale takes the already-net total);
+      // a tiny follow-up UPDATE records the discount amount for reporting/receipts.
+      const discountAmt = Number(sale.discount) || 0;
+      if (discountAmt > 0) {
+        try { await supabase.from('sales').update({ discount: discountAmt }).eq('id', id); }
+        catch (e) { console.warn('discount persist skipped:', e?.message); }
+      }
       await fetchSales();
       return { success: true, id };
     },
