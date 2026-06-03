@@ -47,7 +47,7 @@ const Expenses = () => {
   const isViewOnly = false; // Placeholder for legacy view mode
  
  const [searchTerm, setSearchTerm] = useState('');
- const [filterType, setFilterType] = useState('all'); // all|today|yesterday|week|month|lastmonth|range
+ const [filterType, setFilterType] = useState('today'); // all|today|yesterday|week|month|lastmonth|range
  const [filterDate, setFilterDate] = useState('');
  const [rangeFrom, setRangeFrom] = useState('');
  const [rangeTo, setRangeTo] = useState('');
