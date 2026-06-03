@@ -58,7 +58,7 @@ const KpiCard = ({ label, value, sub, icon, color = 'default', cy }) => {
         <p className={`text-[9px] font-bold uppercase tracking-widest ${labelColor[color]}`}>{label}</p>
         {icon && <span className={isDark ? 'opacity-40' : 'opacity-60'}>{icon}</span>}
       </div>
-      <p className="text-2xl font-black tabular-nums leading-none">
+      <p className="font-mono text-2xl font-bold tabular-nums leading-none">
         <span className="text-xs opacity-40 mr-0.5">{cy}</span>
         {value}
       </p>
