@@ -51,7 +51,7 @@ const SectionHead = ({ title, sub }) => (
   </div>
 );
 
-const KPI = ({ label, value, icon: Icon, color = '#6366f1', loading }) => (
+const KPI = ({ label, value, icon: Icon, color = '#D97706', loading }) => (
   <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
     <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
       <Icon size={16} style={{ color }} />
@@ -289,7 +289,7 @@ const ProductSalesReport = () => {
         <>
           {/* KPIs */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <KPI label="Units Sold"  loading={loading} value={kpis.units.toLocaleString('en-IN')}    icon={Hash}        color="#6366f1" />
+            <KPI label="Units Sold"  loading={loading} value={kpis.units.toLocaleString('en-IN')}    icon={Hash}        color="#D97706" />
             <KPI label="Revenue"     loading={loading} value={formatCurrency(kpis.revenue)}          icon={DollarSign}  color="#10b981" />
             <KPI label="Avg Rate"    loading={loading} value={formatCurrency(kpis.avg)}              icon={TrendingUp}  color="#f59e0b" />
             <KPI label="Orders"      loading={loading} value={kpis.orders.toLocaleString('en-IN')}   icon={UserCircle}  color="#8b5cf6" />

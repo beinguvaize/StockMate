@@ -17,7 +17,7 @@ const payBadge = (method) => {
     CASH:   'bg-emerald-50 text-emerald-700 border-emerald-100',
     CREDIT: 'bg-amber-50   text-amber-700   border-amber-100',
     BANK:   'bg-blue-50    text-blue-700    border-blue-100',
-    UPI:    'bg-violet-50  text-violet-700  border-violet-100',
+    UPI:    'bg-amber-50  text-amber-700  border-amber-100',
   };
   const cls = colors[m] || 'bg-gray-50 text-gray-600 border-gray-100';
   return (
@@ -212,7 +212,7 @@ const SalesReport = () => {
       type: 'area',
       data: overviewMetrics.chartData,
       series: [
-        { key: 'revenue', name: 'Revenue',  color: '#6366f1' },
+        { key: 'revenue', name: 'Revenue',  color: '#D97706' },
         { key: 'cogs',    name: 'COGS',     color: '#f59e0b' },
       ],
     },
@@ -384,7 +384,7 @@ const SalesReport = () => {
       title: 'Top 10 Products by Revenue',
       type: 'bar',
       data: productPerformance.slice(0, 10).map(p => ({ name: p.productName, value: p.totalRev })),
-      series: [{ key: 'value', name: 'Revenue', color: '#6366f1' }],
+      series: [{ key: 'value', name: 'Revenue', color: '#D97706' }],
     },
     columns: [
       {
@@ -466,7 +466,7 @@ const SalesReport = () => {
       title: 'Revenue by Account',
       type: 'bar',
       data: clientLeaderboard.slice(0, 10).map(c => ({ name: c.name, value: c.revenue })),
-      series: [{ key: 'value', name: 'Revenue', color: '#6366f1' }],
+      series: [{ key: 'value', name: 'Revenue', color: '#D97706' }],
     },
     columns: [
       {

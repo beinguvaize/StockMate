@@ -50,7 +50,7 @@ const SectionHead = ({ title, sub }) => (
   </div>
 );
 
-const KPI = ({ label, value, icon: Icon, color = '#6366f1', loading }) => (
+const KPI = ({ label, value, icon: Icon, color = '#D97706', loading }) => (
   <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
     <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
       <Icon size={16} style={{ color }} />
@@ -304,13 +304,13 @@ const ItemPartyReport = () => {
           {isCustomerView ? (
             <>
               <KPI label="Unique Items"   loading={sLoading} value={tableKpis.uniqueItems}             icon={Package}    color="#8b5cf6" />
-              <KPI label="Total Qty"      loading={sLoading} value={tableKpis.totalQty}                icon={Hash}       color="#6366f1" />
+              <KPI label="Total Qty"      loading={sLoading} value={tableKpis.totalQty}                icon={Hash}       color="#D97706" />
               <KPI label="Total Revenue"  loading={sLoading} value={formatCurrency(tableKpis.totalRevenue)} icon={TrendingUp} color="#10b981" />
             </>
           ) : (
             <>
               <KPI label="Customers"      loading={sLoading} value={tableKpis.uniqueCustomers}          icon={Users}      color="#8b5cf6" />
-              <KPI label="Total Qty Sold" loading={sLoading} value={tableKpis.totalQty}                icon={Hash}       color="#6366f1" />
+              <KPI label="Total Qty Sold" loading={sLoading} value={tableKpis.totalQty}                icon={Hash}       color="#D97706" />
               <KPI label="Total Revenue"  loading={sLoading} value={formatCurrency(tableKpis.totalRevenue)} icon={TrendingUp} color="#10b981" />
             </>
           )}

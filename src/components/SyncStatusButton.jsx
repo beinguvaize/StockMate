@@ -57,8 +57,8 @@ const SyncStatusButton = () => {
     label = `${pendingCount} pending`;
   } else if (syncing) {
     StatusIcon = RefreshCw;
-    statusColor = 'text-indigo-500';
-    statusBg = 'bg-indigo-50 border-indigo-200';
+    statusColor = 'text-amber-500';
+    statusBg = 'bg-amber-50 border-amber-200';
     label = 'Syncing';
   }
 

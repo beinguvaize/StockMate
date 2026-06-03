@@ -36,7 +36,7 @@ const WeeklySalesBarChart = React.memo(({ data, currencySymbol }) => (
       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 700}} />
       <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `${currencySymbol}${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
       <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
-      <Bar dataKey="value" fill="#2563EB" radius={[4, 4, 0, 0]} barSize={32} />
+      <Bar dataKey="value" fill="#D97706" radius={[4, 4, 0, 0]} barSize={32} />
     </BarChart>
   </ResponsiveContainer>
 ));
@@ -46,15 +46,15 @@ const MonthlyComparisonAreaChart = React.memo(({ data, currencySymbol }) => (
     <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0}}>
       <defs>
         <linearGradient id="fillThisMonth" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="5%" stopColor="#2563EB" stopOpacity={0.2}/>
-          <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
+          <stop offset="5%" stopColor="#D97706" stopOpacity={0.2}/>
+          <stop offset="95%" stopColor="#D97706" stopOpacity={0}/>
         </linearGradient>
       </defs>
       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
       <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} />
       <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `${currencySymbol}${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
       <RechartsTooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
-      <Area type="monotone" dataKey="thisMonth" name="This Month" stroke="#2563EB" strokeWidth={2} fillOpacity={1} fill="url(#fillThisMonth)" />
+      <Area type="monotone" dataKey="thisMonth" name="This Month" stroke="#D97706" strokeWidth={2} fillOpacity={1} fill="url(#fillThisMonth)" />
       <Area type="monotone" dataKey="lastMonth" name="Last Month" stroke="#94A3B8" strokeWidth={2} strokeDasharray="5 5" fill="none" />
     </AreaChart>
   </ResponsiveContainer>
@@ -344,10 +344,10 @@ const Dashboard = () => {
  const COLORS = [
  '#3b82f6', // blue-500
  '#ec4899', // pink-500
- '#8b5cf6', // violet-500
+ '#8b5cf6', // amber-500
  '#10b981', // emerald-500
  '#f59e0b', // amber-500
- '#6366f1', // indigo-500
+ '#D97706', // amber-500
  '#ef4444', // red-500
  '#06b6d4', // cyan-500
  '#84cc16', // lime-500
@@ -912,7 +912,7 @@ const Dashboard = () => {
  <Bar 
  dataKey="value" 
  name="Revenue" 
- fill="#6366F1" 
+ fill="#D97706" 
  radius={[6, 6, 0, 0]}
  barSize={32}
  animationDuration={2000}
@@ -1040,7 +1040,7 @@ const Dashboard = () => {
  <div className="bg-white rounded-[1.5rem] border border-black/5 shadow-sm flex flex-col h-[400px] overflow-hidden">
    <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
      <div className="flex items-center gap-2">
-       <Activity size={13} className="text-indigo-500" />
+       <Activity size={13} className="text-amber-500" />
        <span className="text-xs font-black text-ink-primary uppercase tracking-wide">Top Debtors</span>
      </div>
    </div>
@@ -1063,7 +1063,7 @@ const Dashboard = () => {
                </div>
                <div className="flex items-center gap-2 shrink-0 ml-3">
                  <span className={`text-xs font-black tabular-nums ${amtColor}`}>₹{Math.round(out).toLocaleString()}</span>
-                 <button onClick={() => navigate(`/${slug}/clients`)} className="text-[9px] font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 border border-indigo-100 hover:bg-indigo-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+                 <button onClick={() => navigate(`/${slug}/clients`)} className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
                    Collect
                  </button>
                </div>

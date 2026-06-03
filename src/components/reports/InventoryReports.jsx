@@ -61,7 +61,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
  return Object.values(trends).sort((a, b) => (b.in + b.out) - (a.in + a.out)).slice(0, 10);
 }, [movementLog, products]);
 
- const COLORS = ['#6366f1', '#22c55e', '#f59e0b', '#ef4444', '#a855f7'];
+ const COLORS = ['#D97706', '#22c55e', '#f59e0b', '#ef4444', '#a855f7'];
 
  return (
  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">

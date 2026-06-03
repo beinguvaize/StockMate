@@ -100,7 +100,7 @@ const LogisticsReport = () => {
     kpis: fleetMetrics.kpis,
     chartConfig: { 
       title: "Revenue by vehicle node", type: 'bar', data: fleetMetrics.performance.slice(0, 10).map(v => ({ name: v.name, value: v.revenue })),
-      series: [{ key: 'value', name: 'Revenue Contribution', color: '#6366f1' }] 
+      series: [{ key: 'value', name: 'Revenue Contribution', color: '#D97706' }] 
     }
   };
 

@@ -113,7 +113,7 @@ const ErrorDiagnosticsPanel = () => {
     <div className="space-y-6 animate-in fade-in duration-700">
       {/* 1. Summary Bento */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard label="Total Logged Issues" value={stats.total} icon={Activity} color="bg-indigo-600" />
+        <StatCard label="Total Logged Issues" value={stats.total} icon={Activity} color="bg-amber-600" />
         <StatCard label="Critical & Unresolved" value={stats.critical} icon={ShieldAlert} color="bg-red-600" />
         <StatCard label="Most Viral Tenant" value="LEDGR PRIMARY" icon={Zap} color="bg-emerald-600" />
       </div>
@@ -190,7 +190,7 @@ const ErrorDiagnosticsPanel = () => {
                       <span className="text-[10px] font-black text-ink-primary uppercase tracking-tight truncate max-w-[150px]">
                         {log.tenant_id ? 'IDENTIFIED TENANT' : 'SYSTEM OVERRIDE'}
                       </span>
-                      <span className="text-[9px] font-black text-indigo-500 uppercase tracking-widest mt-0.5">{log.module}</span>
+                      <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mt-0.5">{log.module}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -246,7 +246,7 @@ const ErrorDiagnosticsPanel = () => {
                               </div>
                               <div className="glass-panel border-white/5 bg-white/50 p-3 rounded-xl">
                                 <p className="text-[8px] font-black text-gray-400 uppercase">Plan Tier</p>
-                                <p className="text-[9px] font-black text-indigo-600">{log.plan_tier}</p>
+                                <p className="text-[9px] font-black text-amber-600">{log.plan_tier}</p>
                               </div>
                               <div className="glass-panel border-white/5 bg-white/50 p-3 rounded-xl">
                                 <p className="text-[8px] font-black text-gray-400 uppercase">Actor Role</p>

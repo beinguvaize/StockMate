@@ -154,7 +154,7 @@ const PurchasesReport = () => {
       title: 'Procurement Value Over Time',
       type: 'area',
       data: metrics.chartData,
-      series: [{ key: 'amount', name: 'Amount', color: '#6366f1' }],
+      series: [{ key: 'amount', name: 'Amount', color: '#D97706' }],
     },
     columns: [
       { key: 'date', label: 'Date', type: 'date', sortable: true, width: 130 },
@@ -232,7 +232,7 @@ const PurchasesReport = () => {
       title: 'Spend by Supplier',
       type: 'bar',
       data: supplierData.slice(0, 8).map(s => ({ name: s.supplierName, value: s.totalAmount })),
-      series: [{ key: 'value', name: 'Spend', color: '#6366f1' }],
+      series: [{ key: 'value', name: 'Spend', color: '#D97706' }],
     },
     columns: [
       {
@@ -273,11 +273,11 @@ const PurchasesReport = () => {
             <div className="flex items-center gap-2 justify-end">
               <div className="w-16 h-1.5 rounded-full bg-canvas overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-indigo-500"
+                  className="h-full rounded-full bg-amber-500"
                   style={{ width: `${Math.min(100, pct)}%` }}
                 />
               </div>
-              <span className="text-[10px] font-black text-indigo-500 tabular-nums w-10 text-right">
+              <span className="text-[10px] font-black text-amber-500 tabular-nums w-10 text-right">
                 {pct.toFixed(1)}%
               </span>
             </div>

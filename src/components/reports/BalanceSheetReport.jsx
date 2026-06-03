@@ -158,7 +158,7 @@ const BalanceSheetReport = () => {
         key: 'section', label: 'Section', sortable: true, width: 140,
         render: (val) => (
           <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase ${
-            val === 'ASSETS' ? 'bg-indigo-50 text-indigo-600' :
+            val === 'ASSETS' ? 'bg-amber-50 text-amber-600' :
             val === 'LIABILITIES' ? 'bg-rose-50 text-rose-600' :
             'bg-emerald-50 text-emerald-600'
           }`}>{val}</span>
@@ -180,7 +180,7 @@ const BalanceSheetReport = () => {
         key: 'amount', label: 'Balance', type: 'currency', align: 'right', sortable: true, width: 180,
         render: (val, row) => (
           <span className={`font-black ${
-            row.side === 'ASSET' ? 'text-indigo-600' :
+            row.side === 'ASSET' ? 'text-amber-600' :
             row.side === 'LIABILITY' ? 'text-rose-500' :
             'text-emerald-600'
           }`}>
@@ -194,7 +194,7 @@ const BalanceSheetReport = () => {
       title: 'Balance Sheet Composition',
       type: 'bar',
       data: compositionChart,
-      series: [{ key: 'value', name: 'Amount', color: '#6366f1' }],
+      series: [{ key: 'value', name: 'Amount', color: '#D97706' }],
     },
     detailFields: [
       { key: 'amount', label: 'Balance', type: 'currency', isHero: true },

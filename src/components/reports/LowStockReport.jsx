@@ -18,7 +18,7 @@ const SectionHead = ({ title, sub }) => (
   </div>
 );
 
-const KPI = ({ label, value, icon: Icon, color = '#6366f1', loading }) => (
+const KPI = ({ label, value, icon: Icon, color = '#D97706', loading }) => (
   <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
     <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
       <Icon size={16} style={{ color }} />
@@ -91,7 +91,7 @@ const LowStockReport = () => {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <KPI label="Items Low / Below Threshold" loading={loading} value={kpis.itemsLow}                           icon={AlertTriangle} color="#f59e0b" />
         <KPI label="Items Out of Stock"          loading={loading} value={kpis.itemsOut}                           icon={Package}       color="#ef4444" />
-        <KPI label="Total Reorder Value"         loading={loading} value={formatCurrency(kpis.reorderValue)}       icon={DollarSign}    color="#6366f1" />
+        <KPI label="Total Reorder Value"         loading={loading} value={formatCurrency(kpis.reorderValue)}       icon={DollarSign}    color="#D97706" />
       </div>
 
       {/* Table */}

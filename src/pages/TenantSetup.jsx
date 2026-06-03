@@ -111,7 +111,7 @@ const TenantSetup = () => {
 
   return (
     <div className="min-h-screen bg-[#141c1a] flex items-center justify-center p-4 relative overflow-hidden font-inter">
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#6366F1]/10 rounded-full blur-[120px]" />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-[#D97706]/10 rounded-full blur-[120px]" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-[120px]" />
 
       {isGlobalAdmin && (
@@ -130,12 +130,12 @@ const TenantSetup = () => {
       {step === 1 && (
         <div className="w-full max-w-3xl relative z-10">
           <div className="text-center mb-8">
-            <div className="w-14 h-14 bg-[#6366F1] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(99,102,241,0.3)]">
+            <div className="w-14 h-14 bg-[#D97706] rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(99,102,241,0.3)]">
               <Building2 className="w-7 h-7 text-black" />
             </div>
             <h1 className="text-3xl font-bold text-white tracking-tight mb-2">Choose your plan</h1>
             <p className="text-[#747576] text-sm font-medium">
-              All plans start with a <span className="text-[#6366F1] font-bold">60-day free trial</span>. No credit card required.
+              All plans start with a <span className="text-[#D97706] font-bold">60-day free trial</span>. No credit card required.
             </p>
           </div>
 
@@ -146,7 +146,7 @@ const TenantSetup = () => {
                 onClick={() => setSelectedPlan(plan.id)}
                 className={`relative text-left p-5 rounded-2xl border-2 transition-all duration-200 ${
                   selectedPlan === plan.id
-                    ? 'border-[#6366F1] bg-[#6366F1]/10 shadow-[0_0_20px_rgba(99,102,241,0.15)]'
+                    ? 'border-[#D97706] bg-[#D97706]/10 shadow-[0_0_20px_rgba(99,102,241,0.15)]'
                     : 'border-white/10 bg-white/5 hover:border-white/20'
                 }`}
               >
@@ -155,15 +155,15 @@ const TenantSetup = () => {
                     {plan.badge}
                   </span>
                 )}
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 ${selectedPlan === plan.id ? 'bg-[#6366F1] text-white' : 'bg-white/10 text-white'}`}>
+                <div className={`w-8 h-8 rounded-xl flex items-center justify-center mb-3 ${selectedPlan === plan.id ? 'bg-[#D97706] text-white' : 'bg-white/10 text-white'}`}>
                   {plan.icon}
                 </div>
                 <div className="text-white font-black text-sm uppercase tracking-tight mb-0.5">{plan.label}</div>
-                <div className={`text-lg font-black mb-4 ${selectedPlan === plan.id ? 'text-[#6366F1]' : 'text-gray-300'}`}>{plan.price}</div>
+                <div className={`text-lg font-black mb-4 ${selectedPlan === plan.id ? 'text-[#D97706]' : 'text-gray-300'}`}>{plan.price}</div>
                 <ul className="space-y-1.5">
                   {plan.features.map(f => (
                     <li key={f} className="flex items-center gap-2 text-[11px] text-gray-300 font-medium">
-                      <Check size={10} className="text-[#6366F1] shrink-0" />
+                      <Check size={10} className="text-[#D97706] shrink-0" />
                       {f}
                     </li>
                   ))}
@@ -175,7 +175,7 @@ const TenantSetup = () => {
                   ))}
                 </ul>
                 {selectedPlan === plan.id && (
-                  <div className="mt-4 flex items-center gap-1.5 text-[10px] text-[#6366F1] font-black uppercase tracking-widest">
+                  <div className="mt-4 flex items-center gap-1.5 text-[10px] text-[#D97706] font-black uppercase tracking-widest">
                     <Check size={10} /> Selected
                   </div>
                 )}
@@ -186,7 +186,7 @@ const TenantSetup = () => {
           <div className="flex justify-center">
             <button
               onClick={() => setStep(2)}
-              className="flex items-center gap-2 px-8 py-4 bg-[#6366F1] hover:bg-[#4F46E5] text-white font-bold rounded-2xl shadow-[0_10px_20px_-10px_rgba(99,102,241,0.5)] transition-all"
+              className="flex items-center gap-2 px-8 py-4 bg-[#D97706] hover:bg-[#B45309] text-white font-bold rounded-2xl shadow-[0_10px_20px_-10px_rgba(99,102,241,0.5)] transition-all"
             >
               Continue with {activePlan?.label}
               <ArrowRight size={18} />
@@ -207,7 +207,7 @@ const TenantSetup = () => {
 
           <div className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-[2rem] p-8">
             <div className="flex flex-col items-center mb-6 text-center">
-              <div className="px-4 py-1.5 bg-[#6366F1]/20 border border-[#6366F1]/30 rounded-full text-[10px] font-black text-[#6366F1] uppercase tracking-widest mb-4">
+              <div className="px-4 py-1.5 bg-[#D97706]/20 border border-[#D97706]/30 rounded-full text-[10px] font-black text-[#D97706] uppercase tracking-widest mb-4">
                 {activePlan?.label} · 60-day free trial
               </div>
               <h1 className="text-2xl font-bold text-white tracking-tight mb-1">Name your workspace</h1>
@@ -223,7 +223,7 @@ const TenantSetup = () => {
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="e.g. KRISHNA TRADERS"
-                  className="w-full h-14 bg-black/40 border border-white/10 text-white px-5 rounded-xl outline-none focus:border-[#6366F1]/50 transition-all text-sm uppercase tracking-wide"
+                  className="w-full h-14 bg-black/40 border border-white/10 text-white px-5 rounded-xl outline-none focus:border-[#D97706]/50 transition-all text-sm uppercase tracking-wide"
                   required
                   disabled={isLoading}
                   autoFocus
@@ -238,7 +238,7 @@ const TenantSetup = () => {
 
               <button
                 type="submit"
-                className="w-full h-14 bg-[#6366F1] hover:bg-[#4F46E5] text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full h-14 bg-[#D97706] hover:bg-[#B45309] text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isLoading || !businessName.trim()}
               >
                 {isLoading ? (

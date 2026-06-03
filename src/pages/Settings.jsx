@@ -1062,11 +1062,11 @@ const Settings = () => {
 
  <div className="rounded-[2rem] p-6 bg-white border border-black/5 flex flex-col gap-10 shadow-sm">
  <div>
- <div className="flex items-center gap-4 text-indigo-500 mb-6">
+ <div className="flex items-center gap-4 text-amber-500 mb-6">
  <ShieldCheck size={28} />
  <h3 className="text-base font-semibold leading-none">Security Locks</h3>
  </div>
- <p className="text-[11px] font-semibold text-indigo-900/60 leading-relaxed">
+ <p className="text-[11px] font-semibold text-amber-900/60 leading-relaxed">
  Critical system partitions are locked for integrity. Administrative overrides require multi-factor verification.
  </p>
  </div>

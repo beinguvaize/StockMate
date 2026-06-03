@@ -71,7 +71,7 @@ const HRReport = () => {
     columns: [
       { key: 'name', label: 'Personnel Entity', sortable: true, width: 220, render: (val, row) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-black text-[10px] uppercase">{val.slice(0, 1)}</div>
+          <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 font-black text-[10px] uppercase">{val.slice(0, 1)}</div>
           <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>
         </div>
       )},
@@ -86,7 +86,7 @@ const HRReport = () => {
     kpis: workforceMetrics.kpis,
     chartConfig: { 
       title: "Cost distribution by department", type: 'pie', data: workforceMetrics.deptStats.map(d => ({ name: d.name, value: d.cost })),
-      series: [{ key: 'value', name: 'Authorized Salary', color: '#6366f1' }] 
+      series: [{ key: 'value', name: 'Authorized Salary', color: '#D97706' }] 
     }
   };
 

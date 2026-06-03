@@ -244,7 +244,7 @@ const SuperAdminPortal = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-12">
         <StatCard label="Active Tenants" value={globalStats.totalTenants} icon={Building} color="bg-blue-600" detail="LIFETIME" />
         <StatCard label="Platform Users" value={globalStats.activeUsers} icon={Users} color="bg-emerald-600" detail="REAL-TIME" />
-        <StatCard label="System Integrity" value={globalStats.systemHealth} icon={Activity} color="bg-indigo-600" detail="STABLE" />
+        <StatCard label="System Integrity" value={globalStats.systemHealth} icon={Activity} color="bg-amber-600" detail="STABLE" />
         <StatCard label="Database Volume" value={globalStats.dbSize} icon={Database} color="bg-purple-600" detail="94% FREE" />
       </div>
 
@@ -324,7 +324,7 @@ const SuperAdminPortal = () => {
                               setSelectedTenant(tenant);
                               setIsDrawerOpen(true);
                             }}
-                            className="p-2 hover:bg-black/5 rounded-lg text-gray-400 hover:text-indigo-600 transition-all"
+                            className="p-2 hover:bg-black/5 rounded-lg text-gray-400 hover:text-amber-600 transition-all"
                             title="Manage Tenant"
                           >
                             <Settings size={14} />
@@ -376,13 +376,13 @@ const SuperAdminPortal = () => {
                   }}
                   className="w-full flex items-center justify-between p-4 rounded-xl bg-canvas hover:bg-gray-100 border border-black/5 transition-all group">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-indigo-50 text-indigo-600"><RefreshCcw size={16} /></div>
+                    <div className="p-2 rounded-lg bg-amber-50 text-amber-600"><RefreshCcw size={16} /></div>
                     <div className="text-left">
                       <p className="text-xs font-bold text-ink-primary uppercase">Global Cache Reset</p>
                       <p className="text-[8px] text-gray-500 font-bold uppercase tracking-wide">Flush Cloud Instance Data</p>
                     </div>
                   </div>
-                  <ChevronRight size={16} className="text-gray-400 group-hover:text-indigo-600 transition-colors" />
+                  <ChevronRight size={16} className="text-gray-400 group-hover:text-amber-600 transition-colors" />
                 </button>
 
                 <button 
