@@ -139,24 +139,24 @@ const Inventory = () => {
         </div>
       </div>
 
-      {/* KPI Ribbon */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-8">
+      {/* KPI Ribbon — compact stat strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-black/[0.07] shadow-sm">
         {[
-          { label: 'Total Products', value: products.length, suffix: 'ITEMS', icon: <PackagePlus size={36} strokeWidth={1.5} />, color: 'text-stone-400' },
-          { label: 'Total Units',    value: kpis.totalUnits, suffix: 'PCS',   icon: <ShoppingBag size={36} strokeWidth={1.5} />,  color: 'text-stone-400' },
-          { label: 'Stock Value',    value: `₹${Math.round(kpis.stockValue).toLocaleString('en-IN')}`,  icon: <DollarSign size={36} strokeWidth={1.5} />,  color: 'text-amber-500', money: true },
-          { label: 'Retail Value',   value: `₹${Math.round(kpis.retailValue).toLocaleString('en-IN')}`, icon: <TrendingUp size={36} strokeWidth={1.5} />,  color: 'text-amber-500', money: true },
-          { label: 'Low Stock',      value: kpis.lowStock,   suffix: 'SKUs',  icon: <AlertCircle size={36} strokeWidth={1.5} />,  color: 'text-amber-500', warn: kpis.lowStock > 0 ? 'low' : null },
-          { label: 'Out of Stock',   value: kpis.outOfStock, suffix: 'SKUs',  icon: <BarChart3 size={36} strokeWidth={1.5} />,    color: 'text-red-400', warn: kpis.outOfStock > 0 ? 'out' : null },
+          { label: 'Total Products', value: products.length, suffix: 'items', icon: <PackagePlus size={14} />, money: false },
+          { label: 'Total Units',    value: kpis.totalUnits.toLocaleString('en-IN'), suffix: 'pcs', icon: <ShoppingBag size={14} />, money: false },
+          { label: 'Stock Value',    value: Math.round(kpis.stockValue).toLocaleString('en-IN'),  icon: <DollarSign size={14} />, money: true },
+          { label: 'Retail Value',   value: Math.round(kpis.retailValue).toLocaleString('en-IN'), icon: <TrendingUp size={14} />, money: true },
+          { label: 'Low Stock',      value: kpis.lowStock,   suffix: 'SKUs', icon: <AlertCircle size={14} />, warn: kpis.lowStock > 0 ? 'low' : null },
+          { label: 'Out of Stock',   value: kpis.outOfStock, suffix: 'SKUs', icon: <BarChart3 size={14} />,   warn: kpis.outOfStock > 0 ? 'out' : null },
         ].map((m, i) => (
-          <div key={i} className="p-5 bg-white border border-black/[0.07] rounded-2xl shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
-            <div className={`absolute top-4 right-4 opacity-[0.07] group-hover:opacity-[0.13] transition-opacity pointer-events-none ${m.color}`}>
-              {m.icon}
+          <div key={i} className="bg-white px-4 py-3.5 flex flex-col gap-1.5 hover:bg-amber-500/[0.03] transition-colors">
+            <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-widest">
+              <span className={m.warn === 'out' ? 'text-red-400' : m.warn === 'low' ? 'text-amber-500' : 'text-stone-300'}>{m.icon}</span>
+              {m.label}
             </div>
-            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-1">{m.label}</span>
-            <div className={`font-mono text-2xl font-bold tabular-nums leading-tight ${m.warn === 'low' ? 'text-amber-600' : m.warn === 'out' ? 'text-red-600' : 'text-ink-primary'}`}>
-              {m.money ? <><span className="text-amber-400 text-lg mr-0.5">₹</span>{String(m.value).replace('₹','')}</> : m.value}
-              {m.suffix && <span className="text-[11px] font-bold opacity-30 ml-1">{m.suffix}</span>}
+            <div className={`font-mono text-xl font-bold tabular-nums leading-none ${m.warn === 'low' ? 'text-amber-600' : m.warn === 'out' ? 'text-red-600' : 'text-ink-primary'}`}>
+              {m.money && <span className="text-amber-400 text-sm mr-0.5">₹</span>}{m.value}
+              {m.suffix && <span className="text-[10px] font-bold text-gray-300 ml-1 lowercase">{m.suffix}</span>}
             </div>
           </div>
         ))}
