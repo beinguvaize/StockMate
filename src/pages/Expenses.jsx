@@ -487,34 +487,26 @@ const Expenses = () => {
  <div className="hidden sm:block overflow-x-auto">
  <table className="w-full text-left border-collapse">
  <thead className="sticky top-0 z-10">
- <tr className="border-b border-black/10 bg-canvas/80 backdrop-blur-sm">
- <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-gray-500">Expense</th>
- <th className="px-4 py-3.5 text-left">
-   <button onClick={() => toggleSort('category')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-ink-primary transition-colors">
-     Category <span className={`transition-opacity ${sortKey === 'category' ? 'opacity-100 text-amber-600' : 'opacity-30'}`}>{sortKey === 'category' && sortDir === 'asc' ? '↑' : '↓'}</span>
-   </button>
- </th>
- <th className="px-4 py-3.5 text-left">
-   <button onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-ink-primary transition-colors">
+ <tr className="border-b border-black/10 bg-white">
+ <th className="px-6 py-3 w-full font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400">Description</th>
+ <th className="px-4 py-3 text-left whitespace-nowrap">
+   <button onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors">
      Date <span className={`transition-opacity ${sortKey === 'date' ? 'opacity-100 text-amber-600' : 'opacity-30'}`}>{sortKey === 'date' && sortDir === 'asc' ? '↑' : '↓'}</span>
    </button>
  </th>
- <th className="px-4 py-3.5 text-right">
-   <button onClick={() => toggleSort('amount')} className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-ink-primary transition-colors ml-auto">
+ <th className="px-4 py-3 text-right whitespace-nowrap">
+   <button onClick={() => toggleSort('amount')} className="inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors ml-auto">
      Amount <span className={`transition-opacity ${sortKey === 'amount' ? 'opacity-100 text-amber-600' : 'opacity-30'}`}>{sortKey === 'amount' && sortDir === 'asc' ? '↑' : '↓'}</span>
    </button>
  </th>
- <th className="px-6 py-3.5 text-[10px] font-bold uppercase tracking-widest text-gray-500 text-right w-px">Actions</th>
+ <th className="px-6 py-3 w-px"></th>
  </tr>
  </thead>
  <tbody className="divide-y divide-black/[0.04] bg-white font-inter">
  {pagedExpenses.map(expense => {
- const catStyle = catStyleOf(expense.category);
  return (
  <tr key={expense.id} className="group hover:bg-amber-500/[0.04] transition-colors">
- <td className="px-6 py-3">
- <div className="flex items-center gap-3.5">
-   <span className={`w-1 h-8 rounded-sm shrink-0 ${catStyle.dot}`} />
+ <td className="px-6 py-3 max-w-0 w-full">
    <div className="min-w-0">
      <div className="flex items-center gap-1.5">
        <span className="text-[14px] font-bold text-ink-primary truncate">{expense.note || '—'}</span>
@@ -524,24 +516,18 @@ const Expenses = () => {
          </span>
        )}
      </div>
-     <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-0.5">
-       via {expense.payment_method || 'CASH'}
+     <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-0.5 truncate">
+       {expense.category || 'Other'} · via {expense.payment_method || 'CASH'}
      </div>
    </div>
- </div>
  </td>
- <td className="px-4 py-3 text-left">
- <span className={`inline-block px-2.5 py-1 rounded-pill text-[10px] font-bold ${catStyle.pill}`}>
- {expense.category || 'Other'}
- </span>
- </td>
- <td className="px-4 py-3 text-left">
+ <td className="px-4 py-3 text-left whitespace-nowrap">
  <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 font-mono">
  <Calendar size={11} className="opacity-40" />
  {fmtDate(expense.date)}
  </div>
  </td>
- <td className="px-4 py-3 text-right">
+ <td className="px-4 py-3 text-right whitespace-nowrap">
  <div className="font-mono text-[15px] font-bold text-ink-primary tabular-nums tracking-tight leading-none">
  <span className="text-amber-400 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{parseFloat(expense.amount).toLocaleString('en-IN')}
  </div>
@@ -549,7 +535,7 @@ const Expenses = () => {
    <div className="h-full rounded-full bg-amber-500" style={{ width: `${totalExpenses ? Math.max(Math.round((parseFloat(expense.amount)||0) / totalExpenses * 100), 3) : 0}%` }} />
  </div>
  </td>
- <td className="px-6 py-3 text-right">
+ <td className="px-4 py-3 text-right whitespace-nowrap">
  <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
  {hasPermission('EDIT_EXPENSE') && (
  <button
@@ -581,10 +567,8 @@ const Expenses = () => {
  {/* Mobile cards — shown below sm breakpoint where a table cramps. */}
  <div className="sm:hidden divide-y divide-black/5">
  {pagedExpenses.map(expense => {
-   const catStyle = catStyleOf(expense.category);
    return (
-   <div key={expense.id} className="p-4 flex items-start gap-3">
-     <span className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1.5 ${catStyle.dot}`} />
+   <div key={expense.id} className="p-4">
      <div className="flex-1 min-w-0">
        <div className="flex items-center justify-between gap-2">
          <span className="text-sm font-bold text-ink-primary truncate">{expense.note || '—'}</span>
@@ -592,13 +576,9 @@ const Expenses = () => {
            <span className="text-amber-400 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{parseFloat(expense.amount).toLocaleString('en-IN')}
          </span>
        </div>
-       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-         <span className={`inline-block px-2 py-0.5 rounded-pill text-[10px] font-bold ${catStyle.pill}`}>{expense.category || 'Other'}</span>
-         <span className="text-[10px] font-semibold text-gray-400 font-mono">{fmtDate(expense.date)}</span>
-         <span className="text-[10px] font-semibold text-gray-400 uppercase">via {expense.payment_method || 'CASH'}</span>
-         {expense.recurring_template_id && (
-           <span className="text-[8px] font-black uppercase text-amber-600">↻ Recurring</span>
-         )}
+       <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-1 font-mono">
+         {expense.category || 'Other'} · via {expense.payment_method || 'CASH'} · {fmtDate(expense.date)}
+         {expense.recurring_template_id && <span className="text-amber-600 ml-1">· ↻ Recurring</span>}
        </div>
        <div className="flex items-center gap-2 mt-2">
          {hasPermission('EDIT_EXPENSE') && (
