@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTenant } from '../../context/TenantContext';
+import { EmptyState } from '../ui/States';
 import {
   UserCircle, Plus, Edit3, Trash2, Check,
   Phone, AlertCircle, Search, TrendingUp, Users, CreditCard, Clock,
@@ -105,14 +106,13 @@ const ClientDirectory = ({
 
       {/* Client Cards */}
       {filteredClients.length === 0 ? (
-        <div className="bg-white p-24 rounded-[2.5rem] text-center border border-black/5 shadow-sm">
-          <UserCircle size={56} className="mx-auto mb-4 opacity-10" strokeWidth={1} />
-          <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No clients found</p>
-          {hasPermission('clients', 'edit') && (
-            <button onClick={openAdd} className="mt-6 btn-signature text-xs font-bold">
-              ADD FIRST CLIENT
-            </button>
-          )}
+        <div className="bg-white rounded-2xl border border-black/5 shadow-sm">
+          <EmptyState
+            icon={UserCircle}
+            title={searchTerm || statusFilter !== 'ALL' ? 'No matching clients' : 'No clients yet'}
+            description={searchTerm || statusFilter !== 'ALL' ? 'Try a different search or clear filters.' : 'Add your first client to start tracking receivables and sales.'}
+            action={hasPermission('clients', 'edit') ? { label: 'Add client', icon: <Plus size={14} />, onClick: openAdd } : null}
+          />
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">

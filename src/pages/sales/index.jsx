@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LoadingBlock } from '../../components/ui/States';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useSales } from '../../hooks/useSales';
@@ -143,11 +144,7 @@ const SalesPage = () => {
     return () => clearTimeout(t);
   }, [isLoading]);
 
-  if (isLoading && !loadTimeout) return (
-    <div className="flex items-center justify-center p-20">
-      <div className="text-sm font-bold opacity-50 animate-pulse">Loading sales...</div>
-    </div>
-  );
+  if (isLoading && !loadTimeout) return <LoadingBlock label="Loading point of sale…" />;
 
   return (
     <div className="animate-fade-in flex flex-col gap-2">
