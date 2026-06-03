@@ -213,6 +213,23 @@ const Expenses = () => {
  return total / 30; // Approximation for month or context
 }, [filteredExpenses]);
 
+ // Average per entry (for the insight rail).
+ const avgEntry = useMemo(() =>
+   filteredExpenses.length ? totalExpenses / filteredExpenses.length : 0,
+ [filteredExpenses, totalExpenses]);
+
+ // Category rollup over the *filtered* set, sorted high→low, for the
+ // "Where it went" bars in the insight rail.
+ const railCats = useMemo(() => {
+   const map = {};
+   filteredExpenses.forEach(e => {
+     const c = e.category || 'Other';
+     map[c] = (map[c] || 0) + (parseFloat(e.amount) || 0);
+   });
+   return Object.entries(map).sort((a, b) => b[1] - a[1]);
+ }, [filteredExpenses]);
+ const railMax = railCats.length ? railCats[0][1] : 0;
+
  const getFilterLabel = () => {
  if (filterType === 'today') return"Today's Expenses";
  if (filterType === 'yesterday') return"Yesterday's Expenses";
@@ -338,47 +355,6 @@ const Expenses = () => {
  </div>
  </div>
 
- {/* Premium KPI Ribbons */}
- <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
- <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
- <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-red-500">
- <TrendingDown size={40} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Aggregate Registry</span>
- <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
- {filteredExpenses.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">RECORDS</span>
- </div>
- </div>
- </div>
-
- <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
- <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-accent-signature">
- <Calendar size={40} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Monthly Average Burn</span>
- <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
- <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {dailyAvg.toLocaleString(undefined, { maximumFractionDigits: 0 })}
- </div>
- </div>
- </div>
- 
- <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
- <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-ink-primary">
- <DollarSign size={40} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Total Valuation</span>
- <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
- <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(filteredExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0)).toLocaleString()}
- </div>
- </div>
- </div>
- </div>
-
  {/* Interactive Utility Row */}
  <div className="flex flex-wrap lg:flex-nowrap items-center justify-between bg-white backdrop-blur-xl border border-black/5 rounded-[2rem] shadow-sm p-2 min-h-[72px] w-full gap-2 mb-8">
  <div className="flex-1 flex items-center h-[56px] relative group min-w-[300px]">
@@ -404,14 +380,14 @@ const Expenses = () => {
  <button
  key={k}
  onClick={() => setFilterType(k)}
- className={`px-4 py-2 rounded-pill text-[11px] font-bold tracking-wider transition-all whitespace-nowrap ${filterType === k ? 'bg-ink-primary text-white shadow-md' : 'text-gray-500 hover:text-ink-primary hover:bg-black/5'}`}
+ className={`px-4 py-2 rounded-pill text-[11px] font-bold tracking-wider transition-all whitespace-nowrap ${filterType === k ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20' : 'text-gray-500 hover:text-ink-primary hover:bg-black/5'}`}
  >
  {label}
  </button>
  ))}
  <button
    onClick={() => setFilterType('range')}
-   className={`px-4 py-2 rounded-pill text-[11px] font-bold tracking-wider transition-all whitespace-nowrap flex items-center gap-1.5 ${filterType === 'range' ? 'bg-ink-primary text-white shadow-md' : 'text-gray-500 hover:text-ink-primary hover:bg-black/5'}`}
+   className={`px-4 py-2 rounded-pill text-[11px] font-bold tracking-wider transition-all whitespace-nowrap flex items-center gap-1.5 ${filterType === 'range' ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20' : 'text-gray-500 hover:text-ink-primary hover:bg-black/5'}`}
  >
    <Calendar size={13} /> Range
  </button>
@@ -437,7 +413,7 @@ const Expenses = () => {
  <div className="flex flex-wrap items-center gap-2 mb-3">
    <button
      onClick={() => setCategoryFilter('ALL')}
-     className={`px-3.5 py-1.5 rounded-pill text-[11px] font-bold transition-colors ${categoryFilter === 'ALL' ? 'bg-ink-primary text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+     className={`px-3.5 py-1.5 rounded-pill text-[11px] font-bold transition-colors ${categoryFilter === 'ALL' ? 'bg-amber-600 text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
    >
      All
    </button>
@@ -447,7 +423,7 @@ const Expenses = () => {
      <button
        key={cat}
        onClick={() => setCategoryFilter(cat === categoryFilter ? 'ALL' : cat)}
-       className={`px-3.5 py-1.5 rounded-pill text-[11px] font-bold transition-colors flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-ink-primary text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+       className={`px-3.5 py-1.5 rounded-pill text-[11px] font-bold transition-colors flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-amber-600 text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
      >
        {cat}
        <span className={`tabular-nums ${categoryFilter === cat ? 'text-white/60' : 'text-gray-400'}`}>
@@ -457,42 +433,24 @@ const Expenses = () => {
    ))}
  </div>
 
- {/* Expenses Table/Ledger */}
- <div className="glass-panel !p-0 !rounded-bento border border-black/5 shadow-premium overflow-hidden">
- <div className="bg-ink-primary px-6 py-4 flex items-center justify-between">
- <div className="flex items-center gap-3">
-   <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-     <Briefcase size={15} className="text-accent-signature" />
-   </div>
-   <div>
-     <h2 className="text-sm font-black text-surface leading-none tracking-tight">Expense History</h2>
-     <p className="text-[10px] font-medium text-white/40 mt-1">
-       {filteredExpenses.length} {filteredExpenses.length === 1 ? 'entry' : 'entries'}
-     </p>
-   </div>
- </div>
- <div className="flex items-center gap-4">
+ {/* Expenses Table/Ledger + insight rail */}
+ <div className="flex flex-col lg:flex-row items-start gap-5">
+ <div className="glass-panel !p-0 !rounded-bento border border-black/5 shadow-premium overflow-hidden flex-1 min-w-0 w-full">
+ <div className="bg-white border-b border-black/5 px-5 py-3 flex items-center justify-between">
+ <span className="font-mono text-[11px] font-bold text-amber-600 truncate">
+   $ expenses --{filterType}{categoryFilter !== 'ALL' ? ` --cat="${categoryFilter}"` : ''}
+ </span>
+ <div className="flex items-center gap-3 shrink-0">
+   <span className="font-mono text-[10px] font-semibold text-gray-400">
+     {filteredExpenses.length} {filteredExpenses.length === 1 ? 'row' : 'rows'}
+   </span>
    <button
      onClick={exportCSV}
      disabled={filteredExpenses.length === 0}
-     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-surface text-[10px] font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/10 hover:bg-amber-50 hover:border-amber-200 text-gray-500 hover:text-amber-700 text-[10px] font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
    >
      <Download size={13} /> Export
    </button>
-   {totalITC > 0 && (
-     <div className="text-right">
-       <div className="text-[9px] font-bold uppercase tracking-widest text-accent-signature/70">ITC</div>
-       <div className="text-base font-black text-accent-signature tabular-nums leading-tight">
-         {businessProfile?.currencySymbol || '₹'}{Math.round(totalITC).toLocaleString('en-IN')}
-       </div>
-     </div>
-   )}
-   <div className="text-right">
-     <div className="text-[9px] font-bold uppercase tracking-widest text-white/40">Total</div>
-     <div className="text-base font-black text-surface tabular-nums leading-tight">
-       {businessProfile?.currencySymbol || '₹'}{Math.round(totalExpenses).toLocaleString('en-IN')}
-     </div>
-   </div>
  </div>
  </div>
 
@@ -555,15 +513,15 @@ const Expenses = () => {
  {pagedExpenses.map(expense => {
  const catStyle = catStyleOf(expense.category);
  return (
- <tr key={expense.id} className="group hover:bg-accent-signature/[0.03] transition-colors">
- <td className="px-6 py-4">
+ <tr key={expense.id} className="group hover:bg-amber-500/[0.04] transition-colors">
+ <td className="px-6 py-3">
  <div className="flex items-center gap-3.5">
-   <span className={`w-1 h-9 rounded-sm shrink-0 ${catStyle.dot}`} />
+   <span className={`w-1 h-8 rounded-sm shrink-0 ${catStyle.dot}`} />
    <div className="min-w-0">
      <div className="flex items-center gap-1.5">
-       <span className="text-sm font-bold text-ink-primary truncate">{expense.note || '—'}</span>
+       <span className="text-[14px] font-bold text-ink-primary truncate">{expense.note || '—'}</span>
        {expense.recurring_template_id && (
-         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-pill bg-accent-signature/10 text-accent-signature text-[8px] font-black uppercase tracking-wide shrink-0" title="Auto-generated from a recurring template">
+         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-pill bg-amber-100 text-amber-700 text-[8px] font-black uppercase tracking-wide shrink-0" title="Auto-generated from a recurring template">
            ↻ Recurring
          </span>
        )}
@@ -574,23 +532,26 @@ const Expenses = () => {
    </div>
  </div>
  </td>
- <td className="px-4 py-4 text-left">
+ <td className="px-4 py-3 text-left">
  <span className={`inline-block px-2.5 py-1 rounded-pill text-[10px] font-bold ${catStyle.pill}`}>
  {expense.category || 'Other'}
  </span>
  </td>
- <td className="px-4 py-4 text-left">
- <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 tabular-nums">
+ <td className="px-4 py-3 text-left">
+ <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-gray-500 font-mono">
  <Calendar size={11} className="opacity-40" />
  {fmtDate(expense.date)}
  </div>
  </td>
- <td className="px-4 py-4 text-right">
- <div className="text-base font-black text-ink-primary tabular-nums tracking-tight">
- <span className="text-gray-300 mr-0.5 font-bold">{businessProfile?.currencySymbol || '₹'}</span>{parseFloat(expense.amount).toLocaleString('en-IN')}
+ <td className="px-4 py-3 text-right">
+ <div className="font-mono text-[15px] font-bold text-ink-primary tabular-nums tracking-tight leading-none">
+ <span className="text-amber-400 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{parseFloat(expense.amount).toLocaleString('en-IN')}
+ </div>
+ <div className="mt-1.5 h-[3px] w-16 ml-auto rounded-full bg-black/[0.06] overflow-hidden">
+   <div className="h-full rounded-full bg-amber-500" style={{ width: `${totalExpenses ? Math.max(Math.round((parseFloat(expense.amount)||0) / totalExpenses * 100), 3) : 0}%` }} />
  </div>
  </td>
- <td className="px-6 py-4 text-right">
+ <td className="px-6 py-3 text-right">
  <div className="flex items-center justify-end gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
  {hasPermission('EDIT_EXPENSE') && (
  <button
@@ -678,6 +639,68 @@ const Expenses = () => {
  </button>
  </div>
  )}
+ </div>
+
+ {/* ── Insight rail — total, stats, category breakdown ── */}
+ <aside className="w-full lg:w-[300px] shrink-0 space-y-4">
+   {/* Total card */}
+   <div className="rounded-bento border border-black/5 bg-white shadow-sm p-5">
+     <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-amber-600">
+       total · {filterType === 'all' ? 'all time' : filterType}
+     </div>
+     <div className="font-mono text-[30px] font-bold text-ink-primary tabular-nums leading-none mt-2">
+       <span className="text-amber-500 text-[20px] mr-1">{businessProfile?.currencySymbol || '₹'}</span>
+       {Math.round(totalExpenses).toLocaleString('en-IN')}
+     </div>
+     <div className="grid grid-cols-2 gap-3 mt-5 pt-5 border-t border-black/5">
+       <div>
+         <div className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Entries</div>
+         <div className="font-mono text-[18px] font-bold text-ink-primary mt-0.5 tabular-nums">{filteredExpenses.length}</div>
+       </div>
+       <div>
+         <div className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Avg / entry</div>
+         <div className="font-mono text-[18px] font-bold text-ink-primary mt-0.5 tabular-nums">
+           {businessProfile?.currencySymbol || '₹'}{Math.round(avgEntry).toLocaleString('en-IN')}
+         </div>
+       </div>
+     </div>
+     {totalITC > 0 && (
+       <div className="mt-3 pt-3 border-t border-black/5 flex items-center justify-between">
+         <span className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Claimable ITC</span>
+         <span className="font-mono text-[14px] font-bold text-emerald-600 tabular-nums">
+           {businessProfile?.currencySymbol || '₹'}{Math.round(totalITC).toLocaleString('en-IN')}
+         </span>
+       </div>
+     )}
+   </div>
+
+   {/* Category breakdown bars */}
+   {railCats.length > 0 && (
+     <div className="rounded-bento border border-black/5 bg-white shadow-sm p-5">
+       <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-4">// where it went</div>
+       {railCats.map(([cat, val]) => (
+         <button
+           key={cat}
+           onClick={() => setCategoryFilter(cat === categoryFilter ? 'ALL' : cat)}
+           className={`block w-full text-left mb-3 last:mb-0 group ${categoryFilter === cat ? 'opacity-100' : 'opacity-90 hover:opacity-100'}`}
+         >
+           <div className="flex items-center justify-between mb-1.5">
+             <span className={`text-[11px] font-semibold uppercase tracking-wide ${categoryFilter === cat ? 'text-amber-700' : 'text-gray-500 group-hover:text-ink-primary'}`}>{cat}</span>
+             <span className="font-mono text-[12px] font-bold text-ink-primary tabular-nums">
+               {businessProfile?.currencySymbol || '₹'}{Math.round(val).toLocaleString('en-IN')}
+             </span>
+           </div>
+           <div className="h-[5px] rounded-full bg-black/[0.06] overflow-hidden">
+             <div className="h-full rounded-full bg-amber-500 transition-all" style={{ width: `${railMax ? Math.max(Math.round(val / railMax * 100), 3) : 0}%` }} />
+           </div>
+           <div className="text-[10px] text-gray-400 font-medium mt-1 tabular-nums">
+             {totalExpenses ? Math.round(val / totalExpenses * 100) : 0}% of outflow
+           </div>
+         </button>
+       ))}
+     </div>
+   )}
+ </aside>
  </div>
  </div>
 
