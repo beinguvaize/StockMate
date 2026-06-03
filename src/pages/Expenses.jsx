@@ -486,7 +486,7 @@ const Expenses = () => {
  )}
 
  {/* Desktop table — hidden on small screens (mobile cards below). */}
- <div className="hidden sm:block overflow-x-auto max-h-[60vh] overflow-y-auto">
+ <div className="hidden sm:block overflow-x-auto">
  <table className="w-full text-left border-collapse">
  <thead className="sticky top-0 z-10">
  <tr className="border-b border-black/10 bg-canvas/80 backdrop-blur-sm">
