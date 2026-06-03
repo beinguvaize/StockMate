@@ -11,16 +11,16 @@
  *
  * Data logic stays in the report components — this only changes the chrome.
  */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   ResponsiveContainer, AreaChart, Area, BarChart, Bar, LineChart, Line,
   PieChart, Pie, Cell, XAxis, YAxis, Tooltip, CartesianGrid, Legend,
 } from 'recharts';
-import { TrendingUp, TrendingDown, Minus, Download, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Download, BarChart3, FileSpreadsheet, Printer, FileText, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import ReportTable from './ReportTable';
-import { exportToCSV, safeFilename } from '../../lib/reportExport';
+import { exportToCSV, exportExcel, printReport, letterheadFrom, safeFilename } from '../../lib/reportExport';
 import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 
 /* ─── Colour tokens ───────────────────────────────────────────────────────── */
@@ -205,7 +205,14 @@ const ChartPanel = ({ config, loading }) => {
    ════════════════════════════════════════════════════════════════════════════ */
 const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
   const { hasPermission } = useAuth();
-  const { businessProfile } = useTenant();
+  const { businessProfile, currentTenant } = useTenant();
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportMenuRef = useRef(null);
+  useEffect(() => {
+    const h = (e) => { if (exportMenuRef.current && !exportMenuRef.current.contains(e.target)) setExportOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
 
   const allowedTabs = useMemo(
     () => tabs.filter(t => !t.permission || hasPermission(t.permission, 'view')),
@@ -230,13 +237,46 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
   const kpis    = activeTab.kpis || [];
   const loading = !!activeTab.loading;
 
-  const onExport = () => {
+  // Data columns for export (skip UI-only synthetic columns prefixed '_').
+  const exportCols = (activeTab.columns || []).filter(c => c.key && !String(c.key).startsWith('_'));
+  const fname = safeFilename(`${activeTab.label}_${todayISOInAppTZ()}`);
+  const lh = letterheadFrom(businessProfile || {}, currentTenant || {});
+  const fmtCell = (col, v) => (col.type === 'currency' && v != null && v !== '')
+    ? Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : (v ?? '');
+
+  const doCSV = () => {
+    setExportOpen(false);
     if (activeTab.onExportCSV) { activeTab.onExportCSV(); return; }
-    exportToCSV({
-      filename: safeFilename(`${activeTab.label}_${todayISOInAppTZ()}`),
-      columns:  activeTab.columns || [],
-      data:     activeTab.data || [],
-      totals:   activeTab.totals || null,
+    exportToCSV({ filename: fname, columns: exportCols, data: activeTab.data || [], totals: activeTab.totals || null });
+  };
+  const doExcel = () => {
+    setExportOpen(false);
+    exportExcel({ filename: fname, sheets: [{
+      name: activeTab.label,
+      columns: exportCols.map(c => ({ key: c.key, label: c.label || c.key, width: c.width ? c.width / 8 : undefined })),
+      rows: (activeTab.data || []).map(r => {
+        const o = {}; exportCols.forEach(c => { o[c.key] = fmtCell(c, r[c.key]); }); return o;
+      }),
+      total: activeTab.totals || null,
+    }] });
+  };
+  const doPDF = () => {
+    setExportOpen(false);
+    // Build a clean enterprise table (avoids cloning styled app DOM).
+    const align = (c) => c.align === 'right' || c.type === 'currency' ? ' align="right"' : '';
+    const head = `<tr>${exportCols.map(c => `<th${align(c)}>${c.label || c.key}</th>`).join('')}</tr>`;
+    const body = (activeTab.data || []).map(r =>
+      `<tr>${exportCols.map(c => `<td${align(c)}>${fmtCell(c, r[c.key])}</td>`).join('')}</tr>`
+    ).join('');
+    const totalRow = activeTab.totals
+      ? `<tr class="total-row">${exportCols.map((c, i) => `<td${align(c)}>${i === 0 ? 'TOTAL' : fmtCell(c, activeTab.totals[c.key])}</td>`).join('')}</tr>`
+      : '';
+    printReport({
+      html: `<table><thead>${head}</thead><tbody>${body}${totalRow}</tbody></table>`,
+      title: `${title} — ${activeTab.label}`,
+      subtitle: subtitle || '',
+      letterhead: lh,
     });
   };
 
@@ -271,10 +311,25 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
           </div>
         )}
 
-        <button onClick={onExport}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-black/8 bg-white text-xs font-black text-ink-primary hover:border-black/20 hover:shadow-sm transition-all">
-          <Download size={13} /> Export CSV
-        </button>
+        <div className="relative no-print" ref={exportMenuRef}>
+          <button onClick={() => setExportOpen(o => !o)}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 text-white text-xs font-black hover:bg-amber-700 shadow-md shadow-amber-600/25 transition-all">
+            <Download size={13} /> Export <ChevronDown size={12} className={`transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
+          </button>
+          {exportOpen && (
+            <div className="absolute right-0 mt-2 w-44 rounded-xl bg-white border border-black/10 shadow-xl overflow-hidden z-40 py-1">
+              <button onClick={doExcel} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
+                <FileSpreadsheet size={15} className="text-emerald-600" /> Excel (.xlsx)
+              </button>
+              <button onClick={doPDF} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
+                <Printer size={15} className="text-amber-600" /> PDF / Print
+              </button>
+              <button onClick={doCSV} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
+                <FileText size={15} className="text-gray-400" /> CSV
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── KPI ROW ────────────────────────────────────────────────────── */}
