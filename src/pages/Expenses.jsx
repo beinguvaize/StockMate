@@ -355,82 +355,80 @@ const Expenses = () => {
  </div>
  </div>
 
- {/* Interactive Utility Row */}
- <div className="flex flex-wrap lg:flex-nowrap items-center justify-between bg-white backdrop-blur-xl border border-black/5 rounded-[2rem] shadow-sm p-2 min-h-[72px] w-full gap-2 mb-8">
- <div className="flex-1 flex items-center h-[56px] relative group min-w-[300px]">
- <Search size={16} className="absolute left-5 text-amber-500 opacity-50 group-focus-within:opacity-100 transition-opacity z-10" />
- <input
- type="text"
- placeholder="Search expenses..."
- className="w-full h-full pl-12 pr-5 rounded-pill bg-white border border-gray-300 shadow-sm text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/15 transition-all"
- value={searchTerm}
- onChange={e => setSearchTerm(e.target.value)}
- />
- </div>
-
- <div className="flex bg-white border border-gray-300 shadow-sm rounded-pill p-1.5 shrink-0 ml-1 h-[56px] overflow-x-auto">
- {[
-   { k: 'all',       label: 'All' },
-   { k: 'today',     label: 'Today' },
-   { k: 'yesterday', label: 'Prev' },
-   { k: 'week',      label: 'Week' },
-   { k: 'month',     label: 'Month' },
-   { k: 'lastmonth', label: 'Last Mo' },
- ].map(({ k, label }) => (
- <button
- key={k}
- onClick={() => setFilterType(k)}
- className={`px-4 py-2 rounded-pill text-[11px] font-bold tracking-wider transition-all whitespace-nowrap ${filterType === k ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20' : 'text-gray-500 hover:text-ink-primary hover:bg-black/5'}`}
- >
- {label}
- </button>
- ))}
- <button
-   onClick={() => setFilterType('range')}
-   className={`px-4 py-2 rounded-pill text-[11px] font-bold tracking-wider transition-all whitespace-nowrap flex items-center gap-1.5 ${filterType === 'range' ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20' : 'text-gray-500 hover:text-ink-primary hover:bg-black/5'}`}
- >
-   <Calendar size={13} /> Range
- </button>
- </div>
- </div>
-
- {/* Custom from–to range inputs — shown when Range is active. */}
- {filterType === 'range' && (
- <div className="flex flex-wrap items-center gap-2 mb-3 -mt-4">
-   <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">From</span>
-   <input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)}
-     className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary font-mono outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/15" />
-   <span className="text-[11px] font-bold uppercase tracking-wide text-gray-400">To</span>
-   <input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)}
-     className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary font-mono outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-500/15" />
-   {(rangeFrom || rangeTo) && (
-     <button onClick={() => { setRangeFrom(''); setRangeTo(''); }} className="text-[11px] font-bold text-gray-400 hover:text-red-500">Clear</button>
+ {/* Filter + date toolbar — single panel (matches Design 5 sample). */}
+ <div className="rounded-2xl border border-black/8 bg-white shadow-sm p-3.5 mb-5">
+ <div className="flex items-center justify-between gap-3 flex-wrap">
+   {/* Search */}
+   <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/[0.03] border border-black/8 flex-1 min-w-[200px] max-w-xs focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-500/15 transition-all">
+     <Search size={14} className="text-amber-500 shrink-0" />
+     <input
+       type="text"
+       placeholder="Search…"
+       className="bg-transparent outline-none text-[12px] font-semibold flex-1 text-ink-primary placeholder:text-gray-400"
+       value={searchTerm}
+       onChange={e => setSearchTerm(e.target.value)}
+     />
+   </div>
+   {/* Period segmented */}
+   <div className="flex items-center gap-0.5 p-1 rounded-xl bg-black/[0.04] overflow-x-auto">
+     {[
+       { k: 'all', label: 'All' }, { k: 'today', label: 'Today' }, { k: 'yesterday', label: 'Prev' },
+       { k: 'week', label: 'Week' }, { k: 'month', label: 'Month' }, { k: 'lastmonth', label: 'Last Mo' },
+     ].map(({ k, label }) => (
+       <button key={k} onClick={() => setFilterType(k)}
+         className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors ${filterType === k ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/20' : 'text-gray-500 hover:text-ink-primary'}`}>
+         {label}
+       </button>
+     ))}
+     <button onClick={() => setFilterType('range')}
+       className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors ${filterType === 'range' ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/20' : 'text-gray-500 hover:text-ink-primary'}`}>
+       <Calendar size={12} /> Range
+     </button>
+   </div>
+   {/* Date range display / inputs */}
+   {filterType === 'range' ? (
+     <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-black/[0.03] border border-black/8">
+       <input type="date" value={rangeFrom} onChange={e => setRangeFrom(e.target.value)}
+         className="bg-transparent text-[12px] font-semibold text-ink-primary font-mono outline-none" />
+       <span className="text-gray-400 text-[12px]">–</span>
+       <input type="date" value={rangeTo} onChange={e => setRangeTo(e.target.value)}
+         className="bg-transparent text-[12px] font-semibold text-ink-primary font-mono outline-none" />
+       {(rangeFrom || rangeTo) && (
+         <button onClick={() => { setRangeFrom(''); setRangeTo(''); }} className="text-gray-400 hover:text-red-500 ml-1"><X size={12} /></button>
+       )}
+     </div>
+   ) : (
+     <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/[0.03] border border-black/8">
+       <Calendar size={13} className="text-gray-400" />
+       <span className="text-[12px] font-semibold text-gray-500 font-mono">
+         {dateWindow.from ? fmtDate(dateWindow.from) : 'All time'}{dateWindow.to && dateWindow.from !== dateWindow.to ? ` – ${fmtDate(dateWindow.to)}` : ''}
+       </span>
+     </div>
    )}
  </div>
- )}
 
- {/* Category filter chips — quick filter with per-category spend. */}
- <div className="flex flex-wrap items-center gap-2 mb-3">
-   <button
-     onClick={() => setCategoryFilter('ALL')}
-     className={`px-3.5 py-1.5 rounded-pill text-[11px] font-bold transition-colors ${categoryFilter === 'ALL' ? 'bg-amber-600 text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
-   >
+ {/* Category chips row inside the panel */}
+ <div className="flex items-center gap-2 mt-3 pt-3 border-t border-black/[0.06] flex-wrap">
+   <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mr-1">Category</span>
+   <button onClick={() => setCategoryFilter('ALL')}
+     className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors ${categoryFilter === 'ALL' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white border-black/10 text-gray-500 hover:border-black/25'}`}>
      All
    </button>
    {Object.entries(categoryBreakdown)
      .sort((a, b) => b[1].total - a[1].total)
      .map(([cat, info]) => (
-     <button
-       key={cat}
-       onClick={() => setCategoryFilter(cat === categoryFilter ? 'ALL' : cat)}
-       className={`px-3.5 py-1.5 rounded-pill text-[11px] font-bold transition-colors flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-amber-600 text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
-     >
+     <button key={cat} onClick={() => setCategoryFilter(cat === categoryFilter ? 'ALL' : cat)}
+       className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-amber-600 text-white border-amber-600' : 'bg-white border-black/10 text-gray-500 hover:border-black/25'}`}>
        {cat}
        <span className={`font-mono tabular-nums ${categoryFilter === cat ? 'text-white/70' : 'text-amber-600/70'}`}>
          {businessProfile?.currencySymbol || '₹'}{Math.round(info.total).toLocaleString('en-IN')}
        </span>
      </button>
    ))}
+   {categoryFilter !== 'ALL' && (
+     <button onClick={() => setCategoryFilter('ALL')} className="ml-auto text-[11px] font-semibold text-gray-400 hover:text-ink-primary">Clear</button>
+   )}
+ </div>
  </div>
 
  {/* Expenses Table/Ledger + insight rail */}
