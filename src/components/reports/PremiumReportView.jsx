@@ -85,7 +85,7 @@ const KPI = ({ card, loading }) => {
       </div>
       {loading
         ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-        : <div className="text-2xl font-black text-ink-primary tabular-nums leading-none truncate">
+        : <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums leading-none truncate">
             {kpiDisplay(card.label, card.value)}
           </div>
       }
