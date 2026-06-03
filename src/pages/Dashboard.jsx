@@ -581,90 +581,24 @@ const Dashboard = () => {
  </div>
  </div>
 
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
- {/* Sales Card */}
- <div className="p-6 rounded-[2.5rem] bg-white text-ink-primary relative overflow-hidden group shadow-sm border border-black/5 hover:border-black/10 transition-all">
- <div className="absolute top-5 right-5 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-green-500">
- <Banknote size={48} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col h-full">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">{datePreset} Sales</span>
- <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_sales ?? rangeSales) : rangeSales).toLocaleString()}
- </div>
- </div>
- </div>
-
- {/* Expenses Card */}
- <div className="p-6 rounded-[2.5rem] bg-white text-ink-primary relative overflow-hidden group shadow-sm border border-black/5 hover:border-black/10 transition-all">
- <div className="absolute top-5 right-5 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-red-500">
- <TrendingDown size={48} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col h-full">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">{datePreset} Expenses</span>
- <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses).toLocaleString()}
- </div>
- </div>
- </div>
-
- {/* Cash Balance Card */}
- <div className="p-6 rounded-[2.5rem] bg-white text-ink-primary relative overflow-hidden group shadow-sm border border-black/5 hover:border-black/10 transition-all">
- <div className="absolute top-5 right-5 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-blue-500">
- <DollarSign size={48} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col h-full">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">Current Cash Balance</span>
- <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(currentCashBalance).toLocaleString()}
- </div>
- </div>
- </div>
-
- {/* Collections Card */}
- <div className="p-6 rounded-[2.5rem] bg-white text-ink-primary relative overflow-hidden group shadow-sm border border-black/5 hover:border-black/10 transition-all">
- <div className="absolute top-5 right-5 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-orange-500">
- <Activity size={48} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col h-full">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">Outstanding Collections</span>
- <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding).toLocaleString()}
- </div>
- </div>
- </div>
-
- {/* Purchases Card */}
- <div className="p-6 rounded-[2.5rem] bg-white text-ink-primary relative overflow-hidden group shadow-sm border border-black/5 hover:border-black/10 transition-all">
- <div className="absolute top-5 right-5 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-purple-500">
- <ShoppingBag size={48} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col h-full">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">{datePreset} Purchases</span>
- <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases).toLocaleString()}
- </div>
- </div>
- </div>
-
- {/* Salaries Pending Card */}
- <div className="p-6 rounded-[2.5rem] bg-white text-ink-primary relative overflow-hidden group shadow-sm border border-black/5 hover:border-black/10 transition-all">
- <div className="absolute top-5 right-5 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-yellow-500">
- <Users size={48} strokeWidth={2} />
- </div>
- <div className="relative z-10 flex flex-col h-full">
- <span className="text-[10px] uppercase font-bold text-gray-400 mb-2 block tracking-widest">Salary Pending</span>
- <div className="text-4xl lg:text-5xl font-black text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-lg lg:text-xl text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
- {Math.round(salariesPending).toLocaleString()}
- </div>
- </div>
- </div>
+ <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-black/[0.07] shadow-sm">
+ {[
+   { label: `${datePreset} Sales`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_sales ?? rangeSales) : rangeSales), icon: <Banknote size={14} /> },
+   { label: `${datePreset} Expenses`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses), icon: <TrendingDown size={14} /> },
+   { label: 'Cash Balance', value: Math.round(currentCashBalance), icon: <DollarSign size={14} /> },
+   { label: 'Outstanding', value: Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding), icon: <Activity size={14} /> },
+   { label: `${datePreset} Purchases`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases), icon: <ShoppingBag size={14} /> },
+   { label: 'Salary Pending', value: Math.round(salariesPending), icon: <Users size={14} /> },
+ ].map((m, i) => (
+   <div key={i} className="bg-white px-4 py-3.5 flex flex-col gap-1.5 hover:bg-amber-500/[0.03] transition-colors">
+     <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-widest">
+       <span className="text-stone-300">{m.icon}</span>{m.label}
+     </div>
+     <div className="font-mono text-xl font-bold tabular-nums leading-none text-ink-primary">
+       <span className="text-amber-400 text-sm mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{m.value.toLocaleString('en-IN')}
+     </div>
+   </div>
+ ))}
  </div>
  </div>
  
