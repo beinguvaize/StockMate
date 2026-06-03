@@ -7,7 +7,7 @@ export const THEMES = [
   { key: 'white',     label: 'White',      accent: '#111111', canvas: '#FFFFFF', dark: false },
   { key: 'ocean',     label: 'Ocean',      accent: '#3B82F6', canvas: '#F0F4FF', dark: false },
   { key: 'rose',      label: 'Rose',       accent: '#F43F5E', canvas: '#FFF5F7', dark: false },
-  { key: 'amber',     label: 'Amber',      accent: '#F59E0B', canvas: '#FFFBF0', dark: false },
+  { key: 'amber',     label: 'Amber',      accent: '#D97706', canvas: '#FFFBF0', dark: false },
   { key: 'slate',     label: 'Slate',      accent: '#6366F1', canvas: '#F1F5F9', dark: false },
   { key: 'dark',      label: 'Dark',       accent: '#6366F1', canvas: '#0F0F0F', dark: true  },
 ];

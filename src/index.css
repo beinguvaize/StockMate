@@ -274,9 +274,9 @@ table.report-table tbody td.numeric {
   --color-ink-primary: #1C1208;
   --color-ink-secondary: #4A3010;
   --color-ink-tertiary: #92692A;
-  --color-accent-signature: #F59E0B;
-  --color-accent-signature-hover: #D97706;
-  --color-button-text: #111111;
+  --color-accent-signature: #D97706;
+  --color-accent-signature-hover: #B45309;
+  --color-button-text: #FFFFFF;
   --bg-color: #FFFBF0;
   --accent-lime: #F59E0B;
   --accent-lime-hover: #D97706;
