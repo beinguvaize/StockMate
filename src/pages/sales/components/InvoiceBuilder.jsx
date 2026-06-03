@@ -459,7 +459,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               </div>
               <div className="text-sm font-bold text-ink-primary leading-tight line-clamp-2 mb-1">{product.name}</div>
               <div className="flex items-center gap-1.5 mb-1">
-                <span className={`text-sm font-black ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>{formatCurrency(product.sellingPrice)}</span>
+                <span className={`font-mono text-sm font-bold tabular-nums ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>{formatCurrency(product.sellingPrice)}</span>
                 {product.taxRate > 0 && <span className="text-[9px] font-black px-1 rounded bg-blue-50 text-blue-500">{product.taxRate}%</span>}
               </div>
               <div className={`text-[11px] font-semibold mb-2 ${outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : 'text-gray-400'}`}>
@@ -703,7 +703,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 </div>
 
                 {/* Line total */}
-                <div className="text-sm font-black text-ink-primary tabular-nums text-right">
+                <div className="font-mono text-sm font-bold text-ink-primary tabular-nums text-right">
                   {formatCurrency(item.price * item.quantity)}
                 </div>
 
@@ -854,15 +854,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           <div className="space-y-2 mb-6">
             <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
               <span>{taxInclusive ? 'Subtotal (excl. tax)' : 'Subtotal'}</span>
-              <span>{formatCurrency(taxableAmount)}</span>
+              <span className="font-mono tabular-nums">{formatCurrency(taxableAmount)}</span>
             </div>
             <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
               <span>Tax{taxInclusive ? ' (included)' : ''}</span>
-              <span>{formatCurrency(tax)}</span>
+              <span className="font-mono tabular-nums">{formatCurrency(tax)}</span>
             </div>
             <div className="flex justify-between text-xl font-black text-ink-primary pt-2 border-t border-black/5">
               <span>Total</span>
-              <span>{formatCurrency(total)}</span>
+              <span className="font-mono tabular-nums">{formatCurrency(total)}</span>
             </div>
             {taxInclusive && (
               <p className="text-[10px] text-gray-400 font-medium text-right">
