@@ -224,6 +224,25 @@ const BusinessReport = () => {
     return { totalRevenue, totalOrders, aov, dailyTrend, paymentSplit, topProducts, topClients, outstanding };
   }, [sales, clients]);
 
+  /* ── Full transaction ledger (every sale in the period) ───────────────── */
+  const transactions = useMemo(() => {
+    const resolveName = (s) => {
+      const cid = s.customerInfo?.id || s.shopId || null;
+      return (cid && clients.find(c => c.id === cid)?.name) || s.customerInfo?.name || 'Walk-in';
+    };
+    return [...sales]
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .map(s => ({
+        date:    s.date || '',
+        ref:     (s.id || '').slice(0, 8).toUpperCase(),
+        client:  resolveName(s),
+        items:   Array.isArray(s.items) ? s.items.reduce((n, i) => n + Number(i.quantity || 0), 0) : 0,
+        payment: (s.paymentMethod || 'CASH').toUpperCase(),
+        status:  (s.paymentStatus || s.status || 'PAID').toUpperCase(),
+        amount:  Number(s.totalAmount || 0),
+      }));
+  }, [sales, clients]);
+
   /* ── Purchases aggregations ─────────────────────────────────────────── */
   const purchMetrics = useMemo(() => {
     const total      = purchases.reduce((s, p) => s + Number(p.total_amount || 0), 0);
@@ -526,6 +545,62 @@ const BusinessReport = () => {
             ))
           }
         </div>
+      </div>
+
+      {/* ── ALL TRANSACTIONS (full period ledger) ───────────────────────── */}
+      <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+        <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+          <SectionHead title="All Transactions" sub="every sale in period" />
+          {!salesLoading && (
+            <span className="text-[10px] font-black text-gray-400 bg-canvas px-2 py-1 rounded-full">{transactions.length} sales</span>
+          )}
+        </div>
+        {salesLoading
+          ? <div className="p-6 space-y-3">{[...Array(6)].map((_,i)=><div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}</div>
+          : transactions.length === 0
+          ? <div className="py-16 text-center text-sm text-gray-400">No transactions for selected period</div>
+          : (
+            <div className="overflow-x-auto max-h-[520px] overflow-y-auto">
+              <table className="w-full text-left">
+                <thead className="sticky top-0 z-10">
+                  <tr className="bg-canvas/80 backdrop-blur-sm border-b border-black/10">
+                    {[['Date','left'],['Ref','left'],['Client','left'],['Items','right'],['Payment','center'],['Status','center'],['Amount','right']].map(([h,a]) => (
+                      <th key={h} className={`px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 ${a==='right'?'text-right':a==='center'?'text-center':''}`}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {transactions.map((t, i) => (
+                    <tr key={i} className="border-b border-black/[0.04] hover:bg-amber-500/[0.04] transition-colors">
+                      <td className="px-4 py-2.5 font-mono text-[12px] text-gray-500 whitespace-nowrap">{t.date}</td>
+                      <td className="px-4 py-2.5 font-mono text-[11px] text-gray-400 uppercase whitespace-nowrap">{t.ref}</td>
+                      <td className="px-4 py-2.5 text-[13px] font-bold text-ink-primary truncate max-w-[200px]">{t.client}</td>
+                      <td className="px-4 py-2.5 text-right font-mono text-[12px] text-gray-500">{t.items}</td>
+                      <td className="px-4 py-2.5 text-center"><span className="text-[10px] font-bold uppercase text-gray-500">{t.payment}</span></td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                          t.status==='PAID'||t.status==='COMPLETED' ? 'bg-emerald-50 text-emerald-600' :
+                          t.status==='PARTIAL' ? 'bg-amber-50 text-amber-700' :
+                          t.status==='PENDING'||t.status==='UNPAID' ? 'bg-rose-50 text-rose-600' : 'bg-gray-100 text-gray-500'
+                        }`}>{t.status==='UNPAID'?'Pending':t.status.charAt(0)+t.status.slice(1).toLowerCase()}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-mono text-[13px] font-bold text-ink-primary whitespace-nowrap">
+                        <span className="text-amber-400 mr-0.5">{'₹'}</span>{Math.round(t.amount).toLocaleString('en-IN')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-black/15 bg-canvas/40 sticky bottom-0">
+                    <td className="px-4 py-3 font-mono text-[11px] font-black uppercase tracking-widest text-gray-500" colSpan={6}>Total · {transactions.length} sales</td>
+                    <td className="px-4 py-3 text-right font-mono text-[14px] font-black text-ink-primary whitespace-nowrap">
+                      <span className="text-amber-400 mr-0.5">{'₹'}</span>{Math.round(salesMetrics.totalRevenue).toLocaleString('en-IN')}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
       </div>
 
       {/* ── PURCHASES ───────────────────────────────────────────────────── */}
