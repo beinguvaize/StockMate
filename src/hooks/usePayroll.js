@@ -21,7 +21,9 @@ const toEmployeeRow = (emp) => ({
   amount_paid:  emp.amountPaid   != null ? Number(emp.amountPaid) : (emp.amount_paid != null ? Number(emp.amount_paid) : null),
   bank_account: emp.bankAccount  ?? emp.bank_account ?? null,
   notes:        emp.notes        ?? null,
-  user_id:      emp.user_id      ?? emp.userId       ?? null,
+  // Coerce empty string → null (|| not ??): an unlinked employee sends ''
+  // which would otherwise hit employees_user_id_fkey.
+  user_id:      emp.user_id      || emp.userId       || null,
 });
 
 export const usePayroll = (tenantId) => {
