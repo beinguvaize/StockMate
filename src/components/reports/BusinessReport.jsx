@@ -660,11 +660,11 @@ const BusinessReport = () => {
 };
 
 /* ─── Detailed daily breakdown ────────────────────────────────────────────── */
-const PAY_BADGE = { CASH: 'bg-emerald-50 text-emerald-700', UPI: 'bg-amber-50 text-amber-700', CREDIT: 'bg-amber-50 text-amber-700', BANK: 'bg-blue-50 text-blue-700' };
+const PAY_BADGE = { CASH: 'bg-emerald-50 text-emerald-700', UPI: 'bg-amber-50 text-amber-700', CREDIT: 'bg-amber-50 text-amber-700', BANK: 'bg-slate-100 text-slate-600' };
 
 const APP_BADGE = {
-  WEB:     'bg-sky-50 text-sky-700 border-sky-200',
-  DESKTOP: 'bg-amber-50 text-amber-700 border-amber-200',
+  WEB:     'bg-slate-100 text-slate-600 border-slate-200',
+  DESKTOP: 'bg-slate-100 text-slate-600 border-slate-200',
   MOBILE:  'bg-emerald-50 text-emerald-700 border-emerald-200',
   VAN:     'bg-amber-50 text-amber-700 border-amber-200',
 };
@@ -711,16 +711,16 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
               className="w-full flex items-center gap-4 px-6 py-4 hover:bg-canvas/40 transition-colors text-left"
               onClick={() => toggle(day.date)}
             >
-              <div className="w-9 h-9 rounded-xl bg-canvas flex items-center justify-center shrink-0">
-                <Calendar size={14} className="text-gray-400" />
+              <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                <Calendar size={14} className="text-amber-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-black text-ink-primary">{day.date}</div>
+                <div className="font-mono text-sm font-bold text-ink-primary">{day.date}</div>
                 <div className="text-[10px] text-gray-400 font-medium mt-0.5">
                   {day.orders} {day.orders === 1 ? 'sale' : 'sales'}
                 </div>
               </div>
-              <div className="text-base font-black text-ink-primary tabular-nums shrink-0">
+              <div className="font-mono text-base font-bold text-ink-primary tabular-nums shrink-0">
                 {formatCurrency(day.total)}
               </div>
               <ChevronDown
@@ -782,7 +782,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                       </div>
 
                       {/* Total items */}
-                      <span className="text-xs font-black text-ink-primary tabular-nums">{itemQty}</span>
+                      <span className="font-mono text-xs font-bold text-ink-primary tabular-nums">{itemQty}</span>
 
                       {/* Source badge */}
                       {isVan
@@ -792,7 +792,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                           </span>
                         )
                         : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-sky-50 text-sky-700 border border-sky-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-slate-100 text-slate-600 border border-slate-200">
                             POS
                           </span>
                         )
@@ -814,15 +814,15 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                       </span>
 
                       {/* Amount */}
-                      <span className="text-xs font-black text-ink-primary tabular-nums">{formatCurrency(s.totalAmount)}</span>
+                      <span className="font-mono text-xs font-bold text-ink-primary tabular-nums">{formatCurrency(s.totalAmount)}</span>
                     </div>
                   );
                 })}
 
                 {/* Day subtotal */}
-                <div className="flex justify-end px-8 py-2.5 border-t border-black/5 bg-white/40">
+                <div className="flex justify-end items-center px-8 py-2.5 border-t border-black/5 bg-white/40">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-4">Day Total</span>
-                  <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(day.total)}</span>
+                  <span className="font-mono text-sm font-bold text-ink-primary tabular-nums">{formatCurrency(day.total)}</span>
                 </div>
               </div>
             )}
