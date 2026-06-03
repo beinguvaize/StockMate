@@ -583,22 +583,27 @@ const Dashboard = () => {
 
  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-black/[0.07] shadow-sm">
  {[
-   { label: `${datePreset} Sales`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_sales ?? rangeSales) : rangeSales), icon: <Banknote size={14} /> },
-   { label: `${datePreset} Expenses`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses), icon: <TrendingDown size={14} /> },
-   { label: 'Cash Balance', value: Math.round(currentCashBalance), icon: <DollarSign size={14} /> },
-   { label: 'Outstanding', value: Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding), icon: <Activity size={14} /> },
-   { label: `${datePreset} Purchases`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases), icon: <ShoppingBag size={14} /> },
-   { label: 'Salary Pending', value: Math.round(salariesPending), icon: <Users size={14} /> },
- ].map((m, i) => (
-   <div key={i} className="bg-white px-4 py-3.5 flex flex-col gap-1.5 hover:bg-amber-500/[0.03] transition-colors">
-     <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-widest">
-       <span className="text-stone-300">{m.icon}</span>{m.label}
+   { label: `${datePreset} Sales`,     value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_sales ?? rangeSales) : rangeSales),             icon: <Banknote size={15} />,    tone: 'emerald' },
+   { label: `${datePreset} Expenses`,  value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses),    icon: <TrendingDown size={15} />, tone: 'rose' },
+   { label: 'Cash Balance',            value: Math.round(currentCashBalance),                                                                                icon: <DollarSign size={15} />,  tone: 'amber', accent: true },
+   { label: 'Outstanding',             value: Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding),               icon: <Activity size={15} />,    tone: 'amber' },
+   { label: `${datePreset} Purchases`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases), icon: <ShoppingBag size={15} />, tone: 'slate' },
+   { label: 'Salary Pending',          value: Math.round(salariesPending),                                                                                   icon: <Users size={15} />,       tone: 'slate' },
+ ].map((m, i) => {
+   const chip = { emerald: 'bg-emerald-50 text-emerald-600', rose: 'bg-rose-50 text-rose-500', amber: 'bg-amber-50 text-amber-600', slate: 'bg-slate-100 text-slate-500' }[m.tone];
+   return (
+   <div key={i} className="group relative bg-white px-4 py-4 flex flex-col gap-2.5 hover:bg-amber-500/[0.025] transition-colors">
+     {m.accent && <span className="absolute left-0 top-0 bottom-0 w-[3px] bg-amber-500" />}
+     <div className="flex items-center justify-between">
+       <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{m.label}</span>
+       <span className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${chip}`}>{m.icon}</span>
      </div>
-     <div className="font-mono text-xl font-bold tabular-nums leading-none text-ink-primary">
-       <span className="text-amber-400 text-sm mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{m.value.toLocaleString('en-IN')}
+     <div className="font-mono text-2xl font-bold tabular-nums leading-none text-ink-primary">
+       <span className="text-amber-400 text-base mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{m.value.toLocaleString('en-IN')}
      </div>
    </div>
- ))}
+   );
+ })}
  </div>
  </div>
  
