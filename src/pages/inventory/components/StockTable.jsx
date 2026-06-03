@@ -1,110 +1,130 @@
-import React from 'react';
-import { PackagePlus, Tag as TagIcon, Pencil, Trash2, SlidersHorizontal, Layers } from 'lucide-react';
-import Table from '../../../shared/Table';
+import React, { useMemo } from 'react';
+import { PackagePlus, Eye, Trash2, SlidersHorizontal } from 'lucide-react';
 
-// Numeric columns from supabase-js arrive as strings (Postgres `numeric` has no
-// safe JS representation so the client keeps full precision as text). Calling
-// `.toFixed` on a string throws and blows up the page via the ErrorBoundary.
-// Coerce once here so downstream rendering stays simple.
+// Postgres numeric arrives as string — coerce before math.
 const toNum = (v) => Number(v ?? 0);
 
-const TYPE_BADGE = {
-  STANDARD: { label: 'STANDARD', cls: 'bg-sky-50 text-sky-700 border-sky-200' },
-  RAW:      { label: 'RAW',      cls: 'bg-amber-50 text-amber-700 border-amber-200' },
-  FINISHED: { label: 'FINISHED', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+// Reorder level: try the various column names the product may carry.
+const reorderOf = (p) => toNum(
+  p.reorderLevel ?? p.reorder_level ?? p.lowStockThreshold ??
+  p.low_stock_threshold ?? p.minStock ?? p.min_stock ?? 0
+);
+
+// Stock status from qty vs reorder point (fallback threshold 5 when unset).
+const statusOf = (qty, reorder) => {
+  if (qty <= 0) return 'crit';
+  const thr = reorder > 0 ? reorder : 5;
+  return qty <= thr ? 'low' : 'ok';
 };
+const dotCls = (s) => s === 'crit' ? 'bg-red-500' : s === 'low' ? 'bg-amber-500' : 'bg-emerald-500';
+const qtyCls = (s) => s === 'crit' ? 'text-red-600' : s === 'low' ? 'text-amber-600' : 'text-ink-primary';
 
 const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, onBatches, currencySymbol = '₹' }) => {
-  const headers = [
-    { label: 'Product' },
-    { label: 'Type',     className: 'hidden lg:table-cell text-center' },
-    { label: 'Category', className: 'hidden md:table-cell' },
-    { label: 'Cost / Sell Price', className: 'text-right' },
-    { label: 'Tax', className: 'text-center hidden md:table-cell' },
-    { label: 'Stock', className: 'text-center hidden sm:table-cell' },
-    { label: 'Actions', className: 'text-right' }
-  ];
-
-  const renderRow = (product) => {
-    const totalStock = inventoryBalances
-      .filter(b => b.product_id === product.id)
+  const stockOf = (product) =>
+    inventoryBalances.filter(b => b.product_id === product.id)
       .reduce((acc, b) => acc + toNum(b.quantity), 0) || toNum(product.stock);
 
+  // Group products by category, sorted; compute per-group subtotal value.
+  const groups = useMemo(() => {
+    const map = {};
+    products.forEach(p => {
+      const cat = p.category || 'Uncategorised';
+      (map[cat] = map[cat] || []).push(p);
+    });
+    return Object.entries(map)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([cat, items]) => ({
+        cat,
+        items,
+        subValue: items.reduce((t, p) => t + stockOf(p) * toNum(p.sellingPrice), 0),
+      }));
+  }, [products, inventoryBalances]);
+
+  if (!products.length) {
     return (
-      <tr key={product.id} className="hover:bg-canvas transition-colors group">
-        <td className="px-4 py-2">
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-lg bg-white border border-black/5 shadow-sm flex items-center justify-center shrink-0 overflow-hidden">
-              {product.image ? (
-                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-              ) : (
-                <PackagePlus size={24} className="opacity-20" />
-              )}
-            </div>
-            <div>
-              <div className="text-sm font-semibold text-ink-primary leading-tight">{product.name}</div>
-              <div className="text-[10px] font-bold text-gray-500 opacity-70">{product.sku}</div>
-            </div>
-          </div>
-        </td>
-        <td className="px-4 py-2 hidden lg:table-cell text-center">
-          {(() => {
-            const t = TYPE_BADGE[(product.product_type || 'STANDARD').toUpperCase()] || TYPE_BADGE.STANDARD;
-            return (
-              <span className={`inline-block text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${t.cls}`}>
-                {t.label}
-              </span>
-            );
-          })()}
-        </td>
-        <td className="px-4 py-2 hidden md:table-cell">
-          <div className="text-sm font-semibold text-ink-primary opacity-70">{product.category}</div>
-        </td>
-        <td className="px-4 py-2 text-right whitespace-nowrap">
-          <div className="text-sm font-semibold">
-            <span className="text-gray-500 opacity-70">{currencySymbol}{toNum(product.costPrice).toFixed(2)}</span>
-            <span className="mx-2 opacity-10 text-ink-primary">/</span>
-            <span className="text-emerald-500">{currencySymbol}{toNum(product.sellingPrice).toFixed(2)}</span>
-          </div>
-        </td>
-        <td className="px-4 py-2 text-center hidden md:table-cell">
-          {toNum(product.taxRate) > 0 ? (
-            <span className="text-[10px] font-black px-2 py-1 rounded-lg bg-blue-50 text-blue-500 border border-blue-100">
-              {toNum(product.taxRate)}% GST
-            </span>
-          ) : (
-            <span className="text-[10px] font-semibold text-gray-300">Exempt</span>
-          )}
-        </td>
-        <td className="px-4 py-2 text-center hidden sm:table-cell">
-          <div className="text-lg font-bold text-ink-primary">
-            {totalStock}
-            <span className="text-[10px] font-black opacity-40 ml-1 uppercase">{product.unit || 'pcs'}</span>
-          </div>
-        </td>
-        <td className="px-4 py-2 text-right">
-          <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-            {onBatches && (
-              <button onClick={() => onBatches(product)} title="View batches" className="w-8 h-8 rounded-pill bg-white border border-black/5 flex items-center justify-center hover:bg-ink-primary hover:text-white transition-all"><Layers size={12} /></button>
-            )}
-            <button onClick={() => onEdit(product)} className="w-8 h-8 rounded-pill bg-white border border-black/5 flex items-center justify-center hover:bg-ink-primary hover:text-white transition-all"><Pencil size={12} /></button>
-            <button onClick={() => onDelete(product.id)} className="w-8 h-8 rounded-pill bg-white border border-red-100 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all text-red-500"><Trash2 size={12} /></button>
-            {onAdjust && (
-              <button onClick={() => onAdjust(product)} title="Adjust stock" className="w-8 h-8 rounded-pill bg-accent-signature flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-white"><SlidersHorizontal size={13} strokeWidth={2.5} /></button>
-            )}
-          </div>
-        </td>
-      </tr>
+      <div className="rounded-2xl bg-white border border-black/[0.08] p-16 text-center shadow-sm">
+        <PackagePlus size={48} strokeWidth={1} className="mx-auto opacity-10 mb-4" />
+        <p className="text-sm font-semibold text-gray-400">No products registered in the catalog</p>
+      </div>
     );
-  };
+  }
+
+  const TH = ({ children, align = 'left', extra = '' }) => (
+    <th className={`px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''} ${extra}`}>{children}</th>
+  );
 
   return (
-    <Table 
-      headers={headers} 
-      rows={products} 
-      renderRow={renderRow} 
-      emptyMessage="No products registered in the catalog" 
-    />
+    <div className="rounded-2xl bg-white border border-black/[0.08] overflow-hidden shadow-sm">
+      <div className="px-5 py-3 border-b border-black/[0.06] flex items-center justify-between">
+        <span className="font-mono text-[11px] font-bold text-amber-600">$ inventory --group=category</span>
+        <span className="font-mono text-[10px] text-gray-400">{products.length} rows · {groups.length} groups</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left">
+          <thead>
+            <tr className="border-b border-black/10">
+              <TH extra="pl-5 w-full">Product</TH>
+              <TH>SKU</TH>
+              <TH align="right">Stock</TH>
+              <TH align="right">Reorder</TH>
+              <TH align="right">Cost</TH>
+              <TH align="right">Sell</TH>
+              <TH align="right">Value</TH>
+              <TH align="center"> </TH>
+              <TH align="right"> </TH>
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map(({ cat, items, subValue }) => (
+              <React.Fragment key={cat}>
+                <tr className="bg-black/[0.025]">
+                  <td colSpan={2} className="px-5 py-2 text-[11px] font-black uppercase tracking-widest text-gray-500">
+                    {cat} <span className="text-gray-400 ml-1">{items.length}</span>
+                  </td>
+                  <td colSpan={4} />
+                  <td className="px-3 py-2 text-right font-mono text-[11px] font-bold text-gray-500 whitespace-nowrap">
+                    {currencySymbol}{Math.round(subValue).toLocaleString('en-IN')}
+                  </td>
+                  <td colSpan={2} />
+                </tr>
+                {items.map(product => {
+                  const qty = stockOf(product);
+                  const reorder = reorderOf(product);
+                  const st = statusOf(qty, reorder);
+                  const sell = toNum(product.sellingPrice);
+                  return (
+                    <tr key={product.id} className="group border-t border-black/[0.04] hover:bg-amber-500/[0.04] transition-colors">
+                      <td className="px-5 py-2.5 pl-9 max-w-0 w-full">
+                        <div className="text-[13px] font-bold text-ink-primary truncate">{product.name}</div>
+                      </td>
+                      <td className="px-3 py-2.5 font-mono text-[11px] text-gray-400 uppercase whitespace-nowrap">{product.sku || '—'}</td>
+                      <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                        <span className={`font-mono text-[13px] font-bold ${qtyCls(st)}`}>{qty}</span>
+                        <span className="text-[9px] text-gray-400 uppercase ml-0.5">{product.unit || 'pcs'}</span>
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-mono text-[12px] text-gray-400 whitespace-nowrap">{reorder > 0 ? reorder : '—'}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-[12px] text-gray-500 whitespace-nowrap">{currencySymbol}{toNum(product.costPrice).toFixed(2)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-[12px] font-semibold whitespace-nowrap"><span className="text-amber-400">{currencySymbol}</span>{sell.toFixed(2)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-[13px] font-bold whitespace-nowrap"><span className="text-amber-400">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</td>
+                      <td className="px-3 py-2.5 text-center"><span className={`inline-block w-2 h-2 rounded-full ${dotCls(st)}`} /></td>
+                      <td className="px-4 py-2.5 w-px">
+                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          {onAdjust && (
+                            <button onClick={() => onAdjust(product)} title="Adjust stock" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:bg-amber-100 hover:text-amber-700 transition-colors"><SlidersHorizontal size={14} /></button>
+                          )}
+                          <button onClick={() => onEdit(product)} title="View / edit" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:bg-black/[0.05] hover:text-ink-primary transition-colors"><Eye size={14} /></button>
+                          <button onClick={() => onDelete(product.id)} title="Delete" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </React.Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 };
 

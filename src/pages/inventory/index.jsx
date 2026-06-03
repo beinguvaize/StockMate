@@ -128,7 +128,7 @@ const Inventory = () => {
       <div className="flex justify-between items-center py-2 border-b border-black/5">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
-            Inventory<span className="text-accent-signature">.</span>
+            Inventory<span className="text-amber-500">.</span>
           </h1>
           <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Manage products and stock</span>
         </div>
@@ -144,7 +144,7 @@ const Inventory = () => {
         {[
           { label: 'Total Products', value: products.length, suffix: 'ITEMS', icon: <PackagePlus size={36} strokeWidth={1.5} />, color: 'text-ink-primary' },
           { label: 'Total Units',    value: kpis.totalUnits, suffix: 'PCS',   icon: <ShoppingBag size={36} strokeWidth={1.5} />,  color: 'text-blue-400' },
-          { label: 'Stock Value',    value: `₹${Math.round(kpis.stockValue).toLocaleString()}`,  icon: <DollarSign size={36} strokeWidth={1.5} />,  color: 'text-accent-signature' },
+          { label: 'Stock Value',    value: `₹${Math.round(kpis.stockValue).toLocaleString()}`,  icon: <DollarSign size={36} strokeWidth={1.5} />,  color: 'text-amber-500' },
           { label: 'Retail Value',   value: `₹${Math.round(kpis.retailValue).toLocaleString()}`, icon: <TrendingUp size={36} strokeWidth={1.5} />,  color: 'text-emerald-500' },
           { label: 'Low Stock',      value: kpis.lowStock,   suffix: 'SKUs',  icon: <AlertCircle size={36} strokeWidth={1.5} />,  color: 'text-orange-400' },
           { label: 'Out of Stock',   value: kpis.outOfStock, suffix: 'SKUs',  icon: <BarChart3 size={36} strokeWidth={1.5} />,    color: 'text-red-400' },
@@ -169,7 +169,7 @@ const Inventory = () => {
           <input type="text" value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Search by name, SKU, category, barcode…"
-            className="w-full pl-10 pr-9 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-medium text-ink-primary placeholder:text-gray-400 placeholder:font-normal outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all" />
+            className="w-full pl-10 pr-9 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-medium text-ink-primary placeholder:text-gray-400 placeholder:font-normal outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all" />
           {searchTerm && (
             <button onClick={() => setSearchTerm('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-ink-primary">
@@ -188,7 +188,7 @@ const Inventory = () => {
           ].map(t => (
             <button key={t.id} onClick={() => setTypeFilter(t.id)}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all whitespace-nowrap ${
-                typeFilter === t.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
+                typeFilter === t.id ? 'bg-amber-600 text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
               }`}>{t.label}</button>
           ))}
         </div>
@@ -203,14 +203,14 @@ const Inventory = () => {
           ].map(s => (
             <button key={s.id} onClick={() => setStockFilter(s.id)}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all whitespace-nowrap ${
-                stockFilter === s.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
+                stockFilter === s.id ? 'bg-amber-600 text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
               }`}>{s.label}</button>
           ))}
         </div>
 
         {/* Category select */}
         <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
-          className="bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-xs font-bold text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all min-w-[140px]">
+          className="bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-xs font-bold text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all min-w-[140px]">
           <option value="">All Categories</option>
           {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -232,6 +232,7 @@ const Inventory = () => {
       <StockTable
         products={filteredProducts}
         inventoryBalances={balances}
+        currencySymbol={businessProfile?.currencySymbol || '₹'}
         onEdit={openEditModal}
         onDelete={(id) => { if (window.confirm('Delete this product?')) deleteProduct(id); }}
         onAdjust={isOwner ? (product) => setAdjustingProduct(product) : null}
