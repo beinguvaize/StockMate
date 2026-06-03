@@ -733,9 +733,9 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
             {isOpen && (
               <div className="bg-canvas/30 border-t border-black/5">
                 {/* Column labels */}
-                <div className="grid grid-cols-[1fr_160px_50px_70px_70px_110px_80px_110px] gap-3 px-8 py-2 border-b border-black/5">
-                  {['Client', 'Products', 'Items', 'Source', 'App', 'By', 'Method', 'Amount'].map(h => (
-                    <span key={h} className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{h}</span>
+                <div className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-2 border-b border-black/5 items-center">
+                  {[['Client','justify-self-start'],['Products','justify-self-start'],['Items','justify-self-center'],['Source','justify-self-center'],['App','justify-self-center'],['By','justify-self-start'],['Method','justify-self-center'],['Amount','justify-self-end']].map(([h,a]) => (
+                    <span key={h} className={`text-[9px] font-black text-gray-400 uppercase tracking-widest ${a}`}>{h}</span>
                   ))}
                 </div>
 
@@ -758,7 +758,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
 
                   return (
                     <div key={s.id || si}
-                      className="grid grid-cols-[1fr_160px_50px_70px_70px_110px_80px_110px] gap-3 px-8 py-3 border-b border-black/5 last:border-0 hover:bg-white/60 transition-colors items-start">
+                      className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-3 border-b border-black/5 last:border-0 hover:bg-white/60 transition-colors items-center">
 
                       {/* Client */}
                       <div className="flex items-center gap-2 min-w-0">
@@ -782,39 +782,39 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                       </div>
 
                       {/* Total items */}
-                      <span className="font-mono text-xs font-bold text-ink-primary tabular-nums">{itemQty}</span>
+                      <span className="font-mono text-xs font-bold text-ink-primary tabular-nums justify-self-center">{itemQty}</span>
 
                       {/* Source badge */}
                       {isVan
                         ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-amber-50 text-amber-700 border border-amber-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-amber-50 text-amber-700 border border-amber-200 justify-self-center">
                             <Truck size={9} /> {vanLabel}
                           </span>
                         )
                         : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-slate-100 text-slate-600 border border-slate-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-slate-100 text-slate-600 border border-slate-200 justify-self-center">
                             POS
                           </span>
                         )
                       }
 
                       {/* App / channel */}
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit border ${appCls}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit border justify-self-center ${appCls}`}>
                         {app}
                       </span>
 
                       {/* Sold by */}
-                      <span className="text-[11px] font-bold text-ink-secondary truncate" title={user?.email || ''}>
+                      <span className="text-[11px] font-bold text-ink-secondary truncate justify-self-start" title={user?.email || ''}>
                         {byLabel}
                       </span>
 
                       {/* Payment method */}
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit ${badgeCls}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit justify-self-center ${badgeCls}`}>
                         {method}
                       </span>
 
                       {/* Amount */}
-                      <span className="font-mono text-xs font-bold text-ink-primary tabular-nums">{formatCurrency(s.totalAmount)}</span>
+                      <span className="font-mono text-xs font-bold text-ink-primary tabular-nums justify-self-end">{formatCurrency(s.totalAmount)}</span>
                     </div>
                   );
                 })}
