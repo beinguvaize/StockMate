@@ -109,21 +109,27 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         );
         await repo.updateProduct(updated);
       } else {
-        // Add mode — insert via Supabase directly (existing pattern)
+        // Add mode — insert via Supabase directly.
+        // Column names are camelCase to match the products table
+        // (costPrice/sellingPrice/lowStockThreshold/taxRate/taxSlab); snake_case
+        // keys 404 in the PostgREST schema cache (PGRST204). id is a text PK with
+        // no default, so generate it the same way the web app does.
+        final id = 'PROD-${DateTime.now().millisecondsSinceEpoch}-'
+            '${(1000 + (DateTime.now().microsecond % 9000))}';
         await supabase.from('products').insert({
+          'id': id,
           'name': _nameController.text.trim(),
           'sku': _skuController.text.trim(),
-          'cost_price': double.tryParse(_costController.text) ?? 0.0,
-          'selling_price': double.tryParse(_sellingController.text) ?? 0.0,
+          'costPrice': double.tryParse(_costController.text) ?? 0.0,
+          'sellingPrice': double.tryParse(_sellingController.text) ?? 0.0,
           'stock': double.tryParse(_stockController.text) ?? 0.0,
-          'low_stock_threshold': double.tryParse(_alertController.text) ?? 10.0,
+          'lowStockThreshold': double.tryParse(_alertController.text) ?? 10.0,
           'category': _categoryController.text.trim().isEmpty
               ? 'Other'
               : _categoryController.text.trim(),
           'unit': _selectedUnit,
-          'tax_rate': _taxRate,
-          'tax_slab': _selectedTaxSlab,
-          'date': DateTime.now().toIso8601String().split('T')[0],
+          'taxRate': _taxRate,
+          'taxSlab': _selectedTaxSlab,
           'tenant_id': tenantCtx?.tenantId,
         });
       }

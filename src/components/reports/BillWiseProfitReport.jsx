@@ -77,8 +77,8 @@ function calcItemCost(item, costById) {
 }
 
 const BillWiseProfitReport = () => {
-  const [preset, setPreset]       = useState('MONTH');
-  const [range,  setRange]        = useState(() => presetRange('MONTH'));
+  const [preset, setPreset]       = useState('TODAY');
+  const [range,  setRange]        = useState(() => presetRange('TODAY'));
   const [customStart, setCustomStart] = useState('');
   const [customEnd,   setCustomEnd]   = useState('');
   const [showCustom,  setShowCustom]  = useState(false);

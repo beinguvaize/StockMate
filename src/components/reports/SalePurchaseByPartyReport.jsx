@@ -119,8 +119,8 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
 const RANK_COLORS = ['text-amber-500', 'text-gray-400', 'text-amber-700'];
 
 const SalePurchaseByPartyReport = () => {
-  const [preset, setPreset]       = useState('MONTH');
-  const [range,  setRange]        = useState(() => presetRange('MONTH'));
+  const [preset, setPreset]       = useState('TODAY');
+  const [range,  setRange]        = useState(() => presetRange('TODAY'));
   const [customStart, setCustomStart] = useState('');
   const [customEnd,   setCustomEnd]   = useState('');
   const [showCustom,  setShowCustom]  = useState(false);
