@@ -45,7 +45,7 @@ export const DEFAULT_MODULES = {
     vehicles: false,
     // restaurant features
     tables: true, kot: true, modifiers: true,
-    recipe_deduct: false,  // phase 2 — wire BOM→sale deduction
+    recipe_deduct: true,   // R5 — BOM ingredients auto-deducted on dish sale
     channels: false,       // phase R7 — Swiggy/Zomato via middleware
     appointments: false, service_catalog: false,
   },

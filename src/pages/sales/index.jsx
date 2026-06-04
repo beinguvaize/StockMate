@@ -19,6 +19,7 @@ import TablesFloor from './components/TablesFloor';
 import { useTables } from '../../hooks/useTables';
 import { useKOT } from '../../hooks/useKOT';
 import { printKOT } from '../../lib/kotPrint';
+import { deductRecipeIngredients } from '../../lib/recipeDeduct';
 import { calculateGST } from '../../lib/gstEngine';
 import { supabase } from '../../lib/supabase';
 
@@ -28,7 +29,7 @@ const SalesPage = () => {
   const [convertSale, setConvertSale] = useState(null);
   const [convertSubmitting, setConvertSubmitting] = useState(false);
   const { addNotification } = useNotifications();
-  const { currentTenantId, businessProfile, currentTenant, businessType } = useTenant();
+  const { currentTenantId, businessProfile, currentTenant, businessType, isModuleOn } = useTenant();
   const isResto = businessType === 'RESTAURANT';
   const tablesApi = useTables(currentTenantId);
   const { createTicket } = useKOT(currentTenantId);
@@ -54,6 +55,14 @@ const SalesPage = () => {
   const addSale = async (saleData) => {
     const result = await placeSale(saleData);
     if (result?.error) return result;
+
+    // R5: restaurant dish sale → deduct BOM ingredients from stock.
+    if (isResto && isModuleOn('recipe_deduct')) {
+      try {
+        const { deducted } = await deductRecipeIngredients(currentTenantId, saleData.items || []);
+        if (deducted > 0) refetchInventory?.();
+      } catch (e) { console.error('[recipeDeduct] failed:', e); }
+    }
 
     const isCredit   = saleData.paymentMethod === 'CREDIT';
     const isDelivery = saleData.fulfillmentType === 'DELIVERY';
