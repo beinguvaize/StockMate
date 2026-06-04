@@ -309,19 +309,19 @@ const Settings = () => {
  {/* Left Panel: Primary Identity */}
  <div className="md:col-span-2 flex flex-col gap-5">
  <div id="tab-business" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium">
- <div className="bg-ink-primary p-6 flex items-center gap-4">
+ <div className="bg-ink-primary px-5 py-3.5 flex items-center gap-4">
  <Building size={20} className="text-accent-signature" />
  <h2 className="text-base font-bold font-semibold text-surface">Business Details</h2>
  </div>
  
- <div className="p-6 bg-surface">
- <form onSubmit={handleSaveProfile} className="space-y-10">
+ <div className="p-5 bg-surface">
+ <form onSubmit={handleSaveProfile} className="space-y-6">
  <div>
- <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Business Name</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Business Name</label>
  <input
  required
  type="text"
- className="input-field !rounded-lg !py-5 font-semibold text-2xl !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-bold text-base !bg-white border border-gray-300 shadow-sm"
  value={profileData.name}
  onChange={e => setProfileData({ ...profileData, name: e.target.value})}
  placeholder="Business Name..."
@@ -330,20 +330,20 @@ const Settings = () => {
 
  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
  <div>
- <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Contact Phone</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Contact Phone</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
  value={profileData.phone}
  onChange={e => setProfileData({ ...profileData, phone: e.target.value})}
  placeholder="Phone Number..."
  />
  </div>
  <div>
- <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Official Email</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Official Email</label>
  <input
  type="email"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
  value={profileData.email}
  onChange={e => setProfileData({ ...profileData, email: e.target.value})}
  placeholder="Email Address..."
@@ -352,10 +352,10 @@ const Settings = () => {
  </div>
 
  <div>
- <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Business Address</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Business Address</label>
  <textarea
  rows="3"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm w-full resize-none"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm w-full resize-none"
  value={profileData.address}
  onChange={e => setProfileData({ ...profileData, address: e.target.value})}
  placeholder="Full Physical Address..."
@@ -369,20 +369,20 @@ const Settings = () => {
  </div>
  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
  <div>
- <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">GSTIN (GST Number)</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">GSTIN (GST Number)</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
  value={profileData.gst_no}
  onChange={e => setProfileData({ ...profileData, gst_no: e.target.value})}
  placeholder="GSTIN..."
  />
  </div>
  <div>
- <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">PAN Number</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">PAN Number</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
  value={profileData.pan_no}
  onChange={e => setProfileData({ ...profileData, pan_no: e.target.value})}
  placeholder="Permanent Account Number..."
@@ -446,40 +446,40 @@ const Settings = () => {
  </div>
  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
  <div>
- <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Bank Name</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Bank Name</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
  value={profileData.bank_name}
  onChange={e => setProfileData({ ...profileData, bank_name: e.target.value})}
  placeholder="e.g. HDFC Bank"
  />
  </div>
  <div>
- <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Account Number</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Account Number</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
  value={profileData.account_no}
  onChange={e => setProfileData({ ...profileData, account_no: e.target.value})}
  placeholder="Bank Account No..."
  />
  </div>
  <div>
- <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">IFSC Code</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">IFSC Code</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
  value={profileData.ifsc_code}
  onChange={e => setProfileData({ ...profileData, ifsc_code: e.target.value})}
  placeholder="Bank IFSC..."
  />
  </div>
  <div>
- <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">UPI ID (for QR)</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">UPI ID (for QR)</label>
  <input
  type="text"
- className="input-field !rounded-lg !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
+ className="input-field !rounded-xl !py-2.5 font-medium text-sm !bg-white border border-gray-300 shadow-sm"
  value={profileData.upi_id}
  onChange={e => setProfileData({ ...profileData, upi_id: e.target.value})}
  placeholder="e.g. name@bank"
@@ -490,10 +490,10 @@ const Settings = () => {
 
  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-8 border-t border-black/5">
  <div>
- <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Country</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Country</label>
  <div className="relative">
  <Globe size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
- <select className="input-field !pl-16 !rounded-lg !py-2.5 font-medium text-sm appearance-none !bg-white border border-gray-300 shadow-sm" value={profileData.country} onChange={e => {
+ <select className="input-field !pl-16 !rounded-xl !py-2.5 font-medium text-sm appearance-none !bg-white border border-gray-300 shadow-sm" value={profileData.country} onChange={e => {
  const country = e.target.value;
  let currency = profileData.currency;
  let currencySymbol = profileData.currencySymbol;
@@ -514,10 +514,10 @@ const Settings = () => {
  </div>
 
  <div>
- <label className="block text-sm font-semibold text-gray-700 opacity-[0.85] mb-1.5">Currency</label>
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Currency</label>
  <div className="relative">
  <Coins size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
- <select className="input-field !pl-16 !rounded-lg !py-2.5 font-medium text-sm appearance-none !bg-white border border-gray-300 shadow-sm" value={profileData.currency} onChange={e => setProfileData({ ...profileData, currency: e.target.value})}>
+ <select className="input-field !pl-16 !rounded-xl !py-2.5 font-medium text-sm appearance-none !bg-white border border-gray-300 shadow-sm" value={profileData.currency} onChange={e => setProfileData({ ...profileData, currency: e.target.value})}>
  <option value="INR">INR - INDIAN RUPEE</option>
  <option value="AED">AED - UAE DIRHAM</option>
  <option value="USD">USD - US DOLLAR</option>
@@ -553,7 +553,7 @@ const Settings = () => {
   {/* Workspace Management - OWNER ONLY */}
   {isOwner && (
     <div id="tab-workspace" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface mt-5">
-      <div className="bg-ink-primary p-6 flex items-center justify-between">
+      <div className="bg-ink-primary px-5 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Shield size={20} className="text-accent-signature" />
           <h2 className="text-base font-bold font-semibold text-surface">Workspace Administration</h2>
@@ -563,7 +563,7 @@ const Settings = () => {
         </div>
       </div>
       
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
+      <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Plan Details */}
         <div className="flex flex-col gap-4">
           <div className="p-5 rounded-2xl bg-white border border-gray-300 shadow-sm">
@@ -645,7 +645,7 @@ const Settings = () => {
 
   {/* Expense Categories Management */}
  <div id="tab-categories" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
- <div className="bg-ink-primary p-6 flex items-center justify-between">
+ <div className="bg-ink-primary px-5 py-3.5 flex items-center justify-between">
  <div className="flex items-center gap-4">
  <Tag size={20} className="text-accent-signature" />
  <h2 className="text-base font-bold font-semibold text-surface">Expense Categories</h2>
@@ -653,7 +653,7 @@ const Settings = () => {
  <div className="text-[9px] font-semibold text-accent-signature opacity-70">Manage Categories</div>
  </div>
  
- <div className="p-6 space-y-8">
+ <div className="p-5 space-y-5">
  {/* Add Category */}
  <div className="flex gap-3">
  <input
@@ -741,14 +741,14 @@ const Settings = () => {
 
  {/* Product Categories Management */}
  <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
- <div className="bg-ink-primary p-6 flex items-center justify-between">
+ <div className="bg-ink-primary px-5 py-3.5 flex items-center justify-between">
  <div className="flex items-center gap-4">
  <Tag size={20} className="text-accent-signature" />
  <h2 className="text-base font-bold font-semibold text-surface">Product Categories</h2>
  </div>
  <div className="text-[9px] font-semibold text-accent-signature opacity-70">Manage Categories</div>
  </div>
- <div className="p-6 space-y-8">
+ <div className="p-5 space-y-5">
  <div className="flex gap-3">
  <input
  type="text"
@@ -871,7 +871,7 @@ const Settings = () => {
 
  {/* ── Cash Bill / POS Receipt Layout ─────────────────────────────── */}
  <div id="tab-billing" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
-   <div className="bg-ink-primary p-6 flex items-center justify-between">
+   <div className="bg-ink-primary px-5 py-3.5 flex items-center justify-between">
      <div className="flex items-center gap-4">
        <Receipt size={20} className="text-accent-signature" />
        <div>
@@ -881,7 +881,7 @@ const Settings = () => {
      </div>
      <div className="text-[9px] font-semibold text-accent-signature opacity-70 uppercase tracking-widest">Per-Tenant</div>
    </div>
-   <div className="p-6 space-y-6">
+   <div className="p-5 space-y-6">
 
      {/* Toggle rows */}
      <div>
@@ -993,14 +993,14 @@ const Settings = () => {
 
  {/* Data Import / Export */}
  <div id="tab-data" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
- <div className="bg-ink-primary p-6 flex items-center justify-between">
+ <div className="bg-ink-primary px-5 py-3.5 flex items-center justify-between">
  <div className="flex items-center gap-4">
  <FileUp size={20} className="text-accent-signature" />
  <h2 className="text-base font-bold font-semibold text-surface">Data Import / Export</h2>
  </div>
  <div className="text-[9px] font-semibold text-accent-signature opacity-70">CSV & JSON</div>
  </div>
- <div className="p-6 space-y-4">
+ <div className="p-5 space-y-4">
  <p className="text-[11px] font-bold text-gray-700 leading-relaxed">
  Import your existing business data or export a backup. Supports CSV and JSON formats for Products, Clients, Orders, Expenses, and Employees.
  </p>
@@ -1079,7 +1079,7 @@ const Settings = () => {
 
  {/* ── Branches / Locations (PRO+) ── */}
  <div id="tab-locations" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
-   <div className="bg-ink-primary p-6 flex items-center justify-between">
+   <div className="bg-ink-primary px-5 py-3.5 flex items-center justify-between">
      <div className="flex items-center gap-4">
        <MapPin size={20} className="text-accent-signature" />
        <div>
@@ -1089,7 +1089,7 @@ const Settings = () => {
      </div>
      <span className={`text-[9px] font-black px-2 py-1 rounded-full ${planMeta.color}`}>{planMeta.label}</span>
    </div>
-   <div className="p-6 space-y-4">
+   <div className="p-5 space-y-4">
      {!isPro ? (
        <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
          <AlertTriangle size={16} className="text-amber-500 shrink-0" />
@@ -1172,7 +1172,7 @@ const Settings = () => {
 
  {/* ── API Keys (Enterprise) ── */}
  <div id="tab-api" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
-   <div className="bg-ink-primary p-6 flex items-center justify-between">
+   <div className="bg-ink-primary px-5 py-3.5 flex items-center justify-between">
      <div className="flex items-center gap-4">
        <Key size={20} className="text-accent-signature" />
        <div>
@@ -1182,7 +1182,7 @@ const Settings = () => {
      </div>
      <span className={`text-[9px] font-black px-2 py-1 rounded-full ${PLANS.ENTERPRISE.color}`}>Enterprise</span>
    </div>
-   <div className="p-6 space-y-4">
+   <div className="p-5 space-y-4">
      {!isEnterprise ? (
        <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
          <AlertTriangle size={16} className="text-amber-500 shrink-0" />
