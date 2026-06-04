@@ -56,12 +56,16 @@ const Expenses = () => {
  // Resolve the active filter into an inclusive [from,to] YYYY-MM-DD window.
  // null on either side = unbounded. 'all' = fully unbounded.
  const dateWindow = useMemo(() => {
-   const d = new Date();
+   // Anchor "today" on the app timezone (IST) so it lines up with the
+   // YYYY-MM-DD dates persisted via todayISOInAppTZ(), regardless of the
+   // viewer's machine timezone. Build the reference Date from that wall-clock.
+   const today = todayISOInAppTZ();
+   const [ty, tm, td] = today.split('-').map(Number);
+   const d = new Date(ty, tm - 1, td); // local midnight of app-TZ today
    const ymd = (x) => {
      const y = x.getFullYear(), m = String(x.getMonth()+1).padStart(2,'0'), dd = String(x.getDate()).padStart(2,'0');
      return `${y}-${m}-${dd}`;
    };
-   const today = ymd(d);
    if (filterType === 'today') return { from: today, to: today };
    if (filterType === 'yesterday') { const y = new Date(d); y.setDate(d.getDate()-1); return { from: ymd(y), to: ymd(y) }; }
    if (filterType === 'week') { const s = new Date(d); const dow = (s.getDay()+6)%7; s.setDate(d.getDate()-dow); return { from: ymd(s), to: today }; }
@@ -106,15 +110,20 @@ const Expenses = () => {
 
 
  // Component-scope so both filteredExpenses and categoryBreakdown can use it.
+ // Returns the expense's wall-clock YYYY-MM-DD. Plain date strings are used
+ // as-is (no TZ shift); timestamps are resolved in the app timezone so the
+ // window comparison matches the dates persisted via todayISOInAppTZ().
  const getLocalDate = (date) => {
  if (!date) return '';
+ // Already a wall-clock date (optionally with time): take the date part.
+ if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}/.test(date)) return date.slice(0, 10);
  try {
  const d = new Date(date);
  if (isNaN(d.getTime())) return '';
- const year = d.getFullYear();
- const month = String(d.getMonth() + 1).padStart(2, '0');
- const day = String(d.getDate()).padStart(2, '0');
- return `${year}-${month}-${day}`;
+ // 'en-CA' formats as YYYY-MM-DD; do it in the app TZ to avoid day drift.
+ return new Intl.DateTimeFormat('en-CA', {
+   timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit',
+ }).format(d);
 } catch (e) { return '';}
 };
 

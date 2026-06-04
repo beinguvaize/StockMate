@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Mobile final</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  body{font-family:Manrope,sans-serif;background:#EDE9E2}
+  .mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
+  .phone{width:360px;background:#F7F5F1;border-radius:34px;border:10px solid #16151A;box-shadow:0 30px 60px -20px rgba(0,0,0,.35);overflow:hidden}
+  .track{letter-spacing:.12em}
+</style>
+</head>
+<body class="p-8">
+<div class="mb-5 font-extrabold text-xl">Final — Expenses (B list) + Spend Report (D)</div>
+<div class="flex gap-12 flex-wrap items-start">
+
+<!-- 1: Expenses list (B) with List|Report tabs -->
+<div>
+  <div class="mb-3 font-semibold text-sm text-stone-500">1 · Expenses — List</div>
+  <div class="phone">
+    <div class="px-5 pt-5 pb-3 bg-white">
+      <div class="flex items-center justify-between">
+        <div><div class="font-extrabold text-xl">Expenses<span class="text-amber-500">.</span></div><div class="mono text-[11px] text-stone-400">$ expenses --month</div></div>
+        <button class="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center">⤓</button>
+      </div>
+      <!-- tab toggle -->
+      <div class="flex gap-1 mt-4 p-1 bg-black/[0.04] rounded-xl">
+        <button class="flex-1 py-1.5 rounded-lg text-[12px] font-bold bg-white shadow-sm">List</button>
+        <button class="flex-1 py-1.5 rounded-lg text-[12px] font-bold text-stone-500">Report</button>
+      </div>
+    </div>
+    <!-- summary strip -->
+    <div class="px-5 pt-3"><div class="grid grid-cols-3 gap-px bg-black/[0.06] rounded-2xl overflow-hidden border border-black/[0.06]">
+      <div class="bg-white px-3 py-2.5"><div class="text-[8px] uppercase track text-stone-400 font-bold">Total</div><div class="mono text-sm font-bold"><span class="text-amber-400">₹</span>10,740</div></div>
+      <div class="bg-white px-3 py-2.5"><div class="text-[8px] uppercase track text-stone-400 font-bold">Entries</div><div class="mono text-sm font-bold">16</div></div>
+      <div class="bg-white px-3 py-2.5"><div class="text-[8px] uppercase track text-stone-400 font-bold">Budget</div><div class="mono text-sm font-bold text-amber-600">11%</div></div>
+    </div></div>
+    <!-- category chips -->
+    <div class="px-5 pt-3 flex gap-1.5 overflow-x-auto no-scrollbar">
+      <span class="shrink-0 px-3 py-1 rounded-full bg-amber-600 text-white text-[11px] font-bold">All</span>
+      <span class="shrink-0 px-3 py-1 rounded-full bg-white border border-black/10 text-stone-500 text-[11px] font-bold">Mess ₹4,300</span>
+      <span class="shrink-0 px-3 py-1 rounded-full bg-white border border-black/10 text-stone-500 text-[11px] font-bold">Food</span>
+    </div>
+    <!-- list grouped -->
+    <div class="px-5 py-4 space-y-4">
+      <div>
+        <div class="flex justify-between items-center mb-2"><span class="mono text-[10px] font-bold text-stone-400">04 JUN</span><span class="mono text-[11px] font-bold">₹58</span></div>
+        <div class="rounded-2xl bg-white divide-y divide-black/[0.05]">
+          <div class="flex items-center gap-3 px-3.5 py-3"><span class="w-1 h-8 rounded-sm bg-amber-400"></span><div class="flex-1"><div class="text-[13px] font-bold">umbrella</div><div class="text-[10px] text-stone-400 uppercase track">Utility · Cash</div></div><div class="mono text-[14px] font-bold"><span class="text-amber-400">₹</span>58</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="flex justify-between items-center mb-2"><span class="mono text-[10px] font-bold text-stone-400">02 JUN</span><span class="mono text-[11px] font-bold">₹1,295</span></div>
+        <div class="rounded-2xl bg-white divide-y divide-black/[0.05]">
+          <div class="flex items-center gap-3 px-3.5 py-3"><span class="w-1 h-8 rounded-sm bg-red-400"></span><div class="flex-1"><div class="text-[13px] font-bold">Food</div><div class="text-[10px] text-stone-400 uppercase track">Food · Cash</div></div><div class="mono text-[14px] font-bold"><span class="text-amber-400">₹</span>110</div></div>
+          <div class="flex items-center gap-3 px-3.5 py-3"><span class="w-1 h-8 rounded-sm bg-stone-300"></span><div class="flex-1"><div class="text-[13px] font-bold">Recharge</div><div class="text-[10px] text-stone-400 uppercase track">Recharge · Cash</div></div><div class="mono text-[14px] font-bold"><span class="text-amber-400">₹</span>485</div></div>
+          <div class="flex items-center gap-3 px-3.5 py-3"><span class="w-1 h-8 rounded-sm bg-emerald-400"></span><div class="flex-1"><div class="text-[13px] font-bold">Salary · 2 person</div><div class="text-[10px] text-stone-400 uppercase track">Salary · Cash</div></div><div class="mono text-[14px] font-bold"><span class="text-amber-400">₹</span>700</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2: Spend Report (D) -->
+<div>
+  <div class="mb-3 font-semibold text-sm text-stone-500">2 · Expenses — Report (Report tab)</div>
+  <div class="phone">
+    <div class="px-5 pt-5 pb-3 bg-white">
+      <div class="flex items-center justify-between">
+        <div><div class="font-extrabold text-xl">Expenses<span class="text-amber-500">.</span></div><div class="mono text-[11px] text-stone-400">spend report</div></div>
+        <button class="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center">⤓</button>
+      </div>
+      <div class="flex gap-1 mt-4 p-1 bg-black/[0.04] rounded-xl">
+        <button class="flex-1 py-1.5 rounded-lg text-[12px] font-bold text-stone-500">List</button>
+        <button class="flex-1 py-1.5 rounded-lg text-[12px] font-bold bg-white shadow-sm">Report</button>
+      </div>
+      <!-- period -->
+      <div class="flex gap-1.5 mt-3 p-1 bg-black/[0.04] rounded-xl">
+        <button class="flex-1 py-1.5 rounded-lg text-[11px] font-bold text-stone-500">Day</button>
+        <button class="flex-1 py-1.5 rounded-lg text-[11px] font-bold bg-amber-600 text-white">Week</button>
+        <button class="flex-1 py-1.5 rounded-lg text-[11px] font-bold text-stone-500">Month</button>
+      </div>
+    </div>
+    <div class="px-5 py-4">
+      <!-- dark trend card -->
+      <div class="rounded-2xl bg-[#17150F] text-white p-5">
+        <div class="text-[10px] uppercase track text-amber-400 font-bold">This week · total</div>
+        <div class="mono text-2xl font-bold mt-1"><span class="text-amber-400 text-lg">₹</span>5,236</div>
+        <div class="text-[11px] text-white/40 mono mt-0.5">avg ₹748/day · ▲ 18% vs last week</div>
+        <div class="flex items-end gap-1.5 h-20 mt-4">
+          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-500" style="height:40%"></div><span class="text-[8px] text-white/40">M</span></div>
+          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-500" style="height:65%"></div><span class="text-[8px] text-white/40">T</span></div>
+          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-500" style="height:52%"></div><span class="text-[8px] text-white/40">W</span></div>
+          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-500" style="height:88%"></div><span class="text-[8px] text-white/40">T</span></div>
+          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-500" style="height:70%"></div><span class="text-[8px] text-white/40">F</span></div>
+          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-400" style="height:96%"></div><span class="text-[8px] text-white/40">S</span></div>
+          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-300" style="height:30%"></div><span class="text-[8px] text-white/40">S</span></div>
+        </div>
+      </div>
+      <!-- top categories -->
+      <div class="mt-4 rounded-2xl bg-white p-4">
+        <div class="text-[10px] uppercase track text-stone-400 font-bold mb-3">Top categories</div>
+        <div class="space-y-2.5">
+          <div><div class="flex justify-between mb-1"><span class="text-[12px] font-semibold uppercase track text-stone-500">Mess</span><span class="mono text-[12px] font-bold">₹4,300</span></div><div class="h-1.5 rounded-full bg-black/[0.06]"><div class="h-full rounded-full bg-amber-500" style="width:100%"></div></div></div>
+          <div><div class="flex justify-between mb-1"><span class="text-[12px] font-semibold uppercase track text-stone-500">Other</span><span class="mono text-[12px] font-bold">₹2,800</span></div><div class="h-1.5 rounded-full bg-black/[0.06]"><div class="h-full rounded-full bg-amber-500" style="width:65%"></div></div></div>
+          <div><div class="flex justify-between mb-1"><span class="text-[12px] font-semibold uppercase track text-stone-500">Recharge</span><span class="mono text-[12px] font-bold">₹1,940</span></div><div class="h-1.5 rounded-full bg-black/[0.06]"><div class="h-full rounded-full bg-amber-500" style="width:45%"></div></div></div>
+        </div>
+      </div>
+      <!-- per-day rows -->
+      <div class="mt-4 space-y-2">
+        <div class="flex items-center justify-between rounded-xl bg-white px-4 py-2.5"><div><div class="font-bold text-[13px]">Sat, 06 Jun</div><div class="text-[10px] text-stone-400">3 expenses</div></div><div class="mono font-bold text-[14px]"><span class="text-amber-400">₹</span>1,260</div></div>
+        <div class="flex items-center justify-between rounded-xl bg-white px-4 py-2.5"><div><div class="font-bold text-[13px]">Thu, 04 Jun</div><div class="text-[10px] text-stone-400">2 expenses</div></div><div class="mono font-bold text-[14px]"><span class="text-amber-400">₹</span>168</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</body></html>

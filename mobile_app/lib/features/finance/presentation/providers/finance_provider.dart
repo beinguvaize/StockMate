@@ -40,3 +40,43 @@ final expensesProvider = FutureProvider<List<Expense>>((ref) async {
         .toList();
   }
 });
+
+/// Per-tenant custom expense categories. Stored in `settings` under the
+/// `expense_categories` key as a JSON array — same shape the web app uses.
+final customExpenseCategoriesProvider =
+    FutureProvider<List<String>>((ref) async {
+  final ctx = await ref.watch(tenantContextProvider.future);
+  if (ctx == null) return [];
+  try {
+    final row = await supabase
+        .from('settings')
+        .select('value')
+        .eq('key', 'expense_categories')
+        .eq('tenant_id', ctx.tenantId)
+        .maybeSingle();
+    final value = row?['value'];
+    if (value is List) {
+      return value
+          .map((e) => (e ?? '').toString().trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+    }
+    return [];
+  } catch (e) {
+    debugPrint('[customExpenseCategoriesProvider] failed: $e');
+    return [];
+  }
+});
+
+/// Persist the full custom-category list (upsert on key+tenant_id).
+Future<void> saveExpenseCategories(
+    WidgetRef ref, String tenantId, List<String> list) async {
+  final clean = <String>{
+    for (final s in list) s.trim(),
+  }.where((s) => s.isNotEmpty).toList();
+  await supabase.from('settings').upsert(
+    {'key': 'expense_categories', 'value': clean, 'tenant_id': tenantId},
+    onConflict: 'key,tenant_id',
+  );
+  ref.invalidate(customExpenseCategoriesProvider);
+}
