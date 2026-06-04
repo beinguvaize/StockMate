@@ -1,5 +1,19 @@
 import React, { useMemo } from 'react';
 import { PackagePlus, Eye, Trash2, SlidersHorizontal } from 'lucide-react';
+import { useTenant } from '../../../context/TenantContext';
+
+// Veg/non-veg/egg square (restaurant menu). null = nothing.
+const FoodMark = ({ type }) => {
+  if (!type) return null;
+  const c = type === 'VEG' ? 'border-green-600 text-green-600'
+    : type === 'NONVEG' ? 'border-red-600 text-red-600'
+    : 'border-amber-500 text-amber-500';
+  return (
+    <span className={`shrink-0 w-3.5 h-3.5 border rounded-sm flex items-center justify-center ${c}`} title={type}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current" />
+    </span>
+  );
+};
 
 // Postgres numeric arrives as string — coerce before math.
 const toNum = (v) => Number(v ?? 0);
@@ -20,6 +34,8 @@ const dotCls = (s) => s === 'crit' ? 'bg-red-500' : s === 'low' ? 'bg-amber-500'
 const qtyCls = (s) => s === 'crit' ? 'text-red-600' : s === 'low' ? 'text-amber-600' : 'text-ink-primary';
 
 const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, onBatches, currencySymbol = '₹' }) => {
+  const { businessType } = useTenant();
+  const isResto = businessType === 'RESTAURANT';
   const stockOf = (product) =>
     inventoryBalances.filter(b => b.product_id === product.id)
       .reduce((acc, b) => acc + toNum(b.quantity), 0) || toNum(product.stock);
@@ -95,7 +111,16 @@ const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, o
                   return (
                     <tr key={product.id} className="group border-t border-black/[0.04] hover:bg-amber-500/[0.04] transition-colors">
                       <td className="px-5 py-2.5 pl-9 max-w-0 w-full">
-                        <div className="text-[13px] font-bold text-ink-primary truncate">{product.name}</div>
+                        <div className="flex items-center gap-2 min-w-0">
+                          {isResto && <FoodMark type={product.food_type} />}
+                          <span className="text-[13px] font-bold text-ink-primary truncate">{product.name}</span>
+                          {isResto && product.is_available === false && (
+                            <span className="shrink-0 text-[9px] font-black uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">86</span>
+                          )}
+                          {isResto && product.station && (
+                            <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-gray-400">{product.station}</span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-3 py-2.5 font-mono text-[11px] text-gray-400 uppercase whitespace-nowrap">{product.sku || '—'}</td>
                       <td className="px-3 py-2.5 text-right whitespace-nowrap">
