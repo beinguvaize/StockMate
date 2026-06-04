@@ -22,7 +22,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
     lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: 'STANDARD',
     secondary_unit: '', conversion_factor: '',
-    food_type: '', is_available: true, station: '',   // menu (restaurant)
+    food_type: '', is_available: true, station: '', modifier_groups: [],   // menu (restaurant)
   });
 
   const [imageFile, setImageFile]     = useState(null);
@@ -60,6 +60,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         image: editingProduct.image || '',
         lowStockThreshold: editingProduct.lowStockThreshold || 10,
         barcode: editingProduct.barcode || '',
+        modifier_groups: Array.isArray(editingProduct.modifier_groups) ? editingProduct.modifier_groups : [],
       });
       setImagePreview(editingProduct.image || null);
     } else {
@@ -139,6 +140,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         food_type: formData.food_type || null,
         is_available: formData.is_available !== false,
         station: formData.station?.trim() || null,
+        modifier_groups: Array.isArray(formData.modifier_groups) ? formData.modifier_groups : [],
       };
 
       const result = await onSave(parsedData);
@@ -153,6 +155,16 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       setUploading(false);
     }
   };
+
+  // ── Modifier-group editor helpers (restaurant) ───────────────
+  const mgroups = formData.modifier_groups || [];
+  const setGroups = (next) => setFormData(f => ({ ...f, modifier_groups: next }));
+  const addGroup = () => setGroups([...mgroups, { id: crypto.randomUUID(), name: '', multi: false, options: [{ name: '', price: 0 }] }]);
+  const updateGroup = (i, patch) => setGroups(mgroups.map((g, gi) => gi === i ? { ...g, ...patch } : g));
+  const removeGroup = (i) => setGroups(mgroups.filter((_, gi) => gi !== i));
+  const addOption = (i) => updateGroup(i, { options: [...(mgroups[i].options || []), { name: '', price: 0 }] });
+  const updateOption = (i, oi, patch) => updateGroup(i, { options: mgroups[i].options.map((o, idx) => idx === oi ? { ...o, ...patch } : o) });
+  const removeOption = (i, oi) => updateGroup(i, { options: mgroups[i].options.filter((_, idx) => idx !== oi) });
 
   return (
     <Modal
@@ -269,6 +281,52 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <span className="text-sm font-semibold text-ink-primary">Available on menu</span>
                   <span className="text-[11px] text-gray-400">— uncheck to 86 (mark out of stock)</span>
                 </label>
+
+                {/* Modifier groups */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className={labelCls}>Modifiers <span className="text-gray-400 font-normal normal-case">— add-ons / variations</span></label>
+                    <button type="button" onClick={addGroup}
+                      className="text-[11px] font-bold text-amber-600 hover:underline">+ Add group</button>
+                  </div>
+                  <div className="space-y-3">
+                    {mgroups.map((g, i) => (
+                      <div key={g.id || i} className="rounded-xl border border-black/10 p-3 bg-canvas/40">
+                        <div className="flex items-center gap-2 mb-2">
+                          <input value={g.name} onChange={e => updateGroup(i, { name: e.target.value })}
+                            placeholder="Group name (Size, Add-ons…)"
+                            className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold outline-none focus:border-amber-500" />
+                          <label className="flex items-center gap-1 text-[11px] font-bold text-gray-500 whitespace-nowrap">
+                            <input type="checkbox" checked={!!g.multi} onChange={e => updateGroup(i, { multi: e.target.checked })} className="accent-amber-600" />
+                            multi
+                          </label>
+                          <button type="button" onClick={() => removeGroup(i)} className="text-gray-300 hover:text-red-500"><X size={14} /></button>
+                        </div>
+                        <div className="space-y-1.5">
+                          {(g.options || []).map((o, oi) => (
+                            <div key={oi} className="flex items-center gap-2">
+                              <input value={o.name} onChange={e => updateOption(i, oi, { name: e.target.value })}
+                                placeholder="Option (Large, Extra cheese…)"
+                                className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-amber-500" />
+                              <div className="flex items-center gap-1">
+                                <span className="text-[11px] text-gray-400">₹</span>
+                                <input type="number" step="1" value={o.price}
+                                  onChange={e => updateOption(i, oi, { price: parseFloat(e.target.value) || 0 })}
+                                  className="w-16 bg-white border border-black/10 rounded-lg px-2 py-1.5 text-xs font-mono outline-none focus:border-amber-500" />
+                              </div>
+                              <button type="button" onClick={() => removeOption(i, oi)} className="text-gray-300 hover:text-red-500"><X size={13} /></button>
+                            </div>
+                          ))}
+                          <button type="button" onClick={() => addOption(i)}
+                            className="text-[11px] font-bold text-gray-400 hover:text-amber-600">+ Option</button>
+                        </div>
+                      </div>
+                    ))}
+                    {mgroups.length === 0 && (
+                      <p className="text-[11px] text-gray-400">No modifiers. Add a group for sizes or add-ons.</p>
+                    )}
+                  </div>
+                </div>
               </>
             )}
 
