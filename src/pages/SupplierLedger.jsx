@@ -9,7 +9,7 @@ import {
   ArrowLeft, Building2, Phone, Mail, MapPin,
   History, Box, TrendingUp, Calendar, Search,
   ArrowUpRight, CreditCard, Clock, FileText, ChevronRight,
-  TrendingDown, Percent, Info, ShieldCheck
+  TrendingDown, Percent, Info, ShieldCheck, User2
 } from 'lucide-react';
 import { formatDate } from '../lib/utils';
 
@@ -136,202 +136,164 @@ const SupplierLedger = () => {
 
   return (
     <div className="animate-fade-in pb-12">
-      {/* Dynamic Header & Navigation */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-10 mt-2">
-        <div className="flex items-center gap-6">
-          <button 
+      {/* Header & Navigation */}
+      <div className="flex justify-between items-center gap-4 mb-6 mt-1 pb-4 border-b border-black/5">
+        <div className="flex items-center gap-3 min-w-0">
+          <button
             onClick={() => navigate(-1)}
-            className="w-14 h-14 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary group shadow-sm bg-white"
+            className="w-10 h-10 shrink-0 rounded-xl border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all text-ink-primary group bg-white"
           >
-            <ArrowLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
+            <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
           </button>
-          <div>
-            <div className="flex items-center gap-3 text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">
               Suppliers
-              <ChevronRight size={10} className="opacity-30" />
-              <span className="text-accent-signature">Transaction History</span>
+              <ChevronRight size={10} className="opacity-40" />
+              <span className="text-amber-600">Ledger</span>
             </div>
-            <h1 className="text-4xl md:text-6xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-0">Supplier Ledger<span className="text-accent-signature">.</span></h1>
+            <h1 className="text-xl font-extrabold text-ink-primary leading-none truncate">{supplier.name}<span className="text-amber-500">.</span></h1>
           </div>
         </div>
-        
-        <div className="flex items-center gap-6">
-           <div className="hidden lg:flex flex-col items-end">
-             <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">As of</span>
-             <span className="text-[10px] font-semibold text-ink-primary">{new Date().toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</span>
-           </div>
-           <div className="w-px h-10 bg-black/5 hidden lg:block"></div>
-           <div className="flex gap-2">
-             <button className="h-14 px-8 rounded-pill bg-ink-primary text-white text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] shadow-xl shadow-ink-primary/20 transition-all flex items-center gap-3 group">
-               Export PDF <ArrowUpRight size={14} className="text-accent-signature group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-             </button>
-           </div>
+
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="hidden lg:block text-[10px] font-semibold text-gray-400">
+            As of {new Date().toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })}
+          </span>
+          <button
+            onClick={() => window.print()}
+            className="h-10 px-4 rounded-xl bg-ink-primary text-white text-[11px] font-bold hover:bg-ink-primary/90 transition-all flex items-center gap-2"
+          >
+            Export PDF <ArrowUpRight size={14} className="text-amber-400" />
+          </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Left Column: Supplier Statistics & Profile */}
-        <div className="lg:col-span-4 space-y-6">
-          {/* Detailed Profile Card */}
-          <div className="glass-panel !p-8 rounded-[2.5rem] shadow-premium overflow-hidden relative bg-white/40">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-accent-signature/5 rounded-full -mr-16 -mt-16 blur-2xl"></div>
-            
-            <div className="flex items-center gap-6 mb-10 relative z-10">
-              <div className="w-20 h-20 rounded-[1.5rem] bg-ink-primary flex items-center justify-center text-accent-signature shadow-xl group-hover:scale-105 transition-transform">
-                <Building2 size={36} strokeWidth={1.5} />
+        <div className="lg:col-span-4 space-y-5">
+          {/* Profile Card */}
+          <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
+            <div className="flex items-center gap-4 mb-5 pb-5 border-b border-black/5">
+              <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 font-mono font-bold text-lg shrink-0">
+                {(supplier.name || '–').trim().split(/\s+/).filter(Boolean).slice(0,2).map(w => w[0]).join('').toUpperCase()}
               </div>
-              <div>
-                <h3 className="text-2xl font-bold text-ink-primary leading-tight tracking-tight">{supplier.name}</h3>
-                <div className="flex items-center gap-2 mt-2">
-                    <ShieldCheck size={12} className="text-accent-signature" />
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Active Supplier</span>
+              <div className="min-w-0">
+                <h3 className="text-base font-extrabold text-ink-primary leading-tight truncate">{supplier.name}</h3>
+                <div className="flex items-center gap-1.5 mt-1">
+                  <ShieldCheck size={12} className="text-amber-600" />
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active supplier</span>
                 </div>
               </div>
             </div>
 
-            <div className="space-y-6 relative z-10">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-canvas p-4 rounded-2xl border border-black/5 flex flex-col justify-center shadow-inner">
-                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-2"><Phone size={10} className="text-accent-signature" /> Phone</span>
-                  <span className="text-xs font-semibold text-ink-primary">{supplier.phone || 'N/A'}</span>
-                </div>
-                <div className="bg-canvas p-4 rounded-2xl border border-black/5 flex flex-col justify-center shadow-inner">
-                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-2"><Mail size={10} className="text-accent-signature" /> Email</span>
-                  <span className="text-xs font-semibold text-ink-primary truncate lowercase">{supplier.email || 'N/A'}</span>
-                </div>
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 text-[13px]">
+                <Phone size={14} className="text-gray-300 shrink-0" />
+                <span className="font-semibold text-ink-primary">{supplier.phone || <span className="text-gray-400 font-normal">No phone</span>}</span>
               </div>
-
-              <div className="bg-canvas p-5 rounded-2xl border border-black/5 shadow-inner">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-2"><MapPin size={10} className="text-accent-signature" /> Address</span>
-                <p className="text-xs font-semibold text-ink-primary leading-relaxed opacity-80">{supplier.address || 'No address on file.'}</p>
+              <div className="flex items-center gap-3 text-[13px] min-w-0">
+                <Mail size={14} className="text-gray-300 shrink-0" />
+                <span className="font-semibold text-ink-primary truncate lowercase">{supplier.email || <span className="text-gray-400 font-normal normal-case">No email</span>}</span>
               </div>
-
-              <div className="pt-6 border-t border-black/5">
-                <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2 mb-4"><TrendingUp size={10} className="text-accent-signature" /> Contact Person</span>
-                <div className="flex items-center gap-4">
-                   <div className="w-10 h-10 rounded-full bg-ink-primary/5 border border-black/5 flex items-center justify-center text-ink-primary font-bold text-sm uppercase shadow-sm">
-                     {supplier.contact_person?.charAt(0) || '?'}
-                   </div>
-                   <div>
-                       <span className="text-xs font-semibold text-ink-primary block">{supplier.contact_person || 'Not assigned'}</span>
-                       <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Primary Contact</span>
-                   </div>
-                </div>
+              <div className="flex items-start gap-3 text-[13px]">
+                <MapPin size={14} className="text-gray-300 shrink-0 mt-0.5" />
+                <span className="font-semibold text-ink-primary leading-snug">{supplier.address || <span className="text-gray-400 font-normal">No address on file</span>}</span>
+              </div>
+              <div className="flex items-center gap-3 text-[13px] pt-3 border-t border-black/5">
+                <User2 size={14} className="text-gray-300 shrink-0" />
+                <span className="font-semibold text-ink-primary">{supplier.contact_person || <span className="text-gray-400 font-normal">No contact person</span>}</span>
               </div>
             </div>
           </div>
 
-          {/* KPI Ribbon */}
-          <div className="grid grid-cols-1 gap-6">
-             <div className="p-8 bg-ink-primary rounded-[3rem] shadow-2xl relative overflow-hidden group border border-white/10">
-               <div className="absolute top-0 right-0 w-64 h-64 bg-accent-signature/10 rounded-full -mr-32 -mt-32 blur-[100px] pointer-events-none transition-transform group-hover:scale-150 duration-700"></div>
-               <div className="absolute top-6 right-8 opacity-20 text-accent-signature group-hover:rotate-12 group-hover:scale-110 transition-all">
-                 <Box size={48} strokeWidth={1.5} />
-               </div>
-               <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-3 block">Total Purchased</span>
-               <div className="text-5xl font-black text-white tabular-nums tracking-tighter leading-none mb-4">
-                 <span className="text-2xl text-accent-signature opacity-50 mr-2">{businessProfile?.currencySymbol}</span>
-                 {metrics.total.toLocaleString()}
-               </div>
-               <div className="inline-flex px-5 py-2.5 bg-white/5 rounded-full border border-white/10 shadow-inner group-hover:bg-white/10 transition-all">
-                  <span className="text-[10px] font-semibold text-accent-signature uppercase tracking-wider">{metrics.count} {metrics.count === 1 ? 'Purchase' : 'Purchases'}</span>
-               </div>
-             </div>
+          {/* Amount Due — primary signal */}
+          <div className={`rounded-2xl border p-5 ${metrics.payable > 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50/60 border-emerald-100'}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <span className={`text-[10px] font-bold uppercase tracking-wider ${metrics.payable > 0 ? 'text-red-400' : 'text-emerald-500'}`}>Amount due</span>
+                <div className={`font-mono tabular-nums text-2xl font-bold mt-0.5 ${metrics.payable > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                  <span className="text-base opacity-60 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{metrics.payable.toLocaleString()}
+                </div>
+              </div>
+              <span className={`text-[11px] font-bold rounded-full px-3 py-1 bg-white border ${metrics.payable > 0 ? 'text-red-500 border-red-200' : 'text-emerald-600 border-emerald-200'}`}>
+                {metrics.payable > 0 ? 'Outstanding' : 'Settled'}
+              </span>
+            </div>
+            {metrics.payable > 0 && hasPermission('purchases', 'edit') !== false && (
+              <button
+                onClick={openPay}
+                className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-ink-primary text-white text-[12px] font-bold hover:bg-ink-primary/90 transition-all"
+              >
+                <CreditCard size={14} className="text-amber-400" /> Record payment
+              </button>
+            )}
+          </div>
 
-             <div className="p-8 bg-white rounded-[3rem] border border-black/5 shadow-premium space-y-6">
-                <div className="flex justify-between items-center border-b border-black/5 pb-5">
-                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Average Purchase</span>
-                  <span className="text-base font-bold text-ink-primary tabular-nums">{businessProfile?.currencySymbol}{Math.round(metrics.avg).toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Last Purchase</span>
-                  <span className="text-base font-bold text-ink-primary tabular-nums">
-                    {metrics.last ? formatDate(metrics.last) : 'N/A'}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center pt-5 border-t border-black/5">
-                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Cash Paid</span>
-                  <span className="text-base font-bold text-emerald-500 tabular-nums">
-                    {businessProfile?.currencySymbol}{Math.round(metrics.cashPaid).toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Credit Purchases</span>
-                  <span className="text-base font-bold text-amber-500 tabular-nums">
-                    {businessProfile?.currencySymbol}{Math.round(metrics.creditTotal).toLocaleString()}
-                  </span>
-                </div>
-                {metrics.totalReturns > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Returns (Debit Notes)</span>
-                    <span className="text-base font-bold text-rose-500 tabular-nums">
-                      −{businessProfile?.currencySymbol}{Math.round(metrics.totalReturns).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-                {metrics.totalReturns > 0 && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Net Purchased</span>
-                    <span className="text-base font-bold text-ink-primary tabular-nums">
-                      {businessProfile?.currencySymbol}{Math.round(metrics.net).toLocaleString()}
-                    </span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center pt-5 border-t border-black/5">
-                  <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Amount Due</span>
-                  <span className={`text-base font-bold tabular-nums ${metrics.payable > 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                    {businessProfile?.currencySymbol}{metrics.payable.toLocaleString()}
-                  </span>
-                </div>
+          {/* Total purchased — dark hero */}
+          <div className="rounded-2xl bg-ink-primary p-5 relative overflow-hidden">
+            <div className="absolute top-4 right-4 opacity-15 text-amber-400"><Box size={36} strokeWidth={1.5} /></div>
+            <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Total purchased</span>
+            <div className="font-mono tabular-nums text-3xl font-bold text-white leading-none mt-1.5">
+              <span className="text-lg text-amber-400/70 mr-1">{businessProfile?.currencySymbol || '₹'}</span>{metrics.total.toLocaleString()}
+            </div>
+            <span className="inline-block mt-3 text-[10px] font-bold text-amber-400 uppercase tracking-wider">{metrics.count} {metrics.count === 1 ? 'purchase' : 'purchases'}</span>
+          </div>
 
-                {metrics.payable > 0 && hasPermission('purchases', 'edit') !== false && (
-                  <button
-                    onClick={openPay}
-                    className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-ink-primary text-white text-xs font-black uppercase tracking-widest hover:bg-ink-primary/90 transition-all shadow-md"
-                  >
-                    <CreditCard size={14} /> Record Payment to Supplier
-                  </button>
-                )}
-             </div>
+          {/* Stat breakdown */}
+          <div className="bg-white border border-black/5 rounded-2xl shadow-sm divide-y divide-black/5">
+            {[
+              ['Average purchase', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.avg).toLocaleString()}`, 'text-ink-primary'],
+              ['Last purchase', metrics.last ? formatDate(metrics.last) : 'N/A', 'text-ink-primary'],
+              ['Cash paid', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.cashPaid).toLocaleString()}`, 'text-emerald-600'],
+              ['Credit purchases', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.creditTotal).toLocaleString()}`, 'text-amber-600'],
+              ...(metrics.totalReturns > 0 ? [
+                ['Returns (debit notes)', `−${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.totalReturns).toLocaleString()}`, 'text-rose-500'],
+                ['Net purchased', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.net).toLocaleString()}`, 'text-ink-primary'],
+              ] : []),
+            ].map(([label, val, cls]) => (
+              <div key={label} className="flex justify-between items-center px-4 py-3">
+                <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider">{label}</span>
+                <span className={`font-mono tabular-nums text-[13px] font-bold ${cls}`}>{val}</span>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Right Column: Detailed Purchase History */}
         <div className="lg:col-span-8 flex flex-col min-h-[600px]">
-          <div className="glass-panel !p-0 rounded-[2.5rem] shadow-premium overflow-hidden flex flex-col flex-1 border border-black/5 bg-white/40">
+          <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden flex flex-col flex-1">
             {/* Table Header Utility Bar */}
-            <div className="p-6 border-b border-black/5 bg-white/60 backdrop-blur-3xl flex flex-col md:flex-row justify-between items-center gap-6 sticky top-0 z-20">
-              <div className="flex items-center gap-4 w-full md:w-auto">
-                <div className="relative group flex-1 md:w-80">
-                  <Search size={20} className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-accent-signature transition-colors" />
-                  <input 
-                    type="text" 
-                    placeholder="Search by reference or notes..."
-                    className="w-full h-14 pl-16 pr-6 rounded-pill bg-white border border-gray-300 shadow-sm text-[10px] font-black uppercase tracking-widest outline-none focus:ring-8 focus:ring-accent-signature/5 transition-all shadow-inner"
-                    value={searchTerm}
-                    onChange={e => setSearchTerm(e.target.value)}
-                  />
-                </div>
+            <div className="p-4 border-b border-black/5 flex flex-col md:flex-row justify-between items-center gap-3">
+              <div className="relative group flex-1 w-full md:max-w-xs">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-amber-600 transition-colors" />
+                <input
+                  type="text"
+                  placeholder="Search reference or notes…"
+                  className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border border-gray-300 text-[12px] font-semibold text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal"
+                  value={searchTerm}
+                  onChange={e => setSearchTerm(e.target.value)}
+                />
               </div>
-              
-              <div className="flex items-center gap-3 flex-wrap">
-                {['ALL','CASH','CREDIT'].map(opt => (
-                  <button
-                    key={opt}
-                    onClick={() => setPaymentFilter(opt)}
-                    className={`px-5 h-10 rounded-pill text-[9px] font-black uppercase tracking-widest transition-all border ${
-                      paymentFilter === opt
-                        ? 'bg-ink-primary text-accent-signature border-ink-primary shadow-lg shadow-ink-primary/20'
-                        : 'bg-white text-gray-500 border-black/10 hover:border-ink-primary/30'
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-                <div className="px-6 h-12 bg-ink-primary rounded-pill text-[10px] font-semibold text-accent-signature uppercase tracking-wider flex items-center gap-3 shadow-lg shadow-ink-primary/20">
-                  <History size={16} />
-                  {filteredPurchases.length} {filteredPurchases.length === 1 ? 'Record' : 'Records'}
+
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="flex gap-1 p-1 bg-black/[0.04] rounded-xl">
+                  {['ALL','CASH','CREDIT'].map(opt => (
+                    <button
+                      key={opt}
+                      onClick={() => setPaymentFilter(opt)}
+                      className={`px-3 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
+                        paymentFilter === opt
+                          ? 'bg-amber-600 text-white shadow-sm'
+                          : 'text-gray-500 hover:text-ink-primary'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
                 </div>
+                <span className="text-[11px] font-bold text-gray-400">
+                  {filteredPurchases.length} {filteredPurchases.length === 1 ? 'record' : 'records'}
+                </span>
               </div>
             </div>
 
@@ -394,7 +356,7 @@ const SupplierLedger = () => {
                               </span>
                             </td>
                             <td className="py-4 px-6 text-right">
-                              <div className="text-sm font-bold tabular-nums text-ink-primary">
+                              <div className="text-sm font-bold font-mono tabular-nums text-ink-primary">
                                 {businessProfile?.currencySymbol || '₹'}{amount.toLocaleString()}
                               </div>
                             </td>
@@ -464,7 +426,7 @@ const SupplierLedger = () => {
                               </span>
                             </td>
                             <td className="py-4 px-6 text-right">
-                              <div className="text-sm font-bold tabular-nums text-rose-600">
+                              <div className="text-sm font-bold font-mono tabular-nums text-rose-600">
                                 −{businessProfile?.currencySymbol || '₹'}{Number(r.total_amount).toLocaleString()}
                               </div>
                             </td>
@@ -506,30 +468,20 @@ const SupplierLedger = () => {
               </table>
             </div>
 
-            <div className="bg-ink-primary p-10 flex flex-col md:flex-row justify-between items-center gap-10 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-accent-signature/20 to-transparent pointer-events-none"></div>
-                <div className="relative z-10 flex flex-col">
-                    <p className="text-[10px] font-semibold text-accent-signature uppercase tracking-wider mb-3 flex items-center gap-3">
-                        <TrendingUp size={16} /> Total Purchased
-                    </p>
-                    <div className="text-white text-5xl font-black tabular-nums tracking-tighter leading-none">
-                        <span className="text-2xl text-accent-signature opacity-50 mr-3">{businessProfile?.currencySymbol}</span>
-                        {metrics.total.toLocaleString()}
-                    </div>
+            {/* Slim summary footer */}
+            <div className="border-t border-black/5 bg-canvas/60 px-5 py-3 flex items-center justify-between gap-4">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
+                <TrendingUp size={13} className="text-amber-600" /> Total purchased
+              </span>
+              <div className="flex items-center gap-6">
+                <div className="text-right">
+                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">Avg</span>
+                  <span className="font-mono tabular-nums text-[13px] font-bold text-ink-primary">{businessProfile?.currencySymbol || '₹'}{Math.round(metrics.avg).toLocaleString()}</span>
                 </div>
-
-                <div className="flex items-center gap-8 relative z-10 w-full md:w-auto">
-                    <div className="bg-white/5 px-10 py-6 rounded-[2rem] border border-white/10 flex flex-col items-center flex-1 md:flex-none hover:bg-white/10 transition-all">
-                        <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2">Purchases</span>
-                        <span className="text-3xl font-black text-white leading-none tabular-nums">{metrics.count}</span>
-                    </div>
-                    <div className="text-right flex flex-col justify-center">
-                        <span className="text-[10px] font-semibold text-white/40 uppercase tracking-wider mb-2">Average</span>
-                        <span className="text-3xl font-black text-accent-signature tabular-nums leading-none tracking-tighter mr-1">
-                            {businessProfile?.currencySymbol}{Math.round(metrics.avg).toLocaleString()}
-                        </span>
-                    </div>
+                <div className="font-mono tabular-nums text-xl font-bold text-ink-primary">
+                  <span className="text-sm text-amber-500 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{metrics.total.toLocaleString()}
                 </div>
+              </div>
             </div>
           </div>
         </div>
