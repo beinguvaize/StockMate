@@ -1,117 +1,187 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Mobile final</title>
+<title>Suppliers redesign</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  body{font-family:Manrope,sans-serif;background:#EDE9E2}
+  body{font-family:Manrope,sans-serif;background:#FBFAF7;color:#1A1815}
   .mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
-  .phone{width:360px;background:#F7F5F1;border-radius:34px;border:10px solid #16151A;box-shadow:0 30px 60px -20px rgba(0,0,0,.35);overflow:hidden}
-  .track{letter-spacing:.12em}
+  .track{letter-spacing:.1em}
+  .amber{color:#D97706}
 </style>
 </head>
-<body class="p-8">
-<div class="mb-5 font-extrabold text-xl">Final — Expenses (B list) + Spend Report (D)</div>
-<div class="flex gap-12 flex-wrap items-start">
+<body class="p-10">
+<div class="max-w-6xl mx-auto">
+<h1 class="text-2xl font-extrabold mb-1">Suppliers — redesign samples</h1>
+<p class="text-sm text-stone-500 mb-8">Amber / mono · compact, no heavy black footer · owe = focus signal</p>
 
-<!-- 1: Expenses list (B) with List|Report tabs -->
-<div>
-  <div class="mb-3 font-semibold text-sm text-stone-500">1 · Expenses — List</div>
-  <div class="phone">
-    <div class="px-5 pt-5 pb-3 bg-white">
-      <div class="flex items-center justify-between">
-        <div><div class="font-extrabold text-xl">Expenses<span class="text-amber-500">.</span></div><div class="mono text-[11px] text-stone-400">$ expenses --month</div></div>
-        <button class="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center">⤓</button>
+<!-- ===================== A — Statement card ===================== -->
+<div class="text-xs font-bold uppercase track text-stone-400 mb-3">A · Statement card</div>
+<div class="grid grid-cols-3 gap-4 mb-12">
+  <!-- supplier with dues -->
+  <div class="group bg-white rounded-2xl border border-stone-200/80 p-5 hover:shadow-lg hover:shadow-stone-200/60 transition">
+    <div class="flex items-start gap-3">
+      <div class="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center amber font-extrabold text-sm">HK</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-extrabold text-[15px] leading-tight truncate">HASSAN KOUSER SIVAKASI</div>
+        <div class="text-[12px] text-stone-400 truncate">KOUSER POLY · 7598533883</div>
       </div>
-      <!-- tab toggle -->
-      <div class="flex gap-1 mt-4 p-1 bg-black/[0.04] rounded-xl">
-        <button class="flex-1 py-1.5 rounded-lg text-[12px] font-bold bg-white shadow-sm">List</button>
-        <button class="flex-1 py-1.5 rounded-lg text-[12px] font-bold text-stone-500">Report</button>
+      <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
+        <button class="w-7 h-7 rounded-lg hover:bg-stone-100 grid place-items-center text-stone-400">✎</button>
+        <button class="w-7 h-7 rounded-lg hover:bg-red-50 grid place-items-center text-stone-400 hover:text-red-500">🗑</button>
       </div>
     </div>
-    <!-- summary strip -->
-    <div class="px-5 pt-3"><div class="grid grid-cols-3 gap-px bg-black/[0.06] rounded-2xl overflow-hidden border border-black/[0.06]">
-      <div class="bg-white px-3 py-2.5"><div class="text-[8px] uppercase track text-stone-400 font-bold">Total</div><div class="mono text-sm font-bold"><span class="text-amber-400">₹</span>10,740</div></div>
-      <div class="bg-white px-3 py-2.5"><div class="text-[8px] uppercase track text-stone-400 font-bold">Entries</div><div class="mono text-sm font-bold">16</div></div>
-      <div class="bg-white px-3 py-2.5"><div class="text-[8px] uppercase track text-stone-400 font-bold">Budget</div><div class="mono text-sm font-bold text-amber-600">11%</div></div>
-    </div></div>
-    <!-- category chips -->
-    <div class="px-5 pt-3 flex gap-1.5 overflow-x-auto no-scrollbar">
-      <span class="shrink-0 px-3 py-1 rounded-full bg-amber-600 text-white text-[11px] font-bold">All</span>
-      <span class="shrink-0 px-3 py-1 rounded-full bg-white border border-black/10 text-stone-500 text-[11px] font-bold">Mess ₹4,300</span>
-      <span class="shrink-0 px-3 py-1 rounded-full bg-white border border-black/10 text-stone-500 text-[11px] font-bold">Food</span>
-    </div>
-    <!-- list grouped -->
-    <div class="px-5 py-4 space-y-4">
+    <!-- owe banner -->
+    <div class="mt-4 flex items-center justify-between rounded-xl bg-red-50 border border-red-100 px-4 py-3">
       <div>
-        <div class="flex justify-between items-center mb-2"><span class="mono text-[10px] font-bold text-stone-400">04 JUN</span><span class="mono text-[11px] font-bold">₹58</span></div>
-        <div class="rounded-2xl bg-white divide-y divide-black/[0.05]">
-          <div class="flex items-center gap-3 px-3.5 py-3"><span class="w-1 h-8 rounded-sm bg-amber-400"></span><div class="flex-1"><div class="text-[13px] font-bold">umbrella</div><div class="text-[10px] text-stone-400 uppercase track">Utility · Cash</div></div><div class="mono text-[14px] font-bold"><span class="text-amber-400">₹</span>58</div></div>
-        </div>
+        <div class="text-[10px] uppercase track font-bold text-red-400">You owe</div>
+        <div class="mono text-xl font-bold text-red-600">₹25,920</div>
       </div>
-      <div>
-        <div class="flex justify-between items-center mb-2"><span class="mono text-[10px] font-bold text-stone-400">02 JUN</span><span class="mono text-[11px] font-bold">₹1,295</span></div>
-        <div class="rounded-2xl bg-white divide-y divide-black/[0.05]">
-          <div class="flex items-center gap-3 px-3.5 py-3"><span class="w-1 h-8 rounded-sm bg-red-400"></span><div class="flex-1"><div class="text-[13px] font-bold">Food</div><div class="text-[10px] text-stone-400 uppercase track">Food · Cash</div></div><div class="mono text-[14px] font-bold"><span class="text-amber-400">₹</span>110</div></div>
-          <div class="flex items-center gap-3 px-3.5 py-3"><span class="w-1 h-8 rounded-sm bg-stone-300"></span><div class="flex-1"><div class="text-[13px] font-bold">Recharge</div><div class="text-[10px] text-stone-400 uppercase track">Recharge · Cash</div></div><div class="mono text-[14px] font-bold"><span class="text-amber-400">₹</span>485</div></div>
-          <div class="flex items-center gap-3 px-3.5 py-3"><span class="w-1 h-8 rounded-sm bg-emerald-400"></span><div class="flex-1"><div class="text-[13px] font-bold">Salary · 2 person</div><div class="text-[10px] text-stone-400 uppercase track">Salary · Cash</div></div><div class="mono text-[14px] font-bold"><span class="text-amber-400">₹</span>700</div></div>
-        </div>
+      <span class="text-[11px] font-bold text-red-500 bg-white border border-red-200 rounded-full px-2.5 py-1">Due</span>
+    </div>
+    <!-- meta -->
+    <div class="mt-3 flex items-center justify-between text-[12px]">
+      <div><span class="text-stone-400">Procured </span><span class="mono font-bold">₹78,600</span></div>
+      <div class="text-stone-400">Last supply <span class="font-bold text-stone-600">Jun 1</span></div>
+    </div>
+    <a class="mt-4 flex items-center justify-center gap-1.5 text-[12px] font-bold amber border-t border-stone-100 pt-3 -mx-5 px-5">View transactions <span>↗</span></a>
+  </div>
+  <!-- settled supplier -->
+  <div class="group bg-white rounded-2xl border border-stone-200/80 p-5 hover:shadow-lg hover:shadow-stone-200/60 transition">
+    <div class="flex items-start gap-3">
+      <div class="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center amber font-extrabold text-sm">GP</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-extrabold text-[15px] leading-tight truncate">GPS Paper Cup</div>
+        <div class="text-[12px] text-stone-400 truncate">GPS · 9940458838</div>
       </div>
     </div>
+    <div class="mt-4 flex items-center justify-between rounded-xl bg-emerald-50/60 border border-emerald-100 px-4 py-3">
+      <div>
+        <div class="text-[10px] uppercase track font-bold text-emerald-500">You owe</div>
+        <div class="mono text-xl font-bold text-emerald-600">₹0</div>
+      </div>
+      <span class="text-[11px] font-bold text-emerald-600 bg-white border border-emerald-200 rounded-full px-2.5 py-1">Settled</span>
+    </div>
+    <div class="mt-3 flex items-center justify-between text-[12px]">
+      <div><span class="text-stone-400">Procured </span><span class="mono font-bold">₹1,12,204</span></div>
+      <div class="text-stone-400">Last supply <span class="font-bold text-stone-600">May 26</span></div>
+    </div>
+    <a class="mt-4 flex items-center justify-center gap-1.5 text-[12px] font-bold amber border-t border-stone-100 pt-3 -mx-5 px-5">View transactions <span>↗</span></a>
+  </div>
+  <!-- another settled -->
+  <div class="group bg-white rounded-2xl border border-stone-200/80 p-5 hover:shadow-lg hover:shadow-stone-200/60 transition">
+    <div class="flex items-start gap-3">
+      <div class="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center amber font-extrabold text-sm">MA</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-extrabold text-[15px] leading-tight truncate">MADEENA AGENCY KOLLAM</div>
+        <div class="text-[12px] text-stone-400 truncate">MADEENA · 9747799763</div>
+      </div>
+    </div>
+    <div class="mt-4 flex items-center justify-between rounded-xl bg-emerald-50/60 border border-emerald-100 px-4 py-3">
+      <div>
+        <div class="text-[10px] uppercase track font-bold text-emerald-500">You owe</div>
+        <div class="mono text-xl font-bold text-emerald-600">₹0</div>
+      </div>
+      <span class="text-[11px] font-bold text-emerald-600 bg-white border border-emerald-200 rounded-full px-2.5 py-1">Settled</span>
+    </div>
+    <div class="mt-3 flex items-center justify-between text-[12px]">
+      <div><span class="text-stone-400">Procured </span><span class="mono font-bold">₹22,185</span></div>
+      <div class="text-stone-400">Last supply <span class="font-bold text-stone-600">May 29</span></div>
+    </div>
+    <a class="mt-4 flex items-center justify-center gap-1.5 text-[12px] font-bold amber border-t border-stone-100 pt-3 -mx-5 px-5">View transactions <span>↗</span></a>
   </div>
 </div>
 
-<!-- 2: Spend Report (D) -->
-<div>
-  <div class="mb-3 font-semibold text-sm text-stone-500">2 · Expenses — Report (Report tab)</div>
-  <div class="phone">
-    <div class="px-5 pt-5 pb-3 bg-white">
-      <div class="flex items-center justify-between">
-        <div><div class="font-extrabold text-xl">Expenses<span class="text-amber-500">.</span></div><div class="mono text-[11px] text-stone-400">spend report</div></div>
-        <button class="w-9 h-9 rounded-xl bg-amber-600 text-white flex items-center justify-center">⤓</button>
+<!-- ===================== B — Compact stat-strip ===================== -->
+<div class="text-xs font-bold uppercase track text-stone-400 mb-3">B · Compact stat-strip</div>
+<div class="grid grid-cols-3 gap-4 mb-12">
+  <div class="bg-white rounded-2xl border border-stone-200/80 overflow-hidden hover:shadow-lg hover:shadow-stone-200/60 transition">
+    <div class="p-4 flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-extrabold text-sm">HK</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-extrabold text-[14px] truncate">HASSAN KOUSER SIVAKASI</div>
+        <div class="text-[11px] text-stone-400 truncate">KOUSER POLY · 7598533883</div>
       </div>
-      <div class="flex gap-1 mt-4 p-1 bg-black/[0.04] rounded-xl">
-        <button class="flex-1 py-1.5 rounded-lg text-[12px] font-bold text-stone-500">List</button>
-        <button class="flex-1 py-1.5 rounded-lg text-[12px] font-bold bg-white shadow-sm">Report</button>
-      </div>
-      <!-- period -->
-      <div class="flex gap-1.5 mt-3 p-1 bg-black/[0.04] rounded-xl">
-        <button class="flex-1 py-1.5 rounded-lg text-[11px] font-bold text-stone-500">Day</button>
-        <button class="flex-1 py-1.5 rounded-lg text-[11px] font-bold bg-amber-600 text-white">Week</button>
-        <button class="flex-1 py-1.5 rounded-lg text-[11px] font-bold text-stone-500">Month</button>
-      </div>
+      <span class="w-2 h-2 rounded-full bg-red-500"></span>
     </div>
-    <div class="px-5 py-4">
-      <!-- dark trend card -->
-      <div class="rounded-2xl bg-[#17150F] text-white p-5">
-        <div class="text-[10px] uppercase track text-amber-400 font-bold">This week · total</div>
-        <div class="mono text-2xl font-bold mt-1"><span class="text-amber-400 text-lg">₹</span>5,236</div>
-        <div class="text-[11px] text-white/40 mono mt-0.5">avg ₹748/day · ▲ 18% vs last week</div>
-        <div class="flex items-end gap-1.5 h-20 mt-4">
-          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-500" style="height:40%"></div><span class="text-[8px] text-white/40">M</span></div>
-          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-500" style="height:65%"></div><span class="text-[8px] text-white/40">T</span></div>
-          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-500" style="height:52%"></div><span class="text-[8px] text-white/40">W</span></div>
-          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-500" style="height:88%"></div><span class="text-[8px] text-white/40">T</span></div>
-          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-500" style="height:70%"></div><span class="text-[8px] text-white/40">F</span></div>
-          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-400" style="height:96%"></div><span class="text-[8px] text-white/40">S</span></div>
-          <div class="flex-1 flex flex-col items-center gap-1"><div class="w-full rounded-t bg-amber-300" style="height:30%"></div><span class="text-[8px] text-white/40">S</span></div>
-        </div>
+    <div class="grid grid-cols-3 border-t border-stone-100 text-center divide-x divide-stone-100">
+      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">Procured</div><div class="mono text-[13px] font-bold">₹78,600</div></div>
+      <div class="py-2.5 bg-red-50/50"><div class="text-[9px] uppercase track text-red-400 font-bold">You owe</div><div class="mono text-[13px] font-bold text-red-600">₹25,920</div></div>
+      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">Last</div><div class="text-[13px] font-bold">Jun 1</div></div>
+    </div>
+    <button class="w-full py-2.5 text-[12px] font-bold amber hover:bg-amber-50 transition border-t border-stone-100">View transactions ↗</button>
+  </div>
+  <div class="bg-white rounded-2xl border border-stone-200/80 overflow-hidden hover:shadow-lg hover:shadow-stone-200/60 transition">
+    <div class="p-4 flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-extrabold text-sm">GP</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-extrabold text-[14px] truncate">GPS Paper Cup</div>
+        <div class="text-[11px] text-stone-400 truncate">GPS · 9940458838</div>
       </div>
-      <!-- top categories -->
-      <div class="mt-4 rounded-2xl bg-white p-4">
-        <div class="text-[10px] uppercase track text-stone-400 font-bold mb-3">Top categories</div>
-        <div class="space-y-2.5">
-          <div><div class="flex justify-between mb-1"><span class="text-[12px] font-semibold uppercase track text-stone-500">Mess</span><span class="mono text-[12px] font-bold">₹4,300</span></div><div class="h-1.5 rounded-full bg-black/[0.06]"><div class="h-full rounded-full bg-amber-500" style="width:100%"></div></div></div>
-          <div><div class="flex justify-between mb-1"><span class="text-[12px] font-semibold uppercase track text-stone-500">Other</span><span class="mono text-[12px] font-bold">₹2,800</span></div><div class="h-1.5 rounded-full bg-black/[0.06]"><div class="h-full rounded-full bg-amber-500" style="width:65%"></div></div></div>
-          <div><div class="flex justify-between mb-1"><span class="text-[12px] font-semibold uppercase track text-stone-500">Recharge</span><span class="mono text-[12px] font-bold">₹1,940</span></div><div class="h-1.5 rounded-full bg-black/[0.06]"><div class="h-full rounded-full bg-amber-500" style="width:45%"></div></div></div>
-        </div>
+      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+    </div>
+    <div class="grid grid-cols-3 border-t border-stone-100 text-center divide-x divide-stone-100">
+      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">Procured</div><div class="mono text-[13px] font-bold">₹1,12,204</div></div>
+      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">You owe</div><div class="mono text-[13px] font-bold text-emerald-600">₹0</div></div>
+      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">Last</div><div class="text-[13px] font-bold">May 26</div></div>
+    </div>
+    <button class="w-full py-2.5 text-[12px] font-bold amber hover:bg-amber-50 transition border-t border-stone-100">View transactions ↗</button>
+  </div>
+  <div class="bg-white rounded-2xl border border-stone-200/80 overflow-hidden hover:shadow-lg hover:shadow-stone-200/60 transition">
+    <div class="p-4 flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-extrabold text-sm">SA</div>
+      <div class="flex-1 min-w-0">
+        <div class="font-extrabold text-[14px] truncate">S A TRADING</div>
+        <div class="text-[11px] text-stone-400 truncate">SHINE ASOKAN · 8606893013</div>
       </div>
-      <!-- per-day rows -->
-      <div class="mt-4 space-y-2">
-        <div class="flex items-center justify-between rounded-xl bg-white px-4 py-2.5"><div><div class="font-bold text-[13px]">Sat, 06 Jun</div><div class="text-[10px] text-stone-400">3 expenses</div></div><div class="mono font-bold text-[14px]"><span class="text-amber-400">₹</span>1,260</div></div>
-        <div class="flex items-center justify-between rounded-xl bg-white px-4 py-2.5"><div><div class="font-bold text-[13px]">Thu, 04 Jun</div><div class="text-[10px] text-stone-400">2 expenses</div></div><div class="mono font-bold text-[14px]"><span class="text-amber-400">₹</span>168</div></div>
+      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+    </div>
+    <div class="grid grid-cols-3 border-t border-stone-100 text-center divide-x divide-stone-100">
+      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">Procured</div><div class="mono text-[13px] font-bold">₹4,480</div></div>
+      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">You owe</div><div class="mono text-[13px] font-bold text-emerald-600">₹0</div></div>
+      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">Last</div><div class="text-[13px] font-bold">May 31</div></div>
+    </div>
+    <button class="w-full py-2.5 text-[12px] font-bold amber hover:bg-amber-50 transition border-t border-stone-100">View transactions ↗</button>
+  </div>
+</div>
+
+<!-- ===================== C — Dense list rows ===================== -->
+<div class="text-xs font-bold uppercase track text-stone-400 mb-3">C · Dense list (max density)</div>
+<div class="bg-white rounded-2xl border border-stone-200/80 overflow-hidden">
+  <div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-2.5 text-[10px] uppercase track font-bold text-stone-400 border-b border-stone-100">
+    <div>Supplier</div><div class="text-right w-24">Procured</div><div class="text-right w-24">You owe</div><div class="text-right w-20">Last supply</div><div class="w-8"></div>
+  </div>
+  <div class="divide-y divide-stone-100">
+    <div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 items-center hover:bg-amber-50/40 transition group">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 amber flex items-center justify-center font-extrabold text-[12px]">HK</div>
+        <div class="min-w-0"><div class="font-bold text-[13px] truncate">HASSAN KOUSER SIVAKASI</div><div class="text-[11px] text-stone-400 truncate">KOUSER POLY · 7598533883</div></div>
       </div>
+      <div class="text-right w-24 mono text-[13px] font-bold">₹78,600</div>
+      <div class="text-right w-24 mono text-[13px] font-bold text-red-600">₹25,920</div>
+      <div class="text-right w-20 text-[12px] font-semibold text-stone-600">Jun 1</div>
+      <div class="w-8 text-right"><span class="amber text-[12px] font-bold opacity-0 group-hover:opacity-100">↗</span></div>
+    </div>
+    <div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 items-center hover:bg-amber-50/40 transition group">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 amber flex items-center justify-center font-extrabold text-[12px]">GP</div>
+        <div class="min-w-0"><div class="font-bold text-[13px] truncate">GPS Paper Cup</div><div class="text-[11px] text-stone-400 truncate">GPS · 9940458838</div></div>
+      </div>
+      <div class="text-right w-24 mono text-[13px] font-bold">₹1,12,204</div>
+      <div class="text-right w-24 mono text-[13px] font-bold text-emerald-600">₹0</div>
+      <div class="text-right w-20 text-[12px] font-semibold text-stone-600">May 26</div>
+      <div class="w-8 text-right"><span class="amber text-[12px] font-bold opacity-0 group-hover:opacity-100">↗</span></div>
+    </div>
+    <div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 items-center hover:bg-amber-50/40 transition group">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 amber flex items-center justify-center font-extrabold text-[12px]">MA</div>
+        <div class="min-w-0"><div class="font-bold text-[13px] truncate">MADEENA AGENCY KOLLAM</div><div class="text-[11px] text-stone-400 truncate">MADEENA · 9747799763</div></div>
+      </div>
+      <div class="text-right w-24 mono text-[13px] font-bold">₹22,185</div>
+      <div class="text-right w-24 mono text-[13px] font-bold text-emerald-600">₹0</div>
+      <div class="text-right w-20 text-[12px] font-semibold text-stone-600">May 29</div>
+      <div class="w-8 text-right"><span class="amber text-[12px] font-bold opacity-0 group-hover:opacity-100">↗</span></div>
     </div>
   </div>
 </div>
