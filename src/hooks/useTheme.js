@@ -3,13 +3,16 @@ import { useTenant } from '../context/TenantContext';
 import { supabase } from '../lib/supabase';
 
 export const THEMES = [
-  { key: 'signature', label: 'Signature',  accent: '#6366F1', canvas: '#F5F5F0', dark: false },
-  { key: 'white',     label: 'White',      accent: '#111111', canvas: '#FFFFFF', dark: false },
-  { key: 'ocean',     label: 'Ocean',      accent: '#3B82F6', canvas: '#F0F4FF', dark: false },
-  { key: 'rose',      label: 'Rose',       accent: '#F43F5E', canvas: '#FFF5F7', dark: false },
+  // Accent is the amber brand constant across all themes; themes vary only by
+  // canvas / dark background. (Hardcoded amber UI means a non-amber accent
+  // would clash, so every theme shares the amber accent.)
   { key: 'amber',     label: 'Amber',      accent: '#D97706', canvas: '#FFFBF0', dark: false },
-  { key: 'slate',     label: 'Slate',      accent: '#6366F1', canvas: '#F1F5F9', dark: false },
-  { key: 'dark',      label: 'Dark',       accent: '#6366F1', canvas: '#0F0F0F', dark: true  },
+  { key: 'signature', label: 'Classic',    accent: '#D97706', canvas: '#F5F5F0', dark: false },
+  { key: 'white',     label: 'White',      accent: '#D97706', canvas: '#FFFFFF', dark: false },
+  { key: 'ocean',     label: 'Cool',       accent: '#D97706', canvas: '#F0F4FF', dark: false },
+  { key: 'rose',      label: 'Warm',       accent: '#D97706', canvas: '#FFF5F7', dark: false },
+  { key: 'slate',     label: 'Slate',      accent: '#D97706', canvas: '#F1F5F9', dark: false },
+  { key: 'dark',      label: 'Dark',       accent: '#F59E0B', canvas: '#0F0F0F', dark: true  },
 ];
 
 const applyTheme = (key) => {
