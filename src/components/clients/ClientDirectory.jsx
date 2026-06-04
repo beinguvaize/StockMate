@@ -121,7 +121,7 @@ const ClientDirectory = ({
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Client</span>
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contact</span>
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Outstanding</span>
-            <span className="w-20 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right" />
+            <span className="w-32 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right" />
           </div>
 
           <div className="divide-y divide-black/5">
@@ -211,9 +211,9 @@ const ClientDirectory = ({
                   )}
                 </div>
 
-                {/* Actions */}
-                <div className="w-20 flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
-                  {!cleared ? (
+                {/* Actions — Settle (when owed) + edit/delete on hover */}
+                <div className="w-32 flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                  {!cleared && (
                     <button
                       onClick={() => goToSettle(client.id)}
                       title="Settle account"
@@ -221,7 +221,8 @@ const ClientDirectory = ({
                     >
                       Settle
                     </button>
-                  ) : hasPermission('clients', 'edit') && (
+                  )}
+                  {hasPermission('clients', 'edit') && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => openEdit(client)}
