@@ -277,7 +277,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                       );
                     },
                     loading: () => const SizedBox(),
-                    error: (_, __) => const SizedBox(),
+                    error: (_, _) => const SizedBox(),
                   ),
                 ),
 
@@ -408,7 +408,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                       ],
                     ),
                     loading: () => const SizedBox(),
-                    error: (_, __) => const SizedBox(),
+                    error: (_, _) => const SizedBox(),
                   ),
                 ),
               ],
@@ -465,7 +465,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                     );
                   },
                   loading: () => const SizedBox.shrink(),
-                  error: (_, __) => const SizedBox.shrink(),
+                  error: (_, _) => const SizedBox.shrink(),
                 ),
 
                 // Screen content

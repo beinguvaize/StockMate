@@ -152,8 +152,8 @@ Future<void> updateStopStatus(
   final updates = <String, dynamic>{
     'status':     status,
     'visited_at': DateTime.now().toIso8601String(),
-    if (cashCollected != null) 'cash_collected': cashCollected,
-    if (notes != null) 'notes': notes,
+    'cash_collected': ?cashCollected,
+    'notes': ?notes,
   };
   await supabase.from('route_stops').update(updates).eq('id', stopId);
 

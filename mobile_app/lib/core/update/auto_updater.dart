@@ -10,7 +10,6 @@ library;
 import 'dart:async';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:ota_update/ota_update.dart';
@@ -81,7 +80,9 @@ class AutoUpdater {
   bool _isNewer(String current, String latest) {
     int parse(String s) {
       final parts = s.split('.').map((p) => int.tryParse(p.replaceAll(RegExp(r'\D'), '')) ?? 0).toList();
-      while (parts.length < 3) parts.add(0);
+      while (parts.length < 3) {
+        parts.add(0);
+      }
       return parts[0] * 1000000 + parts[1] * 1000 + parts[2];
     }
     return parse(latest) > parse(current);
@@ -260,17 +261,17 @@ class AutoUpdater {
           children: [
             ValueListenableBuilder(
               valueListenable: progress,
-              builder: (_, v, __) => LinearProgressIndicator(value: v == 0 ? null : v),
+              builder: (_, v, _) => LinearProgressIndicator(value: v == 0 ? null : v),
             ),
             const SizedBox(height: 12),
             ValueListenableBuilder(
               valueListenable: stateMsg,
-              builder: (_, m, __) => Text(m, style: const TextStyle(fontSize: 12)),
+              builder: (_, m, _) => Text(m, style: const TextStyle(fontSize: 12)),
             ),
             const SizedBox(height: 8),
             ValueListenableBuilder(
               valueListenable: hasFailed,
-              builder: (_, failed, __) => failed
+              builder: (_, failed, _) => failed
                   ? Container(
                       margin: const EdgeInsets.only(top: 8),
                       padding: const EdgeInsets.all(8),
@@ -294,7 +295,7 @@ class AutoUpdater {
           ),
           ValueListenableBuilder(
             valueListenable: hasFailed,
-            builder: (_, failed, __) => FilledButton.icon(
+            builder: (_, failed, _) => FilledButton.icon(
               onPressed: openBrowserFallback,
               icon: const Icon(Icons.open_in_browser, size: 16),
               label: Text(failed ? 'Open in Browser' : 'Use Browser Instead'),

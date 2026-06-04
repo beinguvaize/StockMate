@@ -82,7 +82,7 @@ class DayBookHistoryScreen extends ConsumerWidget {
             strokeWidth: 2.5,
           ),
         ),
-        error: (_, __) => Center(
+        error: (_, _) => Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [

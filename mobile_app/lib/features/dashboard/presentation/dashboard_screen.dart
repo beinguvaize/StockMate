@@ -456,7 +456,7 @@ class _AppDrawer extends ConsumerWidget {
                 );
               },
               loading: () => const SizedBox(height: 100),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
             ),
 
             // ── Nav sections ──────────────────────────────────────
@@ -685,7 +685,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                   );
                 },
                 loading: () => const SizedBox(height: 52),
-                error:   (_, __) => const SizedBox.shrink(),
+                error:   (_, _) => const SizedBox.shrink(),
               ),
 
               const SizedBox(height: 20),
@@ -797,7 +797,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                     ]),
                   ],
                 ),
-                error: (_, __) => const SizedBox.shrink(),
+                error: (_, _) => const SizedBox.shrink(),
               ),
 
               // Quick action buttons
@@ -1262,7 +1262,7 @@ class _KpiCard extends StatelessWidget {
                   ),
                   child: Icon(icon, size: 15, color: valueColor),
                 ),
-                if (trailing != null) trailing!,
+                ?trailing,
               ],
             ),
             const SizedBox(height: 12),

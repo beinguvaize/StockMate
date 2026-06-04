@@ -5,6 +5,7 @@
 /// Pure client-side: works offline once business profile is cached.
 /// No payment gateway involved here — that lives behind the Razorpay
 /// connect toggle (Approach 2) and is wired in a separate flow.
+library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

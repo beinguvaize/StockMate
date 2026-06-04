@@ -184,13 +184,10 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 itemCount: sorted.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (_, i) {
                   final row = sorted[i];
-                  final impliedDue = row.billDate != null
-                      ? row.billDate!
-                          .add(Duration(days: _defaultTermsDays))
-                      : null;
+                  final impliedDue = row.billDate?.add(Duration(days: _defaultTermsDays));
                   return Padding(
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     child: Row(
@@ -576,7 +573,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
     return ListView.separated(
       padding: const EdgeInsets.only(top: 4, bottom: 24),
       itemCount: rows.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final supplier = rows[i];
         final nonZeroBuckets = agingBuckets
@@ -655,7 +652,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
     return ListView.separated(
       padding: const EdgeInsets.only(top: 4, bottom: 24),
       itemCount: sorted.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (_, i) {
         final row = sorted[i];
         return Container(

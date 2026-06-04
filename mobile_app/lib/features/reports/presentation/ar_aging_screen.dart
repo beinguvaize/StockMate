@@ -83,12 +83,6 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
   // Helpers
   // -------------------------------------------------------------------------
 
-  Color _bucketTextColor(String bucket) {
-    final c = agingBucketColor(bucket);
-    // Lighten background for chip: keep full color for pill background
-    return c;
-  }
-
   Widget _bucketPill(String bucket, {double? amount}) {
     final color = agingBucketColor(bucket);
     final label = amount != null ? '$bucket ${compactINR(amount)}' : bucket;
@@ -188,7 +182,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                 controller: scrollCtrl,
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 itemCount: sorted.length,
-                separatorBuilder: (_, __) => const Divider(height: 1),
+                separatorBuilder: (_, _) => const Divider(height: 1),
                 itemBuilder: (_, i) {
                   final row = sorted[i];
                   return Padding(
@@ -541,7 +535,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
     return ListView.separated(
       padding: const EdgeInsets.only(top: 4, bottom: 24),
       itemCount: rows.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, i) {
         final client = rows[i];
         final nonZeroBuckets = agingBuckets
@@ -620,7 +614,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
     return ListView.separated(
       padding: const EdgeInsets.only(top: 4, bottom: 24),
       itemCount: sorted.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      separatorBuilder: (_, _) => const SizedBox(height: 8),
       itemBuilder: (_, i) {
         final row = sorted[i];
         return Container(

@@ -456,7 +456,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                           SwitchListTile(
                             value: _gstClaimable,
                             onChanged: (v) => setState(() => _gstClaimable = v),
-                            activeColor: AppColors.primary,
+                            activeThumbColor: AppColors.primary,
                             contentPadding: const EdgeInsets.symmetric(horizontal: 14),
                             title: Text('Claim GST (ITC)', style: GoogleFonts.publicSans(
                               fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
@@ -551,7 +551,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         child: SwitchListTile(
                           value: _repeatMonthly,
                           onChanged: (v) => setState(() => _repeatMonthly = v),
-                          activeColor: AppColors.primary,
+                          activeThumbColor: AppColors.primary,
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14),
                           title: Text('Repeat monthly', style: GoogleFonts.publicSans(
                             fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
