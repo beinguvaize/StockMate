@@ -8,7 +8,7 @@ import { QRCodeSVG } from 'qrcode.react';
 
 const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [], stores = [],
   // Table POS (restaurant) — bind this builder to a table's running tab.
-  initialCart = null, onCartChange = null, tableLabel = null }) => {
+  initialCart = null, onCartChange = null, tableLabel = null, onSendKOT = null }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
   const { addNotification } = useNotifications();
   const [cart, setCart] = useState(() => (Array.isArray(initialCart) ? initialCart : []));
@@ -318,6 +318,24 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     setSelectedClientId(entry.selectedClientId || 'WALKIN');
     setDiscount(entry.discount || '');
     persistParked(parked.filter(p => p.id !== entry.id));
+  };
+
+  // KOT (restaurant table mode): items not yet fired to the kitchen.
+  const unsentKOT = useMemo(() => cart.map(line => {
+    const pending = (Number(line.quantity) || 0) - (Number(line.kotSent) || 0);
+    if (pending <= 0) return null;
+    const prod = products.find(p => p.id === line.id) || {};
+    return { name: line.name, quantity: pending, station: prod.station || null, food_type: prod.food_type || null, notes: line.notes || null };
+  }).filter(Boolean), [cart, products]);
+  const unsentKOTCount = unsentKOT.reduce((s, i) => s + i.quantity, 0);
+
+  const handleSendKOT = async () => {
+    if (!onSendKOT || unsentKOT.length === 0) return;
+    const ok = await onSendKOT(unsentKOT);
+    if (ok !== false) {
+      // Mark each line fully fired so the next KOT only carries new additions.
+      setCart(prev => prev.map(l => ({ ...l, kotSent: Number(l.quantity) || 0 })));
+    }
   };
 
   // Credit sales require a real client (so outstanding_balance has a target).
@@ -665,6 +683,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
+            )}
+            {tableLabel && cart.length > 0 && (
+              <button onClick={handleSendKOT} disabled={unsentKOTCount === 0} title="Send to kitchen"
+                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-pill bg-ink-primary text-amber-400 hover:bg-black disabled:opacity-40 transition-colors">
+                🍳 Send KOT{unsentKOTCount > 0 ? ` (${unsentKOTCount})` : ''}
+              </button>
             )}
             {cart.length > 0 && (
               <button onClick={holdSale} title="Hold sale"
