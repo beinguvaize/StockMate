@@ -325,32 +325,32 @@ const Suppliers = () => {
  <form onSubmit={handleSubmit} className="space-y-2.5 mt-2">
  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
  <div className="md:col-span-2">
- <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Supplier Name</label>
- <input required type="text" className="w-full bg-canvas border-none rounded-lg p-2.5 font-semibold text-base text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Supplier Name</label>
+ <input required type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
  </div>
 
  <div>
- <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Contact (Optional)</label>
- <input type="text" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="NAME..." value={formData.contact_person} onChange={e => setFormData({ ...formData, contact_person: e.target.value})} />
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Contact (Optional)</label>
+ <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="NAME..." value={formData.contact_person} onChange={e => setFormData({ ...formData, contact_person: e.target.value})} />
  </div>
 
  <div>
- <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Phone (Optional)</label>
- <input type="text" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="+91..." value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value})} />
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Phone (Optional)</label>
+ <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="+91..." value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value})} />
  </div>
 
  <div className="md:col-span-2">
- <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Email (Optional)</label>
- <input type="email" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="orders@partner.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value})} />
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Email (Optional)</label>
+ <input type="email" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="orders@partner.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value})} />
  </div>
 
  <div className="md:col-span-2">
- <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Address</label>
- <textarea rows={2} className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-[11px] text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all resize-none" placeholder="123 MAIN ST..." value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value})} />
+ <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Address</label>
+ <textarea rows={2} className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all resize-none placeholder:text-gray-400 placeholder:font-normal" placeholder="123 MAIN ST..." value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value})} />
  </div>
  </div>
 
- <button type="submit" disabled={loading} className="w-full btn-signature !h-10 !text-xs flex items-center justify-center !rounded-pill mt-2">
+ <button type="submit" disabled={loading} className="w-full btn-signature !h-11 !text-sm flex items-center justify-center !rounded-xl mt-3">
  {loading ? 'Saving...' : 'Add Supplier'}
  <Check size={16} className="ml-2" />
  </button>
@@ -382,32 +382,32 @@ const Suppliers = () => {
         <form onSubmit={handleEditSubmit} className="space-y-2.5 mt-2">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             <div className="md:col-span-2">
-              <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Supplier Name</label>
-              <input required type="text" className="w-full bg-canvas border-none rounded-lg p-2.5 font-semibold text-base text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
+              <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Supplier Name</label>
+              <input required type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
             </div>
 
             <div>
-              <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Contact (Optional)</label>
-              <input type="text" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="NAME..." value={formData.contact_person} onChange={e => setFormData({ ...formData, contact_person: e.target.value})} />
+              <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Contact (Optional)</label>
+              <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="NAME..." value={formData.contact_person} onChange={e => setFormData({ ...formData, contact_person: e.target.value})} />
             </div>
 
             <div>
-              <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Phone (Optional)</label>
-              <input type="text" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="+91..." value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value})} />
+              <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Phone (Optional)</label>
+              <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="+91..." value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value})} />
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Email (Optional)</label>
-              <input type="email" className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-xs text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all" placeholder="orders@partner.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value})} />
+              <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Email (Optional)</label>
+              <input type="email" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="orders@partner.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value})} />
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-[9px] font-semibold text-gray-700 opacity-[0.85] mb-0.5 ml-1">Address</label>
-              <textarea rows={2} className="w-full bg-canvas border-none rounded-lg p-2 font-semibold text-[11px] text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all resize-none" placeholder="123 MAIN ST..." value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value})} />
+              <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Address</label>
+              <textarea rows={2} className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all resize-none placeholder:text-gray-400 placeholder:font-normal" placeholder="123 MAIN ST..." value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value})} />
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="w-full btn-signature !h-10 !text-xs flex items-center justify-center !rounded-pill mt-2">
+          <button type="submit" disabled={loading} className="w-full btn-signature !h-11 !text-sm flex items-center justify-center !rounded-xl mt-3">
             {loading ? 'SAVING...' : 'SAVE CHANGES'}
             <Save size={16} className="ml-2" />
           </button>
