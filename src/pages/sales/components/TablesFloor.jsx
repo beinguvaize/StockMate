@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, Users, Receipt, X, ArrowLeftRight } from 'lucide-react';
+import { Plus, Trash2, Users, Receipt, X, ArrowLeftRight, LayoutGrid, Map } from 'lucide-react';
+import FloorPlan from './FloorPlan';
 
 // R2 Table POS — restaurant floor. Shows every table with live status
 // (free / occupied + running tab total). Tap a table to open or resume its
 // order in the builder.
-const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, deleteTable, transferTab, currencySymbol = '₹' }) => {
+const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, deleteTable, transferTab, updateTable, currencySymbol = '₹' }) => {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ label: '', section: '', seats: 4 });
   const [busy, setBusy] = useState(false);
   const [transferFrom, setTransferFrom] = useState(null); // { table, tab }
+  const [view, setView] = useState('grid'); // 'grid' | 'plan'
 
   const freeTables = tables.filter(t => !openTabs[t.id]);
   const doTransfer = async (toTable) => {
@@ -37,13 +39,38 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
           <h2 className="text-lg font-extrabold text-ink-primary">Tables<span className="text-amber-500">.</span></h2>
           <p className="text-[12px] text-gray-400">{tables.length} tables · {Object.keys(openTabs).length} running</p>
         </div>
-        <button onClick={() => setAdding(true)}
-          className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all">
-          <Plus size={15} strokeWidth={2.6} /> Add table
-        </button>
+        <div className="flex items-center gap-2">
+          <div className="inline-flex p-1 bg-black/[0.06] rounded-xl">
+            <button onClick={() => setView('grid')} title="Grid"
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[12px] font-bold ${view === 'grid' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>
+              <LayoutGrid size={13} /> Grid
+            </button>
+            <button onClick={() => setView('plan')} title="Floor plan"
+              className={`px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-[12px] font-bold ${view === 'plan' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>
+              <Map size={13} /> Floor plan
+            </button>
+          </div>
+          {view === 'grid' && (
+            <button onClick={() => setAdding(true)}
+              className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all">
+              <Plus size={15} strokeWidth={2.6} /> Add table
+            </button>
+          )}
+        </div>
       </div>
 
-      {tables.length === 0 ? (
+      {view === 'plan' ? (
+        <FloorPlan
+          tables={tables}
+          openTabs={openTabs}
+          tabTotal={tabTotal}
+          onOpenTable={onOpenTable}
+          updateTable={updateTable}
+          addTable={addTable}
+          deleteTable={deleteTable}
+          currencySymbol={currencySymbol}
+        />
+      ) : tables.length === 0 ? (
         <div className="bg-white rounded-2xl border border-black/5 p-12 text-center">
           <Users size={36} className="mx-auto text-gray-300 mb-3" />
           <p className="text-sm font-bold text-gray-500">No tables yet</p>
@@ -116,7 +143,7 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
 
       {/* Transfer-target picker */}
       {transferFrom && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
           <div className="w-full max-w-sm bg-white rounded-2xl border border-black/5 shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
               <div>
@@ -140,7 +167,7 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
 
       {/* Add-table modal */}
       {adding && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
           <div className="w-full max-w-sm bg-white rounded-2xl border border-black/5 shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
               <h3 className="text-base font-extrabold text-ink-primary">Add table</h3>
