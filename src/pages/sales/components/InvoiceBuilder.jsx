@@ -6,10 +6,17 @@ import { useNotifications } from '../../../context/NotificationContext';
 import { supabase } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 
-const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [], stores = [] }) => {
+const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [], stores = [],
+  // Table POS (restaurant) — bind this builder to a table's running tab.
+  initialCart = null, onCartChange = null, tableLabel = null }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
   const { addNotification } = useNotifications();
-  const [cart, setCart] = useState([]);
+  const [cart, setCart] = useState(() => (Array.isArray(initialCart) ? initialCart : []));
+  // Bound to a table tab → persist cart changes back to the open tab.
+  useEffect(() => {
+    if (onCartChange) onCartChange(cart);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClientId, setSelectedClientId] = useState('WALKIN');
   const [showCheckout, setShowCheckout] = useState(false);

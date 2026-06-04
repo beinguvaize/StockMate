@@ -15,6 +15,8 @@ import InvoiceList from './components/InvoiceList';
 import SalePrintDispatcher from './components/SalePrintDispatcher';
 import SalesReturnForm from './components/SalesReturnForm';
 import ConvertToInvoiceSheet from './components/ConvertToInvoiceSheet';
+import TablesFloor from './components/TablesFloor';
+import { useTables } from '../../hooks/useTables';
 import { calculateGST } from '../../lib/gstEngine';
 import { supabase } from '../../lib/supabase';
 
@@ -24,7 +26,11 @@ const SalesPage = () => {
   const [convertSale, setConvertSale] = useState(null);
   const [convertSubmitting, setConvertSubmitting] = useState(false);
   const { addNotification } = useNotifications();
-  const { currentTenantId, businessProfile, currentTenant } = useTenant();
+  const { currentTenantId, businessProfile, currentTenant, businessType } = useTenant();
+  const isResto = businessType === 'RESTAURANT';
+  const tablesApi = useTables(currentTenantId);
+  // The table whose tab is currently open in the builder (restaurant only).
+  const [activeTable, setActiveTable] = useState(null); // { table, tab }
   const { sales, clients, invoices, placeSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, convertSaleToInvoice, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
 
   // Wrap placeSale: auto-create invoice for credit sales (settlement) and
@@ -88,10 +94,48 @@ const SalesPage = () => {
   const posStores = (inventoryLocations || []).filter(l => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
   const { users: staff = [] } = usePeople(currentTenantId);
 
-  const [activeTab, setActiveTab] = useState('pos'); // 'pos' or 'history'
+  const [activeTab, setActiveTab] = useState('pos'); // 'tables' | 'pos' | 'history'
   const [printingSale, setPrintingSale] = useState(null);
   const [returnSale, setReturnSale] = useState(null);
   const [returnLoading, setReturnLoading] = useState(false);
+
+  // Restaurant: land on the floor (tables) view by default, once.
+  const restoDefaulted = React.useRef(false);
+  React.useEffect(() => {
+    if (isResto && !restoDefaulted.current) {
+      restoDefaulted.current = true;
+      setActiveTab('tables');
+    }
+  }, [isResto]);
+
+  // Open (or resume) a table's tab → bind it to the builder.
+  const openTable = async (table, existingTab) => {
+    let tab = existingTab;
+    if (!tab) {
+      const { data, error } = await tablesApi.openTab(table.id);
+      if (error) { addNotification('Could not open table: ' + error.message, 'error'); return; }
+      tab = data;
+    }
+    setActiveTable({ table, tab });
+    setActiveTab('pos');
+  };
+
+  // Persist the builder's cart back onto the open tab.
+  const persistTabCart = React.useCallback((cart) => {
+    if (activeTable?.tab?.id) tablesApi.saveTab(activeTable.tab.id, cart);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTable]);
+
+  // After a table sale is placed, close the tab and return to the floor.
+  const placeTableSale = async (saleData) => {
+    const result = await addSale(saleData);
+    if (!result?.error && activeTable?.tab?.id) {
+      await tablesApi.settleTab(activeTable.tab.id, result.id || null);
+      setActiveTable(null);
+      setActiveTab('tables');
+    }
+    return result;
+  };
 
   const handleSalesReturn = async (payload) => {
     setReturnLoading(true);
@@ -175,13 +219,23 @@ const SalesPage = () => {
           </div>
         </div>
         <div className="flex gap-1 bg-canvas p-1 rounded-pill shadow-inner">
+          {isResto && (
+            <button
+              onClick={() => { setActiveTable(null); setActiveTab('tables'); }}
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-bold transition-all ${
+                activeTab === 'tables' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-gray-400 hover:text-ink-primary'
+              }`}
+            >
+              <LayoutGrid size={13} /> Tables
+            </button>
+          )}
           <button
             onClick={() => setActiveTab('pos')}
             className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-bold transition-all ${
               activeTab === 'pos' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-gray-400 hover:text-ink-primary'
             }`}
           >
-            <ShoppingCart size={13} /> New Sale
+            <ShoppingCart size={13} /> {isResto ? 'Order' : 'New Sale'}
           </button>
           <button
             onClick={() => setActiveTab('history')}
@@ -195,18 +249,41 @@ const SalesPage = () => {
       </div>
 
 <div>
-        {activeTab === 'pos' ? (
-          <InvoiceBuilder
-            products={products}
-            inventoryBalances={inventoryBalances}
-            clients={clients}
-            onPlaceSale={addSale}
-            currentTenantId={currentTenantId}
-            taxMode={businessProfile?.tax_mode || 'EXCLUSIVE'}
-            businessProfile={businessProfile}
-            topSellingIds={topSellingIds}
-            stores={posStores}
+        {isResto && activeTab === 'tables' ? (
+          <TablesFloor
+            tables={tablesApi.tables}
+            openTabs={tablesApi.openTabs}
+            tabTotal={tablesApi.tabTotal}
+            onOpenTable={openTable}
+            addTable={tablesApi.addTable}
+            deleteTable={tablesApi.deleteTable}
+            currencySymbol={businessProfile?.currencySymbol || '₹'}
           />
+        ) : activeTab === 'pos' ? (
+          <>
+            {isResto && activeTable && (
+              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
+                <span className="text-sm font-bold text-ink-primary">Table {activeTable.table.label}</span>
+                <button onClick={() => { setActiveTable(null); setActiveTab('tables'); }}
+                  className="text-[12px] font-bold text-amber-700 hover:underline">← Back to floor</button>
+              </div>
+            )}
+            <InvoiceBuilder
+              key={activeTable?.tab?.id || 'walkin'}
+              products={products}
+              inventoryBalances={inventoryBalances}
+              clients={clients}
+              onPlaceSale={isResto && activeTable ? placeTableSale : addSale}
+              currentTenantId={currentTenantId}
+              taxMode={businessProfile?.tax_mode || 'EXCLUSIVE'}
+              businessProfile={businessProfile}
+              topSellingIds={topSellingIds}
+              stores={posStores}
+              initialCart={activeTable?.tab?.cart || null}
+              onCartChange={isResto && activeTable ? persistTabCart : null}
+              tableLabel={activeTable?.table?.label || null}
+            />
+          </>
         ) : (
           <InvoiceList
             sales={sales}
