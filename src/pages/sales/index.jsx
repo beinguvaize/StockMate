@@ -299,6 +299,7 @@ const SalesPage = () => {
               onCartChange={isResto && activeTable ? persistTabCart : null}
               tableLabel={activeTable?.table?.label || null}
               onSendKOT={isResto && activeTable ? sendTableKOT : null}
+              businessType={businessType}
             />
           </>
         ) : (

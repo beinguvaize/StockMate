@@ -6,10 +6,77 @@ import { useNotifications } from '../../../context/NotificationContext';
 import { supabase } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 
+// Restaurant modifier picker — choose options for a dish before it hits the cart.
+const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' }) => {
+  const groups = Array.isArray(product.modifier_groups) ? product.modifier_groups : [];
+  const [sel, setSel] = useState({}); // groupId -> { optName: true }
+
+  const toggle = (g, optName) => {
+    setSel(prev => {
+      const cur = prev[g.id] || {};
+      if (g.multi) return { ...prev, [g.id]: { ...cur, [optName]: !cur[optName] } };
+      return { ...prev, [g.id]: { [optName]: true } }; // single-choice
+    });
+  };
+
+  const chosen = [];
+  groups.forEach(g => {
+    (g.options || []).forEach(o => { if (sel[g.id]?.[o.name]) chosen.push({ name: o.name, price: Number(o.price) || 0, group: g.name }); });
+  });
+  const addPrice = chosen.reduce((s, o) => s + o.price, 0);
+  const total = (Number(product.sellingPrice) || 0) + addPrice;
+
+  return (
+    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+      <div className="w-full max-w-sm bg-white rounded-2xl border border-black/5 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
+          <div>
+            <h3 className="text-base font-extrabold text-ink-primary">{product.name}</h3>
+            <p className="text-[11px] text-gray-400">Choose options</p>
+          </div>
+          <button onClick={onCancel} className="text-gray-400 hover:text-ink-primary"><X size={18} /></button>
+        </div>
+        <div className="p-5 space-y-4 overflow-y-auto">
+          {groups.map(g => (
+            <div key={g.id}>
+              <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-2">
+                {g.name} {g.multi && <span className="text-gray-400 font-normal normal-case">· choose any</span>}
+              </div>
+              <div className="space-y-1.5">
+                {(g.options || []).map(o => {
+                  const on = !!sel[g.id]?.[o.name];
+                  return (
+                    <button key={o.name} type="button" onClick={() => toggle(g, o.name)}
+                      className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
+                        on ? 'border-amber-500 bg-amber-50' : 'border-black/10 hover:border-black/20'
+                      }`}>
+                      <span className="font-semibold text-ink-primary">{o.name}</span>
+                      <span className="font-mono text-xs text-gray-500">{o.price > 0 ? `+${currencySymbol}${o.price}` : '—'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="p-4 border-t border-black/5">
+          <button onClick={() => onConfirm(chosen)}
+            className="w-full h-11 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700 transition-all flex items-center justify-center gap-2">
+            Add · <span className="font-mono">{currencySymbol}{total}</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [], stores = [],
   // Table POS (restaurant) — bind this builder to a table's running tab.
-  initialCart = null, onCartChange = null, tableLabel = null, onSendKOT = null }) => {
+  initialCart = null, onCartChange = null, tableLabel = null, onSendKOT = null, businessType = null }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
+  // Restaurant dishes aren't unit-stocked at the POS (recipe deduction is R5),
+  // so don't gate adding a dish on warehouse stock.
+  const isRestoPOS = businessType === 'RESTAURANT';
   const { addNotification } = useNotifications();
   const [cart, setCart] = useState(() => (Array.isArray(initialCart) ? initialCart : []));
   // Bound to a table tab → persist cart changes back to the open tab.
@@ -210,22 +277,38 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   };
 
   const getAvailableStock = (productId) =>
-    warehouseStock[productId] !== undefined
-      ? warehouseStock[productId]
-      : (products.find(p => p.id === productId)?.stock ?? 0);
+    isRestoPOS
+      ? Infinity
+      : (warehouseStock[productId] !== undefined
+          ? warehouseStock[productId]
+          : (products.find(p => p.id === productId)?.stock ?? 0));
 
-  const addToCart = (product) => {
+  // Modifier picker (restaurant) — set when a dish with modifier groups is tapped.
+  const [modPicker, setModPicker] = useState(null); // { product }
+
+  // Cart lines are keyed by uid so the same dish with different modifier
+  // combos lives on separate lines (and identical combos stack).
+  const lineUid = (productId, modLabel) => modLabel ? `${productId}#${modLabel}` : productId;
+
+  const addToCart = (product, mods) => {
+    const groups = Array.isArray(product.modifier_groups) ? product.modifier_groups : [];
+    // Open the picker for dishes with modifiers (unless options already chosen).
+    if (mods === undefined && groups.length > 0) { setModPicker({ product }); return; }
+    const chosen = mods || [];
+    const addPrice = chosen.reduce((s, o) => s + (Number(o.price) || 0), 0);
+    const modLabel = chosen.map(o => o.name).join(', ') || null;
+    const uid = lineUid(product.id, modLabel);
     const available = getAvailableStock(product.id);
     lastAddedRef.current = product.id;
     setAddTick(t => t + 1);
     setCart(prev => {
-      const existing = prev.find(item => item.productId === product.id);
+      const existing = prev.find(item => item.uid === uid);
       if (existing) {
         if (existing.quantity >= available) {
           addNotification(`Only ${available} units in stock`, 'error');
           return prev;
         }
-        return prev.map(item => item.productId === product.id
+        return prev.map(item => item.uid === uid
           ? { ...item, quantity: item.quantity + 1 }
           : item
         );
@@ -235,19 +318,26 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         return prev;
       }
       return [...prev, {
+        uid,
         productId: product.id,
         name: product.name,
-        price: product.sellingPrice,
+        basePrice: product.sellingPrice,
+        price: (Number(product.sellingPrice) || 0) + addPrice,
         quantity: 1,
-        taxRate: product.taxRate || 0
+        taxRate: product.taxRate || 0,
+        modifiers: chosen,
+        modLabel,
       }];
     });
   };
 
-  const updateQuantity = (productId, delta) => {
-    const available = getAvailableStock(productId);
+  // Cart-mutation handlers key by uid (falling back to productId for any
+  // legacy/parked line that predates uids).
+  const keyOf = (i) => i.uid || i.productId;
+  const updateQuantity = (uid, delta) => {
     setCart(prev => prev.map(item => {
-      if (item.productId === productId) {
+      if (keyOf(item) === uid) {
+        const available = getAvailableStock(item.productId);
         const next = Math.max(0, item.quantity + delta);
         if (next > available) {
           addNotification(`Only ${available} units in stock`, 'error');
@@ -259,26 +349,28 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     }).filter(item => item.quantity > 0));
   };
 
-  const setQuantityDirect = (productId, val) => {
+  const setQuantityDirect = (uid, val) => {
     const qty = parseInt(val, 10);
     if (isNaN(qty) || qty < 0) return;
     if (qty === 0) {
-      setCart(prev => prev.filter(i => i.productId !== productId));
+      setCart(prev => prev.filter(i => keyOf(i) !== uid));
     } else {
-      const available = getAvailableStock(productId);
-      if (qty > available) {
-        addNotification(`Only ${available} units in stock`, 'error');
-        setCart(prev => prev.map(i => i.productId === productId ? { ...i, quantity: available } : i));
-        return;
-      }
-      setCart(prev => prev.map(i => i.productId === productId ? { ...i, quantity: qty } : i));
+      setCart(prev => prev.map(i => {
+        if (keyOf(i) !== uid) return i;
+        const available = getAvailableStock(i.productId);
+        if (qty > available) {
+          addNotification(`Only ${available} units in stock`, 'error');
+          return { ...i, quantity: available };
+        }
+        return { ...i, quantity: qty };
+      }));
     }
   };
 
-  const setItemPrice = (productId, val) => {
+  const setItemPrice = (uid, val) => {
     const price = parseFloat(val);
     setCart(prev => prev.map(i =>
-      i.productId === productId ? { ...i, price: isNaN(price) ? i.price : price } : i
+      keyOf(i) === uid ? { ...i, price: isNaN(price) ? i.price : price } : i
     ));
   };
 
@@ -324,8 +416,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const unsentKOT = useMemo(() => cart.map(line => {
     const pending = (Number(line.quantity) || 0) - (Number(line.kotSent) || 0);
     if (pending <= 0) return null;
-    const prod = products.find(p => p.id === line.id) || {};
-    return { name: line.name, quantity: pending, station: prod.station || null, food_type: prod.food_type || null, notes: line.notes || null };
+    const prod = products.find(p => p.id === line.productId) || {};
+    return { name: line.name, quantity: pending, station: prod.station || null, food_type: prod.food_type || null, notes: line.modLabel || line.notes || null };
   }).filter(Boolean), [cart, products]);
   const unsentKOTCount = unsentKOT.reduce((s, i) => s + i.quantity, 0);
 
@@ -445,6 +537,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
   return (
     <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-130px)]">
+      {/* Modifier picker (restaurant) */}
+      {modPicker && (
+        <ModifierSheet
+          product={modPicker.product}
+          currencySymbol={businessProfile?.currencySymbol || '₹'}
+          onCancel={() => setModPicker(null)}
+          onConfirm={(chosen) => { addToCart(modPicker.product, chosen); setModPicker(null); }}
+        />
+      )}
       {/* Product Selection Area */}
       <div className="flex-1 flex flex-col gap-4 overflow-hidden">
         <div className="relative">
@@ -731,17 +832,21 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           {cart.map(item => {
             const cost = fifoCosts[item.productId] ?? 0;
             const belowCost = cost > 0 && item.price < cost;
+            const k = item.uid || item.productId;
             return (
               <div
-                key={item.productId}
-                data-cart-row={item.productId}
+                key={k}
+                data-cart-row={k}
                 className={`grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 items-center px-4 py-2.5 border-b border-black/5 last:border-0 transition-colors ${
                   belowCost ? 'bg-red-50/60' : 'hover:bg-canvas/40'
                 }`}
               >
-                {/* Product name + below-cost hint */}
+                {/* Product name + modifiers + below-cost hint */}
                 <div className="min-w-0">
                   <div className="text-sm font-bold text-ink-primary truncate uppercase">{item.name}</div>
+                  {item.modLabel && (
+                    <div className="text-[11px] font-semibold text-amber-700 truncate">+ {item.modLabel}</div>
+                  )}
                   {belowCost && (
                     <div className="text-xs font-bold text-red-500 mt-0.5">
                       Min cost: {formatCurrency(cost)}
@@ -752,7 +857,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 {/* Qty stepper */}
                 <div className="flex items-center justify-center gap-0.5 bg-white border border-black/8 rounded-lg p-0.5">
                   <button
-                    onClick={() => updateQuantity(item.productId, -1)}
+                    onClick={() => updateQuantity(k, -1)}
                     className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-ink-primary shrink-0"
                   >
                     <Minus size={9} strokeWidth={3} />
@@ -761,11 +866,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     type="number"
                     min="1"
                     value={item.quantity}
-                    onChange={e => setQuantityDirect(item.productId, e.target.value)}
+                    onChange={e => setQuantityDirect(k, e.target.value)}
                     className="w-8 text-center text-sm font-black text-ink-primary bg-transparent outline-none tabular-nums"
                   />
                   <button
-                    onClick={() => addToCart(products.find(p => p.id === item.productId))}
+                    onClick={() => updateQuantity(k, 1)}
                     className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-ink-primary shrink-0"
                   >
                     <Plus size={9} strokeWidth={3} />
@@ -780,7 +885,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     min="0"
                     step="0.01"
                     value={item.price}
-                    onChange={e => setItemPrice(item.productId, e.target.value)}
+                    onChange={e => setItemPrice(k, e.target.value)}
                     className={`w-full pl-4 pr-1 py-1 text-sm font-bold bg-canvas rounded-lg outline-none focus:ring-1 tabular-nums border ${
                       belowCost
                         ? 'border-red-300 text-red-600 focus:ring-red-300/40'
@@ -796,7 +901,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
                 {/* Remove */}
                 <button
-                  onClick={() => setCart(prev => prev.filter(i => i.productId !== item.productId))}
+                  onClick={() => setCart(prev => prev.filter(i => (i.uid || i.productId) !== k))}
                   className="text-gray-300 hover:text-red-400 transition-colors flex items-center justify-center"
                 >
                   <X size={11} strokeWidth={2.5} />
@@ -1047,12 +1152,13 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order Summary</p>
               <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
                 {cart.map((item, idx) => (
-                  <div key={item.productId} className={`flex items-center gap-4 px-5 py-3.5 ${idx !== cart.length - 1 ? 'border-b border-black/5' : ''}`}>
+                  <div key={item.uid || item.productId} className={`flex items-center gap-4 px-5 py-3.5 ${idx !== cart.length - 1 ? 'border-b border-black/5' : ''}`}>
                     <div className="w-8 h-8 rounded-lg bg-white border border-gray-300 shadow-sm flex items-center justify-center shrink-0">
                       <Package size={14} className="text-gray-400" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-ink-primary truncate">{item.name}</div>
+                      {item.modLabel && <div className="text-[10px] text-amber-700 font-semibold truncate">+ {item.modLabel}</div>}
                       <div className="text-[10px] text-gray-400 font-medium">{formatCurrency(item.price)} × {item.quantity}</div>
                     </div>
                     <div className="text-sm font-black text-ink-primary tabular-nums shrink-0">
