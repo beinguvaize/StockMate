@@ -6,7 +6,7 @@ import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { usePeople } from '../../hooks/usePeople';
 import { useNotifications } from '../../context/NotificationContext';
-import { ShoppingCart, History, Plus, ReceiptText, TrendingUp, Receipt, BarChart2 } from 'lucide-react';
+import { ShoppingCart, History, Plus, ReceiptText, TrendingUp, Receipt, BarChart2, LayoutGrid } from 'lucide-react';
 import { generateRef, formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
