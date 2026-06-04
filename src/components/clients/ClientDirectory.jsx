@@ -38,52 +38,79 @@ const ClientDirectory = ({
   return (
     <div className="space-y-6">
 
-      {/* KPI Row — compact mono/amber strip */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-black/[0.07] shadow-sm">
-        {[
-          { label: 'Total Clients', value: filteredClients.length, suffix: 'accounts', icon: <Users size={14} /> },
-          { label: 'Total Receivables', value: Math.round(topMetrics.totalReceivables || 0).toLocaleString('en-IN'), money: true, icon: <CreditCard size={14} /> },
-          { label: 'Top Debtor', value: Math.round(topMetrics.topDebtor?.amount || 0).toLocaleString('en-IN'), money: true, sub: topMetrics.topDebtor?.name !== 'None' ? topMetrics.topDebtor?.name : 'No exposure', icon: <TrendingUp size={14} /> },
-          { label: 'Pending Collections', value: topMetrics.pendingCollections || 0, suffix: 'accounts', icon: <Clock size={14} /> },
-        ].map((m, i) => (
-          <div key={i} className="bg-white px-4 py-3.5 flex flex-col gap-1.5 hover:bg-amber-500/[0.03] transition-colors">
-            <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-widest">
-              <span className="text-stone-300">{m.icon}</span>{m.label}
-            </div>
-            <div className="font-mono text-xl font-bold tabular-nums leading-none text-ink-primary">
-              {m.money && <span className="text-amber-400 text-sm mr-0.5">{sym}</span>}{m.value}
-              {m.suffix && <span className="text-[10px] font-bold text-gray-300 ml-1 lowercase">{m.suffix}</span>}
-            </div>
-            {m.sub && <div className="text-[10px] font-semibold text-gray-400 truncate">{m.sub}</div>}
+      {/* KPI — receivables hero + stat rail */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr_1fr_1fr] gap-4">
+        {/* Hero: total receivables */}
+        <div className="rounded-3xl bg-ink-primary p-6 relative overflow-hidden">
+          <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-amber-500/20 blur-3xl pointer-events-none" />
+          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-400">
+            <TrendingUp size={13} /> Total Receivables
           </div>
-        ))}
+          <div className="font-mono tabular-nums text-4xl font-bold text-white mt-3 leading-none">
+            <span className="text-xl text-amber-400/70 mr-0.5">{sym}</span>{Math.round(topMetrics.totalReceivables || 0).toLocaleString('en-IN')}
+          </div>
+          <div className="text-[11px] text-white/40 font-mono mt-3">
+            {topMetrics.pendingCollections || 0} accounts pending collection
+          </div>
+        </div>
+
+        {/* Total clients */}
+        <div className="rounded-3xl bg-white border border-black/5 p-5 flex flex-col justify-between min-h-[128px]">
+          <div className="w-9 h-9 rounded-xl bg-gray-100 grid place-items-center text-gray-500"><Users size={16} /></div>
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Total Clients</div>
+            <div className="font-mono tabular-nums text-3xl font-bold mt-1 leading-none text-ink-primary">{filteredClients.length}</div>
+          </div>
+        </div>
+
+        {/* Top debtor */}
+        <div className="rounded-3xl bg-white border border-black/5 p-5 flex flex-col justify-between min-h-[128px]">
+          <div className="w-9 h-9 rounded-xl bg-amber-50 grid place-items-center text-amber-600"><CreditCard size={16} /></div>
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Top Debtor</div>
+            <div className="font-mono tabular-nums text-2xl font-bold mt-1 leading-none text-red-600">
+              <span className="text-base text-red-400 mr-0.5">{sym}</span>{Math.round(topMetrics.topDebtor?.amount || 0).toLocaleString('en-IN')}
+            </div>
+            <div className="text-[11px] text-gray-400 truncate mt-0.5">{topMetrics.topDebtor?.name && topMetrics.topDebtor.name !== 'None' ? topMetrics.topDebtor.name : 'No exposure'}</div>
+          </div>
+        </div>
+
+        {/* Pending collections */}
+        <div className="rounded-3xl bg-white border border-black/5 p-5 flex flex-col justify-between min-h-[128px]">
+          <div className="w-9 h-9 rounded-xl bg-gray-100 grid place-items-center text-gray-500"><Clock size={16} /></div>
+          <div>
+            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Pending</div>
+            <div className="font-mono tabular-nums text-3xl font-bold mt-1 leading-none text-ink-primary">{topMetrics.pendingCollections || 0}</div>
+            <div className="text-[11px] text-gray-400 mt-0.5">collections</div>
+          </div>
+        </div>
       </div>
 
       {/* Toolbar */}
-      <div className="flex flex-wrap lg:flex-nowrap items-center justify-between bg-white border border-black/5 rounded-[2rem] shadow-sm p-2 gap-2">
-        {/* Status filter */}
-        <div className="flex bg-white border border-gray-300 shadow-sm rounded-pill p-1.5 shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Status filter — segmented */}
+        <div className="inline-flex p-1 bg-black/[0.06] rounded-xl">
           {['ALL', 'ACTIVE', 'INACTIVE'].map(f => (
             <button
               key={f}
               onClick={() => setStatusFilter(f)}
-              className={`px-5 py-2 rounded-pill text-[11px] font-bold tracking-wider transition-all ${
-                statusFilter === f ? 'bg-ink-primary text-white shadow-md' : 'text-gray-500 hover:text-ink-primary hover:bg-black/5'
+              className={`px-4 py-1.5 rounded-lg text-[12px] font-bold capitalize transition-all ${
+                statusFilter === f ? 'bg-white text-ink-primary shadow-sm' : 'text-gray-500 hover:text-ink-primary'
               }`}
             >
-              {f}
+              {f.toLowerCase()}
             </button>
           ))}
         </div>
 
-        <div className="flex flex-1 items-center justify-end gap-3 min-w-[260px]">
+        <div className="flex items-center gap-2">
           {/* Search */}
-          <div className="relative group flex-1 max-w-xs">
-            <Search size={15} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-primary opacity-30 group-focus-within:opacity-80 transition-opacity" />
+          <div className="relative">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Search clients..."
-              className="w-full h-11 pl-10 pr-4 rounded-pill bg-white border border-gray-300 shadow-sm shadow-inner text-xs font-bold text-ink-primary placeholder:text-gray-400 outline-none focus:border-black/20 focus:bg-white transition-all"
+              placeholder="Search clients"
+              className="h-10 w-56 pl-9 pr-3 rounded-xl bg-white border border-gray-200 text-[13px] text-ink-primary placeholder:text-gray-400 outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 transition-all"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
@@ -93,12 +120,9 @@ const ClientDirectory = ({
           {hasPermission('clients', 'edit') && (
             <button
               onClick={openAdd}
-              className="btn-signature flex items-center gap-3 text-xs font-black shrink-0"
+              className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all"
             >
-              <span className="text-xs font-bold tracking-wide">NEW CLIENT</span>
-              <div className="w-8 h-8 rounded-full bg-ink-primary flex items-center justify-center">
-                <Plus size={16} className="text-accent-signature" />
-              </div>
+              <Plus size={15} strokeWidth={2.6} /> New client
             </button>
           )}
         </div>
