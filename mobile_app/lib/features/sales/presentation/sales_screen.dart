@@ -202,9 +202,11 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 data: (allSales) {
                   final sales = allSales.where((s) {
                     final st = (s.paymentStatus ?? '').toUpperCase();
-                    if (_filterIndex == 1) return st == 'PAID';
-                    if (_filterIndex == 2) return st == 'UNPAID' || st == 'PARTIAL';
-                    if (_filterIndex == 3) return st == 'PENDING' || st == 'VOIDED' || st == 'FAILED';
+                    // Credit = anything owed (PENDING/UNPAID/PARTIAL) — matches the
+                    // "Credit" badge. Failed = only voided/failed.
+                    if (_filterIndex == 1) return st == 'PAID' || st == 'COMPLETED';
+                    if (_filterIndex == 2) return st == 'PENDING' || st == 'UNPAID' || st == 'PARTIAL';
+                    if (_filterIndex == 3) return st == 'VOIDED' || st == 'FAILED';
                     return true;
                   }).toList();
 

@@ -94,6 +94,87 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
     if (picked != null) setState(() => _selectedDate = picked);
   }
 
+  // ── Custom categories (parity with web settings.expense_categories) ──
+  Future<void> _addCategoryDialog() async {
+    final ctrl = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('New category',
+            style: GoogleFonts.publicSans(
+                fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: InputDecoration(
+            hintText: 'e.g. Packaging',
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+          onSubmitted: (v) => Navigator.pop(ctx, v.trim()),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel',
+                style: GoogleFonts.publicSans(color: AppColors.inkSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+            child: Text('Add',
+                style: GoogleFonts.publicSans(
+                    color: AppColors.primary, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (name == null || name.isEmpty) return;
+    final ctx = await ref.read(tenantContextProvider.future);
+    if (ctx == null) return;
+    final existing = ref.read(customExpenseCategoriesProvider).valueOrNull ?? [];
+    await saveExpenseCategories(ref, ctx.tenantId, [...existing, name]);
+    if (mounted) setState(() => _selectedCategory = name);
+  }
+
+  Future<void> _deleteCategoryDialog(String name) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Remove "$name"?',
+            style: GoogleFonts.publicSans(
+                fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
+        content: Text('Existing expenses keep this category.',
+            style: GoogleFonts.publicSans(
+                fontSize: 14, color: AppColors.inkSecondary)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, false),
+            child: Text('Cancel',
+                style: GoogleFonts.publicSans(color: AppColors.inkSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dctx, true),
+            child: Text('Remove',
+                style: GoogleFonts.publicSans(
+                    color: AppColors.danger, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final ctx = await ref.read(tenantContextProvider.future);
+    if (ctx == null) return;
+    final existing = ref.read(customExpenseCategoriesProvider).valueOrNull ?? [];
+    await saveExpenseCategories(
+        ref, ctx.tenantId, existing.where((c) => c != name).toList());
+    if (mounted && _selectedCategory == name) {
+      setState(() => _selectedCategory = 'Other');
+    }
+  }
+
   String _dateLabel() {
     final today = DateTime.now();
     final isToday = today.year == _selectedDate.year &&
@@ -589,71 +670,115 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                       ),
                     ),
 
-                    // ── CATEGORY GRID (5 cols × 2 rows) ─────────────
+                    // ── CATEGORY GRID (presets + custom + add) ──────
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 5,
-                          mainAxisSpacing: 14,
-                          crossAxisSpacing: 8,
-                          childAspectRatio: 0.78,
-                        ),
-                        itemCount: _categories.length,
-                        itemBuilder: (_, i) {
-                          final cat = _categories[i];
-                          final value = cat.valueOverride ?? cat.label;
-                          final selected = _selectedCategory == value;
-                          return GestureDetector(
-                            onTap: () => setState(() => _selectedCategory = value),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                AnimatedContainer(
-                                  duration: const Duration(milliseconds: 180),
-                                  width: 56,
-                                  height: 56,
-                                  decoration: BoxDecoration(
-                                    color: selected ? AppColors.primary : Colors.white,
-                                    borderRadius: BorderRadius.circular(18),
-                                    border: Border.all(
+                      child: Builder(builder: (context) {
+                        final customAsync =
+                            ref.watch(customExpenseCategoriesProvider);
+                        final custom = customAsync.maybeWhen(
+                            data: (c) => c, orElse: () => const <String>[]);
+                        // Build a flat tile list: presets, then custom, then +Add.
+                        final tiles = <_CatTile>[
+                          for (final c in _categories)
+                            _CatTile(c.label, c.valueOverride ?? c.label, c.icon,
+                                custom: false),
+                          for (final name in custom)
+                            _CatTile(name, name, LucideIcons.tag, custom: true),
+                          const _CatTile('Add', '__ADD__', LucideIcons.plus,
+                              custom: false, isAdd: true),
+                        ];
+                        return GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 5,
+                            mainAxisSpacing: 14,
+                            crossAxisSpacing: 8,
+                            childAspectRatio: 0.78,
+                          ),
+                          itemCount: tiles.length,
+                          itemBuilder: (_, i) {
+                            final t = tiles[i];
+                            final selected =
+                                !t.isAdd && _selectedCategory == t.value;
+                            return GestureDetector(
+                              onTap: () {
+                                if (t.isAdd) {
+                                  _addCategoryDialog();
+                                } else {
+                                  setState(() => _selectedCategory = t.value);
+                                }
+                              },
+                              onLongPress: t.custom
+                                  ? () => _deleteCategoryDialog(t.value)
+                                  : null,
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  AnimatedContainer(
+                                    duration: const Duration(milliseconds: 180),
+                                    width: 56,
+                                    height: 56,
+                                    decoration: BoxDecoration(
                                       color: selected
                                           ? AppColors.primary
-                                          : Colors.black.withValues(alpha: 0.05),
-                                    ),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withValues(alpha: 0.05),
-                                        blurRadius: 20,
-                                        offset: const Offset(0, 4),
+                                          : (t.isAdd
+                                              ? AppColors.primary
+                                                  .withValues(alpha: 0.08)
+                                              : Colors.white),
+                                      borderRadius: BorderRadius.circular(18),
+                                      border: Border.all(
+                                        color: selected
+                                            ? AppColors.primary
+                                            : (t.isAdd
+                                                ? AppColors.primary
+                                                    .withValues(alpha: 0.4)
+                                                : Colors.black
+                                                    .withValues(alpha: 0.05)),
                                       ),
-                                    ],
+                                      boxShadow: t.isAdd
+                                          ? null
+                                          : [
+                                              BoxShadow(
+                                                color: Colors.black
+                                                    .withValues(alpha: 0.05),
+                                                blurRadius: 20,
+                                                offset: const Offset(0, 4),
+                                              ),
+                                            ],
+                                    ),
+                                    child: Icon(
+                                      t.icon,
+                                      size: 22,
+                                      color: selected
+                                          ? Colors.white
+                                          : (t.isAdd
+                                              ? AppColors.primary
+                                              : AppColors.inkSecondary),
+                                    ),
                                   ),
-                                  child: Icon(
-                                    cat.icon,
-                                    size: 22,
-                                    color: selected ? Colors.white : AppColors.inkSecondary,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    t.label.toUpperCase(),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: GoogleFonts.publicSans(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w700,
+                                      color: selected
+                                          ? AppColors.primary
+                                          : AppColors.inkTertiary,
+                                      letterSpacing: 0.4,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  cat.label.toUpperCase(),
-                                  style: GoogleFonts.publicSans(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w700,
-                                    color: selected
-                                        ? AppColors.primary
-                                        : AppColors.inkTertiary,
-                                    letterSpacing: 0.4,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      }),
                     ),
 
                     if (_formError != null) ...[
@@ -837,4 +962,15 @@ class _Cat {
   final IconData icon;
   final String? valueOverride; // when display label differs from stored category
   const _Cat(this.label, this.icon, {this.valueOverride});
+}
+
+// Flattened category tile (preset, custom, or the +Add affordance).
+class _CatTile {
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool custom; // user-added (long-press to delete)
+  final bool isAdd; // the trailing "+ Add" tile
+  const _CatTile(this.label, this.value, this.icon,
+      {this.custom = false, this.isAdd = false});
 }
