@@ -39,7 +39,7 @@ String formatINR(num v) {
     intPart = intPart.substring(0, intPart.length - 2);
   }
   if (intPart.isNotEmpty) groups.insert(0, intPart);
-  return '₹${v < 0 ? '-' : ''}${groups.join(',')},${last3}.$dec';
+  return '₹${v < 0 ? '-' : ''}${groups.join(',')},$last3.$dec';
 }
 
 /// Compact: ₹1.2Cr / ₹45L / ₹1.2K

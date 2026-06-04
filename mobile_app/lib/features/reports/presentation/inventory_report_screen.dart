@@ -40,8 +40,6 @@ class _InventoryReportScreenState
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
-  String _fmtCostValue(double v) => compactINR(v);
-
   @override
   Widget build(BuildContext context) {
     final tenantAsync = ref.watch(tenantContextProvider);

@@ -32,13 +32,6 @@ class _DayBookScreenState extends ConsumerState<DayBookScreen> {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
 
-  bool get _isFuture {
-    final today = DateTime.now();
-    final todayStr =
-        '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
-    final selectedDate = ref.read(selectedDayBookDateProvider);
-    return selectedDate.compareTo(todayStr) > 0;
-  }
 
   bool _isFutureForDate(String selectedDate) {
     final today = DateTime.now();
@@ -1734,7 +1727,7 @@ class _EntryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '${sign}₹${entry.amount.toStringAsFixed(2)}',
+                '$sign₹${entry.amount.toStringAsFixed(2)}',
                 style: GoogleFonts.hankenGrotesk(
                   fontWeight: FontWeight.w800,
                   fontSize: 14,

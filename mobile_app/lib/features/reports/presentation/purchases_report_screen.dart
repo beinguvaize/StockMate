@@ -275,7 +275,7 @@ class _PurchasesBody extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: listPurchases.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final p = listPurchases[index];
             final date = (p['date'] as String?) ?? '';

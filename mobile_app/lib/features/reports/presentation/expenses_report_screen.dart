@@ -272,7 +272,7 @@ class _ExpensesBody extends StatelessWidget {
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: listExpenses.length,
-          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          separatorBuilder: (_, _) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
             final exp = listExpenses[index];
             final date = (exp['date'] as String?) ?? '';

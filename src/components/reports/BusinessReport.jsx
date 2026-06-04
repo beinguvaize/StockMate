@@ -660,11 +660,11 @@ const BusinessReport = () => {
 };
 
 /* ─── Detailed daily breakdown ────────────────────────────────────────────── */
-const PAY_BADGE = { CASH: 'bg-emerald-50 text-emerald-700', UPI: 'bg-amber-50 text-amber-700', CREDIT: 'bg-amber-50 text-amber-700', BANK: 'bg-blue-50 text-blue-700' };
+const PAY_BADGE = { CASH: 'bg-emerald-50 text-emerald-700', UPI: 'bg-amber-50 text-amber-700', CREDIT: 'bg-amber-50 text-amber-700', BANK: 'bg-slate-100 text-slate-600' };
 
 const APP_BADGE = {
-  WEB:     'bg-sky-50 text-sky-700 border-sky-200',
-  DESKTOP: 'bg-amber-50 text-amber-700 border-amber-200',
+  WEB:     'bg-slate-100 text-slate-600 border-slate-200',
+  DESKTOP: 'bg-slate-100 text-slate-600 border-slate-200',
   MOBILE:  'bg-emerald-50 text-emerald-700 border-emerald-200',
   VAN:     'bg-amber-50 text-amber-700 border-amber-200',
 };
@@ -711,16 +711,16 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
               className="w-full flex items-center gap-4 px-6 py-4 hover:bg-canvas/40 transition-colors text-left"
               onClick={() => toggle(day.date)}
             >
-              <div className="w-9 h-9 rounded-xl bg-canvas flex items-center justify-center shrink-0">
-                <Calendar size={14} className="text-gray-400" />
+              <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                <Calendar size={14} className="text-amber-500" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-black text-ink-primary">{day.date}</div>
+                <div className="font-mono text-sm font-bold text-ink-primary">{day.date}</div>
                 <div className="text-[10px] text-gray-400 font-medium mt-0.5">
                   {day.orders} {day.orders === 1 ? 'sale' : 'sales'}
                 </div>
               </div>
-              <div className="text-base font-black text-ink-primary tabular-nums shrink-0">
+              <div className="font-mono text-base font-bold text-ink-primary tabular-nums shrink-0">
                 {formatCurrency(day.total)}
               </div>
               <ChevronDown
@@ -733,9 +733,9 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
             {isOpen && (
               <div className="bg-canvas/30 border-t border-black/5">
                 {/* Column labels */}
-                <div className="grid grid-cols-[1fr_160px_50px_70px_70px_110px_80px_110px] gap-3 px-8 py-2 border-b border-black/5">
-                  {['Client', 'Products', 'Items', 'Source', 'App', 'By', 'Method', 'Amount'].map(h => (
-                    <span key={h} className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{h}</span>
+                <div className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-2 border-b border-black/5 items-center">
+                  {[['Client','justify-self-start'],['Products','justify-self-start'],['Items','justify-self-center'],['Source','justify-self-center'],['App','justify-self-center'],['By','justify-self-start'],['Method','justify-self-center'],['Amount','justify-self-end']].map(([h,a]) => (
+                    <span key={h} className={`text-[9px] font-black text-gray-400 uppercase tracking-widest ${a}`}>{h}</span>
                   ))}
                 </div>
 
@@ -758,7 +758,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
 
                   return (
                     <div key={s.id || si}
-                      className="grid grid-cols-[1fr_160px_50px_70px_70px_110px_80px_110px] gap-3 px-8 py-3 border-b border-black/5 last:border-0 hover:bg-white/60 transition-colors items-start">
+                      className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-3 border-b border-black/5 last:border-0 hover:bg-white/60 transition-colors items-center">
 
                       {/* Client */}
                       <div className="flex items-center gap-2 min-w-0">
@@ -782,47 +782,47 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                       </div>
 
                       {/* Total items */}
-                      <span className="text-xs font-black text-ink-primary tabular-nums">{itemQty}</span>
+                      <span className="font-mono text-xs font-bold text-ink-primary tabular-nums justify-self-center">{itemQty}</span>
 
                       {/* Source badge */}
                       {isVan
                         ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-amber-50 text-amber-700 border border-amber-200">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-amber-50 text-amber-700 border border-amber-200 justify-self-center">
                             <Truck size={9} /> {vanLabel}
                           </span>
                         )
                         : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-sky-50 text-sky-700 border border-sky-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-slate-100 text-slate-600 border border-slate-200 justify-self-center">
                             POS
                           </span>
                         )
                       }
 
                       {/* App / channel */}
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit border ${appCls}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit border justify-self-center ${appCls}`}>
                         {app}
                       </span>
 
                       {/* Sold by */}
-                      <span className="text-[11px] font-bold text-ink-secondary truncate" title={user?.email || ''}>
+                      <span className="text-[11px] font-bold text-ink-secondary truncate justify-self-start" title={user?.email || ''}>
                         {byLabel}
                       </span>
 
                       {/* Payment method */}
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit ${badgeCls}`}>
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-black w-fit justify-self-center ${badgeCls}`}>
                         {method}
                       </span>
 
                       {/* Amount */}
-                      <span className="text-xs font-black text-ink-primary tabular-nums">{formatCurrency(s.totalAmount)}</span>
+                      <span className="font-mono text-xs font-bold text-ink-primary tabular-nums justify-self-end">{formatCurrency(s.totalAmount)}</span>
                     </div>
                   );
                 })}
 
                 {/* Day subtotal */}
-                <div className="flex justify-end px-8 py-2.5 border-t border-black/5 bg-white/40">
+                <div className="flex justify-end items-center px-8 py-2.5 border-t border-black/5 bg-white/40">
                   <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mr-4">Day Total</span>
-                  <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(day.total)}</span>
+                  <span className="font-mono text-sm font-bold text-ink-primary tabular-nums">{formatCurrency(day.total)}</span>
                 </div>
               </div>
             )}

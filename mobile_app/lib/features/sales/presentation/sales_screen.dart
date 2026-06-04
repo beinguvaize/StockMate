@@ -230,7 +230,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   return ListView.separated(
                     padding: const EdgeInsets.fromLTRB(24, 0, 24, 100),
                     itemCount: sales.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
+                    separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final sale = sales[index];
                       final resolvedFromShop = (sale.shopId != null)

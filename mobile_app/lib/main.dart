@@ -208,7 +208,7 @@ class AuthGateScreen extends ConsumerWidget {
         return const _TenantGate();
       },
       loading: () => const _SplashScreen(),
-      error: (_, __) => const LoginScreen(),
+      error: (_, _) => const LoginScreen(),
     );
   }
 }

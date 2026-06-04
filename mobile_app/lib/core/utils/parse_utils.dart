@@ -1,5 +1,5 @@
 /// Safe numeric parsers — handle Supabase returning numerics as strings.
-library parse_utils;
+library;
 
 double toDouble(dynamic v, [double fallback = 0]) {
   if (v == null) return fallback;

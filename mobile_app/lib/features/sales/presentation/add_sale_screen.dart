@@ -122,8 +122,11 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     setState(() {
       final i = _cart.indexWhere((c) => c.product.id == p.id);
       if (i != -1) {
-        if (_cart[i].quantity > 1) _cart[i].quantity--;
-        else _cart.removeAt(i);
+        if (_cart[i].quantity > 1) {
+          _cart[i].quantity--;
+        } else {
+          _cart.removeAt(i);
+        }
       }
     });
   }
@@ -235,7 +238,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         'quantity': c.quantity,
         'name':     c.product.name,
         'rate':     c.unitPrice,
-        'taxRate':  c.product.taxRate ?? 0,
+        'taxRate':  c.product.taxRate,
       }).toList();
 
       final now = DateTime.now();
@@ -283,7 +286,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         'p_tenant_id':       tenantId,
         'p_delivery_method': 'PICKUP',
         'p_source_app':      'MOBILE',
-        if (paidAmt != null) 'p_paid_amount': paidAmt,
+        'p_paid_amount': ?paidAmt,
       };
 
       // Offline-first: try direct RPC, on network/transient failure queue it.
@@ -596,7 +599,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                               child: ListView.separated(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: categories.length,
-                                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                                separatorBuilder: (_, _) => const SizedBox(width: 8),
                                 itemBuilder: (_, i) {
                                   final cat = categories[i];
                                   final isAll = cat == 'All';
@@ -1541,7 +1544,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     // For INCLUSIVE: backed-out taxable. For EXCLUSIVE: lineTotal as-is.
     final inclusive = _taxMode == 'INCLUSIVE';
     return _localCart.fold(0.0, (s, c) {
-      final r = (c.product.taxRate ?? 0).toDouble();
+      final r = (c.product.taxRate).toDouble();
       final line = c.lineTotal;
       return s + (inclusive ? line / (1 + r / 100) : line);
     });
@@ -1550,7 +1553,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   double get _tax {
     final inclusive = _taxMode == 'INCLUSIVE';
     return _localCart.fold(0.0, (s, c) {
-      final r = (c.product.taxRate ?? 0).toDouble();
+      final r = (c.product.taxRate).toDouble();
       final line = c.lineTotal;
       return s + (inclusive ? line - (line / (1 + r / 100)) : line * r / 100);
     });
@@ -1569,7 +1572,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     final totalLine = _localCart.fold(0.0, (s, c) => s + c.lineTotal);
     if (totalLine <= 0) return 0;
     final weighted = _localCart.fold(0.0, (s, c) =>
-        s + c.lineTotal * (c.product.taxRate ?? 0).toDouble());
+        s + c.lineTotal * (c.product.taxRate).toDouble());
     return weighted / totalLine;
   }
 
@@ -1833,11 +1836,11 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       ),
                       child: Column(
                         children: [
-                          _BillRow(
+                          _billRow(
                               _taxMode == 'INCLUSIVE' ? 'Taxable' : 'Subtotal',
                               '₹${_subtotal.toStringAsFixed(2)}'),
                           const SizedBox(height: 10),
-                          _BillRow(
+                          _billRow(
                               'Tax (${_avgTaxRate.toStringAsFixed(_avgTaxRate % 1 == 0 ? 0 : 1)}%${_taxMode == 'INCLUSIVE' ? ' incl' : ''})',
                               '₹${_tax.toStringAsFixed(2)}'),
                           const Padding(
@@ -2054,7 +2057,7 @@ class _PayMethod {
   const _PayMethod(this.key, this.label, this.subtitle, this.icon);
 }
 
-Widget _BillRow(String label, String value) {
+Widget _billRow(String label, String value) {
   return Row(
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [

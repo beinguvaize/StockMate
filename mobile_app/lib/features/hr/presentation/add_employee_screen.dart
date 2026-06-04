@@ -199,7 +199,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                 child: Center(
                   child: ValueListenableBuilder(
                     valueListenable: _nameController,
-                    builder: (_, __, ___) {
+                    builder: (_, _, _) {
                       final initial = _nameController.text.isNotEmpty
                           ? _nameController.text[0].toUpperCase()
                           : '?';

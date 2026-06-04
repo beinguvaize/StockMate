@@ -220,7 +220,7 @@ class _ClientPaymentsScreenState extends ConsumerState<ClientPaymentsScreen> {
                     : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(20, 4, 20, 40),
                         itemCount: filtered.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (_, i) => _PaymentCard(row: filtered[i]),
                       ),
               ),
