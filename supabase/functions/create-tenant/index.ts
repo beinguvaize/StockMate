@@ -28,11 +28,17 @@ serve(async (req) => {
       throw new Error("Unauthorized");
     }
 
-    const { businessName, plan = "STARTER" } = await req.json();
+    const { businessName, plan = "STARTER", businessType = "RETAIL" } = await req.json();
 
     if (!businessName) {
       throw new Error("Business name is required");
     }
+
+    // Vertical identity (Stage A). Guard to the allowed set; default RETAIL.
+    const VALID_TYPES = ["RETAIL", "RESTAURANT", "SERVICES"];
+    const business_type = VALID_TYPES.includes(String(businessType).toUpperCase())
+      ? String(businessType).toUpperCase()
+      : "RETAIL";
 
     // 1. Generate Slug
     let slug = businessName
@@ -60,6 +66,7 @@ serve(async (req) => {
         name: businessName,
         slug: slug,
         plan: plan,
+        business_type: business_type,
         status: 'TRIAL',
         trial_end_date: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(),
         owner_id: user.id,

@@ -45,8 +45,9 @@ const PLANS = [
 ];
 
 const TenantSetup = () => {
-  const [step, setStep] = useState(1); // 1 = plan, 2 = business name
+  const [step, setStep] = useState(1); // 1 = plan, 2 = business name + industry
   const [selectedPlan, setSelectedPlan] = useState('STARTER');
+  const [businessType, setBusinessType] = useState('RETAIL'); // industry / vertical
   const [businessName, setBusinessName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -82,7 +83,7 @@ const TenantSetup = () => {
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({ businessName: businessName.trim(), plan: selectedPlan }),
+        body: JSON.stringify({ businessName: businessName.trim(), plan: selectedPlan, businessType }),
       });
       const data = await res.json();
       if (res.status === 401) {
@@ -215,6 +216,33 @@ const TenantSetup = () => {
             </div>
 
             <form onSubmit={handleSetup} className="space-y-5">
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 block mb-2">
+                  What kind of business?
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { id: 'RETAIL',     label: 'Retail',     desc: 'Shop · wholesale' },
+                    { id: 'RESTAURANT', label: 'Restaurant', desc: 'Food · dine-in' },
+                    { id: 'SERVICES',   label: 'Services',   desc: 'Appointments' },
+                  ].map((v) => (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setBusinessType(v.id)}
+                      className={`text-left p-3 rounded-xl border-2 transition-all ${
+                        businessType === v.id
+                          ? 'border-[#D97706] bg-[#D97706]/10'
+                          : 'border-white/10 bg-white/5 hover:border-white/20'
+                      }`}
+                    >
+                      <div className="text-white font-black text-[11px] uppercase tracking-tight">{v.label}</div>
+                      <div className="text-[9px] text-gray-400 mt-0.5">{v.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest ml-1 block mb-2">
                   Business Legal Name

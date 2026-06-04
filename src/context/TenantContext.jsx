@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useRef } from 'r
 import { supabase } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { isModuleAvailable } from '../lib/tenancy';
+import { normalizeType, resolveModules, isModuleEnabled, term } from '../lib/verticals';
 import { cacheClear as libCacheClear } from '../lib/cache';
 import { setAppTZ } from '../lib/utils';
 import { goHref } from '../lib/nav';
@@ -198,6 +199,15 @@ export const TenantProvider = ({ children }) => {
     return isModuleAvailable(currentTenant.plan || 'STARTER', moduleKey);
   };
 
+  // ── Vertical layer (Stage A) ──────────────────────────────────────────────
+  // Separate axis from plan gating above: business_type selects the default
+  // module set + terminology; tenant.modules overrides. A feature shows only if
+  // it is on for the vertical AND allowed by the plan.
+  const businessType = normalizeType(currentTenant?.business_type);
+  const tenantModules = resolveModules(currentTenant);
+  const isModuleOn = (key) => isModuleEnabled(tenantModules, key);
+  const t = (key) => term(businessType, key);
+
   const updateBusinessProfile = async (data) => {
     if (!currentTenantId) return { success: false, error: new Error('No tenant') };
     try {
@@ -246,6 +256,10 @@ export const TenantProvider = ({ children }) => {
     impersonateTenant,
     stopImpersonating,
     isModuleAllowed,
+    businessType,
+    tenantModules,
+    isModuleOn,
+    t,
     updateBusinessProfile,
     updateTenant,
     isMaintenance,

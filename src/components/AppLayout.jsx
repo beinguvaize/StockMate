@@ -72,6 +72,7 @@ const Navbar = () => {
   const [showAvatarPicker, setShowAvatarPicker] = React.useState(false);
   const {
     currentTenant, isModuleAllowed, isImpersonating, stopImpersonating,
+    isModuleOn, t,
     isOnline = true, syncStatus = 'SYNCED', lastSyncedAt = new Date().toISOString()
   } = useTenant();
  const { tenantSlug } = useParams();
@@ -86,18 +87,23 @@ const Navbar = () => {
  const isGlobalAdmin = roles.includes('GLOBAL_ADMIN');
  const basePath = tenantSlug ? `/${tenantSlug}` : '';
 
- // Nav item builder with plan gating
- const navItem = (label, path, icon, moduleKey, extraHidden = false) => ({
+ // Nav item builder. Three independent gates:
+ //   hidden  = role/permission (existing) OR vertical module off (Stage A)
+ //   locked  = plan tier doesn't include it (existing)
+ // `verticalKey` ties the item to a tenant.modules toggle; null = spine, always on.
+ const navItem = (label, path, icon, moduleKey, verticalKey = null, extraHidden = false) => ({
    label,
    path: `${basePath}${path}`,
    icon,
-   hidden: extraHidden || !hasPermission(moduleKey || path.replace('/', ''), 'view'),
+   hidden: extraHidden
+     || !hasPermission(moduleKey || path.replace('/', ''), 'view')
+     || (verticalKey ? !isModuleOn(verticalKey) : false),
    locked: moduleKey ? !isModuleAllowed(moduleKey) : false
  });
 
  const primaryNavItems = [
     navItem('Dashboard', '/dashboard', <LayoutDashboard size={20} />, 'dashboard'),
-    navItem('Inventory', '/inventory', <Package size={20} />, 'inventory'),
+    navItem(t('inventory'), '/inventory', <Package size={20} />, 'inventory', 'inventory'),
     navItem('Sales', '/sales', <ShoppingCart size={20} />, 'sales'),
     navItem('Invoices', '/invoices', <FileText size={20} />, 'sales'),
     navItem('Purchases', '/purchases', <ShoppingBag size={20} />, 'purchases'),
@@ -106,12 +112,12 @@ const Navbar = () => {
  ];
 
  const moreNavItems = [
-   navItem('Pipeline', '/orders', <ClipboardList size={20} />, 'sales'),
-   navItem('Manufacturing', '/manufacturing', <Factory size={20} />, 'inventory'),
+   navItem('Pipeline', '/orders', <ClipboardList size={20} />, 'sales', 'orders'),
+   navItem('Manufacturing', '/manufacturing', <Factory size={20} />, 'inventory', 'manufacturing'),
    navItem('Suppliers', '/suppliers', <Truck size={20} />, 'suppliers'),
-   navItem('Payroll', '/payroll', <Banknote size={20} />, 'payroll'),
+   navItem('Payroll', '/payroll', <Banknote size={20} />, 'payroll', 'payroll'),
    navItem('Day Book', '/daybook', <BookOpen size={20} />, 'daybook'),
-   navItem('Vehicles', '/vehicles', <Truck size={20} />, 'vehicles'),
+   navItem('Vehicles', '/vehicles', <Truck size={20} />, 'vehicles', 'vehicles'),
    navItem('Reports', '/reports', <BarChart3 size={20} />, 'reports'),
  ];
 

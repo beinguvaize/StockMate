@@ -17,10 +17,6 @@ import ReportIssueButton from './components/ReportIssueButton';
 
 // ── Eager (tiny, needed immediately) ────────────────────────────────────────
 import Login   from './pages/Login';
-// Landing page re-enabled — RootRedirect now sends anonymous visitors to
-// the public marketing page at `/`. Authenticated users still skip past
-// it straight to their dashboard.
-const Landing = lazy(() => import('./pages/Landing'));
 import NoAccess from './pages/NoAccess';
 
 // ── Lazy (loaded only when route is visited) ─────────────────────────────────
@@ -150,8 +146,9 @@ const RootRedirect = () => {
     return <Navigate to="/welcome" replace />;
   }
 
-  // Unauthenticated visitor → render the public marketing landing page.
-  return <Landing />;
+  // Unauthenticated visitor → app sign-in. Marketing lives on ledgrpro.com
+  // (the amber site); the app root no longer renders an in-app landing page.
+  return <Navigate to="/login" replace />;
 };
 
 function AppRoutes() {
