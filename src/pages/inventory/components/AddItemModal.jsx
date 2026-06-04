@@ -4,6 +4,7 @@ import Modal from '../../../shared/Modal';
 import Button from '../../../shared/Button';
 import { TAX_SLABS, UNITS } from '../../../lib/constants';
 import { uploadProductImage, listTenantProductImages } from '../../../lib/supabase';
+import { useTenant } from '../../../context/TenantContext';
 
 const DEFAULT_CATEGORIES = [
   'Electronics', 'Clothing & Apparel', 'Food & Beverages', 'Pharmaceuticals',
@@ -13,11 +14,15 @@ const DEFAULT_CATEGORIES = [
 ];
 
 const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId }) => {
+  const { businessType } = useTenant();
+  const isResto = businessType === 'RESTAURANT';
+
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
     costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
     lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: 'STANDARD',
-    secondary_unit: '', conversion_factor: ''
+    secondary_unit: '', conversion_factor: '',
+    food_type: '', is_available: true, station: '',   // menu (restaurant)
   });
 
   const [imageFile, setImageFile]     = useState(null);
@@ -62,6 +67,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         name: '', sku: '', category: '', unit: UNITS[0],
         costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
         lowStockThreshold: 10, min_margin: 0, barcode: '',
+        food_type: '', is_available: true, station: '',
       });
       setImagePreview(null);
     }
@@ -129,6 +135,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         tags: typeof formData.tags === 'string'
           ? formData.tags.split(',').map(t => t.trim()).filter(Boolean)
           : (Array.isArray(formData.tags) ? formData.tags : []),
+        // Menu (restaurant) — null food_type for retail / unset.
+        food_type: formData.food_type || null,
+        is_available: formData.is_available !== false,
+        station: formData.station?.trim() || null,
       };
 
       const result = await onSave(parsedData);
@@ -217,6 +227,50 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 </select>
               </div>
             </div>
+
+            {/* Menu details — restaurant only */}
+            {isResto && (
+              <>
+                <Section>Menu Details</Section>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Food Type</label>
+                    <div className="flex gap-2">
+                      {[
+                        { v: 'VEG', label: 'Veg', dot: 'bg-green-600' },
+                        { v: 'NONVEG', label: 'Non-veg', dot: 'bg-red-600' },
+                        { v: 'EGG', label: 'Egg', dot: 'bg-amber-500' },
+                      ].map(o => (
+                        <button
+                          key={o.v}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, food_type: formData.food_type === o.v ? '' : o.v })}
+                          className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border text-xs font-bold transition-all ${
+                            formData.food_type === o.v
+                              ? 'border-amber-500 bg-amber-50 text-ink-primary'
+                              : 'border-black/10 text-gray-500 hover:border-black/20'
+                          }`}
+                        >
+                          <span className={`w-2.5 h-2.5 rounded-sm ${o.dot}`} />{o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Kitchen Station <span className="text-gray-400 font-normal">— optional</span></label>
+                    <input type="text" className={inputCls} placeholder="Tandoor, Bar, Grill…"
+                      value={formData.station || ''} onChange={e => setFormData({ ...formData, station: e.target.value })} />
+                  </div>
+                </div>
+                <label className="flex items-center gap-3 cursor-pointer select-none">
+                  <input type="checkbox" className="w-4 h-4 rounded accent-amber-600"
+                    checked={formData.is_available !== false}
+                    onChange={e => setFormData({ ...formData, is_available: e.target.checked })} />
+                  <span className="text-sm font-semibold text-ink-primary">Available on menu</span>
+                  <span className="text-[11px] text-gray-400">— uncheck to 86 (mark out of stock)</span>
+                </label>
+              </>
+            )}
 
             <Section>Pricing &amp; Units</Section>
             {/* Row 3: Cost | Selling | Unit */}
