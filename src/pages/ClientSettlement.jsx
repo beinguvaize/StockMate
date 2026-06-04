@@ -9,7 +9,7 @@ import {
   ArrowLeft, Calendar, FileText,
   CheckCircle2, AlertCircle, Search, Clock, Receipt,
   Wallet, CreditCard, Smartphone, Landmark, History, BookOpen,
-  TrendingUp, TrendingDown
+  TrendingUp, TrendingDown, Phone, MapPin
 } from 'lucide-react';
 import { todayISOInAppTZ, formatDate, formatDateTime, formatCurrency } from '../lib/utils';
 
@@ -211,20 +211,18 @@ const ClientSettlement = () => {
     <div className="animate-fade-in pb-16">
 
       {/* Header */}
-      <div className="flex items-center gap-4 mb-8">
+      <div className="flex items-center gap-3 mb-6 pb-4 border-b border-black/5">
         <button
           onClick={() => navigate(-1)}
-          className="w-11 h-11 rounded-xl border border-black/10 bg-white flex items-center justify-center text-ink-primary hover:bg-canvas transition-all"
+          className="w-10 h-10 shrink-0 rounded-xl border border-black/10 bg-white flex items-center justify-center text-ink-primary hover:bg-black/5 transition-all group"
         >
-          <ArrowLeft size={18} />
+          <ArrowLeft size={18} className="group-hover:-translate-x-0.5 transition-transform" />
         </button>
-        <div>
-          <h1 className="text-4xl md:text-6xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight uppercase">
-            Settle<span className="text-accent-signature">.</span>
-          </h1>
-          <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mt-1">
-            Record payment for {client.name}
-          </p>
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">
+            Clients <span className="opacity-40">/</span> <span className="text-amber-600">Settle</span>
+          </div>
+          <h1 className="text-xl font-extrabold text-ink-primary leading-none truncate">{client.name}<span className="text-amber-500">.</span></h1>
         </div>
       </div>
 
@@ -235,30 +233,30 @@ const ClientSettlement = () => {
 
           {/* Client card */}
           <div className="bg-white rounded-2xl border border-black/5 p-5">
-            <div className="flex items-center gap-4 mb-5">
-              <div className="w-12 h-12 rounded-xl bg-ink-primary flex items-center justify-center text-accent-signature text-lg font-black">
+            <div className="flex items-center gap-4 mb-5 pb-5 border-b border-black/5">
+              <div className="w-14 h-14 shrink-0 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 font-mono text-lg font-bold">
                 {client.name.charAt(0).toUpperCase()}
               </div>
-              <div>
-                <div className="text-base font-black text-ink-primary uppercase leading-tight">{client.name}</div>
+              <div className="min-w-0">
+                <div className="text-base font-extrabold text-ink-primary leading-tight truncate">{client.name}</div>
                 <div className="text-[10px] text-gray-400 font-semibold mt-0.5">{client.gstin || client.gst_no || 'Unregistered'}</div>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="bg-red-50 rounded-xl p-3 border border-red-100">
-                <div className="text-[9px] font-bold text-red-400 uppercase tracking-widest mb-1">Outstanding</div>
-                <div className="text-xl font-black text-red-600 tabular-nums">{formatCurrency(outstanding)}</div>
+              <div className={`rounded-xl p-3 border ${outstanding > 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50/60 border-emerald-100'}`}>
+                <div className={`text-[9px] font-bold uppercase tracking-widest mb-1 ${outstanding > 0 ? 'text-red-400' : 'text-emerald-500'}`}>Outstanding</div>
+                <div className={`text-xl font-bold font-mono tabular-nums ${outstanding > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatCurrency(outstanding)}</div>
               </div>
               <div className="bg-canvas rounded-xl p-3 border border-black/5">
                 <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">Unpaid Invoices</div>
-                <div className="text-xl font-black text-ink-primary tabular-nums">{clientInvoices.length}</div>
+                <div className="text-xl font-bold font-mono text-ink-primary font-mono tabular-nums">{clientInvoices.length}</div>
               </div>
             </div>
 
-            <div className="space-y-2 text-xs font-semibold text-gray-600">
-              {client.phone && <div>📞 {client.phone}</div>}
-              {client.address && <div>📍 {client.address}</div>}
+            <div className="space-y-2 text-[13px] font-semibold text-gray-600">
+              {client.phone && <div className="flex items-center gap-2"><Phone size={13} className="text-gray-300 shrink-0" />{client.phone}</div>}
+              {client.address && <div className="flex items-start gap-2"><MapPin size={13} className="text-gray-300 shrink-0 mt-0.5" />{client.address}</div>}
             </div>
           </div>
 
@@ -310,7 +308,7 @@ const ClientSettlement = () => {
                   </span>
                   <input
                     required type="number" step="0.01" placeholder="0.00"
-                    className="w-full bg-white border border-gray-300 shadow-sm rounded-xl pl-8 pr-4 py-3 text-xl font-black text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                    className="w-full bg-white border border-gray-300 shadow-sm rounded-xl pl-8 pr-4 py-3 text-xl font-black text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 font-mono tabular-nums"
                     value={paymentData.amount}
                     onChange={e => setPaymentData({ ...paymentData, amount: e.target.value })}
                   />
@@ -450,7 +448,7 @@ const ClientSettlement = () => {
                           </div>
                         </td>
                         <td className="py-4 px-4 text-right">
-                          <div className={`text-sm font-black tabular-nums ${isSelected ? 'text-ink-primary' : 'text-gray-700'}`}>
+                          <div className={`text-sm font-black font-mono tabular-nums ${isSelected ? 'text-ink-primary' : 'text-gray-700'}`}>
                             {formatCurrency(inv.grand_total)}
                           </div>
                           {inv.paid_amount > 0 && (
@@ -476,11 +474,11 @@ const ClientSettlement = () => {
               <div className="border-t border-black/5 bg-ink-primary px-6 py-4 flex items-center justify-between rounded-b-2xl">
                 <div>
                   <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-0.5">Selected Total</div>
-                  <div className="text-2xl font-black text-white tabular-nums">{formatCurrency(selectedTotal)}</div>
+                  <div className="text-2xl font-black text-white font-mono tabular-nums">{formatCurrency(selectedTotal)}</div>
                 </div>
                 <div className="text-right">
                   <div className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-0.5">Remaining After</div>
-                  <div className="text-xl font-black text-accent-signature tabular-nums">
+                  <div className="text-xl font-black text-accent-signature font-mono tabular-nums">
                     {formatCurrency(Math.max(0, outstanding - selectedTotal))}
                   </div>
                 </div>
@@ -547,7 +545,7 @@ const ClientSettlement = () => {
                         </td>
                         <td className="py-3 px-4 text-xs text-gray-500 max-w-[200px] truncate">{p.notes || '—'}</td>
                         <td className="py-3 px-4 text-right">
-                          <span className="text-sm font-black text-emerald-600 tabular-nums">{formatCurrency(p.amount)}</span>
+                          <span className="text-sm font-black text-emerald-600 font-mono tabular-nums">{formatCurrency(p.amount)}</span>
                         </td>
                       </tr>
                     );
@@ -557,7 +555,7 @@ const ClientSettlement = () => {
                   <tr>
                     <td colSpan="3" className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Total Collected</td>
                     <td className="py-3 px-4 text-right">
-                      <span className="text-sm font-black text-emerald-600 tabular-nums">
+                      <span className="text-sm font-black text-emerald-600 font-mono tabular-nums">
                         {formatCurrency(paymentHistory.reduce((s, p) => s + Number(p.amount), 0))}
                       </span>
                     </td>
@@ -592,14 +590,14 @@ const ClientSettlement = () => {
                           <span className="text-xs font-semibold text-ink-primary">{row.description}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-right text-sm font-semibold tabular-nums text-red-500">
+                      <td className="py-3 px-4 text-right text-sm font-semibold font-mono tabular-nums text-red-500">
                         {row.debit > 0 ? formatCurrency(row.debit) : '—'}
                       </td>
-                      <td className="py-3 px-4 text-right text-sm font-semibold tabular-nums text-emerald-600">
+                      <td className="py-3 px-4 text-right text-sm font-semibold font-mono tabular-nums text-emerald-600">
                         {row.credit > 0 ? formatCurrency(row.credit) : '—'}
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <span className={`text-sm font-black tabular-nums ${row.balance > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
+                        <span className={`text-sm font-black font-mono tabular-nums ${row.balance > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
                           {formatCurrency(Math.abs(row.balance))}
                           {row.balance > 0 ? ' Dr' : row.balance < 0 ? ' Cr' : ''}
                         </span>
@@ -610,17 +608,17 @@ const ClientSettlement = () => {
                 <tfoot className="border-t-2 border-black/10 bg-ink-primary">
                   <tr>
                     <td colSpan="2" className="py-3 px-4 text-xs font-bold text-white/60 uppercase tracking-widest">Closing Balance</td>
-                    <td className="py-3 px-4 text-right text-xs font-black text-red-300 tabular-nums">
+                    <td className="py-3 px-4 text-right text-xs font-black text-red-300 font-mono tabular-nums">
                       {formatCurrency(statementRows.reduce((s, r) => s + r.debit, 0))}
                     </td>
-                    <td className="py-3 px-4 text-right text-xs font-black text-emerald-300 tabular-nums">
+                    <td className="py-3 px-4 text-right text-xs font-black text-emerald-300 font-mono tabular-nums">
                       {formatCurrency(statementRows.reduce((s, r) => s + r.credit, 0))}
                     </td>
                     <td className="py-3 px-4 text-right">
                       {(() => {
                         const last = statementRows[statementRows.length - 1];
                         return (
-                          <span className={`text-sm font-black tabular-nums ${last.balance > 0 ? 'text-red-300' : 'text-emerald-300'}`}>
+                          <span className={`text-sm font-black font-mono tabular-nums ${last.balance > 0 ? 'text-red-300' : 'text-emerald-300'}`}>
                             {formatCurrency(Math.abs(last.balance))} {last.balance > 0 ? 'Dr' : 'Cr'}
                           </span>
                         );
