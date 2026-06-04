@@ -38,50 +38,50 @@ const ClientDirectory = ({
   return (
     <div className="space-y-6">
 
-      {/* KPI — receivables hero + stat rail */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.3fr_1fr_1fr_1fr] gap-4">
+      {/* KPI — receivables hero + stat rail (compact) */}
+      <div className="grid grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr] gap-3">
         {/* Hero: total receivables */}
-        <div className="rounded-3xl bg-ink-primary p-6 relative overflow-hidden">
-          <div className="absolute -right-10 -top-10 w-40 h-40 rounded-full bg-amber-500/20 blur-3xl pointer-events-none" />
-          <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-amber-400">
-            <TrendingUp size={13} /> Total Receivables
+        <div className="rounded-2xl bg-ink-primary px-4 py-3.5 relative overflow-hidden">
+          <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-amber-500/20 blur-2xl pointer-events-none" />
+          <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-amber-400">
+            <TrendingUp size={11} /> Total Receivables
           </div>
-          <div className="font-mono tabular-nums text-4xl font-bold text-white mt-3 leading-none">
-            <span className="text-xl text-amber-400/70 mr-0.5">{sym}</span>{Math.round(topMetrics.totalReceivables || 0).toLocaleString('en-IN')}
+          <div className="font-mono tabular-nums text-[26px] font-bold text-white mt-1 leading-none">
+            <span className="text-base text-amber-400/70 mr-0.5">{sym}</span>{Math.round(topMetrics.totalReceivables || 0).toLocaleString('en-IN')}
           </div>
-          <div className="text-[11px] text-white/40 font-mono mt-3">
-            {topMetrics.pendingCollections || 0} accounts pending collection
+          <div className="text-[10px] text-white/40 font-mono mt-1.5">
+            {topMetrics.pendingCollections || 0} accounts pending
           </div>
         </div>
 
         {/* Total clients */}
-        <div className="rounded-3xl bg-white border border-black/5 p-5 flex flex-col justify-between min-h-[128px]">
-          <div className="w-9 h-9 rounded-xl bg-gray-100 grid place-items-center text-gray-500"><Users size={16} /></div>
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Total Clients</div>
-            <div className="font-mono tabular-nums text-3xl font-bold mt-1 leading-none text-ink-primary">{filteredClients.length}</div>
+        <div className="rounded-2xl bg-white border border-black/5 px-4 py-3.5 flex items-center gap-3">
+          <div className="w-8 h-8 shrink-0 rounded-lg bg-gray-100 grid place-items-center text-gray-500"><Users size={14} /></div>
+          <div className="min-w-0">
+            <div className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Total Clients</div>
+            <div className="font-mono tabular-nums text-xl font-bold leading-none text-ink-primary mt-0.5">{filteredClients.length}</div>
           </div>
         </div>
 
         {/* Top debtor */}
-        <div className="rounded-3xl bg-white border border-black/5 p-5 flex flex-col justify-between min-h-[128px]">
-          <div className="w-9 h-9 rounded-xl bg-amber-50 grid place-items-center text-amber-600"><CreditCard size={16} /></div>
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Top Debtor</div>
-            <div className="font-mono tabular-nums text-2xl font-bold mt-1 leading-none text-red-600">
-              <span className="text-base text-red-400 mr-0.5">{sym}</span>{Math.round(topMetrics.topDebtor?.amount || 0).toLocaleString('en-IN')}
+        <div className="rounded-2xl bg-white border border-black/5 px-4 py-3.5 flex items-center gap-3">
+          <div className="w-8 h-8 shrink-0 rounded-lg bg-amber-50 grid place-items-center text-amber-600"><CreditCard size={14} /></div>
+          <div className="min-w-0">
+            <div className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Top Debtor</div>
+            <div className="font-mono tabular-nums text-lg font-bold leading-none text-red-600 mt-0.5">
+              <span className="text-sm text-red-400 mr-0.5">{sym}</span>{Math.round(topMetrics.topDebtor?.amount || 0).toLocaleString('en-IN')}
             </div>
-            <div className="text-[11px] text-gray-400 truncate mt-0.5">{topMetrics.topDebtor?.name && topMetrics.topDebtor.name !== 'None' ? topMetrics.topDebtor.name : 'No exposure'}</div>
+            <div className="text-[10px] text-gray-400 truncate mt-0.5">{topMetrics.topDebtor?.name && topMetrics.topDebtor.name !== 'None' ? topMetrics.topDebtor.name : 'No exposure'}</div>
           </div>
         </div>
 
         {/* Pending collections */}
-        <div className="rounded-3xl bg-white border border-black/5 p-5 flex flex-col justify-between min-h-[128px]">
-          <div className="w-9 h-9 rounded-xl bg-gray-100 grid place-items-center text-gray-500"><Clock size={16} /></div>
-          <div>
-            <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Pending</div>
-            <div className="font-mono tabular-nums text-3xl font-bold mt-1 leading-none text-ink-primary">{topMetrics.pendingCollections || 0}</div>
-            <div className="text-[11px] text-gray-400 mt-0.5">collections</div>
+        <div className="rounded-2xl bg-white border border-black/5 px-4 py-3.5 flex items-center gap-3">
+          <div className="w-8 h-8 shrink-0 rounded-lg bg-gray-100 grid place-items-center text-gray-500"><Clock size={14} /></div>
+          <div className="min-w-0">
+            <div className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Pending</div>
+            <div className="font-mono tabular-nums text-xl font-bold leading-none text-ink-primary mt-0.5">{topMetrics.pendingCollections || 0}</div>
+            <div className="text-[10px] text-gray-400 mt-0.5">collections</div>
           </div>
         </div>
       </div>
