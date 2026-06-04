@@ -187,11 +187,13 @@ const Navbar = () => {
 
  {/* Branding */}
  <div className="flex items-center gap-4">
- <img
- src={`${import.meta.env.BASE_URL}logo.png`}
- alt="Ledger Logo"
- className="h-10 md:h-14 w-auto object-contain mix-blend-multiply animate-in fade-in duration-700"
- />
+ <div className="flex items-center gap-2.5 animate-in fade-in duration-700">
+   <svg width="34" height="34" viewBox="0 0 40 40" fill="none" className="shrink-0">
+     <rect width="40" height="40" rx="11" fill="#D97706"/>
+     <path d="M27 13.5H16.5a3 3 0 000 6h7a3 3 0 010 6H13" stroke="#fff" strokeWidth="3.4" strokeLinecap="round"/>
+   </svg>
+   <span className="font-sora text-xl font-black tracking-tight text-ink-primary">Ledgr<span className="text-accent-signature">Pro</span></span>
+ </div>
  {currentTenant && (
    <div className="hidden md:flex items-center gap-2">
      <div className="w-px h-6 bg-black/10"></div>
@@ -355,7 +357,13 @@ const Navbar = () => {
  <div className="absolute left-0 top-0 bottom-0 w-[280px] bg-surface shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
  {/* Drawer Header */}
  <div className="flex items-center justify-between p-5 border-b border-black/5">
- <img src={`${import.meta.env.BASE_URL}logo.png`} alt="Logo" className="h-10 w-auto object-contain mix-blend-multiply" />
+ <div className="flex items-center gap-2.5">
+   <svg width="30" height="30" viewBox="0 0 40 40" fill="none" className="shrink-0">
+     <rect width="40" height="40" rx="11" fill="#D97706"/>
+     <path d="M27 13.5H16.5a3 3 0 000 6h7a3 3 0 010 6H13" stroke="#fff" strokeWidth="3.4" strokeLinecap="round"/>
+   </svg>
+   <span className="font-sora text-lg font-black tracking-tight text-ink-primary">Ledgr<span className="text-accent-signature">Pro</span></span>
+ </div>
  <button 
  onClick={() => setIsMobileMenuOpen(false)}
  className="w-9 h-9 rounded-xl bg-canvas flex items-center justify-center text-ink-primary"
