@@ -62,7 +62,7 @@ table.report-table thead th {
     background: #f8fafc;            /* slate-50 */
     border-bottom: 1px solid #e2e8f0;/* slate-200 */
     color: #64748b;                  /* slate-500 */
-    font-family: 'Sora', Inter, sans-serif;
+    font-family: 'Manrope', sans-serif;
     font-weight: 700;
     font-size: 10px;
     letter-spacing: 0.08em;
@@ -201,16 +201,15 @@ table.report-table tbody td.numeric {
   --border-color: rgba(0,0,0,0.08);
 }
 
-/* White theme: Inter font — clean professional */
-[data-theme="white"] body,
-[data-theme="white"] * {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+/* Font is brand-constant (Manrope) across every theme; themes vary by
+   canvas/accent only. Don't blanket-override `*` — that would clobber the
+   JetBrains Mono numeric cells. */
+[data-theme="white"] body {
   letter-spacing: -0.01em;
 }
 [data-theme="white"] h1,
 [data-theme="white"] h2,
 [data-theme="white"] h3 {
-  font-family: 'Inter', sans-serif !important;
   letter-spacing: -0.03em;
 }
 
@@ -221,7 +220,6 @@ table.report-table tbody td.numeric {
 [data-theme="white"] .text-4xl.font-black {
   text-transform: uppercase !important;
   letter-spacing: -0.04em !important;
-  font-family: 'Inter', sans-serif !important;
   font-size: 4rem !important;
   line-height: 1 !important;
 }
@@ -374,7 +372,7 @@ table.report-table tbody td.numeric {
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif !important;
   background: var(--color-canvas);
   color: var(--color-ink-primary);
   line-height: 1.5;
@@ -939,7 +937,7 @@ body {
 .kpi-expense:hover { border-color: rgba(239, 68, 68, 0.3); box-shadow: 0 12px 24px -10px var(--expense-glow); }
 
 .kpi-value {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, sans-serif !important;
   font-size: 3.5rem;
   line-height: 1;
   letter-spacing: 0.02em;
