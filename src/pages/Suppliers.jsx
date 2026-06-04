@@ -38,6 +38,13 @@ const Suppliers = () => {
  notes: ''
 });
 
+ // First two word-initials for the avatar tile (e.g. "GPS Paper Cup" → "GP").
+ const initialsOf = (name) => {
+   const w = (name || '').trim().split(/\s+/).filter(Boolean);
+   if (!w.length) return '–';
+   return (w[0][0] + (w[1]?.[0] || '')).toUpperCase();
+ };
+
  const filteredSuppliers = useMemo(() => {
  return suppliers.filter(s =>  s.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
   s.contact_person?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -209,85 +216,94 @@ const Suppliers = () => {
   </div>
   </div>
 
- <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+ {/* Dense supplier ledger list */}
+ <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
+ {/* Column header */}
+ <div className="hidden md:grid grid-cols-[1fr_7rem_7rem_6rem_5rem] gap-4 px-5 py-2.5 text-[10px] uppercase tracking-wider font-bold text-gray-400 border-b border-black/5">
+ <div>Supplier</div>
+ <div className="text-right">Procured</div>
+ <div className="text-right">You Owe</div>
+ <div className="text-right">Last Supply</div>
+ <div className="text-right">Actions</div>
+ </div>
+
+ {filteredSuppliers.length === 0 && (
+ <div className="px-5 py-16 text-center text-sm font-semibold text-gray-400">
+ No suppliers found.
+ </div>
+ )}
+
+ <div className="divide-y divide-black/5">
  {filteredSuppliers.map(s => {
  const stats = getSupplierStats(s.id);
+ const cur = businessProfile?.currencySymbol || '₹';
+ const goLedger = () => navigate(`/${tenantSlug}/suppliers/ledger/${s.id}`);
  return (
-  <div key={s.id} data-testid="supplier-row" className="glass-panel !p-0 !rounded-[2.5rem] border border-black/5 bg-white hover:shadow-premium transition-all overflow-hidden group">
- <div className="p-6">
- <div className="flex justify-between items-start mb-6">
- <div className="flex items-center gap-4">
- <div className="w-12 h-12 rounded-lg bg-canvas flex items-center justify-center text-ink-primary border border-black/5 group-hover:scale-110 transition-transform shadow-sm">
- <Building2 size={24} />
- </div>
- <div>
- <h3 className="text-base font-semibold text-ink-primary leading-none mb-1">{s.name}</h3>
- <span className="text-[10px] font-bold text-gray-700 opacity-[0.85]">{s.contact_person || 'No Contact'}</span>
- </div>
- </div>
- <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-  <button 
-    data-testid="edit-supplier-btn"
-    onClick={() => openEditModal(s)} 
-    className="p-2 rounded-xl border border-black/5 hover:bg-canvas transition-colors text-gray-700"
-  >
-  <Edit3 size={14} />
-  </button>
-  {!isViewOnly() && (
-  <button 
-    data-testid="delete-supplier-btn"
-    onClick={() => handleDelete(s.id)} 
-    className="p-2 rounded-xl border border-black/5 hover:bg-red-50 hover:text-red-500 transition-colors text-gray-700"
-  >
-  <Trash2 size={14} />
-  </button>
-  )}
- </div>
- </div>
-
- <div className="space-y-3 mb-6">
- <div className="flex items-center gap-3 text-xs font-medium text-gray-700 opacity-80">
- <Phone size={14} strokeWidth={2.5} className="opacity-70" />
- {s.phone || 'N/A'}
- </div>
- <div className="flex items-center gap-3 text-xs font-medium text-gray-700 opacity-80">
- <Mail size={14} strokeWidth={2.5} className="opacity-70" />
- {s.email || 'N/A'}
- </div>
- </div>
-
- <div className="grid grid-cols-3 gap-2">
- <div className="bg-canvas p-3 rounded-lg border border-black/5">
- <p className="text-[8px] font-semibold text-gray-700 opacity-70 mb-1">Procured</p>
- <p className="text-xs font-semibold text-ink-primary truncate">
- {businessProfile?.currencySymbol || '₹'}{stats.totalProcured.toLocaleString()}
- </p>
- </div>
- <div className={`p-3 rounded-lg border ${stats.creditDue > 0 ? 'bg-red-50 border-red-100' : 'bg-canvas border-black/5'}`}>
- <p className="text-[8px] font-semibold text-gray-700 opacity-70 mb-1">You Owe</p>
- <p className={`text-xs font-semibold truncate ${stats.creditDue > 0 ? 'text-red-600' : 'text-emerald-600'}`}>
- {businessProfile?.currencySymbol || '₹'}{stats.creditDue.toLocaleString()}
- </p>
- </div>
- <div className="bg-canvas p-3 rounded-lg border border-black/5">
- <p className="text-[8px] font-semibold text-gray-700 opacity-70 mb-1">Last Supply</p>
- <p className="text-xs font-semibold text-ink-primary truncate">
- {stats.lastPurchase ? new Date(stats.lastPurchase).toLocaleDateString(undefined, { day: 'numeric', month: 'short'}) : 'Never'}
- </p>
- </div>
- </div>
- </div>
- 
- <button 
- onClick={() => navigate(`/${tenantSlug}/suppliers/ledger/${s.id}`)}
- className="w-full py-2 bg-ink-primary text-surface text-[10px] font-semibold hover:bg-ink-primary/95 transition-all flex items-center justify-center gap-3"
+ <div
+ key={s.id}
+ data-testid="supplier-row"
+ onClick={goLedger}
+ className="grid grid-cols-2 md:grid-cols-[1fr_7rem_7rem_6rem_5rem] gap-x-4 gap-y-2 px-5 py-3 items-center hover:bg-amber-50/40 transition-colors cursor-pointer group"
  >
- View Transactions
- <ArrowUpRight size={14} className="text-accent-signature" />
+ {/* Supplier identity */}
+ <div className="flex items-center gap-3 min-w-0 col-span-2 md:col-span-1">
+ <div className="w-9 h-9 shrink-0 rounded-lg bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center font-mono font-bold text-[12px]">
+ {initialsOf(s.name)}
+ </div>
+ <div className="min-w-0">
+ <div className="font-bold text-[13px] text-ink-primary truncate">{s.name}</div>
+ <div className="text-[11px] text-gray-400 truncate">
+ {[s.contact_person, s.phone].filter(Boolean).join(' · ') || 'No contact'}
+ </div>
+ </div>
+ </div>
+
+ {/* Procured */}
+ <div className="text-left md:text-right">
+ <span className="md:hidden text-[9px] uppercase tracking-wider font-bold text-gray-400 mr-1">Procured</span>
+ <span className="font-mono tabular-nums text-[13px] font-bold text-ink-primary">{cur}{stats.totalProcured.toLocaleString()}</span>
+ </div>
+
+ {/* You owe */}
+ <div className="text-left md:text-right">
+ <span className="md:hidden text-[9px] uppercase tracking-wider font-bold text-gray-400 mr-1">You owe</span>
+ <span className={`font-mono tabular-nums text-[13px] font-bold ${stats.creditDue > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{cur}{stats.creditDue.toLocaleString()}</span>
+ </div>
+
+ {/* Last supply */}
+ <div className="text-left md:text-right">
+ <span className="md:hidden text-[9px] uppercase tracking-wider font-bold text-gray-400 mr-1">Last</span>
+ <span className="text-[12px] font-semibold text-gray-600">{stats.lastPurchase ? new Date(stats.lastPurchase).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : 'Never'}</span>
+ </div>
+
+ {/* Actions */}
+ <div className="flex items-center justify-end gap-1 col-span-2 md:col-span-1" onClick={e => e.stopPropagation()}>
+ <button
+ data-testid="edit-supplier-btn"
+ onClick={() => openEditModal(s)}
+ title="Edit"
+ className="p-1.5 rounded-lg hover:bg-black/5 text-gray-400 hover:text-ink-primary transition-colors"
+ >
+ <Edit3 size={14} />
  </button>
+ {!isViewOnly() && (
+ <button
+ data-testid="delete-supplier-btn"
+ onClick={() => handleDelete(s.id)}
+ title="Delete"
+ className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+ >
+ <Trash2 size={14} />
+ </button>
+ )}
+ <button onClick={goLedger} title="View transactions" className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition-colors">
+ <ArrowUpRight size={15} />
+ </button>
+ </div>
  </div>
  );
 })}
+ </div>
  </div>
  </div>
  </div>
