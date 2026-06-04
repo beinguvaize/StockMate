@@ -70,6 +70,8 @@ const BASE_TERMS = {
   customer: 'Customer', customers: 'Customers',
   sale: 'Sale', sales: 'Sales',
   catalog: 'Catalog',
+  recipe: 'Bill of Materials', recipes: 'Bills of Materials',
+  build: 'Build',
 };
 
 export const TERMS = {
@@ -81,6 +83,8 @@ export const TERMS = {
     customer: 'Guest', customers: 'Guests',
     sale: 'Order', sales: 'Orders',
     catalog: 'Menu',
+    recipe: 'Recipe', recipes: 'Recipes',
+    build: 'Prep',
   },
   SERVICES: {
     ...BASE_TERMS,

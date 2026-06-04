@@ -68,13 +68,14 @@ export function useManufacturing(tenantId) {
   };
 
   // ── Production orders ───────────────────────────────────────────────
-  const createProductionOrder = async ({ bomId, finishedProductId, qtyProduced, materials, costs, notes }) => {
+  const createProductionOrder = async ({ bomId, finishedProductId, qtyProduced, materials, costs, notes, productionDate }) => {
     try {
       const { data: order, error } = await supabase.from('production_orders')
         .insert({
           tenant_id: tenantId, bom_id: bomId || null,
           finished_product_id: finishedProductId,
           qty_produced: Number(qtyProduced), notes: notes || null,
+          ...(productionDate ? { production_date: productionDate } : {}),
         })
         .select().single();
       if (error) return { success: false, error };

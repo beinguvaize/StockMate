@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 
 const Manufacturing = () => {
-  const { currentTenantId } = useTenant();
+  const { currentTenantId, t } = useTenant();
+  const recipeWord = t('recipe');   // 'Recipe' (restaurant) / 'Bill of Materials' (retail)
   const { products } = useInventory(currentTenantId);
   const { addNotification } = useNotifications();
   const {
@@ -37,7 +38,7 @@ const Manufacturing = () => {
               Manufacturing<span className="text-accent-signature">.</span>
             </h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-              Recipes · production · costing
+              {recipeWord} · production · costing
             </p>
           </div>
         </div>
@@ -45,7 +46,7 @@ const Manufacturing = () => {
           onClick={() => tab === 'RECIPES' ? setShowRecipe(true) : setShowBuild(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all"
         >
-          <Plus size={14} /> {tab === 'RECIPES' ? 'New Recipe' : 'New Build'}
+          <Plus size={14} /> {tab === 'RECIPES' ? `New ${recipeWord}` : 'New Build'}
         </button>
       </div>
 
@@ -53,7 +54,7 @@ const Manufacturing = () => {
       <div className="flex items-center gap-1.5 p-1.5 bg-white/60 border border-black/5 rounded-2xl w-fit">
         {[
           { id: 'PRODUCTION', label: 'Production Orders', icon: ClipboardList },
-          { id: 'RECIPES',    label: 'Recipes (BOM)',     icon: Layers },
+          { id: 'RECIPES',    label: recipeWord,          icon: Layers },
         ].map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`flex items-center gap-2 px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${
@@ -193,7 +194,7 @@ const Manufacturing = () => {
       )}
 
       {showRecipe && (
-        <RecipeModal products={products} onClose={() => setShowRecipe(false)}
+        <RecipeModal products={products} recipeWord={recipeWord} onClose={() => setShowRecipe(false)}
           onSave={async (payload) => {
             const r = await createBom(payload);
             if (r.success) { setShowRecipe(false); addNotification('Recipe saved', 'success'); }
@@ -201,7 +202,7 @@ const Manufacturing = () => {
           }} />
       )}
       {showBuild && (
-        <BuildModal products={products} boms={boms} bomComponents={bomComponents}
+        <BuildModal products={products} boms={boms} bomComponents={bomComponents} recipeWord={recipeWord}
           onClose={() => setShowBuild(false)}
           onSave={async (payload) => {
             const r = await createProductionOrder(payload);
@@ -214,7 +215,7 @@ const Manufacturing = () => {
 };
 
 /* ── Recipe modal ─────────────────────────────────────────────────── */
-const RecipeModal = ({ products, onClose, onSave }) => {
+const RecipeModal = ({ products, onClose, onSave, recipeWord = 'Recipe' }) => {
   const [finishedId, setFinishedId] = useState('');
   const [outputQty, setOutputQty]   = useState('1');
   const [rows, setRows]             = useState([{ productId: '', quantity: '', unit: 'BASE' }]);
@@ -233,7 +234,7 @@ const RecipeModal = ({ products, onClose, onSave }) => {
     rows.some(r => r.productId && Number(r.quantity) > 0);
 
   return (
-    <Modal title="New Recipe" subtitle="Define the raw materials and output for a finished product" onClose={onClose} size="xl">
+    <Modal title={`New ${recipeWord}`} subtitle="Define the raw materials and output for a finished product" onClose={onClose} size="xl">
       {/* Top: Finished product + output side-by-side */}
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-5 mb-6">
         <Field label="Finished Product">
@@ -309,10 +310,12 @@ const RecipeModal = ({ products, onClose, onSave }) => {
 };
 
 /* ── Build modal ──────────────────────────────────────────────────── */
-const BuildModal = ({ products, boms, bomComponents, onClose, onSave }) => {
+const BuildModal = ({ products, boms, bomComponents, onClose, onSave, recipeWord = 'Recipe' }) => {
   const [bomId, setBomId]       = useState('');
   const [qty, setQty]           = useState('');
   const [costs, setCosts]       = useState([{ label: '', amount: '' }]);
+  const [prodDate, setProdDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [notes, setNotes]       = useState('');
   const [saving, setSaving]     = useState(false);
 
   const bom = boms.find(b => b.id === bomId);
@@ -354,13 +357,20 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave }) => {
   const canSave = bom && Number(qty) > 0;
 
   return (
-    <Modal title="New Build" subtitle="Create a production order from a recipe" onClose={onClose}>
-      <Field label="Recipe">
+    <Modal title="New Build" subtitle={`Create a production order from a ${recipeWord.toLowerCase()}`} onClose={onClose}>
+      <Field label={recipeWord}>
         <select className={selCls} value={bomId} onChange={e => setBomId(e.target.value)}>
-          <option value="">Select recipe…</option>
+          <option value="">Select {recipeWord.toLowerCase()}…</option>
           {boms.map(b => <option key={b.id} value={b.id}>{b.name || productName(b.finished_product_id)}</option>)}
         </select>
       </Field>
+      {bom && (
+        <div className="flex items-center gap-2 -mt-2 mb-3 text-xs text-gray-500">
+          <Package size={13} className="text-amber-600" />
+          Produces <span className="font-bold text-ink-primary">{Number(qty) > 0 ? Number(qty) : bom.output_qty} × {productName(bom.finished_product_id)}</span>
+          <span className="text-gray-400">· yields {bom.output_qty}/batch</span>
+        </div>
+      )}
       <Field label="Quantity to Produce">
         <input type="number" min="1" placeholder="0" className={selCls} value={qty} onChange={e => setQty(e.target.value)} />
       </Field>
@@ -418,6 +428,15 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave }) => {
         ))}
       </div>
 
+      <div className="grid grid-cols-2 gap-3 mt-4">
+        <Field label="Production Date">
+          <input type="date" className={selCls} value={prodDate} onChange={e => setProdDate(e.target.value)} />
+        </Field>
+        <Field label="Notes (optional)">
+          <input type="text" className={selCls} placeholder="Batch ref, shift…" value={notes} onChange={e => setNotes(e.target.value)} />
+        </Field>
+      </div>
+
       <button disabled={!canSave || saving}
         onClick={async () => {
           setSaving(true);
@@ -425,6 +444,7 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave }) => {
             bomId, finishedProductId: bom.finished_product_id,
             qtyProduced: Number(qty), materials,
             costs: costs.map(c => ({ type: 'OTHER', label: c.label, amount: c.amount })),
+            productionDate: prodDate, notes: notes.trim() || null,
           });
           setSaving(false);
         }}
@@ -462,7 +482,7 @@ const RowX = ({ onClick }) => (
 const Modal = ({ title, subtitle, onClose, children, size = 'lg' }) => {
   const widthCls = size === 'xl' ? 'max-w-4xl' : size === 'md' ? 'max-w-xl' : 'max-w-2xl';
   return (
-    <div className="fixed inset-0 z-50 bg-ink-primary/40 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
       <div className={`w-full ${widthCls} bg-white rounded-[2rem] shadow-2xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200`}>
         <div className="flex items-center gap-4 px-8 py-6 border-b border-black/5 sticky top-0 bg-white/95 backdrop-blur z-10">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent-signature/15 to-accent-signature/5 border border-accent-signature/10 flex items-center justify-center shrink-0 shadow-sm">
