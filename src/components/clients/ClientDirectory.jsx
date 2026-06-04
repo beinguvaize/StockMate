@@ -135,17 +135,18 @@ const ClientDirectory = ({
             return (
               <div
                 key={client.id}
-                className={`grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 items-center px-5 py-3.5 border-b border-black/5 last:border-0 hover:bg-canvas/60 transition-colors group ${idx % 2 === 0 ? '' : 'bg-black/[0.01]'}`}
+                onClick={() => (onViewStatement ? onViewStatement(client) : goToSettle(client.id))}
+                className={`grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 items-center px-5 py-3.5 border-b border-black/5 last:border-0 hover:bg-amber-50/40 transition-colors group cursor-pointer ${idx % 2 === 0 ? '' : 'bg-black/[0.01]'}`}
               >
                 {/* Name + meta */}
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-8 h-8 rounded-lg bg-accent-signature/10 border border-accent-signature/20 flex items-center justify-center text-xs font-black text-ink-primary shrink-0">
+                  <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-[12px] font-mono font-bold text-amber-600 shrink-0">
                     {client.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
-                    <div className="text-sm font-semibold text-ink-primary truncate leading-tight">{client.name}</div>
+                    <div className="text-sm font-bold text-ink-primary truncate leading-tight">{client.name}</div>
                     <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-[9px] font-semibold text-gray-400">{stats.orderCount} orders</span>
+                      <span className="text-[9px] font-semibold text-gray-400">{stats.orderCount} {stats.orderCount === 1 ? 'order' : 'orders'}</span>
                       {inTransitCount > 0 && (
                         <span className="flex items-center gap-0.5 text-[8px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-pill">
                           <Truck size={7} /> {inTransitCount} in transit
@@ -162,7 +163,7 @@ const ClientDirectory = ({
                         </span>
                       )}
                       {client.state && (
-                        <span className="text-[9px] text-gray-400 font-medium">{client.state}</span>
+                        <span className="text-[9px] text-gray-400 font-medium capitalize">{client.state.toLowerCase()}</span>
                       )}
                     </div>
                   </div>
@@ -195,42 +196,59 @@ const ClientDirectory = ({
 
                 {/* Revenue */}
                 <div className="text-right">
-                  <div className="font-mono text-sm font-bold text-ink-primary tabular-nums">
-                    <span className="text-amber-400 mr-0.5">{sym}</span>{Math.round(stats.totalSales).toLocaleString('en-IN')}
-                  </div>
+                  {stats.totalSales > 0 ? (
+                    <div className="font-mono text-sm font-bold text-ink-primary tabular-nums">
+                      <span className="text-amber-400 mr-0.5">{sym}</span>{Math.round(stats.totalSales).toLocaleString('en-IN')}
+                    </div>
+                  ) : (
+                    <div className="font-mono text-sm font-semibold text-gray-300 tabular-nums">{sym}0</div>
+                  )}
                 </div>
 
                 {/* Outstanding */}
                 <div className="text-right">
-                  <div className={`font-mono text-sm font-bold tabular-nums ${cleared ? 'text-emerald-500' : 'text-red-500'}`}>
-                    {sym}{Math.round(outstanding).toLocaleString('en-IN')}
-                  </div>
-                  <div className={`text-[9px] font-semibold mt-0.5 flex items-center justify-end gap-0.5 ${cleared ? 'text-emerald-500' : 'text-red-400'}`}>
-                    {cleared ? <><Check size={8} /> Cleared</> : <><AlertCircle size={8} /> Unpaid</>}
-                  </div>
+                  {cleared ? (
+                    <>
+                      <div className="font-mono text-sm font-semibold text-gray-300 tabular-nums">{sym}0</div>
+                      <div className="text-[9px] font-semibold mt-0.5 flex items-center justify-end gap-0.5 text-emerald-500">
+                        <Check size={8} /> Cleared
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-mono text-sm font-bold tabular-nums text-red-600">
+                        {sym}{Math.round(outstanding).toLocaleString('en-IN')}
+                      </div>
+                      <div className="text-[9px] font-semibold mt-0.5 flex items-center justify-end gap-0.5 text-red-400">
+                        <AlertCircle size={8} /> Unpaid
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
-                  <button
-                    onClick={() => goToSettle(client.id)}
-                    title="Settle Account"
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ink-primary text-accent-signature text-[9px] font-black uppercase tracking-widest hover:opacity-90 transition-all"
-                  >
-                    <Receipt size={10} /> Settle
-                  </button>
+                <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
+                  {!cleared && (
+                    <button
+                      onClick={() => goToSettle(client.id)}
+                      title="Settle account"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ink-primary text-amber-400 text-[9px] font-bold uppercase tracking-wider hover:bg-ink-primary/90 transition-all"
+                    >
+                      <Receipt size={10} /> Settle
+                    </button>
+                  )}
                   {hasPermission('clients', 'edit') && (
                     <>
                       <button
                         onClick={() => openEdit(client)}
-                        className="w-7 h-7 rounded-lg border border-black/5 bg-canvas flex items-center justify-center hover:bg-ink-primary hover:text-white text-gray-400 transition-all"
+                        className="w-7 h-7 rounded-lg border border-black/5 flex items-center justify-center text-gray-400 hover:bg-ink-primary hover:text-white hover:border-ink-primary transition-all"
                         title="Edit"
                       >
                         <Edit3 size={11} />
                       </button>
                       <button
                         onClick={() => { if (window.confirm('Delete this client permanently?')) handleDelete(client.id); }}
-                        className="w-7 h-7 rounded-lg border border-red-100 bg-red-50 text-red-400 flex items-center justify-center hover:bg-red-500 hover:text-white transition-all"
+                        className="w-7 h-7 rounded-lg border border-black/5 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all"
                         title="Delete"
                       >
                         <Trash2 size={11} />
