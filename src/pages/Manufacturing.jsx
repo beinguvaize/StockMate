@@ -30,8 +30,8 @@ const Manufacturing = () => {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-accent-signature/10 flex items-center justify-center">
-            <Factory size={18} className="text-accent-signature" />
+          <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center">
+            <Factory size={18} className="text-amber-600" />
           </div>
           <div>
             <h1 className="text-xl font-black text-ink-primary leading-none">
@@ -96,7 +96,7 @@ const Manufacturing = () => {
                   }`}>{o.status}</span>
                   {done ? (
                     <div className="text-right">
-                      <div className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(o.unit_cost)}</div>
+                      <div className="text-sm font-black text-ink-primary font-mono tabular-nums">{formatCurrency(o.unit_cost)}</div>
                       <div className="text-[9px] text-gray-400 font-bold uppercase">unit cost</div>
                     </div>
                   ) : (
@@ -125,7 +125,7 @@ const Manufacturing = () => {
                   {mats.map(m => (
                     <div key={m.id} className="flex justify-between text-[11px]">
                       <span className="text-ink-secondary truncate">{productName(m.raw_product_id)}</span>
-                      <span className="font-bold text-ink-primary tabular-nums">
+                      <span className="font-bold text-ink-primary font-mono tabular-nums">
                         ×{m.qty_consumed}{done && m.line_cost > 0 ? ` · ${formatCurrency(m.line_cost)}` : ''}
                       </span>
                     </div>
@@ -133,7 +133,7 @@ const Manufacturing = () => {
                   {costs.map(c => (
                     <div key={c.id} className="flex justify-between text-[11px]">
                       <span className="text-ink-secondary truncate">{c.label || c.cost_type}</span>
-                      <span className="font-bold text-amber-600 tabular-nums">{formatCurrency(c.amount)}</span>
+                      <span className="font-bold text-amber-600 font-mono tabular-nums">{formatCurrency(c.amount)}</span>
                     </div>
                   ))}
                 </div>
@@ -183,7 +183,7 @@ const Manufacturing = () => {
                   {comps.map(c => (
                     <div key={c.id} className="flex justify-between text-[11px]">
                       <span className="text-ink-secondary truncate">{productName(c.raw_product_id)}</span>
-                      <span className="font-bold text-ink-primary tabular-nums">×{c.quantity}</span>
+                      <span className="font-bold text-ink-primary font-mono tabular-nums">×{c.quantity}</span>
                     </div>
                   ))}
                 </div>
@@ -285,7 +285,7 @@ const RecipeModal = ({ products, onClose, onSave, recipeWord = 'Recipe' }) => {
                   <option value="">Material…</option>
                   {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                 </select>
-                <input type="number" min="0" placeholder="0" className={`${selCls} text-center tabular-nums`}
+                <input type="number" min="0" placeholder="0" className={`${selCls} text-center font-mono tabular-nums`}
                   value={r.quantity} onChange={e => setRow(i, 'quantity', e.target.value)} />
                 <select className={selCls} value={r.unit} onChange={e => setRow(i, 'unit', e.target.value)}
                   disabled={!rp?.secondary_unit}>
@@ -386,10 +386,10 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave, recipeWord
                 {materials.map(m => (
                   <div key={m.productId} className="flex items-center justify-between text-xs gap-2">
                     <span className="text-ink-secondary truncate flex-1">{productName(m.productId)}</span>
-                    <span className={`tabular-nums text-[10px] font-bold ${m.short ? 'text-red-500' : 'text-gray-400'}`}>
+                    <span className={`font-mono tabular-nums text-[10px] font-bold ${m.short ? 'text-red-500' : 'text-gray-400'}`}>
                       {m.short ? `short · have ${m.available}${m.unit}` : `have ${m.available}${m.unit}`}
                     </span>
-                    <span className="font-black text-ink-primary tabular-nums w-14 text-right">×{m.quantity}</span>
+                    <span className="font-black text-ink-primary font-mono tabular-nums w-14 text-right">×{m.quantity}</span>
                     <span className="font-mono tabular-nums text-gray-500 w-16 text-right">{formatCurrency(m.cost)}</span>
                   </div>
                 ))}
