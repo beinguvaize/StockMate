@@ -41,7 +41,7 @@ const Expenses = () => {
     expenses, addExpense, updateExpense, deleteExpense,
     expenseCategories, loading,
     recurringTemplates, addRecurringTemplate, setRecurringActive, deleteRecurringTemplate,
-    customCategories, addExpenseCategory, deleteExpenseCategory,
+    addExpenseCategory,
   } = useFinance(currentTenantId);
   const [newCategory, setNewCategory] = useState('');
   
@@ -776,21 +776,6 @@ const Expenses = () => {
          className="px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-500 text-xs font-bold disabled:opacity-40"
        >Add</button>
      </div>
-     {customCategories.length > 0 && (
-       <div className="flex flex-wrap gap-1.5 mt-2">
-         {customCategories.map(c => (
-           <span key={c} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-pill bg-gray-100 text-gray-600 text-[10px] font-bold">
-             {c}
-             <button
-               type="button"
-               title="Remove category"
-               onClick={() => { if (window.confirm(`Remove category "${c}"? Existing expenses keep it.`)) deleteExpenseCategory(c); }}
-               className="text-gray-400 hover:text-red-500"
-             >✕</button>
-           </span>
-         ))}
-       </div>
-     )}
    </div>
    <div>
      <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Paid Via</label>
