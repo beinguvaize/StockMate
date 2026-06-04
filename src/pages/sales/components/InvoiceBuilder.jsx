@@ -114,6 +114,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [amountReceived, setAmountReceived] = useState('');
   // Order-level discount (flat amount). Subtracted from the gross total.
   const [discount, setDiscount] = useState('');
+  const [serviceChargePct, setServiceChargePct] = useState(0); // restaurant service charge %
   // Parked/held sales — persisted per device so a half-rung sale survives.
   const [parked, setParked] = useState(() => {
     try { return JSON.parse(localStorage.getItem('pos_parked') || '[]'); } catch { return []; }
@@ -387,7 +388,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   }, 0);
   const taxableAmount = taxInclusive ? subtotal - tax : subtotal;
   const deliveryFeeAmt = fulfillmentType === 'DELIVERY' ? (parseFloat(deliveryDetails.fee) || 0) : 0;
-  const grossTotal = taxInclusive ? subtotal + deliveryFeeAmt : subtotal + tax + deliveryFeeAmt;
+  // Restaurant service charge — % of subtotal (before discount).
+  const serviceChargeAmt = isRestoPOS ? subtotal * ((Number(serviceChargePct) || 0) / 100) : 0;
+  const grossTotal = (taxInclusive ? subtotal + deliveryFeeAmt : subtotal + tax + deliveryFeeAmt) + serviceChargeAmt;
   // Flat order discount, clamped to [0, grossTotal].
   const discountAmt = Math.min(Math.max(parseFloat(discount) || 0, 0), grossTotal);
   const total = grossTotal - discountAmt;
@@ -509,6 +512,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         deliveryFee:     parseFloat(deliveryDetails.fee) || 0,
         locationId:      storeId || null,
         discount:        discountAmt,
+        serviceCharge:   serviceChargeAmt,
       };
       const result = await onPlaceSale(saleData);
       if (result && result.error) {
@@ -524,6 +528,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       );
       setCart([]);
       setDiscount('');
+      setServiceChargePct(0);
       setAmountReceived('');
       setFulfillmentType('PICKUP');
       setDeliveryDetails({ address: '', zone: '', date: '', notes: '', fee: '' });
@@ -1043,6 +1048,22 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               )}
             </div>
           </div>
+          {/* Service charge (restaurant) */}
+          {isRestoPOS && (
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Service</span>
+              <div className="flex gap-1 flex-1">
+                {[0, 5, 10].map(pct => (
+                  <button key={pct} type="button" onClick={() => setServiceChargePct(pct)}
+                    className={`flex-1 h-8 rounded-lg text-[12px] font-bold transition-all ${
+                      Number(serviceChargePct) === pct ? 'bg-amber-600 text-white' : 'bg-black/[0.04] text-gray-500 hover:text-ink-primary'
+                    }`}>
+                    {pct === 0 ? 'None' : `${pct}%`}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {/* Order discount (flat amount) */}
           <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-black/[0.03] border border-black/8 focus-within:border-amber-400">
             <span className="text-amber-500 text-sm font-bold">%</span>
@@ -1065,6 +1086,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               <span>Tax{taxInclusive ? ' (included)' : ''}</span>
               <span className="font-mono tabular-nums">{formatCurrency(tax)}</span>
             </div>
+            {serviceChargeAmt > 0 && (
+              <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
+                <span>Service charge ({serviceChargePct}%)</span>
+                <span className="font-mono tabular-nums">{formatCurrency(serviceChargeAmt)}</span>
+              </div>
+            )}
             {discountAmt > 0 && (
               <div className="flex justify-between text-xs font-bold text-red-500 uppercase tracking-widest">
                 <span>Discount</span>

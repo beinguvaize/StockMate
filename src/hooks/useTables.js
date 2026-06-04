@@ -100,6 +100,14 @@ export function useTables(tenantId) {
     return { error: e };
   };
 
+  // Move an open tab to a different (free) table.
+  const transferTab = async (tabId, toTableId) => {
+    const { error: e } = await supabase.from('table_orders')
+      .update({ table_id: toTableId }).eq('id', tabId).eq('tenant_id', tenantId);
+    if (!e) await fetchAll();
+    return { error: e };
+  };
+
   // Total of a tab's cart (qty * price).
   const tabTotal = (tab) =>
     (tab?.cart || []).reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0);
@@ -107,6 +115,6 @@ export function useTables(tenantId) {
   return {
     tables, openTabs, loading, error, refresh: fetchAll,
     addTable, deleteTable,
-    openTab, saveTab, settleTab, voidTab, tabTotal,
+    openTab, saveTab, settleTab, voidTab, transferTab, tabTotal,
   };
 }
