@@ -17,6 +17,8 @@ import SalesReturnForm from './components/SalesReturnForm';
 import ConvertToInvoiceSheet from './components/ConvertToInvoiceSheet';
 import TablesFloor from './components/TablesFloor';
 import { useTables } from '../../hooks/useTables';
+import { useKOT } from '../../hooks/useKOT';
+import { printKOT } from '../../lib/kotPrint';
 import { calculateGST } from '../../lib/gstEngine';
 import { supabase } from '../../lib/supabase';
 
@@ -29,8 +31,22 @@ const SalesPage = () => {
   const { currentTenantId, businessProfile, currentTenant, businessType } = useTenant();
   const isResto = businessType === 'RESTAURANT';
   const tablesApi = useTables(currentTenantId);
+  const { createTicket } = useKOT(currentTenantId);
   // The table whose tab is currently open in the builder (restaurant only).
   const [activeTable, setActiveTable] = useState(null); // { table, tab }
+
+  // Fire a kitchen order ticket for the active table, then print it.
+  const sendTableKOT = async (items) => {
+    const { data, error } = await createTicket({
+      tableId: activeTable?.table?.id || null,
+      tableLabel: activeTable?.table?.label || null,
+      items,
+    });
+    if (error) { addNotification('KOT failed: ' + error.message, 'error'); return false; }
+    printKOT(data);
+    addNotification(`KOT #${data.ticket_no} sent to kitchen`, 'success');
+    return true;
+  };
   const { sales, clients, invoices, placeSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, convertSaleToInvoice, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
 
   // Wrap placeSale: auto-create invoice for credit sales (settlement) and
@@ -282,6 +298,7 @@ const SalesPage = () => {
               initialCart={activeTable?.tab?.cart || null}
               onCartChange={isResto && activeTable ? persistTabCart : null}
               tableLabel={activeTable?.table?.label || null}
+              onSendKOT={isResto && activeTable ? sendTableKOT : null}
             />
           </>
         ) : (
