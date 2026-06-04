@@ -1,5 +1,12 @@
 import React, { useRef, useState, useMemo } from 'react';
-import { Plus, Square, Circle, Save } from 'lucide-react';
+import { Square, Circle, RectangleHorizontal, Save } from 'lucide-react';
+
+// Default size per shape.
+const SHAPE_SIZE = {
+  sq:   { width: 84,  height: 84 },
+  rd:   { width: 64,  height: 64 },
+  rect: { width: 150, height: 84 },
+};
 
 // Floor-plan view of the restaurant tables. Two modes:
 //   Service  — spatial layout, live status, tap a table to open its tab.
@@ -21,14 +28,18 @@ const FloorPlan = ({ tables, openTabs, tabTotal, onOpenTable, updateTable, addTa
   const inArea = tables.filter(t => (t.section || 'Floor') === curArea);
 
   // Auto-place tables that have no saved position (simple flow layout).
-  const placed = inArea.map((t, i) => ({
-    ...t,
-    _x: t.pos_x ?? (28 + (i % 6) * 118),
-    _y: t.pos_y ?? (28 + Math.floor(i / 6) * 118),
-    _w: t.width || (t.shape === 'rd' ? 64 : 84),
-    _h: t.height || (t.shape === 'rd' ? 64 : 84),
-    _shape: t.shape === 'rd' ? 'rd' : 'sq',
-  }));
+  const placed = inArea.map((t, i) => {
+    const shape = SHAPE_SIZE[t.shape] ? t.shape : 'sq';
+    const def = SHAPE_SIZE[shape];
+    return {
+      ...t,
+      _x: t.pos_x ?? (28 + (i % 6) * 118),
+      _y: t.pos_y ?? (28 + Math.floor(i / 6) * 118),
+      _w: t.width || def.width,
+      _h: t.height || def.height,
+      _shape: shape,
+    };
+  });
 
   const startDrag = (e, t) => {
     if (!designing) return;
@@ -61,12 +72,13 @@ const FloorPlan = ({ tables, openTabs, tabTotal, onOpenTable, updateTable, addTa
   };
 
   const addShape = async (shape) => {
+    const def = SHAPE_SIZE[shape] || SHAPE_SIZE.sq;
     await addTable({
       label: 'T' + (tables.length + 1),
       section: curArea,
-      seats: shape === 'rd' ? 2 : 4,
+      seats: shape === 'rd' ? 2 : shape === 'rect' ? 6 : 4,
       shape, pos_x: 28, pos_y: 28,
-      width: shape === 'rd' ? 64 : 84, height: shape === 'rd' ? 64 : 84,
+      width: def.width, height: def.height,
     });
   };
 
@@ -88,6 +100,7 @@ const FloorPlan = ({ tables, openTabs, tabTotal, onOpenTable, updateTable, addTa
           {designing && (
             <>
               <button onClick={() => addShape('sq')} className="h-9 px-3 rounded-lg bg-white border border-black/10 text-[12px] font-bold hover:border-amber-400 flex items-center gap-1.5"><Square size={13} /> Square</button>
+              <button onClick={() => addShape('rect')} className="h-9 px-3 rounded-lg bg-white border border-black/10 text-[12px] font-bold hover:border-amber-400 flex items-center gap-1.5"><RectangleHorizontal size={13} /> Rectangle</button>
               <button onClick={() => addShape('rd')} className="h-9 px-3 rounded-lg bg-white border border-black/10 text-[12px] font-bold hover:border-amber-400 flex items-center gap-1.5"><Circle size={13} /> Round</button>
               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><Save size={12} /> auto-saved</span>
             </>
