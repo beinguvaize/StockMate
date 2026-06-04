@@ -1,190 +1,138 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
-<title>Suppliers redesign</title>
+<title>Clients — elegant</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
-  body{font-family:Manrope,sans-serif;background:#FBFAF7;color:#1A1815}
-  .mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums}
-  .track{letter-spacing:.1em}
-  .amber{color:#D97706}
+  body{font-family:Manrope,sans-serif;background:#F6F5F2;color:#1A1815}
+  .mono{font-family:'JetBrains Mono',monospace;font-variant-numeric:tabular-nums;letter-spacing:-0.02em}
+  .track{letter-spacing:.12em}
 </style>
 </head>
-<body class="p-10">
-<div class="max-w-6xl mx-auto">
-<h1 class="text-2xl font-extrabold mb-1">Suppliers — redesign samples</h1>
-<p class="text-sm text-stone-500 mb-8">Amber / mono · compact, no heavy black footer · owe = focus signal</p>
+<body class="p-12">
+<div class="max-w-5xl mx-auto">
 
-<!-- ===================== A — Statement card ===================== -->
-<div class="text-xs font-bold uppercase track text-stone-400 mb-3">A · Statement card</div>
-<div class="grid grid-cols-3 gap-4 mb-12">
-  <!-- supplier with dues -->
-  <div class="group bg-white rounded-2xl border border-stone-200/80 p-5 hover:shadow-lg hover:shadow-stone-200/60 transition">
-    <div class="flex items-start gap-3">
-      <div class="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center amber font-extrabold text-sm">HK</div>
-      <div class="flex-1 min-w-0">
-        <div class="font-extrabold text-[15px] leading-tight truncate">HASSAN KOUSER SIVAKASI</div>
-        <div class="text-[12px] text-stone-400 truncate">KOUSER POLY · 7598533883</div>
-      </div>
-      <div class="flex gap-1 opacity-0 group-hover:opacity-100 transition">
-        <button class="w-7 h-7 rounded-lg hover:bg-stone-100 grid place-items-center text-stone-400">✎</button>
-        <button class="w-7 h-7 rounded-lg hover:bg-red-50 grid place-items-center text-stone-400 hover:text-red-500">🗑</button>
-      </div>
+  <!-- Page heading -->
+  <div class="flex items-end justify-between mb-6">
+    <div>
+      <h1 class="text-[26px] font-extrabold tracking-tight leading-none">Clients</h1>
+      <p class="text-[13px] text-stone-400 mt-1.5">42 accounts · <span class="text-red-500 font-semibold">₹18,695</span> receivable</p>
     </div>
-    <!-- owe banner -->
-    <div class="mt-4 flex items-center justify-between rounded-xl bg-red-50 border border-red-100 px-4 py-3">
-      <div>
-        <div class="text-[10px] uppercase track font-bold text-red-400">You owe</div>
-        <div class="mono text-xl font-bold text-red-600">₹25,920</div>
+    <div class="flex items-center gap-2">
+      <div class="relative">
+        <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6.5" cy="6.5" r="5"/><path d="m11 11 3 3" stroke-linecap="round"/></svg>
+        <input placeholder="Search clients" class="h-10 w-56 pl-9 pr-3 rounded-xl bg-white border border-stone-200 text-[13px] outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 placeholder:text-stone-400"/>
       </div>
-      <span class="text-[11px] font-bold text-red-500 bg-white border border-red-200 rounded-full px-2.5 py-1">Due</span>
+      <button class="h-10 px-4 rounded-xl bg-[#1A1815] text-white text-[13px] font-bold flex items-center gap-2">
+        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M7 2v10M2 7h10" stroke-linecap="round"/></svg>New client
+      </button>
     </div>
-    <!-- meta -->
-    <div class="mt-3 flex items-center justify-between text-[12px]">
-      <div><span class="text-stone-400">Procured </span><span class="mono font-bold">₹78,600</span></div>
-      <div class="text-stone-400">Last supply <span class="font-bold text-stone-600">Jun 1</span></div>
-    </div>
-    <a class="mt-4 flex items-center justify-center gap-1.5 text-[12px] font-bold amber border-t border-stone-100 pt-3 -mx-5 px-5">View transactions <span>↗</span></a>
   </div>
-  <!-- settled supplier -->
-  <div class="group bg-white rounded-2xl border border-stone-200/80 p-5 hover:shadow-lg hover:shadow-stone-200/60 transition">
-    <div class="flex items-start gap-3">
-      <div class="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center amber font-extrabold text-sm">GP</div>
-      <div class="flex-1 min-w-0">
-        <div class="font-extrabold text-[15px] leading-tight truncate">GPS Paper Cup</div>
-        <div class="text-[12px] text-stone-400 truncate">GPS · 9940458838</div>
-      </div>
-    </div>
-    <div class="mt-4 flex items-center justify-between rounded-xl bg-emerald-50/60 border border-emerald-100 px-4 py-3">
-      <div>
-        <div class="text-[10px] uppercase track font-bold text-emerald-500">You owe</div>
-        <div class="mono text-xl font-bold text-emerald-600">₹0</div>
-      </div>
-      <span class="text-[11px] font-bold text-emerald-600 bg-white border border-emerald-200 rounded-full px-2.5 py-1">Settled</span>
-    </div>
-    <div class="mt-3 flex items-center justify-between text-[12px]">
-      <div><span class="text-stone-400">Procured </span><span class="mono font-bold">₹1,12,204</span></div>
-      <div class="text-stone-400">Last supply <span class="font-bold text-stone-600">May 26</span></div>
-    </div>
-    <a class="mt-4 flex items-center justify-center gap-1.5 text-[12px] font-bold amber border-t border-stone-100 pt-3 -mx-5 px-5">View transactions <span>↗</span></a>
-  </div>
-  <!-- another settled -->
-  <div class="group bg-white rounded-2xl border border-stone-200/80 p-5 hover:shadow-lg hover:shadow-stone-200/60 transition">
-    <div class="flex items-start gap-3">
-      <div class="w-11 h-11 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center amber font-extrabold text-sm">MA</div>
-      <div class="flex-1 min-w-0">
-        <div class="font-extrabold text-[15px] leading-tight truncate">MADEENA AGENCY KOLLAM</div>
-        <div class="text-[12px] text-stone-400 truncate">MADEENA · 9747799763</div>
-      </div>
-    </div>
-    <div class="mt-4 flex items-center justify-between rounded-xl bg-emerald-50/60 border border-emerald-100 px-4 py-3">
-      <div>
-        <div class="text-[10px] uppercase track font-bold text-emerald-500">You owe</div>
-        <div class="mono text-xl font-bold text-emerald-600">₹0</div>
-      </div>
-      <span class="text-[11px] font-bold text-emerald-600 bg-white border border-emerald-200 rounded-full px-2.5 py-1">Settled</span>
-    </div>
-    <div class="mt-3 flex items-center justify-between text-[12px]">
-      <div><span class="text-stone-400">Procured </span><span class="mono font-bold">₹22,185</span></div>
-      <div class="text-stone-400">Last supply <span class="font-bold text-stone-600">May 29</span></div>
-    </div>
-    <a class="mt-4 flex items-center justify-center gap-1.5 text-[12px] font-bold amber border-t border-stone-100 pt-3 -mx-5 px-5">View transactions <span>↗</span></a>
-  </div>
-</div>
 
-<!-- ===================== B — Compact stat-strip ===================== -->
-<div class="text-xs font-bold uppercase track text-stone-400 mb-3">B · Compact stat-strip</div>
-<div class="grid grid-cols-3 gap-4 mb-12">
-  <div class="bg-white rounded-2xl border border-stone-200/80 overflow-hidden hover:shadow-lg hover:shadow-stone-200/60 transition">
-    <div class="p-4 flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-extrabold text-sm">HK</div>
-      <div class="flex-1 min-w-0">
-        <div class="font-extrabold text-[14px] truncate">HASSAN KOUSER SIVAKASI</div>
-        <div class="text-[11px] text-stone-400 truncate">KOUSER POLY · 7598533883</div>
-      </div>
-      <span class="w-2 h-2 rounded-full bg-red-500"></span>
-    </div>
-    <div class="grid grid-cols-3 border-t border-stone-100 text-center divide-x divide-stone-100">
-      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">Procured</div><div class="mono text-[13px] font-bold">₹78,600</div></div>
-      <div class="py-2.5 bg-red-50/50"><div class="text-[9px] uppercase track text-red-400 font-bold">You owe</div><div class="mono text-[13px] font-bold text-red-600">₹25,920</div></div>
-      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">Last</div><div class="text-[13px] font-bold">Jun 1</div></div>
-    </div>
-    <button class="w-full py-2.5 text-[12px] font-bold amber hover:bg-amber-50 transition border-t border-stone-100">View transactions ↗</button>
-  </div>
-  <div class="bg-white rounded-2xl border border-stone-200/80 overflow-hidden hover:shadow-lg hover:shadow-stone-200/60 transition">
-    <div class="p-4 flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-extrabold text-sm">GP</div>
-      <div class="flex-1 min-w-0">
-        <div class="font-extrabold text-[14px] truncate">GPS Paper Cup</div>
-        <div class="text-[11px] text-stone-400 truncate">GPS · 9940458838</div>
-      </div>
-      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-    </div>
-    <div class="grid grid-cols-3 border-t border-stone-100 text-center divide-x divide-stone-100">
-      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">Procured</div><div class="mono text-[13px] font-bold">₹1,12,204</div></div>
-      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">You owe</div><div class="mono text-[13px] font-bold text-emerald-600">₹0</div></div>
-      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">Last</div><div class="text-[13px] font-bold">May 26</div></div>
-    </div>
-    <button class="w-full py-2.5 text-[12px] font-bold amber hover:bg-amber-50 transition border-t border-stone-100">View transactions ↗</button>
-  </div>
-  <div class="bg-white rounded-2xl border border-stone-200/80 overflow-hidden hover:shadow-lg hover:shadow-stone-200/60 transition">
-    <div class="p-4 flex items-center gap-3">
-      <div class="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center font-extrabold text-sm">SA</div>
-      <div class="flex-1 min-w-0">
-        <div class="font-extrabold text-[14px] truncate">S A TRADING</div>
-        <div class="text-[11px] text-stone-400 truncate">SHINE ASOKAN · 8606893013</div>
-      </div>
-      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
-    </div>
-    <div class="grid grid-cols-3 border-t border-stone-100 text-center divide-x divide-stone-100">
-      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">Procured</div><div class="mono text-[13px] font-bold">₹4,480</div></div>
-      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">You owe</div><div class="mono text-[13px] font-bold text-emerald-600">₹0</div></div>
-      <div class="py-2.5"><div class="text-[9px] uppercase track text-stone-400 font-bold">Last</div><div class="text-[13px] font-bold">May 31</div></div>
-    </div>
-    <button class="w-full py-2.5 text-[12px] font-bold amber hover:bg-amber-50 transition border-t border-stone-100">View transactions ↗</button>
-  </div>
-</div>
+  <!-- Card -->
+  <div class="bg-white rounded-2xl border border-stone-200/70 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-12px_rgba(0,0,0,0.08)] overflow-hidden">
 
-<!-- ===================== C — Dense list rows ===================== -->
-<div class="text-xs font-bold uppercase track text-stone-400 mb-3">C · Dense list (max density)</div>
-<div class="bg-white rounded-2xl border border-stone-200/80 overflow-hidden">
-  <div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-2.5 text-[10px] uppercase track font-bold text-stone-400 border-b border-stone-100">
-    <div>Supplier</div><div class="text-right w-24">Procured</div><div class="text-right w-24">You owe</div><div class="text-right w-20">Last supply</div><div class="w-8"></div>
-  </div>
-  <div class="divide-y divide-stone-100">
-    <div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 items-center hover:bg-amber-50/40 transition group">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 amber flex items-center justify-center font-extrabold text-[12px]">HK</div>
-        <div class="min-w-0"><div class="font-bold text-[13px] truncate">HASSAN KOUSER SIVAKASI</div><div class="text-[11px] text-stone-400 truncate">KOUSER POLY · 7598533883</div></div>
-      </div>
-      <div class="text-right w-24 mono text-[13px] font-bold">₹78,600</div>
-      <div class="text-right w-24 mono text-[13px] font-bold text-red-600">₹25,920</div>
-      <div class="text-right w-20 text-[12px] font-semibold text-stone-600">Jun 1</div>
-      <div class="w-8 text-right"><span class="amber text-[12px] font-bold opacity-0 group-hover:opacity-100">↗</span></div>
+    <!-- Column head -->
+    <div class="flex items-center gap-4 px-6 py-3 border-b border-stone-100">
+      <div class="flex-1 text-[10px] font-bold uppercase track text-stone-400">Client</div>
+      <div class="w-48 text-[10px] font-bold uppercase track text-stone-400">Contact</div>
+      <div class="w-44 text-right text-[10px] font-bold uppercase track text-stone-400">Outstanding</div>
+      <div class="w-20 text-right text-[10px] font-bold uppercase track text-stone-400"></div>
     </div>
-    <div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 items-center hover:bg-amber-50/40 transition group">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 amber flex items-center justify-center font-extrabold text-[12px]">GP</div>
-        <div class="min-w-0"><div class="font-bold text-[13px] truncate">GPS Paper Cup</div><div class="text-[11px] text-stone-400 truncate">GPS · 9940458838</div></div>
-      </div>
-      <div class="text-right w-24 mono text-[13px] font-bold">₹1,12,204</div>
-      <div class="text-right w-24 mono text-[13px] font-bold text-emerald-600">₹0</div>
-      <div class="text-right w-20 text-[12px] font-semibold text-stone-600">May 26</div>
-      <div class="w-8 text-right"><span class="amber text-[12px] font-bold opacity-0 group-hover:opacity-100">↗</span></div>
-    </div>
-    <div class="grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 px-5 py-3 items-center hover:bg-amber-50/40 transition group">
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 amber flex items-center justify-center font-extrabold text-[12px]">MA</div>
-        <div class="min-w-0"><div class="font-bold text-[13px] truncate">MADEENA AGENCY KOLLAM</div><div class="text-[11px] text-stone-400 truncate">MADEENA · 9747799763</div></div>
-      </div>
-      <div class="text-right w-24 mono text-[13px] font-bold">₹22,185</div>
-      <div class="text-right w-24 mono text-[13px] font-bold text-emerald-600">₹0</div>
-      <div class="text-right w-20 text-[12px] font-semibold text-stone-600">May 29</div>
-      <div class="w-8 text-right"><span class="amber text-[12px] font-bold opacity-0 group-hover:opacity-100">↗</span></div>
-    </div>
-  </div>
-</div>
 
+    <div class="divide-y divide-stone-100">
+
+      <!-- Cleared -->
+      <div class="group flex items-center gap-4 px-6 py-4 hover:bg-stone-50/70 transition-colors">
+        <div class="flex items-center gap-3.5 flex-1 min-w-0">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200/70 grid place-items-center mono text-[13px] font-bold text-amber-700">A</div>
+          <div class="min-w-0">
+            <div class="font-bold text-[14px] truncate leading-tight">AM Store</div>
+            <div class="text-[12px] text-stone-400 mt-0.5">Kerala · <span class="mono">₹0</span> lifetime</div>
+          </div>
+        </div>
+        <div class="w-48 flex items-center gap-2 text-[13px] text-stone-500 min-w-0">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" class="text-stone-300 shrink-0"><path d="M2 3.5C2 8 5 11 9.5 11l1.5-2-2.5-1.2-1 1A6 6 0 0 1 4.2 5l1-1L4 1.5 2 3.5Z" stroke-linejoin="round"/></svg>
+          <span class="mono truncate">88488 94802</span>
+        </div>
+        <div class="w-44 flex items-center justify-end gap-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span class="text-[12px] font-semibold text-stone-400">Cleared</span>
+        </div>
+        <div class="w-20 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition">
+          <button class="w-7 h-7 rounded-lg grid place-items-center text-stone-400 hover:bg-stone-100"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2.5 11.5 5 5 11.5 2 12l.5-3L9 2.5Z" stroke-linejoin="round"/></svg></button>
+          <button class="w-7 h-7 rounded-lg grid place-items-center text-stone-400 hover:bg-red-50 hover:text-red-500"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 3.5h9M5 3.5V2h4v1.5M3.5 3.5l.5 8h6l.5-8" stroke-linejoin="round"/></svg></button>
+        </div>
+      </div>
+
+      <!-- Owed -->
+      <div class="group flex items-center gap-4 px-6 py-4 hover:bg-stone-50/70 transition-colors">
+        <div class="flex items-center gap-3.5 flex-1 min-w-0">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200/70 grid place-items-center mono text-[13px] font-bold text-amber-700">F</div>
+          <div class="min-w-0">
+            <div class="font-bold text-[14px] truncate leading-tight">Family Trading</div>
+            <div class="text-[12px] text-stone-400 mt-0.5">Kerala · <span class="mono">₹0</span> lifetime</div>
+          </div>
+        </div>
+        <div class="w-48 flex items-center gap-2 text-[13px] text-stone-500 min-w-0">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" class="text-stone-300 shrink-0"><path d="M2 3.5C2 8 5 11 9.5 11l1.5-2-2.5-1.2-1 1A6 6 0 0 1 4.2 5l1-1L4 1.5 2 3.5Z" stroke-linejoin="round"/></svg>
+          <span class="mono truncate">99467 20726</span>
+        </div>
+        <div class="w-44 text-right">
+          <div class="mono text-[15px] font-bold text-[#1A1815] leading-none">₹13,855</div>
+          <div class="flex items-center justify-end gap-1.5 mt-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span><span class="text-[11px] font-semibold text-red-500">Unpaid</span></div>
+        </div>
+        <div class="w-20 flex items-center justify-end gap-1">
+          <button class="h-7 px-3 rounded-lg bg-[#1A1815] text-white text-[11px] font-bold hover:bg-black transition">Settle</button>
+        </div>
+      </div>
+
+      <!-- Owed w/ address -->
+      <div class="group flex items-center gap-4 px-6 py-4 hover:bg-stone-50/70 transition-colors">
+        <div class="flex items-center gap-3.5 flex-1 min-w-0">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200/70 grid place-items-center mono text-[13px] font-bold text-amber-700">H</div>
+          <div class="min-w-0">
+            <div class="font-bold text-[14px] truncate leading-tight">Hilal Store</div>
+            <div class="text-[12px] text-stone-400 mt-0.5">Kulathupuzha · <span class="mono">₹0</span> lifetime</div>
+          </div>
+        </div>
+        <div class="w-48 flex items-center gap-2 text-[13px] text-stone-500 min-w-0">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" class="text-stone-300 shrink-0"><path d="M6.5 1.5a4 4 0 0 1 4 4c0 3-4 6.5-4 6.5s-4-3.5-4-6.5a4 4 0 0 1 4-4Z"/><circle cx="6.5" cy="5.5" r="1.3"/></svg>
+          <span class="truncate">Hilal Store Kulathupuzha</span>
+        </div>
+        <div class="w-44 text-right">
+          <div class="mono text-[15px] font-bold text-[#1A1815] leading-none">₹4,335</div>
+          <div class="flex items-center justify-end gap-1.5 mt-1"><span class="w-1.5 h-1.5 rounded-full bg-red-500"></span><span class="text-[11px] font-semibold text-red-500">Unpaid</span></div>
+        </div>
+        <div class="w-20 flex items-center justify-end gap-1">
+          <button class="h-7 px-3 rounded-lg bg-[#1A1815] text-white text-[11px] font-bold hover:bg-black transition">Settle</button>
+        </div>
+      </div>
+
+      <!-- Cleared, no contact -->
+      <div class="group flex items-center gap-4 px-6 py-4 hover:bg-stone-50/70 transition-colors">
+        <div class="flex items-center gap-3.5 flex-1 min-w-0">
+          <div class="w-10 h-10 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200/70 grid place-items-center mono text-[13px] font-bold text-amber-700">A</div>
+          <div class="min-w-0">
+            <div class="font-bold text-[14px] truncate leading-tight">Ansar Poredam</div>
+            <div class="text-[12px] text-stone-400 mt-0.5">Kerala · <span class="mono">₹0</span> lifetime</div>
+          </div>
+        </div>
+        <div class="w-48 text-[13px] text-stone-300">—</div>
+        <div class="w-44 flex items-center justify-end gap-2">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+          <span class="text-[12px] font-semibold text-stone-400">Cleared</span>
+        </div>
+        <div class="w-20 flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition">
+          <button class="w-7 h-7 rounded-lg grid place-items-center text-stone-400 hover:bg-stone-100"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2.5 11.5 5 5 11.5 2 12l.5-3L9 2.5Z" stroke-linejoin="round"/></svg></button>
+          <button class="w-7 h-7 rounded-lg grid place-items-center text-stone-400 hover:bg-red-50 hover:text-red-500"><svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.5 3.5h9M5 3.5V2h4v1.5M3.5 3.5l.5 8h6l.5-8" stroke-linejoin="round"/></svg></button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <p class="text-[12px] text-stone-400 mt-4 text-center">Showing 4 of 42 · sorted by outstanding</p>
 </div>
 </body></html>

@@ -3,9 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useTenant } from '../../context/TenantContext';
 import { EmptyState } from '../ui/States';
 import {
-  UserCircle, Plus, Edit3, Trash2, Check,
-  Phone, AlertCircle, Search, TrendingUp, Users, CreditCard, Clock,
-  Mail, Receipt, MapPin, ShieldCheck, FileText, Truck
+  UserCircle, Plus, Edit3, Trash2,
+  Phone, Search, TrendingUp, Users, CreditCard, Clock,
+  Mail, MapPin, ShieldCheck, Truck
 } from 'lucide-react';
 
 const ClientDirectory = ({
@@ -115,17 +115,17 @@ const ClientDirectory = ({
           />
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
-          {/* Table header */}
-          <div className="grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 px-5 py-2.5 bg-canvas border-b border-black/5">
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Client</span>
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Contact</span>
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Revenue</span>
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Outstanding</span>
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest text-right">Actions</span>
+        <div className="bg-white rounded-2xl border border-black/5 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_24px_-14px_rgba(0,0,0,0.10)] overflow-hidden">
+          {/* Column head */}
+          <div className="grid grid-cols-[2fr_1.5fr_1.2fr_auto] gap-4 px-6 py-3 border-b border-black/5">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Client</span>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Contact</span>
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right">Outstanding</span>
+            <span className="w-20 text-[10px] font-bold text-gray-400 uppercase tracking-widest text-right" />
           </div>
 
-          {filteredClients.map((client, idx) => {
+          <div className="divide-y divide-black/5">
+          {filteredClients.map((client) => {
             const stats = clientStats[client.id] || { totalSales: 0, orderCount: 0 };
             const outstanding = client.outstanding_balance || 0;
             const cleared = outstanding <= 0;
@@ -136,34 +136,34 @@ const ClientDirectory = ({
               <div
                 key={client.id}
                 onClick={() => (onViewStatement ? onViewStatement(client) : goToSettle(client.id))}
-                className={`grid grid-cols-[2fr_1.5fr_1fr_1fr_auto] gap-4 items-center px-5 py-3.5 border-b border-black/5 last:border-0 hover:bg-amber-50/40 transition-colors group cursor-pointer ${idx % 2 === 0 ? '' : 'bg-black/[0.01]'}`}
+                className="grid grid-cols-[2fr_1.5fr_1.2fr_auto] gap-4 items-center px-6 py-4 hover:bg-stone-50/70 transition-colors group cursor-pointer"
               >
-                {/* Name + meta */}
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-9 h-9 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-[12px] font-mono font-bold text-amber-600 shrink-0">
+                {/* Client + meta */}
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200/70 flex items-center justify-center text-[13px] font-mono font-bold text-amber-700">
                     {client.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
                     <div className="text-sm font-bold text-ink-primary truncate leading-tight">{client.name}</div>
-                    <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                      <span className="text-[9px] font-semibold text-gray-400">{stats.orderCount} {stats.orderCount === 1 ? 'order' : 'orders'}</span>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap text-[12px] text-gray-400">
+                      {client.state && <span className="capitalize">{client.state.toLowerCase()}</span>}
+                      {client.state && <span className="opacity-40">·</span>}
+                      <span className="font-mono">{sym}{Math.round(stats.totalSales).toLocaleString('en-IN')}</span>
+                      <span>lifetime</span>
                       {inTransitCount > 0 && (
-                        <span className="flex items-center gap-0.5 text-[8px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-pill">
-                          <Truck size={7} /> {inTransitCount} in transit
+                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-blue-600 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded-full ml-0.5">
+                          <Truck size={8} /> {inTransitCount}
                         </span>
                       )}
                       {pendingDelivCount > 0 && (
-                        <span className="flex items-center gap-0.5 text-[8px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-pill">
-                          <Truck size={7} /> {pendingDelivCount} pending
+                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
+                          <Truck size={8} /> {pendingDelivCount}
                         </span>
                       )}
                       {client.gstin && (
-                        <span className="flex items-center gap-0.5 text-[8px] font-bold text-blue-500 bg-blue-50 border border-blue-100 px-1.5 py-0.5 rounded">
-                          <ShieldCheck size={7} /> GST
+                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded ml-0.5">
+                          <ShieldCheck size={8} /> GST
                         </span>
-                      )}
-                      {client.state && (
-                        <span className="text-[9px] text-gray-400 font-medium capitalize">{client.state.toLowerCase()}</span>
                       )}
                     </div>
                   </div>
@@ -171,94 +171,79 @@ const ClientDirectory = ({
 
                 {/* Contact */}
                 <div className="min-w-0">
-                  {client.phone && (
-                    <div className="flex items-center gap-1.5 text-xs font-semibold text-ink-primary">
-                      <Phone size={10} className="text-gray-400 shrink-0" />
-                      <span className="tabular-nums truncate">{client.phone}</span>
+                  {client.phone ? (
+                    <div className="flex items-center gap-2 text-[13px] text-gray-600">
+                      <Phone size={12} className="text-gray-300 shrink-0" />
+                      <span className="font-mono truncate">{client.phone}</span>
                     </div>
-                  )}
-                  {client.email && (
-                    <div className="flex items-center gap-1.5 text-[10px] text-gray-400 mt-0.5">
-                      <Mail size={9} className="shrink-0" />
+                  ) : client.email ? (
+                    <div className="flex items-center gap-2 text-[13px] text-gray-600 min-w-0">
+                      <Mail size={12} className="text-gray-300 shrink-0" />
                       <span className="truncate">{client.email}</span>
                     </div>
-                  )}
-                  {client.address && !client.phone && !client.email && (
-                    <div className="flex items-center gap-1.5 text-[10px] text-gray-400">
-                      <MapPin size={9} className="shrink-0" />
+                  ) : client.address ? (
+                    <div className="flex items-center gap-2 text-[13px] text-gray-500 min-w-0">
+                      <MapPin size={12} className="text-gray-300 shrink-0" />
                       <span className="truncate">{client.address}</span>
                     </div>
-                  )}
-                  {!client.phone && !client.email && !client.address && (
-                    <span className="text-[10px] text-gray-300 font-medium">—</span>
-                  )}
-                </div>
-
-                {/* Revenue */}
-                <div className="text-right">
-                  {stats.totalSales > 0 ? (
-                    <div className="font-mono text-sm font-bold text-ink-primary tabular-nums">
-                      <span className="text-amber-400 mr-0.5">{sym}</span>{Math.round(stats.totalSales).toLocaleString('en-IN')}
-                    </div>
                   ) : (
-                    <div className="font-mono text-sm font-semibold text-gray-300 tabular-nums">{sym}0</div>
+                    <span className="text-[13px] text-gray-300">—</span>
                   )}
                 </div>
 
-                {/* Outstanding */}
+                {/* Outstanding — dot + word */}
                 <div className="text-right">
                   {cleared ? (
-                    <>
-                      <div className="font-mono text-sm font-semibold text-gray-300 tabular-nums">{sym}0</div>
-                      <div className="text-[9px] font-semibold mt-0.5 flex items-center justify-end gap-0.5 text-emerald-500">
-                        <Check size={8} /> Cleared
-                      </div>
-                    </>
+                    <div className="flex items-center justify-end gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      <span className="text-[12px] font-semibold text-gray-400">Cleared</span>
+                    </div>
                   ) : (
                     <>
-                      <div className="font-mono text-sm font-bold tabular-nums text-red-600">
+                      <div className="font-mono text-[15px] font-bold tabular-nums text-ink-primary leading-none">
                         {sym}{Math.round(outstanding).toLocaleString('en-IN')}
                       </div>
-                      <div className="text-[9px] font-semibold mt-0.5 flex items-center justify-end gap-0.5 text-red-400">
-                        <AlertCircle size={8} /> Unpaid
+                      <div className="flex items-center justify-end gap-1.5 mt-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500" />
+                        <span className="text-[11px] font-semibold text-red-500">Unpaid</span>
                       </div>
                     </>
                   )}
                 </div>
 
                 {/* Actions */}
-                <div className="flex items-center justify-end gap-1.5" onClick={e => e.stopPropagation()}>
-                  {!cleared && (
+                <div className="w-20 flex items-center justify-end gap-1" onClick={e => e.stopPropagation()}>
+                  {!cleared ? (
                     <button
                       onClick={() => goToSettle(client.id)}
                       title="Settle account"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-ink-primary text-amber-400 text-[9px] font-bold uppercase tracking-wider hover:bg-ink-primary/90 transition-all"
+                      className="h-7 px-3 rounded-lg bg-ink-primary text-white text-[11px] font-bold hover:bg-black transition-all"
                     >
-                      <Receipt size={10} /> Settle
+                      Settle
                     </button>
-                  )}
-                  {hasPermission('clients', 'edit') && (
-                    <>
+                  ) : hasPermission('clients', 'edit') && (
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => openEdit(client)}
-                        className="w-7 h-7 rounded-lg border border-black/5 flex items-center justify-center text-gray-400 hover:bg-ink-primary hover:text-white hover:border-ink-primary transition-all"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 transition-all"
                         title="Edit"
                       >
-                        <Edit3 size={11} />
+                        <Edit3 size={12} />
                       </button>
                       <button
                         onClick={() => { if (window.confirm('Delete this client permanently?')) handleDelete(client.id); }}
-                        className="w-7 h-7 rounded-lg border border-black/5 flex items-center justify-center text-gray-400 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all"
+                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500 transition-all"
                         title="Delete"
                       >
-                        <Trash2 size={11} />
+                        <Trash2 size={12} />
                       </button>
-                    </>
+                    </div>
                   )}
                 </div>
               </div>
             );
           })}
+          </div>
         </div>
       )}
     </div>
