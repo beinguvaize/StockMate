@@ -53,6 +53,7 @@ const SuperAdminPortal = lazy(() => import('./pages/admin/SuperAdminPortal'));
 const DataToolsPage    = lazy(() => import('./pages/DataToolsPage'));
 const VanSalePage      = lazy(() => import('./pages/VanSalePage'));
 const Manufacturing    = lazy(() => import('./pages/Manufacturing'));
+const KDS              = lazy(() => import('./pages/KDS'));
 const AuditLog         = lazy(() => import('./pages/AuditLog'));
 const Onboarding       = lazy(() => import('./pages/Onboarding'));
 
@@ -183,6 +184,7 @@ function AppRoutes() {
         <Route path="vehicles" element={<ProtectedRoute><Vehicles /></ProtectedRoute>} />
         <Route path="vehicles/van-sale" element={<ProtectedRoute><VanSalePage /></ProtectedRoute>} />
         <Route path="manufacturing" element={<ProtectedRoute><Manufacturing /></ProtectedRoute>} />
+        <Route path="kds" element={<ProtectedRoute><KDS /></ProtectedRoute>} />
         <Route path="sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
         <Route path="expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
         <Route path="settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
