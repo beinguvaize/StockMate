@@ -328,12 +328,26 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave }) => {
         const raw = products.find(p => p.id === c.raw_product_id);
         const cf = (c.unit === 'SECONDARY' && Number(raw?.conversion_factor) > 0)
           ? Number(raw.conversion_factor) : 1;
+        const quantity = +(c.quantity * cf * factor).toFixed(3); // base units needed
+        const unitCost = Number(raw?.costPrice) || 0;
+        const available = Number(raw?.stock) || 0;
         return {
           productId: c.raw_product_id,
-          quantity: +(c.quantity * cf * factor).toFixed(3), // base units
+          quantity,
+          unit: raw?.unit || '',
+          cost: +(unitCost * quantity).toFixed(2),
+          available,
+          short: available < quantity,
         };
       });
   }, [bom, qty, bomComponents, products]);
+
+  // Cost roll-up (estimate, before build).
+  const materialCost = materials.reduce((s, m) => s + m.cost, 0);
+  const otherCostSum = costs.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+  const estTotal = materialCost + otherCostSum;
+  const estUnit = Number(qty) > 0 ? estTotal / Number(qty) : 0;
+  const anyShort = materials.some(m => m.short);
 
   const productName = (id) => products.find(p => p.id === id)?.name || id;
   const setCost = (i, k, v) => setCosts(cs => cs.map((c, idx) => idx === i ? { ...c, [k]: v } : c));
@@ -358,14 +372,30 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave }) => {
           </div>
           {materials.length === 0
             ? <div className="text-[11px] text-gray-400">Enter a quantity to see materials.</div>
-            : <div className="space-y-1">
+            : <div className="space-y-1.5">
                 {materials.map(m => (
-                  <div key={m.productId} className="flex justify-between text-xs">
-                    <span className="text-ink-secondary truncate">{productName(m.productId)}</span>
-                    <span className="font-black text-ink-primary tabular-nums">×{m.quantity}</span>
+                  <div key={m.productId} className="flex items-center justify-between text-xs gap-2">
+                    <span className="text-ink-secondary truncate flex-1">{productName(m.productId)}</span>
+                    <span className={`tabular-nums text-[10px] font-bold ${m.short ? 'text-red-500' : 'text-gray-400'}`}>
+                      {m.short ? `short · have ${m.available}${m.unit}` : `have ${m.available}${m.unit}`}
+                    </span>
+                    <span className="font-black text-ink-primary tabular-nums w-14 text-right">×{m.quantity}</span>
+                    <span className="font-mono tabular-nums text-gray-500 w-16 text-right">{formatCurrency(m.cost)}</span>
                   </div>
                 ))}
+                {/* Cost roll-up */}
+                <div className="pt-2 mt-1 border-t border-black/5 space-y-1">
+                  <div className="flex justify-between text-[11px] text-gray-400"><span>Material cost</span><span className="font-mono tabular-nums">{formatCurrency(materialCost)}</span></div>
+                  {otherCostSum > 0 && <div className="flex justify-between text-[11px] text-gray-400"><span>Other costs</span><span className="font-mono tabular-nums">{formatCurrency(otherCostSum)}</span></div>}
+                  <div className="flex justify-between text-xs font-black text-ink-primary"><span>Est. total</span><span className="font-mono tabular-nums">{formatCurrency(estTotal)}</span></div>
+                  {Number(qty) > 0 && <div className="flex justify-between text-[11px] text-amber-700 font-bold"><span>Unit cost</span><span className="font-mono tabular-nums">{formatCurrency(estUnit)}</span></div>}
+                </div>
               </div>}
+          {anyShort && (
+            <div className="mt-3 flex items-center gap-2 text-[11px] font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              ⚠ Not enough stock for some materials — completing the build will fail until you restock.
+            </div>
+          )}
         </div>
       )}
 
