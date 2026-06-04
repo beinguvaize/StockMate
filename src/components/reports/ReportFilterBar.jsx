@@ -81,7 +81,7 @@ const ReportFilterBar = ({
 
   const clearAllFilters = () => {
     setFilters({
-      datePreset: 'MONTH',
+      datePreset: 'TODAY',
       dateRange: filters.dateRange, // Keep current date range by default
     });
   };

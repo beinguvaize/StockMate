@@ -46,9 +46,9 @@ const ReportShell = ({
   // 2. State & Persistence (Rule 5)
   const [activeTabId, setActiveTabId] = useState(allowedTabs[0]?.id);
   const [globalFilters, setGlobalFilters] = useState({
-    datePreset: 'MONTH',
-    dateRange: { 
-      start: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    datePreset: 'TODAY',
+    dateRange: {
+      start: todayISOInAppTZ(),
       end: todayISOInAppTZ()
     }
   });
