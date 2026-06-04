@@ -52,6 +52,20 @@ table.report-table .numeric {
     font-variant-numeric: tabular-nums;
     font-feature-settings: 'tnum' 1;
 }
+
+/* ── Grey legibility ───────────────────────────────────────────────
+   The faintest greys (gray-300/400) were hard to read on the light
+   canvas. Lift each one step darker app-wide. These are plain (un-
+   layered) class rules so they win over Tailwind's layered utilities
+   without !important. Dark panels are handled by the guard below. */
+.text-gray-300 { color: #9ca3af; } /* was #d1d5db → gray-400 */
+.text-gray-400 { color: #6b7280; } /* was #9ca3af → gray-500 */
+
+/* On dark panels keep light-on-dark legibility (all themes, not just white). */
+.bg-ink-primary .text-gray-300,
+.bg-ink-primary .text-gray-400,
+.bg-ink-primary .text-gray-500 { color: rgba(255,255,255,0.6); }
+
 /* Global table polish (vendflow palette) applied via .report-table class */
 table.report-table {
     width: 100%;
@@ -191,7 +205,7 @@ table.report-table tbody td.numeric {
   --color-surface: #F9F9F9;
   --color-ink-primary: #111111;
   --color-ink-secondary: #444444;
-  --color-ink-tertiary: #888888;
+  --color-ink-tertiary: #6B7280;
   --color-accent-signature: #D97706;
   --color-accent-signature-hover: #B45309;
   --color-button-text: #FFFFFF;
@@ -329,7 +343,7 @@ table.report-table tbody td.numeric {
   --color-surface: #FFFFFF;
   --color-ink-primary: #1E1B2E;     /* near-black with a violet cast */
   --color-ink-secondary: #4B5563;
-  --color-ink-tertiary: #9CA3AF;
+  --color-ink-tertiary: #6B7280;    /* gray-500 — legible muted text */
   --color-accent-signature: #D97706;       /* amber-600 (brand) */
   --color-accent-signature-hover: #B45309; /* amber-700 */
   --color-button-text: #FFFFFF;            /* white text on amber */
