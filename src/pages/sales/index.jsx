@@ -283,6 +283,7 @@ const SalesPage = () => {
             addTable={tablesApi.addTable}
             deleteTable={tablesApi.deleteTable}
             transferTab={tablesApi.transferTab}
+            updateTable={tablesApi.updateTable}
             currencySymbol={businessProfile?.currencySymbol || '₹'}
           />
         ) : activeTab === 'pos' ? (

@@ -41,10 +41,10 @@ export function useTables(tenantId) {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   // ── Table CRUD ───────────────────────────────────────────────
-  const addTable = async ({ label, section = null, seats = 4 }) => {
+  const addTable = async ({ label, section = null, seats = 4, ...rest }) => {
     const sort = tables.length;
     const { error: e } = await supabase.from('restaurant_tables')
-      .insert({ tenant_id: tenantId, label, section, seats, sort });
+      .insert({ tenant_id: tenantId, label, section, seats, sort, ...rest });
     if (!e) await fetchAll();
     return { error: e };
   };
@@ -54,6 +54,14 @@ export function useTables(tenantId) {
       .update({ deleted_at: new Date().toISOString() })
       .eq('id', id).eq('tenant_id', tenantId);
     if (!e) await fetchAll();
+    return { error: e };
+  };
+
+  // Patch a table (label/seats/section/position/shape/size). Optimistic.
+  const updateTable = async (id, patch) => {
+    setTables(prev => prev.map(t => t.id === id ? { ...t, ...patch } : t));
+    const { error: e } = await supabase.from('restaurant_tables')
+      .update(patch).eq('id', id).eq('tenant_id', tenantId);
     return { error: e };
   };
 
@@ -114,7 +122,7 @@ export function useTables(tenantId) {
 
   return {
     tables, openTabs, loading, error, refresh: fetchAll,
-    addTable, deleteTable,
+    addTable, deleteTable, updateTable,
     openTab, saveTab, settleTab, voidTab, transferTab, tabTotal,
   };
 }
