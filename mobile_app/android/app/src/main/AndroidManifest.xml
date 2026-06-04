@@ -3,6 +3,9 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- In-app auto-update: download APK + trigger Android installer. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Required by connectivity_plus to read network state — without it
+         checkConnectivity() returns none and the app wrongly shows "Offline". -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- Biometric unlock on login screen (Face/Touch/Fingerprint + PIN fallback). -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
