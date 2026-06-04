@@ -143,7 +143,7 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
 
       {/* Transfer-target picker */}
       {transferFrom && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
           <div className="w-full max-w-sm bg-white rounded-2xl border border-black/5 shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
               <div>
@@ -167,7 +167,7 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
 
       {/* Add-table modal */}
       {adding && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/30">
           <div className="w-full max-w-sm bg-white rounded-2xl border border-black/5 shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
               <h3 className="text-base font-extrabold text-ink-primary">Add table</h3>

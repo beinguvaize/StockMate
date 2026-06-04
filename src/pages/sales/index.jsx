@@ -220,7 +220,7 @@ const SalesPage = () => {
       <div className="flex justify-between items-center py-2 border-b border-black/5">
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
-            {activeTab === 'pos' ? 'Sales' : 'History'}<span className="text-accent-signature">.</span>
+            {activeTab === 'tables' ? 'Tables' : activeTab === 'pos' ? (isResto ? 'Order' : 'Sales') : 'History'}<span className="text-accent-signature">.</span>
           </h1>
           {/* Today's live stats */}
           <div className="hidden sm:flex items-center gap-1.5">
