@@ -256,7 +256,7 @@ const Settings = () => {
  <p className="text-sm font-bold text-[#747576] opacity-70 mb-10 leading-relaxed">
  Settings are restricted to Administrators.
  </p>
- <button className="btn-signature w-full h-16" onClick={() => window.history.back()}>
+ <button className="btn-signature w-full h-11 !text-xs" onClick={() => window.history.back()}>
  GO BACK
  <div className="icon-nest">
  <ShieldCheck size={20} />
@@ -528,22 +528,18 @@ const Settings = () => {
  </div>
  </div>
 
- <div className="flex gap-4 pt-8 border-t border-black/5">
+ <div className="flex justify-end gap-3 pt-5 border-t border-black/5">
  <button
    type="submit"
    disabled={savedStatus}
-   className={`btn-signature w-full !rounded-lg !py-6 !text-base transition-all duration-500 ${
+   className={`inline-flex items-center gap-2 h-10 px-6 rounded-xl text-xs font-black uppercase tracking-wide text-white shadow-md transition-all duration-300 ${
      savedStatus
-       ? '!bg-emerald-500 !text-white scale-[0.98] shadow-emerald-500/40 shadow-lg'
-       : ''
+       ? 'bg-emerald-500 shadow-emerald-500/30'
+       : 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/25'
    }`}
  >
-   <span className={`transition-transform duration-300 ${savedStatus ? 'scale-105' : ''}`}>
-     {savedStatus ? 'SAVED' : 'SAVE SETTINGS'}
-   </span>
-   <div className={`icon-nest transition-transform duration-500 ${savedStatus ? 'rotate-[360deg] bg-white/20' : ''}`}>
-     {savedStatus ? <CheckCircle2 size={24} className="animate-in zoom-in duration-300" /> : <Save size={24} />}
-   </div>
+   <span>{savedStatus ? 'Saved' : 'Save Settings'}</span>
+   {savedStatus ? <CheckCircle2 size={15} /> : <Save size={15} />}
  </button>
  </div>
  </form>
@@ -584,13 +580,13 @@ const Settings = () => {
                   <h3 className="text-3xl font-black text-ink-primary mb-2 uppercase tracking-tight">{plan}</h3>
                   <p className="text-[10px] font-semibold text-gray-600 opacity-70 mb-6 leading-relaxed uppercase">{blurb}</p>
                   {isTop ? (
-                    <div className="w-full h-12 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
+                    <div className="w-full h-10 bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 rounded-xl text-xs font-bold flex items-center justify-center gap-2">
                       <CheckCircle2 size={14} /> TOP TIER — ALL MODULES UNLOCKED
                     </div>
                   ) : (
                     <button
                       onClick={() => setShowUpgradeModal(true)}
-                      className="w-full h-12 bg-ink-primary text-surface rounded-xl text-xs font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                      className="w-full h-10 bg-ink-primary text-surface rounded-xl text-xs font-bold hover:shadow-lg transition-all flex items-center justify-center gap-2"
                     >
                       UPGRADE WORKSPACE <ChevronRight size={14} className="text-accent-signature" />
                     </button>
@@ -629,7 +625,7 @@ const Settings = () => {
                 }
                 setIsUpdatingSlug(false);
               }}
-              className={`w-full h-12 rounded-xl text-xs font-bold transition-all ${
+              className={`w-full h-10 rounded-xl text-xs font-bold transition-all ${
                 workspaceSlug === currentTenant?.slug 
                 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
                 : 'bg-accent-signature text-button-text shadow-premium'
