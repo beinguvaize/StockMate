@@ -12,59 +12,98 @@ import {
 } from 'lucide-react';
 import { parseLocalDate } from '../lib/utils';
 
-// Common "all recent payments" view — every supplier_payment across suppliers.
+// Common payment history across suppliers — grouped by date. Renders
+// incrementally (PAGE rows at a time) so a large ledger never blocks the UI.
+const PAGE = 60;
 const PaymentsView = ({ payments, suppliers, purchases, cur }) => {
-  const supName = (id) => suppliers.find(s => s.id === id)?.name || '—';
-  const orderRef = (pid) => {
-    if (!pid) return null;
-    const p = purchases.find(x => x.id === pid);
-    return p?.invoice_no || p?.reference_no || `#${String(pid).slice(-6).toUpperCase()}`;
-  };
-  const rows = [...(payments || [])].sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  const total = rows.reduce((s, p) => s + Number(p.amount || 0), 0);
+  const [visible, setVisible] = useState(PAGE);
+  const [q, setQ] = useState('');
+
+  // O(1) lookups instead of .find() per row.
+  const supMap   = useMemo(() => new Map((suppliers || []).map(s => [s.id, s.name])), [suppliers]);
+  const orderMap = useMemo(() => new Map((purchases || []).map(p => [p.id, p.invoice_no || p.reference_no || `#${String(p.id).slice(-6).toUpperCase()}`])), [purchases]);
+
+  const sorted = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    return [...(payments || [])]
+      .filter(p => !term || (supMap.get(p.supplier_id) || '').toLowerCase().includes(term))
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  }, [payments, q, supMap]);
+
+  const total = useMemo(() => sorted.reduce((s, p) => s + Number(p.amount || 0), 0), [sorted]);
+
+  // Group the visible slice by date (slice first → cheap grouping).
+  const groups = useMemo(() => {
+    const out = [];
+    let cur = null;
+    for (const p of sorted.slice(0, visible)) {
+      if (!cur || cur.date !== p.date) { cur = { date: p.date, rows: [], sum: 0 }; out.push(cur); }
+      cur.rows.push(p);
+      cur.sum += Number(p.amount || 0);
+    }
+    return out;
+  }, [sorted, visible]);
+
+  const fmtDay = (d) => d ? new Date(d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '—';
 
   return (
     <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3 border-b border-black/5">
+      <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-black/5 flex-wrap">
         <div className="flex items-center gap-2">
           <Wallet size={15} className="text-amber-600" />
-          <span className="text-[12px] font-bold text-ink-primary">Recent payments</span>
-          <span className="text-[11px] font-semibold text-gray-400">{rows.length}</span>
+          <span className="text-[12px] font-bold text-ink-primary">Payment history</span>
+          <span className="text-[11px] font-semibold text-gray-400">{sorted.length}</span>
         </div>
-        <div className="font-mono tabular-nums text-[13px] font-bold text-ink-primary">
-          <span className="text-amber-400 mr-0.5">{cur}</span>{Math.round(total).toLocaleString('en-IN')}
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input value={q} onChange={e => { setQ(e.target.value); setVisible(PAGE); }}
+              placeholder="Filter supplier…"
+              className="h-8 pl-8 pr-3 bg-white border border-black/10 rounded-lg text-[12px] font-semibold outline-none focus:border-amber-400 w-44" />
+          </div>
+          <div className="font-mono tabular-nums text-[13px] font-bold text-ink-primary">
+            <span className="text-amber-400 mr-0.5">{cur}</span>{Math.round(total).toLocaleString('en-IN')}
+          </div>
         </div>
       </div>
 
-      <div className="hidden md:grid grid-cols-[6rem_1fr_8rem_6rem_7rem] gap-4 px-5 py-2.5 text-[10px] uppercase tracking-wider font-bold text-gray-400 border-b border-black/5">
-        <div>Date</div><div>Supplier</div><div>Order</div><div>Method</div><div className="text-right">Amount</div>
-      </div>
-
-      {rows.length === 0 && (
+      {sorted.length === 0 && (
         <div className="px-5 py-16 text-center text-sm font-semibold text-gray-400">No payments yet.</div>
       )}
 
-      <div className="divide-y divide-black/5">
-        {rows.map(p => (
-          <div key={p.id} className="grid grid-cols-2 md:grid-cols-[6rem_1fr_8rem_6rem_7rem] gap-x-4 gap-y-1 px-5 py-3 items-center hover:bg-amber-50/40 transition-colors">
-            <div className="text-[12px] font-semibold text-gray-600 order-1">
-              {p.date ? new Date(p.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '—'}
-            </div>
-            <div className="font-bold text-[13px] text-ink-primary truncate order-3 md:order-2 col-span-2 md:col-span-1">{supName(p.supplier_id)}</div>
-            <div className="order-4 md:order-3">
-              {orderRef(p.purchase_id)
-                ? <span className="font-mono text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">{orderRef(p.purchase_id)}</span>
-                : <span className="text-[11px] text-gray-400">On account</span>}
-            </div>
-            <div className="order-5 md:order-4">
-              <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500 bg-black/[0.05] px-1.5 py-0.5 rounded">{p.method || 'CASH'}</span>
-            </div>
-            <div className="text-right font-mono tabular-nums text-[13px] font-bold text-emerald-600 order-2 md:order-5">
-              {cur}{Number(p.amount || 0).toLocaleString('en-IN')}
-            </div>
+      {groups.map(g => (
+        <div key={g.date}>
+          <div className="flex items-center justify-between px-5 py-1.5 bg-black/[0.025] border-b border-black/5">
+            <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500">{fmtDay(g.date)}</span>
+            <span className="font-mono tabular-nums text-[11px] font-bold text-gray-500">{cur}{Math.round(g.sum).toLocaleString('en-IN')}</span>
           </div>
-        ))}
-      </div>
+          <div className="divide-y divide-black/5">
+            {g.rows.map(p => (
+              <div key={p.id} className="grid grid-cols-[1fr_8rem_6rem_7rem] gap-4 px-5 py-2.5 items-center hover:bg-amber-50/40 transition-colors">
+                <div className="font-bold text-[13px] text-ink-primary truncate">{supMap.get(p.supplier_id) || p.supplier_name || '—'}</div>
+                <div>
+                  {p.purchase_id
+                    ? <span className="font-mono text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">{orderMap.get(p.purchase_id) || `#${String(p.purchase_id).slice(-6).toUpperCase()}`}</span>
+                    : <span className="text-[11px] text-gray-400">On account</span>}
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500 bg-black/[0.05] px-1.5 py-0.5 rounded">{p.payment_method || 'CASH'}</span>
+                </div>
+                <div className="text-right font-mono tabular-nums text-[13px] font-bold text-emerald-600">
+                  {cur}{Number(p.amount || 0).toLocaleString('en-IN')}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      {visible < sorted.length && (
+        <button onClick={() => setVisible(v => v + PAGE)}
+          className="w-full py-3 text-[12px] font-bold text-amber-700 hover:bg-amber-50 border-t border-black/5 transition-colors">
+          Load more ({sorted.length - visible} left)
+        </button>
+      )}
     </div>
   );
 };

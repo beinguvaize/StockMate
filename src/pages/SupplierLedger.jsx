@@ -39,6 +39,7 @@ const SupplierLedger = () => {
 
   // payTarget: a specific purchase to pay, or null = pay supplier (auto-allocate).
   const [payTarget, setPayTarget] = useState(null);
+  const [showPayHist, setShowPayHist] = useState(true);
   const openPay = (purchase = null, prefill = '') => {
     setPayTarget(purchase);
     setPayAmount(prefill ? String(Math.round(prefill)) : ''); setPayMethod('CASH'); setPayRef(''); setPayNote('');
@@ -298,6 +299,48 @@ const SupplierLedger = () => {
                 <span className={`font-mono tabular-nums text-[13px] font-bold ${cls}`}>{val}</span>
               </div>
             ))}
+          </div>
+
+          {/* Payment history — every payment made to this supplier, newest first */}
+          <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
+            <button onClick={() => setShowPayHist(v => !v)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.015] transition-colors">
+              <span className="flex items-center gap-2">
+                <History size={14} className="text-amber-600" />
+                <span className="text-[12px] font-bold text-ink-primary">Payment history</span>
+                <span className="text-[11px] font-semibold text-gray-400">{payments.length}</span>
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="font-mono tabular-nums text-[12px] font-bold text-emerald-600">{businessProfile?.currencySymbol || '₹'}{Math.round(metrics.totalPaid).toLocaleString()}</span>
+                <ChevronRight size={15} className={`text-gray-400 transition-transform ${showPayHist ? 'rotate-90' : ''}`} />
+              </span>
+            </button>
+            {showPayHist && (
+              <div className="border-t border-black/5 max-h-80 overflow-y-auto custom-scrollbar">
+                {payments.length === 0 && (
+                  <div className="px-4 py-8 text-center text-[12px] font-semibold text-gray-400">No payments yet.</div>
+                )}
+                {payments.map(p => {
+                  const ord = p.purchase_id
+                    ? (supplierPurchases.find(x => x.id === p.purchase_id)?.invoice_no || `#${String(p.purchase_id).slice(-6).toUpperCase()}`)
+                    : null;
+                  return (
+                    <div key={p.id} className="flex items-center justify-between gap-3 px-4 py-2.5 border-b border-black/[0.04] last:border-0">
+                      <div className="min-w-0">
+                        <div className="text-[12px] font-semibold text-ink-primary">{formatDate(p.date)}</div>
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className="text-[9px] font-bold uppercase tracking-wide text-gray-500 bg-black/[0.05] px-1.5 py-0.5 rounded">{p.payment_method || 'CASH'}</span>
+                          {ord
+                            ? <span className="font-mono text-[9px] font-bold text-amber-700">{ord}</span>
+                            : <span className="text-[9px] font-semibold text-gray-400 uppercase">On account</span>}
+                        </div>
+                      </div>
+                      <span className="font-mono tabular-nums text-[13px] font-bold text-emerald-600 shrink-0">{businessProfile?.currencySymbol || '₹'}{Number(p.amount || 0).toLocaleString()}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 
