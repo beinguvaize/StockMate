@@ -50,11 +50,11 @@ export const DEFAULT_MODULES = {
     appointments: false, service_catalog: false,
   },
   SERVICES: {
-    inventory: false,
+    inventory: true,       // = service catalog (no stock; relabelled)
     manufacturing: false,
     vehicles: false,
     orders: false,
-    pos: true,             // counter billing still useful
+    pos: true,             // counter billing
     payroll: true,
     tables: false, kot: false, modifiers: false, recipe_deduct: false, channels: false,
     // services features

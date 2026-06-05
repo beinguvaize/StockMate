@@ -77,6 +77,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   // Restaurant dishes aren't unit-stocked at the POS (recipe deduction is R5),
   // so don't gate adding a dish on warehouse stock.
   const isRestoPOS = businessType === 'RESTAURANT';
+  // Services + restaurant sell from a catalog without unit stock.
+  const noStockGate = isRestoPOS || businessType === 'SERVICES';
   const { addNotification } = useNotifications();
   const [cart, setCart] = useState(() => (Array.isArray(initialCart) ? initialCart : []));
   // Bound to a table tab → persist cart changes back to the open tab.
@@ -279,7 +281,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   };
 
   const getAvailableStock = (productId) =>
-    isRestoPOS
+    noStockGate
       ? Infinity
       : (warehouseStock[productId] !== undefined
           ? warehouseStock[productId]

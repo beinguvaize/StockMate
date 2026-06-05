@@ -16,6 +16,7 @@ const DEFAULT_CATEGORIES = [
 const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId }) => {
   const { businessType } = useTenant();
   const isResto = businessType === 'RESTAURANT';
+  const isService = businessType === 'SERVICES';
 
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
@@ -23,6 +24,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: 'STANDARD',
     secondary_unit: '', conversion_factor: '',
     food_type: '', is_available: true, station: '', modifier_groups: [],   // menu (restaurant)
+    duration_min: '',   // service catalog
   });
 
   const [imageFile, setImageFile]     = useState(null);
@@ -141,6 +143,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         is_available: formData.is_available !== false,
         station: formData.station?.trim() || null,
         modifier_groups: Array.isArray(formData.modifier_groups) ? formData.modifier_groups : [],
+        duration_min: Number(formData.duration_min) || null,
       };
 
       const result = await onSave(parsedData);
@@ -325,6 +328,20 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     {mgroups.length === 0 && (
                       <p className="text-[11px] text-gray-400">No modifiers. Add a group for sizes or add-ons.</p>
                     )}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Service details — services vertical */}
+            {isService && (
+              <>
+                <Section>Service Details</Section>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Duration (minutes)</label>
+                    <input type="number" min="0" className={inputCls} placeholder="30"
+                      value={formData.duration_min} onChange={e => setFormData({ ...formData, duration_min: e.target.value })} />
                   </div>
                 </div>
               </>
