@@ -122,10 +122,18 @@ export function useManufacturing(tenantId) {
     await fetchAll();
   };
 
+  // Wastage/yield: set the actual produced qty before completing.
+  const setProducedQty = async (id, qty) => {
+    const { error } = await supabase.from('production_orders')
+      .update({ qty_produced: Number(qty) }).eq('id', id).eq('tenant_id', tenantId);
+    if (!error) await fetchAll();
+    return { error };
+  };
+
   return {
     boms, bomComponents, orders, orderMaterials, orderCosts, loading,
     refetch: fetchAll,
     createBom, deleteBom,
-    createProductionOrder, completeOrder, deleteOrder,
+    createProductionOrder, completeOrder, deleteOrder, setProducedQty,
   };
 }

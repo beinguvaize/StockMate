@@ -115,6 +115,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   // Order-level discount (flat amount). Subtracted from the gross total.
   const [discount, setDiscount] = useState('');
   const [serviceChargePct, setServiceChargePct] = useState(0); // restaurant service charge %
+  const [splitN, setSplitN] = useState(1); // split bill N ways (display aid)
   // Parked/held sales — persisted per device so a half-rung sale survives.
   const [parked, setParked] = useState(() => {
     try { return JSON.parse(localStorage.getItem('pos_parked') || '[]'); } catch { return []; }
@@ -529,6 +530,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       setCart([]);
       setDiscount('');
       setServiceChargePct(0);
+      setSplitN(1);
       setAmountReceived('');
       setFulfillmentType('PICKUP');
       setDeliveryDetails({ address: '', zone: '', date: '', notes: '', fee: '' });
@@ -1062,6 +1064,22 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   </button>
                 ))}
               </div>
+            </div>
+          )}
+          {/* Split bill (restaurant) — equal split display aid */}
+          {isRestoPOS && total > 0 && (
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Split</span>
+              <div className="flex items-center gap-1 bg-black/[0.04] rounded-lg p-0.5">
+                <button type="button" onClick={() => setSplitN(n => Math.max(1, n - 1))} className="w-7 h-7 rounded grid place-items-center hover:bg-white"><Minus size={12} /></button>
+                <span className="w-7 text-center text-[13px] font-bold font-mono">{splitN}</span>
+                <button type="button" onClick={() => setSplitN(n => n + 1)} className="w-7 h-7 rounded grid place-items-center hover:bg-white"><Plus size={12} /></button>
+              </div>
+              {splitN > 1 && (
+                <span className="text-[12px] font-bold text-amber-700 ml-auto">
+                  {formatCurrency(total / splitN)} <span className="text-gray-400 font-normal">/ guest</span>
+                </span>
+              )}
             </div>
           )}
           {/* Order discount (flat amount) */}

@@ -16,7 +16,7 @@ const Manufacturing = () => {
   const { addNotification } = useNotifications();
   const {
     boms, bomComponents, orders, orderMaterials, orderCosts, loading,
-    createBom, deleteBom, createProductionOrder, completeOrder, deleteOrder,
+    createBom, deleteBom, createProductionOrder, completeOrder, deleteOrder, setProducedQty,
   } = useManufacturing(currentTenantId);
 
   const [tab, setTab]             = useState('PRODUCTION');
@@ -101,12 +101,32 @@ const Manufacturing = () => {
                     </div>
                   ) : (
                     <div className="flex items-center gap-2">
+                      {/* Edit planned qty (draft) */}
                       <button
                         onClick={async () => {
+                          const v = window.prompt('Planned quantity', o.qty_produced);
+                          if (v === null) return;
+                          const q = Number(v);
+                          if (q > 0) await setProducedQty(o.id, q);
+                        }}
+                        title="Edit quantity"
+                        className="text-[10px] font-bold text-gray-400 hover:text-ink-primary px-2"
+                      >
+                        Edit qty
+                      </button>
+                      <button
+                        onClick={async () => {
+                          // Wastage/yield: confirm actual produced (may be < planned).
+                          const v = window.prompt(`Actual quantity produced (planned ${o.qty_produced})`, o.qty_produced);
+                          if (v === null) return;
+                          const actual = Number(v);
+                          if (!(actual > 0)) { addNotification('Quantity must be > 0', 'error'); return; }
+                          if (actual !== Number(o.qty_produced)) await setProducedQty(o.id, actual);
                           const r = await completeOrder(o.id);
                           addNotification(
-                            r.success ? `Build complete — unit cost ${formatCurrency(r.unit_cost)}`
-                                      : `Failed: ${r.error?.message || 'error'}`,
+                            r.success
+                              ? `Build complete — unit cost ${formatCurrency(r.unit_cost)}${actual < o.qty_produced ? ` (${(((o.qty_produced - actual) / o.qty_produced) * 100).toFixed(0)}% loss)` : ''}`
+                              : `Failed: ${r.error?.message || 'error'}`,
                             r.success ? 'success' : 'error');
                         }}
                         className="px-3 py-1.5 rounded-lg bg-ink-primary text-white text-[10px] font-black hover:bg-ink-primary/90 transition-all"

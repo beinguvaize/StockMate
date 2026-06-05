@@ -5,7 +5,7 @@ import FloorPlan from './FloorPlan';
 // R2 Table POS — restaurant floor. Shows every table with live status
 // (free / occupied + running tab total). Tap a table to open or resume its
 // order in the builder.
-const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, deleteTable, transferTab, updateTable, currencySymbol = '₹' }) => {
+const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, deleteTable, transferTab, mergeTabs, updateTable, currencySymbol = '₹' }) => {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState({ label: '', section: '', seats: 4 });
   const [busy, setBusy] = useState(false);
@@ -13,8 +13,14 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
   const [view, setView] = useState('grid'); // 'grid' | 'plan'
 
   const freeTables = tables.filter(t => !openTabs[t.id]);
-  const doTransfer = async (toTable) => {
-    if (transferFrom?.tab?.id) await transferTab(transferFrom.tab.id, toTable.id);
+  // Targets to move/merge into = every other table.
+  const moveTargets = transferFrom ? tables.filter(t => t.id !== transferFrom.table.id) : [];
+  const doMove = async (toTable) => {
+    const targetTab = openTabs[toTable.id];
+    if (transferFrom?.tab?.id) {
+      if (targetTab) await mergeTabs(transferFrom.tab, targetTab);   // occupied → merge
+      else await transferTab(transferFrom.tab.id, toTable.id);       // free → transfer
+    }
     setTransferFrom(null);
   };
 
@@ -124,11 +130,11 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
                         <Trash2 size={12} />
                       </span>
                     )}
-                    {occupied && freeTables.length > 0 && (
+                    {occupied && tables.length > 1 && (
                       <span
                         onClick={(e) => { e.stopPropagation(); setTransferFrom({ table: t, tab }); }}
                         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 rounded-lg grid place-items-center text-amber-500 hover:text-amber-700 hover:bg-amber-100 transition"
-                        title="Transfer table"
+                        title="Move / merge table"
                       >
                         <ArrowLeftRight size={12} />
                       </span>
@@ -147,19 +153,22 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
           <div className="w-full max-w-sm bg-white rounded-2xl border border-black/5 shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
               <div>
-                <h3 className="text-base font-extrabold text-ink-primary">Transfer Table {transferFrom.table.label}</h3>
-                <p className="text-[11px] text-gray-400">Move the running tab to a free table</p>
+                <h3 className="text-base font-extrabold text-ink-primary">Move Table {transferFrom.table.label}</h3>
+                <p className="text-[11px] text-gray-400">Free table = transfer · occupied = merge bills</p>
               </div>
               <button onClick={() => setTransferFrom(null)} className="text-gray-400 hover:text-ink-primary"><X size={18} /></button>
             </div>
             <div className="p-4 grid grid-cols-3 gap-2 max-h-[50vh] overflow-y-auto">
-              {freeTables.map(ft => (
-                <button key={ft.id} onClick={() => doTransfer(ft)}
-                  className="rounded-xl border border-black/10 hover:border-amber-400 hover:bg-amber-50 p-3 text-center transition-all">
-                  <div className="font-extrabold text-[14px] text-ink-primary">{ft.label}</div>
-                  <div className="text-[10px] text-gray-400">{ft.section || 'Floor'}</div>
-                </button>
-              ))}
+              {moveTargets.map(ft => {
+                const occ = !!openTabs[ft.id];
+                return (
+                  <button key={ft.id} onClick={() => doMove(ft)}
+                    className={`rounded-xl border p-3 text-center transition-all ${occ ? 'border-amber-300 bg-amber-50 hover:border-amber-400' : 'border-black/10 hover:border-amber-400 hover:bg-amber-50'}`}>
+                    <div className="font-extrabold text-[14px] text-ink-primary">{ft.label}</div>
+                    <div className={`text-[10px] font-bold ${occ ? 'text-amber-600' : 'text-gray-400'}`}>{occ ? 'merge' : (ft.section || 'free')}</div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
