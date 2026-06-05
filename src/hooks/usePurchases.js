@@ -212,6 +212,22 @@ export const usePurchases = (tenantId) => {
     return { success: true, id };
   };
 
+  // Pay a specific purchase (order). Links the payment + bumps paid_amount.
+  const payPurchase = async ({ supplierId, purchaseId, amount, method = 'CASH', date, referenceNo, note }) => {
+    if (!supplierId || !purchaseId)   return { error: new Error('supplierId + purchaseId required') };
+    if (!(Number(amount) > 0))        return { error: new Error('amount must be positive') };
+    const id = `SUPP-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
+    const { error } = await supabase.rpc('settle_purchase_payment', {
+      p_id: id, p_tenant_id: tenantId, p_supplier_id: supplierId, p_purchase_id: purchaseId,
+      p_amount: Number(amount), p_method: method,
+      p_date: date || new Date().toISOString().slice(0, 10),
+      p_reference_no: referenceNo || null, p_note: note || null,
+    });
+    if (error) return { error };
+    await fetchPurchases();
+    return { success: true, id };
+  };
+
   return {
     data,
     purchases: data,
@@ -227,5 +243,6 @@ export const usePurchases = (tenantId) => {
     remove,
     addReturn,
     paySupplier,
+    payPurchase,
   };
 };

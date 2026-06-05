@@ -19,7 +19,7 @@ const SupplierLedger = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { suppliers, loading: peoLoading } = usePeople(currentTenantId);
-  const { purchases, purchaseReturns, supplierPayments, paySupplier, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, supplierPayments, paySupplier, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
   const { products, loading: invLoading } = useInventory(currentTenantId);
 
   const loading = peoLoading || purLoading || invLoading;
@@ -37,23 +37,47 @@ const SupplierLedger = () => {
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [payError, setPayError]     = useState(null);
 
-  const openPay = () => {
-    setPayAmount(''); setPayMethod('CASH'); setPayRef(''); setPayNote('');
+  // payTarget: a specific purchase to pay, or null = pay supplier (auto-allocate).
+  const [payTarget, setPayTarget] = useState(null);
+  const openPay = (purchase = null, prefill = '') => {
+    setPayTarget(purchase);
+    setPayAmount(prefill ? String(Math.round(prefill)) : ''); setPayMethod('CASH'); setPayRef(''); setPayNote('');
     setPayError(null); setPayOpen(true);
   };
 
   const submitPay = async () => {
+    const amt = Number(payAmount);
+    if (!(amt > 0)) { setPayError('Enter a valid amount'); return; }
     setPaySubmitting(true); setPayError(null);
-    const { error } = await paySupplier({
-      supplierId:  id,
-      amount:      payAmount,
-      method:      payMethod,
-      date:        payDate,
-      referenceNo: payRef,
-      note:        payNote,
-    });
+    const common = { method: payMethod, date: payDate, referenceNo: payRef, note: payNote };
+
+    if (payTarget) {
+      // Pay this one order.
+      const { error } = await payPurchase({ supplierId: id, purchaseId: payTarget.id, amount: amt, ...common });
+      setPaySubmitting(false);
+      if (error) { setPayError(error.message || 'Payment failed'); return; }
+      setPayOpen(false);
+      return;
+    }
+
+    // General: auto-allocate FIFO across unpaid credit purchases, then on-account.
+    let remaining = amt;
+    const due = (p) => Number(p.total_amount ?? p.total_cost ?? 0) - Number(p.paid_amount || 0);
+    const unpaid = supplierPurchases
+      .filter(p => isCredit(p.payment_type) && due(p) > 0.5)
+      .sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
+    for (const p of unpaid) {
+      if (remaining <= 0.5) break;
+      const chunk = Math.min(remaining, due(p));
+      const { error } = await payPurchase({ supplierId: id, purchaseId: p.id, amount: chunk, ...common });
+      if (error) { setPaySubmitting(false); setPayError(error.message || 'Payment failed'); return; }
+      remaining -= chunk;
+    }
+    if (remaining > 0.5) {
+      const { error } = await paySupplier({ supplierId: id, amount: remaining, ...common });
+      if (error) { setPaySubmitting(false); setPayError(error.message || 'Payment failed'); return; }
+    }
     setPaySubmitting(false);
-    if (error) { setPayError(error.message || 'Payment failed'); return; }
     setPayOpen(false);
   };
 
@@ -87,6 +111,15 @@ const SupplierLedger = () => {
       .filter(p => p.supplier_id === supplier.id || p.supplier_name === supplier.name)
       .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
   }, [supplier, supplierPayments]);
+  // Payments not tied to a specific order — shown as ledger rows. Order-linked
+  // payments are reflected in each purchase's Paid/Due instead (no double-show).
+  const onAccountPayments = useMemo(() => payments.filter(p => !p.purchase_id), [payments]);
+  // Paid-to-date per purchase id (from linked payments).
+  const paidByPurchase = useMemo(() => {
+    const m = {};
+    payments.forEach(p => { if (p.purchase_id) m[p.purchase_id] = (m[p.purchase_id] || 0) + Number(p.amount || 0); });
+    return m;
+  }, [payments]);
 
   const filteredPurchases = useMemo(() => {
     const q = searchTerm.toLowerCase();
@@ -360,9 +393,24 @@ const SupplierLedger = () => {
                               <span className="text-xs font-semibold text-emerald-600 tabular-nums">+{qty}</span>
                             </td>
                             <td className="py-4 px-4">
-                              <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${credit ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                                {credit ? 'Credit' : 'Cash'}
-                              </span>
+                              {(() => {
+                                const paid = paidByPurchase[p.id] || 0;
+                                const orderDue = credit ? Math.max(0, amount - paid) : 0;
+                                if (!credit) return <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">Cash</span>;
+                                if (orderDue <= 0.5) return <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">Paid</span>;
+                                return (
+                                  <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
+                                    <span className="inline-flex flex-col leading-tight">
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">{paid > 0 ? 'Partial' : 'Credit'}</span>
+                                      <span className="font-mono text-[10px] text-red-500">due {businessProfile?.currencySymbol || '₹'}{Math.round(orderDue).toLocaleString()}</span>
+                                    </span>
+                                    {hasPermission('purchases', 'edit') !== false && (
+                                      <button onClick={() => openPay(p, orderDue)}
+                                        className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-ink-primary text-white hover:bg-black transition-all">Pay</button>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </td>
                             <td className="py-4 px-6 text-right">
                               <div className="text-sm font-bold font-mono tabular-nums text-ink-primary">
@@ -471,8 +519,8 @@ const SupplierLedger = () => {
                         </React.Fragment>
                       );
                     })}
-                    {/* ── Payment rows (money paid to supplier) ── */}
-                    {payments.map((p) => (
+                    {/* ── On-account payment rows (not tied to one order) ── */}
+                    {onAccountPayments.map((p) => (
                       <tr key={p.id} className="hover:bg-emerald-50/40 transition-colors">
                         <td className="py-4 px-6 text-emerald-300"><CreditCard size={14} /></td>
                         <td className="py-4 px-4"><div className="text-xs font-semibold text-ink-primary">{formatDate(p.date)}</div></td>
@@ -527,12 +575,16 @@ const SupplierLedger = () => {
           <div className="w-full max-w-md bg-white rounded-2xl border border-black/5 shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
               <div>
-                <h2 className="text-base font-black text-ink-primary leading-none">Pay {supplier?.name || 'Supplier'}</h2>
+                <h2 className="text-base font-black text-ink-primary leading-none">
+                  {payTarget ? `Pay order #${(payTarget.id || '').slice(-6).toUpperCase()}` : `Pay ${supplier?.name || 'Supplier'}`}
+                </h2>
                 <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-                  Outstanding: {businessProfile?.currencySymbol}{Math.round(metrics.payable).toLocaleString()}
+                  {payTarget
+                    ? `Order due: ${businessProfile?.currencySymbol}${Math.round(Math.max(0, Number(payTarget.total_amount ?? payTarget.total_cost ?? 0) - (paidByPurchase[payTarget.id] || 0))).toLocaleString()}`
+                    : `Outstanding: ${businessProfile?.currencySymbol}${Math.round(metrics.payable).toLocaleString()} · spreads across oldest credit orders`}
                 </p>
               </div>
-              <button onClick={() => setPayOpen(false)} className="text-gray-400 hover:text-ink-primary text-2xl leading-none">×</button>
+              <button onClick={() => { setPayOpen(false); setPayTarget(null); }} className="text-gray-400 hover:text-ink-primary text-2xl leading-none">×</button>
             </div>
 
             <div className="p-5 space-y-4">
