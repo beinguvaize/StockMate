@@ -116,6 +116,19 @@ export function useTables(tenantId) {
     return { error: e };
   };
 
+  // Merge one open tab into another: combine carts, void the source tab.
+  const mergeTabs = async (fromTab, intoTab) => {
+    const mergedCart = [...(intoTab.cart || []), ...(fromTab.cart || [])];
+    const { error: e1 } = await supabase.from('table_orders')
+      .update({ cart: mergedCart }).eq('id', intoTab.id).eq('tenant_id', tenantId);
+    if (e1) return { error: e1 };
+    const { error: e2 } = await supabase.from('table_orders')
+      .update({ status: 'VOID', settled_at: new Date().toISOString() })
+      .eq('id', fromTab.id).eq('tenant_id', tenantId);
+    await fetchAll();
+    return { error: e2 };
+  };
+
   // Total of a tab's cart (qty * price).
   const tabTotal = (tab) =>
     (tab?.cart || []).reduce((s, i) => s + (Number(i.price) || 0) * (Number(i.quantity) || 0), 0);
@@ -123,6 +136,6 @@ export function useTables(tenantId) {
   return {
     tables, openTabs, loading, error, refresh: fetchAll,
     addTable, deleteTable, updateTable,
-    openTab, saveTab, settleTab, voidTab, transferTab, tabTotal,
+    openTab, saveTab, settleTab, voidTab, transferTab, mergeTabs, tabTotal,
   };
 }
