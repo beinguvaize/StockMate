@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
+import { useNotifications } from '../context/NotificationContext';
 import { useSales } from '../hooks/useSales';
 import { useInventory } from '../hooks/useInventory';
 import {
@@ -77,6 +78,7 @@ const DayBook = () => {
     loading: finLoading, updateDayBook, getDayBookForDate, getPrevDayBook,
   } = useFinance(currentTenantId);
   const { sales, loading: salesLoading } = useSales(currentTenantId);
+  const { addNotification } = useNotifications();
   const { inventoryLocations } = useInventory(currentTenantId);
 
   const ALL_STORES = '00000000-0000-0000-0000-000000000000';
@@ -233,9 +235,14 @@ const DayBook = () => {
       location_id: storeFilter,
       opening_balance: parseFloat(openingInput),
     });
-    if (error) console.error('Save opening error:', error);
-    setOpeningInput('');
     setIsSaving(false);
+    if (error) {
+      console.error('Save opening error:', error);
+      addNotification?.(`Could not save opening balance: ${error.message || 'error'}`, 'error');
+      return; // keep the input so the user can retry
+    }
+    addNotification?.('Opening balance saved', 'success');
+    setOpeningInput('');
   };
 
   const handleUseYesterdayClosing = async () => {
