@@ -36,6 +36,7 @@ const qtyCls = (s) => s === 'crit' ? 'text-red-600' : s === 'low' ? 'text-amber-
 const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, onBatches, currencySymbol = '₹' }) => {
   const { businessType } = useTenant();
   const isResto = businessType === 'RESTAURANT';
+  const isService = businessType === 'SERVICES';
   const stockOf = (product) =>
     inventoryBalances.filter(b => b.product_id === product.id)
       .reduce((acc, b) => acc + toNum(b.quantity), 0) || toNum(product.stock);
@@ -79,13 +80,13 @@ const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, o
         <table className="w-full text-left">
           <thead>
             <tr className="border-b border-black/10">
-              <TH extra="pl-5 w-full">Product</TH>
+              <TH extra="pl-5 w-full">{isService ? 'Service' : 'Product'}</TH>
               <TH>SKU</TH>
-              <TH align="right">Stock</TH>
-              <TH align="right">Reorder</TH>
-              <TH align="right">Cost</TH>
-              <TH align="right">Sell</TH>
-              <TH align="right">Value</TH>
+              <TH align="right">{isService ? 'Duration' : 'Stock'}</TH>
+              <TH align="right">{isService ? '' : 'Reorder'}</TH>
+              <TH align="right">{isService ? '' : 'Cost'}</TH>
+              <TH align="right">{isService ? 'Price' : 'Sell'}</TH>
+              <TH align="right">{isService ? '' : 'Value'}</TH>
               <TH align="center"> </TH>
               <TH align="right"> </TH>
             </tr>
@@ -124,14 +125,18 @@ const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, o
                       </td>
                       <td className="px-3 py-2.5 font-mono text-[11px] text-gray-400 uppercase whitespace-nowrap">{product.sku || '—'}</td>
                       <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                        <span className={`font-mono text-[13px] font-bold ${qtyCls(st)}`}>{qty}</span>
-                        <span className="text-[9px] text-gray-400 uppercase ml-0.5">{product.unit || 'pcs'}</span>
+                        {isService ? (
+                          <span className="font-mono text-[13px] font-bold text-ink-primary">{product.duration_min ? `${product.duration_min}m` : '—'}</span>
+                        ) : (<>
+                          <span className={`font-mono text-[13px] font-bold ${qtyCls(st)}`}>{qty}</span>
+                          <span className="text-[9px] text-gray-400 uppercase ml-0.5">{product.unit || 'pcs'}</span>
+                        </>)}
                       </td>
-                      <td className="px-3 py-2.5 text-right font-mono text-[12px] text-gray-400 whitespace-nowrap">{reorder > 0 ? reorder : '—'}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-[12px] text-gray-500 whitespace-nowrap">{currencySymbol}{toNum(product.costPrice).toFixed(2)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-[12px] text-gray-400 whitespace-nowrap">{isService ? '' : (reorder > 0 ? reorder : '—')}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-[12px] text-gray-500 whitespace-nowrap">{isService ? '' : `${currencySymbol}${toNum(product.costPrice).toFixed(2)}`}</td>
                       <td className="px-3 py-2.5 text-right font-mono text-[12px] font-semibold whitespace-nowrap"><span className="text-amber-400">{currencySymbol}</span>{sell.toFixed(2)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-[13px] font-bold whitespace-nowrap"><span className="text-amber-400">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</td>
-                      <td className="px-3 py-2.5 text-center"><span className={`inline-block w-2 h-2 rounded-full ${dotCls(st)}`} /></td>
+                      <td className="px-3 py-2.5 text-right font-mono text-[13px] font-bold whitespace-nowrap">{isService ? '' : <><span className="text-amber-400">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
+                      <td className="px-3 py-2.5 text-center">{isService ? null : <span className={`inline-block w-2 h-2 rounded-full ${dotCls(st)}`} />}</td>
                       <td className="px-4 py-2.5 w-px">
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {onAdjust && (

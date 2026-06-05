@@ -347,30 +347,35 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               </>
             )}
 
-            <Section>Pricing &amp; Units</Section>
-            {/* Row 3: Cost | Selling | Unit */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className={labelCls}>Cost Price (₹)</label>
-                <input required type="number" step="0.01" className={inputCls} placeholder="0.00"
-                  value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value})} />
-              </div>
+            <Section>{isService ? 'Pricing' : 'Pricing & Units'}</Section>
+            {/* Row 3: Cost | Selling | Unit (services price only) */}
+            <div className={`grid grid-cols-1 ${isService ? 'md:grid-cols-1' : 'md:grid-cols-3'} gap-4`}>
+              {!isService && (
+                <div>
+                  <label className={labelCls}>Cost Price (₹)</label>
+                  <input required type="number" step="0.01" className={inputCls} placeholder="0.00"
+                    value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value})} />
+                </div>
+              )}
               <div>
                 <label className={labelCls}>
-                  Selling Price (₹){formData.product_type === 'RAW' && <span className="text-gray-400 font-normal"> — optional</span>}
+                  {isService ? 'Service Price (₹)' : 'Selling Price (₹)'}{formData.product_type === 'RAW' && <span className="text-gray-400 font-normal"> — optional</span>}
                 </label>
                 <input required={formData.product_type !== 'RAW'} type="number" step="0.01" className={inputCls} placeholder="0.00"
                   value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value})} />
               </div>
-              <div>
-                <label className={labelCls}>Base Unit</label>
-                <select className={inputCls} value={formData.unit}
-                  onChange={e => setFormData({ ...formData, unit: e.target.value})}>
-                  {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
-              </div>
+              {!isService && (
+                <div>
+                  <label className={labelCls}>Base Unit</label>
+                  <select className={inputCls} value={formData.unit}
+                    onChange={e => setFormData({ ...formData, unit: e.target.value})}>
+                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
 
+            {!isService && (<>
             {/* Alternate unit + conversion (optional) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -417,6 +422,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 <p className="text-[10px] text-gray-400 mt-1">POS warns / blocks if margin drops below this</p>
               </div>
             </div>
+            </>)}
 
             <Section>Taxation</Section>
             {/* Tax Slab */}
