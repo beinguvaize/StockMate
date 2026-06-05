@@ -11,6 +11,7 @@ const SUPPLIER_NUMERIC = ['balance', 'outstanding_balance'];
 export const usePurchases = (tenantId) => {
   const [data, setData] = useState([]);
   const [purchaseReturns, setPurchaseReturns] = useState([]);
+  const [supplierPayments, setSupplierPayments] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,6 +47,12 @@ export const usePurchases = (tenantId) => {
       setData(normalizeNumericRows(purCached, PURCHASE_NUMERIC));
       setSuppliers(normalizeNumericRows(supCached, SUPPLIER_NUMERIC));
       setPurchaseReturns(normalizeNumericRows(retCached, RETURN_NUMERIC));
+
+      // Supplier payments (small table; direct fetch).
+      const { data: payRows } = await supabase
+        .from('supplier_payments').select('*')
+        .eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500);
+      setSupplierPayments(payRows || []);
     } catch (err) {
       console.error("usePurchases Fetch Error:", err);
       setError(err.message);
@@ -209,6 +216,7 @@ export const usePurchases = (tenantId) => {
     data,
     purchases: data,
     purchaseReturns,
+    supplierPayments,
     suppliers,
     loading,
     error,

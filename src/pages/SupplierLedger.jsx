@@ -19,7 +19,7 @@ const SupplierLedger = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { suppliers, loading: peoLoading } = usePeople(currentTenantId);
-  const { purchases, purchaseReturns, paySupplier, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, supplierPayments, paySupplier, loading: purLoading } = usePurchases(currentTenantId);
   const { products, loading: invLoading } = useInventory(currentTenantId);
 
   const loading = peoLoading || purLoading || invLoading;
@@ -81,6 +81,13 @@ const SupplierLedger = () => {
       .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
   }, [supplier, purchaseReturns]);
 
+  const payments = useMemo(() => {
+    if (!supplier) return [];
+    return (supplierPayments || [])
+      .filter(p => p.supplier_id === supplier.id || p.supplier_name === supplier.name)
+      .sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
+  }, [supplier, supplierPayments]);
+
   const filteredPurchases = useMemo(() => {
     const q = searchTerm.toLowerCase();
     return supplierPurchases.filter(p => {
@@ -105,11 +112,12 @@ const SupplierLedger = () => {
     const last = supplierPurchases[0]?.date;
     const totalReturns = supplierReturns.reduce((s, r) => s + Number(r.total_amount || 0), 0);
     const net = total - totalReturns;
+    const totalPaid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
     // Live payable from suppliers.balance (authoritative) — falls back to computed credit total
     const payable = Number(supplier?.balance ?? supplier?.outstanding_balance ?? creditTotal);
 
-    return { total, count, avg, last, payable, cashPaid, creditTotal, totalReturns, net };
-  }, [supplierPurchases, supplierReturns, supplier]);
+    return { total, count, avg, last, payable, cashPaid, creditTotal, totalReturns, net, totalPaid };
+  }, [supplierPurchases, supplierReturns, payments, supplier]);
 
   if (loading) {
     return (
@@ -246,6 +254,7 @@ const SupplierLedger = () => {
               ['Last purchase', metrics.last ? formatDate(metrics.last) : 'N/A', 'text-ink-primary'],
               ['Cash paid', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.cashPaid).toLocaleString()}`, 'text-emerald-600'],
               ['Credit purchases', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.creditTotal).toLocaleString()}`, 'text-amber-600'],
+              ['Payments made', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.totalPaid).toLocaleString()}`, 'text-emerald-600'],
               ...(metrics.totalReturns > 0 ? [
                 ['Returns (debit notes)', `−${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.totalReturns).toLocaleString()}`, 'text-rose-500'],
                 ['Net purchased', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.net).toLocaleString()}`, 'text-ink-primary'],
@@ -462,6 +471,31 @@ const SupplierLedger = () => {
                         </React.Fragment>
                       );
                     })}
+                    {/* ── Payment rows (money paid to supplier) ── */}
+                    {payments.map((p) => (
+                      <tr key={p.id} className="hover:bg-emerald-50/40 transition-colors">
+                        <td className="py-4 px-6 text-emerald-300"><CreditCard size={14} /></td>
+                        <td className="py-4 px-4"><div className="text-xs font-semibold text-ink-primary">{formatDate(p.date)}</div></td>
+                        <td className="py-4 px-4">
+                          <div className="text-xs font-mono text-emerald-600">#{(p.id || '').slice(-8).toUpperCase()}</div>
+                          <div className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider">Payment</div>
+                        </td>
+                        <td className="py-4 px-4">
+                          <div className="text-xs font-semibold text-ink-primary truncate max-w-[180px]">{p.note || (p.reference_no ? `Ref ${p.reference_no}` : '—')}</div>
+                        </td>
+                        <td className="py-4 px-4 text-center text-gray-300">—</td>
+                        <td className="py-4 px-4">
+                          <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700">
+                            {p.payment_method || 'PAID'}
+                          </span>
+                        </td>
+                        <td className="py-4 px-6 text-right">
+                          <div className="text-sm font-bold font-mono tabular-nums text-emerald-600">
+                            −{businessProfile?.currencySymbol || '₹'}{Number(p.amount).toLocaleString()}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
                     </>
                   )}
                 </tbody>
