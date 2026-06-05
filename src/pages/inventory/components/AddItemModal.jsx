@@ -16,6 +16,7 @@ const DEFAULT_CATEGORIES = [
 const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId }) => {
   const { businessType } = useTenant();
   const isResto = businessType === 'RESTAURANT';
+  const isService = businessType === 'SERVICES';
 
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
@@ -23,6 +24,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: 'STANDARD',
     secondary_unit: '', conversion_factor: '',
     food_type: '', is_available: true, station: '', modifier_groups: [],   // menu (restaurant)
+    duration_min: '',   // service catalog
   });
 
   const [imageFile, setImageFile]     = useState(null);
@@ -141,6 +143,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         is_available: formData.is_available !== false,
         station: formData.station?.trim() || null,
         modifier_groups: Array.isArray(formData.modifier_groups) ? formData.modifier_groups : [],
+        duration_min: Number(formData.duration_min) || null,
       };
 
       const result = await onSave(parsedData);
@@ -330,30 +333,49 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               </>
             )}
 
-            <Section>Pricing &amp; Units</Section>
-            {/* Row 3: Cost | Selling | Unit */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className={labelCls}>Cost Price (₹)</label>
-                <input required type="number" step="0.01" className={inputCls} placeholder="0.00"
-                  value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value})} />
-              </div>
+            {/* Service details — services vertical */}
+            {isService && (
+              <>
+                <Section>Service Details</Section>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Duration (minutes)</label>
+                    <input type="number" min="0" className={inputCls} placeholder="30"
+                      value={formData.duration_min} onChange={e => setFormData({ ...formData, duration_min: e.target.value })} />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <Section>{isService ? 'Pricing' : 'Pricing & Units'}</Section>
+            {/* Row 3: Cost | Selling | Unit (services price only) */}
+            <div className={`grid grid-cols-1 ${isService ? 'md:grid-cols-1' : 'md:grid-cols-3'} gap-4`}>
+              {!isService && (
+                <div>
+                  <label className={labelCls}>Cost Price (₹)</label>
+                  <input required type="number" step="0.01" className={inputCls} placeholder="0.00"
+                    value={formData.costPrice} onChange={e => setFormData({ ...formData, costPrice: e.target.value})} />
+                </div>
+              )}
               <div>
                 <label className={labelCls}>
-                  Selling Price (₹){formData.product_type === 'RAW' && <span className="text-gray-400 font-normal"> — optional</span>}
+                  {isService ? 'Service Price (₹)' : 'Selling Price (₹)'}{formData.product_type === 'RAW' && <span className="text-gray-400 font-normal"> — optional</span>}
                 </label>
                 <input required={formData.product_type !== 'RAW'} type="number" step="0.01" className={inputCls} placeholder="0.00"
                   value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value})} />
               </div>
-              <div>
-                <label className={labelCls}>Base Unit</label>
-                <select className={inputCls} value={formData.unit}
-                  onChange={e => setFormData({ ...formData, unit: e.target.value})}>
-                  {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                </select>
-              </div>
+              {!isService && (
+                <div>
+                  <label className={labelCls}>Base Unit</label>
+                  <select className={inputCls} value={formData.unit}
+                    onChange={e => setFormData({ ...formData, unit: e.target.value})}>
+                    {UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              )}
             </div>
 
+            {!isService && (<>
             {/* Alternate unit + conversion (optional) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -400,6 +422,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 <p className="text-[10px] text-gray-400 mt-1">POS warns / blocks if margin drops below this</p>
               </div>
             </div>
+            </>)}
 
             <Section>Taxation</Section>
             {/* Tax Slab */}

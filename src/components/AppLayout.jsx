@@ -3,7 +3,7 @@ import { NavLink, Outlet, Navigate, useParams, useLocation} from 'react-router-d
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import SyncStatusButton from './SyncStatusButton';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory} from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock} from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { getDefaultAvatar } from '../lib/supabase';
 import NotificationStack from './NotificationStack';
@@ -104,6 +104,7 @@ const Navbar = () => {
  const primaryNavItems = [
     navItem('Dashboard', '/dashboard', <LayoutDashboard size={20} />, 'dashboard'),
     navItem(t('inventory'), '/inventory', <Package size={20} />, 'inventory', 'inventory'),
+    navItem('Appointments', '/appointments', <CalendarClock size={20} />, 'sales', 'appointments'),
     navItem('Sales', '/sales', <ShoppingCart size={20} />, 'sales'),
     navItem('Invoices', '/invoices', <FileText size={20} />, 'sales'),
     navItem('Purchases', '/purchases', <ShoppingBag size={20} />, 'purchases'),
