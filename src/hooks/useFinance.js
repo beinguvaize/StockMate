@@ -7,13 +7,15 @@ import { queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate
 const EXPENSE_NUMERIC       = ['amount'];
 const DAYBOOK_NUMERIC       = ['opening_balance', 'closing_balance', 'total_sales', 'total_expenses'];
 const CLIENT_PAYMENT_NUMERIC = ['amount'];
-const PURCHASE_NUMERIC      = ['total_amount'];
+const PURCHASE_NUMERIC      = ['total_amount', 'paid_amount'];
+const SUPPLIER_PAYMENT_NUMERIC = ['amount'];
 
 export const useFinance = (tenantId) => {
   const [expenses,        setExpenses]       = useState([]);
   const [dayBook,         setDayBook]        = useState([]);
   const [clientPayments,  setClientPayments] = useState([]);
   const [purchases,       setPurchases]      = useState([]);
+  const [supplierPayments, setSupplierPayments] = useState([]);
   const [recurringTemplates, setRecurringTemplates] = useState([]);
   const [customCategories, setCustomCategories] = useState([]);
   const [loading,         setLoading]        = useState(true);
@@ -41,7 +43,7 @@ export const useFinance = (tenantId) => {
         ),
         readCacheThenRevalidate(
           'purchases',
-          () => supabase.from('purchases').select('id, total_amount, payment_type, date, supplier_id, created_at').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          () => supabase.from('purchases').select('id, total_amount, paid_amount, payment_type, date, supplier_id, created_at').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
           (rows) => setPurchases(normalizeNumericRows(rows, PURCHASE_NUMERIC)),
         ),
       ]);
@@ -58,6 +60,15 @@ export const useFinance = (tenantId) => {
         .select('*').eq('tenant_id', tenantId).is('deleted_at', null)
         .order('created_at', { ascending: false });
       setRecurringTemplates(normalizeNumericRows(tpls || [], EXPENSE_NUMERIC));
+
+      // Supplier payments — credit-purchase repayments. Needed so the Day Book
+      // reflects cash leaving the drawer on the repayment date.
+      const { data: supPays } = await supabase
+        .from('supplier_payments')
+        .select('id, supplier_id, supplier_name, amount, payment_method, date, purchase_id, created_at')
+        .eq('tenant_id', tenantId).is('deleted_at', null)
+        .order('date', { ascending: false }).limit(500);
+      setSupplierPayments(normalizeNumericRows(supPays || [], SUPPLIER_PAYMENT_NUMERIC));
 
       // Custom expense categories (per-tenant, stored in settings).
       const { data: catSetting } = await supabase
@@ -196,7 +207,7 @@ export const useFinance = (tenantId) => {
   };
 
   return {
-    expenses, dayBook, clientPayments, purchases,
+    expenses, dayBook, clientPayments, purchases, supplierPayments,
     loading, error,
     refetch:          fetchFinanceData,
     addExpense, updateExpense, deleteExpense,
