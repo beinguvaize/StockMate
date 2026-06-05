@@ -17,6 +17,18 @@ const SuperAdminPortal = () => {
   const { impersonateTenant, isMaintenance, setIsMaintenance, cacheClear } = useTenant();
   const { addNotification } = useNotifications();
   const [tenants, setTenants] = useState([]);
+  const [subs, setSubs] = useState({});
+
+  // Billing: set a tenant's subscription status / extend trial (admin only).
+  const setSubStatus = async (tenantId, patch) => {
+    await supabase.from('subscriptions')
+      .upsert({ tenant_id: tenantId, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'tenant_id' });
+    setSubs(prev => ({ ...prev, [tenantId]: { ...prev[tenantId], tenant_id: tenantId, ...patch } }));
+  };
+  const extendTrial = (tenantId, days = 14) => {
+    const end = new Date(Date.now() + days * 86400000).toISOString();
+    setSubStatus(tenantId, { status: 'TRIAL', trial_end: end });
+  };
   const [globalStats, setGlobalStats] = useState({
     totalTenants: 0,
     activeUsers: 0,
@@ -108,6 +120,12 @@ const SuperAdminPortal = () => {
 
       if (tenantError) throw tenantError;
       setTenants(tenantData || []);
+
+      // Billing subscriptions (keyed by tenant_id)
+      const { data: subData } = await supabase.from('subscriptions').select('*');
+      const subMap = {};
+      (subData || []).forEach(s => { subMap[s.tenant_id] = s; });
+      setSubs(subMap);
       
       // 2. Fetch Pulse Data (Parallel)
       const [salesRes, purchasesRes, movementRes] = await Promise.all([
@@ -285,6 +303,7 @@ const SuperAdminPortal = () => {
                       <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Slug</th>
                       <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Tier</th>
                       <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Status</th>
+                      <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest">Billing</th>
                       <th className="px-6 py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest text-right">Action</th>
                     </tr>
                   </thead>
@@ -318,8 +337,31 @@ const SuperAdminPortal = () => {
                             {tenant.status === 'SUSPENDED' ? 'SUSPENDED' : 'ACTIVE'}
                           </div>
                         </td>
+                        <td className="px-6 py-4">
+                          {(() => {
+                            const sub = subs[tenant.id];
+                            const st = sub?.status || 'TRIAL';
+                            const cls = st === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : st === 'PAST_DUE' ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : st === 'EXPIRED' || st === 'CANCELLED' ? 'bg-red-50 text-red-600 border-red-200'
+                              : 'bg-gray-100 text-gray-600 border-gray-200';
+                            return (
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={st}
+                                  onChange={e => setSubStatus(tenant.id, { status: e.target.value })}
+                                  className={`text-[10px] font-bold rounded-full border px-2 py-1 outline-none cursor-pointer ${cls}`}
+                                >
+                                  {['TRIAL','ACTIVE','PAST_DUE','EXPIRED','CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
+                                </select>
+                                <button onClick={() => extendTrial(tenant.id, 14)} title="Extend trial 14 days"
+                                  className="text-[10px] font-bold text-gray-400 hover:text-amber-600">+14d</button>
+                              </div>
+                            );
+                          })()}
+                        </td>
                         <td className="px-6 py-4 text-right">
-                          <button 
+                          <button
                             onClick={() => {
                               setSelectedTenant(tenant);
                               setIsDrawerOpen(true);
