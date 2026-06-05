@@ -74,7 +74,7 @@ const DayBook = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const currentUserId = currentUser?.id || null;
   const {
-    expenses, dayBook, clientPayments, purchases,
+    expenses, dayBook, clientPayments, purchases, supplierPayments,
     loading: finLoading, updateDayBook, getDayBookForDate, getPrevDayBook,
   } = useFinance(currentTenantId);
   const { sales, loading: salesLoading } = useSales(currentTenantId);
@@ -105,6 +105,9 @@ const DayBook = () => {
     const dayExpenses   = (expenses   || []).filter(e => e.date === selectedDate && storeMatch(e));
     const dayCollect    = (clientPayments || []).filter(p => p.date === selectedDate);
     const dayPurchases  = (purchases  || []).filter(p => p.date === selectedDate);
+    // Supplier (credit-purchase) repayments made on this date. No location_id on
+    // the table → business-wide, shown in every store view (like collections).
+    const daySupPays    = (supplierPayments || []).filter(p => p.date === selectedDate);
 
     // ── Receipts ─────────────────────────────────────────────────────────────
     const cashSales   = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CASH')
@@ -123,18 +126,30 @@ const DayBook = () => {
     const totalReceipts = cashIn + bankIn; // full display total
 
     // ── Payments ─────────────────────────────────────────────────────────────
+    const isCash = (m) => (m || 'CASH').toUpperCase() === 'CASH';
     const totalExpenses   = dayExpenses.reduce((t, e) => t + (Number(e.amount) || 0), 0);
-    // Split purchases by payment type — only CASH reduces physical cash
+    // Only CASH expenses leave the physical drawer; bank/UPI/card don't.
+    const cashExpenses    = dayExpenses.filter(e => isCash(e.payment_method))
+      .reduce((t, e) => t + (Number(e.amount) || 0), 0);
+    const bankExpenses    = totalExpenses - cashExpenses;
+    // Cash purchases are paid in full at purchase time (process_purchase adds
+    // no supplier_payment row for them). Credit-purchase repayments arrive
+    // later as supplier_payments — counted separately below, so no double-count.
     const cashPurchPaid   = dayPurchases
       .filter(p => (p.payment_type || 'CASH').toUpperCase() === 'CASH')
       .reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
     const bankPurchPaid   = dayPurchases
       .filter(p => ['BANK','UPI','TRANSFER'].includes((p.payment_type || '').toUpperCase()))
       .reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
-    const totalPurchPaid  = cashPurchPaid + bankPurchPaid; // full display total
+    // Supplier repayments (credit purchases settled later). Cash → drawer.
+    const cashSupPay      = daySupPays.filter(p => isCash(p.payment_method))
+      .reduce((t, p) => t + (Number(p.amount) || 0), 0);
+    const bankSupPay      = daySupPays.filter(p => !isCash(p.payment_method))
+      .reduce((t, p) => t + (Number(p.amount) || 0), 0);
+    const totalPurchPaid  = cashPurchPaid + bankPurchPaid + cashSupPay + bankSupPay; // display
     // cashOut = money leaving the physical cash drawer
-    const cashOut        = totalExpenses + cashPurchPaid;
-    const totalPayments  = cashOut + bankPurchPaid; // full display total
+    const cashOut        = cashExpenses + cashPurchPaid + cashSupPay;
+    const totalPayments  = cashOut + bankPurchPaid + bankSupPay + bankExpenses; // full display total
 
     // ── Balances ─────────────────────────────────────────────────────────────
     const record      = getDayBookForDate(selectedDate, storeFilter);
@@ -190,12 +205,24 @@ const DayBook = () => {
         amount:    Number(p.total_amount) || 0,
         createdAt: p.created_at || selectedDate,
       })),
+      ...daySupPays.map(p => ({
+        id:        p.id,
+        type:      'EXPENSE',
+        category:  'Supplier Payment',
+        title:     p.supplier_name ? `Supplier — ${p.supplier_name}` : 'Supplier Payment',
+        note:      p.purchase_id ? 'Order settlement' : 'On-account',
+        method:    p.payment_method || 'CASH',
+        amount:    Number(p.amount) || 0,
+        createdAt: p.created_at || selectedDate,
+      })),
     ].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-    // Running balance (credit sales don't move cash)
+    // Running balance — physical cash drawer only. Credit sales and any
+    // bank/UPI/card line don't move cash, so the final running value ties out
+    // to closingBal.
     let running = openingBal;
     const entriesWithBal = entries.map(e => {
-      if (e.type !== 'CREDIT_SALE') {
+      if (e.type !== 'CREDIT_SALE' && isCash(e.method)) {
         running = e.type === 'INCOME' ? running + e.amount : running - e.amount;
       }
       return { ...e, runningBalance: running };
@@ -207,6 +234,7 @@ const DayBook = () => {
       cashSales, bankSales, creditSales,
       cashCollect, bankCollect,
       cashIn, bankIn, cashOut, bankPurchPaid,
+      cashExpenses, bankExpenses, cashSupPay, bankSupPay,
       totalReceipts, totalExpenses, cashPurchPaid, totalPurchPaid, totalPayments,
       entries: entriesWithBal,
       sales: daySales, expenses: dayExpenses, collect: dayCollect,
@@ -215,7 +243,7 @@ const DayBook = () => {
       expenseCount: dayExpenses.length,
       collectCount: dayCollect.length,
     };
-  }, [sales, expenses, clientPayments, purchases, selectedDate, storeFilter, getDayBookForDate, getPrevDayBook]);
+  }, [sales, expenses, clientPayments, purchases, supplierPayments, selectedDate, storeFilter, getDayBookForDate, getPrevDayBook]);
 
   const isDeficit  = ledger.closingBal < 0;
   const variance   = physicalCash !== '' ? (parseFloat(physicalCash) || 0) - ledger.closingBal : null;
