@@ -1,5 +1,6 @@
 import React, { useState, useRef} from 'react';
 import { NavLink, Outlet, Navigate, useParams, useLocation} from 'react-router-dom';
+import { useBilling } from '../hooks/useBilling';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import SyncStatusButton from './SyncStatusButton';
@@ -499,7 +500,18 @@ const Navbar = () => {
 
 const MainContent = () => {
   const location = useLocation();
+  const { tenantSlug } = useParams();
+  const { currentTenant } = useTenant();
+  const { hasRole } = useAuth();
+  const billing = useBilling(currentTenant?.id);
   const isSales = location.pathname.endsWith('/sales') || location.pathname.endsWith('/van-sale');
+  const basePath = tenantSlug ? `/${tenantSlug}` : '';
+  const showBilling = !hasRole?.('GLOBAL_ADMIN') && (billing.expired || billing.pastDue || billing.trialEndingSoon);
+  const billingMsg = billing.expired
+    ? { txt: 'Your subscription has expired. Renew to keep full access.', cls: 'bg-red-600' }
+    : billing.pastDue
+    ? { txt: 'Payment failed — update your billing to avoid interruption.', cls: 'bg-amber-600' }
+    : { txt: `Trial ends in ${billing.trialDaysLeft} day${billing.trialDaysLeft === 1 ? '' : 's'}. Add a plan to continue.`, cls: 'bg-ink-primary' };
   return (
     <main
       key={location.pathname}
@@ -509,6 +521,14 @@ const MainContent = () => {
           : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-2 md:py-6'
       }`}
     >
+      {showBilling && (
+        <div className={`${billingMsg.cls} text-white rounded-xl px-4 py-2.5 mb-4 flex items-center justify-between gap-3 flex-wrap`}>
+          <span className="text-[13px] font-semibold">{billingMsg.txt}</span>
+          <NavLink to={`${basePath}/settings`} className="text-[12px] font-bold bg-white/15 hover:bg-white/25 rounded-lg px-3 py-1.5 transition-colors">
+            Manage billing →
+          </NavLink>
+        </div>
+      )}
       <Outlet />
     </main>
   );
