@@ -61,24 +61,12 @@ const SupplierLedger = () => {
       return;
     }
 
-    // General: auto-allocate FIFO across unpaid credit purchases, then on-account.
-    let remaining = amt;
-    const due = (p) => Number(p.total_amount ?? p.total_cost ?? 0) - Number(p.paid_amount || 0);
-    const unpaid = supplierPurchases
-      .filter(p => isCredit(p.payment_type) && due(p) > 0.5)
-      .sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
-    for (const p of unpaid) {
-      if (remaining <= 0.5) break;
-      const chunk = Math.min(remaining, due(p));
-      const { error } = await payPurchase({ supplierId: id, purchaseId: p.id, amount: chunk, ...common });
-      if (error) { setPaySubmitting(false); setPayError(error.message || 'Payment failed'); return; }
-      remaining -= chunk;
-    }
-    if (remaining > 0.5) {
-      const { error } = await paySupplier({ supplierId: id, amount: remaining, ...common });
-      if (error) { setPaySubmitting(false); setPayError(error.message || 'Payment failed'); return; }
-    }
+    // General payment: settle_supplier_payment auto-allocates FIFO across the
+    // oldest unpaid credit orders (one row per order) and books any leftover as
+    // an on-account advance. Single source of allocation logic — no JS loop.
+    const { error } = await paySupplier({ supplierId: id, amount: amt, ...common });
     setPaySubmitting(false);
+    if (error) { setPayError(error.message || 'Payment failed'); return; }
     setPayOpen(false);
   };
 
