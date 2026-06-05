@@ -8,9 +8,66 @@ import { useInventory } from '../hooks/useInventory';
 import { 
   Plus, Search, Phone, Mail, MapPin, Building2, 
   Trash2, Edit3, X, Save, ArrowLeft, ArrowUpRight,
-  Package, CreditCard, History, User2, Check, Box
+  Package, CreditCard, History, User2, Check, Box, Wallet
 } from 'lucide-react';
 import { parseLocalDate } from '../lib/utils';
+
+// Common "all recent payments" view — every supplier_payment across suppliers.
+const PaymentsView = ({ payments, suppliers, purchases, cur }) => {
+  const supName = (id) => suppliers.find(s => s.id === id)?.name || '—';
+  const orderRef = (pid) => {
+    if (!pid) return null;
+    const p = purchases.find(x => x.id === pid);
+    return p?.invoice_no || p?.reference_no || `#${String(pid).slice(-6).toUpperCase()}`;
+  };
+  const rows = [...(payments || [])].sort((a, b) => String(b.date).localeCompare(String(a.date)));
+  const total = rows.reduce((s, p) => s + Number(p.amount || 0), 0);
+
+  return (
+    <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
+      <div className="flex items-center justify-between px-5 py-3 border-b border-black/5">
+        <div className="flex items-center gap-2">
+          <Wallet size={15} className="text-amber-600" />
+          <span className="text-[12px] font-bold text-ink-primary">Recent payments</span>
+          <span className="text-[11px] font-semibold text-gray-400">{rows.length}</span>
+        </div>
+        <div className="font-mono tabular-nums text-[13px] font-bold text-ink-primary">
+          <span className="text-amber-400 mr-0.5">{cur}</span>{Math.round(total).toLocaleString('en-IN')}
+        </div>
+      </div>
+
+      <div className="hidden md:grid grid-cols-[6rem_1fr_8rem_6rem_7rem] gap-4 px-5 py-2.5 text-[10px] uppercase tracking-wider font-bold text-gray-400 border-b border-black/5">
+        <div>Date</div><div>Supplier</div><div>Order</div><div>Method</div><div className="text-right">Amount</div>
+      </div>
+
+      {rows.length === 0 && (
+        <div className="px-5 py-16 text-center text-sm font-semibold text-gray-400">No payments yet.</div>
+      )}
+
+      <div className="divide-y divide-black/5">
+        {rows.map(p => (
+          <div key={p.id} className="grid grid-cols-2 md:grid-cols-[6rem_1fr_8rem_6rem_7rem] gap-x-4 gap-y-1 px-5 py-3 items-center hover:bg-amber-50/40 transition-colors">
+            <div className="text-[12px] font-semibold text-gray-600 order-1">
+              {p.date ? new Date(p.date).toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '—'}
+            </div>
+            <div className="font-bold text-[13px] text-ink-primary truncate order-3 md:order-2 col-span-2 md:col-span-1">{supName(p.supplier_id)}</div>
+            <div className="order-4 md:order-3">
+              {orderRef(p.purchase_id)
+                ? <span className="font-mono text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">{orderRef(p.purchase_id)}</span>
+                : <span className="text-[11px] text-gray-400">On account</span>}
+            </div>
+            <div className="order-5 md:order-4">
+              <span className="text-[10px] font-bold uppercase tracking-wide text-gray-500 bg-black/[0.05] px-1.5 py-0.5 rounded">{p.method || 'CASH'}</span>
+            </div>
+            <div className="text-right font-mono tabular-nums text-[13px] font-bold text-emerald-600 order-2 md:order-5">
+              {cur}{Number(p.amount || 0).toLocaleString('en-IN')}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const Suppliers = () => {
   const { hasPermission } = useAuth();
@@ -18,8 +75,9 @@ const Suppliers = () => {
   const { 
     suppliers, addSupplier, updateSupplier, deleteSupplier 
   } = usePeople(currentTenantId);
-  const { purchases } = usePurchases(currentTenantId);
-  
+  const { purchases, supplierPayments = [] } = usePurchases(currentTenantId);
+  const [tab, setTab] = useState('SUPPLIERS'); // SUPPLIERS | PAYMENTS
+
   const isViewOnly = () => false;
   const addNotification = (msg, type) => console.log(msg, type);
 
@@ -143,80 +201,66 @@ const Suppliers = () => {
  <>
  <div className="animate-fade-in flex flex-col gap-4 pb-12">
  {/* Header */}
- <div className="flex justify-between items-center py-2 border-b border-black/5">
- <div className="flex items-center gap-3">
- <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Suppliers<span className="text-accent-signature">.</span></h1>
- <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Manage suppliers and purchase history</span>
- </div>
- {!isViewOnly() && (
-  <button
-    data-testid="onboard-partner-btn"
-    className="btn-signature flex items-center gap-2 text-xs font-black"
-    onClick={() => setIsAdding(true)}
-  >
-  <Plus size={12} /> Add Supplier
-  </button>
- )}
+ <div className="flex justify-between items-center gap-3 pb-3 border-b border-black/5 flex-wrap">
+   <div className="flex items-center gap-3 min-w-0">
+     <h1 className="text-xl font-extrabold text-ink-primary leading-none">Suppliers<span className="text-amber-500">.</span></h1>
+     <span className="text-[11px] font-semibold text-gray-400 hidden sm:block">Suppliers & purchase payments</span>
+   </div>
+   <div className="flex items-center gap-2">
+     <div className="inline-flex p-1 bg-black/[0.06] rounded-xl">
+       <button onClick={() => setTab('SUPPLIERS')}
+         className={`px-3.5 py-1.5 rounded-lg text-[12px] font-bold ${tab === 'SUPPLIERS' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Suppliers</button>
+       <button onClick={() => setTab('PAYMENTS')}
+         className={`px-3.5 py-1.5 rounded-lg text-[12px] font-bold ${tab === 'PAYMENTS' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Payments</button>
+     </div>
+     {!isViewOnly() && tab === 'SUPPLIERS' && (
+       <button data-testid="onboard-partner-btn"
+         className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all"
+         onClick={() => setIsAdding(true)}>
+         <Plus size={15} strokeWidth={2.6} /> Add supplier
+       </button>
+     )}
+   </div>
  </div>
 
-  {/* Premium KPI Ribbons */}
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-  <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
-  <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-ink-primary">
-  <Building2 size={40} strokeWidth={2} />
-  </div>
-  <div className="relative z-10 flex flex-col">
-  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Suppliers</span>
-  <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-  {suppliers.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">TOTAL</span>
-  </div>
-  </div>
-  </div>
-
-  <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
-  <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-accent-signature">
-  <ArrowUpRight size={40} strokeWidth={2} />
-  </div>
-  <div className="relative z-10 flex flex-col">
-  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Total Purchased</span>
-  <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-  <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
-  {purchases.reduce((sum, p) => sum + Number(p.total_amount ?? p.total_cost ?? 0), 0).toLocaleString()}
-  </div>
-  </div>
-  </div>
-  
-  <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
-  <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-gray-500">
-  <Box size={40} strokeWidth={2} />
-  </div>
-  <div className="relative z-10 flex flex-col">
-  <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-wider">Purchase Orders</span>
-  <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-  {purchases.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">TOTAL</span>
-  </div>
-  </div>
-  </div>
+  {/* KPI strip — compact mono/amber */}
+  <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-black/[0.07] shadow-sm">
+    {[
+      { label: 'Suppliers', value: suppliers.length, suffix: 'total' },
+      { label: 'Total Purchased', value: Math.round(purchases.reduce((s, p) => s + Number(p.total_amount ?? p.total_cost ?? 0), 0)).toLocaleString('en-IN'), money: true },
+      { label: 'Purchase Orders', value: purchases.length, suffix: 'total' },
+      { label: 'You Owe', value: Math.round(suppliers.reduce((s, sup) => s + Number(sup.balance ?? sup.outstanding_balance ?? 0), 0)).toLocaleString('en-IN'), money: true, danger: true },
+    ].map((m, i) => (
+      <div key={i} className="bg-white px-4 py-3.5">
+        <div className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{m.label}</div>
+        <div className={`font-mono text-xl font-bold tabular-nums leading-none mt-1 ${m.danger ? 'text-red-600' : 'text-ink-primary'}`}>
+          {m.money && <span className={`text-sm mr-0.5 ${m.danger ? 'text-red-400' : 'text-amber-400'}`}>{businessProfile?.currencySymbol || '₹'}</span>}{m.value}
+          {m.suffix && <span className="text-[10px] font-bold text-gray-300 ml-1 lowercase">{m.suffix}</span>}
+        </div>
+      </div>
+    ))}
   </div>
 
   {/* Search & List */}
   <div className="flex flex-col gap-4">
-  {/* Interactive Utility Row */}
-  <div className="flex flex-col lg:flex-row items-center justify-between bg-white backdrop-blur-xl border border-black/5 rounded-[2rem] shadow-sm p-2 min-h-[72px] w-full gap-2 mb-8">
-  <div className="flex-1 w-full relative group h-[56px]">
-  <Search size={22} strokeWidth={2.5} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-30 group-focus-within:opacity-100 transition-opacity" />
-  <input 
+  {tab === 'SUPPLIERS' && (
+  <div className="relative w-full max-w-md">
+  <Search size={16} strokeWidth={2.5} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+  <input
   data-testid="search-suppliers-input"
-  type="text" 
-  className="w-full h-full pl-16 pr-6 bg-white border border-gray-300 shadow-sm rounded-pill text-[13px] font-bold text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all placeholder:text-gray-400 uppercase tracking-wide" 
-  placeholder="Search suppliers or contacts..."
+  type="text"
+  className="w-full h-10 pl-10 pr-4 bg-white border border-black/10 rounded-xl text-[13px] font-semibold text-ink-primary outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all placeholder:text-gray-400"
+  placeholder="Search suppliers or contacts…"
   value={searchTerm}
   onChange={e => setSearchTerm(e.target.value)}
   />
   </div>
-  </div>
+  )}
 
- {/* Dense supplier ledger list */}
+  {tab === 'PAYMENTS' ? (
+   <PaymentsView payments={supplierPayments} suppliers={suppliers} purchases={purchases} cur={businessProfile?.currencySymbol || '₹'} />
+  ) : (
+ /* Dense supplier ledger list */
  <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
  {/* Column header */}
  <div className="hidden md:grid grid-cols-[1fr_7rem_7rem_6rem_5rem] gap-4 px-5 py-2.5 text-[10px] uppercase tracking-wider font-bold text-gray-400 border-b border-black/5">
@@ -305,6 +349,7 @@ const Suppliers = () => {
 })}
  </div>
  </div>
+ )}
  </div>
  </div>
 
