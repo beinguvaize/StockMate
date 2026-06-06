@@ -28,11 +28,11 @@ build fails fast on undefined refs/components.
 
 Set for **Production** and **Preview**. Copy the values from Vercel.
 
-| Variable | Source |
-|---|---|
-| `VITE_SUPABASE_URL` | prod: `https://lmviftlynuhopzmvaxeu.supabase.co` |
-| `VITE_SUPABASE_ANON_KEY` | prod Supabase anon (publishable) key |
-| `VITE_BOOTSTRAP_ADMIN_EMAILS` | same value used on Vercel |
+| Variable | Required | Source |
+|---|---|---|
+| `VITE_SUPABASE_URL` | yes | prod: `https://lmviftlynuhopzmvaxeu.supabase.co` |
+| `VITE_SUPABASE_ANON_KEY` | yes | prod Supabase anon (publishable) key |
+| `VITE_BOOTSTRAP_ADMIN_EMAILS` | no | optional; not set on Vercel. Only stamps admin role on a brand-new user's first login. Skip — admins already exist in DB. |
 
 > Use the **dev** Supabase project (`tiywdsbaymrnqmlkxupj`) values on the
 > Preview environment if you want preview builds to hit dev.
