@@ -1,9 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
-import { useFinance } from '../hooks/useFinance';
+import { useDayBookData } from '../hooks/useDayBookData';
 import { useNotifications } from '../context/NotificationContext';
-import { useSales } from '../hooks/useSales';
 import { useInventory } from '../hooks/useInventory';
 import {
   Calendar, Save, ChevronLeft, ChevronRight,
@@ -73,11 +72,11 @@ const DayBook = () => {
   const { hasPermission, currentUser } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const currentUserId = currentUser?.id || null;
+  const [selectedDate,  setSelectedDate]  = useState(todayISOInAppTZ());
   const {
-    expenses, dayBook, clientPayments, purchases, supplierPayments,
-    loading: finLoading, updateDayBook, getDayBookForDate, getPrevDayBook,
-  } = useFinance(currentTenantId);
-  const { sales, loading: salesLoading } = useSales(currentTenantId);
+    sales, expenses, clientPayments, purchases, supplierPayments, dayBook,
+    loading: dbLoading, updateDayBook, getDayBookForDate, getPrevDayBook,
+  } = useDayBookData(currentTenantId, selectedDate);
   const { addNotification } = useNotifications();
   const { inventoryLocations } = useInventory(currentTenantId);
 
@@ -86,8 +85,6 @@ const DayBook = () => {
 
   const cy = businessProfile?.currencySymbol || '₹';
   const today = todayISOInAppTZ();
-
-  const [selectedDate,  setSelectedDate]  = useState(today);
   const [storeFilter,   setStoreFilter]   = useState(ALL_STORES); // ALL_STORES = whole business
   const [openingInput,  setOpeningInput]  = useState('');
   const [physicalCash,  setPhysicalCash]  = useState('');
@@ -320,7 +317,7 @@ const DayBook = () => {
     setIsClosing(false);
   };
 
-  if (finLoading || salesLoading) return (
+  if (dbLoading) return (
     <div className="flex items-center justify-center py-20">
       <div className="w-10 h-10 border-4 border-accent-signature/30 border-t-accent-signature rounded-full animate-spin" />
     </div>
