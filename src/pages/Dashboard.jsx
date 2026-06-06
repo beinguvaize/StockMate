@@ -35,8 +35,10 @@ const WeeklySalesBarChart = React.memo(({ data, currencySymbol }) => (
       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
       <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 11, fontWeight: 700}} />
       <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `${currencySymbol}${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
-      <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
-      <Bar dataKey="value" fill="#D97706" radius={[4, 4, 0, 0]} barSize={32} />
+      <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} formatter={(val, name) => [`${currencySymbol}${Number(val).toLocaleString('en-IN')}`, name]} />
+      <Legend wrapperStyle={{ fontSize: 11, fontWeight: 700 }} iconType="circle" iconSize={8} />
+      <Bar dataKey="prev"  name="Last week" fill="#D1D5DB" radius={[4, 4, 0, 0]} barSize={18} />
+      <Bar dataKey="value" name="This week" fill="#D97706" radius={[4, 4, 0, 0]} barSize={18} />
     </BarChart>
   </ResponsiveContainer>
 ));
@@ -231,24 +233,29 @@ const Dashboard = () => {
  const chart1Data = useMemo(() => {
  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
  const orderedDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
- const dayMap = {};
- orderedDays.forEach(d => dayMap[d] = 0);
+ const dayMap = {};       // this week
+ const prevMap = {};      // previous week (same weekday)
+ orderedDays.forEach(d => { dayMap[d] = 0; prevMap[d] = 0; });
  const now = new Date();
- const currentDay = now.getDay() === 0 ? 7 : now.getDay(); 
+ const currentDay = now.getDay() === 0 ? 7 : now.getDay();
  const startOfWeek = new Date(now);
  startOfWeek.setDate(now.getDate() - currentDay + 1);
  startOfWeek.setHours(0,0,0,0);
  const endOfWeek = new Date(startOfWeek);
  endOfWeek.setDate(startOfWeek.getDate() + 6);
  endOfWeek.setHours(23,59,59,999);
+ // Previous week window = this week shifted back 7 days.
+ const startOfPrev = new Date(startOfWeek); startOfPrev.setDate(startOfWeek.getDate() - 7);
+ const endOfPrev   = new Date(endOfWeek);   endOfPrev.setDate(endOfWeek.getDate() - 7);
 
  (sales || []).forEach(s => {
+ if (!s.date) return;
  const d = new Date(s.date);
- if (d >= startOfWeek && d <= endOfWeek) {
- dayMap[days[d.getDay()]] += (s.totalAmount || 0);
-}
+ const amt = (s.totalAmount || 0);
+ if (d >= startOfWeek && d <= endOfWeek)      dayMap[days[d.getDay()]]  += amt;
+ else if (d >= startOfPrev && d <= endOfPrev) prevMap[days[d.getDay()]] += amt;
 });
- return orderedDays.map(day => ({ name: day, value: dayMap[day]}));
+ return orderedDays.map(day => ({ name: day, value: dayMap[day], prev: prevMap[day] }));
 }, [sales]);
 
  // Chart 2: This Month vs Last Month
