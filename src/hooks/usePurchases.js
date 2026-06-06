@@ -8,7 +8,11 @@ const PURCHASE_NUMERIC = ['quantity', 'total_amount', 'paid_amount', 'unit_price
 const RETURN_NUMERIC   = ['quantity', 'total_amount', 'unit_price'];
 const SUPPLIER_NUMERIC = ['balance', 'outstanding_balance'];
 
-export const usePurchases = (tenantId) => {
+// Options let a consumer skip the heavy secondary fetches it doesn't use:
+//   withReturns  — purchase_returns (Dashboard/Suppliers don't need it)
+//   withPayments — supplier_payments, .limit(500) (Dashboard/Purchases don't)
+// Both default true → existing callers unchanged.
+export const usePurchases = (tenantId, { withReturns = true, withPayments = true } = {}) => {
   const [data, setData] = useState([]);
   const [purchaseReturns, setPurchaseReturns] = useState([]);
   const [supplierPayments, setSupplierPayments] = useState([]);
@@ -37,22 +41,26 @@ export const usePurchases = (tenantId) => {
           () => supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
           (rows) => setSuppliers(normalizeNumericRows(rows, SUPPLIER_NUMERIC)),
         ),
-        readCacheThenRevalidate(
-          'purchase_returns',
-          () => supabase.from('purchase_returns').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(200),
-          (rows) => setPurchaseReturns(normalizeNumericRows(rows, RETURN_NUMERIC)),
-        ),
+        withReturns
+          ? readCacheThenRevalidate(
+              'purchase_returns',
+              () => supabase.from('purchase_returns').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(200),
+              (rows) => setPurchaseReturns(normalizeNumericRows(rows, RETURN_NUMERIC)),
+            )
+          : Promise.resolve([]),
       ]);
 
       setData(normalizeNumericRows(purCached, PURCHASE_NUMERIC));
       setSuppliers(normalizeNumericRows(supCached, SUPPLIER_NUMERIC));
-      setPurchaseReturns(normalizeNumericRows(retCached, RETURN_NUMERIC));
+      if (withReturns) setPurchaseReturns(normalizeNumericRows(retCached, RETURN_NUMERIC));
 
-      // Supplier payments (small table; direct fetch).
-      const { data: payRows } = await supabase
-        .from('supplier_payments').select('*')
-        .eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500);
-      setSupplierPayments(payRows || []);
+      // Supplier payments (small table; direct fetch). Skipped when unused.
+      if (withPayments) {
+        const { data: payRows } = await supabase
+          .from('supplier_payments').select('*')
+          .eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500);
+        setSupplierPayments(payRows || []);
+      }
     } catch (err) {
       console.error("usePurchases Fetch Error:", err);
       setError(err.message);
@@ -60,7 +68,7 @@ export const usePurchases = (tenantId) => {
       setLoading(false);
       initialLoadDone.current = true;
     }
-  }, [tenantId]);
+  }, [tenantId, withReturns, withPayments]);
 
   fetchRef.current = fetchPurchases;
 

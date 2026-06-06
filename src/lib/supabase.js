@@ -89,6 +89,33 @@ export const supabase = isSupabaseConfigured
     })
   : null;
 
+// ── Keep realtime alive across token refresh + tab sleep ──────────────────────
+// Long-open tabs go stale because (a) on the ~hourly TOKEN_REFRESHED the new JWT
+// was never re-applied to the realtime socket (it then 401s on reconnect and
+// dies), and (b) a backgrounded socket isn't nudged back on return. Both make
+// the page look frozen until a manual reload. Re-arm realtime in one place.
+if (supabase && typeof window !== 'undefined') {
+  // (1) Re-apply the fresh JWT to the realtime socket on every refresh/sign-in.
+  supabase.auth.onAuthStateChange((event, session) => {
+    const token = session?.access_token;
+    if (!token) return;
+    if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+      try { supabase.realtime.setAuth(token); } catch (_) {/* noop */}
+    }
+  });
+
+  // (2) On tab return, re-apply auth + reconnect the socket so live updates
+  //     resume without a page reload.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    supabase.auth.getSession().then(({ data }) => {
+      const token = data?.session?.access_token;
+      if (token) { try { supabase.realtime.setAuth(token); } catch (_) {/* noop */} }
+      try { supabase.realtime.connect(); } catch (_) {/* noop */}
+    }).catch(() => {/* offline / restricted — ignore */});
+  });
+}
+
 /**
  * Upload a product image to Supabase Storage.
  * Images are stored under {tenantId}/{filename} for tenant isolation.

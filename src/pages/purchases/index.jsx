@@ -17,7 +17,7 @@ const PurchasesPage = () => {
   const { currentTenantId } = useTenant();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId, { withPayments: false });
   const { products, inventoryLocations, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 

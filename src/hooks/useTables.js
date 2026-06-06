@@ -6,14 +6,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
-export function useTables(tenantId) {
+// `enabled` (default true) — pass false for non-restaurant tenants to skip the
+// restaurant_tables + table_orders fetch entirely (they have no floor tables).
+export function useTables(tenantId, enabled = true) {
   const [tables, setTables] = useState([]);
   const [openTabs, setOpenTabs] = useState({}); // table_id -> tab row
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const fetchAll = useCallback(async () => {
-    if (!tenantId) { setLoading(false); return; }
+    if (!tenantId || !enabled) { setLoading(false); return; }
     setLoading(true);
     try {
       const [{ data: t, error: te }, { data: o, error: oe }] = await Promise.all([
@@ -36,7 +38,7 @@ export function useTables(tenantId) {
     } finally {
       setLoading(false);
     }
-  }, [tenantId]);
+  }, [tenantId, enabled]);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
