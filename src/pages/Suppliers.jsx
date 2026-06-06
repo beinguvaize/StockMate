@@ -114,7 +114,7 @@ const Suppliers = () => {
   const { 
     suppliers, addSupplier, updateSupplier, deleteSupplier 
   } = usePeople(currentTenantId);
-  const { purchases, supplierPayments = [] } = usePurchases(currentTenantId);
+  const { purchases, supplierPayments = [] } = usePurchases(currentTenantId, { withReturns: false });
   const [tab, setTab] = useState('SUPPLIERS'); // SUPPLIERS | PAYMENTS
 
   const isViewOnly = () => false;

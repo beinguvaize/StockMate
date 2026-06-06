@@ -31,7 +31,8 @@ const SalesPage = () => {
   const { addNotification } = useNotifications();
   const { currentTenantId, businessProfile, currentTenant, businessType, isModuleOn } = useTenant();
   const isResto = businessType === 'RESTAURANT';
-  const tablesApi = useTables(currentTenantId);
+  // Non-restaurant tenants have no floor tables — skip that fetch entirely.
+  const tablesApi = useTables(currentTenantId, isResto);
   const { createTicket } = useKOT(currentTenantId);
   // The table whose tab is currently open in the builder (restaurant only).
   const [activeTable, setActiveTable] = useState(null); // { table, tab }
