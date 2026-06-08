@@ -4,14 +4,16 @@ import {
   CheckCircle, Clock, AlertTriangle,
   Printer, Share2, Eye, Trash2, X,
   Calendar, Download, Zap, Package,
-  CheckCircle2, CreditCard, Wallet, Landmark, Truck
+  CheckCircle2, CreditCard, Wallet, Landmark, Truck, BellRing
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useSales } from '../hooks/useSales';
 import { useInventory } from '../hooks/useInventory';
 import { usePeople } from '../hooks/usePeople';
+import { useNotifications } from '../context/NotificationContext';
 import { formatINR, calculateGST, shareToWhatsApp } from '../lib/gstEngine';
+import { sendPaymentReminder } from '../lib/reminders';
 import { formatCurrency, todayISOInAppTZ, formatDate, formatDateTime, parseLocalDate } from '../lib/utils';
 import InvoiceTemplate from '../components/invoice/InvoiceTemplate';
 import POSReceipt from '../components/invoice/POSReceipt';
@@ -101,6 +103,13 @@ const Invoices = () => {
   const { invoices, createInvoice, markInvoicePaid, enqueueIrn, refetch: refetchInvoices } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
   const { products } = useInventory(currentTenantId);
   const { clients }  = usePeople(currentTenantId);
+  const { addNotification } = useNotifications();
+
+  const handleRemind = async (inv, cli) => {
+    addNotification?.('Sending reminder…', 'info');
+    const { ok, error, channel } = await sendPaymentReminder(inv, cli, businessProfile);
+    addNotification?.(ok ? `Reminder sent via ${channel || 'message'}` : `Reminder failed: ${error}`, ok ? 'success' : 'error');
+  };
 
   // view state
   const [viewingInvoice, setViewingInvoice] = useState(null);
@@ -358,6 +367,15 @@ const Invoices = () => {
             >
               <Share2 size={15} />
             </button>
+            {status !== 'PAID' && (
+              <button
+                onClick={() => handleRemind(inv, client)}
+                title="Send payment reminder (SMS/WhatsApp)"
+                className="p-2 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+              >
+                <BellRing size={15} />
+              </button>
+            )}
           </div>
         </td>
       </tr>
