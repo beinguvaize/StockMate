@@ -301,7 +301,7 @@ const Orders = () => {
       <div className="flex justify-between items-center gap-3 pb-3 border-b border-black/5 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <h1 className="text-xl font-extrabold text-ink-primary leading-none">Orders<span className="text-amber-500">.</span></h1>
-          <span className="text-[11px] font-semibold text-gray-400 hidden sm:block">Order pipeline · draft → invoiced</span>
+          <span className="text-[11px] font-semibold text-gray-400 hidden sm:block">Track orders you fulfil later — confirm → dispatch → deliver → invoice</span>
         </div>
         <button onClick={openNew}
           className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all shrink-0">
@@ -379,10 +379,18 @@ const Orders = () => {
       {/* ── Order cards ─────────────────────────────────────────────────── */}
       <div className="space-y-2">
         {filtered.length === 0 && (
-          <div className="py-24 text-center bg-white rounded-[2rem] border border-black/5">
-            <Package size={48} className="mx-auto mb-4 opacity-10" strokeWidth={1} />
-            <p className="text-sm font-bold text-gray-400 uppercase tracking-widest">No orders</p>
-            <p className="text-[10px] text-gray-300 mt-1">Change filter or create a new order</p>
+          <div className="py-16 px-6 text-center bg-white rounded-[2rem] border border-black/5 max-w-xl mx-auto">
+            <Package size={44} className="mx-auto mb-4 text-amber-500 opacity-30" strokeWidth={1.5} />
+            <p className="text-base font-bold text-ink-primary">No open orders</p>
+            <p className="text-[13px] text-gray-500 mt-2 leading-relaxed">
+              Use <b>Orders</b> when a customer orders today but you deliver &amp; bill later
+              (B2B, wholesale, van sales). Track each through <b>Confirmed → Dispatched →
+              Delivered → Invoiced</b>, then convert to a sale.
+            </p>
+            <p className="text-[12px] text-gray-400 mt-3">For instant counter sales, use <b>Sales</b> instead.</p>
+            <button onClick={openNew} className="mt-5 h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold hover:bg-amber-700 inline-flex items-center gap-2">
+              <Plus size={15} strokeWidth={2.6} /> Create first order
+            </button>
           </div>
         )}
 
