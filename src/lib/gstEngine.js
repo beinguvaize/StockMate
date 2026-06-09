@@ -75,7 +75,10 @@ export const calculateGST = (items = [], businessState = '', clientState = '') =
     const qty = parseFloat(item.qty || item.quantity || 0);
     const rate = parseFloat(item.rate || item.sellingPrice || 0);
     const discPercent = parseFloat(item.discountPercent || 0);
-    const taxRate = parseFloat(item.taxRate || 18);
+    // Honour an explicit 0% — `|| 18` wrongly treated 0 as "missing" and taxed
+    // GST-exempt items at 18%. Only fall back to 18 when truly absent.
+    const _tr = parseFloat(item.taxRate);
+    const taxRate = Number.isFinite(_tr) ? _tr : 18;
     const hsn = item.hsn_code || item.sku || 'N/A';
 
     const itemSubtotal = qty * rate;
