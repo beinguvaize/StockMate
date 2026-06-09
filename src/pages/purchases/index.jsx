@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
@@ -44,6 +45,13 @@ const PurchasesPage = () => {
   const [paySubmitting, setPaySubmitting] = useState(false);
   const [dupTarget, setDupTarget]   = useState(null); // purchase to duplicate (prefill single form)
   const [printTarget, setPrintTarget] = useState(null);
+  const [menuRow, setMenuRow]       = useState(null); // row whose ⋯ menu is open (portaled)
+  const [menuPos, setMenuPos]       = useState({ top: 0, left: 0 });
+  const openMenu = (e, pur) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    setMenuPos({ top: r.bottom + 4, left: Math.max(8, r.right - 160) });
+    setMenuRow(pur);
+  };
 
   const _credit = (pt) => ['CREDIT', 'UDHAAR', 'POST-CAPITAL'].includes(String(pt || '').toUpperCase());
   const dueOf = (p) => Math.max(0, Number(p.total_amount || 0) - Number(p.paid_amount || 0));
@@ -348,39 +356,11 @@ const PurchasesPage = () => {
               </button>
             )}
             <button
-              onClick={() => setPrintTarget(pur)}
-              title="View / Print"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors"
+              onClick={(e) => openMenu(e, pur)}
+              title="More"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-black/5 hover:text-ink-primary transition-colors"
             >
-              <Printer size={11} />
-            </button>
-            <button
-              onClick={() => setDupTarget(pur)}
-              title="Duplicate"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors"
-            >
-              <Copy size={11} />
-            </button>
-            <button
-              onClick={() => setEditTarget(pur)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
-            >
-              <Pencil size={11} />
-              Edit
-            </button>
-            <button
-              onClick={() => setReturnTarget({ purchase: pur, product, supplier })}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors"
-            >
-              <RotateCcw size={11} />
-              Return
-            </button>
-            <button
-              onClick={() => handleDeletePurchase(pur)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-500 bg-gray-100 hover:bg-red-50 hover:text-red-600 transition-colors"
-            >
-              <Trash2 size={11} />
-              Delete
+              <MoreVertical size={16} />
             </button>
           </div>
         </td>
@@ -471,6 +451,22 @@ const PurchasesPage = () => {
           renderRow={renderReturnRow}
           emptyMessage="No purchase returns yet"
         />
+      )}
+
+      {/* Row ⋯ menu — portaled to body so the table's overflow can't clip it */}
+      {menuRow && createPortal(
+        <>
+          <div className="fixed inset-0 z-[9998]" onClick={() => setMenuRow(null)} />
+          <div className="fixed z-[9999] w-40 bg-white border border-black/10 rounded-xl shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left }}>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-ink-primary"><Printer size={13} /> Print</button>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-ink-primary"><Copy size={13} /> Duplicate</button>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setEditTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-blue-600"><Pencil size={13} /> Edit</button>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setReturnTarget({ purchase: p, product: products.find(x => x.id === p.linked_product_id), supplier: suppliers.find(s => s.id === p.supplier_id) }); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-rose-600"><RotateCcw size={13} /> Return</button>
+            <div className="h-px bg-black/5 my-1" />
+            <button onClick={() => { const p = menuRow; setMenuRow(null); handleDeletePurchase(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-red-50 text-red-600"><Trash2 size={13} /> Delete</button>
+          </div>
+        </>,
+        document.body
       )}
 
       {/* Add Purchase Modal — multi-line */}
