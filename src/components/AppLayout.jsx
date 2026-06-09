@@ -197,8 +197,9 @@ const Navbar = () => {
 
  {/* Branding */}
  <div className="flex items-center gap-4">
- <div className="flex items-center animate-in fade-in duration-700">
-   <img src="/logo-clear.png" alt="LedgrPro" className="h-8 w-auto shrink-0" />
+ <div className="flex items-center gap-2 animate-in fade-in duration-700">
+   <img src="/ledgrpro-mark.png" alt="" className="h-7 w-auto shrink-0" />
+   <span className="text-xl font-extrabold tracking-tight text-ink-primary">Ledgr<span className="text-amber-500">Pro</span></span>
  </div>
  {currentTenant && (
    <div className="hidden md:flex items-center gap-2">
@@ -363,8 +364,9 @@ const Navbar = () => {
  <div className="absolute left-0 top-0 bottom-0 w-[280px] bg-surface shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
  {/* Drawer Header */}
  <div className="flex items-center justify-between p-5 border-b border-black/5">
- <div className="flex items-center">
-   <img src="/logo-clear.png" alt="LedgrPro" className="h-7 w-auto shrink-0" />
+ <div className="flex items-center gap-2">
+   <img src="/ledgrpro-mark.png" alt="" className="h-6 w-auto shrink-0" />
+   <span className="text-lg font-extrabold tracking-tight text-ink-primary">Ledgr<span className="text-amber-500">Pro</span></span>
  </div>
  <button 
  onClick={() => setIsMobileMenuOpen(false)}
