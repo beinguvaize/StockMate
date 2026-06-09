@@ -115,7 +115,7 @@ const Navbar = () => {
 
  const moreNavItems = [
    navItem('Estimates', '/estimates', <FileText size={20} />, 'sales'),
-   navItem('Pipeline', '/orders', <ClipboardList size={20} />, 'sales', 'orders'),
+   navItem('Orders', '/orders', <ClipboardList size={20} />, 'sales', 'orders'),
    navItem('Manufacturing', '/manufacturing', <Factory size={20} />, 'inventory', 'manufacturing'),
    navItem('Kitchen', '/kds', <Factory size={20} />, 'sales', 'kot'),
    navItem('Suppliers', '/suppliers', <Truck size={20} />, 'suppliers'),
