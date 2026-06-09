@@ -21,7 +21,15 @@ alter table public.estimates
   add column if not exists round_off numeric default 0,
   add column if not exists grand_total numeric default 0,
   add column if not exists converted_invoice_id text,
-  add column if not exists converted_sale_id text;
+  add column if not exists converted_sale_id text,
+  add column if not exists client_gstin text,
+  add column if not exists client_phone text;
+
+-- legacy policy referenced a non-app 'profiles' table — remove it
+drop policy if exists tenant_estimates on public.estimates;
+-- PostgREST caches the schema; reload so the new columns are insertable
+-- (otherwise inserts hang / error "column not found in schema cache")
+notify pgrst, 'reload schema';
 
 alter table public.estimates alter column date drop not null;
 alter table public.estimates alter column date set default now();
