@@ -6,7 +6,7 @@ import { useEstimates } from '../hooks/useEstimates';
 import { usePeople } from '../hooks/usePeople';
 import { useInventory } from '../hooks/useInventory';
 import { calculateGST, formatINR } from '../lib/gstEngine';
-import { Plus, Search, Trash2, X, FileText, Send, CheckCircle2, ArrowRight, MessageCircle } from 'lucide-react';
+import { Plus, Search, Trash2, X, FileText, Send, CheckCircle2, ArrowRight, MessageCircle, Edit3 } from 'lucide-react';
 
 const STATUS_STYLE = {
   DRAFT:     'bg-gray-100 text-gray-600',
@@ -21,7 +21,7 @@ const Estimates = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const navigate = useNavigate();
   const { tenantSlug } = useParams();
-  const { estimates, create, setStatus, remove } = useEstimates(currentTenantId);
+  const { estimates, create, update, setStatus, remove } = useEstimates(currentTenantId);
   const { clients } = usePeople(currentTenantId);
   const { products } = useInventory(currentTenantId);
 
@@ -29,6 +29,7 @@ const Estimates = () => {
   const bizState = businessProfile?.state || '';
 
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null); // null = creating
   const [clientId, setClientId] = useState('');
   const [lines, setLines] = useState([]); // {id,name,qty,rate,taxRate,hsn_code}
   const [validUntil, setValidUntil] = useState('');
@@ -61,27 +62,38 @@ const Estimates = () => {
   const patchLine = (i, patch) => setLines(prev => prev.map((l, idx) => idx === i ? { ...l, ...patch } : l));
   const delLine = (i) => setLines(prev => prev.filter((_, idx) => idx !== i));
 
-  const reset = () => { setClientId(''); setLines([]); setValidUntil(''); setNotes(''); setProdSearch(''); };
+  const reset = () => { setEditingId(null); setClientId(''); setLines([]); setValidUntil(''); setNotes(''); setProdSearch(''); setSaveErr(''); };
+
+  const openEdit = (est) => {
+    setEditingId(est.id);
+    setClientId(est.client_id || '');
+    setLines(Array.isArray(est.items) ? est.items : []);
+    setValidUntil(est.valid_until || '');
+    setNotes(est.notes || '');
+    setProdSearch(''); setSaveErr('');
+    setAdding(true);
+  };
 
   const save = async () => {
     if (!lines.length) return;
     setSaving(true); setSaveErr('');
     const t = totals;
+    const payload = {
+      client_id: clientId || null,
+      client_name: client?.name || 'Walk-in',
+      client_gstin: client?.gst_no || null,
+      client_phone: client?.contact || null,
+      place_of_supply: client?.state || null,
+      is_interstate: t.isInterstate,
+      valid_until: validUntil || null,
+      items: lines,
+      taxable_amount: t.taxable, tax_total: t.totalTax,
+      cgst_amount: t.cgst, sgst_amount: t.sgst, igst_amount: t.igst,
+      discount_total: t.discount, round_off: t.roundOff, grand_total: t.grandTotal,
+      notes,
+    };
     try {
-      const { error } = await create({
-        client_id: clientId || null,
-        client_name: client?.name || 'Walk-in',
-        client_gstin: client?.gst_no || null,
-        client_phone: client?.contact || null,
-        place_of_supply: client?.state || null,
-        is_interstate: t.isInterstate,
-        valid_until: validUntil || null,
-        items: lines,
-        taxable_amount: t.taxable, tax_total: t.totalTax,
-        cgst_amount: t.cgst, sgst_amount: t.sgst, igst_amount: t.igst,
-        discount_total: t.discount, round_off: t.roundOff, grand_total: t.grandTotal,
-        notes,
-      });
+      const { error } = editingId ? await update(editingId, payload) : await create(payload);
       if (error) { setSaveErr(error.message || 'Could not save estimate'); return; }
       setAdding(false); reset();
     } catch (e) {
@@ -117,7 +129,7 @@ const Estimates = () => {
           <h1 className="text-xl font-extrabold text-ink-primary leading-none">Estimates<span className="text-amber-500">.</span></h1>
           <span className="text-[11px] font-semibold text-gray-400 hidden sm:block">Quotations · convert to sale</span>
         </div>
-        <button onClick={() => setAdding(true)} className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700">
+        <button onClick={() => { reset(); setAdding(true); }} className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700">
           <Plus size={15} strokeWidth={2.6} /> New estimate
         </button>
       </div>
@@ -138,8 +150,9 @@ const Estimates = () => {
                 <button onClick={() => shareWhatsApp(e)} title="WhatsApp" className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600"><MessageCircle size={15} /></button>
                 {e.status === 'DRAFT' && <button onClick={() => setStatus(e.id, 'SENT')} title="Mark sent" className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600"><Send size={14} /></button>}
                 {['DRAFT','SENT'].includes(e.status) && <button onClick={() => setStatus(e.id, 'ACCEPTED')} title="Accept" className="p-1.5 rounded-lg hover:bg-emerald-50 text-emerald-600"><CheckCircle2 size={15} /></button>}
+                {e.status !== 'CONVERTED' && <button onClick={() => openEdit(e)} title="Edit" className="p-1.5 rounded-lg hover:bg-black/5 text-gray-400 hover:text-ink-primary"><Edit3 size={14} /></button>}
                 {e.status !== 'CONVERTED' && <button onClick={() => convert(e)} title="Convert to sale" className="p-1.5 rounded-lg hover:bg-purple-50 text-purple-600"><ArrowRight size={15} /></button>}
-                <button onClick={() => remove(e.id)} title="Delete" className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
+                <button onClick={() => { if (window.confirm(`Delete estimate ${e.estimate_number}?`)) remove(e.id); }} title="Delete" className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
               </div>
             </div>
           ))}
@@ -147,22 +160,22 @@ const Estimates = () => {
       </div>
 
       {adding && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-white/60 backdrop-blur-sm flex items-center justify-center overflow-y-auto p-4" onClick={() => setAdding(false)}>
-          <div className="bg-white w-full max-w-2xl max-h-[calc(100dvh-2rem)] rounded-[1.75rem] shadow-2xl flex flex-col overflow-hidden" onClick={ev => ev.stopPropagation()}>
+        <div className="fixed inset-0 z-[9999] bg-white flex items-stretch justify-center" onClick={() => { setAdding(false); reset(); }}>
+          <div className="bg-white w-full h-full max-w-none rounded-none flex flex-col overflow-hidden" onClick={ev => ev.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-black/5">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center"><FileText size={18} /></div>
                 <div>
-                  <h2 className="text-base font-extrabold text-ink-primary leading-none">New Estimate</h2>
+                  <h2 className="text-base font-extrabold text-ink-primary leading-none">{editingId ? 'Edit Estimate' : 'New Estimate'}</h2>
                   <p className="text-[11px] font-semibold text-gray-400 mt-1">Quotation · no stock or payment impact</p>
                 </div>
               </div>
-              <button onClick={() => setAdding(false)} className="w-8 h-8 rounded-lg hover:bg-black/5 text-gray-400 hover:text-ink-primary flex items-center justify-center"><X size={18} /></button>
+              <button onClick={() => { setAdding(false); reset(); }} className="w-8 h-8 rounded-lg hover:bg-black/5 text-gray-400 hover:text-ink-primary flex items-center justify-center"><X size={18} /></button>
             </div>
 
             {/* Body — scrolls internally; header + footer stay pinned */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
+            <div className="flex-1 min-h-0 overflow-y-auto w-full max-w-3xl mx-auto px-6 py-6 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
                   <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Client</span>
@@ -231,8 +244,8 @@ const Estimates = () => {
             {/* Sticky footer */}
             <div className="flex items-center gap-2 justify-end px-6 py-4 border-t border-black/5 bg-white">
               {saveErr && <span className="mr-auto text-[12px] font-semibold text-red-600 truncate">{saveErr}</span>}
-              <button onClick={() => setAdding(false)} className="h-11 px-5 rounded-xl border border-black/10 text-[13px] font-bold text-gray-600 hover:bg-black/5">Cancel</button>
-              <button onClick={save} disabled={saving || !lines.length} className="h-11 px-6 rounded-xl bg-amber-600 text-white text-[13px] font-bold disabled:opacity-40 hover:bg-amber-700 flex items-center gap-2 transition-colors"><FileText size={15} /> {saving ? 'Saving…' : 'Save estimate'}</button>
+              <button onClick={() => { setAdding(false); reset(); }} className="h-11 px-5 rounded-xl border border-black/10 text-[13px] font-bold text-gray-600 hover:bg-black/5">Cancel</button>
+              <button onClick={save} disabled={saving || !lines.length} className="h-11 px-6 rounded-xl bg-amber-600 text-white text-[13px] font-bold disabled:opacity-40 hover:bg-amber-700 flex items-center gap-2 transition-colors"><FileText size={15} /> {saving ? 'Saving…' : editingId ? 'Update estimate' : 'Save estimate'}</button>
             </div>
           </div>
         </div>,
