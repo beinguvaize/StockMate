@@ -53,6 +53,7 @@ const Clients = () => {
  const [activeTab, setActiveTab] = useState('DIRECTORY'); // DIRECTORY, AGING, PAYMENTS, STATEMENTS
  const [searchTerm, setSearchTerm] = useState('');
  const [statusFilter, setStatusFilter] = useState('ALL');
+ const [dueFilter, setDueFilter] = useState('ALL'); // ALL | DUE | CLEARED
  const [isAdding, setIsAdding] = useState(false);
  const [editingClient, setEditingClient] = useState(null);
  const INDIAN_STATES = [
@@ -137,10 +138,15 @@ const Clients = () => {
  String(client.id || '').toLowerCase().includes(searchTerm.toLowerCase());
  
  const matchesStatus = statusFilter === 'ALL' || client.status === statusFilter;
- 
- return matchesSearch && matchesStatus;
+
+ const bal = Number(client.outstanding_balance || 0);
+ const matchesDue = dueFilter === 'ALL'
+   || (dueFilter === 'DUE' && bal > 0)
+   || (dueFilter === 'CLEARED' && bal <= 0);
+
+ return matchesSearch && matchesStatus && matchesDue;
 });
-}, [clients, searchTerm, statusFilter]);
+}, [clients, searchTerm, statusFilter, dueFilter]);
 
 
  const openAdd = () => {
@@ -256,6 +262,8 @@ const Clients = () => {
       setSearchTerm={setSearchTerm}
       statusFilter={statusFilter}
       setStatusFilter={setStatusFilter}
+      dueFilter={dueFilter}
+      setDueFilter={setDueFilter}
       openAdd={openAdd}
       openEdit={openEdit}
       toggleStatus={toggleStatus}
