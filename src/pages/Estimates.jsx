@@ -140,57 +140,90 @@ const Estimates = () => {
 
       {adding && (
         <div className="modal-overlay" onClick={() => setAdding(false)}>
-          <div className="glass-modal !max-w-2xl max-h-[88vh] overflow-y-auto" onClick={ev => ev.stopPropagation()}>
-            <div className="flex justify-between items-start mb-3 border-b border-black/5 pb-3">
-              <h2 className="text-lg font-bold text-ink-primary">New Estimate</h2>
-              <button onClick={() => setAdding(false)}><X size={18} /></button>
+          <div className="bg-white w-full max-w-2xl max-h-[90vh] rounded-[1.75rem] shadow-2xl flex flex-col overflow-hidden" onClick={ev => ev.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-black/5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center"><FileText size={18} /></div>
+                <div>
+                  <h2 className="text-base font-extrabold text-ink-primary leading-none">New Estimate</h2>
+                  <p className="text-[11px] font-semibold text-gray-400 mt-1">Quotation · no stock or payment impact</p>
+                </div>
+              </div>
+              <button onClick={() => setAdding(false)} className="w-8 h-8 rounded-lg hover:bg-black/5 text-gray-400 hover:text-ink-primary flex items-center justify-center"><X size={18} /></button>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 mb-3">
-              <select value={clientId} onChange={e => setClientId(e.target.value)} className="h-10 px-3 border border-black/10 rounded-xl text-[13px] font-semibold">
-                <option value="">Walk-in (no client)</option>
-                {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-              </select>
-              <input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} className="h-10 px-3 border border-black/10 rounded-xl text-[13px] font-semibold" placeholder="Valid until" />
-            </div>
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Client</span>
+                  <select value={clientId} onChange={e => setClientId(e.target.value)} className="mt-1 w-full h-11 px-3 bg-white border border-black/10 rounded-xl text-[13px] font-semibold text-ink-primary outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
+                    <option value="">Walk-in (no client)</option>
+                    {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Valid until</span>
+                  <input type="date" value={validUntil} onChange={e => setValidUntil(e.target.value)} className="mt-1 w-full h-11 px-3 bg-white border border-black/10 rounded-xl text-[13px] font-semibold text-ink-primary outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20" />
+                </label>
+              </div>
 
-            <div className="relative mb-2">
-              <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-              <input value={prodSearch} onChange={e => setProdSearch(e.target.value)} placeholder="Add product…" className="w-full h-10 pl-9 pr-3 border border-black/10 rounded-xl text-[13px]" />
-              {prodMatches.length > 0 && (
-                <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-black/10 rounded-xl shadow-lg max-h-52 overflow-y-auto">
-                  {prodMatches.map(p => (
-                    <button key={p.id} onClick={() => addLine(p)} className="w-full text-left px-3 py-2 hover:bg-amber-50 text-[13px] flex justify-between">
-                      <span>{p.name}</span><span className="font-mono text-gray-500">{cur}{Number(p.sellingPrice || 0).toLocaleString()}</span>
-                    </button>
+              <div className="relative">
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input value={prodSearch} onChange={e => setProdSearch(e.target.value)} placeholder="Search & add product…" className="w-full h-11 pl-10 pr-3 bg-white border border-black/10 rounded-xl text-[13px] font-medium outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20" />
+                {prodMatches.length > 0 && (
+                  <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-black/10 rounded-xl shadow-lg max-h-52 overflow-y-auto">
+                    {prodMatches.map(p => (
+                      <button key={p.id} onClick={() => addLine(p)} className="w-full text-left px-3.5 py-2.5 hover:bg-amber-50 text-[13px] font-medium flex justify-between items-center border-b border-black/[0.04] last:border-0">
+                        <span className="truncate">{p.name}</span><span className="font-mono tabular-nums text-gray-500 shrink-0 ml-3">{cur}{Number(p.sellingPrice || 0).toLocaleString('en-IN')}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Line items */}
+              <div className="border border-black/[0.07] rounded-2xl overflow-hidden">
+                <div className="grid grid-cols-[1fr_4rem_5.5rem_5.5rem_2rem] gap-2 px-4 py-2 bg-black/[0.025] text-[9px] uppercase tracking-widest font-bold text-gray-400 border-b border-black/5">
+                  <div>Item</div><div className="text-center">Qty</div><div className="text-right">Rate</div><div className="text-right">Amount</div><div />
+                </div>
+                {lines.length === 0 && (
+                  <div className="px-4 py-10 text-center">
+                    <FileText size={28} className="mx-auto text-gray-200 mb-2" />
+                    <p className="text-[12px] font-semibold text-gray-400">No items yet — search a product above.</p>
+                  </div>
+                )}
+                <div className="divide-y divide-black/[0.05]">
+                  {lines.map((l, i) => (
+                    <div key={i} className="grid grid-cols-[1fr_4rem_5.5rem_5.5rem_2rem] gap-2 px-4 py-2.5 items-center">
+                      <div className="min-w-0"><div className="text-[13px] font-semibold text-ink-primary truncate">{l.name}</div><div className="text-[10px] font-bold text-gray-400">GST {l.taxRate}%</div></div>
+                      <input type="number" min="1" value={l.qty} onChange={e => patchLine(i, { qty: Number(e.target.value) })} className="h-8 px-1 border border-black/10 rounded-lg text-[12px] text-center font-mono tabular-nums outline-none focus:border-amber-400" />
+                      <input type="number" min="0" value={l.rate} onChange={e => patchLine(i, { rate: Number(e.target.value) })} className="h-8 px-2 border border-black/10 rounded-lg text-[12px] text-right font-mono tabular-nums outline-none focus:border-amber-400" />
+                      <span className="text-right font-mono tabular-nums text-[12px] font-bold text-ink-primary">{cur}{Math.round((l.qty || 0) * (l.rate || 0)).toLocaleString('en-IN')}</span>
+                      <button onClick={() => delLine(i)} className="text-gray-300 hover:text-red-500 flex justify-end"><Trash2 size={14} /></button>
+                    </div>
                   ))}
                 </div>
-              )}
+              </div>
+
+              {/* Totals */}
+              <div className="bg-amber-50/60 border border-amber-100 rounded-2xl px-4 py-3">
+                <div className="flex justify-between text-[12px] mb-1.5"><span className="font-semibold text-gray-500">Taxable</span><span className="font-mono tabular-nums font-bold text-ink-primary">{cur}{Math.round(totals.taxable || 0).toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between text-[12px] mb-2"><span className="font-semibold text-gray-500">Tax (GST)</span><span className="font-mono tabular-nums font-bold text-ink-primary">{cur}{Math.round(totals.totalTax || 0).toLocaleString('en-IN')}</span></div>
+                <div className="flex justify-between items-baseline pt-2 border-t border-amber-200/70"><span className="text-[13px] font-extrabold text-ink-primary">Total</span><span className="font-mono tabular-nums text-lg font-extrabold text-amber-700">{cur}{Math.round(totals.grandTotal || 0).toLocaleString('en-IN')}</span></div>
+              </div>
+
+              <label className="block">
+                <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Notes</span>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Terms, delivery, validity…" rows={2} className="mt-1 w-full p-3 bg-white border border-black/10 rounded-xl text-[12px] outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 resize-none" />
+              </label>
             </div>
 
-            <div className="max-h-64 overflow-y-auto border border-black/5 rounded-xl divide-y divide-black/5 mb-3">
-              {lines.length === 0 && <div className="px-3 py-8 text-center text-[12px] text-gray-400">Add products above.</div>}
-              {lines.map((l, i) => (
-                <div key={i} className="flex items-center gap-2 px-3 py-2">
-                  <div className="flex-1 min-w-0"><div className="text-[13px] font-semibold truncate">{l.name}</div><div className="text-[10px] text-gray-400">GST {l.taxRate}%</div></div>
-                  <input type="number" min="1" value={l.qty} onChange={e => patchLine(i, { qty: Number(e.target.value) })} className="w-14 h-8 px-2 border border-black/10 rounded text-[12px] text-center" />
-                  <span className="text-gray-400 text-xs">×</span>
-                  <input type="number" min="0" value={l.rate} onChange={e => patchLine(i, { rate: Number(e.target.value) })} className="w-20 h-8 px-2 border border-black/10 rounded text-[12px] text-right font-mono" />
-                  <span className="w-20 text-right font-mono text-[12px] font-bold">{cur}{Math.round((l.qty || 0) * (l.rate || 0)).toLocaleString('en-IN')}</span>
-                  <button onClick={() => delLine(i)} className="text-gray-400 hover:text-red-500"><Trash2 size={14} /></button>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-between text-[12px] mb-1"><span className="text-gray-500">Taxable</span><span className="font-mono">{cur}{Math.round(totals.taxable || 0).toLocaleString('en-IN')}</span></div>
-            <div className="flex justify-between text-[12px] mb-1"><span className="text-gray-500">Tax</span><span className="font-mono">{cur}{Math.round(totals.totalTax || 0).toLocaleString('en-IN')}</span></div>
-            <div className="flex justify-between text-[14px] font-bold mb-3 pt-2 border-t border-black/5"><span>Total</span><span className="font-mono text-amber-700">{cur}{Math.round(totals.grandTotal || 0).toLocaleString('en-IN')}</span></div>
-
-            <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Notes (optional)" rows={2} className="w-full p-2 border border-black/10 rounded-xl text-[12px] mb-3" />
-
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setAdding(false)} className="h-10 px-4 rounded-xl border border-black/10 text-[13px] font-bold">Cancel</button>
-              <button onClick={save} disabled={saving || !lines.length} className="h-10 px-5 rounded-xl bg-amber-600 text-white text-[13px] font-bold disabled:opacity-40 flex items-center gap-2"><FileText size={15} /> Save estimate</button>
+            {/* Sticky footer */}
+            <div className="flex gap-2 justify-end px-6 py-4 border-t border-black/5 bg-white">
+              <button onClick={() => setAdding(false)} className="h-11 px-5 rounded-xl border border-black/10 text-[13px] font-bold text-gray-600 hover:bg-black/5">Cancel</button>
+              <button onClick={save} disabled={saving || !lines.length} className="h-11 px-6 rounded-xl bg-amber-600 text-white text-[13px] font-bold disabled:opacity-40 hover:bg-amber-700 flex items-center gap-2 transition-colors"><FileText size={15} /> {saving ? 'Saving…' : 'Save estimate'}</button>
             </div>
           </div>
         </div>
