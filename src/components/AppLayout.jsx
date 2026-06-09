@@ -198,7 +198,7 @@ const Navbar = () => {
  {/* Branding */}
  <div className="flex items-center gap-4">
  <div className="flex items-center animate-in fade-in duration-700">
-   <img src="/logo.png" alt="LedgrPro" className="h-8 w-auto shrink-0" />
+   <img src="/logo-white.png" alt="LedgrPro" className="h-8 w-auto shrink-0" />
  </div>
  {currentTenant && (
    <div className="hidden md:flex items-center gap-2">
