@@ -33,6 +33,24 @@ const SalesPage = () => {
   const isResto = businessType === 'RESTAURANT';
   // Non-restaurant tenants have no floor tables — skip that fetch entirely.
   const tablesApi = useTables(currentTenantId, isResto);
+
+  // Estimate → POS handoff: read items stashed by the Estimates page, map them
+  // to InvoiceBuilder cart lines, consume the stash once.
+  const [estimateCart] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('estimate_cart');
+      if (!raw) return null;
+      sessionStorage.removeItem('estimate_cart');
+      const { items } = JSON.parse(raw);
+      if (!Array.isArray(items) || !items.length) return null;
+      return items.map(it => ({
+        uid: it.id, productId: it.id, name: it.name,
+        basePrice: Number(it.rate) || 0, price: Number(it.rate) || 0,
+        quantity: Number(it.qty) || 1, taxRate: Number(it.taxRate) || 0,
+        modifiers: [], modLabel: null,
+      }));
+    } catch { return null; }
+  });
   const { createTicket } = useKOT(currentTenantId);
   // The table whose tab is currently open in the builder (restaurant only).
   const [activeTable, setActiveTable] = useState(null); // { table, tab }
@@ -298,7 +316,7 @@ const SalesPage = () => {
               </div>
             )}
             <InvoiceBuilder
-              key={activeTable?.tab?.id || 'walkin'}
+              key={activeTable?.tab?.id || (estimateCart ? 'estimate' : 'walkin')}
               products={products}
               inventoryBalances={inventoryBalances}
               clients={clients}
@@ -308,7 +326,7 @@ const SalesPage = () => {
               businessProfile={businessProfile}
               topSellingIds={topSellingIds}
               stores={posStores}
-              initialCart={activeTable?.tab?.cart || null}
+              initialCart={activeTable?.tab?.cart || estimateCart || null}
               onCartChange={isResto && activeTable ? persistTabCart : null}
               tableLabel={activeTable?.table?.label || null}
               onSendKOT={isResto && activeTable ? sendTableKOT : null}

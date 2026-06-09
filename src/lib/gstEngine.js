@@ -174,6 +174,9 @@ export const shareToWhatsApp = (invoice, client, businessProfile) => {
     year: 'numeric'
   });
 
+  const origin = (typeof window !== 'undefined' && window.location?.origin) || '';
+  const viewLink = (origin && invoice.id) ? `${origin}/embed/invoice/${invoice.id}` : '';
+
   const msg = `
 *${businessProfile.name}*
 *GST Invoice: ${invoice.invoice_number}*
@@ -199,8 +202,9 @@ ${invoice.payment_status?.toUpperCase() === 'UNPAID' ?
   `⚠️ *Amount Due: ${formatINR(invoice.balance_due || (invoice.grand_total - (invoice.paid_amount || 0)))}*` : 
   '✅ *PAID*'}
 
-${businessProfile.upi_id ? 
+${businessProfile.upi_id ?
   `💳 Pay via UPI: ${businessProfile.upi_id}` : ''}
+${viewLink ? `\n🔗 View invoice: ${viewLink}` : ''}
 
 Thank you for your business! 🙏
   `.trim();
