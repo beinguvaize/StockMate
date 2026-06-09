@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
@@ -6,6 +6,8 @@ import { useEstimates } from '../hooks/useEstimates';
 import { usePeople } from '../hooks/usePeople';
 import { useInventory } from '../hooks/useInventory';
 import { calculateGST, formatINR } from '../lib/gstEngine';
+import { resolvePrice } from '../lib/priceResolver';
+import { supabase } from '../lib/supabase';
 import { Plus, Search, Trash2, X, FileText, Send, CheckCircle2, ArrowRight, MessageCircle, Edit3 } from 'lucide-react';
 
 const STATUS_STYLE = {
@@ -37,6 +39,14 @@ const Estimates = () => {
   const [prodSearch, setProdSearch] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState('');
+  const [priceTier, setPriceTier] = useState('RETAIL'); // RETAIL | WHOLESALE | DISTRIBUTOR
+  const [priceLists, setPriceLists] = useState([]);
+
+  useEffect(() => {
+    if (!currentTenantId) return;
+    supabase.from('price_lists').select('*').eq('tenant_id', currentTenantId).is('deleted_at', null)
+      .then(({ data }) => setPriceLists(data || []));
+  }, [currentTenantId]);
 
   const client = clients?.find(c => c.id === clientId);
   const totals = useMemo(
@@ -51,18 +61,30 @@ const Estimates = () => {
   }, [prodSearch, products]);
 
   const addLine = (p) => {
+    const base = Number(p.sellingPrice || 0);
+    const rate = resolvePrice(priceLists, p.id, priceTier, 1, base);
     setLines(prev => [...prev, {
       id: p.id, name: p.name, qty: 1,
-      rate: Number(p.sellingPrice || 0),
+      rate: Number(rate) || base,
       taxRate: Number(p.taxRate ?? 18),
       hsn_code: p.hsn_code || p.sku || '',
     }]);
     setProdSearch('');
   };
+
+  // Switch tier → re-price existing lines from their product's tier price.
+  const applyTier = (tier) => {
+    setPriceTier(tier);
+    setLines(prev => prev.map(l => {
+      const p = products.find(x => x.id === l.id);
+      const base = Number(p?.sellingPrice || l.rate || 0);
+      return { ...l, rate: Number(resolvePrice(priceLists, l.id, tier, l.qty || 1, base)) || base };
+    }));
+  };
   const patchLine = (i, patch) => setLines(prev => prev.map((l, idx) => idx === i ? { ...l, ...patch } : l));
   const delLine = (i) => setLines(prev => prev.filter((_, idx) => idx !== i));
 
-  const reset = () => { setEditingId(null); setClientId(''); setLines([]); setValidUntil(''); setNotes(''); setProdSearch(''); setSaveErr(''); };
+  const reset = () => { setEditingId(null); setClientId(''); setLines([]); setValidUntil(''); setNotes(''); setProdSearch(''); setSaveErr(''); setPriceTier('RETAIL'); };
 
   const openEdit = (est) => {
     setEditingId(est.id);
@@ -176,12 +198,20 @@ const Estimates = () => {
 
             {/* Body — scrolls internally; header + footer stay pinned */}
             <div className="flex-1 min-h-0 overflow-y-auto w-full max-w-3xl mx-auto px-6 py-6 space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 <label className="block">
                   <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Client</span>
-                  <select value={clientId} onChange={e => setClientId(e.target.value)} className="mt-1 w-full h-11 px-3 bg-white border border-black/10 rounded-xl text-[13px] font-semibold text-ink-primary outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
+                  <select value={clientId} onChange={e => { const id = e.target.value; setClientId(id); const c = clients?.find(x => x.id === id); if (c?.price_tier) applyTier(String(c.price_tier).toUpperCase()); }} className="mt-1 w-full h-11 px-3 bg-white border border-black/10 rounded-xl text-[13px] font-semibold text-ink-primary outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
                     <option value="">Walk-in (no client)</option>
                     {(clients || []).map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Price tier</span>
+                  <select value={priceTier} onChange={e => applyTier(e.target.value)} className="mt-1 w-full h-11 px-3 bg-white border border-black/10 rounded-xl text-[13px] font-semibold text-ink-primary outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20">
+                    <option value="RETAIL">Retail</option>
+                    <option value="WHOLESALE">Wholesale</option>
+                    <option value="DISTRIBUTOR">Distributor</option>
                   </select>
                 </label>
                 <label className="block">
