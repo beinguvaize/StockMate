@@ -35,6 +35,7 @@ const Estimates = () => {
   const [notes, setNotes] = useState('');
   const [prodSearch, setProdSearch] = useState('');
   const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState('');
 
   const client = clients?.find(c => c.id === clientId);
   const totals = useMemo(
@@ -64,7 +65,7 @@ const Estimates = () => {
 
   const save = async () => {
     if (!lines.length) return;
-    setSaving(true);
+    setSaving(true); setSaveErr('');
     const t = totals;
     const { error } = await create({
       client_id: clientId || null,
@@ -81,7 +82,8 @@ const Estimates = () => {
       notes,
     });
     setSaving(false);
-    if (!error) { setAdding(false); reset(); }
+    if (error) { setSaveErr(error.message || 'Could not save estimate'); return; }
+    setAdding(false); reset();
   };
 
   // Convert → hand the line items to the POS via sessionStorage, mark CONVERTED.
@@ -222,7 +224,8 @@ const Estimates = () => {
             </div>
 
             {/* Sticky footer */}
-            <div className="flex gap-2 justify-end px-6 py-4 border-t border-black/5 bg-white">
+            <div className="flex items-center gap-2 justify-end px-6 py-4 border-t border-black/5 bg-white">
+              {saveErr && <span className="mr-auto text-[12px] font-semibold text-red-600 truncate">{saveErr}</span>}
               <button onClick={() => setAdding(false)} className="h-11 px-5 rounded-xl border border-black/10 text-[13px] font-bold text-gray-600 hover:bg-black/5">Cancel</button>
               <button onClick={save} disabled={saving || !lines.length} className="h-11 px-6 rounded-xl bg-amber-600 text-white text-[13px] font-bold disabled:opacity-40 hover:bg-amber-700 flex items-center gap-2 transition-colors"><FileText size={15} /> {saving ? 'Saving…' : 'Save estimate'}</button>
             </div>
