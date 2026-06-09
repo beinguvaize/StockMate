@@ -17,6 +17,8 @@ const ClientDirectory = ({
   setSearchTerm,
   statusFilter,
   setStatusFilter,
+  dueFilter,
+  setDueFilter,
   openAdd,
   openEdit,
   handleDelete,
@@ -99,6 +101,23 @@ const ClientDirectory = ({
               }`}
             >
               {f.toLowerCase()}
+            </button>
+          ))}
+        </div>
+
+        {/* Outstanding filter — Due / Cleared */}
+        <div className="inline-flex p-1 bg-black/[0.06] rounded-xl">
+          {[['ALL','All'],['DUE','Due'],['CLEARED','Cleared']].map(([k, lbl]) => (
+            <button
+              key={k}
+              onClick={() => setDueFilter?.(k)}
+              className={`px-4 py-1.5 rounded-lg text-[12px] font-bold transition-all ${
+                dueFilter === k
+                  ? (k === 'DUE' ? 'bg-white text-red-600 shadow-sm' : k === 'CLEARED' ? 'bg-white text-emerald-600 shadow-sm' : 'bg-white text-ink-primary shadow-sm')
+                  : 'text-gray-500 hover:text-ink-primary'
+              }`}
+            >
+              {lbl}
             </button>
           ))}
         </div>

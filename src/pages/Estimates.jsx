@@ -140,7 +140,7 @@ const Estimates = () => {
 
       {adding && (
         <div className="modal-overlay" onClick={() => setAdding(false)}>
-          <div className="glass-modal !max-w-2xl" onClick={ev => ev.stopPropagation()}>
+          <div className="glass-modal !max-w-2xl max-h-[88vh] overflow-y-auto" onClick={ev => ev.stopPropagation()}>
             <div className="flex justify-between items-start mb-3 border-b border-black/5 pb-3">
               <h2 className="text-lg font-bold text-ink-primary">New Estimate</h2>
               <button onClick={() => setAdding(false)}><X size={18} /></button>
