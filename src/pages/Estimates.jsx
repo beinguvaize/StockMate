@@ -139,8 +139,8 @@ const Estimates = () => {
       </div>
 
       {adding && (
-        <div className="fixed inset-0 z-[9999] bg-white/60 backdrop-blur-sm flex items-start sm:items-center justify-center overflow-y-auto p-4" onClick={() => setAdding(false)}>
-          <div className="bg-white w-full max-w-2xl my-auto rounded-[1.75rem] shadow-2xl flex flex-col overflow-hidden" onClick={ev => ev.stopPropagation()}>
+        <div className="fixed inset-0 z-[9999] bg-white/60 backdrop-blur-sm flex items-center justify-center overflow-y-auto p-4" onClick={() => setAdding(false)}>
+          <div className="bg-white w-full max-w-2xl max-h-[calc(100dvh-2rem)] rounded-[1.75rem] shadow-2xl flex flex-col overflow-hidden" onClick={ev => ev.stopPropagation()}>
             {/* Header */}
             <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-black/5">
               <div className="flex items-center gap-3">
@@ -153,8 +153,8 @@ const Estimates = () => {
               <button onClick={() => setAdding(false)} className="w-8 h-8 rounded-lg hover:bg-black/5 text-gray-400 hover:text-ink-primary flex items-center justify-center"><X size={18} /></button>
             </div>
 
-            {/* Body — overlay scrolls if the modal is taller than the viewport */}
-            <div className="px-6 py-4 space-y-4">
+            {/* Body — scrolls internally; header + footer stay pinned */}
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <label className="block">
                   <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Client</span>
