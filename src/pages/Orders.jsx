@@ -298,34 +298,30 @@ const Orders = () => {
     <div className="animate-fade-in flex flex-col gap-6 pb-16">
 
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex justify-between items-center py-2 border-b border-black/5">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
-            Orders<span className="text-accent-signature">.</span>
-          </h1>
-          <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">B2B & B2C order pipeline</span>
+      <div className="flex justify-between items-center gap-3 pb-3 border-b border-black/5 flex-wrap">
+        <div className="flex items-center gap-3 min-w-0">
+          <h1 className="text-xl font-extrabold text-ink-primary leading-none">Orders<span className="text-amber-500">.</span></h1>
+          <span className="text-[11px] font-semibold text-gray-400 hidden sm:block">Order pipeline · draft → invoiced</span>
         </div>
-        <button
-          onClick={openNew}
-          className="btn-signature flex items-center gap-2 text-xs font-black shrink-0"
-        >
-          <Plus size={12} /> New Order</button>
+        <button onClick={openNew}
+          className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all shrink-0">
+          <Plus size={15} strokeWidth={2.6} /> New order
+        </button>
       </div>
 
-      {/* ── KPI row ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ── KPI strip ───────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-black/[0.07] shadow-sm">
         {[
-          { label: 'Open Pipeline',  value: `${sym}${openValue.toLocaleString()}`,                  icon: ShoppingBag },
-          { label: 'Active Orders',  value: counts.ALL,                                              icon: Package     },
-          { label: "Today's Orders", value: todayOrders,                                             icon: Calendar    },
-          { label: 'Pending Pickup', value: (counts.CONFIRMED || 0) + (counts.PICKING || 0),        icon: Clock       },
-        ].map(({ label, value, icon: Icon }) => (
-          <div key={label} className="bg-white rounded-[1.5rem] border border-black/5 shadow-sm p-5 relative overflow-hidden group hover:border-black/10 transition-all">
-            <div className="absolute top-4 right-4 opacity-[0.07] group-hover:opacity-[0.13] transition-opacity text-ink-primary">
-              <Icon size={38} strokeWidth={2} />
+          { label: 'Open pipeline', value: `${openValue.toLocaleString('en-IN')}`, money: true },
+          { label: 'Active orders', value: counts.ALL },
+          { label: 'Today', value: todayOrders },
+          { label: 'To dispatch', value: counts.CONFIRMED || 0 },
+        ].map((m) => (
+          <div key={m.label} className="bg-white px-4 py-3.5">
+            <div className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{m.label}</div>
+            <div className="font-mono text-xl font-bold text-ink-primary tabular-nums leading-none mt-1">
+              {m.money && <span className="text-sm text-amber-400 mr-0.5">{sym || '₹'}</span>}{m.value}
             </div>
-            <span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest mb-1 block">{label}</span>
-            <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums leading-tight">{value}</div>
           </div>
         ))}
       </div>
