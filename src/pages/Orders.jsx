@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useOrders } from '../hooks/useOrders';
@@ -95,6 +96,7 @@ const Orders = () => {
   const { clients } = usePeople(currentTenantId);
   const { products } = useInventory(currentTenantId);
 
+  const navigate = useNavigate();
   const sym = businessProfile?.currencySymbol || '';
 
   // ── Merge orders + invoices into unified pipeline ─────────────────────
@@ -260,9 +262,25 @@ const Orders = () => {
   const handleAdvance = async (order) => {
     const s = stageOf(order.status);
     if (!s.next) return;
+    // Last hop (Delivered → Invoiced) = turn the order into a real sale.
+    if (s.next === 'INVOICED') { convertToSale(order); return; }
     setSaving(order.id);
     await advanceStatus(order.id, s.next);
     setSaving(null);
+  };
+
+  // Hand the order's items to the POS (same flow as Estimates), then mark the
+  // order Invoiced. The actual money/sale is recorded when it's settled in POS.
+  const convertToSale = async (order) => {
+    const items = (Array.isArray(order.items) ? order.items : []).map(i => ({
+      id: i.productId, name: i.productName, qty: i.qty, rate: i.unitPrice, taxRate: i.taxRate || 0,
+    }));
+    if (!items.length) { alert('This order has no items to sell.'); return; }
+    try { sessionStorage.setItem('estimate_cart', JSON.stringify({ orderId: order.id, clientId: order.client_id, items })); } catch (_) {/* noop */}
+    setSaving(order.id);
+    await advanceStatus(order.id, 'INVOICED');
+    setSaving(null);
+    navigate(`/${currentTenant?.slug || ''}/sales`);
   };
 
   const handleCancel = async (order) => {
@@ -471,9 +489,9 @@ const Orders = () => {
                     <button
                       onClick={() => handleAdvance(order)}
                       disabled={isSaving}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-ink-primary text-surface text-[9px] font-black hover:opacity-90 transition-all disabled:opacity-50"
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black hover:opacity-90 transition-all disabled:opacity-50 ${stage.next === 'INVOICED' ? 'bg-amber-600 text-white' : 'bg-ink-primary text-surface'}`}
                     >
-                      {isSaving ? '...' : `→ ${stageOf(stage.next).label}`}
+                      {isSaving ? '...' : (stage.next === 'INVOICED' ? '₹ Convert to sale' : `→ ${stageOf(stage.next).label}`)}
                     </button>
                   )}
 
