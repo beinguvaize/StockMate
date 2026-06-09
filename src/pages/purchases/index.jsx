@@ -76,6 +76,72 @@ const PurchasesPage = () => {
     return rows;
   }, [purchases, search, fSupplier, fPay, fStatus, sortBy]);
 
+  // Professional, self-contained printable purchase voucher (own CSS — the
+  // print window has none of the app's styles).
+  const printVoucher = (p) => {
+    const prod = products.find(x => x.id === p.linked_product_id);
+    const cur = businessProfile?.currencySymbol || '₹';
+    const due = dueOf(p);
+    const paid = Number(p.paid_amount || 0);
+    const fmt = (n) => `${cur}${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const ref = `#${p.id.split('-').pop()}`;
+    const credit = _credit(p.payment_type);
+    const statusColor = credit ? (due <= 0.5 ? '#059669' : '#D97706') : '#059669';
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Purchase ${ref}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+body{background:#f5f5f4;color:#1c1917;padding:32px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.card{max-width:640px;margin:0 auto;background:#fff;border:1px solid #e7e5e4;border-radius:16px;overflow:hidden}
+.hd{display:flex;justify-content:space-between;align-items:flex-start;padding:24px 28px;border-bottom:1px solid #f0efed}
+.biz{font-size:20px;font-weight:800;letter-spacing:-.01em}
+.sub{font-size:11px;color:#a8a29e;margin-top:2px;text-transform:uppercase;letter-spacing:.12em}
+.badge{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.08em;padding:5px 12px;border-radius:9999px;color:#fff;background:${statusColor}}
+.meta{display:grid;grid-template-columns:1fr 1fr;gap:10px 24px;padding:20px 28px;font-size:13px}
+.meta .k{color:#a8a29e;font-size:10px;text-transform:uppercase;letter-spacing:.1em;font-weight:700}
+.meta .v{font-weight:700;margin-top:2px}
+table{width:100%;border-collapse:collapse;margin:0}
+thead th{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#a8a29e;text-align:left;padding:10px 28px;background:#fafaf9;border-top:1px solid #f0efed;border-bottom:1px solid #f0efed}
+thead th.r{text-align:right}thead th.c{text-align:center}
+tbody td{padding:14px 28px;font-size:13px;border-bottom:1px solid #f5f4f2}
+td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{text-align:center;font-variant-numeric:tabular-nums}
+.tot{padding:16px 28px}
+.row{display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;color:#57534e}
+.row .amt{font-variant-numeric:tabular-nums;font-weight:600;color:#1c1917}
+.grand{display:flex;justify-content:space-between;align-items:center;padding-top:12px;margin-top:6px;border-top:2px solid #1c1917}
+.grand .l{font-size:15px;font-weight:800}.grand .v{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;color:#D97706}
+.due{color:#dc2626}.paid{color:#059669}
+.ft{padding:16px 28px;border-top:1px solid #f0efed;font-size:11px;color:#a8a29e;text-align:center}
+@media print{body{background:#fff;padding:0}.card{border:none}}
+</style></head><body>
+<div class="card">
+  <div class="hd">
+    <div><div class="biz">${(businessProfile?.name || 'Purchase Voucher')}</div><div class="sub">Purchase Voucher · ${ref}</div></div>
+    <div class="badge">${credit ? (due <= 0.5 ? 'Paid' : (paid > 0 ? 'Partial' : 'Credit')) : (p.payment_type || 'Cash')}</div>
+  </div>
+  <div class="meta">
+    <div><div class="k">Supplier</div><div class="v">${p.supplier_name || '—'}</div></div>
+    <div><div class="k">Date</div><div class="v">${formatDate(p.date)}</div></div>
+    <div><div class="k">Payment</div><div class="v">${p.payment_type || 'CASH'}</div></div>
+    <div><div class="k">Status</div><div class="v">${p.status || 'RECEIVED'}</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Item</th><th class="c">Qty</th><th class="r">Amount</th></tr></thead>
+    <tbody><tr><td>${prod?.name || 'Item'}</td><td class="c">${p.quantity}</td><td class="r">${fmt(p.total_amount)}</td></tr></tbody>
+  </table>
+  <div class="tot">
+    <div class="grand"><span class="l">Total</span><span class="v">${fmt(p.total_amount)}</span></div>
+    ${paid > 0 ? `<div class="row" style="margin-top:10px"><span>Paid</span><span class="amt paid">${fmt(paid)}</span></div>` : ''}
+    ${due > 0.5 ? `<div class="row"><span>Balance due</span><span class="amt due">${fmt(due)}</span></div>` : ''}
+  </div>
+  <div class="ft">Thank you · ${(businessProfile?.name || '')}</div>
+</div>
+<script>window.onload=function(){window.print()}</script>
+</body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) return;
+    w.document.write(html); w.document.close();
+  };
+
   const submitPay = async () => {
     if (!payTarget) return;
     const amt = Number(payAmount);
@@ -556,7 +622,7 @@ const PurchasesPage = () => {
                 <div className="flex justify-between font-bold mt-2"><span>Total</span><span className="font-mono">{formatCurrency(printTarget.total_amount)}</span></div>
                 {Number(printTarget.paid_amount || 0) > 0 && <div className="flex justify-between text-[12px] text-emerald-600"><span>Paid</span><span className="font-mono">{formatCurrency(printTarget.paid_amount)}</span></div>}
               </div>
-              <button onClick={() => { const w = window.open('', '_blank'); w.document.write(`<html><head><title>Purchase #${printTarget.id.split('-').pop()}</title></head><body>${document.getElementById('purchase-voucher').outerHTML}</body></html>`); w.document.close(); w.focus(); w.print(); }}
+              <button onClick={() => printVoucher(printTarget)}
                 className="mt-3 w-full h-11 rounded-xl bg-ink-primary text-white text-[13px] font-bold flex items-center justify-center gap-2"><Printer size={15} /> Print</button>
             </div>
           );
