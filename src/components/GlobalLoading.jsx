@@ -19,8 +19,6 @@ const GlobalLoading = () => {
 
  return (
  <div data-testid="global-loading" className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#fdfdfd] overflow-hidden">
- {/* Brand mark — top left */}
- <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" className="absolute top-6 left-6 h-7 w-auto opacity-70" />
  {/* Playwright synchronization indicator */}
  <div className="absolute top-0 left-0 w-0 h-0 opacity-0 animate-spin pointer-events-none" aria-hidden="true" />
 
