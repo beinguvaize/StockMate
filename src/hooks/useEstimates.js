@@ -56,9 +56,13 @@ export function useEstimates(tenantId) {
       status: est.status || 'DRAFT',
       notes: est.notes || null,
     };
-    const { error } = await supabase.from('estimates').insert(row);
-    if (!error) await fetchAll();
-    return { error, id };
+    try {
+      const { error } = await supabase.from('estimates').insert(row);
+      if (!error) await fetchAll();
+      return { error, id };
+    } catch (e) {
+      return { error: e, id };
+    }
   };
 
   const setStatus = async (id, status, extra = {}) => {
