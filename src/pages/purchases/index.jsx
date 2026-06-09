@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
@@ -14,10 +14,10 @@ import MultiPurchaseForm from './components/MultiPurchaseForm';
 import PurchaseReturnForm from './components/PurchaseReturnForm';
 
 const PurchasesPage = () => {
-  const { currentTenantId } = useTenant();
+  const { currentTenantId, businessProfile } = useTenant();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, loading: purLoading } = usePurchases(currentTenantId, { withPayments: false });
+  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
   const { products, inventoryLocations, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
@@ -27,8 +27,58 @@ const PurchasesPage = () => {
   const [editLoading, setEditLoading] = useState(false);
   const [returnTarget, setReturnTarget] = useState(null); // purchase being returned
   const [returnLoading, setReturnLoading] = useState(false);
-
   const [addLoading, setAddLoading] = useState(false);
+
+  // ── Filter / sort ──────────────────────────────────────────────────────────
+  const [search, setSearch]   = useState('');
+  const [fSupplier, setFSup]  = useState('ALL');
+  const [fPay, setFPay]       = useState('ALL');   // ALL | CASH | CREDIT
+  const [fStatus, setFStatus] = useState('ALL');   // ALL | PENDING | ORDERED | RECEIVED | CANCELLED
+  const [sortBy, setSortBy]   = useState('DATE_DESC'); // DATE_DESC | DATE_ASC | AMT_DESC | AMT_ASC
+
+  // ── Pay / Duplicate / Print targets ─────────────────────────────────────────
+  const [payTarget, setPayTarget] = useState(null);
+  const [payAmount, setPayAmount] = useState('');
+  const [payMethod, setPayMethod] = useState('CASH');
+  const [payDate, setPayDate]     = useState(() => new Date().toISOString().slice(0, 10));
+  const [paySubmitting, setPaySubmitting] = useState(false);
+  const [dupTarget, setDupTarget]   = useState(null); // purchase to duplicate (prefill single form)
+  const [printTarget, setPrintTarget] = useState(null);
+
+  const _credit = (pt) => ['CREDIT', 'UDHAAR', 'POST-CAPITAL'].includes(String(pt || '').toUpperCase());
+  const dueOf = (p) => Math.max(0, Number(p.total_amount || 0) - Number(p.paid_amount || 0));
+
+  const filteredPurchases = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    let rows = (purchases || []).filter(p => {
+      if (q && !(`${p.id} ${p.supplier_name || ''} ${p.notes || ''}`.toLowerCase().includes(q))) return false;
+      if (fSupplier !== 'ALL' && p.supplier_id !== fSupplier) return false;
+      if (fPay === 'CASH' && _credit(p.payment_type)) return false;
+      if (fPay === 'CREDIT' && !_credit(p.payment_type)) return false;
+      if (fStatus !== 'ALL' && (p.status || 'RECEIVED').toUpperCase() !== fStatus) return false;
+      return true;
+    });
+    const amt = (p) => Number(p.total_amount || 0);
+    rows = [...rows].sort((a, b) => {
+      if (sortBy === 'AMT_DESC') return amt(b) - amt(a);
+      if (sortBy === 'AMT_ASC')  return amt(a) - amt(b);
+      if (sortBy === 'DATE_ASC') return String(a.date).localeCompare(String(b.date));
+      return String(b.date).localeCompare(String(a.date)); // DATE_DESC
+    });
+    return rows;
+  }, [purchases, search, fSupplier, fPay, fStatus, sortBy]);
+
+  const submitPay = async () => {
+    if (!payTarget) return;
+    const amt = Number(payAmount);
+    if (!(amt > 0)) { addNotification('Enter a valid amount', 'error'); return; }
+    setPaySubmitting(true);
+    const { error } = await payPurchase({ supplierId: payTarget.supplier_id, purchaseId: payTarget.id, amount: amt, method: payMethod, date: payDate });
+    setPaySubmitting(false);
+    if (error) { addNotification(`Payment failed: ${error.message}`, 'error'); return; }
+    addNotification('Payment recorded', 'success');
+    setPayTarget(null); setPayAmount('');
+  };
 
   // ── WAC helper ──────────────────────────────────────────────────────────────
   const updateWAC = async (productId, qty, unitCost) => {
@@ -76,6 +126,32 @@ const PurchasesPage = () => {
     setAddLoading(false);
     if (failed > 0) alert(`${failed} item(s) failed to save.`);
     else setShowAddModal(false);
+  };
+
+  // Duplicate → create a brand-new purchase from a prefilled single form.
+  const handleDuplicateSave = async (data) => {
+    setAddLoading(true);
+    const qty = Number(data.quantity);
+    const total = Number(data.total_amount);
+    const { error } = await addPurchase({
+      id:                generateRef('PUR'),
+      linked_product_id: data.linked_product_id,
+      supplier_id:       data.supplier_id,
+      supplier_name:     suppliers.find(s => s.id === data.supplier_id)?.name || '',
+      quantity:          qty,
+      unit_cost:         Number(data.unit_price) || (qty > 0 ? total / qty : 0),
+      total_amount:      total,
+      payment_type:      data.payment_type,
+      date:              data.date,
+      notes:             data.notes,
+      userId:            currentUser?.id,
+      locationId:        data.location_id || null,
+    });
+    setAddLoading(false);
+    if (error) { addNotification('Duplicate failed: ' + error.message, 'error'); return; }
+    if (qty > 0 && data.linked_product_id) await updateWAC(data.linked_product_id, qty, Number(data.unit_price) || total / qty);
+    addNotification('Purchase duplicated', 'success');
+    setDupTarget(null);
   };
 
   const handleEditPurchase = async (data) => {
@@ -246,6 +322,29 @@ const PurchasesPage = () => {
         </td>
         <td className="px-4 py-3 text-right">
           <div className="flex items-center gap-1.5 justify-end">
+            {_credit(pur.payment_type) && dueOf(pur) > 0.5 && (
+              <button
+                onClick={() => { setPayTarget(pur); setPayAmount(String(dueOf(pur))); setPayMethod('CASH'); }}
+                title={`Due ${formatCurrency(dueOf(pur))}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+              >
+                <Banknote size={11} /> Pay
+              </button>
+            )}
+            <button
+              onClick={() => setPrintTarget(pur)}
+              title="View / Print"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-gray-500 bg-gray-100 hover:bg-gray-200 transition-colors"
+            >
+              <Printer size={11} />
+            </button>
+            <button
+              onClick={() => setDupTarget(pur)}
+              title="Duplicate"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 hover:bg-amber-100 transition-colors"
+            >
+              <Copy size={11} />
+            </button>
             <button
               onClick={() => setEditTarget(pur)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
@@ -317,12 +416,37 @@ const PurchasesPage = () => {
         </button>
       </div>
 
+      {/* ── Filter / sort bar (purchases tab) ── */}
+      {activeTab === 'purchases' && (
+        <div className="flex flex-wrap items-center gap-2 bg-white border border-black/5 rounded-xl p-2">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search ref / supplier / notes…"
+              className="w-full h-9 pl-9 pr-3 bg-white border border-black/10 rounded-lg text-[12px] font-semibold outline-none focus:border-amber-400" />
+          </div>
+          <select value={fSupplier} onChange={e => setFSup(e.target.value)} className="h-9 px-2 border border-black/10 rounded-lg text-[12px] font-semibold">
+            <option value="ALL">All suppliers</option>
+            {(suppliers || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <select value={fPay} onChange={e => setFPay(e.target.value)} className="h-9 px-2 border border-black/10 rounded-lg text-[12px] font-semibold">
+            <option value="ALL">All payment</option><option value="CASH">Cash</option><option value="CREDIT">Credit</option>
+          </select>
+          <select value={fStatus} onChange={e => setFStatus(e.target.value)} className="h-9 px-2 border border-black/10 rounded-lg text-[12px] font-semibold">
+            <option value="ALL">All status</option><option value="PENDING">Pending</option><option value="ORDERED">Ordered</option><option value="RECEIVED">Received</option><option value="CANCELLED">Cancelled</option>
+          </select>
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="h-9 px-2 border border-black/10 rounded-lg text-[12px] font-semibold">
+            <option value="DATE_DESC">Newest</option><option value="DATE_ASC">Oldest</option><option value="AMT_DESC">Amount ↓</option><option value="AMT_ASC">Amount ↑</option>
+          </select>
+          <span className="text-[11px] font-bold text-gray-400 ml-auto">{filteredPurchases.length} of {purchases.length}</span>
+        </div>
+      )}
+
       {activeTab === 'purchases' ? (
         <Table
           headers={headers}
-          rows={purchases}
+          rows={filteredPurchases}
           renderRow={renderRow}
-          emptyMessage="No purchases recorded yet"
+          emptyMessage="No purchases match the filters"
         />
       ) : (
         <Table
@@ -356,6 +480,75 @@ const PurchasesPage = () => {
             initialData={editTarget}
           />
         )}
+      </Modal>
+
+      {/* Duplicate Purchase Modal — prefilled single form, saves as new */}
+      <Modal isOpen={!!dupTarget} onClose={() => setDupTarget(null)} title="Duplicate Purchase" subtitle="Creates a new purchase from this one">
+        {dupTarget && (
+          <PurchaseForm
+            products={products}
+            suppliers={suppliers}
+            onSave={handleDuplicateSave}
+            loading={addLoading}
+            initialData={{ ...dupTarget, date: new Date().toISOString().slice(0, 10) }}
+          />
+        )}
+      </Modal>
+
+      {/* Pay Purchase Modal */}
+      <Modal isOpen={!!payTarget} onClose={() => setPayTarget(null)} title="Record Payment" subtitle={payTarget ? `#${payTarget.id.split('-').pop()} · ${payTarget.supplier_name || ''}` : ''}>
+        {payTarget && (
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-between text-[13px]"><span className="font-semibold text-gray-500">Order total</span><span className="font-mono font-bold">{formatCurrency(payTarget.total_amount)}</span></div>
+            <div className="flex justify-between text-[13px]"><span className="font-semibold text-gray-500">Already paid</span><span className="font-mono font-bold">{formatCurrency(payTarget.paid_amount || 0)}</span></div>
+            <div className="flex justify-between text-[13px] pt-2 border-t border-black/5"><span className="font-bold">Due</span><span className="font-mono font-bold text-red-600">{formatCurrency(dueOf(payTarget))}</span></div>
+            <label className="block"><span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Amount</span>
+              <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[14px] font-mono font-bold outline-none focus:border-amber-400" autoFocus />
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block"><span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Method</span>
+                <select value={payMethod} onChange={e => setPayMethod(e.target.value)} className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[13px] font-semibold">
+                  <option value="CASH">Cash</option><option value="BANK">Bank</option><option value="UPI">UPI</option>
+                </select>
+              </label>
+              <label className="block"><span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Date</span>
+                <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[13px] font-semibold" />
+              </label>
+            </div>
+            <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-xl bg-amber-600 text-white text-[13px] font-bold disabled:opacity-40 hover:bg-amber-700 flex items-center justify-center gap-2">
+              <Banknote size={15} /> {paySubmitting ? 'Recording…' : 'Record payment'}
+            </button>
+          </div>
+        )}
+      </Modal>
+
+      {/* View / Print voucher */}
+      <Modal isOpen={!!printTarget} onClose={() => setPrintTarget(null)} title="Purchase Voucher" subtitle={printTarget ? `#${printTarget.id.split('-').pop()}` : ''}>
+        {printTarget && (() => {
+          const prod = products.find(p => p.id === printTarget.linked_product_id);
+          return (
+            <div>
+              <div id="purchase-voucher" className="bg-white p-4 text-[13px]">
+                <div className="text-lg font-extrabold text-ink-primary">{businessProfile?.name || 'Purchase Voucher'}</div>
+                <div className="text-[11px] text-gray-400 mb-3">Purchase Voucher · #{printTarget.id.split('-').pop()}</div>
+                <div className="grid grid-cols-2 gap-1 mb-3">
+                  <div><span className="text-gray-400">Supplier:</span> <b>{printTarget.supplier_name || '—'}</b></div>
+                  <div><span className="text-gray-400">Date:</span> <b>{formatDate(printTarget.date)}</b></div>
+                  <div><span className="text-gray-400">Payment:</span> <b>{printTarget.payment_type || 'CASH'}</b></div>
+                  <div><span className="text-gray-400">Status:</span> <b>{printTarget.status || 'RECEIVED'}</b></div>
+                </div>
+                <table className="w-full border-t border-b border-black/10 my-2">
+                  <thead><tr className="text-[10px] uppercase text-gray-400"><th className="text-left py-1">Item</th><th className="text-center">Qty</th><th className="text-right">Amount</th></tr></thead>
+                  <tbody><tr><td className="py-1">{prod?.name || 'Item'}</td><td className="text-center font-mono">{printTarget.quantity}</td><td className="text-right font-mono">{formatCurrency(printTarget.total_amount)}</td></tr></tbody>
+                </table>
+                <div className="flex justify-between font-bold mt-2"><span>Total</span><span className="font-mono">{formatCurrency(printTarget.total_amount)}</span></div>
+                {Number(printTarget.paid_amount || 0) > 0 && <div className="flex justify-between text-[12px] text-emerald-600"><span>Paid</span><span className="font-mono">{formatCurrency(printTarget.paid_amount)}</span></div>}
+              </div>
+              <button onClick={() => { const w = window.open('', '_blank'); w.document.write(`<html><head><title>Purchase #${printTarget.id.split('-').pop()}</title></head><body>${document.getElementById('purchase-voucher').outerHTML}</body></html>`); w.document.close(); w.focus(); w.print(); }}
+                className="mt-3 w-full h-11 rounded-xl bg-ink-primary text-white text-[13px] font-bold flex items-center justify-center gap-2"><Printer size={15} /> Print</button>
+            </div>
+          );
+        })()}
       </Modal>
 
       {/* Purchase Return Modal */}
