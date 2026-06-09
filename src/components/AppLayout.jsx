@@ -108,13 +108,13 @@ const Navbar = () => {
     navItem('Appointments', '/appointments', <CalendarClock size={20} />, 'sales', 'appointments'),
     navItem('Sales', '/sales', <ShoppingCart size={20} />, 'sales'),
     navItem('Invoices', '/invoices', <FileText size={20} />, 'sales'),
-    navItem('Estimates', '/estimates', <FileText size={20} />, 'sales'),
     navItem('Purchases', '/purchases', <ShoppingBag size={20} />, 'purchases'),
     navItem('Expenses', '/expenses', <Wallet size={20} />, 'expenses'),
     navItem('Clients', '/clients', <UsersIcon size={20} />, 'clients'),
  ];
 
  const moreNavItems = [
+   navItem('Estimates', '/estimates', <FileText size={20} />, 'sales'),
    navItem('Pipeline', '/orders', <ClipboardList size={20} />, 'sales', 'orders'),
    navItem('Manufacturing', '/manufacturing', <Factory size={20} />, 'inventory', 'manufacturing'),
    navItem('Kitchen', '/kds', <Factory size={20} />, 'sales', 'kot'),
