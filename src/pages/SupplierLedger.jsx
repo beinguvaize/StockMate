@@ -103,6 +103,23 @@ const SupplierLedger = () => {
   // Payments not tied to a specific order — shown as ledger rows. Order-linked
   // payments are reflected in each purchase's Paid/Due instead (no double-show).
   const onAccountPayments = useMemo(() => payments.filter(p => !p.purchase_id), [payments]);
+  // Full payment history = credit settlements (supplier_payments) + cash
+  // purchases (paid at purchase, so no settlement row exists). Both are money
+  // actually paid to this supplier.
+  const paymentHistory = useMemo(() => {
+    const settlements = payments.map(p => ({
+      id: p.id, date: p.date, amount: Number(p.amount || 0),
+      method: p.payment_method, purchase_id: p.purchase_id, source: 'payment',
+    }));
+    const cashBuys = supplierPurchases
+      .filter(p => !isCredit(p.payment_type) && Number(p.total_amount ?? p.total_cost ?? 0) > 0)
+      .map(p => ({
+        id: `CP-${p.id}`, date: p.date, amount: Number(p.total_amount ?? p.total_cost ?? 0),
+        method: p.payment_type || 'CASH', purchase_id: p.id, source: 'purchase',
+      }));
+    return [...settlements, ...cashBuys].sort((a, b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0));
+  }, [payments, supplierPurchases]);
+  const paymentHistoryTotal = useMemo(() => paymentHistory.reduce((s, p) => s + p.amount, 0), [paymentHistory]);
   // Paid-to-date per purchase id (from linked payments).
   const paidByPurchase = useMemo(() => {
     const m = {};
@@ -296,19 +313,19 @@ const SupplierLedger = () => {
               <span className="flex items-center gap-2">
                 <History size={14} className="text-amber-600" />
                 <span className="text-[12px] font-bold text-ink-primary">Payment history</span>
-                <span className="text-[11px] font-semibold text-gray-400">{payments.length}</span>
+                <span className="text-[11px] font-semibold text-gray-400">{paymentHistory.length}</span>
               </span>
               <span className="flex items-center gap-2">
-                <span className="font-mono tabular-nums text-[12px] font-bold text-emerald-600">{businessProfile?.currencySymbol || '₹'}{Math.round(metrics.totalPaid).toLocaleString()}</span>
+                <span className="font-mono tabular-nums text-[12px] font-bold text-emerald-600">{businessProfile?.currencySymbol || '₹'}{Math.round(paymentHistoryTotal).toLocaleString()}</span>
                 <ChevronRight size={15} className={`text-gray-400 transition-transform ${showPayHist ? 'rotate-90' : ''}`} />
               </span>
             </button>
             {showPayHist && (
               <div className="border-t border-black/5 max-h-80 overflow-y-auto custom-scrollbar">
-                {payments.length === 0 && (
+                {paymentHistory.length === 0 && (
                   <div className="px-4 py-8 text-center text-[12px] font-semibold text-gray-400">No payments yet.</div>
                 )}
-                {payments.map(p => {
+                {paymentHistory.map(p => {
                   const ord = p.purchase_id
                     ? (supplierPurchases.find(x => x.id === p.purchase_id)?.invoice_no || `#${String(p.purchase_id).slice(-6).toUpperCase()}`)
                     : null;
@@ -317,10 +334,12 @@ const SupplierLedger = () => {
                       <div className="min-w-0">
                         <div className="text-[12px] font-semibold text-ink-primary">{formatDate(p.date)}</div>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className="text-[9px] font-bold uppercase tracking-wide text-gray-500 bg-black/[0.05] px-1.5 py-0.5 rounded">{p.payment_method || 'CASH'}</span>
-                          {ord
-                            ? <span className="font-mono text-[9px] font-bold text-amber-700">{ord}</span>
-                            : <span className="text-[9px] font-semibold text-gray-400 uppercase">On account</span>}
+                          <span className="text-[9px] font-bold uppercase tracking-wide text-gray-500 bg-black/[0.05] px-1.5 py-0.5 rounded">{p.method || 'CASH'}</span>
+                          {p.source === 'purchase'
+                            ? <span className="font-mono text-[9px] font-bold text-amber-700">{ord} · cash buy</span>
+                            : ord
+                              ? <span className="font-mono text-[9px] font-bold text-amber-700">{ord}</span>
+                              : <span className="text-[9px] font-semibold text-gray-400 uppercase">On account</span>}
                         </div>
                       </div>
                       <span className="font-mono tabular-nums text-[13px] font-bold text-emerald-600 shrink-0">{businessProfile?.currencySymbol || '₹'}{Number(p.amount || 0).toLocaleString()}</span>

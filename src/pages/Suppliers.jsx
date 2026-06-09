@@ -23,12 +23,30 @@ const PaymentsView = ({ payments, suppliers, purchases, cur }) => {
   const supMap   = useMemo(() => new Map((suppliers || []).map(s => [s.id, s.name])), [suppliers]);
   const orderMap = useMemo(() => new Map((purchases || []).map(p => [p.id, p.invoice_no || p.reference_no || `#${String(p.id).slice(-6).toUpperCase()}`])), [purchases]);
 
+  // Payments to a supplier = credit settlements (supplier_payments) PLUS cash
+  // purchases (paid at purchase time, so they never create a settlement row).
+  const isCredit = (pt) => ['CREDIT', 'UDHAAR', 'POST-CAPITAL'].includes(String(pt || '').toUpperCase());
+  const merged = useMemo(() => {
+    const pays = (payments || []).map(p => ({
+      id: p.id, date: p.date, supplier_id: p.supplier_id, supplier_name: p.supplier_name,
+      amount: Number(p.amount || 0), payment_method: p.payment_method, purchase_id: p.purchase_id, source: 'payment',
+    }));
+    const cashPur = (purchases || [])
+      .filter(p => !p.deleted_at && !isCredit(p.payment_type) && Number(p.total_amount ?? p.total_cost ?? 0) > 0)
+      .map(p => ({
+        id: `CP-${p.id}`, date: p.date, supplier_id: p.supplier_id, supplier_name: p.supplier_name,
+        amount: Number(p.total_amount ?? p.total_cost ?? 0), payment_method: p.payment_type || 'CASH',
+        purchase_id: p.id, source: 'purchase',
+      }));
+    return [...pays, ...cashPur];
+  }, [payments, purchases]);
+
   const sorted = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return [...(payments || [])]
+    return merged
       .filter(p => !term || (supMap.get(p.supplier_id) || '').toLowerCase().includes(term))
       .sort((a, b) => String(b.date).localeCompare(String(a.date)));
-  }, [payments, q, supMap]);
+  }, [merged, q, supMap]);
 
   const total = useMemo(() => sorted.reduce((s, p) => s + Number(p.amount || 0), 0), [sorted]);
 
