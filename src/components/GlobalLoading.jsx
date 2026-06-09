@@ -19,9 +19,8 @@ const GlobalLoading = () => {
 
  return (
  <div data-testid="global-loading" className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-[#fdfdfd] overflow-hidden">
- {/* Brand mark — top corners */}
- <img src={`${import.meta.env.BASE_URL}ledgrpro-mark.png`} alt="" className="absolute top-6 left-6 h-7 w-auto opacity-60" />
- <img src={`${import.meta.env.BASE_URL}ledgrpro-mark.png`} alt="" className="absolute top-6 right-6 h-7 w-auto opacity-60" />
+ {/* Brand mark — top left */}
+ <img src={`${import.meta.env.BASE_URL}logo.png`} alt="" className="absolute top-6 left-6 h-7 w-auto opacity-70" />
  {/* Playwright synchronization indicator */}
  <div className="absolute top-0 left-0 w-0 h-0 opacity-0 animate-spin pointer-events-none" aria-hidden="true" />
 
@@ -40,8 +39,8 @@ const GlobalLoading = () => {
  <div className="text-center space-y-8">
     <div className="relative inline-block">
       <img
-        src={`${import.meta.env.BASE_URL}ledgrpro-logo.png`}
-        alt="LedgrPro"
+        src={`${import.meta.env.BASE_URL}logo.png`}
+        alt="Ledgr Pro"
         className="h-10 md:h-14 w-auto block mx-auto mb-2 opacity-90"
       />
       <div className="absolute -bottom-4 left-0 w-full h-[1.5px] bg-black/5 overflow-hidden rounded-full">
