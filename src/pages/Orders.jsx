@@ -583,15 +583,21 @@ const Orders = () => {
                             {item.productName || item.name || 'Item'}
                           </span>
                         </div>
-                        <div className="flex items-center gap-6 shrink-0 text-right">
-                          <span className="text-[10px] font-semibold text-gray-400 tabular-nums">× {item.qty || item.quantity || 1}</span>
-                          <span className="text-[10px] font-semibold text-gray-400 tabular-nums w-20 text-right">
-                            {sym}{Number(item.unitPrice || item.price || 0).toLocaleString()}
-                          </span>
-                          <span className="text-xs font-black text-ink-primary tabular-nums w-24 text-right">
-                            {sym}{Number(item.total || 0).toLocaleString()}
-                          </span>
-                        </div>
+                        {(() => {
+                          const qty = Number(item.qty ?? item.quantity ?? 1) || 1;
+                          let amount = Number(item.total ?? item.amount ?? item.lineTotal ?? ((item.taxable || 0) + (item.totalTax || 0)) ?? 0) || 0;
+                          let rate = Number(item.unitPrice ?? item.price ?? item.rate ?? 0) || 0;
+                          if (!amount && rate) amount = rate * qty;
+                          if (!rate && amount) rate = amount / qty;
+                          const has = amount > 0 || rate > 0;
+                          return (
+                            <div className="flex items-center gap-6 shrink-0 text-right">
+                              <span className="text-[10px] font-semibold text-gray-400 tabular-nums">× {qty}</span>
+                              <span className="text-[10px] font-semibold text-gray-400 tabular-nums w-20 text-right">{has ? `${sym}${Math.round(rate).toLocaleString()}` : '—'}</span>
+                              <span className="text-xs font-black text-ink-primary tabular-nums w-24 text-right">{has ? `${sym}${Math.round(amount).toLocaleString()}` : '—'}</span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     ))}
                   </div>
