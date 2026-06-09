@@ -67,23 +67,28 @@ const Estimates = () => {
     if (!lines.length) return;
     setSaving(true); setSaveErr('');
     const t = totals;
-    const { error } = await create({
-      client_id: clientId || null,
-      client_name: client?.name || 'Walk-in',
-      client_gstin: client?.gst_no || null,
-      client_phone: client?.contact || null,
-      place_of_supply: client?.state || null,
-      is_interstate: t.isInterstate,
-      valid_until: validUntil || null,
-      items: lines,
-      taxable_amount: t.taxable, tax_total: t.totalTax,
-      cgst_amount: t.cgst, sgst_amount: t.sgst, igst_amount: t.igst,
-      discount_total: t.discount, round_off: t.roundOff, grand_total: t.grandTotal,
-      notes,
-    });
-    setSaving(false);
-    if (error) { setSaveErr(error.message || 'Could not save estimate'); return; }
-    setAdding(false); reset();
+    try {
+      const { error } = await create({
+        client_id: clientId || null,
+        client_name: client?.name || 'Walk-in',
+        client_gstin: client?.gst_no || null,
+        client_phone: client?.contact || null,
+        place_of_supply: client?.state || null,
+        is_interstate: t.isInterstate,
+        valid_until: validUntil || null,
+        items: lines,
+        taxable_amount: t.taxable, tax_total: t.totalTax,
+        cgst_amount: t.cgst, sgst_amount: t.sgst, igst_amount: t.igst,
+        discount_total: t.discount, round_off: t.roundOff, grand_total: t.grandTotal,
+        notes,
+      });
+      if (error) { setSaveErr(error.message || 'Could not save estimate'); return; }
+      setAdding(false); reset();
+    } catch (e) {
+      setSaveErr(e?.message || 'Save failed — check connection and try again');
+    } finally {
+      setSaving(false); // never leave the button stuck on "Saving…"
+    }
   };
 
   // Convert → hand the line items to the POS via sessionStorage, mark CONVERTED.
