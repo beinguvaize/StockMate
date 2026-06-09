@@ -457,7 +457,7 @@ const PurchasesPage = () => {
       {menuRow && createPortal(
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setMenuRow(null)} />
-          <div className="fixed z-[9999] w-40 bg-white border border-black/10 rounded-xl shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left }}>
+          <div className="fixed z-[9999] w-44 bg-white border border-black/10 rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left }}>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-ink-primary"><Printer size={13} /> Print</button>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-ink-primary"><Copy size={13} /> Duplicate</button>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setEditTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-blue-600"><Pencil size={13} /> Edit</button>
