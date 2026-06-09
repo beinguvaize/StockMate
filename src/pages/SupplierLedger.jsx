@@ -152,8 +152,12 @@ const SupplierLedger = () => {
     const totalReturns = supplierReturns.reduce((s, r) => s + Number(r.total_amount || 0), 0);
     const net = total - totalReturns;
     const totalPaid = payments.reduce((s, p) => s + Number(p.amount || 0), 0);
-    // Live payable from suppliers.balance (authoritative) — falls back to computed credit total
-    const payable = Number(supplier?.balance ?? supplier?.outstanding_balance ?? creditTotal);
+    // Outstanding derived from the orders themselves (Σ credit total − paid), so
+    // it always matches the per-row dues. The stored suppliers.balance can drift
+    // when a purchase is edited (payment_type/amount) without re-syncing it.
+    const payable = supplierPurchases
+      .filter(p => isCredit(p.payment_type))
+      .reduce((s, p) => s + Math.max(0, amt(p) - Number(p.paid_amount || 0)), 0);
 
     return { total, count, avg, last, payable, cashPaid, creditTotal, totalReturns, net, totalPaid };
   }, [supplierPurchases, supplierReturns, payments, supplier]);
