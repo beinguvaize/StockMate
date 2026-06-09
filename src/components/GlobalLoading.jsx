@@ -36,11 +36,10 @@ const GlobalLoading = () => {
  
  <div className="text-center space-y-8">
     <div className="relative inline-block">
-      <img
-        src={`${import.meta.env.BASE_URL}logo.png`}
-        alt="Ledgr Pro"
-        className="h-10 md:h-14 w-auto block mx-auto mb-2 opacity-90"
-      />
+      <div className="flex items-center justify-center gap-2.5 mb-2">
+        <img src={`${import.meta.env.BASE_URL}ledgrpro-mark.png`} alt="" className="h-9 md:h-12 w-auto" />
+        <span className="text-2xl md:text-3xl font-extrabold tracking-tight text-ink-primary">Ledgr<span className="text-amber-500">Pro</span></span>
+      </div>
       <div className="absolute -bottom-4 left-0 w-full h-[1.5px] bg-black/5 overflow-hidden rounded-full">
         <div className="h-full bg-accent-signature animate-[loading-bar_3s_ease-in-out_infinite] shadow-[0_0_10px_rgba(200,255,0,0.5)]"></div>
       </div>
