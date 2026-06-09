@@ -65,6 +65,16 @@ export function useEstimates(tenantId) {
     }
   };
 
+  const update = async (id, patch) => {
+    try {
+      const { error } = await supabase.from('estimates')
+        .update({ ...patch, updated_at: new Date().toISOString() })
+        .eq('id', id).eq('tenant_id', tenantId);
+      if (!error) await fetchAll();
+      return { error };
+    } catch (e) { return { error: e }; }
+  };
+
   const setStatus = async (id, status, extra = {}) => {
     const { error } = await supabase.from('estimates')
       .update({ status, updated_at: new Date().toISOString(), ...extra })
@@ -81,5 +91,5 @@ export function useEstimates(tenantId) {
     return { error };
   };
 
-  return { estimates, loading, refetch: fetchAll, nextNumber, create, setStatus, remove };
+  return { estimates, loading, refetch: fetchAll, nextNumber, create, update, setStatus, remove };
 }
