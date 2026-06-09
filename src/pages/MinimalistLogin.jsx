@@ -43,11 +43,9 @@ const MinimalistLogin = () => {
       <div className="w-full max-w-[420px]">
         <div className="mb-10 text-center">
           <div className="flex justify-center mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-amber-600 flex items-center justify-center shadow-lg shadow-amber-600/20">
-              <span className="text-white font-extrabold text-xl">L</span>
-            </div>
+            <img src="/ledgrpro-logo.png" alt="LedgrPro" className="h-10 w-auto" />
           </div>
-          <h1 className="text-2xl font-extrabold">Sign in to LedgrPro<span className="text-amber-500">.</span></h1>
+          <h1 className="text-2xl font-extrabold">Sign in to your account<span className="text-amber-500">.</span></h1>
           <p className="text-[13px] font-medium text-gray-400 mt-1.5">GST billing, inventory &amp; reports for Indian business.</p>
         </div>
 
