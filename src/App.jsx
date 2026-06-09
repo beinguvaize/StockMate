@@ -17,6 +17,7 @@ import ReportIssueButton from './components/ReportIssueButton';
 
 // ── Eager (tiny, needed immediately) ────────────────────────────────────────
 import Login   from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import NoAccess from './pages/NoAccess';
 
 // ── Lazy (loaded only when route is visited) ─────────────────────────────────
@@ -169,6 +170,7 @@ function AppRoutes() {
       <Route path="/embed/invoice/:invoiceId" element={<InvoiceEmbed />} />
       <Route path="/embed/payqr"              element={<PayQrScreen />} />
       <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/register" element={<GuestRoute><SaaSLogin /></GuestRoute>} />
       {/* /welcome — new user signup flow, auth required but NOT global admin */}
       <Route path="/welcome" element={<AuthRoute><TenantSetup /></AuthRoute>} />

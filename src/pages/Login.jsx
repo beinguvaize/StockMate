@@ -226,7 +226,7 @@ const Login = () => {
   onClick={async () => {
     if (!credentials.email) { setError('Enter your email above first, then tap Forgot Password.'); return; }
     const { error } = await supabase.auth.resetPasswordForEmail(credentials.email, {
-      redirectTo: `${window.location.origin}/login`,
+      redirectTo: `${window.location.origin}/reset-password`,
     });
     if (error) setError(error.message);
     else setError('Check your inbox — reset link sent to ' + credentials.email);
