@@ -176,7 +176,8 @@ const Suppliers = () => {
 
  return {
  totalProcured: supplierPurchases.reduce((sum, p) => sum + amt(p), 0),
- creditDue: Number(supplier?.balance ?? supplier?.outstanding_balance ?? supplierPurchases.filter(p => isCredit(p.payment_type)).reduce((s,p) => s + amt(p), 0)),
+ // Derive from orders (Σ credit total − paid) — stored balance can drift on edits.
+ creditDue: supplierPurchases.filter(p => isCredit(p.payment_type)).reduce((s,p) => s + Math.max(0, amt(p) - Number(p.paid_amount || 0)), 0),
  purchaseCount: supplierPurchases.length,
  lastPurchase: supplierPurchases.sort((a,b) => (b.date > a.date ? 1 : b.date < a.date ? -1 : 0))[0]?.date
 };
@@ -286,7 +287,7 @@ const Suppliers = () => {
       { label: 'Suppliers', value: suppliers.length, suffix: 'total' },
       { label: 'Total Purchased', value: Math.round(purchases.reduce((s, p) => s + Number(p.total_amount ?? p.total_cost ?? 0), 0)).toLocaleString('en-IN'), money: true },
       { label: 'Purchase Orders', value: purchases.length, suffix: 'total' },
-      { label: 'You Owe', value: Math.round(suppliers.reduce((s, sup) => s + Number(sup.balance ?? sup.outstanding_balance ?? 0), 0)).toLocaleString('en-IN'), money: true, danger: true },
+      { label: 'You Owe', value: Math.round(purchases.filter(p => ['CREDIT','UDHAAR','POST-CAPITAL'].includes(String(p.payment_type||'').toUpperCase())).reduce((s, p) => s + Math.max(0, Number(p.total_amount ?? p.total_cost ?? 0) - Number(p.paid_amount || 0)), 0)).toLocaleString('en-IN'), money: true, danger: true },
     ].map((m, i) => (
       <div key={i} className="bg-white px-4 py-3.5">
         <div className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{m.label}</div>

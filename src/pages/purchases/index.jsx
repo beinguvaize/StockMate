@@ -226,6 +226,7 @@ const PurchasesPage = () => {
     { label: 'Reference' },
     { label: 'Product / Supplier' },
     { label: 'Quantity', className: 'text-center' },
+    { label: 'Payment', className: 'text-center' },
     { label: 'Total', className: 'text-right' },
     { label: 'Status', className: 'text-center' },
     { label: '', className: 'text-right' },
@@ -298,6 +299,21 @@ const PurchasesPage = () => {
         </td>
         <td className="px-4 py-3 text-center">
           <div className="text-sm font-black text-emerald-500">+{pur.quantity}</div>
+        </td>
+        <td className="px-4 py-3 text-center">
+          {(() => {
+            const credit = _credit(pur.payment_type);
+            const due = dueOf(pur);
+            if (!credit) return <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700">{pur.payment_type || 'Cash'}</span>;
+            if (due <= 0.5) return <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700">Paid</span>;
+            const partial = Number(pur.paid_amount || 0) > 0;
+            return (
+              <div className="flex flex-col items-center gap-0.5">
+                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${partial ? 'bg-orange-50 text-orange-600' : 'bg-amber-50 text-amber-700'}`}>{partial ? 'Partial' : 'Credit'}</span>
+                <span className="font-mono text-[10px] text-red-500">due {formatCurrency(due)}</span>
+              </div>
+            );
+          })()}
         </td>
         <td className="px-4 py-3 text-right">
           <div className="font-mono text-sm font-bold text-ink-primary tabular-nums">{formatCurrency(pur.total_amount)}</div>
