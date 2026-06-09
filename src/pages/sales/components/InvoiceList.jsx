@@ -101,7 +101,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
     });
     return () => { cancelled = true; };
   }, [sales, staff]);
-  const [dateFilter, setDateFilter] = useState('ALL');     // ALL | TODAY | 7D | 30D | CUSTOM
+  const [dateFilter, setDateFilter] = useState('TODAY');   // ALL | TODAY | 7D | 30D | CUSTOM — default Today
   const [customRange, setCustomRange] = useState({ from: '', to: '' });
   const [detailSale, setDetailSale] = useState(null);
   const [settleInput, setSettleInput] = useState('');
