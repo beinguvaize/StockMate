@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
 import { useEstimates } from '../hooks/useEstimates';
@@ -138,7 +139,7 @@ const Estimates = () => {
         </div>
       </div>
 
-      {adding && (
+      {adding && createPortal(
         <div className="fixed inset-0 z-[9999] bg-white/60 backdrop-blur-sm flex items-center justify-center overflow-y-auto p-4" onClick={() => setAdding(false)}>
           <div className="bg-white w-full max-w-2xl max-h-[calc(100dvh-2rem)] rounded-[1.75rem] shadow-2xl flex flex-col overflow-hidden" onClick={ev => ev.stopPropagation()}>
             {/* Header */}
@@ -226,7 +227,8 @@ const Estimates = () => {
               <button onClick={save} disabled={saving || !lines.length} className="h-11 px-6 rounded-xl bg-amber-600 text-white text-[13px] font-bold disabled:opacity-40 hover:bg-amber-700 flex items-center gap-2 transition-colors"><FileText size={15} /> {saving ? 'Saving…' : 'Save estimate'}</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
