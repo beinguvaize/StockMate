@@ -197,12 +197,8 @@ const Navbar = () => {
 
  {/* Branding */}
  <div className="flex items-center gap-4">
- <div className="flex items-center gap-2.5 animate-in fade-in duration-700">
-   <svg width="34" height="34" viewBox="0 0 40 40" fill="none" className="shrink-0">
-     <rect width="40" height="40" rx="11" fill="#D97706"/>
-     <path d="M27 13.5H16.5a3 3 0 000 6h7a3 3 0 010 6H13" stroke="#fff" strokeWidth="3.4" strokeLinecap="round"/>
-   </svg>
-   <span className="font-sora text-xl font-black tracking-tight text-ink-primary">Ledgr<span className="text-accent-signature">Pro</span></span>
+ <div className="flex items-center animate-in fade-in duration-700">
+   <img src="/ledgrpro-logo.png" alt="LedgrPro" className="h-7 w-auto shrink-0" />
  </div>
  {currentTenant && (
    <div className="hidden md:flex items-center gap-2">
@@ -367,12 +363,8 @@ const Navbar = () => {
  <div className="absolute left-0 top-0 bottom-0 w-[280px] bg-surface shadow-2xl flex flex-col animate-in slide-in-from-left duration-300">
  {/* Drawer Header */}
  <div className="flex items-center justify-between p-5 border-b border-black/5">
- <div className="flex items-center gap-2.5">
-   <svg width="30" height="30" viewBox="0 0 40 40" fill="none" className="shrink-0">
-     <rect width="40" height="40" rx="11" fill="#D97706"/>
-     <path d="M27 13.5H16.5a3 3 0 000 6h7a3 3 0 010 6H13" stroke="#fff" strokeWidth="3.4" strokeLinecap="round"/>
-   </svg>
-   <span className="font-sora text-lg font-black tracking-tight text-ink-primary">Ledgr<span className="text-accent-signature">Pro</span></span>
+ <div className="flex items-center">
+   <img src="/ledgrpro-logo.png" alt="LedgrPro" className="h-6 w-auto shrink-0" />
  </div>
  <button 
  onClick={() => setIsMobileMenuOpen(false)}
