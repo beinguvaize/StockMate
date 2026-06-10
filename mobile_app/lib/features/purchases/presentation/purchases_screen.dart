@@ -650,6 +650,7 @@ class _AddPurchaseSheet extends ConsumerStatefulWidget {
 
 class _PurchaseLine {
   String? productId;
+  String? scannedName; // item name read off a scanned bill (hint for picking)
   final qtyCtrl       = TextEditingController();
   final unitPriceCtrl = TextEditingController();
   final totalCtrl     = TextEditingController();
@@ -816,6 +817,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
 
         // Product match by name.
         final name = (it['name'] as String?)?.trim();
+        line.scannedName = (name != null && name.isNotEmpty) ? name : null;
         if (name != null && name.isNotEmpty && _products.isNotEmpty) {
           final target = norm(name);
           final pm = _products.firstWhere(
@@ -1366,6 +1368,29 @@ class _LineItemCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
+
+          // Scanned-bill hint — tells the user which bill item this row is
+          // when no inventory product matched automatically.
+          if (line.scannedName != null && line.productId == null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6, left: 2),
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.scanLine, size: 12, color: AppColors.primary),
+                  const SizedBox(width: 5),
+                  Expanded(
+                    child: Text(
+                      'On bill: ${line.scannedName}',
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.manrope(
+                        fontSize: 11.5, fontWeight: FontWeight.w700,
+                        color: AppColors.onPrimaryContainer,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
 
           // Product picker
           _Dropdown(
