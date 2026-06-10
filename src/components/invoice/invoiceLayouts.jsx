@@ -66,6 +66,18 @@ const BankBlock = ({ d, opts }) =>
     </div>
   ) : null;
 
+export const CustomFields = ({ fields, className = '' }) => {
+  const list = (fields || []).filter(f => f.label && f.value);
+  if (!list.length) return null;
+  return (
+    <div className={`text-[9px] text-slate-600 ${className}`}>
+      {list.map((f, i) => (
+        <div key={i}><span className="text-slate-400">{f.label}: </span><b>{f.value}</b></div>
+      ))}
+    </div>
+  );
+};
+
 const MetaExtras = ({ d }) => {
   const bits = [];
   if (d.invoice.due_date) bits.push(`Due: ${d.invoice.due_date}`);
@@ -146,6 +158,7 @@ const ModernLayout = ({ d, texts, editable, onEdit, opts = DEFAULT_INV_OPTS, acc
         <div className="text-[10px] text-slate-500"># {d.invoice.invoice_no}</div>
         <div className="text-[10px] text-slate-500">{d.invoice.dateStr}</div>
         <MetaExtras d={d} />
+        <CustomFields fields={d.customFields} className="mt-1 text-right" />
       </div>
     </div>
 
@@ -192,6 +205,7 @@ const CompactLayout = ({ d, texts, editable, onEdit, opts = DEFAULT_INV_OPTS, ac
       <span>{d.business.address} {opts.gstin && d.business.gst_no && <>· GSTIN {d.business.gst_no}</>}</span>
       <span>To: <b className="text-slate-800">{d.client.name}</b> {d.client.state && <>({d.client.state})</>}</span>
     </div>
+    <CustomFields fields={d.customFields} className="py-1 flex flex-wrap gap-x-4 border-b border-slate-200 [&>div]:inline" />
 
     <ItemsTable d={d} opts={opts} headCls="border-b-2 border-slate-900" rowBorder="border-b border-slate-200" cellPad="py-1 px-1.5" />
 
@@ -237,6 +251,7 @@ const LetterheadLayout = ({ d, texts, editable, onEdit, opts = DEFAULT_INV_OPTS,
       </div>
       <span className="text-slate-500">{d.isInterstate ? 'IGST' : 'CGST + SGST'}</span>
     </div>
+    <CustomFields fields={d.customFields} className="pb-2 flex flex-wrap gap-x-4 justify-center [&>div]:inline" />
 
     <ItemsTable d={d} opts={opts} headCls="border-y border-slate-900 text-slate-600" rowBorder="border-b border-slate-100" />
 
