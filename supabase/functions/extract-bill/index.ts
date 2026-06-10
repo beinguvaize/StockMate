@@ -1,7 +1,6 @@
-// extract-bill — vision OCR for Indian GST purchase bills.
-// Receives a bill image (base64), calls Gemini Flash, returns structured JSON.
-// API key stays server-side (GEMINI_API_KEY secret). JWT verified by platform.
-// Deployed to dev project tiywdsbaymrnqmlkxupj. Promote to prod after approval.
+// extract-bill — vision OCR for Indian GST purchase bills. Deployed dev+prod (v4).
+// Retries transient Gemini 429/5xx and falls back across models — flash-latest
+// 503s under free-tier load. Secret: GEMINI_API_KEY. JWT verified.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 const cors = {
@@ -10,6 +9,8 @@ const cors = {
     "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
+
+const MODELS = ["gemini-flash-latest", "gemini-2.0-flash", "gemini-2.5-flash"];
 
 const SCHEMA_PROMPT = `Extract this Indian GST purchase/tax invoice into STRICT JSON only (no markdown, no commentary).
 Schema:
@@ -47,7 +48,7 @@ Deno.serve(async (req: Request) => {
       });
     }
 
-    const gReq = {
+    const gReq = JSON.stringify({
       contents: [{
         parts: [
           { text: SCHEMA_PROMPT },
@@ -55,20 +56,28 @@ Deno.serve(async (req: Request) => {
         ],
       }],
       generationConfig: { responseMimeType: "application/json", temperature: 0 },
-    };
+    });
 
-    const gRes = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey },
-        body: JSON.stringify(gReq),
-      },
-    );
+    // Try each model; retry transient 429/5xx once per model.
+    let gRes: Response | null = null;
+    let lastErr = "";
+    outer: for (const model of MODELS) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const r = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": apiKey }, body: gReq },
+        );
+        if (r.ok) { gRes = r; console.log(`[extract-bill] model=${model} attempt=${attempt} ok`); break outer; }
+        lastErr = `${model} -> ${r.status}: ${(await r.text()).slice(0, 200)}`;
+        console.error(`[extract-bill] ${lastErr}`);
+        // 4xx other than 429 won't heal — skip retries, try next model
+        if (r.status !== 429 && r.status < 500) break;
+        await new Promise((res) => setTimeout(res, 800));
+      }
+    }
 
-    if (!gRes.ok) {
-      const errText = await gRes.text();
-      return new Response(JSON.stringify({ error: "gemini_failed", detail: errText }), {
+    if (!gRes) {
+      return new Response(JSON.stringify({ error: "gemini_failed", detail: lastErr }), {
         status: 502, headers: { ...cors, "Content-Type": "application/json" },
       });
     }
