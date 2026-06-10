@@ -25,7 +25,7 @@ const NAV_GROUPS = [
     { id: 'locations',  label: 'Locations',  icon: <Database size={15} /> },
   ]},
   { caption: 'Sales & printing', items: [
-    { id: 'billing',   label: 'Invoice template',  icon: <FileText size={15} /> },
+    { id: 'billing',   label: 'Bill layout',       icon: <FileText size={15} /> },
     { id: 'print',     label: 'Printing',          icon: <Printer size={15} /> },
     { id: 'reminders', label: 'Payment reminders', icon: <BellRing size={15} /> },
   ]},
