@@ -8,13 +8,13 @@ import { useTenant } from '../../../context/TenantContext';
 // Portal'd to document.body so print CSS can isolate it from app chrome.
 const money = (n, sym = '₹') => `${sym}${Number(n || 0).toFixed(2)}`;
 
-const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹' }) => {
+const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹', previewMode = false, paperOverride = null }) => {
   const { currentTenantId } = useTenant();
   // Paper width from Settings → Print Settings (58/80mm; A4 falls back to 80).
-  let paper = '80';
+  let paper = paperOverride || '80';
   try {
     const prefs = JSON.parse(localStorage.getItem(`print_settings_${currentTenantId || 'default'}`));
-    if (prefs?.paper === '58') paper = '58';
+    if (!paperOverride && prefs?.paper === '58') paper = '58';
   } catch { /* defaults */ }
   const paperMm = `${paper}mm`;
   const items = Array.isArray(sale?.items) ? sale.items : [];
@@ -28,9 +28,13 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹' })
 
   const handlePrint = () => window.print();
 
-  return createPortal(
-    <div id="sale-print-portal" className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4">
+  const tree = (
+    <div id={previewMode ? undefined : 'sale-print-portal'}
+      className={previewMode
+        ? 'relative flex justify-center'
+        : 'fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-start justify-center overflow-y-auto p-4'}>
       {/* Toolbar */}
+      {!previewMode && (
       <div className="print-chrome fixed top-4 right-4 flex gap-2 z-[110]">
         <button onClick={handlePrint} className="flex items-center gap-2 px-5 py-2.5 rounded-pill bg-ink-primary text-white font-bold text-xs hover:opacity-90">
           <Printer size={14} /> PRINT
@@ -39,9 +43,10 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹' })
           <X size={16} />
         </button>
       </div>
+      )}
 
       {/* Receipt sheet — thermal, width from print settings */}
-      <div className="print-sheet bg-white shadow-xl mt-20 px-4 py-5 text-[11px] font-mono text-black leading-snug" style={{ width: paperMm }}>
+      <div className={`print-sheet bg-white px-4 py-5 text-[11px] font-mono text-black leading-snug ${previewMode ? "shadow-sm mt-0 border border-gray-200" : "shadow-xl mt-20"}`} style={{ width: paperMm }}>
         <div className="text-center border-b border-dashed border-black/40 pb-2 mb-2">
           <div className="text-base font-bold uppercase tracking-wide">{business.name || 'BUSINESS'}</div>
           {business.address && <div className="text-[10px] leading-tight mt-0.5">{business.address}</div>}
@@ -120,9 +125,9 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹' })
           #sale-print-portal .print-sheet { margin: 0 !important; box-shadow: none !important; width: ${paperMm} !important; padding: 0 !important; }
         }
       `}} />
-    </div>,
-    document.body
+    </div>
   );
+  return previewMode ? tree : createPortal(tree, document.body);
 };
 
 export default CashBillPrint;
