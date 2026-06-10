@@ -82,39 +82,38 @@ const SaaSLogin = () => {
   };
 
   return (
-    <div className="min-h-screen bg-canvas flex items-center justify-center p-4 relative overflow-hidden font-inter selection:bg-accent-signature/30">
+    <div className="min-h-screen bg-[#141c1a] flex items-center justify-center p-4 relative overflow-hidden font-inter selection:bg-[#38e0a0]/30">
 
-      {/* Background grid */}
-      <div className="absolute inset-0 pointer-events-none opacity-40">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(0,0,0,0.04)_1px,transparent_1px),linear-gradient(to_bottom,rgba(0,0,0,0.04)_1px,transparent_1px)] bg-[size:40px_40px]" />
-      </div>
-      {/* Ambient orbs */}
-      <div className="absolute top-[10%] left-[15%] w-[500px] h-[500px] rounded-full bg-accent-signature/8 blur-[130px] pointer-events-none" />
-      <div className="absolute bottom-[5%] right-[10%] w-[400px] h-[400px] rounded-full bg-blue-500/5 blur-[130px] pointer-events-none" />
+      {/* Ambient mint glow — matches Login page */}
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_top,rgba(56,224,160,0.07)_0%,transparent_65%)]" />
 
       <div className="w-full max-w-md relative z-10">
 
-        {/* Logo */}
+        {/* Logo — white chip so the designed logo reads on the dark canvas */}
         <div className="flex justify-center mb-8">
-          <div className="p-4 rounded-2xl bg-white border border-black/5 shadow-premium">
-            <img src="/images/ledgr_metallic_logo.png" alt="StockMate" className="h-10" onError={(e) => { e.target.style.display='none'; }} />
-            <span className="text-xl font-black text-ink-primary tracking-tight hidden">StockMate</span>
+          <div className="px-5 py-3 rounded-2xl bg-white shadow-[0_12px_36px_rgba(0,0,0,0.4)]">
+            <img
+              src={`${import.meta.env.BASE_URL}logo.png`}
+              alt="LedgrPro"
+              className="h-10 w-auto object-contain block"
+              onError={(e) => { e.target.style.display='none'; }}
+            />
           </div>
         </div>
 
-        <div className="bg-white/70 backdrop-blur-xl border border-black/5 rounded-[2rem] shadow-glass p-8">
+        <div className="bg-[#1a2320] border border-[#253028] rounded-2xl p-8 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">
 
           {/* Mode tabs */}
-          <div className="flex bg-canvas rounded-2xl p-1 mb-8">
+          <div className="flex bg-[#0d1411] rounded-xl p-1 mb-8 border border-[#253028]">
             <button
               onClick={() => { setMode('login'); setError(''); setInfo(''); }}
-              className={`flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${mode === 'login' ? 'bg-ink-primary text-white shadow-lg' : 'text-gray-500 hover:text-ink-primary'}`}
+              className={`flex-1 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${mode === 'login' ? 'bg-white text-[#111] shadow-lg' : 'text-[#747576] hover:text-white'}`}
             >
               Sign In
             </button>
             <button
               onClick={() => { setMode('signup'); setError(''); setInfo(''); }}
-              className={`flex-1 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-widest transition-all ${mode === 'signup' ? 'bg-ink-primary text-white shadow-lg' : 'text-gray-500 hover:text-ink-primary'}`}
+              className={`flex-1 py-2.5 rounded-lg text-[11px] font-black uppercase tracking-widest transition-all ${mode === 'signup' ? 'bg-white text-[#111] shadow-lg' : 'text-[#747576] hover:text-white'}`}
             >
               Create Account
             </button>
@@ -122,10 +121,10 @@ const SaaSLogin = () => {
 
           {/* Heading */}
           <div className="mb-6">
-            <h1 className="text-2xl font-black text-ink-primary tracking-tight">
+            <h1 className="text-2xl font-black text-white tracking-tight">
               {mode === 'login' ? 'Welcome back' : 'Start your free trial'}
             </h1>
-            <p className="text-[11px] text-gray-500 font-semibold mt-1">
+            <p className="text-[11px] text-[#747576] font-semibold mt-1">
               {mode === 'login'
                 ? 'Sign in to your workspace'
                 : '60 days free. No credit card required.'}
@@ -134,13 +133,13 @@ const SaaSLogin = () => {
 
           {/* Error / Info */}
           {error && (
-            <div className="flex items-center gap-2 p-3 mb-4 rounded-xl bg-red-50 border border-red-200 text-red-600 text-[11px] font-semibold">
+            <div className="flex items-center gap-2 p-3 mb-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold">
               <AlertCircle size={14} className="shrink-0" />
               {error}
             </div>
           )}
           {info && (
-            <div className="flex items-center gap-2 p-3 mb-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-[11px] font-semibold">
+            <div className="flex items-center gap-2 p-3 mb-4 rounded-xl bg-[#38e0a0]/10 border border-[#38e0a0]/25 text-[#38e0a0] text-[11px] font-semibold">
               <Mail size={14} className="shrink-0" />
               {info}
             </div>
@@ -150,7 +149,7 @@ const SaaSLogin = () => {
           <button
             onClick={handleGoogleSignIn}
             disabled={googleLoading || loading}
-            className="w-full flex items-center justify-center gap-3 py-3 px-4 mb-5 border border-black/10 rounded-xl bg-white hover:bg-gray-50 transition-all text-[12px] font-bold text-ink-primary shadow-sm hover:shadow-md disabled:opacity-60"
+            className="w-full flex items-center justify-center gap-3 py-3 px-4 mb-5 bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] hover:border-[#38e0a0]/45 hover:bg-[#0d1411]/80 transition-all text-[12px] font-bold text-white disabled:opacity-60"
           >
             {googleLoading ? <Loader2 size={18} className="animate-spin" /> : <GoogleIcon />}
             Continue with Google
@@ -158,40 +157,40 @@ const SaaSLogin = () => {
 
           {/* Divider */}
           <div className="flex items-center gap-3 mb-5">
-            <div className="flex-1 h-px bg-black/5" />
-            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">or</span>
-            <div className="flex-1 h-px bg-black/5" />
+            <div className="flex-1 h-px bg-[#253028]" />
+            <span className="text-[10px] font-black text-[#747576] uppercase tracking-widest">or</span>
+            <div className="flex-1 h-px bg-[#253028]" />
           </div>
 
           {/* Email form */}
           {mode === 'login' ? (
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="relative">
-                <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747576]" />
                 <input
                   type="email"
                   placeholder="Email address"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
-                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] text-[13px] font-medium text-white placeholder:text-[#747576] focus:outline-none focus:border-[#38e0a0]/45 transition-colors"
                 />
               </div>
               <div className="relative">
-                <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747576]" />
                 <input
                   type="password"
                   placeholder="Password"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
-                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] text-[13px] font-medium text-white placeholder:text-[#747576] focus:outline-none focus:border-[#38e0a0]/45 transition-colors"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-ink-primary text-white text-[12px] font-black uppercase tracking-widest hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 mt-2"
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-[6px] bg-white text-[#111] text-[12px] font-black uppercase tracking-widest hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] active:scale-[0.98] transition-all disabled:opacity-60 mt-2"
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <>Sign In <ArrowRight size={14} /></>}
               </button>
@@ -199,57 +198,57 @@ const SaaSLogin = () => {
           ) : (
             <form onSubmit={handleSignUp} className="space-y-4">
               <div className="relative">
-                <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <User size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747576]" />
                 <input
                   type="text"
                   placeholder="Full name"
                   value={name}
                   onChange={e => setName(e.target.value)}
                   required
-                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] text-[13px] font-medium text-white placeholder:text-[#747576] focus:outline-none focus:border-[#38e0a0]/45 transition-colors"
                 />
               </div>
               <div className="relative">
-                <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Mail size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747576]" />
                 <input
                   type="email"
                   placeholder="Work email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
                   required
-                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] text-[13px] font-medium text-white placeholder:text-[#747576] focus:outline-none focus:border-[#38e0a0]/45 transition-colors"
                 />
               </div>
               <div className="relative">
-                <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747576]" />
                 <input
                   type="password"
                   placeholder="Password (min 8 chars)"
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
-                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] text-[13px] font-medium text-white placeholder:text-[#747576] focus:outline-none focus:border-[#38e0a0]/45 transition-colors"
                 />
               </div>
               <div className="relative">
-                <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#747576]" />
                 <input
                   type="password"
                   placeholder="Confirm password"
                   value={confirmPassword}
                   onChange={e => setConfirmPassword(e.target.value)}
                   required
-                  className="w-full pl-9 pr-4 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[13px] font-medium text-ink-primary placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-accent-signature/30 focus:border-accent-signature transition-all"
+                  className="w-full pl-9 pr-4 py-3 bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] text-[13px] font-medium text-white placeholder:text-[#747576] focus:outline-none focus:border-[#38e0a0]/45 transition-colors"
                 />
               </div>
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-accent-signature text-button-text text-[12px] font-black uppercase tracking-widest hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 mt-2"
+                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-[6px] bg-[#38e0a0] text-[#0d1411] text-[12px] font-black uppercase tracking-widest hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60 mt-2"
               >
                 {loading ? <Loader2 size={16} className="animate-spin" /> : <>Start Free Trial <ArrowRight size={14} /></>}
               </button>
-              <p className="text-center text-[10px] text-gray-400 font-medium">
+              <p className="text-center text-[10px] text-[#747576] font-medium">
                 By signing up you agree to our Terms of Service.
               </p>
             </form>
@@ -257,7 +256,7 @@ const SaaSLogin = () => {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[10px] text-gray-400 font-semibold mt-6 uppercase tracking-widest">
+        <p className="text-center text-[10px] text-[#747576] font-semibold mt-6 uppercase tracking-widest">
           StockMate · GST Billing & Inventory for India
         </p>
       </div>
