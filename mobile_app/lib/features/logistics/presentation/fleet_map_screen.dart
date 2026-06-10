@@ -116,7 +116,7 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
           children: [
             Text(
               'Fleet Map',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w800,
                 fontSize: 17,
                 color: AppColors.inkPrimary,
@@ -148,7 +148,7 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
                     padding: const EdgeInsets.all(24),
                     child: Text(_error!,
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(color: AppColors.danger)),
+                        style: GoogleFonts.manrope(color: AppColors.danger)),
                   ),
                 )
               : Stack(
@@ -185,7 +185,7 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
                                             v.name,
                                             maxLines: 1,
                                             overflow: TextOverflow.ellipsis,
-                                            style: GoogleFonts.hankenGrotesk(
+                                            style: GoogleFonts.manrope(
                                               fontSize: 10,
                                               fontWeight: FontWeight.w800,
                                               color: Colors.white,
@@ -220,7 +220,7 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
                               const SizedBox(height: 10),
                               Text(
                                 'No vehicle locations yet',
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                   fontWeight: FontWeight.w700,
                                   fontSize: 14,
                                   color: AppColors.inkPrimary,
@@ -230,7 +230,7 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
                               Text(
                                 'Locations are recorded when drivers\ndispatch routes and complete stops.',
                                 textAlign: TextAlign.center,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 12,
                                   color: AppColors.inkTertiary,
                                 ),
@@ -263,7 +263,7 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
                                           size: 18, color: AppColors.primary),
                                       title: Text(
                                         v.name,
-                                        style: GoogleFonts.hankenGrotesk(
+                                        style: GoogleFonts.manrope(
                                           fontWeight: FontWeight.w700,
                                           fontSize: 13,
                                         ),

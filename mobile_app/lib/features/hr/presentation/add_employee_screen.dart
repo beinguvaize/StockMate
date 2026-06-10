@@ -78,7 +78,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Name and role required',
-              style: GoogleFonts.inter(color: Colors.white)),
+              style: GoogleFonts.manrope(color: Colors.white)),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
           shape:
@@ -118,7 +118,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
           SnackBar(
             content: Text(
               _isEditing ? 'Employee updated' : 'Employee added',
-              style: GoogleFonts.inter(color: AppColors.inkPrimary),
+              style: GoogleFonts.manrope(color: AppColors.inkPrimary),
             ),
             backgroundColor: AppColors.primaryContainer,
             behavior: SnackBarBehavior.floating,
@@ -132,7 +132,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e',
-                style: GoogleFonts.inter(color: Colors.white)),
+                style: GoogleFonts.manrope(color: Colors.white)),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
             shape:
@@ -163,7 +163,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
           children: [
             Text(
               _isEditing ? 'Edit Employee' : 'Add Employee',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 color: AppColors.inkPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -205,7 +205,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                           : '?';
                       return Text(
                         initial,
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           color: AppColors.secondary,
                           fontSize: 32,
                           fontWeight: FontWeight.w900,
@@ -296,7 +296,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
                             Text(
                               status,
                               textAlign: TextAlign.center,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                 color: selected ? color : AppColors.inkSecondary,
                                 fontSize: 11,
                                 fontWeight: selected
@@ -375,7 +375,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
       child: TextField(
         controller: controller,
         keyboardType: keyboardType ?? TextInputType.text,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 14,
           color: AppColors.inkPrimary,
           fontWeight: FontWeight.w500,
@@ -386,7 +386,7 @@ class _AddEmployeeScreenState extends ConsumerState<AddEmployeeScreen> {
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           hintText: hint,
-          hintStyle: GoogleFonts.inter(
+          hintStyle: GoogleFonts.manrope(
             color: AppColors.inkSecondary.withValues(alpha: 0.5),
             fontSize: 14,
           ),

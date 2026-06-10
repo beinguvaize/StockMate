@@ -177,7 +177,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
           children: [
             Text(
               'Reports',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
@@ -289,7 +289,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         const SizedBox(height: 8),
                         Text(
                           '${summary.netProfit >= 0 ? '+' : ''}${_compact(summary.netProfit)}',
-                          style: GoogleFonts.hankenGrotesk(
+                          style: GoogleFonts.manrope(
                             fontSize: 40,
                             fontWeight: FontWeight.w900,
                             color: summary.netProfit >= 0
@@ -301,7 +301,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
                         const SizedBox(height: 4),
                         Text(
                           '${_fmt(_dateRange.start)} – ${_fmt(_dateRange.end)}',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 12,
                             color: summary.netProfit >= 0
                                 ? AppColors.inkPrimary.withValues(alpha: 0.5)
@@ -368,7 +368,7 @@ class _ReportsScreenState extends ConsumerState<ReportsScreen> {
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (e, _) => Center(
               child: Text('Error: $e',
-                  style: GoogleFonts.inter(color: AppColors.danger)),
+                  style: GoogleFonts.manrope(color: AppColors.danger)),
             ),
           );
         },
@@ -426,7 +426,7 @@ class _HubCard extends StatelessWidget {
                 children: [
                   Text(
                     item.title,
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontWeight: FontWeight.w700,
                       fontSize: 14,
                       color: AppColors.inkPrimary,
@@ -434,7 +434,7 @@ class _HubCard extends StatelessWidget {
                   ),
                   Text(
                     item.subtitle,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 11,
                       color: AppColors.inkSecondary,
                     ),
@@ -502,7 +502,7 @@ class _MetricCard extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                     color: AppColors.inkPrimary,
@@ -510,7 +510,7 @@ class _MetricCard extends StatelessWidget {
                 ),
                 Text(
                   subtitle,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 11,
                     color: AppColors.inkSecondary,
                   ),
@@ -520,7 +520,7 @@ class _MetricCard extends StatelessWidget {
           ),
           Text(
             value,
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontWeight: FontWeight.w900,
               fontSize: 20,
               color: color,
@@ -586,7 +586,7 @@ class _UpgradeBanner extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               'Upgrade Required',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 22,
                 fontWeight: FontWeight.w900,
                 letterSpacing: -0.5,
@@ -596,7 +596,7 @@ class _UpgradeBanner extends StatelessWidget {
             Text(
               'Reports are available on PRO plan and above.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                   color: AppColors.inkSecondary, fontSize: 14),
             ),
           ],

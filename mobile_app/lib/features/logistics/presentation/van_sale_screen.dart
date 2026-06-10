@@ -124,7 +124,7 @@ class _VanSaleScreenState extends ConsumerState<VanSaleScreen> {
           children: [
             Text(
               'Van Sale',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,

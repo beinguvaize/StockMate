@@ -109,7 +109,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
           children: [
             Text(
               'Fleet Stock',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w800,
                 fontSize: 17,
                 color: AppColors.inkPrimary,
@@ -141,13 +141,13 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                     padding: const EdgeInsets.all(24),
                     child: Text(_error!,
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(color: AppColors.danger)),
+                        style: GoogleFonts.manrope(color: AppColors.danger)),
                   ),
                 )
               : _rows.isEmpty
                   ? Center(
                       child: Text('No vehicles',
-                          style: GoogleFonts.inter(color: AppColors.inkTertiary)),
+                          style: GoogleFonts.manrope(color: AppColors.inkTertiary)),
                     )
                   : Column(
                       children: [
@@ -169,7 +169,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                   children: [
                                     Text(
                                       '${totalUnits.toStringAsFixed(0)} units across fleet',
-                                      style: GoogleFonts.hankenGrotesk(
+                                      style: GoogleFonts.manrope(
                                         fontWeight: FontWeight.w900,
                                         fontSize: 20,
                                         color: AppColors.inkPrimary,
@@ -177,7 +177,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                     ),
                                     Text(
                                       '${_rows.length} vehicle${_rows.length > 1 ? 's' : ''}',
-                                      style: GoogleFonts.inter(
+                                      style: GoogleFonts.manrope(
                                         fontSize: 12,
                                         color: AppColors.secondary,
                                       ),
@@ -232,7 +232,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                           children: [
                                             Text(
                                               r.name,
-                                              style: GoogleFonts.hankenGrotesk(
+                                              style: GoogleFonts.manrope(
                                                 fontWeight: FontWeight.w700,
                                                 fontSize: 14,
                                                 color: AppColors.inkPrimary,
@@ -242,7 +242,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                               r.units <= 0
                                                   ? 'Empty'
                                                   : '${r.products} product${r.products > 1 ? 's' : ''}',
-                                              style: GoogleFonts.inter(
+                                              style: GoogleFonts.manrope(
                                                 fontSize: 11,
                                                 color: AppColors.inkTertiary,
                                               ),
@@ -263,7 +263,7 @@ class _FleetStockScreenState extends ConsumerState<FleetStockScreen> {
                                       const SizedBox(width: 4),
                                       Text(
                                         'units',
-                                        style: GoogleFonts.inter(
+                                        style: GoogleFonts.manrope(
                                           fontSize: 10,
                                           color: AppColors.inkTertiary,
                                         ),

@@ -65,7 +65,7 @@ class DayBookHistoryScreen extends ConsumerWidget {
         ),
         title: Text(
           'Day Book History',
-          style: GoogleFonts.hankenGrotesk(
+          style: GoogleFonts.manrope(
             fontSize: 17,
             fontWeight: FontWeight.w700,
             color: AppColors.inkPrimary,
@@ -91,7 +91,7 @@ class DayBookHistoryScreen extends ConsumerWidget {
               const SizedBox(height: 12),
               Text(
                 'Failed to load history',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 15,
                   color: AppColors.inkSecondary,
                 ),
@@ -111,7 +111,7 @@ class DayBookHistoryScreen extends ConsumerWidget {
                   const SizedBox(height: 14),
                   Text(
                     'No day book history yet',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 15,
                       fontWeight: FontWeight.w500,
                       color: AppColors.inkTertiary,
@@ -155,7 +155,7 @@ class DayBookHistoryScreen extends ConsumerWidget {
                       const EdgeInsets.fromLTRB(16, 20, 16, 8),
                   child: Text(
                     'All Records',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: AppColors.inkTertiary,
@@ -315,7 +315,7 @@ class _KpiCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   label,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: AppColors.inkTertiary,
@@ -340,7 +340,7 @@ class _KpiCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               sub!,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 10,
                 color: AppColors.inkTertiary,
               ),
@@ -399,7 +399,7 @@ class _DayBookHistoryCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     _fmt(record.date),
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkPrimary,
@@ -497,7 +497,7 @@ class _DayBookHistoryCard extends StatelessWidget {
                   record.isClosed && record.closedAt != null
                       ? 'Closed at ${_fmtTime(record.closedAt!)}'
                       : 'Open',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
                     color: record.isClosed
@@ -538,7 +538,7 @@ class _Tag extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 9,
           fontWeight: FontWeight.w700,
           color: textColor,
@@ -567,7 +567,7 @@ class _AmountChip extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 9,
             fontWeight: FontWeight.w500,
             color: AppColors.inkTertiary,
@@ -657,7 +657,7 @@ class _VariancePill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 10,
           fontWeight: FontWeight.w600,
           color: fg,

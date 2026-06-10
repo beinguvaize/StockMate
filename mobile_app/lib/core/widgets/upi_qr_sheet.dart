@@ -68,7 +68,7 @@ class UpiQrSheet extends StatelessWidget {
             Text(
               'Pay with UPI',
               textAlign: TextAlign.center,
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 22, fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary,
               ),
@@ -77,7 +77,7 @@ class UpiQrSheet extends StatelessWidget {
             Text(
               'Ask the customer to scan with PhonePe, GPay, Paytm, or BHIM.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkSecondary),
+              style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkSecondary),
             ),
             const SizedBox(height: 20),
 
@@ -107,7 +107,7 @@ class UpiQrSheet extends StatelessWidget {
                   const SizedBox(height: 16),
                   Text(
                     '$currencySymbol${amount.toStringAsFixed(2)}',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 28, fontWeight: FontWeight.w800,
                       color: AppColors.inkPrimary,
                       letterSpacing: -0.5,
@@ -180,7 +180,7 @@ class UpiQrSheet extends StatelessWidget {
                   foregroundColor: AppColors.inkPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: const StadiumBorder(),
-                  textStyle: GoogleFonts.inter(
+                  textStyle: GoogleFonts.manrope(
                     fontSize: 13, fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -201,7 +201,7 @@ class UpiQrSheet extends StatelessWidget {
                         side: BorderSide(color: Colors.red.shade300),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: const StadiumBorder(),
-                        textStyle: GoogleFonts.inter(
+                        textStyle: GoogleFonts.manrope(
                           fontSize: 13, fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -218,7 +218,7 @@ class UpiQrSheet extends StatelessWidget {
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: const StadiumBorder(),
-                        textStyle: GoogleFonts.inter(
+                        textStyle: GoogleFonts.manrope(
                           fontSize: 13, fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -231,7 +231,7 @@ class UpiQrSheet extends StatelessWidget {
                 'Mark Failed will void the sale and return stock. '
                 'The cashier can then ring a fresh transaction.',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 10.5, color: AppColors.inkTertiary,
                 ),
               ),

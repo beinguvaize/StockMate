@@ -133,7 +133,7 @@ class _Gstr3bView extends ConsumerWidget {
           child: Text(
             'Failed to load data\n${invoicesError ?? purchasesError ?? expensesError}',
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(color: AppColors.danger, fontSize: 13),
+            style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 13),
           ),
         ),
       );
@@ -175,7 +175,7 @@ class _Gstr3bView extends ConsumerWidget {
       titleSpacing: 16,
       title: Text(
         'GSTR-3B',
-        style: GoogleFonts.hankenGrotesk(
+        style: GoogleFonts.manrope(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           color: AppColors.inkPrimary,
@@ -185,7 +185,7 @@ class _Gstr3bView extends ConsumerWidget {
         DropdownButton<int>(
           value: month,
           underline: const SizedBox.shrink(),
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: AppColors.inkPrimary,
@@ -205,7 +205,7 @@ class _Gstr3bView extends ConsumerWidget {
         DropdownButton<int>(
           value: year,
           underline: const SizedBox.shrink(),
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: AppColors.inkPrimary,
@@ -296,7 +296,7 @@ class _Gstr3bBody extends StatelessWidget {
               const SizedBox(width: 8),
               Text(
                 'Filing Period: ${_kMonthNames[month]} $year',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                   color: AppColors.inkSecondary,
@@ -390,7 +390,7 @@ class _Gstr3bBody extends StatelessWidget {
             children: [
               Text(
                 '${interStateInvoices.length} inter-state invoice${interStateInvoices.length == 1 ? '' : 's'}',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 12,
                   color: AppColors.inkSecondary,
                 ),
@@ -424,7 +424,7 @@ class _Gstr3bBody extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 'Estimated at 18% GST on paid purchases. Verify with actual invoices.',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 11,
                   fontStyle: FontStyle.italic,
                   color: AppColors.inkTertiary,
@@ -454,7 +454,7 @@ class _Gstr3bBody extends StatelessWidget {
                 children: [
                   Text(
                     'Net Tax Payable',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkPrimary,
@@ -463,7 +463,7 @@ class _Gstr3bBody extends StatelessWidget {
                   const Spacer(),
                   Text(
                     formatINR(netTaxDue),
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                       color: netTaxDue > 0
@@ -497,7 +497,7 @@ class _Gstr3bBody extends StatelessWidget {
               Expanded(
                 child: Text(
                   'Figures are estimates. File official GSTR-3B on the GST portal.',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 12,
                     color: const Color(0xFF1D4ED8),
                     height: 1.5,
@@ -535,7 +535,7 @@ class _SectionCard extends StatelessWidget {
         children: [
           Text(
             title,
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w700,
               color: AppColors.inkPrimary,
@@ -570,7 +570,7 @@ class _GstRow extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 13,
             fontWeight: bold ? FontWeight.w600 : FontWeight.w400,
             color: bold ? AppColors.inkPrimary : AppColors.inkSecondary,
@@ -579,7 +579,7 @@ class _GstRow extends StatelessWidget {
         const Spacer(),
         Text(
           value,
-          style: GoogleFonts.hankenGrotesk(
+          style: GoogleFonts.manrope(
             fontSize: bold ? 14 : 13,
             fontWeight: bold ? FontWeight.w700 : FontWeight.w500,
             color: valueColor ?? AppColors.inkPrimary,
@@ -621,7 +621,7 @@ class _GstCell extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             value,
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 12,
               fontWeight: FontWeight.w700,
               color: AppColors.inkPrimary,

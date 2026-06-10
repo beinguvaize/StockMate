@@ -70,5 +70,9 @@
 	</array>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Unlock LedgrPro with Face ID for fast, secure sign-in.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Take a photo of a purchase bill to auto-fill purchase details.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Pick a purchase bill image to auto-fill purchase details.</string>
 </dict>
 </plist>

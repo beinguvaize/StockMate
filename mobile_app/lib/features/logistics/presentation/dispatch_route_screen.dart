@@ -195,7 +195,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
           children: [
             Text(
               'Dispatch Route',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w800,
                 fontSize: 17,
                 color: AppColors.inkPrimary,
@@ -221,7 +221,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                     padding: const EdgeInsets.all(24),
                     child: Text(_error!,
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(color: AppColors.danger)),
+                        style: GoogleFonts.manrope(color: AppColors.danger)),
                   ),
                 )
               : Column(
@@ -237,7 +237,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                 isExpanded: true,
                                 value: _driverId,
                                 hint: Text('Select driver',
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.manrope(
                                         color: AppColors.inkTertiary, fontSize: 14)),
                                 items: _drivers
                                     .map((d) => DropdownMenuItem<String>(
@@ -246,7 +246,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                             d['position'] != null
                                                 ? '${d['name']} — ${d['position']}'
                                                 : '${d['name']}',
-                                            style: GoogleFonts.inter(fontSize: 14),
+                                            style: GoogleFonts.manrope(fontSize: 14),
                                           ),
                                         ))
                                     .toList(),
@@ -318,7 +318,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 16),
                               child: Text('No pending deliveries',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                       color: AppColors.inkTertiary, fontSize: 13)),
                             )
                           else
@@ -361,7 +361,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                             Text(
                                               inv['client_name']?.toString() ??
                                                   'Customer',
-                                              style: GoogleFonts.hankenGrotesk(
+                                              style: GoogleFonts.manrope(
                                                 fontWeight: FontWeight.w700,
                                                 fontSize: 13,
                                                 color: AppColors.inkPrimary,
@@ -372,7 +372,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                                 inv['delivery_address'].toString(),
                                                 maxLines: 1,
                                                 overflow: TextOverflow.ellipsis,
-                                                style: GoogleFonts.inter(
+                                                style: GoogleFonts.manrope(
                                                   fontSize: 11,
                                                   color: AppColors.inkTertiary,
                                                 ),
@@ -420,7 +420,7 @@ class _DispatchRouteScreenState extends ConsumerState<DispatchRouteScreen> {
                                   )
                                 : Text(
                                     'Dispatch Route',
-                                    style: GoogleFonts.hankenGrotesk(
+                                    style: GoogleFonts.manrope(
                                       fontWeight: FontWeight.w800,
                                       fontSize: 14,
                                     ),

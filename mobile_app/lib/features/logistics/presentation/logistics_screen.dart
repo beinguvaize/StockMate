@@ -35,7 +35,7 @@ class LogisticsScreen extends ConsumerWidget {
           children: [
             Text(
               'Fleet',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
@@ -173,7 +173,7 @@ class LogisticsScreen extends ConsumerWidget {
                           const SizedBox(height: 12),
                           Text(
                             'No vehicles in fleet',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 15,
                               color: AppColors.inkSecondary,
                             ),
@@ -262,7 +262,7 @@ class LogisticsScreen extends ConsumerWidget {
                                 const SizedBox(height: 8),
                                 Text(
                                   'No routes yet',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 14,
                                     color: AppColors.inkSecondary,
                                   ),
@@ -299,7 +299,7 @@ class LogisticsScreen extends ConsumerWidget {
                     child: Padding(
                       padding: const EdgeInsets.fromLTRB(16, 0, 16, 32),
                       child: Text('Error loading routes: $e',
-                          style: GoogleFonts.inter(color: AppColors.danger)),
+                          style: GoogleFonts.manrope(color: AppColors.danger)),
                     ),
                   ),
                 ),
@@ -309,7 +309,7 @@ class LogisticsScreen extends ConsumerWidget {
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Center(
             child: Text('Error: $e',
-                style: GoogleFonts.inter(color: AppColors.danger)),
+                style: GoogleFonts.manrope(color: AppColors.danger)),
           ),
         ),
       ),
@@ -367,7 +367,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               value,
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
                 color: AppColors.inkPrimary,
@@ -459,7 +459,7 @@ class _VehicleCard extends ConsumerWidget {
                     children: [
                       Text(
                         name,
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,
@@ -477,7 +477,7 @@ class _VehicleCard extends ConsumerWidget {
                         const SizedBox(height: 2),
                         Text(
                           driver,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 12,
                             color: AppColors.inkSecondary,
                           ),
@@ -606,7 +606,7 @@ class _VehicleDetailSheet extends StatelessWidget {
                       children: [
                         Text(
                           vehicle.name ?? 'Unnamed Vehicle',
-                          style: GoogleFonts.hankenGrotesk(
+                          style: GoogleFonts.manrope(
                             fontSize: 18,
                             fontWeight: FontWeight.w800,
                             color: AppColors.inkPrimary,
@@ -801,7 +801,7 @@ class _VehicleDetailSheet extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Delete Vehicle?',
-          style: GoogleFonts.hankenGrotesk(
+          style: GoogleFonts.manrope(
             fontWeight: FontWeight.w800,
             fontSize: 18,
             color: AppColors.inkPrimary,
@@ -809,7 +809,7 @@ class _VehicleDetailSheet extends StatelessWidget {
         ),
         content: Text(
           'This will permanently remove "${vehicle.name ?? vehicle.displayPlate}" from your fleet.',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 14,
             color: AppColors.inkSecondary,
           ),
@@ -819,7 +819,7 @@ class _VehicleDetailSheet extends StatelessWidget {
             onPressed: () => Navigator.pop(dialogContext),
             child: Text(
               'Cancel',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 color: AppColors.inkSecondary,
                 fontWeight: FontWeight.w600,
               ),
@@ -840,7 +840,7 @@ class _VehicleDetailSheet extends StatelessWidget {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                       content: Text('Delete failed: $e',
-                          style: GoogleFonts.inter(color: Colors.white)),
+                          style: GoogleFonts.manrope(color: Colors.white)),
                       backgroundColor: AppColors.danger,
                       behavior: SnackBarBehavior.floating,
                       shape: RoundedRectangleBorder(
@@ -852,7 +852,7 @@ class _VehicleDetailSheet extends StatelessWidget {
             },
             child: Text(
               'Delete',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 color: AppColors.danger,
                 fontWeight: FontWeight.w700,
               ),
@@ -895,7 +895,7 @@ class _DetailRow extends StatelessWidget {
           const Spacer(),
           Text(
             value,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               color: AppColors.inkPrimary,
@@ -939,7 +939,7 @@ class _SheetButton extends StatelessWidget {
               const SizedBox(width: 12),
               Text(
                 label,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: color,
@@ -1038,7 +1038,7 @@ class _RouteCard extends StatelessWidget {
                     children: [
                       Text(
                         route.location ?? 'Route #${route.id.substring(0, 8)}',
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,

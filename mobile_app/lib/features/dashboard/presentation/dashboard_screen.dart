@@ -208,7 +208,20 @@ class _GlobalAppBar extends StatelessWidget {
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-          child: Row(
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Logo — exact center of screen
+              Center(
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  height: 32,
+                  fit: BoxFit.contain,
+                ),
+              ),
+
+              // Edge controls
+              Row(
             children: [
               // Hamburger
               GestureDetector(
@@ -229,16 +242,7 @@ class _GlobalAppBar extends StatelessWidget {
                 ),
               ),
 
-              // Logo
-              Expanded(
-                child: Center(
-                  child: Image.asset(
-                    'assets/images/logo.png',
-                    height: 32,
-                    fit: BoxFit.contain,
-                  ),
-                ),
-              ),
+              const Spacer(),
 
               // Offline sync status (hidden when synced + online)
               const SyncStatusPill(),
@@ -260,7 +264,7 @@ class _GlobalAppBar extends StatelessWidget {
                         const SizedBox(height: 16),
                         Text(
                           'No new notifications',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                             color: AppColors.inkSecondary,
@@ -284,6 +288,8 @@ class _GlobalAppBar extends StatelessWidget {
                     color: AppColors.inkPrimary,
                   ),
                 ),
+              ),
+            ],
               ),
             ],
           ),
@@ -408,7 +414,7 @@ class _AppDrawer extends ConsumerWidget {
                         child: Center(
                           child: Text(
                             letter,
-                            style: GoogleFonts.hankenGrotesk(
+                            style: GoogleFonts.manrope(
                               fontSize: 20,
                               fontWeight: FontWeight.w800,
                               color: AppColors.primary,
@@ -423,7 +429,7 @@ class _AppDrawer extends ConsumerWidget {
                           children: [
                             Text(
                               name,
-                              style: GoogleFonts.hankenGrotesk(
+                              style: GoogleFonts.manrope(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.white,
@@ -511,7 +517,7 @@ class _AppDrawer extends ConsumerWidget {
                       const SizedBox(width: 12),
                       Text(
                         'Sign Out',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: AppColors.danger,
@@ -576,7 +582,7 @@ class _DrawerTile extends StatelessWidget {
             const SizedBox(width: 14),
             Text(
               item.label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 fontWeight: FontWeight.w500,
                 color: AppColors.inkPrimary,
@@ -666,7 +672,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                     children: [
                       Text(
                         'Hi, $name 👋',
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
                           color: AppColors.inkPrimary,
@@ -675,7 +681,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       ),
                       Text(
                         'Here\'s your business overview',
-                        style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkSecondary),
+                        style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
                       ),
                       if (ctx != null && ctx.tenant.status == 'TRIAL' && ctx.trialDaysLeft <= 7) ...[
                         const SizedBox(height: 12),
@@ -819,10 +825,10 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(LucideIcons.shoppingBag, size: 16, color: AppColors.primary),
+                            const Icon(LucideIcons.shoppingBag, size: 16, color: AppColors.onPrimaryContainer),
                             const SizedBox(width: 8),
-                            Text('New Sale', style: GoogleFonts.inter(
-                              fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primary,
+                            Text('New Sale', style: GoogleFonts.manrope(
+                              fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.onPrimaryContainer,
                             )),
                           ],
                         ),
@@ -844,7 +850,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                           children: [
                             const Icon(LucideIcons.send, size: 16, color: AppColors.primaryContainer),
                             const SizedBox(width: 8),
-                            Text('Add Expense', style: GoogleFonts.inter(
+                            Text('Add Expense', style: GoogleFonts.manrope(
                               fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.primaryContainer,
                             )),
                           ],
@@ -876,7 +882,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                           children: [
                             Text(
                               'Weekly Sales',
-                              style: GoogleFonts.hankenGrotesk(
+                              style: GoogleFonts.manrope(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.inkPrimary,
@@ -884,7 +890,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                             ),
                             Text(
                               'Last 7 days performance',
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                 fontSize: 12,
                                 color: AppColors.inkSecondary,
                               ),
@@ -999,7 +1005,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                     onTap: () => widget.onTabSwitch('sales'),
                     child: Text(
                       'See All',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: AppColors.primary,
@@ -1029,12 +1035,12 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                             ),
                             const SizedBox(height: 12),
                             Text('No sales yet',
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.inkPrimary,
                                 )),
                             Text('Tap + to record your first sale',
-                                style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary)),
+                                style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary)),
                           ],
                         ),
                       ),
@@ -1066,7 +1072,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                   ),
                 ),
                 error: (e, _) => Text('Error: $e',
-                    style: GoogleFonts.inter(color: AppColors.danger)),
+                    style: GoogleFonts.manrope(color: AppColors.danger)),
               ),
 
               const SizedBox(height: 16),
@@ -1171,14 +1177,14 @@ class _KpiCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 18, 20, 22),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF1e3600), Color(0xFF446900)],
+              colors: [Color(0xFF92400E), Color(0xFFD97706)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(22),
             boxShadow: [
               BoxShadow(
-                color: const Color(0xFF446900).withValues(alpha: 0.35),
+                color: const Color(0xFFD97706).withValues(alpha: 0.35),
                 blurRadius: 20,
                 offset: const Offset(0, 8),
               ),
@@ -1209,7 +1215,7 @@ class _KpiCard extends StatelessWidget {
               ]),
               const SizedBox(height: 10),
               Text(value,
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 34, fontWeight: FontWeight.w900,
                   color: Colors.white, letterSpacing: -1.2,
                 ),
@@ -1225,7 +1231,7 @@ class _KpiCard extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 Text('Today',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 11, fontWeight: FontWeight.w500,
                     color: Colors.white.withValues(alpha: 0.5),
                   ),
@@ -1267,7 +1273,7 @@ class _KpiCard extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(value,
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 24, fontWeight: FontWeight.w800,
                 color: valueColor, letterSpacing: -0.8,
               ),
@@ -1316,7 +1322,7 @@ class _QuickBtn extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 label,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: AppColors.inkPrimary,
@@ -1355,7 +1361,7 @@ class _Bar extends StatelessWidget {
               alignment: Alignment.bottomCenter,
               child: Container(
                 decoration: BoxDecoration(
-                  color: isHighlight ? AppColors.primary : AppColors.primaryContainer.withValues(alpha: 0.5),
+                  color: isHighlight ? AppColors.primary : AppColors.primaryMuted,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
                 ),
               ),
@@ -1422,7 +1428,7 @@ class _ActivityItem extends StatelessWidget {
             child: Center(
               child: Text(
                 _initials(label),
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: AppColors.secondary,
@@ -1437,7 +1443,7 @@ class _ActivityItem extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: AppColors.inkPrimary,
@@ -1461,7 +1467,7 @@ class _ActivityItem extends StatelessWidget {
             children: [
               Text(
                 '+₹${amount.abs().toStringAsFixed(0)}',
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w800,
                   color: AppColors.inkPrimary,

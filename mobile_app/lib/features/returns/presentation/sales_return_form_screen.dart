@@ -203,7 +203,7 @@ class _SalesReturnFormScreenState
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
             'Return processed — stock restored',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
                 color: Colors.white, fontWeight: FontWeight.w600),
           ),
           backgroundColor: AppColors.success,
@@ -218,7 +218,7 @@ class _SalesReturnFormScreenState
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
             'Return failed: $e',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
                 color: Colors.white, fontWeight: FontWeight.w600),
           ),
           backgroundColor: AppColors.danger,
@@ -270,7 +270,7 @@ class _SalesReturnFormScreenState
           children: [
             Text(
               'Process Return',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 color: const Color(0xFF1E293B),
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -316,7 +316,7 @@ class _SalesReturnFormScreenState
                       const SizedBox(width: 6),
                       Text(
                         invoice.displayClientName,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AppColors.inkSecondary),
@@ -331,7 +331,7 @@ class _SalesReturnFormScreenState
                       const SizedBox(width: 6),
                       Text(
                         _fmtDateDisplay(invoice.invoiceDate ?? ''),
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 13, color: AppColors.inkTertiary),
                       ),
                     ],
@@ -344,14 +344,14 @@ class _SalesReturnFormScreenState
                     children: [
                       Text(
                         'Total',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: AppColors.inkSecondary),
                       ),
                       Text(
                         '₹${invoice.grandTotal.toStringAsFixed(2)}',
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 18,
                           fontWeight: FontWeight.w800,
                           color: AppColors.primary,
@@ -375,7 +375,7 @@ class _SalesReturnFormScreenState
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Text(
                         'No item details available',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 13, color: AppColors.inkTertiary),
                       ),
                     )
@@ -414,7 +414,7 @@ class _SalesReturnFormScreenState
                                     children: [
                                       Text(
                                         item.name,
-                                        style: GoogleFonts.inter(
+                                        style: GoogleFonts.manrope(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w700,
                                           color: AppColors.inkPrimary,
@@ -423,14 +423,14 @@ class _SalesReturnFormScreenState
                                       const SizedBox(height: 2),
                                       Text(
                                         'Max: ${item.quantity.toInt()}',
-                                        style: GoogleFonts.inter(
+                                        style: GoogleFonts.manrope(
                                             fontSize: 11,
                                             color: AppColors.inkTertiary),
                                       ),
                                       if (item.rate > 0)
                                         Text(
                                           '₹${item.rate.toStringAsFixed(2)}/unit',
-                                          style: GoogleFonts.inter(
+                                          style: GoogleFonts.manrope(
                                               fontSize: 11,
                                               color: AppColors.inkTertiary),
                                         ),
@@ -486,14 +486,14 @@ class _SalesReturnFormScreenState
                             children: [
                               Text(
                                 'Return Total',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                     fontSize: 13,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.inkSecondary),
                               ),
                               Text(
                                 '₹${returnTotal.toStringAsFixed(2)}',
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: -0.5,
@@ -552,7 +552,7 @@ class _SalesReturnFormScreenState
                                 const SizedBox(height: 2),
                                 Text(
                                   _fmtDateDisplay(_date),
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.inkPrimary,
@@ -593,7 +593,7 @@ class _SalesReturnFormScreenState
                     child: TextField(
                       controller: _reason,
                       maxLines: 3,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: AppColors.inkPrimary,
@@ -603,7 +603,7 @@ class _SalesReturnFormScreenState
                         contentPadding: const EdgeInsets.symmetric(
                             horizontal: 12, vertical: 12),
                         hintText: 'Reason for return (optional)',
-                        hintStyle: GoogleFonts.inter(
+                        hintStyle: GoogleFonts.manrope(
                           color:
                               AppColors.inkTertiary.withValues(alpha: 0.6),
                           fontSize: 13,

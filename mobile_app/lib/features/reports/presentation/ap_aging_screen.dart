@@ -144,7 +144,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                   Expanded(
                     child: Text(
                       supplier.supplierName,
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: AppColors.inkPrimary,
@@ -153,7 +153,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                   ),
                   Text(
                     compactINR(supplier.total),
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: AppColors.danger,
@@ -169,7 +169,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                 alignment: Alignment.centerLeft,
                 child: Text(
                   '${sorted.length} outstanding bill${sorted.length == 1 ? '' : 's'}',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 12,
                     color: AppColors.inkSecondary,
                   ),
@@ -208,7 +208,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                               if (row.billDate != null)
                                 Text(
                                   'Bill: ${_fmtDate(row.billDate!)}',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 11,
                                     color: AppColors.inkSecondary,
                                   ),
@@ -216,7 +216,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                               if (impliedDue != null)
                                 Text(
                                   'Due: ${_fmtDate(impliedDue)}',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 11,
                                     color: AppColors.inkSecondary,
                                   ),
@@ -229,7 +229,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                           children: [
                             Text(
                               compactINR(row.amount),
-                              style: GoogleFonts.hankenGrotesk(
+                              style: GoogleFonts.manrope(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.danger,
@@ -296,7 +296,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
             elevation: 0,
             title: Text(
               'AP Aging',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary,
@@ -506,7 +506,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                       Expanded(
                         child: Text(
                           'Aging based on bill date + 30-day payment terms',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 11,
                             color: AppColors.inkSecondary,
                           ),
@@ -526,11 +526,11 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                   ),
                   child: TabBar(
                     controller: _tabController,
-                    labelStyle: GoogleFonts.hankenGrotesk(
+                    labelStyle: GoogleFonts.manrope(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
-                    unselectedLabelStyle: GoogleFonts.hankenGrotesk(
+                    unselectedLabelStyle: GoogleFonts.manrope(
                       fontSize: 13,
                       fontWeight: FontWeight.w400,
                     ),
@@ -598,7 +598,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                     Expanded(
                       child: Text(
                         supplier.supplierName,
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,
@@ -607,7 +607,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                     ),
                     Text(
                       compactINR(supplier.total),
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: AppColors.danger,
@@ -682,7 +682,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                     const SizedBox(height: 2),
                     Text(
                       row.supplierName,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: AppColors.inkSecondary,
                       ),
@@ -691,7 +691,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                       const SizedBox(height: 1),
                       Text(
                         'Bill: ${_fmtDate(row.billDate!)}',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 10,
                           color: AppColors.inkTertiary,
                         ),
@@ -705,7 +705,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
                 children: [
                   Text(
                     compactINR(row.amount),
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: AppColors.danger,
@@ -755,7 +755,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
             const SizedBox(height: 16),
             Text(
               'No outstanding payables',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary,
@@ -765,7 +765,7 @@ class _ApAgingScreenState extends ConsumerState<ApAgingScreen>
             Text(
               'All bills are settled or on cash terms',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 13,
                 color: AppColors.inkSecondary,
               ),

@@ -57,7 +57,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Supplier name required',
-              style: GoogleFonts.inter(color: Colors.white)),
+              style: GoogleFonts.manrope(color: Colors.white)),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
           shape:
@@ -105,7 +105,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
           SnackBar(
             content: Text(
               _isEdit ? 'Supplier updated' : 'Supplier added',
-              style: GoogleFonts.inter(color: AppColors.inkPrimary),
+              style: GoogleFonts.manrope(color: AppColors.inkPrimary),
             ),
             backgroundColor: AppColors.primaryContainer,
             behavior: SnackBarBehavior.floating,
@@ -119,7 +119,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e',
-                style: GoogleFonts.inter(color: Colors.white)),
+                style: GoogleFonts.manrope(color: Colors.white)),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
             shape:
@@ -150,7 +150,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
           children: [
             Text(
               _isEdit ? 'Edit Supplier' : 'Add Supplier',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 color: AppColors.inkPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -192,7 +192,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
                           : '?';
                       return Text(
                         initial,
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           color: AppColors.inkSecondary,
                           fontSize: 28,
                           fontWeight: FontWeight.w900,
@@ -350,7 +350,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
         controller: controller,
         keyboardType: keyboardType ?? TextInputType.text,
         maxLines: maxLines,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 14,
           color: AppColors.inkPrimary,
           fontWeight: FontWeight.w500,
@@ -366,7 +366,7 @@ class _AddSupplierScreenState extends ConsumerState<AddSupplierScreen> {
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           hintText: hint,
-          hintStyle: GoogleFonts.inter(
+          hintStyle: GoogleFonts.manrope(
             color: AppColors.inkSecondary.withValues(alpha: 0.5),
             fontSize: 14,
           ),

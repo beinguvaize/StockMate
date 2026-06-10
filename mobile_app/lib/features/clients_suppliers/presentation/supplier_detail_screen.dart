@@ -69,8 +69,8 @@ class _SupplierTxn {
 // ─── Avatar helpers ────────────────────────────────────────────────────────────
 Color _avatarColor(String? name) {
   const palette = [
-    Color(0xFF446900),
-    Color(0xFF48654d),
+    Color(0xFFD97706),
+    Color(0xFF92400E),
     Color(0xFF2563EB),
     Color(0xFF7C3AED),
     Color(0xFFB45309),
@@ -168,7 +168,7 @@ class SupplierDetailScreen extends ConsumerWidget {
                         const SizedBox(width: 6),
                         Text(
                           'Edit',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
                             color: Colors.white,
@@ -278,7 +278,7 @@ class SupplierDetailScreen extends ConsumerWidget {
                   Center(
                     child: Text(
                       'Supplier added ${_fmtDate(supplier.createdAt!.toIso8601String())}',
-                      style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkTertiary),
+                      style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
                     ),
                   ),
                 ],
@@ -328,7 +328,7 @@ class _HeroSection extends StatelessWidget {
               child: Center(
                 child: Text(
                   _initials(supplier.name),
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 26,
                     fontWeight: FontWeight.w900,
                     color: avatarColor,
@@ -345,7 +345,7 @@ class _HeroSection extends StatelessWidget {
                 Expanded(
                   child: Text(
                     supplier.name ?? 'Unknown Supplier',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 26,
                       fontWeight: FontWeight.w800,
                       color: AppColors.inkPrimary,
@@ -381,7 +381,7 @@ class _HeroSection extends StatelessWidget {
                   const SizedBox(width: 5),
                   Text(
                     supplier.contactPerson!,
-                    style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary),
+                    style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                   ),
                 ],
               ),
@@ -405,7 +405,7 @@ class _QuickActions extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('Copied: $text',
-            style: GoogleFonts.inter(color: AppColors.inkPrimary)),
+            style: GoogleFonts.manrope(color: AppColors.inkPrimary)),
         backgroundColor: AppColors.primaryContainer,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -502,7 +502,7 @@ class _ActionBtn extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary,
@@ -511,7 +511,7 @@ class _ActionBtn extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               sublabel,
-              style: GoogleFonts.inter(fontSize: 10, color: AppColors.inkTertiary),
+              style: GoogleFonts.manrope(fontSize: 10, color: AppColors.inkTertiary),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
@@ -574,7 +574,7 @@ class _BalanceCard extends StatelessWidget {
               children: [
                 Text(
                   'Credit Due',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 12,
                     color: AppColors.inkTertiary,
                   ),
@@ -585,7 +585,7 @@ class _BalanceCard extends StatelessWidget {
                   children: [
                     Text(
                       _fmtAmount(balance),
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 24,
                         fontWeight: FontWeight.w900,
                         color: color,
@@ -665,7 +665,7 @@ class _SupplierStatsCard extends StatelessWidget {
                   color: AppColors.inkTertiary, letterSpacing: 1.2)),
           const SizedBox(height: 4),
           Text(value,
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                   fontSize: 16, fontWeight: FontWeight.w900,
                   color: AppColors.inkPrimary, letterSpacing: -0.3)),
         ],
@@ -794,7 +794,7 @@ class _InfoTileRow extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Copied!',
-                style: GoogleFonts.inter(color: AppColors.inkPrimary)),
+                style: GoogleFonts.manrope(color: AppColors.inkPrimary)),
             backgroundColor: AppColors.primaryContainer,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -823,7 +823,7 @@ class _InfoTileRow extends StatelessWidget {
                 children: [
                   Text(
                     tile.label,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 11,
                       color: AppColors.inkTertiary,
                     ),
@@ -831,7 +831,7 @@ class _InfoTileRow extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     tile.value,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: AppColors.inkPrimary,
@@ -893,7 +893,7 @@ class _TransactionSection extends StatelessWidget {
                       const SizedBox(height: 10),
                       Text(
                         'No purchases yet',
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: AppColors.inkTertiary,
@@ -923,7 +923,7 @@ class _TransactionSection extends StatelessWidget {
                         Expanded(
                           child: Text(
                             '${txns.length} order${txns.length == 1 ? '' : 's'}',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 12,
                               color: AppColors.inkTertiary,
                             ),
@@ -931,7 +931,7 @@ class _TransactionSection extends StatelessWidget {
                         ),
                         Text(
                           'Total: ₹${_compactNum(total)}',
-                          style: GoogleFonts.hankenGrotesk(
+                          style: GoogleFonts.manrope(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: AppColors.inkPrimary,
@@ -977,7 +977,7 @@ class _TransactionSection extends StatelessWidget {
           error: (e, _) => Padding(
             padding: const EdgeInsets.all(16),
             child: Text('Error loading transactions: $e',
-                style: GoogleFonts.inter(color: AppColors.danger, fontSize: 12)),
+                style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 12)),
           ),
         ),
       ],
@@ -1026,7 +1026,7 @@ class _TxnTile extends StatelessWidget {
                 ),
                 Text(
                   _fmtDate(txn.date),
-                  style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkTertiary),
+                  style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
                 ),
               ],
             ),
@@ -1055,7 +1055,7 @@ class _TxnTile extends StatelessWidget {
                 ),
               Text(
                 '₹${txn.amount.toStringAsFixed(0)}',
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: AppColors.inkPrimary,

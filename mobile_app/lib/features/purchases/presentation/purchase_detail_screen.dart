@@ -125,7 +125,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Copied ${purchase.poNumber}',
-                            style: GoogleFonts.inter(color: AppColors.inkPrimary)),
+                            style: GoogleFonts.manrope(color: AppColors.inkPrimary)),
                         backgroundColor: AppColors.primaryContainer,
                         behavior: SnackBarBehavior.floating,
                         shape: RoundedRectangleBorder(
@@ -192,7 +192,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                                 ),
                                 Text(
                                   'Order Date: ${_fmtDate(purchase.date)}',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 12,
                                     color: Colors.white.withValues(alpha: 0.7),
                                   ),
@@ -228,7 +228,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                       // Amount
                       Text(
                         'Total Amount',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 12,
                           color: Colors.white.withValues(alpha: 0.65),
                         ),
@@ -236,7 +236,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                       const SizedBox(height: 4),
                       Text(
                         '₹${purchase.totalAmount.toStringAsFixed(2)}',
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 36,
                           fontWeight: FontWeight.w900,
                           color: Colors.white,
@@ -343,12 +343,12 @@ class PurchaseDetailScreen extends ConsumerWidget {
                           children: [
                             Text(
                               'Order Total',
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                   fontSize: 12, color: AppColors.inkTertiary),
                             ),
                             Text(
                               '₹${purchase.totalAmount.toStringAsFixed(2)}',
-                              style: GoogleFonts.hankenGrotesk(
+                              style: GoogleFonts.manrope(
                                 fontSize: 24,
                                 fontWeight: FontWeight.w800,
                                 color: AppColors.inkPrimary,
@@ -448,7 +448,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                             icon: Icon(a.icon, size: 14, color: a.color),
                             label: Text(
                               a.label,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: a.color,
@@ -469,7 +469,7 @@ class PurchaseDetailScreen extends ConsumerWidget {
                           icon: const Icon(LucideIcons.rotateCcw, size: 14, color: AppColors.danger),
                           label: Text(
                             'Process Return',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 12,
                               fontWeight: FontWeight.w700,
                               color: AppColors.danger,
@@ -596,7 +596,7 @@ class _StatusTimeline extends StatelessWidget {
                     children: [
                       Text(
                         step.label,
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: done
@@ -606,7 +606,7 @@ class _StatusTimeline extends StatelessWidget {
                       ),
                       Text(
                         step.sub,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 12, color: AppColors.inkTertiary),
                       ),
                     ],
@@ -733,13 +733,13 @@ class _InfoRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                         fontSize: 11, color: AppColors.inkTertiary)),
                 const SizedBox(height: 2),
                 valueWidget ??
                     Text(
                       value,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: AppColors.inkPrimary,

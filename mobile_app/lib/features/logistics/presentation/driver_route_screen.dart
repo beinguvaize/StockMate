@@ -39,7 +39,7 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
           children: [
             Text(
               'My Route',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w800,
                 fontSize: 17,
                 color: AppColors.inkPrimary,
@@ -76,7 +76,7 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
         error: (e, _) => Center(
           child: Text(
             'Error: $e',
-            style: GoogleFonts.inter(color: AppColors.danger),
+            style: GoogleFonts.manrope(color: AppColors.danger),
           ),
         ),
         data: (route) {
@@ -96,7 +96,7 @@ class _DriverRouteScreenState extends ConsumerState<DriverRouteScreen> {
                   error: (e, _) => Center(
                     child: Text(
                       'Error: $e',
-                      style: GoogleFonts.inter(color: AppColors.danger),
+                      style: GoogleFonts.manrope(color: AppColors.danger),
                     ),
                   ),
                   data: (stops) {
@@ -197,7 +197,7 @@ class _RouteHeader extends StatelessWidget {
               children: [
                 Text(
                   route.location ?? 'Active Route',
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
                     color: AppColors.inkPrimary,
@@ -210,7 +210,7 @@ class _RouteHeader extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       route.date ?? '',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: AppColors.secondary,
@@ -460,7 +460,7 @@ class _StopCardState extends ConsumerState<_StopCard> {
                       children: [
                         Text(
                           widget.stop.clientName ?? 'Unknown Client',
-                          style: GoogleFonts.hankenGrotesk(
+                          style: GoogleFonts.manrope(
                             fontWeight: FontWeight.w700,
                             fontSize: 14,
                             color: AppColors.inkPrimary,
@@ -469,7 +469,7 @@ class _StopCardState extends ConsumerState<_StopCard> {
                         if (widget.stop.cashCollected > 0)
                           Text(
                             'Collected: ${widget.stop.cashCollected.toStringAsFixed(0)}',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 11,
                               color: AppColors.success,
                               fontWeight: FontWeight.w700,
@@ -478,7 +478,7 @@ class _StopCardState extends ConsumerState<_StopCard> {
                         if (widget.stop.visitedAt != null)
                           Text(
                             _formatTime(widget.stop.visitedAt!),
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 10,
                               color: AppColors.inkTertiary,
                             ),
@@ -736,7 +736,7 @@ class _NoRouteView extends ConsumerWidget {
           children: [
             const SizedBox(height: 16),
             Text('Select Van',
-              style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.w800, fontSize: 16)),
+              style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 16)),
             const SizedBox(height: 8),
             ...vansWithStock.map((loc) => ListTile(
               leading: const Icon(LucideIcons.truck),
@@ -782,7 +782,7 @@ class _NoRouteView extends ConsumerWidget {
           const SizedBox(height: 20),
           Text(
             'No Active Route',
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontWeight: FontWeight.w900,
               fontSize: 20,
               color: AppColors.inkPrimary,
@@ -792,7 +792,7 @@ class _NoRouteView extends ConsumerWidget {
           Text(
             'You have no dispatched route.\nManager must dispatch you from the web app.',
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(color: AppColors.inkTertiary, fontSize: 13),
+            style: GoogleFonts.manrope(color: AppColors.inkTertiary, fontSize: 13),
           ),
           const SizedBox(height: 32),
           ElevatedButton.icon(
@@ -841,7 +841,7 @@ class _EmptyStops extends StatelessWidget {
         const SizedBox(height: 14),
         Text(
           'No delivery stops assigned',
-          style: GoogleFonts.hankenGrotesk(
+          style: GoogleFonts.manrope(
             fontWeight: FontWeight.w700,
             fontSize: 15,
             color: AppColors.inkSecondary,
@@ -850,7 +850,7 @@ class _EmptyStops extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           'You can still make walk-in van sales.',
-          style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+          style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
         ),
       ],
     ),

@@ -63,7 +63,7 @@ class SyncStatusPill extends ConsumerWidget {
             const SizedBox(width: 5),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: fg,

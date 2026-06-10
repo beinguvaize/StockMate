@@ -80,7 +80,7 @@ class _SalesSummaryView extends ConsumerWidget {
         titleSpacing: 16,
         title: Text(
           'Sales Summary',
-          style: GoogleFonts.hankenGrotesk(
+          style: GoogleFonts.manrope(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.inkPrimary,
@@ -97,7 +97,7 @@ class _SalesSummaryView extends ConsumerWidget {
           child: Text(
             'Failed to load sales\n$e',
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(color: AppColors.danger, fontSize: 13),
+            style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 13),
           ),
         ),
         data: (sales) => _SalesBody(sales: sales),
@@ -156,7 +156,7 @@ class _SalesBody extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'No sales in this period',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: AppColors.inkSecondary,
@@ -310,7 +310,7 @@ class _SaleCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   customerName,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.inkPrimary,
@@ -321,7 +321,7 @@ class _SaleCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '$itemCount item${itemCount == 1 ? '' : 's'}',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 12,
                     color: AppColors.inkSecondary,
                   ),
@@ -336,7 +336,7 @@ class _SaleCard extends StatelessWidget {
             children: [
               Text(
                 compactINR(totalAmount),
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 15,
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFF16A34A),
@@ -406,7 +406,7 @@ class _Pill extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 10,
           fontWeight: FontWeight.w600,
           color: foreground,

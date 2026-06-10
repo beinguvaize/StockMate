@@ -153,7 +153,7 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
               queued
                   ? 'Saved offline — will sync when online'
                   : (_isEdit ? 'Client updated' : 'Client added'),
-              style: GoogleFonts.inter(color: AppColors.inkPrimary),
+              style: GoogleFonts.manrope(color: AppColors.inkPrimary),
             ),
             backgroundColor: AppColors.primaryContainer,
             behavior: SnackBarBehavior.floating,
@@ -185,7 +185,7 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
           children: [
             Text(
               _isEdit ? 'Edit Client' : 'Add Client',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 color: AppColors.inkPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -425,7 +425,7 @@ class _AddClientScreenState extends ConsumerState<AddClientScreen> {
                     Expanded(
                       child: Text(
                         _formError!,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 13,
                           color: AppColors.danger,
                           fontWeight: FontWeight.w600,
@@ -611,14 +611,14 @@ class _Field extends StatelessWidget {
         textCapitalization: textCapitalization,
         style: (mono
                 ? GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.w700, letterSpacing: 1)
-                : GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600))
+                : GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600))
             .copyWith(color: AppColors.inkPrimary),
         decoration: InputDecoration(
           counterText: '',
           border: InputBorder.none,
           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           hintText: hint,
-          hintStyle: GoogleFonts.inter(
+          hintStyle: GoogleFonts.manrope(
             color: AppColors.inkTertiary,
             fontSize: 13,
           ),
@@ -648,10 +648,10 @@ class _StateDropdown extends StatelessWidget {
           isExpanded: true,
           hint: Text(
             '— Select State —',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
                 color: AppColors.inkTertiary, fontSize: 13),
           ),
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 13, fontWeight: FontWeight.w600,
             color: AppColors.inkPrimary,
           ),
@@ -699,7 +699,7 @@ class _BasicDropdown<T> extends StatelessWidget {
         child: DropdownButton<T>(
           value: value,
           isExpanded: true,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
             fontSize: 13, fontWeight: FontWeight.w600,
             color: AppColors.inkPrimary,
           ),
@@ -768,7 +768,7 @@ class _TypeCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     sub,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 10,
                       color: selected
                           ? Colors.white.withValues(alpha: 0.55)

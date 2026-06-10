@@ -86,7 +86,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
               child: Text(
                 'Inventory',
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
                   color: AppColors.inkPrimary,
@@ -102,10 +102,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: TextField(
                 controller: _searchController,
-                style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkPrimary),
+                style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
                 decoration: InputDecoration(
                   hintText: 'Search products, SKU…',
-                  hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.inkTertiary),
+                  hintStyle: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkTertiary),
                   prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.inkTertiary),
                   filled: true,
                   fillColor: AppColors.surfaceContainer,
@@ -150,7 +150,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                       ),
                       child: Text(
                         filters[i],
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 13,
                           fontWeight: FontWeight.w600,
                           color: isActive ? AppColors.primary : AppColors.inkTertiary,
@@ -211,7 +211,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                     const SizedBox(height: 4),
                                     Text(
                                       '${allProducts.length}',
-                                      style: GoogleFonts.hankenGrotesk(
+                                      style: GoogleFonts.manrope(
                                         fontSize: 28,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.primary,
@@ -245,7 +245,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                     const SizedBox(height: 4),
                                     Text(
                                       '$lowCount',
-                                      style: GoogleFonts.hankenGrotesk(
+                                      style: GoogleFonts.manrope(
                                         fontSize: 28,
                                         fontWeight: FontWeight.w700,
                                         color: AppColors.warning,
@@ -270,7 +270,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           children: [
                             Text(
                               'Inventory Items',
-                              style: GoogleFonts.hankenGrotesk(
+                              style: GoogleFonts.manrope(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.inkPrimary,
@@ -286,7 +286,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                               ),
                               child: Text(
                                 'VIEW ALL',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.primary,
@@ -305,7 +305,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                             ? Center(
                                 child: Text(
                                   'No products found.',
-                                  style: GoogleFonts.inter(color: AppColors.inkTertiary),
+                                  style: GoogleFonts.manrope(color: AppColors.inkTertiary),
                                 ),
                               )
                             : ListView.separated(
@@ -361,7 +361,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                               children: [
                                                 Text(
                                                   product.name,
-                                                  style: GoogleFonts.hankenGrotesk(
+                                                  style: GoogleFonts.manrope(
                                                     fontSize: 15,
                                                     fontWeight: FontWeight.w600,
                                                     color: AppColors.inkPrimary,
@@ -385,7 +385,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                             children: [
                                               Text(
                                                 '₹${product.sellingPrice.toStringAsFixed(0)}',
-                                                style: GoogleFonts.hankenGrotesk(
+                                                style: GoogleFonts.manrope(
                                                   fontSize: 15,
                                                   fontWeight: FontWeight.w700,
                                                   color: AppColors.inkPrimary,
@@ -400,7 +400,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                                 ),
                                                 child: Text(
                                                   statusLabel,
-                                                  style: GoogleFonts.inter(
+                                                  style: GoogleFonts.manrope(
                                                     fontSize: 10,
                                                     fontWeight: FontWeight.w700,
                                                     color: statusColor,
@@ -425,7 +425,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 },
                 loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
                 error: (error, stack) => Center(
-                  child: Text('Error loading inventory', style: GoogleFonts.inter(color: AppColors.danger)),
+                  child: Text('Error loading inventory', style: GoogleFonts.manrope(color: AppColors.danger)),
                 ),
               ),
               ),
@@ -460,7 +460,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Delete Product?',
-          style: GoogleFonts.hankenGrotesk(
+          style: GoogleFonts.manrope(
             fontWeight: FontWeight.w700,
             color: AppColors.inkPrimary,
             fontSize: 18,
@@ -468,12 +468,12 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         ),
         content: Text(
           'This will permanently remove "${widget.product.name}" from your inventory. This action cannot be undone.',
-          style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkSecondary),
+          style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.inter(color: AppColors.inkSecondary)),
+            child: Text('Cancel', style: GoogleFonts.manrope(color: AppColors.inkSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -483,7 +483,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
               shape: const StadiumBorder(),
               elevation: 0,
             ),
-            child: Text('Delete', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+            child: Text('Delete', style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -500,7 +500,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         Navigator.pop(context); // close sheet
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Product deleted', style: GoogleFonts.inter(color: Colors.white)),
+            content: Text('Product deleted', style: GoogleFonts.manrope(color: Colors.white)),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -512,7 +512,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
         setState(() => _isDeleting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e', style: GoogleFonts.inter(color: Colors.white)),
+            content: Text('Error: $e', style: GoogleFonts.manrope(color: Colors.white)),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -538,7 +538,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: Text(
               'Adjust Stock',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary,
                 fontSize: 18,
@@ -549,7 +549,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
               children: [
                 Text(
                   widget.product.name,
-                  style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkSecondary),
+                  style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 24),
@@ -567,7 +567,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                       children: [
                         Text(
                           '$newStock',
-                          style: GoogleFonts.hankenGrotesk(
+                          style: GoogleFonts.manrope(
                             fontSize: 40,
                             fontWeight: FontWeight.w700,
                             color: AppColors.primary,
@@ -595,7 +595,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                 if (adjustment != 0)
                   Text(
                     '${adjustment > 0 ? "+" : ""}$adjustment from current ($currentStock)',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 12,
                       color: adjustment > 0 ? AppColors.success : AppColors.danger,
                       fontWeight: FontWeight.w500,
@@ -606,7 +606,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(ctx),
-                child: Text('Cancel', style: GoogleFonts.inter(color: AppColors.inkSecondary)),
+                child: Text('Cancel', style: GoogleFonts.manrope(color: AppColors.inkSecondary)),
               ),
               ElevatedButton(
                 onPressed: adjustment == 0
@@ -624,7 +624,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                               SnackBar(
                                 content: Text(
                                   'Stock updated to ${newStockVal.toInt()}',
-                                  style: GoogleFonts.inter(color: AppColors.inkPrimary),
+                                  style: GoogleFonts.manrope(color: AppColors.inkPrimary),
                                 ),
                                 backgroundColor: AppColors.primaryContainer,
                                 behavior: SnackBarBehavior.floating,
@@ -636,7 +636,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                           if (mounted) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text('Error: $e', style: GoogleFonts.inter(color: Colors.white)),
+                                content: Text('Error: $e', style: GoogleFonts.manrope(color: Colors.white)),
                                 backgroundColor: AppColors.danger,
                                 behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -651,7 +651,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                   shape: const StadiumBorder(),
                   elevation: 0,
                 ),
-                child: Text('Apply', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                child: Text('Apply', style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
               ),
             ],
           );
@@ -716,7 +716,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                   children: [
                     Text(
                       p.name,
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: AppColors.inkPrimary,
@@ -738,7 +738,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                 ),
                 child: Text(
                   statusLabel,
-                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor),
+                  style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor),
                 ),
               ),
             ],
@@ -773,7 +773,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                     ).then((_) => ref.invalidate(productsProvider));
                   },
                   icon: const Icon(LucideIcons.pencil, size: 16),
-                  label: Text('Edit', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                  label: Text('Edit', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.primary,
                     side: const BorderSide(color: AppColors.primaryContainer, width: 1.5),
@@ -789,7 +789,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                 child: ElevatedButton.icon(
                   onPressed: _showAdjustStock,
                   icon: const Icon(LucideIcons.layers, size: 16),
-                  label: Text('Adjust Stock', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                  label: Text('Adjust Stock', style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryContainer,
                     foregroundColor: AppColors.inkPrimary,
@@ -847,11 +847,11 @@ class _DetailRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkSecondary),
+            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
           ),
           Text(
             value,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.inkPrimary,

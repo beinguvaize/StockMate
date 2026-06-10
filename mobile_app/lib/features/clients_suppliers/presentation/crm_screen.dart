@@ -19,8 +19,8 @@ import 'package:mobile_app/features/clients_suppliers/presentation/client_settle
 // ─── Avatar colour cycling ────────────────────────────────────────────────────
 Color _avatarColor(String? name) {
   const palette = [
-    Color(0xFF446900),
-    Color(0xFF48654d),
+    Color(0xFFD97706),
+    Color(0xFF92400E),
     Color(0xFF2563EB),
     Color(0xFF7C3AED),
     Color(0xFFB45309),
@@ -144,7 +144,7 @@ class _CRMScreenState extends ConsumerState<CRMScreen>
           animation: _tabController,
           builder: (context2, child2) => Text(
             _tabController.index == 0 ? 'New Client' : 'New Supplier',
-            style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
+            style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13),
           ),
         ),
       ),
@@ -250,7 +250,7 @@ class _CRMHeader extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Clients & Suppliers',
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                         color: Colors.white,
@@ -260,7 +260,7 @@ class _CRMHeader extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Manage your business network',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: Colors.white.withValues(alpha: 0.65),
                       ),
@@ -295,7 +295,7 @@ class _CRMHeader extends StatelessWidget {
                 label: 'RECEIVABLES',
                 value: '₹${_compact(totalReceivables)}',
                 icon: LucideIcons.creditCard,
-                accent: const Color(0xFFa3e635),
+                accent: const Color(0xFFD97706),
               ),
             ],
           ),
@@ -377,7 +377,7 @@ class _StatChip extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               value,
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 15,
                 fontWeight: FontWeight.w900,
                 color: Colors.white,
@@ -390,7 +390,7 @@ class _StatChip extends StatelessWidget {
               const SizedBox(height: 2),
               Text(
                 sub!,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 9,
                   fontWeight: FontWeight.w600,
                   color: Colors.white.withValues(alpha: 0.55),
@@ -421,10 +421,10 @@ class _SearchBar extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
-        style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkPrimary),
+        style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
         decoration: InputDecoration(
           hintText: 'Search by name, phone, email…',
-          hintStyle: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary),
+          hintStyle: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
           prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.inkTertiary),
           suffixIcon: controller.text.isNotEmpty
               ? IconButton(
@@ -473,8 +473,8 @@ class _PillTabBar extends StatelessWidget {
         ),
         labelColor: Colors.white,
         unselectedLabelColor: AppColors.inkTertiary,
-        labelStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 13),
-        unselectedLabelStyle: GoogleFonts.inter(fontWeight: FontWeight.w500, fontSize: 13),
+        labelStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 13),
+        unselectedLabelStyle: GoogleFonts.manrope(fontWeight: FontWeight.w500, fontSize: 13),
         dividerColor: Colors.transparent,
         splashBorderRadius: BorderRadius.circular(10),
         tabs: const [
@@ -530,7 +530,7 @@ class _ClientsTab extends ConsumerWidget {
                     icon: const Icon(LucideIcons.calendarClock, size: 14),
                     label: Text(
                       'Aging Report',
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
@@ -549,7 +549,7 @@ class _ClientsTab extends ConsumerWidget {
                     icon: const Icon(LucideIcons.creditCard, size: 14),
                     label: Text(
                       'Payments',
-                      style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600),
+                      style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600),
                     ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.secondary,
@@ -629,7 +629,7 @@ class _ClientCard extends StatelessWidget {
               child: Center(
                 child: Text(
                   _initials(client.name),
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: avatarColor,
@@ -649,7 +649,7 @@ class _ClientCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           client.name ?? 'Unknown',
-                          style: GoogleFonts.hankenGrotesk(
+                          style: GoogleFonts.manrope(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                             color: AppColors.inkPrimary,
@@ -685,7 +685,7 @@ class _ClientCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           client.phone!,
-                          style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+                          style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
                         ),
                       ],
                     ),
@@ -697,7 +697,7 @@ class _ClientCard extends StatelessWidget {
                         Expanded(
                           child: Text(
                             client.email!,
-                            style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+                            style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -724,7 +724,7 @@ class _ClientCard extends StatelessWidget {
                   ),
                   child: Text(
                     balance == 0 ? 'Clear' : '₹${balance.toStringAsFixed(0)}',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: balance > 0 ? AppColors.danger : AppColors.success,
@@ -830,7 +830,7 @@ class _ClientDetailSheet extends StatelessWidget {
                         child: Center(
                           child: Text(
                             _initials(client.name),
-                            style: GoogleFonts.hankenGrotesk(
+                            style: GoogleFonts.manrope(
                               fontSize: 22,
                               fontWeight: FontWeight.w800,
                               color: avatarColor,
@@ -845,7 +845,7 @@ class _ClientDetailSheet extends StatelessWidget {
                           children: [
                             Text(
                               client.name ?? 'Unknown',
-                              style: GoogleFonts.hankenGrotesk(
+                              style: GoogleFonts.manrope(
                                 fontSize: 20,
                                 fontWeight: FontWeight.w800,
                                 color: AppColors.inkPrimary,
@@ -929,7 +929,7 @@ class _ClientDetailSheet extends StatelessWidget {
                             children: [
                               Text(
                                 'Outstanding Balance',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                     fontSize: 11, color: AppColors.inkTertiary),
                               ),
                               Row(
@@ -937,7 +937,7 @@ class _ClientDetailSheet extends StatelessWidget {
                                 children: [
                                   Text(
                                     _fmtAmount(balance),
-                                    style: GoogleFonts.hankenGrotesk(
+                                    style: GoogleFonts.manrope(
                                       fontSize: 22,
                                       fontWeight: FontWeight.w900,
                                       color: balance > 0 ? AppColors.danger : AppColors.success,
@@ -1003,7 +1003,7 @@ class _ClientDetailSheet extends StatelessWidget {
                                       letterSpacing: 1.2)),
                               const SizedBox(height: 4),
                               Text(_fmtAmount(totalSales),
-                                  style: GoogleFonts.hankenGrotesk(
+                                  style: GoogleFonts.manrope(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w900,
                                       color: AppColors.inkPrimary,
@@ -1025,7 +1025,7 @@ class _ClientDetailSheet extends StatelessWidget {
                                       letterSpacing: 1.2)),
                               const SizedBox(height: 4),
                               Text('$orderCount',
-                                  style: GoogleFonts.hankenGrotesk(
+                                  style: GoogleFonts.manrope(
                                       fontSize: 18,
                                       fontWeight: FontWeight.w900,
                                       color: AppColors.inkPrimary,
@@ -1100,7 +1100,7 @@ class _ClientDetailSheet extends StatelessWidget {
                     const SizedBox(height: 20),
                     Text(
                       'Added ${_formatDate(client.createdAt!)}',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 11,
                         color: AppColors.inkTertiary,
                       ),
@@ -1125,7 +1125,7 @@ class _ClientDetailSheet extends StatelessWidget {
                           icon: const Icon(LucideIcons.bookOpen, size: 15),
                           label: Text(
                             'View Statement',
-                            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                            style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600),
                           ),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.primary,
@@ -1150,7 +1150,7 @@ class _ClientDetailSheet extends StatelessWidget {
                           icon: const Icon(LucideIcons.checkCircle2, size: 15),
                           label: Text(
                             'Settle Account',
-                            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                            style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600),
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppColors.primary,
@@ -1288,7 +1288,7 @@ class _DirectoryHeader extends StatelessWidget {
             child: Center(
               child: Text(
                 letter,
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 13,
                   fontWeight: FontWeight.w800,
                   color: Colors.white,
@@ -1336,7 +1336,7 @@ class _SupplierCard extends StatelessWidget {
               child: Center(
                 child: Text(
                   _initials(supplier.name),
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: avatarColor,
@@ -1353,7 +1353,7 @@ class _SupplierCard extends StatelessWidget {
                 children: [
                   Text(
                     supplier.name ?? 'Unknown',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkPrimary,
@@ -1369,7 +1369,7 @@ class _SupplierCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           supplier.contactPerson!,
-                          style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+                          style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
                         ),
                       ],
                     ),
@@ -1380,7 +1380,7 @@ class _SupplierCard extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           supplier.phone!,
-                          style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+                          style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
                         ),
                       ],
                     ),
@@ -1403,7 +1403,7 @@ class _SupplierCard extends StatelessWidget {
                     ),
                     child: Text(
                       '₹${balance.toStringAsFixed(0)}',
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
                         color: AppColors.warning,
@@ -1413,7 +1413,7 @@ class _SupplierCard extends StatelessWidget {
                 else
                   Text(
                     'Clear',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: AppColors.success,
@@ -1488,7 +1488,7 @@ class _DetailSection extends StatelessWidget {
                             children: [
                               Text(
                                 row.label,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 10,
                                   color: AppColors.inkTertiary,
                                 ),
@@ -1496,7 +1496,7 @@ class _DetailSection extends StatelessWidget {
                               const SizedBox(height: 1),
                               Text(
                                 row.value,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w500,
                                   color: AppColors.inkPrimary,
@@ -1511,7 +1511,7 @@ class _DetailSection extends StatelessWidget {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
                                 content: Text('Copied!',
-                                    style: GoogleFonts.inter(color: AppColors.inkPrimary)),
+                                    style: GoogleFonts.manrope(color: AppColors.inkPrimary)),
                                 backgroundColor: AppColors.primaryContainer,
                                 behavior: SnackBarBehavior.floating,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1608,7 +1608,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             message,
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: AppColors.inkSecondary,
@@ -1617,7 +1617,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'Tap + to add one',
-            style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary),
+            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
           ),
         ],
       ),
@@ -1636,7 +1636,7 @@ class _ErrorState extends StatelessWidget {
         padding: const EdgeInsets.all(24),
         child: Text(
           'Error: $message',
-          style: GoogleFonts.inter(color: AppColors.danger, fontSize: 13),
+          style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 13),
           textAlign: TextAlign.center,
         ),
       ),

@@ -11,6 +11,7 @@ import 'package:mobile_app/core/database/database.dart' hide Client;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:uuid/uuid.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
+import 'package:mobile_app/features/clients_suppliers/presentation/add_client_screen.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/widgets/upi_qr_sheet.dart';
@@ -487,7 +488,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                     children: [
                                       Text(
                                         widget.isVanSale ? 'Van Sale' : 'New Sale',
-                                        style: GoogleFonts.hankenGrotesk(
+                                        style: GoogleFonts.manrope(
                                           fontSize: 24,
                                           fontWeight: FontWeight.w700,
                                           color: AppColors.inkPrimary,
@@ -536,7 +537,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                         const SizedBox(width: 6),
                                         Text(
                                           _selectedClient == null ? 'Walk-in' : (_selectedClient!.name ?? 'Client'),
-                                          style: GoogleFonts.inter(
+                                          style: GoogleFonts.manrope(
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                             color: AppColors.secondary,
@@ -565,7 +566,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                       controller: _searchController,
                                       decoration: InputDecoration(
                                         hintText: 'Search items or scan barcode...',
-                                        hintStyle: GoogleFonts.inter(
+                                        hintStyle: GoogleFonts.manrope(
                                           fontSize: 14,
                                           color: AppColors.inkTertiary,
                                         ),
@@ -622,7 +623,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                       ),
                                       child: Text(
                                         cat,
-                                        style: GoogleFonts.inter(
+                                        style: GoogleFonts.manrope(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w600,
                                           color: isActive
@@ -653,7 +654,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                                 padding: const EdgeInsets.all(40),
                                 child: Text(
                                   'No products found.',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                       color: AppColors.inkTertiary),
                                 ),
                               ),
@@ -725,7 +726,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                               ),
                               Text(
                                 '₹${_subtotal.toStringAsFixed(2)}',
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                   fontSize: 20,
                                   fontWeight: FontWeight.w700,
                                   color: Colors.white,
@@ -747,7 +748,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                               children: [
                                 Text(
                                   'Checkout',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.primary,
@@ -914,7 +915,7 @@ class _ProductCard extends StatelessWidget {
               product.name,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: isOut ? AppColors.inkTertiary : AppColors.inkPrimary,
@@ -969,7 +970,7 @@ class _ProductCard extends StatelessWidget {
               children: [
                 Text(
                   '₹${product.sellingPrice.toStringAsFixed(0)}',
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                     color: AppColors.primary,
@@ -1017,7 +1018,7 @@ class _ProductCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 8),
                           child: Text(
                             '$qty',
-                            style: GoogleFonts.hankenGrotesk(
+                            style: GoogleFonts.manrope(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
                               color: AppColors.primary,
@@ -1170,7 +1171,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                       children: [
                         Text(
                           p.name,
-                          style: GoogleFonts.hankenGrotesk(
+                          style: GoogleFonts.manrope(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
                             color: AppColors.inkPrimary,
@@ -1276,7 +1277,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         inputFormatters: [
                           FilteringTextInputFormatter.digitsOnly,
                         ],
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 48,
                           fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,
@@ -1334,7 +1335,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                   inputFormatters: [
                     FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
                   ],
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkPrimary,
@@ -1352,7 +1353,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                       padding: const EdgeInsets.only(left: 16, right: 8, top: 4),
                       child: Text(
                         '₹',
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
                           color: AppColors.inkSecondary,
@@ -1399,7 +1400,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         padding: const EdgeInsets.only(bottom: 8),
                         child: Text(
                           '₹',
-                          style: GoogleFonts.hankenGrotesk(
+                          style: GoogleFonts.manrope(
                             fontSize: 22,
                             fontWeight: FontWeight.w700,
                             color: AppColors.inkSecondary,
@@ -1409,7 +1410,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                       const SizedBox(width: 2),
                       Text(
                         _total.toStringAsFixed(2),
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 52,
                           fontWeight: FontWeight.w800,
                           color: AppColors.inkPrimary,
@@ -1435,7 +1436,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                   icon: const Icon(LucideIcons.shoppingBag, size: 20),
                   label: Text(
                     'Add to Basket',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 17,
                       fontWeight: FontWeight.w700,
                     ),
@@ -1455,7 +1456,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
               Text(
                 'Tap quantity number on card to reopen this screen',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 11,
                   color: AppColors.inkTertiary,
                 ),
@@ -1620,7 +1621,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       children: [
                         Text(
                           'Checkout',
-                          style: GoogleFonts.hankenGrotesk(
+                          style: GoogleFonts.manrope(
                             fontSize: 24,
                             fontWeight: FontWeight.w700,
                             color: AppColors.inkPrimary,
@@ -1652,7 +1653,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     // ── Basket summary ────────────────────────────
                     Text(
                       'Basket Summary',
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: AppColors.inkPrimary,
@@ -1679,7 +1680,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                     children: [
                                       Text(
                                         '${item.product.name} ×${item.quantity}',
-                                        style: GoogleFonts.inter(
+                                        style: GoogleFonts.manrope(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
                                           color: AppColors.inkPrimary,
@@ -1687,7 +1688,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                       ),
                                       Text(
                                         '₹${item.unitPrice.toStringAsFixed(2)} each',
-                                        style: GoogleFonts.inter(
+                                        style: GoogleFonts.manrope(
                                           fontSize: 12,
                                           color: AppColors.inkTertiary,
                                         ),
@@ -1697,7 +1698,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                 ),
                                 Text(
                                   '₹${item.lineTotal.toStringAsFixed(2)}',
-                                  style: GoogleFonts.hankenGrotesk(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.inkPrimary,
@@ -1732,7 +1733,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     // ── Payment method ────────────────────────────
                     Text(
                       'Payment Method',
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: AppColors.inkPrimary,
@@ -1757,7 +1758,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     if (_paymentMethod != 'CREDIT_SALE') ...[
                       Text(
                         'Amount Received (optional)',
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 14, fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,
                         ),
@@ -1787,7 +1788,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       // Credit sale: cashier may collect a part-payment now.
                       Text(
                         'Part Payment Now (optional)',
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 14, fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,
                         ),
@@ -1820,7 +1821,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     // ── Bill details ──────────────────────────────
                     Text(
                       'Bill Details',
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: AppColors.inkPrimary,
@@ -1852,7 +1853,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             children: [
                               Text(
                                 'Grand Total',
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.inkPrimary,
@@ -1860,7 +1861,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                               ),
                               Text(
                                 '₹${_total.toStringAsFixed(2)}',
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w800,
                                   color: AppColors.primary,
@@ -1898,7 +1899,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             : const Icon(LucideIcons.arrowRight, size: 18),
                         label: Text(
                           _isLoading ? 'Processing...' : 'Complete Transaction',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                           ),
@@ -1941,7 +1942,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
           Icon(isChange ? LucideIcons.coins : LucideIcons.alertCircle,
               size: 16, color: colour),
           const SizedBox(width: 8),
-          Text(label, style: GoogleFonts.inter(
+          Text(label, style: GoogleFonts.manrope(
               fontSize: 12, fontWeight: FontWeight.w700, color: colour)),
           const Spacer(),
           Text('₹${diff.abs().toStringAsFixed(2)}',
@@ -2023,7 +2024,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                 children: [
                   Text(
                     m.label,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: isActive ? AppColors.primary : AppColors.inkPrimary,
@@ -2031,7 +2032,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                   ),
                   Text(
                     m.subtitle,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: isActive
                             ? AppColors.primary.withValues(alpha: 0.7)
@@ -2062,9 +2063,9 @@ Widget _billRow(String label, String value) {
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
       Text(label,
-          style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkSecondary)),
+          style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary)),
       Text(value,
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.inkPrimary)),
@@ -2125,6 +2126,18 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
     }
   }
 
+  Future<void> _openAddClient() async {
+    final before = _clients.map((c) => c.id).toSet();
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const AddClientScreen()),
+    );
+    if (!mounted) return;
+    await _loadClients();
+    // Auto-select the newly created client + close picker.
+    final added = _clients.where((c) => !before.contains(c.id)).toList();
+    if (added.isNotEmpty) widget.onSelected(added.first);
+  }
+
   @override
   void dispose() {
     _search.dispose();
@@ -2159,14 +2172,47 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Select Client',
-                    style: GoogleFonts.hankenGrotesk(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.inkPrimary,
-                      letterSpacing: -0.3,
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Select Client',
+                          style: GoogleFonts.manrope(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.inkPrimary,
+                            letterSpacing: -0.3,
+                          ),
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: _openAddClient,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(LucideIcons.userPlus,
+                                  size: 15, color: Colors.white),
+                              const SizedBox(width: 6),
+                              Text(
+                                'New',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Container(
@@ -2179,7 +2225,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                       controller: _search,
                       decoration: InputDecoration(
                         hintText: 'Search by name or phone...',
-                        hintStyle: GoogleFonts.inter(
+                        hintStyle: GoogleFonts.manrope(
                           fontSize: 13,
                           color: AppColors.inkTertiary,
                         ),
@@ -2239,7 +2285,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                       children: [
                                         Text(
                                           'Walk-in Customer',
-                                          style: GoogleFonts.inter(
+                                          style: GoogleFonts.manrope(
                                             fontWeight: FontWeight.w600,
                                             fontSize: 14,
                                             color: AppColors.inkPrimary,
@@ -2247,7 +2293,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                         ),
                                         Text(
                                           'No credit option',
-                                          style: GoogleFonts.inter(
+                                          style: GoogleFonts.manrope(
                                             fontSize: 11,
                                             color: AppColors.inkTertiary,
                                           ),
@@ -2320,7 +2366,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                     children: [
                                       Text(
                                         client.name ?? 'Unknown',
-                                        style: GoogleFonts.inter(
+                                        style: GoogleFonts.manrope(
                                           fontWeight: FontWeight.w600,
                                           fontSize: 14,
                                           color: AppColors.inkPrimary,
@@ -2329,7 +2375,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
                                       if (client.phone != null)
                                         Text(
                                           client.phone!,
-                                          style: GoogleFonts.inter(
+                                          style: GoogleFonts.manrope(
                                             fontSize: 11,
                                             color: AppColors.inkTertiary,
                                           ),
@@ -2385,7 +2431,7 @@ class _BarcodeScannerScreen extends StatelessWidget {
         backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         title: Text('Scan Barcode',
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
                 color: Colors.white, fontWeight: FontWeight.w700)),
       ),
       body: MobileScanner(

@@ -32,7 +32,7 @@ class SimpleBarChart extends StatelessWidget {
         child: Center(
           child: Text(
             'No data',
-            style: GoogleFonts.inter(color: AppColors.inkSecondary, fontSize: 12),
+            style: GoogleFonts.manrope(color: AppColors.inkSecondary, fontSize: 12),
           ),
         ),
       );
@@ -55,7 +55,7 @@ class SimpleBarChart extends StatelessWidget {
                   child: Text(
                     bar.label,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 10,
                       color: AppColors.inkSecondary,
                     ),

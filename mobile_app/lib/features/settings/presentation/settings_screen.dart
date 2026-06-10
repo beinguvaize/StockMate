@@ -42,7 +42,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               SnackBar(
                 content: Text(
                   'Business profile updated.',
-                  style: GoogleFonts.inter(fontSize: 14, color: Colors.white),
+                  style: GoogleFonts.manrope(fontSize: 14, color: Colors.white),
                 ),
                 backgroundColor: AppColors.success,
                 behavior: SnackBarBehavior.floating,
@@ -69,7 +69,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           children: [
             Text(
               'Settings',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
                 letterSpacing: -0.5,
@@ -103,7 +103,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   if (profile == null) {
                     return Text(
                       'No profile found.',
-                      style: GoogleFonts.inter(color: AppColors.inkTertiary),
+                      style: GoogleFonts.manrope(color: AppColors.inkTertiary),
                     );
                   }
                   return Container(
@@ -154,7 +154,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         const SizedBox(height: 12),
                         Text(
                           profile.name ?? 'Company Name',
-                          style: GoogleFonts.hankenGrotesk(
+                          style: GoogleFonts.manrope(
                             fontSize: 20,
                             fontWeight: FontWeight.w700,
                             color: AppColors.inkPrimary,
@@ -164,12 +164,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         if (profile.email != null)
                           Text(
                             profile.email!,
-                            style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary),
+                            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                           ),
                         if (profile.phone != null)
                           Text(
                             profile.phone!,
-                            style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary),
+                            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
                           ),
                         const SizedBox(height: 20),
                         const Divider(color: AppColors.outlineVariant, height: 1),
@@ -184,7 +184,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                error: (e, _) => Text('Error: $e', style: GoogleFonts.inter(color: AppColors.danger)),
+                error: (e, _) => Text('Error: $e', style: GoogleFonts.manrope(color: AppColors.danger)),
               ),
 
               const SizedBox(height: 24),
@@ -414,7 +414,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   Expanded(
                                     child: Text(
                                       'Tax Mode',
-                                      style: GoogleFonts.hankenGrotesk(
+                                      style: GoogleFonts.manrope(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w600,
                                         color: AppColors.inkPrimary,
@@ -451,7 +451,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   return Center(
                     child: Text(
                       label,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: AppColors.inkTertiary,
                         fontWeight: FontWeight.w600,
@@ -477,7 +477,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       borderRadius: BorderRadius.circular(16),
                       side: const BorderSide(color: AppColors.primary),
                     ),
-                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+                    textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 15),
                   ),
                 ),
               ),
@@ -496,7 +496,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       borderRadius: BorderRadius.circular(16),
                       side: const BorderSide(color: AppColors.danger),
                     ),
-                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+                    textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 15),
                   ),
                   child: const Text('Sign Out'),
                 ),
@@ -596,7 +596,7 @@ class _EditBusinessProfileSheetState extends ConsumerState<_EditBusinessProfileS
           SnackBar(
             content: Text(
               'Failed to save: $e',
-              style: GoogleFonts.inter(fontSize: 13, color: Colors.white),
+              style: GoogleFonts.manrope(fontSize: 13, color: Colors.white),
             ),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
@@ -654,7 +654,7 @@ class _EditBusinessProfileSheetState extends ConsumerState<_EditBusinessProfileS
                   const SizedBox(width: 12),
                   Text(
                     'Edit Business Profile',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkPrimary,
@@ -697,7 +697,7 @@ class _EditBusinessProfileSheetState extends ConsumerState<_EditBusinessProfileS
                     disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+                    textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 15),
                   ),
                   child: _isSaving
                       ? const SizedBox(
@@ -745,7 +745,7 @@ class _FormField extends StatelessWidget {
         RichText(
           text: TextSpan(
             text: label,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 12,
               fontWeight: FontWeight.w600,
               color: AppColors.inkSecondary,
@@ -755,7 +755,7 @@ class _FormField extends StatelessWidget {
                 ? [
                     TextSpan(
                       text: ' *',
-                      style: GoogleFonts.inter(color: AppColors.danger),
+                      style: GoogleFonts.manrope(color: AppColors.danger),
                     ),
                   ]
                 : [],
@@ -766,10 +766,10 @@ class _FormField extends StatelessWidget {
           controller: controller,
           maxLines: maxLines,
           keyboardType: keyboardType,
-          style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkPrimary),
+          style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.inkTertiary),
+            hintStyle: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkTertiary),
             filled: true,
             fillColor: Colors.white,
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -818,14 +818,14 @@ class _ProfileRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary)),
+        Text(label, style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
         const SizedBox(width: 12),
         Expanded(
           child: Text(
             value,
             textAlign: TextAlign.right,
             softWrap: true,
-            style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkPrimary),
+            style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.inkPrimary),
           ),
         ),
       ],
@@ -919,7 +919,7 @@ class _SettingRow extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.inkPrimary,
@@ -928,7 +928,7 @@ class _SettingRow extends StatelessWidget {
                 if (subtitle != null)
                   Text(
                     subtitle!,
-                    style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkTertiary),
+                    style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
                   ),
               ],
             ),

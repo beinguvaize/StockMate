@@ -69,7 +69,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Vehicle name and plate number required',
-              style: GoogleFonts.inter(color: Colors.white)),
+              style: GoogleFonts.manrope(color: Colors.white)),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
           shape:
@@ -104,7 +104,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
           SnackBar(
             content: Text(
               _isEditing ? 'Vehicle updated' : 'Vehicle added to fleet',
-              style: GoogleFonts.inter(color: AppColors.inkPrimary),
+              style: GoogleFonts.manrope(color: AppColors.inkPrimary),
             ),
             backgroundColor: AppColors.primaryContainer,
             behavior: SnackBarBehavior.floating,
@@ -118,7 +118,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e',
-                style: GoogleFonts.inter(color: Colors.white)),
+                style: GoogleFonts.manrope(color: Colors.white)),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
             shape:
@@ -149,7 +149,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
           children: [
             Text(
               _isEditing ? 'Edit Vehicle' : 'Add Vehicle',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 color: AppColors.inkPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -270,7 +270,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
                           const SizedBox(width: 12),
                           Text(
                             label,
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               color: selected ? color : AppColors.inkSecondary,
                               fontSize: 14,
                               fontWeight: selected
@@ -362,7 +362,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
         controller: controller,
         keyboardType: keyboardType ?? TextInputType.text,
         textCapitalization: textCapitalization,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 14,
           color: AppColors.inkPrimary,
           fontWeight: FontWeight.w500,
@@ -373,7 +373,7 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           hintText: hint,
-          hintStyle: GoogleFonts.inter(
+          hintStyle: GoogleFonts.manrope(
             color: AppColors.inkSecondary.withValues(alpha: 0.5),
             fontSize: 14,
           ),

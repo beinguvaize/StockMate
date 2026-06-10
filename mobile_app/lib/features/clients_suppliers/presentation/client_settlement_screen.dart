@@ -163,7 +163,7 @@ class _ClientSettlementScreenState
           SnackBar(
             content: Text(
               '₹${amt.toStringAsFixed(2)} payment recorded',
-              style: GoogleFonts.inter(color: AppColors.inkPrimary),
+              style: GoogleFonts.manrope(color: AppColors.inkPrimary),
             ),
             backgroundColor: AppColors.primaryContainer,
             behavior: SnackBarBehavior.floating,
@@ -211,7 +211,7 @@ class _ClientSettlementScreenState
           children: [
             Text(
               'Settle Account',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 color: AppColors.inkPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -269,7 +269,7 @@ class _ClientSettlementScreenState
                         Expanded(
                           child: Text(
                             _formatDate(_date),
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: AppColors.inkPrimary,
@@ -298,7 +298,7 @@ class _ClientSettlementScreenState
                     controller: _amountController,
                     keyboardType: const TextInputType.numberWithOptions(
                         decimal: true),
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: AppColors.inkPrimary,
@@ -308,13 +308,13 @@ class _ClientSettlementScreenState
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 12),
                       prefixText: '₹ ',
-                      prefixStyle: GoogleFonts.inter(
+                      prefixStyle: GoogleFonts.manrope(
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         color: AppColors.primary,
                       ),
                       hintText: '0.00',
-                      hintStyle: GoogleFonts.inter(
+                      hintStyle: GoogleFonts.manrope(
                         color: AppColors.inkTertiary,
                         fontSize: 13,
                       ),
@@ -339,7 +339,7 @@ class _ClientSettlementScreenState
                       ),
                       child: Text(
                         'Fill full outstanding (₹${outstanding.toStringAsFixed(2)})',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 11,
                           color: AppColors.primary,
                           fontWeight: FontWeight.w600,
@@ -373,7 +373,7 @@ class _ClientSettlementScreenState
                   child: TextField(
                     controller: _notesController,
                     maxLines: 2,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: AppColors.inkPrimary,
@@ -383,7 +383,7 @@ class _ClientSettlementScreenState
                       contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 12),
                       hintText: 'Notes (optional)',
-                      hintStyle: GoogleFonts.inter(
+                      hintStyle: GoogleFonts.manrope(
                         color: AppColors.inkTertiary,
                         fontSize: 13,
                       ),
@@ -448,7 +448,7 @@ class _ClientSettlementScreenState
                             children: [
                               Text(
                                 '${unpaid.length} unpaid invoice${unpaid.length == 1 ? '' : 's'}',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 12,
                                   color: AppColors.inkTertiary,
                                 ),
@@ -474,7 +474,7 @@ class _ClientSettlementScreenState
                                 ),
                                 child: Text(
                                   allSelected ? 'Deselect All' : 'Select All',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 12,
                                     color: AppColors.primary,
                                     fontWeight: FontWeight.w600,
@@ -516,14 +516,14 @@ class _ClientSettlementScreenState
                               inv.dueDate != null
                                   ? 'Due ${_formatDate(inv.dueDate!)}'
                                   : 'No due date',
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                 fontSize: 11,
                                 color: AppColors.inkTertiary,
                               ),
                             ),
                             secondary: Text(
                               '₹${inv.outstanding.toStringAsFixed(2)}',
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.danger,
@@ -551,7 +551,7 @@ class _ClientSettlementScreenState
                                   'Selected: ${_selectedInvoiceIds.length} '
                                   'invoice${_selectedInvoiceIds.length == 1 ? '' : 's'} '
                                   '· ₹${selTotal.toStringAsFixed(2)}',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: AppColors.inkSecondary,
@@ -675,7 +675,7 @@ class _ClientSummaryCard extends StatelessWidget {
               children: [
                 Text(
                   client.name ?? 'Unknown Client',
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkPrimary,
@@ -684,7 +684,7 @@ class _ClientSummaryCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '$unpaidCount unpaid invoice${unpaidCount == 1 ? '' : 's'}',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 12,
                     color: AppColors.inkTertiary,
                   ),
@@ -698,7 +698,7 @@ class _ClientSummaryCard extends StatelessWidget {
             children: [
               Text(
                 '₹${outstanding.toStringAsFixed(2)}',
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   color: outstanding > 0 ? AppColors.danger : AppColors.success,
@@ -706,7 +706,7 @@ class _ClientSummaryCard extends StatelessWidget {
               ),
               Text(
                 'outstanding',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 10,
                   color: AppColors.inkTertiary,
                 ),

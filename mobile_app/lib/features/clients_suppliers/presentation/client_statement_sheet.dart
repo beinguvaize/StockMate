@@ -307,7 +307,7 @@ class _HeaderSection extends StatelessWidget {
                 children: [
                   Text(
                     'Account Statement',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 22,
                       fontWeight: FontWeight.w800,
                       color: AppColors.inkPrimary,
@@ -317,7 +317,7 @@ class _HeaderSection extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     'Generated: ${_todayFormatted()}',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 12,
                       color: AppColors.inkTertiary,
                     ),
@@ -352,7 +352,7 @@ class _HeaderSection extends StatelessWidget {
               child: Center(
                 child: Text(
                   inits,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: color,
@@ -367,7 +367,7 @@ class _HeaderSection extends StatelessWidget {
                 children: [
                   Text(
                     client.name ?? 'Unknown',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkPrimary,
@@ -383,7 +383,7 @@ class _HeaderSection extends StatelessWidget {
                         const SizedBox(width: 4),
                         Text(
                           client.phone!,
-                          style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+                          style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
                         ),
                       ],
                     ),
@@ -397,7 +397,7 @@ class _HeaderSection extends StatelessWidget {
                         Expanded(
                           child: Text(
                             client.email!,
-                            style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+                            style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -462,7 +462,7 @@ class _KpiTile extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               value,
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w900,
                 color: valueColor,
@@ -522,7 +522,7 @@ class _LedgerCard extends StatelessWidget {
           // Middle line: description
           Text(
             row.description,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.inkPrimary,
@@ -547,7 +547,7 @@ class _LedgerCard extends StatelessWidget {
               if (isDebit && row.debit > 0) ...[
                 Text(
                   'Dr ${_fmtRupee(row.debit)}',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: AppColors.danger,
@@ -558,7 +558,7 @@ class _LedgerCard extends StatelessWidget {
               if (!isDebit && row.credit > 0) ...[
                 Text(
                   'Cr ${_fmtRupee(row.credit)}',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
                     color: AppColors.success,
@@ -662,7 +662,7 @@ class _EmptyLedger extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             'No transaction history for this client.',
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 15,
               fontWeight: FontWeight.w600,
               color: AppColors.inkSecondary,
@@ -672,7 +672,7 @@ class _EmptyLedger extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'Credit sales, invoices and payments will appear here.',
-            style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+            style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
             textAlign: TextAlign.center,
           ),
         ],
@@ -698,7 +698,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               'Failed to load statement',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary,
@@ -707,7 +707,7 @@ class _ErrorView extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               message,
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkTertiary),
+              style: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkTertiary),
               textAlign: TextAlign.center,
             ),
           ],
