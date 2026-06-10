@@ -342,8 +342,9 @@ const PrintPanel = ({ tenantId }) => {
             <div className="grid lg:grid-cols-[1fr_230px] gap-4">
               {/* live preview */}
               <div className="bg-gray-100 rounded-md p-4 overflow-auto">
-                <div style={{ width: 794 * 0.55, height: 1123 * 0.55, overflow: 'hidden' }} className="mx-auto">
-                  <div style={{ transform: 'scale(0.55)', transformOrigin: 'top left', width: 794 }}>
+                <div style={{ width: 794 * 0.55 }} className="mx-auto">
+                  {/* zoom (not transform) so the wrapper's layout height shrinks with the content */}
+                  <div style={{ zoom: 0.55, width: 794 }}>
                     <InvoiceTemplate
                       key={`${prefs.invoiceTemplate}-${prefs.invAccent}-${JSON.stringify(prefs.docTexts)}-${JSON.stringify(prefs.invOpts)}-${JSON.stringify(prefs.customFields)}`}
                       previewMode editable
