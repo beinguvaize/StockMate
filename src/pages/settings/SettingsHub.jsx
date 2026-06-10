@@ -191,11 +191,19 @@ const PrintPanel = ({ tenantId }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [businessProfile?.bill_settings]);
   const key = `print_settings_${tenantId || 'default'}`;
+  const PREF_BASE = { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', receiptTemplate: 'classic', docTexts: {}, invOpts: {}, invAccent: '#0f172a', customFields: [] };
   const [prefs, setPrefs] = useState(() => {
-    const base = { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', receiptTemplate: 'classic', docTexts: {}, invOpts: {}, invAccent: '#0f172a', customFields: [] };
-    try { return { ...base, ...(JSON.parse(localStorage.getItem(key)) || {}) }; }
-    catch { return base; }
+    // Tenant-level settings (DB) are the source of truth; localStorage only
+    // bridges saves made before print_settings moved server-side.
+    try { return { ...PREF_BASE, ...(JSON.parse(localStorage.getItem(key)) || {}) }; }
+    catch { return PREF_BASE; }
   });
+  useEffect(() => {
+    if (businessProfile?.print_settings && typeof businessProfile.print_settings === 'object') {
+      setPrefs(prev => ({ ...PREF_BASE, ...prev, ...businessProfile.print_settings }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessProfile?.print_settings]);
   const [saved, setSaved] = useState(false);
   const [docTab, setDocTab] = useState('receipt');
   const [sigBusy, setSigBusy] = useState(false);
@@ -213,8 +221,14 @@ const PrintPanel = ({ tenantId }) => {
     setSigBusy(false);
   };
   const save = async () => {
-    localStorage.setItem(key, JSON.stringify(prefs));
-    try { await updateBusinessProfile?.({ bill_settings: { ...(businessProfile?.bill_settings || {}), ...billSet } }); } catch { /* local prefs still saved */ }
+    localStorage.setItem(key, JSON.stringify(prefs)); // same-browser cache
+    try {
+      // Tenant-level: every device + the mobile app print with these settings.
+      await updateBusinessProfile?.({
+        print_settings: prefs,
+        bill_settings: { ...(businessProfile?.bill_settings || {}), ...billSet },
+      });
+    } catch { /* local cache still saved */ }
     setSaved(true); setTimeout(() => setSaved(false), 1500);
   };
   const onEditText = (k, v) =>
