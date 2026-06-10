@@ -10,6 +10,28 @@ import { supabase } from '../../lib/supabase';
 import { PLANS } from '../../lib/tenancy';
 import Settings from '../Settings';
 import Users from '../Users';
+import CashBillPrint from '../sales/components/CashBillPrint';
+import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
+
+// Sample documents for the print previews — exact production components.
+const SAMPLE_SALE = {
+  id: 'SALE-2026-001042', date: new Date().toISOString(), paymentMethod: 'CASH',
+  totalAmount: 405,
+  items: [
+    { name: 'Basmati Rice 5kg', quantity: 2, price: 80 },
+    { name: 'Sunflower Oil 1L', quantity: 1, price: 245 },
+  ],
+};
+const SAMPLE_INVOICE = {
+  invoice_no: 'INV-1042', date: new Date().toISOString(), client_name: 'Sample Client',
+  is_interstate: false, taxable_amount: 0, tax_total: 0, grand_total: 0, paid_amount: 0,
+  items: [
+    { name: 'Basmati Rice 5kg', hsn_code: '1006', qty: 2, rate: 80,  taxRate: 5,  unit: 'PCS' },
+    { name: 'Sunflower Oil 1L', hsn_code: '1512', qty: 1, rate: 245, taxRate: 5,  unit: 'PCS' },
+    { name: 'Detergent 2kg',    hsn_code: '3402', qty: 3, rate: 120, taxRate: 18, unit: 'PCS' },
+  ],
+};
+const SAMPLE_CLIENT = { name: 'Sample Client', address: '12 MG Road, Bengaluru', contact: '98765 43210', state: 'Karnataka' };
 
 // Settings hub — corporate-SaaS layout: grouped left rail + card panels with
 // header / body / footer structure and label-left form rows.
@@ -155,6 +177,7 @@ const AccountPanel = () => {
 
 // ── Printing ─────────────────────────────────────────────────────────────────
 const PrintPanel = ({ tenantId }) => {
+  const { businessProfile } = useTenant();
   const key = `print_settings_${tenantId || 'default'}`;
   const [prefs, setPrefs] = useState(() => {
     try { return { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', ...(JSON.parse(localStorage.getItem(key)) || {}) }; }
@@ -196,21 +219,15 @@ const PrintPanel = ({ tenantId }) => {
         <FormRow label="Auto-print" hint="Open the print dialog automatically after each sale.">
           <Toggle checked={prefs.autoPrint} onChange={v => setPrefs({ ...prefs, autoPrint: v })} />
         </FormRow>
-        <FormRow label="Sample" hint="Live preview at the selected width.">
-          <div className="bg-gray-100 rounded-md p-4 inline-block">
-            <div className="bg-white shadow-sm font-mono text-gray-900 px-3 py-3 mx-auto"
-              style={{ width: prefs.paper === '58' ? 150 : 210, fontSize: prefs.paper === '58' ? 8 : 9.5, lineHeight: 1.5 }}>
-              <div className="text-center font-bold uppercase">Business Name</div>
-              <div className="text-center" style={{ fontSize: '0.85em' }}>123 Market Road · Tel: 98765 43210</div>
-              <div className="border-t border-dashed border-gray-400 my-1.5" />
-              <div className="flex justify-between"><span>Bill #1042</span><span>10/06/26</span></div>
-              <div className="border-t border-dashed border-gray-400 my-1.5" />
-              <div className="flex justify-between"><span>Item 1 × 2</span><span>₹160.00</span></div>
-              <div className="flex justify-between"><span>Item 2 × 1</span><span>₹245.00</span></div>
-              <div className="border-t border-dashed border-gray-400 my-1.5" />
-              <div className="flex justify-between font-bold"><span>TOTAL</span><span>₹405.00</span></div>
-              <div className="text-center mt-1.5" style={{ fontSize: '0.85em' }}>Thank you! Visit again.</div>
-            </div>
+        <FormRow label="Sample" hint="Exact receipt at the selected width.">
+          <div className="bg-gray-100 rounded-md p-4 inline-block max-w-full overflow-auto">
+            <CashBillPrint
+              key={prefs.paper}
+              previewMode
+              paperOverride={prefs.paper === '58' ? '58' : '80'}
+              sale={SAMPLE_SALE}
+              business={{ name: businessProfile?.name || 'Your Business', address: businessProfile?.address, phone: businessProfile?.phone }}
+            />
           </div>
         </FormRow>
       </Card>
@@ -249,6 +266,25 @@ const PrintPanel = ({ tenantId }) => {
               <div className="text-[12px] font-medium text-gray-700 text-center mt-1.5">{label}</div>
             </button>
           ))}
+        </div>
+
+        <div className="mt-5">
+          <div className="text-[12px] font-medium text-gray-500 mb-2">Exact preview — {prefs.invoiceTemplate}</div>
+          <div className="bg-gray-100 rounded-md p-4 overflow-auto">
+            <div style={{ width: 794 * 0.55, height: 1123 * 0.55, overflow: 'hidden' }} className="mx-auto">
+              <div style={{ transform: 'scale(0.55)', transformOrigin: 'top left', width: 794 }}>
+                <InvoiceTemplate
+                  key={prefs.invoiceTemplate}
+                  previewMode
+                  themeOverride={prefs.invoiceTemplate}
+                  invoice={SAMPLE_INVOICE}
+                  businessProfile={businessProfile || { name: 'Your Business' }}
+                  client={SAMPLE_CLIENT}
+                  onClose={() => {}} onPrint={() => {}} onShare={() => {}}
+                />
+              </div>
+            </div>
+          </div>
         </div>
       </Card>
 

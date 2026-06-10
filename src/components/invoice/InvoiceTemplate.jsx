@@ -22,7 +22,7 @@ const Totals = ({ k, v, bold }) => (
   </div>
 );
 
-const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode }) => {
+const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null }) => {
   const [zoom, setZoom] = useState(100);
 
   // Inject print isolation CSS into <head> so it's guaranteed to apply
@@ -84,8 +84,8 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
       const tid = safeBusiness.tenant_id || 'default';
       const prefs = JSON.parse(localStorage.getItem(`print_settings_${tid}`))
         || JSON.parse(localStorage.getItem('print_settings_default'));
-      return prefs?.invoiceTemplate || 'classic';
-    } catch { return 'classic'; }
+      return themeOverride || prefs?.invoiceTemplate || 'classic';
+    } catch { return themeOverride || 'classic'; }
   })();
 
   // Calculate row counts for filling up to 8 rows
@@ -145,8 +145,11 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
 
   const emptyRowsNeeded = Math.max(0, minRows - items.length);
 
-  return createPortal(
-    <div id="invoice-template-portal" className="fixed inset-0 z-[60] flex flex-col items-center bg-slate-900/90 backdrop-blur-2xl overflow-hidden animate-fade-in print:bg-white print:p-0">
+  const tree = (
+    <div id={previewMode ? undefined : 'invoice-template-portal'}
+      className={previewMode
+        ? 'relative w-full flex flex-col items-center bg-transparent overflow-hidden'
+        : 'fixed inset-0 z-[60] flex flex-col items-center bg-slate-900/90 backdrop-blur-2xl overflow-hidden animate-fade-in print:bg-white print:p-0'}>
       <style dangerouslySetInnerHTML={{ __html: `
         .inv-theme-modern  { --inv: #2563EB; }
         .inv-theme-emerald { --inv: #0F766E; }
@@ -162,6 +165,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
       ` }} />
       
       {/* Action Bar - Hidden in Print */}
+      {!previewMode && (
       <div className="print-hidden w-full h-16 flex items-center justify-between px-6 bg-white/5 border-b border-white/10 print:hidden">
         <div className="flex items-center gap-4">
           <button 
@@ -212,9 +216,12 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
           </button>
         </div>
       </div>
+      )}
 
       {/* Invoice Container */}
-      <div className="flex-1 w-full overflow-y-auto p-12 flex justify-center print:p-0 print:overflow-visible no-scrollbar">
+      <div className={previewMode
+        ? 'w-full flex justify-center overflow-hidden'
+        : 'flex-1 w-full overflow-y-auto p-12 flex justify-center print:p-0 print:overflow-visible no-scrollbar'}>
         <div 
           id="invoice-print-area"
           style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
@@ -608,9 +615,9 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
           scrollbar-width: none;
         }
       `}</style>
-    </div>,
-    document.body
+    </div>
   );
+  return previewMode ? tree : createPortal(tree, document.body);
 };
 
 export default InvoiceTemplate;
