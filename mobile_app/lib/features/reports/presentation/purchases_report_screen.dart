@@ -91,7 +91,7 @@ class _PurchasesView extends ConsumerWidget {
         titleSpacing: 16,
         title: Text(
           'Purchases',
-          style: GoogleFonts.hankenGrotesk(
+          style: GoogleFonts.manrope(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.inkPrimary,
@@ -108,7 +108,7 @@ class _PurchasesView extends ConsumerWidget {
           child: Text(
             'Failed to load purchases\n$e',
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(color: AppColors.danger, fontSize: 13),
+            style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 13),
           ),
         ),
         data: (purchases) => _PurchasesBody(purchases: purchases),
@@ -188,7 +188,7 @@ class _PurchasesBody extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'No purchases in this period',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: AppColors.inkSecondary,
@@ -333,7 +333,7 @@ class _SupplierCard extends StatelessWidget {
               children: [
                 Text(
                   supplier,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.inkPrimary,
@@ -342,7 +342,7 @@ class _SupplierCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '$count order${count == 1 ? '' : 's'} · avg ${compactINR(avg)}',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 11,
                     color: AppColors.inkSecondary,
                   ),
@@ -352,7 +352,7 @@ class _SupplierCard extends StatelessWidget {
           ),
           Text(
             compactINR(amount),
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: const Color(0xFF2563EB),
@@ -408,7 +408,7 @@ class _PurchaseItem extends StatelessWidget {
               const Spacer(),
               Text(
                 compactINR(amount),
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFF2563EB),
@@ -419,7 +419,7 @@ class _PurchaseItem extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             supplier,
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w600,
               color: AppColors.inkPrimary,
@@ -432,7 +432,7 @@ class _PurchaseItem extends StatelessWidget {
             children: [
               Text(
                 'Qty: ${qty.toStringAsFixed(0)}${notes.isNotEmpty ? '  ·  $notes' : ''}',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 12,
                   color: AppColors.inkSecondary,
                 ),

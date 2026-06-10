@@ -283,7 +283,7 @@ class ClientAgingScreen extends ConsumerWidget {
         children: [
           Text(
             'Aging Report',
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 18,
               fontWeight: FontWeight.w800,
               color: AppColors.inkPrimary,
@@ -292,7 +292,7 @@ class ClientAgingScreen extends ConsumerWidget {
           ),
           Text(
             'Outstanding credit balances by age',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 11,
               color: AppColors.inkTertiary,
             ),
@@ -367,7 +367,7 @@ class _KpiCard extends StatelessWidget {
             children: [
               Text(
                 compactAmount(amount),
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 17,
                   fontWeight: FontWeight.w900,
                   color: color,
@@ -379,7 +379,7 @@ class _KpiCard extends StatelessWidget {
               const SizedBox(height: 1),
               Text(
                 '$count account${count == 1 ? '' : 's'}',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 10,
                   color: AppColors.inkTertiary,
                   fontWeight: FontWeight.w500,
@@ -437,7 +437,7 @@ class _ClientAgingCard extends StatelessWidget {
                   child: Center(
                     child: Text(
                       initials(client.name),
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: aColor,
@@ -455,7 +455,7 @@ class _ClientAgingCard extends StatelessWidget {
                     children: [
                       Text(
                         client.name ?? 'Unknown',
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,
@@ -471,7 +471,7 @@ class _ClientAgingCard extends StatelessWidget {
                             const SizedBox(width: 3),
                             Text(
                               client.phone!,
-                              style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkTertiary),
+                              style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
                             ),
                           ],
                         )
@@ -483,7 +483,7 @@ class _ClientAgingCard extends StatelessWidget {
                             Expanded(
                               child: Text(
                                 client.email!,
-                                style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkTertiary),
+                                style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
@@ -509,7 +509,7 @@ class _ClientAgingCard extends StatelessWidget {
                       ),
                       child: Text(
                         compactAmount(buckets.total),
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 13,
                           fontWeight: FontWeight.w800,
                           color: AppColors.danger,
@@ -519,7 +519,7 @@ class _ClientAgingCard extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       'Total Owed',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 9,
                         color: AppColors.inkTertiary,
                         fontWeight: FontWeight.w500,
@@ -576,7 +576,7 @@ class _ClientAgingCard extends StatelessWidget {
               children: [
                 Text(
                   'View settlement',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 10,
                     color: AppColors.primary,
                     fontWeight: FontWeight.w600,
@@ -635,7 +635,7 @@ class _BucketCell extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             hasAmount ? compactAmount(amount) : '—',
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 12,
               fontWeight: hasAmount ? FontWeight.w800 : FontWeight.w500,
               color: hasAmount ? color : AppColors.inkTertiary,
@@ -675,7 +675,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 20),
             Text(
               'All accounts are current.',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary,
@@ -685,7 +685,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               'No outstanding balances.',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 13,
                 color: AppColors.inkTertiary,
               ),

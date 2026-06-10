@@ -98,7 +98,7 @@ class _ClientPaymentsScreenState extends ConsumerState<ClientPaymentsScreen> {
         ),
         title: Text(
           'Payment History',
-          style: GoogleFonts.hankenGrotesk(
+          style: GoogleFonts.manrope(
             fontSize: 18,
             fontWeight: FontWeight.w800,
             color: AppColors.inkPrimary,
@@ -119,7 +119,7 @@ class _ClientPaymentsScreenState extends ConsumerState<ClientPaymentsScreen> {
             padding: const EdgeInsets.all(24),
             child: Text(
               'Error: $e',
-              style: GoogleFonts.inter(color: AppColors.danger, fontSize: 13),
+              style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 13),
               textAlign: TextAlign.center,
             ),
           ),
@@ -290,7 +290,7 @@ class _KpiTile extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               value,
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
                 color: AppColors.inkPrimary,
@@ -321,10 +321,10 @@ class _SearchBar extends StatelessWidget {
       ),
       child: TextField(
         controller: controller,
-        style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkPrimary),
+        style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
         decoration: InputDecoration(
           hintText: 'Search by client name or notes…',
-          hintStyle: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary),
+          hintStyle: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
           prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.inkTertiary),
           suffixIcon: controller.text.isNotEmpty
               ? IconButton(
@@ -378,7 +378,7 @@ class _PaymentCard extends StatelessWidget {
             child: Center(
               child: Text(
                 initials(row.clientName),
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
                   color: color,
@@ -396,7 +396,7 @@ class _PaymentCard extends StatelessWidget {
               children: [
                 Text(
                   row.clientName,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkPrimary,
@@ -408,7 +408,7 @@ class _PaymentCard extends StatelessWidget {
                 if (p.notes != null && p.notes!.trim().isNotEmpty) ...[
                   Text(
                     p.notes!,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 12,
                       color: AppColors.inkTertiary,
                     ),
@@ -423,7 +423,7 @@ class _PaymentCard extends StatelessWidget {
                     const SizedBox(width: 4),
                     Text(
                       _formatDate(p.date),
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: AppColors.inkTertiary,
                       ),
@@ -442,7 +442,7 @@ class _PaymentCard extends StatelessWidget {
             children: [
               Text(
                 '₹${p.amount.toStringAsFixed(p.amount % 1 == 0 ? 0 : 2)}',
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                   color: const Color(0xFF059669),
@@ -497,7 +497,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 16),
           Text(
             message,
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: AppColors.inkSecondary,
@@ -507,7 +507,7 @@ class _EmptyState extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'Payments will appear here once recorded',
-            style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary),
+            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary),
           ),
         ],
       ),

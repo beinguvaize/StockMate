@@ -137,7 +137,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
           ),
           error: (err, _) => Center(
             child: Text('Error: $err',
-                style: GoogleFonts.inter(color: AppColors.danger)),
+                style: GoogleFonts.manrope(color: AppColors.danger)),
           ),
           data: (all) {
             final rows = all.where(_inWindow).toList();
@@ -561,7 +561,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
               )),
           const SizedBox(height: 4),
           Text('Tap + to log one',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                   fontSize: 12, color: AppColors.inkTertiary)),
         ],
       ),
@@ -687,11 +687,11 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
           Icon(icon, size: 16, color: AppColors.inkTertiary),
           const SizedBox(width: 10),
           Text('$label: ',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                   fontSize: 13, color: AppColors.inkTertiary)),
           Expanded(
             child: Text(value,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: AppColors.inkPrimary,
@@ -723,7 +723,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
               Icon(icon, size: 18, color: color),
               const SizedBox(width: 8),
               Text(label,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: color,
@@ -747,14 +747,14 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
           'Remove ₹${expense.amount?.toStringAsFixed(0) ?? "0"} '
           '(${expense.category ?? "Uncategorized"}) from expenses? '
           'This cannot be undone.',
-          style: GoogleFonts.inter(
+          style: GoogleFonts.manrope(
               fontSize: 14, color: AppColors.inkSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: Text('Cancel',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                     color: AppColors.inkSecondary,
                     fontWeight: FontWeight.w600)),
           ),
@@ -791,7 +791,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
               }
             },
             child: Text('Delete',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                     color: AppColors.danger, fontWeight: FontWeight.w700)),
           ),
         ],

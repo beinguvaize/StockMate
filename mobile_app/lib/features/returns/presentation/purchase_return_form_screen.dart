@@ -202,7 +202,7 @@ class _PurchaseReturnFormScreenState
           children: [
             Text(
               'Process Return',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 16,
                 fontWeight: FontWeight.w800,
                 color: AppColors.inkPrimary,
@@ -476,7 +476,7 @@ class _ReturnQtyCard extends StatelessWidget {
                     step == 1.0
                         ? returnQty.toStringAsFixed(0)
                         : returnQty.toStringAsFixed(2),
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 48,
                       fontWeight: FontWeight.w900,
                       color: returnQty > 0
@@ -562,7 +562,7 @@ class _ReturnQtyCard extends StatelessWidget {
                   const SizedBox(width: 6),
                   Text(
                     'Return Value: ₹${returnValue.toStringAsFixed(2)}',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 15,
                       fontWeight: FontWeight.w800,
                       color: AppColors.danger,
@@ -583,7 +583,7 @@ class _ReturnQtyCard extends StatelessWidget {
               const SizedBox(width: 5),
               Text(
                 'Max returnable: $maxLabel units',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                   fontSize: 12,
                   color: AppColors.inkTertiary,
                 ),
@@ -687,12 +687,12 @@ class _DetailsCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Return Date',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                                 fontSize: 11, color: AppColors.inkTertiary)),
                         const SizedBox(height: 2),
                         Text(
                           fmtDate(date),
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 14,
                             fontWeight: FontWeight.w500,
                             color: AppColors.inkPrimary,
@@ -737,14 +737,14 @@ class _DetailsCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text('Reason (optional)',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                               fontSize: 11, color: AppColors.inkTertiary)),
                       const SizedBox(height: 4),
                       TextField(
                         controller: reasonController,
                         maxLines: 3,
                         minLines: 1,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w400,
                           color: AppColors.inkPrimary,
@@ -752,7 +752,7 @@ class _DetailsCard extends StatelessWidget {
                         decoration: InputDecoration(
                           hintText:
                               'Damaged goods, wrong item, over-delivery...',
-                          hintStyle: GoogleFonts.inter(
+                          hintStyle: GoogleFonts.manrope(
                             fontSize: 13,
                             color: AppColors.inkTertiary.withValues(alpha: 0.5),
                           ),
@@ -806,12 +806,12 @@ class _InfoRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(label,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                         fontSize: 11, color: AppColors.inkTertiary)),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: AppColors.inkPrimary,

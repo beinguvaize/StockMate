@@ -259,7 +259,7 @@ class _Gstr1ScreenState extends ConsumerState<Gstr1Screen>
           Text(
             message,
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               color: AppColors.inkSecondary,
             ),
@@ -316,7 +316,7 @@ class _Gstr1ScreenState extends ConsumerState<Gstr1Screen>
             elevation: 0,
             title: Text(
               'GSTR-1',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w800,
                 fontSize: 20,
                 color: AppColors.inkPrimary,
@@ -517,7 +517,7 @@ class _B2BCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '${row['clientName'] ?? '—'}',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.inkPrimary),
@@ -547,11 +547,11 @@ class _B2BCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text('Total  ',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                       fontSize: 11, color: AppColors.inkSecondary)),
               Text(
                 formatINR(row['total'] as double),
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: AppColors.inkPrimary,
@@ -619,7 +619,7 @@ class _B2CLCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '${row['clientName'] ?? '—'}',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.inkPrimary),
@@ -639,11 +639,11 @@ class _B2CLCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               Text('Total  ',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                       fontSize: 11, color: AppColors.inkSecondary)),
               Text(
                 formatINR(row['total'] as double),
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: AppColors.inkPrimary,
@@ -682,7 +682,7 @@ class _AmtLabel extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             formatINR(value),
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
                 fontSize: 11,
                 fontWeight: FontWeight.w600,
                 color: AppColors.inkPrimary),
@@ -706,7 +706,7 @@ class _AmountRow extends StatelessWidget {
         children: [
           Expanded(
             child: Text(label,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                     fontSize: 13, color: AppColors.inkSecondary)),
           ),
           Text(
@@ -760,7 +760,7 @@ class _SectionCard extends StatelessWidget {
           if (subtitle != null) ...[
             const SizedBox(height: 3),
             Text(subtitle!,
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                     fontSize: 11, color: AppColors.inkTertiary)),
           ],
           const SizedBox(height: 12),

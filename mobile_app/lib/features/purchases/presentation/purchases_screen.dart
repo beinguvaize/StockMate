@@ -1,6 +1,8 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
@@ -130,11 +132,11 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Purchases',
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                     fontSize: 20, fontWeight: FontWeight.w800,
                     letterSpacing: -0.5, color: AppColors.inkPrimary)),
             Text('Manage and track your supplier purchase orders.',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                     fontSize: 11, color: AppColors.inkSecondary)),
           ],
         ),
@@ -162,7 +164,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                             size: 14, color: AppColors.inkPrimary),
                         const SizedBox(width: 6),
                         Text('New Order',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                                 fontSize: 12, fontWeight: FontWeight.w700,
                                 color: AppColors.inkPrimary)),
                       ],
@@ -275,7 +277,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                                     color: AppColors.inkSecondary)),
                             const SizedBox(height: 4),
                             Text(_compact(monthlySpend),
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                     fontSize: 28, fontWeight: FontWeight.w900,
                                     color: AppColors.secondary,
                                     letterSpacing: -1)),
@@ -330,7 +332,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                                   ),
                                   child: Text(
                                     e.value,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.manrope(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                       color: active
@@ -389,7 +391,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                             ),
                             const SizedBox(height: 16),
                             Text('No orders found',
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                     fontSize: 16, fontWeight: FontWeight.w700,
                                     color: AppColors.inkPrimary)),
                           ],
@@ -428,7 +430,7 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
                 const Center(child: CircularProgressIndicator(color: AppColors.primary)),
             error: (e, _) => Center(
                 child: Text('Error: $e',
-                    style: GoogleFonts.inter(color: AppColors.danger))),
+                    style: GoogleFonts.manrope(color: AppColors.danger))),
           );
         },
         loading: () =>
@@ -495,7 +497,7 @@ class _StatCard extends StatelessWidget {
                     letterSpacing: 1.2, color: AppColors.inkSecondary)),
             const SizedBox(height: 6),
             Text(value,
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                     fontSize: 26, fontWeight: FontWeight.w900,
                     color: valueColor, letterSpacing: -1)),
             const SizedBox(height: 6),
@@ -504,7 +506,7 @@ class _StatCard extends StatelessWidget {
               const SizedBox(width: 4),
               Expanded(
                 child: Text(subText,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                         fontSize: 10, color: AppColors.inkTertiary),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
@@ -573,7 +575,7 @@ class _PurchaseCard extends StatelessWidget {
               children: [
                 Text(
                   purchase.supplierName ?? 'Unknown Supplier',
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                       fontSize: 14, fontWeight: FontWeight.w700,
                       color: AppColors.inkPrimary),
                 ),
@@ -590,7 +592,7 @@ class _PurchaseCard extends StatelessWidget {
                         size: 10, color: AppColors.inkTertiary),
                     const SizedBox(width: 4),
                     Text('Est. ${fmtDate(purchase.deliveryDate)}',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 10, color: AppColors.inkTertiary)),
                   ]),
                 ],
@@ -604,7 +606,7 @@ class _PurchaseCard extends StatelessWidget {
             children: [
               Text(
                 '₹${purchase.totalAmount.toStringAsFixed(2)}',
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                     fontSize: 15, fontWeight: FontWeight.w900,
                     color: AppColors.inkPrimary, letterSpacing: -0.5),
               ),
@@ -685,11 +687,150 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   final List<_PurchaseLine> _lines = [_PurchaseLine()];
 
   bool _saving = false;
+  bool _scanning = false;
 
   @override
   void initState() {
     super.initState();
     _loadDropdowns();
+  }
+
+  // ── AI bill scan: photo → extract-bill edge fn → prefill supplier + lines ──
+  Future<void> _scanBill() async {
+    final picker = ImagePicker();
+    final XFile? shot = await showModalBottomSheet<XFile?>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(LucideIcons.camera, color: AppColors.primary),
+              title: Text('Take photo',
+                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+              onTap: () async {
+                final nav = Navigator.of(sheetCtx);
+                final img = await picker.pickImage(
+                    source: ImageSource.camera, imageQuality: 70, maxWidth: 1600);
+                nav.pop(img);
+              },
+            ),
+            ListTile(
+              leading: const Icon(LucideIcons.image, color: AppColors.primary),
+              title: Text('Choose from gallery',
+                  style: GoogleFonts.manrope(fontWeight: FontWeight.w600)),
+              onTap: () async {
+                final nav = Navigator.of(sheetCtx);
+                final img = await picker.pickImage(
+                    source: ImageSource.gallery, imageQuality: 70, maxWidth: 1600);
+                nav.pop(img);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+    if (shot == null) return;
+
+    setState(() => _scanning = true);
+    try {
+      final bytes = await shot.readAsBytes();
+      final mime = shot.mimeType ??
+          (shot.name.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg');
+      final res = await supabase.functions.invoke('extract-bill', body: {
+        'image_base64': base64Encode(bytes),
+        'mime_type': mime,
+      });
+      final data = (res.data?['data'] as Map?)?.cast<String, dynamic>();
+      final reconcile = (res.data?['reconcile'] as Map?)?.cast<String, dynamic>();
+      if (data == null) throw 'No data returned';
+      _applyExtracted(data);
+
+      if (mounted) {
+        final ok = reconcile?['taxable_ok'] == true && reconcile?['total_ok'] == true;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(ok
+              ? 'Bill read — review the prefilled details below.'
+              : 'Bill read, but totals didn\'t reconcile — double-check amounts.'),
+          backgroundColor: ok ? AppColors.secondary : AppColors.warning,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Scan failed: $e'),
+          backgroundColor: AppColors.danger,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } finally {
+      if (mounted) setState(() => _scanning = false);
+    }
+  }
+
+  // Map extracted JSON onto the form. Matches supplier + products by name;
+  // unmatched products are left for the user to pick (qty/price prefilled).
+  void _applyExtracted(Map<String, dynamic> d) {
+    String norm(String s) => s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+
+    // Supplier match by gstin/name.
+    final supName = (d['supplier_name'] as String?)?.trim();
+    if (supName != null && supName.isNotEmpty && _suppliers.isNotEmpty) {
+      final target = norm(supName);
+      final match = _suppliers.firstWhere(
+        (s) => norm((s['name'] ?? '').toString()) == target ||
+            norm((s['name'] ?? '').toString()).contains(target) ||
+            target.contains(norm((s['name'] ?? '').toString())),
+        orElse: () => <String, dynamic>{},
+      );
+      if (match.isNotEmpty) _supplierId = match['id'] as String?;
+    }
+
+    // Date.
+    final dateStr = d['date'] as String?;
+    if (dateStr != null) {
+      final parsed = DateTime.tryParse(dateStr);
+      if (parsed != null) _date = parsed;
+    }
+
+    // Lines.
+    final items = (d['items'] as List?) ?? const [];
+    if (items.isNotEmpty) {
+      for (final l in _lines) {
+        l.dispose();
+      }
+      _lines.clear();
+      for (final raw in items) {
+        final it = (raw as Map).cast<String, dynamic>();
+        final line = _PurchaseLine();
+        final qty = (it['qty'] as num?)?.toDouble() ?? 0;
+        final rate = (it['rate'] as num?)?.toDouble() ?? 0;
+        final amount = (it['amount'] as num?)?.toDouble() ?? (qty * rate);
+        if (qty > 0) line.qtyCtrl.text = qty.toString();
+        if (rate > 0) line.unitPriceCtrl.text = rate.toString();
+        if (amount > 0) line.totalCtrl.text = amount.toStringAsFixed(2);
+
+        // Product match by name.
+        final name = (it['name'] as String?)?.trim();
+        if (name != null && name.isNotEmpty && _products.isNotEmpty) {
+          final target = norm(name);
+          final pm = _products.firstWhere(
+            (p) => norm((p['name'] ?? '').toString()) == target ||
+                norm((p['name'] ?? '').toString()).contains(target) ||
+                target.contains(norm((p['name'] ?? '').toString())),
+            orElse: () => <String, dynamic>{},
+          );
+          if (pm.isNotEmpty) line.productId = pm['id'] as String?;
+        }
+        _lines.add(line);
+      }
+      if (_lines.isEmpty) _lines.add(_PurchaseLine());
+    }
+    setState(() {});
   }
 
   @override
@@ -879,14 +1020,51 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                         children: [
                           // Header
                           Text('Add Purchase',
-                              style: GoogleFonts.hankenGrotesk(
+                              style: GoogleFonts.manrope(
                                   fontSize: 22, fontWeight: FontWeight.w800,
                                   letterSpacing: -0.5, color: AppColors.inkPrimary)),
                           Text('ONE SUPPLIER · MULTIPLE PRODUCTS · SINGLE SUBMIT',
                               style: GoogleFonts.jetBrainsMono(
                                   fontSize: 9, fontWeight: FontWeight.w600,
                                   color: AppColors.inkSecondary, letterSpacing: 1.2)),
-                          const SizedBox(height: 20),
+                          const SizedBox(height: 16),
+
+                          // ── Scan bill (AI OCR) ───────────────────────
+                          GestureDetector(
+                            onTap: _scanning ? null : _scanBill,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 13),
+                              decoration: BoxDecoration(
+                                color: AppColors.primaryContainer,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                    color: AppColors.primary.withValues(alpha: 0.3)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  if (_scanning)
+                                    const SizedBox(
+                                      width: 16, height: 16,
+                                      child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: AppColors.onPrimaryContainer),
+                                    )
+                                  else
+                                    const Icon(LucideIcons.scanLine,
+                                        size: 17, color: AppColors.onPrimaryContainer),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    _scanning ? 'Reading bill…' : 'Scan bill with camera',
+                                    style: GoogleFonts.manrope(
+                                        fontSize: 13.5, fontWeight: FontWeight.w700,
+                                        color: AppColors.onPrimaryContainer),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 18),
 
                           // ── HEADER CARD ──────────────────────────────
                           Container(
@@ -942,7 +1120,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                             size: 16, color: AppColors.inkSecondary),
                                         const SizedBox(width: 10),
                                         Text(_fmt(_date),
-                                            style: GoogleFonts.inter(
+                                            style: GoogleFonts.manrope(
                                                 fontSize: 13, fontWeight: FontWeight.w600,
                                                 color: AppColors.inkPrimary)),
                                       ],
@@ -959,13 +1137,13 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                   ),
                                   child: TextField(
                                     controller: _notesCtrl,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.manrope(
                                         fontSize: 13, color: AppColors.inkPrimary),
                                     decoration: InputDecoration(
                                       prefixIcon: const Icon(LucideIcons.fileText,
                                           size: 16, color: AppColors.inkSecondary),
                                       hintText: 'Invoice no., remarks...',
-                                      hintStyle: GoogleFonts.inter(
+                                      hintStyle: GoogleFonts.manrope(
                                           fontSize: 13,
                                           color: AppColors.inkSecondary.withValues(alpha: 0.5)),
                                       border: InputBorder.none,
@@ -1051,7 +1229,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                         color: Colors.white.withValues(alpha: 0.6),
                                         letterSpacing: 1.5)),
                                 Text('₹${_grandTotal.toStringAsFixed(2)}',
-                                    style: GoogleFonts.hankenGrotesk(
+                                    style: GoogleFonts.manrope(
                                         fontSize: 24, fontWeight: FontWeight.w900,
                                         color: Colors.white, letterSpacing: -0.8)),
                               ],
@@ -1304,14 +1482,14 @@ class _MiniField extends StatelessWidget {
             controller: ctrl,
             onChanged: onChanged,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
                 fontSize: 13, fontWeight: FontWeight.w600,
                 color: AppColors.inkPrimary),
             decoration: InputDecoration(
               prefixIcon: Icon(icon, size: 13, color: AppColors.inkSecondary),
               prefixIconConstraints: const BoxConstraints(minWidth: 30, minHeight: 0),
               hintText: '0',
-              hintStyle: GoogleFonts.inter(
+              hintStyle: GoogleFonts.manrope(
                   color: AppColors.inkSecondary.withValues(alpha: 0.4),
                   fontSize: 13),
               border: InputBorder.none,
@@ -1357,7 +1535,7 @@ class _Dropdown extends StatelessWidget {
               Icon(icon, size: 18, color: AppColors.inkSecondary),
               const SizedBox(width: 10),
               Text(hint,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                       fontSize: 14,
                       color: AppColors.inkSecondary.withValues(alpha: 0.5))),
             ],
@@ -1365,7 +1543,7 @@ class _Dropdown extends StatelessWidget {
           icon: const Icon(LucideIcons.chevronDown,
               size: 16, color: AppColors.inkSecondary),
           isExpanded: true,
-          style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkPrimary),
+          style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
           items: items,
           onChanged: onChanged,
         ),
@@ -1396,7 +1574,7 @@ class _PayChip extends StatelessWidget {
           boxShadow: [AppColors.cardShadow],
         ),
         child: Text(label,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
                 fontSize: 13, fontWeight: FontWeight.w600,
                 color: active ? AppColors.primary : AppColors.inkSecondary)),
       ),
@@ -1428,13 +1606,13 @@ class _UpgradeBanner extends StatelessWidget {
               ),
               const SizedBox(height: 20),
               Text('Upgrade Required',
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                       fontSize: 22, fontWeight: FontWeight.w900,
                       letterSpacing: -0.5)),
               const SizedBox(height: 8),
               Text('$feature requires PRO plan or above.',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                       color: AppColors.inkSecondary, fontSize: 14)),
             ],
           ),

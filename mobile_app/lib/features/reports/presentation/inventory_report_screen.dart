@@ -90,7 +90,7 @@ class _InventoryReportScreenState
                 children: [
                   Text(
                     'Inventory Report',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 20,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.5,
@@ -109,11 +109,11 @@ class _InventoryReportScreenState
                 ],
               ),
               bottom: TabBar(
-                labelStyle: GoogleFonts.hankenGrotesk(
+                labelStyle: GoogleFonts.manrope(
                   fontWeight: FontWeight.w700,
                   fontSize: 13,
                 ),
-                unselectedLabelStyle: GoogleFonts.hankenGrotesk(
+                unselectedLabelStyle: GoogleFonts.manrope(
                   fontWeight: FontWeight.w500,
                   fontSize: 13,
                 ),
@@ -133,7 +133,7 @@ class _InventoryReportScreenState
               error: (e, _) => Center(
                 child: Text(
                   'Error loading products: $e',
-                  style: GoogleFonts.inter(color: AppColors.danger),
+                  style: GoogleFonts.manrope(color: AppColors.danger),
                 ),
               ),
               data: (products) {
@@ -143,7 +143,7 @@ class _InventoryReportScreenState
                   error: (e, _) => Center(
                     child: Text(
                       'Error loading sales: $e',
-                      style: GoogleFonts.inter(color: AppColors.danger),
+                      style: GoogleFonts.manrope(color: AppColors.danger),
                     ),
                   ),
                   data: (recentSales) {
@@ -383,7 +383,7 @@ class _InventoryBody extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     '${deadStock.length} product${deadStock.length == 1 ? '' : 's'} with no sales in the last 30 days',
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.manrope(
                                       fontSize: 12,
                                       color: const Color(0xFFEA580C),
                                       fontWeight: FontWeight.w600,
@@ -469,7 +469,7 @@ class _ProductCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   name,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                     color: AppColors.inkPrimary,
@@ -486,7 +486,7 @@ class _ProductCard extends StatelessWidget {
                 ),
                 child: Text(
                   category,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 10,
                     fontWeight: FontWeight.w600,
                     color: AppColors.primary,
@@ -517,7 +517,7 @@ class _ProductCard extends StatelessWidget {
             children: [
               Text(
                 'Stock: ',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                     fontSize: 12, color: AppColors.inkSecondary),
               ),
               Text(
@@ -607,13 +607,13 @@ class _ValueLabel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                   fontSize: 9,
                   color: color.withValues(alpha: 0.8),
                   fontWeight: FontWeight.w500)),
           Text(
             value,
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w700,
               color: color,
@@ -668,7 +668,7 @@ class _DeadStockCard extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontWeight: FontWeight.w700,
                     fontSize: 14,
                     color: AppColors.inkPrimary,
@@ -683,13 +683,13 @@ class _DeadStockCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   'Stock: ${stock.toStringAsFixed(stock.truncateToDouble() == stock ? 0 : 2)} $unit',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                       fontSize: 12, color: AppColors.inkSecondary),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   'Not sold in 30+ days',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: const Color(0xFFEA580C),
@@ -703,7 +703,7 @@ class _DeadStockCard extends StatelessWidget {
             children: [
               Text(
                 compactINR(costValue),
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontWeight: FontWeight.w800,
                   fontSize: 15,
                   color: const Color(0xFFF59E0B),
@@ -711,7 +711,7 @@ class _DeadStockCard extends StatelessWidget {
               ),
               Text(
                 'idle capital',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                     fontSize: 10,
                     color: const Color(0xFFF59E0B).withValues(alpha: 0.8)),
               ),
@@ -789,7 +789,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               message,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 14,
                 color: AppColors.inkSecondary,
               ),

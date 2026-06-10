@@ -120,7 +120,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
           children: [
             Text(
               invoice.docKind,
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 color: const Color(0xFF1E293B),
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -171,7 +171,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                       onPressed: () => _print(context, profile),
                       icon: const Icon(LucideIcons.printer, size: 16),
                       label: Text('Print',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                               fontWeight: FontWeight.w700, fontSize: 14)),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: const Color(0xFF1E293B),
@@ -188,7 +188,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                       onPressed: () => _share(context, profile),
                       icon: const Icon(LucideIcons.share2, size: 16),
                       label: Text('Share Invoice',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                               fontWeight: FontWeight.w700, fontSize: 14)),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.secondary,
@@ -217,7 +217,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                     onPressed: () => _printPosReceipt(context, profile),
                     icon: const Icon(LucideIcons.receipt, size: 16),
                     label: Text('Print Receipt',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontWeight: FontWeight.w700, fontSize: 14)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF1E293B),
@@ -233,7 +233,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                     onPressed: () => _sharePosReceipt(context, profile),
                     icon: const Icon(LucideIcons.share2, size: 16),
                     label: Text('Share Receipt',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontWeight: FontWeight.w700, fontSize: 14)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF1E293B),
@@ -269,7 +269,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                   onPressed: () => _convertToInvoice(context, ref),
                   icon: const Icon(LucideIcons.fileText, size: 16),
                   label: Text('Convert to GST Invoice',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14)),
+                      style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 14)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF1E293B),
                     foregroundColor: Colors.white,
@@ -303,7 +303,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                       child: Text(
                         'GST Invoice issued · ${invoice.linkedInvoiceIdFromSale}',
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 13,
                             fontWeight: FontWeight.w700,
                             color: AppColors.success),
@@ -337,7 +337,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                   },
                   icon: const Icon(LucideIcons.indianRupee, size: 16),
                   label: Text('Record Payment',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14)),
+                      style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 14)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -362,7 +362,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                   ),
                   icon: const Icon(LucideIcons.rotateCcw, size: 16),
                   label: Text('Process Return',
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 14)),
+                      style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 14)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.danger,
                     foregroundColor: Colors.white,
@@ -738,11 +738,11 @@ class InvoiceDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 20),
             Text('Record Payment',
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                     fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
             const SizedBox(height: 4),
             Text('Outstanding: ₹${outstanding.toStringAsFixed(2)}',
-                style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkTertiary)),
+                style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
             const SizedBox(height: 20),
             Container(
               decoration: BoxDecoration(
@@ -753,7 +753,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
               child: TextField(
                 controller: amountCtrl,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                style: GoogleFonts.inter(fontSize: 16, color: AppColors.inkPrimary, fontWeight: FontWeight.w600),
+                style: GoogleFonts.manrope(fontSize: 16, color: AppColors.inkPrimary, fontWeight: FontWeight.w600),
                 decoration: InputDecoration(
                   prefixIcon: const Icon(LucideIcons.indianRupee, size: 18, color: AppColors.inkSecondary),
                   labelText: 'Payment Amount',
@@ -788,7 +788,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                           SnackBar(
                             content: Text(
                                 newStatus == 'PAID' ? 'Invoice marked as PAID' : 'Partial payment recorded',
-                                style: GoogleFonts.inter(color: AppColors.inkPrimary)),
+                                style: GoogleFonts.manrope(color: AppColors.inkPrimary)),
                             backgroundColor: AppColors.primaryContainer,
                             behavior: SnackBarBehavior.floating,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1716,7 +1716,7 @@ class _InvoiceCard extends StatelessWidget {
                       children: [
                         Text(
                           biz?.name ?? 'Your Business',
-                          style: GoogleFonts.hankenGrotesk(
+                          style: GoogleFonts.manrope(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
                             color: const Color(0xFF0F172A),
@@ -1733,7 +1733,7 @@ class _InvoiceCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           dateStr,
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 12,
                             color: const Color(0xFF64748B),
                           ),
@@ -1741,7 +1741,7 @@ class _InvoiceCard extends StatelessWidget {
                         if (invoice.dueDate != null && !isPaid)
                           Text(
                             'Due: ${_fmtDate(invoice.dueDate)}',
-                            style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF64748B)),
+                            style: GoogleFonts.manrope(fontSize: 11, color: const Color(0xFF64748B)),
                           ),
                       ],
                     ),
@@ -1772,7 +1772,7 @@ class _InvoiceCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Due ₹${invoice.outstanding.toStringAsFixed(0)}',
-                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFFD97706)),
+                    style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFFD97706)),
                   ),
                 ],
 
@@ -1793,12 +1793,12 @@ class _InvoiceCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('Bill To',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                     fontSize: 10,
                                     color: const Color(0xFF94A3B8))),
                             const SizedBox(height: 2),
                             Text(custName,
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w700,
                                     color: const Color(0xFF0F172A))),
@@ -1809,12 +1809,12 @@ class _InvoiceCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Text('Payment',
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                   fontSize: 10,
                                   color: const Color(0xFF94A3B8))),
                           const SizedBox(height: 2),
                           Text(paymentMethod,
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w700,
                                   color: const Color(0xFF0F172A))),
@@ -1833,7 +1833,7 @@ class _InvoiceCard extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     child: Text('No item details',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 13,
                             color: const Color(0xFF94A3B8))),
                   )
@@ -1851,14 +1851,14 @@ class _InvoiceCard extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(item.name,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.manrope(
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600,
                                         color: const Color(0xFF0F172A))),
                                 const SizedBox(height: 2),
                                 Text(
                                   '${item.qty} × ₹${_fmtAmount(item.price)}',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                       fontSize: 11,
                                       color: const Color(0xFF64748B)),
                                 ),
@@ -1867,7 +1867,7 @@ class _InvoiceCard extends StatelessWidget {
                           ),
                           Text(
                             '₹${_fmtAmount(item.lineTotal)}',
-                            style: GoogleFonts.hankenGrotesk(
+                            style: GoogleFonts.manrope(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
                               color: const Color(0xFF0F172A),
@@ -1912,13 +1912,13 @@ class _InvoiceCard extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text('Total',
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                             color: const Color(0xFF0F172A))),
                     Text(
                       '₹${_fmtAmount(grandTotal)}',
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 22,
                         fontWeight: FontWeight.w800,
                         color: AppColors.primary,
@@ -2006,7 +2006,7 @@ class _IrnStatusCard extends StatelessWidget {
                             color: fg.withValues(alpha: 0.7), letterSpacing: 1.5)),
                     const SizedBox(height: 2),
                     Text(headline,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                             fontSize: 13, fontWeight: FontWeight.w700, color: fg),
                         overflow: TextOverflow.ellipsis),
                   ],
@@ -2017,7 +2017,7 @@ class _IrnStatusCard extends StatelessWidget {
                   onPressed: onGenerate,
                   icon: const Icon(LucideIcons.send, size: 13),
                   label: Text(status == 'FAILED' ? 'Retry' : 'Generate',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                           fontSize: 12, fontWeight: FontWeight.w700)),
                   style: TextButton.styleFrom(
                     foregroundColor: fg,
@@ -2140,7 +2140,7 @@ class _ConvertSheetState extends ConsumerState<_ConvertSheet> {
             ),
             const SizedBox(height: 16),
             Text('Issue GST Invoice',
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                     fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
             Text('TAX INVOICE — REQUIRES GSTIN',
                 style: GoogleFonts.jetBrainsMono(
@@ -2175,7 +2175,7 @@ class _ConvertSheetState extends ConsumerState<_ConvertSheet> {
                   const Icon(LucideIcons.alertCircle, size: 14, color: AppColors.danger),
                   const SizedBox(width: 8),
                   Expanded(child: Text(_error!,
-                      style: GoogleFonts.inter(fontSize: 12, color: AppColors.danger, fontWeight: FontWeight.w600))),
+                      style: GoogleFonts.manrope(fontSize: 12, color: AppColors.danger, fontWeight: FontWeight.w600))),
                 ]),
               ),
             ],
@@ -2191,7 +2191,7 @@ class _ConvertSheetState extends ConsumerState<_ConvertSheet> {
                     side: BorderSide(color: Colors.black.withValues(alpha: 0.1)),
                   ),
                   child: Text('Cancel',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                           fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkSecondary)),
                 ),
               ),
@@ -2202,7 +2202,7 @@ class _ConvertSheetState extends ConsumerState<_ConvertSheet> {
                   onPressed: _submit,
                   icon: const Icon(LucideIcons.fileText, size: 16),
                   label: Text('Issue Invoice',
-                      style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700)),
+                      style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primaryContainer,
                     foregroundColor: AppColors.inkPrimary,
@@ -2260,13 +2260,13 @@ class _Field extends StatelessWidget {
             keyboardType: keyboardType,
             style: (mono
                     ? GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.w700)
-                    : GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w500))
+                    : GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w500))
                 .copyWith(color: AppColors.inkPrimary),
             decoration: InputDecoration(
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               hintText: hint,
-              hintStyle: GoogleFonts.inter(
+              hintStyle: GoogleFonts.manrope(
                   color: AppColors.inkTertiary.withValues(alpha: 0.6), fontSize: 13),
             ),
           ),
@@ -2290,10 +2290,10 @@ class _TaxRow extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                   fontSize: 12, color: const Color(0xFF64748B))),
           Text('₹${value.toStringAsFixed(2)}',
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                   fontSize: 12, color: const Color(0xFF64748B))),
         ],
       ),

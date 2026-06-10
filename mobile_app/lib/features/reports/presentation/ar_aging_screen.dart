@@ -143,7 +143,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                   Expanded(
                     child: Text(
                       client.clientName,
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 18,
                         fontWeight: FontWeight.w700,
                         color: AppColors.inkPrimary,
@@ -152,7 +152,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                   ),
                   Text(
                     compactINR(client.total),
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: AppColors.danger,
@@ -168,7 +168,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                 alignment: Alignment.centerLeft,
                 child: Text(
                   '${sorted.length} outstanding invoice${sorted.length == 1 ? '' : 's'}',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 12,
                     color: AppColors.inkSecondary,
                   ),
@@ -207,7 +207,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                               if (row.dueDate != null)
                                 Text(
                                   'Due ${_fmtDate(row.dueDate!)}',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 11,
                                     color: AppColors.inkSecondary,
                                   ),
@@ -220,7 +220,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                           children: [
                             Text(
                               compactINR(row.amount),
-                              style: GoogleFonts.hankenGrotesk(
+                              style: GoogleFonts.manrope(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.danger,
@@ -284,7 +284,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
             elevation: 0,
             title: Text(
               'AR Aging',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary,
@@ -488,11 +488,11 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                   ),
                   child: TabBar(
                     controller: _tabController,
-                    labelStyle: GoogleFonts.hankenGrotesk(
+                    labelStyle: GoogleFonts.manrope(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
-                    unselectedLabelStyle: GoogleFonts.hankenGrotesk(
+                    unselectedLabelStyle: GoogleFonts.manrope(
                       fontSize: 13,
                       fontWeight: FontWeight.w400,
                     ),
@@ -560,7 +560,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                     Expanded(
                       child: Text(
                         client.clientName,
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,
@@ -569,7 +569,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                     ),
                     Text(
                       compactINR(client.total),
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: AppColors.danger,
@@ -643,7 +643,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                     const SizedBox(height: 2),
                     Text(
                       row.clientName,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: AppColors.inkSecondary,
                       ),
@@ -656,7 +656,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                 children: [
                   Text(
                     compactINR(row.amount),
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
                       color: AppColors.danger,
@@ -706,7 +706,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
             const SizedBox(height: 16),
             Text(
               'All accounts current',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w700,
                 color: AppColors.inkPrimary,
@@ -716,7 +716,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
             Text(
               'No outstanding receivables',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 13,
                 color: AppColors.inkSecondary,
               ),

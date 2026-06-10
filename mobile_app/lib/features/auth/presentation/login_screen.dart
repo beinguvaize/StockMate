@@ -164,21 +164,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
-        child: Center(
+        child: Align(
+          alignment: Alignment.topCenter,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24),
+            padding: const EdgeInsets.fromLTRB(24, 48, 24, 24),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                // ── Brand mark ─────────────────────────────────────
-                Text(
-                  'LedgrPro',
-                  style: GoogleFonts.hankenGrotesk(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.primary,
-                    letterSpacing: -1,
-                  ),
+                // ── Brand mark (centered, top) ─────────────────────
+                Image.asset(
+                  'assets/images/logo.png',
+                  height: 56,
+                  fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -204,7 +201,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       Text(
                         'Welcome back',
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 24,
                           fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,
@@ -214,7 +211,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Sign in to continue',
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 14,
                           color: AppColors.inkTertiary,
                         ),
@@ -271,7 +268,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               }),
                               child: Text(
                                 'Remember me on this device',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.inkSecondary,
@@ -302,7 +299,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 _rememberMe
                                     ? 'Unlock with Face ID / fingerprint'
                                     : 'Unlock with Face ID (enable Remember me first)',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: _rememberMe
@@ -355,7 +352,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                 )
                               : Text(
                                   'Sign In',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 16,
                                   ),
@@ -429,7 +426,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                     const SizedBox(width: 10),
                                     Text(
                                       'Continue with Google',
-                                      style: GoogleFonts.inter(
+                                      style: GoogleFonts.manrope(
                                         fontWeight: FontWeight.w600,
                                         fontSize: 15,
                                         color: AppColors.inkPrimary,
@@ -462,10 +459,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkPrimary),
+      style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.inkTertiary),
+        hintStyle: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkTertiary),
         prefixIcon: Icon(icon, size: 18, color: AppColors.inkTertiary),
         suffixIcon: suffix,
         filled: true,

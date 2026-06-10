@@ -92,7 +92,7 @@ class _ExpensesView extends ConsumerWidget {
         titleSpacing: 16,
         title: Text(
           'Expenses',
-          style: GoogleFonts.hankenGrotesk(
+          style: GoogleFonts.manrope(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.inkPrimary,
@@ -109,7 +109,7 @@ class _ExpensesView extends ConsumerWidget {
           child: Text(
             'Failed to load expenses\n$e',
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(color: AppColors.danger, fontSize: 13),
+            style: GoogleFonts.manrope(color: AppColors.danger, fontSize: 13),
           ),
         ),
         data: (expenses) => _ExpensesBody(expenses: expenses, range: range),
@@ -182,7 +182,7 @@ class _ExpensesBody extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'No expenses in this period',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: AppColors.inkSecondary,
@@ -333,7 +333,7 @@ class _CategoryCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   category,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.inkPrimary,
@@ -342,7 +342,7 @@ class _CategoryCard extends StatelessWidget {
               ),
               Text(
                 compactINR(amount),
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: const Color(0xFFDC2626),
@@ -353,7 +353,7 @@ class _CategoryCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             '$count entr${count == 1 ? 'y' : 'ies'}',
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 11,
               color: AppColors.inkSecondary,
             ),
@@ -431,7 +431,7 @@ class _ExpenseItem extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   note,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 13,
                     fontWeight: FontWeight.w500,
                     color: AppColors.inkPrimary,
@@ -448,7 +448,7 @@ class _ExpenseItem extends StatelessWidget {
                   ),
                   child: Text(
                     category,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 10,
                       fontWeight: FontWeight.w600,
                       color: pillColor,
@@ -462,7 +462,7 @@ class _ExpenseItem extends StatelessWidget {
           // Right: amount
           Text(
             compactINR(amount),
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: const Color(0xFFDC2626),

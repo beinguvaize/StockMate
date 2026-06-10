@@ -47,7 +47,7 @@ class ReportKpiTile extends StatelessWidget {
               const SizedBox(height: 8),
               Text(
                 value,
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
                   color: valueColor,
@@ -58,7 +58,7 @@ class ReportKpiTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   subtitle!,
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 11,
                     color: AppColors.inkSecondary,
                   ),

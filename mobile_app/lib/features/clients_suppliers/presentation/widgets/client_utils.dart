@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 // ─── Avatar colour cycling ────────────────────────────────────────────────────
 Color avatarColor(String? name) {
   const palette = [
-    Color(0xFF446900),
-    Color(0xFF48654d),
+    Color(0xFFD97706),
+    Color(0xFF92400E),
     Color(0xFF2563EB),
     Color(0xFF7C3AED),
     Color(0xFFB45309),

@@ -25,7 +25,7 @@ class VanStockScreen extends ConsumerWidget {
           children: [
             Text(
               'Van Stock',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w800,
                 fontSize: 17,
                 color: AppColors.inkPrimary,
@@ -48,7 +48,7 @@ class VanStockScreen extends ConsumerWidget {
         error: (e, _) => Center(
           child: Text(
             'Error: $e',
-            style: GoogleFonts.inter(color: AppColors.danger),
+            style: GoogleFonts.manrope(color: AppColors.danger),
           ),
         ),
         data: (items) {
@@ -70,7 +70,7 @@ class VanStockScreen extends ConsumerWidget {
                   const SizedBox(height: 16),
                   Text(
                     'Van is empty',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontWeight: FontWeight.w700,
                       fontSize: 16,
                       color: AppColors.inkPrimary,
@@ -79,7 +79,7 @@ class VanStockScreen extends ConsumerWidget {
                   const SizedBox(height: 6),
                   Text(
                     'No stock loaded on this van.',
-                    style: GoogleFonts.inter(color: AppColors.inkTertiary, fontSize: 13),
+                    style: GoogleFonts.manrope(color: AppColors.inkTertiary, fontSize: 13),
                   ),
                 ],
               ),
@@ -116,7 +116,7 @@ class VanStockScreen extends ConsumerWidget {
                         children: [
                           Text(
                             '${totalUnits.toStringAsFixed(0)} units on board',
-                            style: GoogleFonts.hankenGrotesk(
+                            style: GoogleFonts.manrope(
                               fontWeight: FontWeight.w900,
                               fontSize: 24,
                               color: AppColors.inkPrimary,
@@ -125,7 +125,7 @@ class VanStockScreen extends ConsumerWidget {
                           const SizedBox(height: 2),
                           Text(
                             '${items.length} product${items.length > 1 ? 's' : ''}',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 13,
                               fontWeight: FontWeight.w500,
                               color: AppColors.secondary,
@@ -166,7 +166,7 @@ class VanStockScreen extends ConsumerWidget {
                               Expanded(
                                 child: Text(
                                   item.productName,
-                                  style: GoogleFonts.hankenGrotesk(
+                                  style: GoogleFonts.manrope(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 14,
                                     color: AppColors.inkPrimary,
@@ -194,7 +194,7 @@ class VanStockScreen extends ConsumerWidget {
                               const SizedBox(width: 6),
                               Text(
                                 'units',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 11,
                                   color: AppColors.inkTertiary,
                                 ),

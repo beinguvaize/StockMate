@@ -99,7 +99,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
       ),
       body: invoicesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => Center(child: Text('Error: $e', style: GoogleFonts.inter(color: AppColors.danger))),
+        error: (e, _) => Center(child: Text('Error: $e', style: GoogleFonts.manrope(color: AppColors.danger))),
         data: (allInvoices) {
           // ── Stats — matching web logic ──────────────────────────────────────
           // Outstanding = sum of (grand_total - paid_amount) for unpaid invoices
@@ -157,7 +157,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                               children: [
                                 Text(
                                   'Invoices',
-                                  style: GoogleFonts.hankenGrotesk(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 26,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.inkPrimary,
@@ -166,7 +166,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                 ),
                                 Text(
                                   'Manage billing & collections',
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 12,
                                     color: AppColors.inkTertiary,
                                   ),
@@ -193,7 +193,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                   const SizedBox(width: 5),
                                   Text(
                                     'New Invoice',
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.manrope(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w700,
                                       color: AppColors.primary,
@@ -235,7 +235,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                   const SizedBox(height: 8),
                                   Text(
                                     '₹${_formatAmount(outstanding)}',
-                                    style: GoogleFonts.hankenGrotesk(
+                                    style: GoogleFonts.manrope(
                                       fontSize: 22,
                                       fontWeight: FontWeight.w800,
                                       color: AppColors.danger,
@@ -249,7 +249,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                       const SizedBox(width: 4),
                                       Text(
                                         'To collect',
-                                        style: GoogleFonts.inter(
+                                        style: GoogleFonts.manrope(
                                           fontSize: 11,
                                           color: AppColors.inkTertiary,
                                         ),
@@ -289,7 +289,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                       const SizedBox(height: 8),
                                       Text(
                                         '₹${_formatAmount(collectedThisMonth)}',
-                                        style: GoogleFonts.hankenGrotesk(
+                                        style: GoogleFonts.manrope(
                                           fontSize: 26,
                                           fontWeight: FontWeight.w800,
                                           color: AppColors.primaryContainer,
@@ -329,10 +329,10 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                             controller: _searchController,
                             autofocus: true,
                             onChanged: (v) => setState(() => _query = v),
-                            style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkPrimary),
+                            style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
                             decoration: InputDecoration(
                               hintText: 'Search by name or invoice number…',
-                              hintStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.inkTertiary),
+                              hintStyle: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkTertiary),
                               prefixIcon: const Icon(LucideIcons.search, size: 18, color: AppColors.inkTertiary),
                               suffixIcon: IconButton(
                                 icon: const Icon(LucideIcons.x, size: 16, color: AppColors.inkTertiary),
@@ -354,7 +354,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                           Expanded(
                             child: Text(
                               'Recent Invoices',
-                              style: GoogleFonts.hankenGrotesk(
+                              style: GoogleFonts.manrope(
                                 fontSize: 17,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.inkPrimary,
@@ -417,7 +417,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                 ),
                                 child: Text(
                                   filters[i],
-                                  style: GoogleFonts.inter(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 12,
                                     fontWeight: FontWeight.w600,
                                     color: isActive ? AppColors.primary : AppColors.inkTertiary,
@@ -454,7 +454,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                                       const SizedBox(width: 5),
                                       Text(
                                         '${_fmtDate(_dateRange!.start.toIso8601String().substring(0, 10))} – ${_fmtDate(_dateRange!.end.toIso8601String().substring(0, 10))}',
-                                        style: GoogleFonts.inter(
+                                        style: GoogleFonts.manrope(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                           color: AppColors.primary,
@@ -483,7 +483,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
                         child: Center(
                           child: Text(
                             'No invoices found.',
-                            style: GoogleFonts.inter(color: AppColors.inkTertiary),
+                            style: GoogleFonts.manrope(color: AppColors.inkTertiary),
                           ),
                         ),
                       ),
@@ -602,7 +602,7 @@ class _InvoiceCard extends StatelessWidget {
                   child: Center(
                     child: Text(
                       initial,
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: avatarFg,
@@ -619,7 +619,7 @@ class _InvoiceCard extends StatelessWidget {
                     children: [
                       Text(
                         customerName,
-                        style: GoogleFonts.hankenGrotesk(
+                        style: GoogleFonts.manrope(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,
@@ -644,7 +644,7 @@ class _InvoiceCard extends StatelessWidget {
                   children: [
                     Text(
                       '₹${invoice.grandTotal.toStringAsFixed(2)}',
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 15,
                         fontWeight: FontWeight.w800,
                         color: AppColors.inkPrimary,
@@ -681,7 +681,7 @@ class _InvoiceCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   _fmtDate(invoice.invoiceDate),
-                  style: GoogleFonts.inter(fontSize: 11, color: AppColors.inkTertiary),
+                  style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
                 ),
                 if (invoice.dueDate != null && status != _InvoiceStatus.paid) ...[
                   const SizedBox(width: 10),
@@ -693,7 +693,7 @@ class _InvoiceCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     'Due ${_fmtDate(invoice.dueDate)}',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 11,
                       color: isOverdue ? AppColors.danger : AppColors.inkTertiary,
                       fontWeight: isOverdue ? FontWeight.w600 : FontWeight.normal,
@@ -705,7 +705,7 @@ class _InvoiceCard extends StatelessWidget {
                 if (invoice.paidAmount > 0 && status != _InvoiceStatus.paid)
                   Text(
                     'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Due ₹${invoice.outstanding.toStringAsFixed(0)}',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 10,
                       color: AppColors.warning,
                       fontWeight: FontWeight.w600,

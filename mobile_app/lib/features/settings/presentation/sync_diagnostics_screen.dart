@@ -117,7 +117,7 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
         elevation: 0,
         title: Text(
           'Sync Diagnostics',
-          style: GoogleFonts.hankenGrotesk(
+          style: GoogleFonts.manrope(
             fontSize: 20,
             fontWeight: FontWeight.w700,
             color: AppColors.inkPrimary,
@@ -167,7 +167,7 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                 child: Text(
                   _statusMsg!,
-                  style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkSecondary),
+                  style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
                 ),
               ),
 
@@ -189,7 +189,7 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                           const SizedBox(height: 12),
                           Text(
                             'No pending or failed jobs',
-                            style: GoogleFonts.inter(
+                            style: GoogleFonts.manrope(
                               fontSize: 14,
                               color: AppColors.inkSecondary,
                             ),
@@ -244,7 +244,7 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                                   const Spacer(),
                                   Text(
                                     '${j.attempts} attempt${j.attempts == 1 ? '' : 's'}',
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.manrope(
                                       fontSize: 11,
                                       color: AppColors.inkTertiary,
                                     ),
@@ -256,7 +256,7 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                                 j.action == 'rpc'
                                     ? 'RPC: ${j.rpcName ?? '?'}'
                                     : '${j.action.toUpperCase()} ${j.targetTable}',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.inkPrimary,
@@ -285,7 +285,7 @@ class _SyncDiagnosticsScreenState extends ConsumerState<SyncDiagnosticsScreen> {
                               const SizedBox(height: 6),
                               Text(
                                 'Created ${j.createdAt.toLocal().toString().substring(0, 19)}',
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 11,
                                   color: AppColors.inkTertiary,
                                 ),

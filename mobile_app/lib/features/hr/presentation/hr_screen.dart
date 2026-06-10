@@ -28,7 +28,7 @@ class HRScreen extends ConsumerWidget {
             children: [
               Text(
                 'HR & Payroll',
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,
                   letterSpacing: -0.5,
@@ -204,7 +204,7 @@ class _EmployeesTab extends ConsumerWidget {
                         const SizedBox(height: 12),
                         Text(
                           'No employees yet',
-                          style: GoogleFonts.inter(
+                          style: GoogleFonts.manrope(
                             fontSize: 15,
                             color: AppColors.inkSecondary,
                           ),
@@ -235,7 +235,7 @@ class _EmployeesTab extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, stack) => Center(
           child: Text('Error: $err',
-              style: GoogleFonts.inter(color: AppColors.danger)),
+              style: GoogleFonts.manrope(color: AppColors.danger)),
         ),
       ),
     );
@@ -275,7 +275,7 @@ class _PayrollHistoryTab extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(
           child: Text('Error: $err',
-              style: GoogleFonts.inter(color: AppColors.danger)),
+              style: GoogleFonts.manrope(color: AppColors.danger)),
         ),
         data: (records) {
           // Build employee name lookup map
@@ -296,7 +296,7 @@ class _PayrollHistoryTab extends ConsumerWidget {
                   const SizedBox(height: 12),
                   Text(
                     'No payroll records yet.',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: AppColors.inkSecondary,
@@ -305,7 +305,7 @@ class _PayrollHistoryTab extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Text(
                     'Run your first payroll.',
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 13,
                       color: AppColors.inkTertiary,
                     ),
@@ -422,7 +422,7 @@ class _PayrollRecordCard extends StatelessWidget {
             alignment: Alignment.center,
             child: Text(
               avatarLetter,
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
                 color: AppColors.secondary,
@@ -438,7 +438,7 @@ class _PayrollRecordCard extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkPrimary,
@@ -447,7 +447,7 @@ class _PayrollRecordCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '$periodStart – $periodEnd',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 12,
                     color: AppColors.inkSecondary,
                   ),
@@ -475,7 +475,7 @@ class _PayrollRecordCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Text(
                         paidAt,
-                        style: GoogleFonts.inter(
+                        style: GoogleFonts.manrope(
                           fontSize: 11,
                           color: AppColors.inkTertiary,
                         ),
@@ -635,7 +635,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
         SnackBar(
           content: Text(
             'Payroll processed for ${_entries.length} employees',
-            style: GoogleFonts.inter(color: AppColors.inkPrimary),
+            style: GoogleFonts.manrope(color: AppColors.inkPrimary),
           ),
           backgroundColor: AppColors.primaryContainer,
           behavior: SnackBarBehavior.floating,
@@ -649,7 +649,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e',
-                style: GoogleFonts.inter(color: Colors.white)),
+                style: GoogleFonts.manrope(color: Colors.white)),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
@@ -701,7 +701,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                   children: [
                     Text(
                       'Process Payroll',
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
                         color: AppColors.inkPrimary,
@@ -710,7 +710,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                     ),
                     Text(
                       'Run payroll for all active employees',
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: AppColors.inkSecondary,
                       ),
@@ -744,7 +744,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                   const SizedBox(width: 8),
                   Text(
                     '${_monthNames[_month]} $_year',
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
                       color: AppColors.inkPrimary,
@@ -769,7 +769,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
               padding: const EdgeInsets.symmetric(vertical: 24),
               child: Text(
                 'No active employees found.',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.manrope(
                     fontSize: 14, color: AppColors.inkSecondary),
               ),
             )
@@ -807,7 +807,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                               alignment: Alignment.center,
                               child: Text(
                                 name.isNotEmpty ? name[0].toUpperCase() : '?',
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w800,
                                   color: AppColors.secondary,
@@ -818,7 +818,7 @@ class _ProcessPayrollSheetState extends State<_ProcessPayrollSheet> {
                             Expanded(
                               child: Text(
                                 name,
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.inkPrimary,
@@ -953,7 +953,7 @@ class _PayField extends StatelessWidget {
       ),
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: GoogleFonts.inter(
+        labelStyle: GoogleFonts.manrope(
           fontSize: 11,
           color: AppColors.inkTertiary,
         ),
@@ -1021,7 +1021,7 @@ class _StatCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(
               value,
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 24,
                 fontWeight: FontWeight.w900,
                 color: AppColors.inkPrimary,
@@ -1100,7 +1100,7 @@ class _EmployeeCard extends ConsumerWidget {
                 alignment: Alignment.center,
                 child: Text(
                   avatarLetter,
-                  style: GoogleFonts.hankenGrotesk(
+                  style: GoogleFonts.manrope(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: AppColors.secondary,
@@ -1116,7 +1116,7 @@ class _EmployeeCard extends ConsumerWidget {
                   children: [
                     Text(
                       name,
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
                         color: AppColors.inkPrimary,
@@ -1125,7 +1125,7 @@ class _EmployeeCard extends ConsumerWidget {
                     const SizedBox(height: 3),
                     Text(
                       role,
-                      style: GoogleFonts.inter(
+                      style: GoogleFonts.manrope(
                         fontSize: 12,
                         color: AppColors.inkSecondary,
                       ),
@@ -1219,20 +1219,20 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text(
           'Delete Employee',
-          style: GoogleFonts.hankenGrotesk(
+          style: GoogleFonts.manrope(
             fontWeight: FontWeight.w800,
             color: AppColors.inkPrimary,
           ),
         ),
         content: Text(
           'Remove ${emp.name ?? 'this employee'} from the system? This cannot be undone.',
-          style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkSecondary),
+          style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkSecondary),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text('Cancel',
-                style: GoogleFonts.inter(color: AppColors.inkSecondary)),
+                style: GoogleFonts.manrope(color: AppColors.inkSecondary)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -1243,7 +1243,7 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
               shape: const StadiumBorder(),
             ),
             child: Text('Delete',
-                style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -1260,7 +1260,7 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('${emp.name ?? 'Employee'} deleted',
-              style: GoogleFonts.inter(color: Colors.white)),
+              style: GoogleFonts.manrope(color: Colors.white)),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1272,7 +1272,7 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e',
-                style: GoogleFonts.inter(color: Colors.white)),
+                style: GoogleFonts.manrope(color: Colors.white)),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1298,7 +1298,7 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Salary marked as paid for ${emp.name ?? 'employee'}',
-              style: GoogleFonts.inter(color: AppColors.inkPrimary)),
+              style: GoogleFonts.manrope(color: AppColors.inkPrimary)),
           backgroundColor: AppColors.primaryContainer,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1310,7 +1310,7 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e',
-                style: GoogleFonts.inter(color: Colors.white)),
+                style: GoogleFonts.manrope(color: Colors.white)),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1384,7 +1384,7 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
             alignment: Alignment.center,
             child: Text(
               avatarLetter,
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontSize: 28,
                 fontWeight: FontWeight.w900,
                 color: AppColors.secondary,
@@ -1394,7 +1394,7 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
           const SizedBox(height: 12),
           Text(
             name,
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 20,
               fontWeight: FontWeight.w800,
               color: AppColors.inkPrimary,
@@ -1404,7 +1404,7 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
           const SizedBox(height: 4),
           Text(
             role,
-            style: GoogleFonts.inter(
+            style: GoogleFonts.manrope(
               fontSize: 13,
               color: AppColors.inkSecondary,
             ),
@@ -1556,7 +1556,7 @@ class _InfoRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: GoogleFonts.inter(
+              style: GoogleFonts.manrope(
                 fontSize: 13,
                 color: AppColors.inkSecondary,
               ),

@@ -196,7 +196,7 @@ class _SaleTypeSheetState extends State<_SaleTypeSheet> {
           ),
           Text(
             'New Sale',
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 22, fontWeight: FontWeight.w800,
               color: AppColors.inkPrimary, letterSpacing: -0.5,
             ),
@@ -204,7 +204,7 @@ class _SaleTypeSheetState extends State<_SaleTypeSheet> {
           const SizedBox(height: 4),
           Text(
             'Where should stock be deducted from?',
-            style: GoogleFonts.inter(fontSize: 13, color: AppColors.inkSecondary),
+            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary),
           ),
           const SizedBox(height: 24),
 
@@ -278,7 +278,7 @@ class _SaleTile extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 16, fontWeight: FontWeight.w700,
                       color: AppColors.inkPrimary,
                     ),
@@ -286,7 +286,7 @@ class _SaleTile extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 12, color: AppColors.inkSecondary,
                     ),
                   ),
@@ -336,7 +336,7 @@ class _VehiclePicker extends StatelessWidget {
           ),
           Text(
             'Select Vehicle',
-            style: GoogleFonts.hankenGrotesk(
+            style: GoogleFonts.manrope(
               fontSize: 20, fontWeight: FontWeight.w800,
               color: AppColors.inkPrimary, letterSpacing: -0.5,
             ),
@@ -383,7 +383,7 @@ class _VehiclePicker extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(name,
-                            style: GoogleFonts.hankenGrotesk(
+                            style: GoogleFonts.manrope(
                               fontSize: 15, fontWeight: FontWeight.w700,
                               color: AppColors.inkPrimary,
                             ),

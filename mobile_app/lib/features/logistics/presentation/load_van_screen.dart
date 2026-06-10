@@ -218,7 +218,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
           children: [
             Text(
               'Load Van',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 fontWeight: FontWeight.w800,
                 fontSize: 17,
                 color: AppColors.inkPrimary,
@@ -244,7 +244,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
                     padding: const EdgeInsets.all(24),
                     child: Text(_error!,
                         textAlign: TextAlign.center,
-                        style: GoogleFonts.inter(color: AppColors.danger)),
+                        style: GoogleFonts.manrope(color: AppColors.danger)),
                   ),
                 )
               : Column(
@@ -275,7 +275,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
                       child: visible.isEmpty
                           ? Center(
                               child: Text('No warehouse stock',
-                                  style: GoogleFonts.inter(color: AppColors.inkTertiary)),
+                                  style: GoogleFonts.manrope(color: AppColors.inkTertiary)),
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -303,7 +303,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
                                           children: [
                                             Text(
                                               item.name,
-                                              style: GoogleFonts.hankenGrotesk(
+                                              style: GoogleFonts.manrope(
                                                 fontWeight: FontWeight.w700,
                                                 fontSize: 14,
                                                 color: AppColors.inkPrimary,
@@ -312,7 +312,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
                                             const SizedBox(height: 2),
                                             Text(
                                               '${item.available.toStringAsFixed(0)} in warehouse',
-                                              style: GoogleFonts.inter(
+                                              style: GoogleFonts.manrope(
                                                 fontSize: 11,
                                                 color: AppColors.inkTertiary,
                                               ),
@@ -374,7 +374,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
                                     _totalUnits > 0
                                         ? 'Load Vehicle ($_totalUnits units)'
                                         : 'Select products to load',
-                                    style: GoogleFonts.hankenGrotesk(
+                                    style: GoogleFonts.manrope(
                                       fontWeight: FontWeight.w800,
                                       fontSize: 14,
                                     ),

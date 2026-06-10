@@ -46,7 +46,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
               padding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
               child: Text(
                 'Sales History',
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
                   color: AppColors.inkPrimary,
@@ -93,7 +93,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 '₹${total.toStringAsFixed(0)}',
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                   fontSize: 28,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.danger,
@@ -127,7 +127,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 '$txCount',
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                   fontSize: 28,
                                   fontWeight: FontWeight.w700,
                                   color: AppColors.inkPrimary,
@@ -155,7 +155,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                   Expanded(
                     child: Text(
                       'Recent Sales',
-                      style: GoogleFonts.hankenGrotesk(
+                      style: GoogleFonts.manrope(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                         color: AppColors.inkPrimary,
@@ -179,7 +179,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                             ),
                             child: Text(
                               filters[i],
-                              style: GoogleFonts.inter(
+                              style: GoogleFonts.manrope(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: isActive ? AppColors.primary : AppColors.inkTertiary,
@@ -214,7 +214,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                     return Center(
                       child: Text(
                         'No sales found.',
-                        style: GoogleFonts.inter(color: AppColors.inkTertiary),
+                        style: GoogleFonts.manrope(color: AppColors.inkTertiary),
                       ),
                     );
                   }
@@ -277,7 +277,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                               child: Center(
                                 child: Text(
                                   initial,
-                                  style: GoogleFonts.hankenGrotesk(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.secondary,
@@ -294,7 +294,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                 children: [
                                   Text(
                                     customerName,
-                                    style: GoogleFonts.hankenGrotesk(
+                                    style: GoogleFonts.manrope(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w600,
                                       color: AppColors.inkPrimary,
@@ -312,7 +312,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                     const SizedBox(height: 2),
                                     Text(
                                       _fmtDate(sale.date!),
-                                      style: GoogleFonts.inter(
+                                      style: GoogleFonts.manrope(
                                         fontSize: 11,
                                         color: AppColors.inkTertiary,
                                       ),
@@ -328,7 +328,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                               children: [
                                 Text(
                                   '₹${sale.totalAmount?.toStringAsFixed(0) ?? "0"}',
-                                  style: GoogleFonts.hankenGrotesk(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
                                     color: isFailed ? AppColors.inkTertiary : AppColors.success,
@@ -344,7 +344,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                   ),
                                   child: Text(
                                     badgeLabel,
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.manrope(
                                       fontSize: 10,
                                       fontWeight: FontWeight.w700,
                                       color: badgeColor,
@@ -362,7 +362,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 },
                 loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
                 error: (err, stack) => Center(
-                  child: Text('Error: $err', style: GoogleFonts.inter(color: AppColors.danger)),
+                  child: Text('Error: $err', style: GoogleFonts.manrope(color: AppColors.danger)),
                 ),
               ),
             ),

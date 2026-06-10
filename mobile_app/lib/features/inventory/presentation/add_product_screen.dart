@@ -79,7 +79,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Name and SKU required',
-              style: GoogleFonts.inter(color: Colors.white)),
+              style: GoogleFonts.manrope(color: Colors.white)),
           backgroundColor: AppColors.danger,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -141,7 +141,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           SnackBar(
             content: Text(
               _isEditMode ? 'Product updated successfully' : 'Product added successfully',
-              style: GoogleFonts.inter(color: AppColors.inkPrimary),
+              style: GoogleFonts.manrope(color: AppColors.inkPrimary),
             ),
             backgroundColor: AppColors.primaryContainer,
             behavior: SnackBarBehavior.floating,
@@ -155,7 +155,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e',
-                style: GoogleFonts.inter(color: Colors.white)),
+                style: GoogleFonts.manrope(color: Colors.white)),
             backgroundColor: AppColors.danger,
             behavior: SnackBarBehavior.floating,
             shape:
@@ -186,7 +186,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           children: [
             Text(
               _isEditMode ? 'Edit Product' : 'Add Product',
-              style: GoogleFonts.hankenGrotesk(
+              style: GoogleFonts.manrope(
                 color: AppColors.inkPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.w800,
@@ -390,7 +390,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         keyboardType: isNumber
             ? const TextInputType.numberWithOptions(decimal: true)
             : TextInputType.text,
-        style: GoogleFonts.inter(
+        style: GoogleFonts.manrope(
           fontSize: 14,
           color: AppColors.inkPrimary,
           fontWeight: FontWeight.w500,
@@ -401,7 +401,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           hintText: hint,
-          hintStyle: GoogleFonts.inter(
+          hintStyle: GoogleFonts.manrope(
             color: AppColors.inkSecondary.withValues(alpha: 0.5),
             fontSize: 14,
           ),
@@ -462,7 +462,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                     value: value,
                     isExpanded: true,
                     isDense: true,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 14,
                       color: AppColors.inkPrimary,
                       fontWeight: FontWeight.w500,

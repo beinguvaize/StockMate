@@ -109,7 +109,7 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
           secondary: AppColors.secondary,
           onSecondary: Colors.white,
           secondaryContainer: AppColors.secondaryContainer,
-          onSecondaryContainer: Color(0xFF304d37),
+          onSecondaryContainer: Color(0xFF1F2937),
           tertiary: Color(0xFF5b5f5a),
           onTertiary: Colors.white,
           tertiaryContainer: Color(0xFFd0d3cc),
@@ -125,25 +125,25 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
           outlineVariant: AppColors.outlineVariant,
           inverseSurface: Color(0xFF313030),
           onInverseSurface: Color(0xFFf3f0ef),
-          inversePrimary: Color(0xFF98da27),
+          inversePrimary: Color(0xFFFCD34D),
           surfaceTint: AppColors.primary,
         ),
         scaffoldBackgroundColor: AppColors.canvas,
         useMaterial3: true,
-        textTheme: GoogleFonts.interTextTheme().copyWith(
-          displayLarge: GoogleFonts.hankenGrotesk(fontSize: 48, fontWeight: FontWeight.w700, letterSpacing: -0.02 * 48, color: AppColors.onSurface),
-          displayMedium: GoogleFonts.hankenGrotesk(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.01 * 32, color: AppColors.onSurface),
-          displaySmall: GoogleFonts.hankenGrotesk(fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          headlineLarge: GoogleFonts.hankenGrotesk(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.3, color: AppColors.onSurface),
-          headlineMedium: GoogleFonts.hankenGrotesk(fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          headlineSmall: GoogleFonts.hankenGrotesk(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          titleLarge: GoogleFonts.hankenGrotesk(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.onSurface),
-          titleMedium: GoogleFonts.hankenGrotesk(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          titleSmall: GoogleFonts.hankenGrotesk(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onSurface),
-          bodyLarge: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w400, color: AppColors.onSurface),
-          bodyMedium: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.onSurface),
-          bodySmall: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w400, color: AppColors.inkSecondary),
-          labelLarge: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+        textTheme: GoogleFonts.manropeTextTheme().copyWith(
+          displayLarge: GoogleFonts.manrope(fontSize: 48, fontWeight: FontWeight.w700, letterSpacing: -0.02 * 48, color: AppColors.onSurface),
+          displayMedium: GoogleFonts.manrope(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.01 * 32, color: AppColors.onSurface),
+          displaySmall: GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          headlineLarge: GoogleFonts.manrope(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: -0.3, color: AppColors.onSurface),
+          headlineMedium: GoogleFonts.manrope(fontSize: 24, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          headlineSmall: GoogleFonts.manrope(fontSize: 20, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          titleLarge: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.onSurface),
+          titleMedium: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          titleSmall: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          bodyLarge: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w400, color: AppColors.onSurface),
+          bodyMedium: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w400, color: AppColors.onSurface),
+          bodySmall: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w400, color: AppColors.inkSecondary),
+          labelLarge: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.onSurface),
           labelMedium: GoogleFonts.jetBrainsMono(fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.05 * 12, color: AppColors.inkSecondary),
           labelSmall: GoogleFonts.jetBrainsMono(fontSize: 10, fontWeight: FontWeight.w500, letterSpacing: 0.05 * 10, color: AppColors.inkSecondary),
         ),
@@ -154,7 +154,7 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
             shape: const StadiumBorder(),
-            textStyle: GoogleFonts.inter(fontWeight: FontWeight.w700, fontSize: 15),
+            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 15),
           ),
         ),
         cardTheme: CardThemeData(
@@ -176,13 +176,13 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(16),
-            borderSide: const BorderSide(color: AppColors.primaryContainer, width: 2),
+            borderSide: const BorderSide(color: AppColors.primary, width: 2),
           ),
         ),
         textButtonTheme: TextButtonThemeData(
           style: TextButton.styleFrom(
             foregroundColor: AppColors.primary,
-            textStyle: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600),
           ),
         ),
       ),
@@ -305,22 +305,21 @@ class _SplashScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return const Scaffold(
       backgroundColor: AppColors.canvas,
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'LEDGR',
-              style: TextStyle(
-                fontSize: 40,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -2,
-                color: AppColors.inkPrimary,
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Logo — horizontally centered
+              Image(
+                image: AssetImage('assets/images/logo.png'),
+                width: 180,
+                fit: BoxFit.contain,
               ),
-            ),
-            SizedBox(height: 24),
-            CircularProgressIndicator(color: AppColors.accentSignature, strokeWidth: 2),
-          ],
+              SizedBox(height: 32),
+              CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+            ],
+          ),
         ),
       ),
     );

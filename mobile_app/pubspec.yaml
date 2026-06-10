@@ -38,6 +38,9 @@ dependencies:
   # Supabase & Auth
   supabase_flutter: ^2.8.1
 
+  # Camera / gallery for bill-scan OCR
+  image_picker: ^1.1.2
+
   # State Management
   flutter_riverpod: ^2.6.1
 
@@ -108,7 +111,7 @@ flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/images/app_icon.png"
-  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_background: "#D97706"
   adaptive_icon_foreground: "assets/images/app_icon_fg.png"
   remove_alpha_ios: true
 

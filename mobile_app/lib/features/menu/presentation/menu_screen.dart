@@ -33,7 +33,7 @@ class MenuScreen extends ConsumerWidget {
             children: [
               Text(
                 'More',
-                style: GoogleFonts.hankenGrotesk(
+                style: GoogleFonts.manrope(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
                   color: AppColors.inkPrimary,
@@ -71,7 +71,7 @@ class MenuScreen extends ConsumerWidget {
                               child: Center(
                                 child: Text(
                                   name.isNotEmpty ? name[0].toUpperCase() : 'U',
-                                  style: GoogleFonts.hankenGrotesk(
+                                  style: GoogleFonts.manrope(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w700,
                                     color: AppColors.primary,
@@ -86,7 +86,7 @@ class MenuScreen extends ConsumerWidget {
                                 children: [
                                   Text(
                                     name,
-                                    style: GoogleFonts.hankenGrotesk(
+                                    style: GoogleFonts.manrope(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
                                       color: Colors.white,
@@ -95,7 +95,7 @@ class MenuScreen extends ConsumerWidget {
                                   ),
                                   Text(
                                     ctx?.tenant.name ?? '',
-                                    style: GoogleFonts.inter(
+                                    style: GoogleFonts.manrope(
                                       fontSize: 12,
                                       color: Colors.white60,
                                     ),
@@ -112,7 +112,7 @@ class MenuScreen extends ConsumerWidget {
                               ),
                               child: Text(
                                 plan,
-                                style: GoogleFonts.inter(
+                                style: GoogleFonts.manrope(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w800,
                                   color: AppColors.primary,
@@ -131,7 +131,7 @@ class MenuScreen extends ConsumerWidget {
 
                       _MenuCard(
                         icon: LucideIcons.users,
-                        iconColor: const Color(0xFF14b8a6),
+                        iconColor: const Color(0xFF0D9488),
                         label: 'Clients & Suppliers',
                         subtitle: 'Add, edit, view parties',
                         feature: 'clients',
@@ -142,7 +142,7 @@ class MenuScreen extends ConsumerWidget {
                       ),
                       _MenuCard(
                         icon: LucideIcons.wallet,
-                        iconColor: const Color(0xFFe6a817),
+                        iconColor: const Color(0xFFD97706),
                         label: 'Finance & Expenses',
                         subtitle: 'Track daily expenses',
                         feature: 'expenses',
@@ -153,7 +153,7 @@ class MenuScreen extends ConsumerWidget {
                       ),
                       _MenuCard(
                         icon: LucideIcons.bookOpen,
-                        iconColor: const Color(0xFF2196F3),
+                        iconColor: const Color(0xFF2563EB),
                         label: 'Day Book',
                         subtitle: 'All daily transactions',
                         feature: 'daybook',
@@ -164,7 +164,7 @@ class MenuScreen extends ConsumerWidget {
                       ),
                       _MenuCard(
                         icon: LucideIcons.shoppingBag,
-                        iconColor: const Color(0xFF9C27B0),
+                        iconColor: const Color(0xFF7C3AED),
                         label: 'Purchases',
                         subtitle: 'Supplier purchases & stock-in',
                         feature: 'purchases',
@@ -176,7 +176,7 @@ class MenuScreen extends ConsumerWidget {
                       if (canAccess('reports', roles: roles, plan: plan, permissions: permissions))
                         _MenuCard(
                           icon: LucideIcons.barChart2,
-                          iconColor: AppColors.primary,
+                          iconColor: const Color(0xFF4F46E5),
                           label: 'Reports',
                           subtitle: 'Sales, GST, P&L reports',
                           feature: 'reports',
@@ -188,7 +188,7 @@ class MenuScreen extends ConsumerWidget {
                       if (canAccess('hr', roles: roles, plan: plan, permissions: permissions))
                         _MenuCard(
                           icon: LucideIcons.briefcase,
-                          iconColor: const Color(0xFF673AB7),
+                          iconColor: const Color(0xFF0EA5E9),
                           label: 'HR & Payroll',
                           subtitle: 'Manage employees & salaries',
                           feature: 'hr',
@@ -200,7 +200,7 @@ class MenuScreen extends ConsumerWidget {
                       if (canAccess('logistics', roles: roles, plan: plan, permissions: permissions))
                         _MenuCard(
                           icon: LucideIcons.truck,
-                          iconColor: const Color(0xFFFF9800),
+                          iconColor: const Color(0xFFEA580C),
                           label: 'Fleet Management',
                           subtitle: 'Vehicles & route tracking',
                           feature: 'logistics',
@@ -211,7 +211,7 @@ class MenuScreen extends ConsumerWidget {
                         ),
                       _MenuCard(
                         icon: LucideIcons.mapPin,
-                        iconColor: AppColors.primaryContainer,
+                        iconColor: const Color(0xFF059669),
                         label: 'My Route',
                         subtitle: 'Driver view — stops & van sales',
                         feature: 'logistics',
@@ -228,7 +228,7 @@ class MenuScreen extends ConsumerWidget {
 
                       _MenuCard(
                         icon: LucideIcons.settings,
-                        iconColor: AppColors.inkTertiary,
+                        iconColor: const Color(0xFF475569),
                         label: 'Settings',
                         subtitle: 'Business profile & preferences',
                         feature: 'settings',
@@ -264,7 +264,7 @@ class MenuScreen extends ConsumerWidget {
                               const SizedBox(width: 14),
                               Text(
                                 'Logout',
-                                style: GoogleFonts.hankenGrotesk(
+                                style: GoogleFonts.manrope(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.danger,
@@ -283,7 +283,7 @@ class MenuScreen extends ConsumerWidget {
                     child: CircularProgressIndicator(color: AppColors.primary),
                   ),
                 ),
-                error: (e, _) => Text('Error: $e', style: GoogleFonts.inter(color: AppColors.danger)),
+                error: (e, _) => Text('Error: $e', style: GoogleFonts.manrope(color: AppColors.danger)),
               ),
             ],
           ),
@@ -360,27 +360,30 @@ class _MenuCard extends StatelessWidget {
               )
           : onTap,
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: AppColors.outlineVariant.withValues(alpha: 0.6),
+          ),
           boxShadow: [AppColors.cardShadow],
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
               decoration: BoxDecoration(
-                color: isPlanLocked
-                    ? AppColors.surfaceContainer
-                    : iconColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12),
+                color: const Color(0xFFF1F5F9), // slate-100
+                borderRadius: BorderRadius.circular(13),
               ),
               child: Icon(
                 isPlanLocked ? LucideIcons.lock : icon,
-                color: isPlanLocked ? AppColors.inkTertiary : iconColor,
-                size: 20,
+                color: const Color(0xFF475569), // slate-600
+                size: 21,
               ),
             ),
             const SizedBox(width: 14),
@@ -390,7 +393,7 @@ class _MenuCard extends StatelessWidget {
                 children: [
                   Text(
                     label,
-                    style: GoogleFonts.hankenGrotesk(
+                    style: GoogleFonts.manrope(
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                       color: isPlanLocked ? AppColors.inkTertiary : AppColors.inkPrimary,
@@ -398,7 +401,7 @@ class _MenuCard extends StatelessWidget {
                   ),
                   Text(
                     isPlanLocked ? 'Upgrade to $requiredPlan to unlock' : subtitle,
-                    style: GoogleFonts.inter(
+                    style: GoogleFonts.manrope(
                       fontSize: 12,
                       color: isPlanLocked ? AppColors.warning : AppColors.inkTertiary,
                       fontWeight: isPlanLocked ? FontWeight.w600 : FontWeight.w400,
@@ -416,7 +419,7 @@ class _MenuCard extends StatelessWidget {
                 ),
                 child: Text(
                   'PRO',
-                  style: GoogleFonts.inter(
+                  style: GoogleFonts.manrope(
                     fontSize: 10,
                     fontWeight: FontWeight.w800,
                     color: AppColors.warning,
