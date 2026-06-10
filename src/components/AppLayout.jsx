@@ -129,8 +129,8 @@ const Navbar = () => {
  const activeInMore = moreNavItems.some(item => window.location.pathname.startsWith(item.path));
 
  const adminItems = [
-   navItem('Personnel Portal', '/users', <UsersIcon size={18} />, 'users'),
-   navItem('Workspace Settings', '/settings', <SettingsIcon size={18} />, 'settings'),
+   // Users management lives inside Settings -> Users & roles (single home)
+   navItem('Settings', '/settings', <SettingsIcon size={18} />, 'settings'),
    ...(isOwner ? [{ label: 'Audit Log', path: `${basePath}/audit-log`, icon: <ScrollText size={18} />, hidden: false, locked: false }] : []),
  ];
 
