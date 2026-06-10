@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   User, Building, Printer, Users as UsersIcon, CreditCard,
-  LifeBuoy, ChevronRight, CheckCircle2, ScanBarcode, ReceiptText,
+  LifeBuoy, ChevronRight, CheckCircle2, ScanBarcode, ReceiptText, BellRing,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
@@ -19,6 +19,7 @@ const NAV = [
   { id: 'business', label: 'Manage Business',    icon: <Building size={16} /> },
   { id: 'print',    label: 'Print Settings',     icon: <Printer size={16} /> },
   { id: 'users',    label: 'Manage Users',       icon: <UsersIcon size={16} /> },
+  { id: 'reminders', label: 'Payment Reminders', icon: <BellRing size={16} /> },
   { id: 'pricing',  label: 'Pricing & Plan',     icon: <CreditCard size={16} /> },
   { id: 'support',  label: 'Help & Support',     icon: <LifeBuoy size={16} /> },
 ];
@@ -155,6 +156,77 @@ const PrintPanel = ({ tenantId }) => {
   );
 };
 
+// ── Payment reminders ────────────────────────────────────────────────────────
+const RemindersPanel = ({ tenantId }) => {
+  const { businessProfile } = useTenant();
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!tenantId) return;
+    (async () => {
+      const { data } = await supabase
+        .from('clients')
+        .select('id, name, phone, outstanding_balance')
+        .eq('tenant_id', tenantId)
+        .is('deleted_at', null)
+        .gt('outstanding_balance', 0)
+        .order('outstanding_balance', { ascending: false });
+      setRows(data || []);
+      setLoading(false);
+    })();
+  }, [tenantId]);
+
+  const waLink = (c) => {
+    const msg = encodeURIComponent(
+      `Dear ${c.name},\nThis is a friendly reminder from ${businessProfile?.name || 'us'} — ` +
+      `your outstanding balance is ₹${Number(c.outstanding_balance).toFixed(2)}. ` +
+      `Kindly arrange the payment at your convenience. Thank you!`
+    );
+    const phone = String(c.phone || '').replace(/\D/g, '');
+    const e164 = phone.length === 10 ? `91${phone}` : phone;
+    return `https://wa.me/${e164}?text=${msg}`;
+  };
+
+  return (
+    <div className="max-w-2xl">
+      <div className="bg-white rounded-xl border border-black/5 shadow-sm">
+        <div className="px-5 py-4 border-b border-black/5">
+          <div className="text-[13px] font-bold text-ink-primary">Clients with outstanding balance</div>
+          <div className="text-[11px] text-ink-tertiary">One tap sends a WhatsApp payment reminder with the amount prefilled.</div>
+        </div>
+        {loading ? (
+          <div className="p-6 text-center text-[12px] text-ink-tertiary">Loading…</div>
+        ) : rows.length === 0 ? (
+          <div className="p-6 text-center text-[12px] text-ink-tertiary">No outstanding balances. 🎉</div>
+        ) : (
+          <div className="divide-y divide-black/5 max-h-[480px] overflow-y-auto">
+            {rows.map(c => (
+              <div key={c.id} className="flex items-center gap-3 px-5 py-3">
+                <div className="flex-1 min-w-0">
+                  <div className="text-[13px] font-bold text-ink-primary truncate">{c.name}</div>
+                  <div className="text-[11px] text-ink-tertiary">{c.phone || 'no phone'}</div>
+                </div>
+                <div className="text-[13px] font-black text-red-500 font-mono shrink-0">
+                  ₹{Number(c.outstanding_balance).toFixed(0)}
+                </div>
+                {c.phone ? (
+                  <a href={waLink(c)} target="_blank" rel="noreferrer"
+                    className="shrink-0 px-3 py-1.5 rounded-lg bg-[#25D366] text-white text-[11px] font-black hover:opacity-90">
+                    WhatsApp
+                  </a>
+                ) : (
+                  <span className="text-[10px] text-ink-tertiary shrink-0">add phone to remind</span>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // ── Pricing ──────────────────────────────────────────────────────────────────
 const PricingPanel = () => {
   const { currentTenant } = useTenant();
@@ -268,6 +340,7 @@ const SettingsHub = () => {
           {active === 'business' && <Settings embedded />}
           {active === 'print'    && <PrintPanel tenantId={currentTenantId} />}
           {active === 'users'    && <Users embedded />}
+          {active === 'reminders' && <RemindersPanel tenantId={currentTenantId} />}
           {active === 'pricing'  && <PricingPanel />}
           {active === 'support'  && <SupportPanel />}
         </div>
