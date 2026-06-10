@@ -16,7 +16,7 @@ import DesktopUpdater from './components/DesktopUpdater';
 import ReportIssueButton from './components/ReportIssueButton';
 
 // ── Eager (tiny, needed immediately) ────────────────────────────────────────
-import Login   from './pages/MinimalistLogin';
+import Login   from './pages/Login';
 import ResetPassword from './pages/ResetPassword';
 import NoAccess from './pages/NoAccess';
 
