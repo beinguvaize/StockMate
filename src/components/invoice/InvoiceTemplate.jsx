@@ -12,7 +12,7 @@ import {
   Phone, Globe, Mail, MapPin, Landmark, QrCode
 } from 'lucide-react';
 import { formatINR, amountToWords } from '../../lib/gstEngine';
-import { INVOICE_LAYOUTS, DEFAULT_DOC_TEXTS, Editable } from './invoiceLayouts';
+import { INVOICE_LAYOUTS, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, Editable } from './invoiceLayouts';
 import { formatDate } from '../../lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -23,7 +23,7 @@ const Totals = ({ k, v, bold }) => (
   </div>
 );
 
-const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null, editable = false, onEditText = null, textsOverride = null }) => {
+const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null, editable = false, onEditText = null, textsOverride = null, optsOverride = null, accentOverride = null }) => {
   const [zoom, setZoom] = useState(100);
 
   // Inject print isolation CSS into <head> so it's guaranteed to apply
@@ -98,6 +98,19 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
         || JSON.parse(localStorage.getItem('print_settings_default')) || {};
       return { ...DEFAULT_DOC_TEXTS, ...(prefs.docTexts || {}) };
     } catch { return DEFAULT_DOC_TEXTS; }
+  })();
+
+  const { invOpts, invAccent } = (() => {
+    let prefs = {};
+    try {
+      const tid = safeBusiness.tenant_id || 'default';
+      prefs = JSON.parse(localStorage.getItem(`print_settings_${tid}`))
+        || JSON.parse(localStorage.getItem('print_settings_default')) || {};
+    } catch { /* defaults */ }
+    return {
+      invOpts: { ...DEFAULT_INV_OPTS, ...(prefs.invOpts || {}), ...(optsOverride || {}) },
+      invAccent: accentOverride || prefs.invAccent || '#0f172a',
+    };
   })();
 
   // Calculate row counts for filling up to 8 rows
@@ -258,7 +271,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
         >
           
           {AltLayout ? (
-            <AltLayout d={layoutD} texts={docTexts} editable={previewMode && editable} onEdit={onEditText} />
+            <AltLayout d={layoutD} texts={docTexts} editable={previewMode && editable} onEdit={onEditText} opts={invOpts} accent={invAccent} />
           ) : (
           <>
           {/* Standardized compact GST invoice */}
@@ -403,10 +416,12 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
             {/* Amount in words + totals block */}
             <div className="grid grid-cols-[1.3fr_1fr] border-t border-slate-900">
               <div className="p-3 border-r border-slate-900 text-[10px]">
+                {invOpts.words && (
                 <div className="mb-2">
                   <span className="text-slate-500 font-bold uppercase">Amount in Words: </span>
                   <span className="font-bold">{amountToWords(grandTotal)}</span>
                 </div>
+                )}
                 {/* HSN tax summary */}
                 {items.length > 0 && (
                   <div className="mt-2">
@@ -512,7 +527,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                     // outstanding balance. PAID invoices hide the QR;
                     // partial-paid use the balance, not gross.
                     const billSettings = safeBusiness.bill_settings || {};
-                    const showQr = billSettings.show_upi_invoice ?? true;
+                    const showQr = (billSettings.show_upi_invoice ?? true) && invOpts.upiQr;
                     if (!showQr || !safeBusiness.upi_id) return null;
                     const due = Math.max(0, +(grandTotal - paidAmount).toFixed(2));
                     if (invoice.payment_status === 'PAID' || due <= 0) return null;
@@ -553,6 +568,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                   <div className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Declaration</div>
                   <div className="text-slate-700 leading-snug">We declare that this invoice shows the actual price of the goods described and that all particulars are true and correct.</div>
                 </div>
+                {invOpts.sign && (
                 <div className="text-right mt-8">
                   <div className="font-bold">For {safeBusiness.name || 'Business'}</div>
                   <div className="h-12" />
@@ -560,6 +576,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                     <span className="text-[10px] font-bold">Authorised Signatory</span>
                   </div>
                 </div>
+                )}
               </div>
             </div>
           </div>
