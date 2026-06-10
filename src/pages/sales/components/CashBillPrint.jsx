@@ -2,12 +2,21 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { Printer, X } from 'lucide-react';
 import { formatDate } from '../../../lib/utils';
+import { useTenant } from '../../../context/TenantContext';
 
 // 80mm thermal-style receipt for walk-in cash sales. No GST, no bill-to block.
 // Portal'd to document.body so print CSS can isolate it from app chrome.
 const money = (n, sym = '₹') => `${sym}${Number(n || 0).toFixed(2)}`;
 
 const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹' }) => {
+  const { currentTenantId } = useTenant();
+  // Paper width from Settings → Print Settings (58/80mm; A4 falls back to 80).
+  let paper = '80';
+  try {
+    const prefs = JSON.parse(localStorage.getItem(`print_settings_${currentTenantId || 'default'}`));
+    if (prefs?.paper === '58') paper = '58';
+  } catch { /* defaults */ }
+  const paperMm = `${paper}mm`;
   const items = Array.isArray(sale?.items) ? sale.items : [];
   const subtotal = items.reduce((s, i) => s + Number(i.price || i.sellingPrice || 0) * Number(i.quantity || 0), 0);
   const total = Number(sale?.totalAmount ?? sale?.total_amount ?? subtotal);
@@ -31,8 +40,8 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹' })
         </button>
       </div>
 
-      {/* Receipt sheet — 80mm thermal */}
-      <div className="print-sheet bg-white shadow-xl mt-20 w-[80mm] px-4 py-5 text-[11px] font-mono text-black leading-snug">
+      {/* Receipt sheet — thermal, width from print settings */}
+      <div className="print-sheet bg-white shadow-xl mt-20 px-4 py-5 text-[11px] font-mono text-black leading-snug" style={{ width: paperMm }}>
         <div className="text-center border-b border-dashed border-black/40 pb-2 mb-2">
           <div className="text-base font-bold uppercase tracking-wide">{business.name || 'BUSINESS'}</div>
           {business.address && <div className="text-[10px] leading-tight mt-0.5">{business.address}</div>}
@@ -96,7 +105,7 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹' })
 
       <style dangerouslySetInnerHTML={{ __html: `
         @media print {
-          @page { size: 80mm auto; margin: 3mm; }
+          @page { size: ${paperMm} auto; margin: 3mm; }
           html, body { margin: 0 !important; padding: 0 !important; background: #fff !important; }
           body > *:not(#sale-print-portal) { display: none !important; }
           #sale-print-portal { position: static !important; inset: auto !important; padding: 0 !important; margin: 0 !important; background: #fff !important; backdrop-filter: none !important; display: block !important; overflow: visible !important; }
@@ -108,7 +117,7 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹' })
             height: auto !important;
             max-height: none !important;
           }
-          #sale-print-portal .print-sheet { margin: 0 !important; box-shadow: none !important; width: 80mm !important; padding: 0 !important; }
+          #sale-print-portal .print-sheet { margin: 0 !important; box-shadow: none !important; width: ${paperMm} !important; padding: 0 !important; }
         }
       `}} />
     </div>,
