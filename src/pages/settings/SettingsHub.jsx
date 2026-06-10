@@ -25,14 +25,15 @@ const SAMPLE_SALE = {
 };
 const SAMPLE_INVOICE = {
   invoice_no: 'INV-1042', date: new Date().toISOString(), client_name: 'Sample Client',
+  due_date: new Date(Date.now() + 15 * 864e5).toISOString(),
   is_interstate: false, taxable_amount: 0, tax_total: 0, grand_total: 0, paid_amount: 0,
   items: [
-    { name: 'Basmati Rice 5kg', hsn_code: '1006', qty: 2, rate: 80,  taxRate: 5,  unit: 'PCS' },
-    { name: 'Sunflower Oil 1L', hsn_code: '1512', qty: 1, rate: 245, taxRate: 5,  unit: 'PCS' },
-    { name: 'Detergent 2kg',    hsn_code: '3402', qty: 3, rate: 120, taxRate: 18, unit: 'PCS' },
+    { name: 'Basmati Rice 5kg', sku: 'RICE-5KG', hsn_code: '1006', qty: 2, rate: 80,  taxRate: 5,  unit: 'PCS' },
+    { name: 'Sunflower Oil 1L', sku: 'OIL-1L',   hsn_code: '1512', qty: 1, rate: 245, taxRate: 5,  unit: 'PCS' },
+    { name: 'Detergent 2kg',    sku: 'DET-2KG',  hsn_code: '3402', qty: 3, rate: 120, taxRate: 18, unit: 'PCS' },
   ],
 };
-const SAMPLE_CLIENT = { name: 'Sample Client', address: '12 MG Road, Bengaluru', contact: '98765 43210', state: 'Karnataka' };
+const SAMPLE_CLIENT = { name: 'Sample Client', address: '12 MG Road, Bengaluru', contact: '98765 43210', state: 'Karnataka', outstanding_balance: 2500 };
 
 // Settings hub — corporate-SaaS layout: grouped left rail + card panels with
 // header / body / footer structure and label-left form rows.
@@ -199,9 +200,9 @@ const PrintPanel = ({ tenantId }) => {
 
   const OPT_GROUPS = [
     ['Invoice details', [['logo', 'Business logo'], ['gstin', 'GSTIN'], ['words', 'Amount in words']]],
-    ['Party details', [['clientAddr', 'Client address'], ['phone', 'Phone numbers']]],
-    ['Item table', [['hsn', 'HSN column']]],
-    ['Footer', [['terms', 'Terms & conditions'], ['sign', 'Signature block'], ['upiQr', 'UPI QR code']]],
+    ['Party details', [['clientAddr', 'Client address'], ['phone', 'Phone numbers'], ['partyBalance', 'Party balance']]],
+    ['Item table', [['hsn', 'HSN column'], ['desc', 'Item description']]],
+    ['Footer', [['terms', 'Terms & conditions'], ['sign', 'Signature block'], ['bank', 'Bank details'], ['upiQr', 'UPI QR code']]],
   ];
 
   return (
