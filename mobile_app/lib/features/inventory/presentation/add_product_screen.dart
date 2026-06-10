@@ -7,6 +7,7 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/core/widgets/barcode_scanner_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
@@ -26,7 +27,35 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   final _stockController = TextEditingController();
   final _alertController = TextEditingController();
   final _categoryController = TextEditingController();
+  final _barcodeController = TextEditingController();
   bool _isLoading = false;
+
+  // EAN-13 check digit for a 12-digit body.
+  static String _ean13Check(String body12) {
+    var sum = 0;
+    for (var i = 0; i < 12; i++) {
+      final d = int.parse(body12[i]);
+      sum += (i % 2 == 0) ? d : d * 3;
+    }
+    return ((10 - (sum % 10)) % 10).toString();
+  }
+
+  // Internal EAN-13 (GS1 in-store prefix 21 + random body + check digit).
+  void _assignBarcode() {
+    final rnd = DateTime.now().microsecondsSinceEpoch % 10000000000;
+    final body = '21${rnd.toString().padLeft(10, '0')}';
+    setState(() => _barcodeController.text = body + _ean13Check(body));
+  }
+
+  Future<void> _scanBarcodeIntoField() async {
+    final code = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(builder: (_) => const BarcodeScannerScreen(title: 'Scan barcode')),
+    );
+    if (code != null && code.isNotEmpty && mounted) {
+      setState(() => _barcodeController.text = code);
+    }
+  }
 
   String _selectedUnit = 'pcs';
   String _selectedTaxSlab = 'Exempt';
@@ -59,6 +88,16 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       } else {
         _selectedTaxSlab = 'Exempt';
       }
+      supabase
+          .from('products')
+          .select('barcode')
+          .eq('id', p.id)
+          .maybeSingle()
+          .then((row) {
+        if (mounted && row != null && (row['barcode'] ?? '') != '') {
+          setState(() => _barcodeController.text = row['barcode'] as String);
+        }
+      }, onError: (_) {});
     }
   }
 
@@ -71,6 +110,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     _stockController.dispose();
     _alertController.dispose();
     _categoryController.dispose();
+    _barcodeController.dispose();
     super.dispose();
   }
 
@@ -108,6 +148,11 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           taxRate: _taxRate,
         );
         await repo.updateProduct(updated);
+        // Barcode column exists only on Supabase (not in the drift cache).
+        final bc = _barcodeController.text.trim();
+        await supabase.from('products')
+            .update({'barcode': bc.isEmpty ? null : bc})
+            .eq('id', widget.product!.id);
       } else {
         // Add mode — insert via Supabase directly.
         // Column names are camelCase to match the products table
@@ -130,6 +175,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           'unit': _selectedUnit,
           'taxRate': _taxRate,
           'taxSlab': _selectedTaxSlab,
+          'barcode': _barcodeController.text.trim().isEmpty ? null : _barcodeController.text.trim(),
           'tenant_id': tenantCtx?.tenantId,
         });
       }
@@ -221,10 +267,52 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             ),
             const SizedBox(height: 12),
             _buildField(
-              label: 'SKU / Barcode',
+              label: 'SKU',
               hint: 'e.g. RICE-5KG-001',
               controller: _skuController,
               icon: LucideIcons.scan,
+            ),
+            const SizedBox(height: 12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: _buildField(
+                    label: 'Barcode (EAN-13)',
+                    hint: 'Assign or scan…',
+                    controller: _barcodeController,
+                    icon: LucideIcons.scanLine,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _assignBarcode,
+                  child: Container(
+                    height: 48, padding: const EdgeInsets.symmetric(horizontal: 12),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text('Assign',
+                        style: GoogleFonts.manrope(
+                            fontSize: 12, fontWeight: FontWeight.w800,
+                            color: AppColors.onPrimaryContainer)),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                GestureDetector(
+                  onTap: _scanBarcodeIntoField,
+                  child: Container(
+                    height: 48, width: 48,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(LucideIcons.camera, size: 18, color: Colors.white),
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 12),
             _buildField(

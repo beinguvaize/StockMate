@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { ImagePlus, CheckCircle2, Percent, Camera, Images, Upload, X, Loader2 } from 'lucide-react';
+import { ImagePlus, CheckCircle2, Percent, Camera, Images, Upload, X, Loader2, Wand2 } from 'lucide-react';
+import { ean13CheckDigit } from '../../../lib/labelPrint';
 import Modal from '../../../shared/Modal';
 import Button from '../../../shared/Button';
 import { TAX_SLABS, UNITS } from '../../../lib/constants';
@@ -228,9 +229,21 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>Barcode (EAN-13 / UPC / custom)</label>
-                <input type="text" className={`${inputCls} font-mono`} placeholder="Scan or type barcode…"
-                  value={formData.barcode || ''}
-                  onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
+                <div className="flex gap-2">
+                  <input type="text" className={`${inputCls} font-mono flex-1`} placeholder="Scan or type barcode…"
+                    value={formData.barcode || ''}
+                    onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
+                  <button type="button"
+                    onClick={() => {
+                      // Internal EAN-13: GS1 in-store prefix 21 + random body + check digit
+                      const body = '21' + String(Math.floor(Math.random() * 1e10)).padStart(10, '0');
+                      setFormData({ ...formData, barcode: body + ean13CheckDigit(body) });
+                    }}
+                    title="Auto-generate an EAN-13 barcode"
+                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-bold hover:bg-accent-signature/10">
+                    <Wand2 size={13} /> Assign
+                  </button>
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Product Type</label>
