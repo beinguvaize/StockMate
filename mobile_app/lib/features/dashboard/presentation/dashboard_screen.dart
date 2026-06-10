@@ -326,9 +326,6 @@ class _AppDrawer extends ConsumerWidget {
       _DrawerItem(icon: LucideIcons.users2, label: 'HR & Payroll', color: AppColors.secondary, feature: 'hr'),
       _DrawerItem(icon: LucideIcons.truck,  label: 'Fleet',         color: Color(0xFF5b5f5a), feature: 'logistics'),
     ]),
-    _DrawerSection(label: 'ACCOUNT', items: [
-      _DrawerItem(icon: LucideIcons.settings, label: 'Settings', color: AppColors.inkSecondary, feature: '__always__'),
-    ]),
   ];
 
   void _navigate(BuildContext context, String label, {List<String> roles = const []}) {
@@ -389,80 +386,15 @@ class _AppDrawer extends ConsumerWidget {
       child: SafeArea(
         child: Column(
           children: [
-            // ── Profile header ────────────────────────────────────
-            tenantAsync.when(
-              data: (ctx) {
-                final name = ctx?.userProfile.name ?? ctx?.userProfile.email ?? 'User';
-                final plan = ctx?.plan ?? 'STARTER';
-                final letter = name.isNotEmpty ? name[0].toUpperCase() : 'U';
-                return Container(
-                  margin: const EdgeInsets.all(16),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: const BoxDecoration(
-                          color: AppColors.primaryContainer,
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            letter,
-                            style: GoogleFonts.manrope(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.primary,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              name,
-                              style: GoogleFonts.manrope(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: AppColors.primaryContainer.withValues(alpha: 0.25),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                plan,
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.primaryContainer,
-                                  letterSpacing: 1,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-              loading: () => const SizedBox(height: 100),
-              error: (_, _) => const SizedBox.shrink(),
+            // ── Brand header (profile card lives in the More tab) ─
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
+              child: Row(
+                children: [
+                  Image.asset('assets/images/logo.png', height: 30, fit: BoxFit.contain),
+                  const Spacer(),
+                ],
+              ),
             ),
 
             // ── Nav sections ──────────────────────────────────────
