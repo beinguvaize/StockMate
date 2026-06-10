@@ -26,6 +26,7 @@ const Inventory        = lazy(() => import('./pages/inventory/index.jsx'));
 const Sales            = lazy(() => import('./pages/sales/index.jsx'));
 const Expenses         = lazy(() => import('./pages/Expenses'));
 const Settings         = lazy(() => import('./pages/Settings'));
+const SettingsHub      = lazy(() => import('./pages/settings/SettingsHub'));
 const SyncDiagnostics  = lazy(() => import('./pages/SyncDiagnostics'));
 const SaaSLogin        = lazy(() => import('./pages/SaaSLogin'));
 // Bare-shell print routes consumed by the mobile WebView → printToPdf
@@ -193,7 +194,8 @@ function AppRoutes() {
         <Route path="appointments" element={<ProtectedRoute><Appointments /></ProtectedRoute>} />
         <Route path="sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
         <Route path="expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
-        <Route path="settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        <Route path="settings" element={<ProtectedRoute><SettingsHub /></ProtectedRoute>} />
+        <Route path="settings-classic" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
         <Route path="sync-diagnostics" element={<ProtectedRoute><SyncDiagnostics /></ProtectedRoute>} />
         <Route path="audit-log" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
         <Route path="users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
