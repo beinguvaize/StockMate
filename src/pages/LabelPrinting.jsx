@@ -18,8 +18,49 @@ const LabelPrinting = () => {
   const [search, setSearch] = useState('');
   const [qty, setQty] = useState({});            // productId -> label count
   const [templateId, setTemplateId] = useState('T38x2');
-  const [fields, setFields] = useState({ biz: true, name: true, price: true, sku: false, tax: true });
+  // Per-field config: visible, font size (pt) and bold — like big-brand label tools.
+  const DEFAULT_FIELDS = {
+    biz:   { on: true,  size: 6,  bold: true,  label: 'Business name' },
+    name:  { on: true,  size: 7,  bold: true,  label: 'Product name' },
+    sku:   { on: false, size: 5,  bold: false, label: 'SKU' },
+    price: { on: true,  size: 8,  bold: true,  label: 'MRP price' },
+    tax:   { on: true,  size: 4.5, bold: false, label: '"Incl. of all taxes"' },
+  };
+  const settingsKey = `label_settings_${currentTenantId || 'default'}`;
+  const [fields, setFields] = useState(DEFAULT_FIELDS);
   const [generating, setGenerating] = useState(false);
+  const [savedTick, setSavedTick] = useState(false);
+
+  // Load saved settings once per tenant.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(settingsKey);
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (saved.fields) {
+          setFields(prev => {
+            const merged = { ...prev };
+            for (const k of Object.keys(merged)) {
+              if (saved.fields[k]) merged[k] = { ...merged[k], ...saved.fields[k], label: merged[k].label };
+            }
+            return merged;
+          });
+        }
+        if (saved.templateId) setTemplateId(saved.templateId);
+      }
+    } catch { /* corrupt settings — use defaults */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [settingsKey]);
+
+  const saveSettings = () => {
+    localStorage.setItem(settingsKey, JSON.stringify({ fields, templateId }));
+    setSavedTick(true);
+    setTimeout(() => setSavedTick(false), 1500);
+  };
+
+  const setField = (k, patch) => setFields(f => ({ ...f, [k]: { ...f[k], ...patch } }));
+  // pt -> on-screen px at the preview scale (1pt = 0.353mm, 3.2px/mm)
+  const pt2px = (pt) => pt * 0.353 * 3.2;
   const [msg, setMsg] = useState('');
   const sheetRef = useRef(null);
 
@@ -91,11 +132,12 @@ const LabelPrinting = () => {
   };
 
   // One label cell. Used for both on-screen preview and the hidden print sheet.
+  const fs = (k) => ({ fontSize: `${fields[k].size}pt`, fontWeight: fields[k].bold ? 800 : 500 });
   const LabelCell = ({ p }) => (
     <div className="label">
-      {fields.biz && businessProfile?.name && <div className="biz">{businessProfile.name}</div>}
-      {fields.name && <div className="name">{p.name}</div>}
-      {fields.sku && p.sku && <div className="sku">{p.sku}</div>}
+      {fields.biz.on && businessProfile?.name && <div className="biz" style={fs('biz')}>{businessProfile.name}</div>}
+      {fields.name.on && <div className="name" style={fs('name')}>{p.name}</div>}
+      {fields.sku.on && p.sku && <div className="sku" style={fs('sku')}>{p.sku}</div>}
       {p.barcode ? (
         <div className="bc">
           <Barcode
@@ -111,10 +153,57 @@ const LabelPrinting = () => {
       ) : (
         <div className="sku">no barcode</div>
       )}
-      {fields.price && (
-        <div className="price">MRP ₹{Number(p.sellingPrice || 0).toFixed(2)}</div>
+      {fields.price.on && (
+        <div className="price" style={fs('price')}>MRP ₹{Number(p.sellingPrice || 0).toFixed(2)}</div>
       )}
-      {fields.tax && <div className="tax">Incl. of all taxes</div>}
+      {fields.tax.on && <div className="tax" style={fs('tax')}>Incl. of all taxes</div>}
+    </div>
+  );
+
+  // On-screen cell at preview scale; mirrors LabelCell using pt->px conversion.
+  const pvs = (k) => ({ fontSize: pt2px(fields[k].size), fontWeight: fields[k].bold ? 800 : 500, lineHeight: 1.25 });
+  const PreviewCell = ({ p }) => (
+    <div className="overflow-hidden text-center flex flex-col items-center justify-center border border-dashed border-black/10"
+      style={{ padding: 2 }}>
+      {fields.biz.on && businessProfile?.name && <div className="uppercase truncate w-full" style={pvs('biz')}>{businessProfile.name}</div>}
+      {fields.name.on && <div className="truncate w-full" style={pvs('name')}>{p.name}</div>}
+      {fields.sku.on && p.sku && <div style={pvs('sku')}>{p.sku}</div>}
+      {p.barcode ? (
+        <Barcode value={p.barcode} format={barcodeFormat(p.barcode)} width={1} height={template.label.h >= 30 ? 30 : 20} fontSize={8} margin={0} displayValue />
+      ) : <div className="text-[7px] text-red-500">no barcode</div>}
+      {fields.price.on && <div style={pvs('price')}>MRP ₹{Number(p.sellingPrice || 0).toFixed(2)}</div>}
+      {fields.tax.on && <div style={pvs('tax')}>Incl. of all taxes</div>}
+    </div>
+  );
+
+  // Big single-label sample with mm dimension rulers (first selected or sample data).
+  const sampleProduct = selected[0] || products[0] || { name: 'Item 1', sku: 'SKU-001', barcode: '2100000000013', sellingPrice: 100 };
+  const bigScale = Math.min(8, 420 / template.label.w);
+  const SampleLabel = () => (
+    <div className="flex flex-col items-center py-4">
+      {/* width ruler */}
+      <div className="flex items-center gap-1 mb-1" style={{ width: template.label.w * bigScale }}>
+        <div className="flex-1 border-t border-red-400 relative">
+          <span className="absolute left-1/2 -translate-x-1/2 -top-4 text-[10px] font-mono text-red-500">{template.label.w}mm</span>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <div className="bg-white border border-black/15 shadow-sm overflow-hidden text-center flex flex-col items-center justify-center"
+          style={{ width: template.label.w * bigScale, height: template.label.h * bigScale, padding: 4 }}>
+          {fields.biz.on && businessProfile?.name && <div className="uppercase truncate w-full" style={{ fontSize: pt2px(fields.biz.size) * (bigScale / 3.2), fontWeight: fields.biz.bold ? 800 : 500 }}>{businessProfile.name}</div>}
+          {fields.name.on && <div className="truncate w-full" style={{ fontSize: pt2px(fields.name.size) * (bigScale / 3.2), fontWeight: fields.name.bold ? 800 : 500 }}>{sampleProduct.name}</div>}
+          {fields.sku.on && sampleProduct.sku && <div style={{ fontSize: pt2px(fields.sku.size) * (bigScale / 3.2), fontWeight: fields.sku.bold ? 800 : 500 }}>{sampleProduct.sku}</div>}
+          {sampleProduct.barcode && (
+            <Barcode value={sampleProduct.barcode} format={barcodeFormat(sampleProduct.barcode)} width={Math.max(1, bigScale / 3)} height={template.label.h * bigScale * 0.3} fontSize={10} margin={0} displayValue />
+          )}
+          {fields.price.on && <div style={{ fontSize: pt2px(fields.price.size) * (bigScale / 3.2), fontWeight: fields.price.bold ? 800 : 500 }}>MRP ₹{Number(sampleProduct.sellingPrice || 0).toFixed(2)}</div>}
+          {fields.tax.on && <div style={{ fontSize: pt2px(fields.tax.size) * (bigScale / 3.2), fontWeight: fields.tax.bold ? 800 : 500 }}>Incl. of all taxes</div>}
+        </div>
+        {/* height ruler */}
+        <div className="border-l border-red-400 relative" style={{ height: template.label.h * bigScale }}>
+          <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] font-mono text-red-500 whitespace-nowrap">{template.label.h}mm</span>
+        </div>
+      </div>
     </div>
   );
 
@@ -226,30 +315,45 @@ const LabelPrinting = () => {
               {LABEL_TEMPLATES.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
             </select>
 
-            <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4">
-              {[
-                ['biz', 'Business name'],
-                ['name', 'Product name'],
-                ['price', 'MRP price'],
-                ['sku', 'SKU'],
-                ['tax', '"Incl. of all taxes"'],
-              ].map(([k, label]) => (
-                <label key={k} className="flex items-center gap-2 text-[12px] font-semibold text-ink-secondary cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={fields[k]}
-                    onChange={e => setFields({ ...fields, [k]: e.target.checked })}
-                    className="accent-[#D97706]"
-                  />
-                  {label}
-                </label>
+            <div className="mt-4 divide-y divide-black/5 border border-black/5 rounded-lg">
+              {Object.entries(fields).map(([k, f]) => (
+                <div key={k} className="flex items-center gap-3 px-3 py-2">
+                  <label className="flex items-center gap-2 text-[12px] font-semibold text-ink-secondary cursor-pointer flex-1">
+                    <input
+                      type="checkbox"
+                      checked={f.on}
+                      onChange={e => setField(k, { on: e.target.checked })}
+                      className="accent-[#D97706]"
+                    />
+                    {f.label}
+                  </label>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setField(k, { size: Math.max(3, +(f.size - 0.5).toFixed(1)) })}
+                      className="w-6 h-6 rounded border border-black/10 text-[12px] font-bold hover:bg-surface">−</button>
+                    <span className="w-8 text-center text-[11px] font-mono font-bold">{f.size}</span>
+                    <button onClick={() => setField(k, { size: Math.min(14, +(f.size + 0.5).toFixed(1)) })}
+                      className="w-6 h-6 rounded border border-black/10 text-[12px] font-bold hover:bg-surface">+</button>
+                    <button onClick={() => setField(k, { bold: !f.bold })}
+                      className={`ml-1 w-6 h-6 rounded border text-[12px] font-black ${f.bold ? 'bg-accent-signature text-white border-accent-signature' : 'border-black/10 text-ink-tertiary hover:bg-surface'}`}>B</button>
+                  </div>
+                </div>
               ))}
             </div>
+            <button
+              onClick={saveSettings}
+              className="mt-3 w-full py-2 rounded-lg bg-ink-primary text-white text-[12px] font-black hover:opacity-90"
+            >
+              {savedTick ? '✓ Saved' : 'Save Settings'}
+            </button>
           </div>
 
           <div className="bg-white rounded-xl border border-black/5 shadow-sm p-4">
             <div className="text-[10px] font-black uppercase tracking-wider text-ink-tertiary mb-2">
-              Preview {pages.length > 0 && `· ${pages.length} page${pages.length === 1 ? '' : 's'}`}
+              Label sample
+            </div>
+            <SampleLabel />
+            <div className="text-[10px] font-black uppercase tracking-wider text-ink-tertiary mb-2 mt-2">
+              Page preview {pages.length > 0 && `· ${pages.length} page${pages.length === 1 ? '' : 's'}`}
             </div>
             {totalLabels === 0 ? (
               <div className="py-10 text-center text-[12px] text-ink-tertiary">
@@ -273,17 +377,7 @@ const LabelPrinting = () => {
                   }}
                 >
                   {(pages[0] || []).map(({ p, key }) => (
-                    <div key={key} className="overflow-hidden text-center flex flex-col items-center justify-center border border-dashed border-black/10"
-                      style={{ padding: 2 }}>
-                      {fields.biz && businessProfile?.name && <div className="text-[8px] font-bold uppercase truncate w-full">{businessProfile.name}</div>}
-                      {fields.name && <div className="text-[9px] font-bold truncate w-full">{p.name}</div>}
-                      {fields.sku && p.sku && <div className="text-[7px]">{p.sku}</div>}
-                      {p.barcode ? (
-                        <Barcode value={p.barcode} format={barcodeFormat(p.barcode)} width={1} height={template.label.h >= 30 ? 30 : 20} fontSize={8} margin={0} displayValue />
-                      ) : <div className="text-[7px] text-red-500">no barcode</div>}
-                      {fields.price && <div className="text-[10px] font-black">MRP ₹{Number(p.sellingPrice || 0).toFixed(2)}</div>}
-                      {fields.tax && <div className="text-[6px]">Incl. of all taxes</div>}
-                    </div>
+                    <PreviewCell key={key} p={p} />
                   ))}
                 </div>
                 {pages.length > 1 && (
