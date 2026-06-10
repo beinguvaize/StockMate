@@ -1025,3 +1025,13 @@ body {
     size: A4;
   }
 }
+
+/* Dark auth pages: stop Chrome autofill from painting inputs white */
+.form-card input:-webkit-autofill,
+.form-card input:-webkit-autofill:hover,
+.form-card input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px #0d1411 inset;
+  -webkit-text-fill-color: #c7cdc9;
+  caret-color: #c7cdc9;
+  transition: background-color 9999s ease-in-out 0s;
+}
