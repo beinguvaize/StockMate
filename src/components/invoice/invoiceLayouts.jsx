@@ -129,7 +129,9 @@ const FooterTexts = ({ texts, editable, onEdit, center = false }) => (
 const SignBlock = ({ d }) => (
   <div className="text-right mt-6">
     <div className="text-[10px] font-bold">For {d.business.name || 'Business'}</div>
-    <div className="h-10" />
+    {d.business.signature_url
+      ? <img src={d.business.signature_url} alt="" className="h-10 object-contain inline-block my-1" />
+      : <div className="h-10" />}
     <div className="border-t border-slate-400 pt-1 inline-block min-w-[48mm] text-center">
       <span className="text-[9px] font-bold text-slate-500">Authorised Signatory</span>
     </div>
