@@ -1253,7 +1253,7 @@ class _EmployeeDetailSheetState extends State<_EmployeeDetailSheet> {
 
     setState(() => _isDeleting = true);
     try {
-      await supabase.from('employees').delete().eq('id', emp.id);
+      await supabase.from('employees').update({'deleted_at': DateTime.now().toUtc().toIso8601String()}).eq('id', emp.id); // soft delete
       if (!mounted) return;
       ref.invalidate(employeesProvider);
       Navigator.pop(context); // close sheet

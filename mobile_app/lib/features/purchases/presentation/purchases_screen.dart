@@ -64,6 +64,7 @@ final purchasesProvider =
       .from('purchases')
       .select('id, supplier_name, total_amount, date, payment_type, status, quantity, linked_product_id')
       .eq('tenant_id', tenantId)
+      .isFilter('deleted_at', null)
       .order('date', ascending: false);
 
   return (data as List)
@@ -980,12 +981,14 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
       supabase
           .from('products')
           .select('id, name, sku, barcode, costPrice, stock')
+          .isFilter('deleted_at', null)
           .order('name')
           .then((v) => v as List)
           .catchError((_) => <dynamic>[]),
       supabase
           .from('suppliers')
           .select('id, name, gstin')
+          .isFilter('deleted_at', null)
           .order('name')
           .then((v) => v as List)
           .catchError((_) => <dynamic>[]),

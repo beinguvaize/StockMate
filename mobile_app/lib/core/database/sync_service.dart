@@ -94,7 +94,8 @@ class SyncService {
 
   Future<bool> deleteOnlineOrQueue(String table, String id) async {
     try {
-      await supabase.from(table).delete().eq('id', id);
+      // Soft delete — rows are flagged, never dropped (recoverable + audit).
+      await supabase.from(table).update({'deleted_at': DateTime.now().toUtc().toIso8601String()}).eq('id', id);
       return false;
     } catch (e) {
       debugPrint('[sync] delete($table) failed online — queueing: $e');
@@ -201,7 +202,8 @@ class SyncService {
         case 'delete':
           final id = payload['id'];
           if (id == null) throw Exception('delete payload missing id');
-          await supabase.from(job.targetTable).delete().eq('id', id);
+          // Soft delete — flag, don't drop.
+          await supabase.from(job.targetTable).update({'deleted_at': DateTime.now().toUtc().toIso8601String()}).eq('id', id);
           break;
         case 'rpc':
           final name = job.rpcName;
@@ -294,7 +296,7 @@ class SyncService {
       // shared products table on every device.
       final tenantId = supabase.auth.currentUser?.userMetadata?['tenant_id'] as String?
           ?? (await supabase.from('users').select('tenant_id').eq('id', supabase.auth.currentUser!.id).maybeSingle())?['tenant_id'] as String?;
-      var q = supabase.from('products').select();
+      var q = supabase.from('products').select().isFilter('deleted_at', null);
       if (tenantId != null) q = q.eq('tenant_id', tenantId);
       final response = await q;
       final List<dynamic> data = response as List<dynamic>;
@@ -328,7 +330,8 @@ class SyncService {
     try {
       final response = await supabase
           .from('clients')
-          .select('id, tenant_id, name, email, phone, address, balance, outstanding_balance');
+          .select('id, tenant_id, name, email, phone, address, balance, outstanding_balance')
+          .isFilter('deleted_at', null);
       final List<dynamic> data = response as List<dynamic>;
       await db.batch((batch) {
         for (final item in data) {
@@ -429,7 +432,8 @@ class SyncService {
     try {
       final response = await supabase
           .from('suppliers')
-          .select('id, tenant_id, name, contact_person, phone, balance');
+          .select('id, tenant_id, name, contact_person, phone, balance')
+          .isFilter('deleted_at', null);
       final List<dynamic> data = response as List<dynamic>;
       await db.batch((batch) {
         for (final item in data) {
@@ -457,6 +461,7 @@ class SyncService {
       final response = await supabase
           .from('sales')
           .select('id, tenant_id, "shopId", "paymentMethod", "paymentStatus", subtotal, tax, "totalAmount", "paidAmount", date, items')
+          .isFilter('deleted_at', null)
           .order('date', ascending: false)
           .limit(500);
       final List<dynamic> data = response as List<dynamic>;

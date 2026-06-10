@@ -2115,6 +2115,7 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
       final data = await supabase
           .from('clients')
           .select('id, name, phone, outstanding_balance')
+          .isFilter('deleted_at', null)
           .order('name');
       setState(() {
         _clients = (data as List).map((d) => Client.fromJson(d as Map<String, dynamic>)).toList();

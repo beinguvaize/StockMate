@@ -9,6 +9,6 @@ final routesProvider = FutureProvider<List<LogisticRoute>>((ref) async {
 });
 
 final vehiclesProvider = FutureProvider<List<Vehicle>>((ref) async {
-  final response = await supabase.from('vehicles').select();
+  final response = await supabase.from('vehicles').select().isFilter('deleted_at', null);
   return (response as List).map((data) => Vehicle.fromJson(data)).toList();
 });
