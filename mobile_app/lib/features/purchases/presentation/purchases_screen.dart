@@ -211,8 +211,9 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
               // Web uses payment_type for filtering (CASH/CREDIT/UDHAAR)
               // Status column is not written by web — show all as-is
               final filtered = all.where((p) {
-                if (_filterIndex == 1) return p.resolvedStatus == 'CASH';
-                if (_filterIndex == 2) return ['CREDIT', 'UDHAAR'].contains(p.resolvedStatus);
+                final pay = (p.paymentType ?? 'CASH').toUpperCase();
+                if (_filterIndex == 1) return pay == 'CASH';
+                if (_filterIndex == 2) return pay == 'CREDIT' || pay == 'UDHAAR';
                 return true;
               }).toList();
 
