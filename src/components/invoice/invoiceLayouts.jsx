@@ -24,6 +24,7 @@ const money = (n) => `₹${Number(n || 0).toFixed(2)}`;
 export const DEFAULT_INV_OPTS = {
   logo: true, gstin: true, hsn: true, clientAddr: true, phone: true,
   words: true, terms: true, sign: true, upiQr: true,
+  desc: false, partyBalance: false, bank: true,
 };
 export const ACCENT_SWATCHES = ['#0f172a', '#166534', '#0e7490', '#7e22ce', '#b91c1c', '#4f46e5', '#b45309', '#c2410c'];
 
@@ -44,6 +45,35 @@ const TotalsRows = ({ d, labelCls = 'text-slate-500', valCls = '' }) => (
   </>
 );
 
+export const BalanceRows = ({ d, opts, labelCls = 'text-slate-500' }) =>
+  opts.partyBalance && Math.abs(d.partyBalance) > 0.004 ? (
+    <>
+      <div className="flex justify-between py-0.5 mt-1 border-t border-slate-200 pt-1">
+        <span className={labelCls}>Previous Balance</span><span>{money(d.partyBalance)}</span>
+      </div>
+      <div className="flex justify-between py-0.5 font-bold">
+        <span className={labelCls}>Current Balance</span><span>{money(d.partyBalance + d.totals.grand)}</span>
+      </div>
+    </>
+  ) : null;
+
+const BankBlock = ({ d, opts }) =>
+  opts.bank && (d.business.bank_name || d.business.upi_id) ? (
+    <div className="text-[9px] text-slate-600 mt-3">
+      <div className="font-bold uppercase tracking-widest text-slate-400 mb-0.5">Bank / UPI</div>
+      {d.business.bank_name && <div>Bank: <b>{d.business.bank_name}</b>{d.business.account_no && <> · A/c: <b>{d.business.account_no}</b></>}{d.business.ifsc && <> · IFSC: <b>{d.business.ifsc}</b></>}</div>}
+      {d.business.upi_id && <div>UPI: <b>{d.business.upi_id}</b></div>}
+    </div>
+  ) : null;
+
+const MetaExtras = ({ d }) => {
+  const bits = [];
+  if (d.invoice.due_date) bits.push(`Due: ${d.invoice.due_date}`);
+  if (d.invoice.vehicle_no) bits.push(`Vehicle: ${d.invoice.vehicle_no}`);
+  if (d.invoice.eway_no) bits.push(`e-Way: ${d.invoice.eway_no}`);
+  return bits.length ? <div className="text-[9px] text-slate-500">{bits.join(' · ')}</div> : null;
+};
+
 const ItemsTable = ({ d, headCls, rowBorder, cellPad = 'py-1.5 px-2', opts = DEFAULT_INV_OPTS }) => (
   <table className="w-full text-[10px]">
     <thead>
@@ -57,7 +87,12 @@ const ItemsTable = ({ d, headCls, rowBorder, cellPad = 'py-1.5 px-2', opts = DEF
       {d.items.map((it, i) => (
         <tr key={i} className={rowBorder}>
           <td className={cellPad}>{i + 1}</td>
-          <td className={`${cellPad} font-semibold`}>{it.name}</td>
+          <td className={`${cellPad} font-semibold`}>
+            {it.name}
+            {opts.desc && (it.sku || it.description) && (
+              <div className="text-[8.5px] font-normal text-slate-400">{it.description || it.sku}</div>
+            )}
+          </td>
           {opts.hsn && <td className={`${cellPad} text-center`}>{it.hsn_code}</td>}
           <td className={`${cellPad} text-right`}>{it.qty} {it.unit}</td>
           <td className={`${cellPad} text-right`}>{money(it.rate)}</td>
@@ -105,9 +140,12 @@ const ModernLayout = ({ d, texts, editable, onEdit, opts = DEFAULT_INV_OPTS, acc
         </div>
       </div>
       <div className="text-right">
-        <div className="text-[22px] font-extrabold tracking-tight" style={{ color: accent }}>TAX INVOICE</div>
+        <div className="text-[22px] font-extrabold tracking-tight" style={{ color: accent }}>
+          <Editable on={editable} value={texts.invTitle} onChange={v => onEdit?.('invTitle', v)} />
+        </div>
         <div className="text-[10px] text-slate-500"># {d.invoice.invoice_no}</div>
         <div className="text-[10px] text-slate-500">{d.invoice.dateStr}</div>
+        <MetaExtras d={d} />
       </div>
     </div>
 
@@ -132,10 +170,12 @@ const ModernLayout = ({ d, texts, editable, onEdit, opts = DEFAULT_INV_OPTS, acc
         <div className="flex justify-between border-t-2 mt-1.5 pt-1.5 text-[12px] font-extrabold" style={{ borderColor: accent, color: accent }}>
           <span>Grand Total</span><span>{money(d.totals.grand)}</span>
         </div>
+        <BalanceRows d={d} opts={opts} />
         {opts.words && <div className="text-[8.5px] text-slate-500 mt-1">{d.amountWords}</div>}
       </div>
     </div>
 
+    <BankBlock d={d} opts={opts} />
     {opts.terms && <FooterTexts texts={texts} editable={editable} onEdit={onEdit} />}
     {opts.sign && <SignBlock d={d} />}
   </div>
@@ -146,7 +186,7 @@ const CompactLayout = ({ d, texts, editable, onEdit, opts = DEFAULT_INV_OPTS, ac
   <div className="flex flex-col h-full text-slate-900">
     <div className="flex justify-between items-baseline border-b-2 border-slate-900 pb-1.5">
       <div className="text-[13px] font-extrabold uppercase">{d.business.name}</div>
-      <div className="text-[10px] font-bold">TAX INVOICE · #{d.invoice.invoice_no} · {d.invoice.dateStr}</div>
+      <div className="text-[10px] font-bold"><Editable on={editable} value={texts.invTitle} onChange={v => onEdit?.('invTitle', v)} /> · #{d.invoice.invoice_no} · {d.invoice.dateStr}</div>
     </div>
     <div className="flex justify-between text-[8.5px] text-slate-500 py-1 border-b border-slate-300">
       <span>{d.business.address} {opts.gstin && d.business.gst_no && <>· GSTIN {d.business.gst_no}</>}</span>
@@ -162,9 +202,11 @@ const CompactLayout = ({ d, texts, editable, onEdit, opts = DEFAULT_INV_OPTS, ac
         <div className="flex justify-between font-extrabold text-[11.5px] border-t border-slate-900 mt-1 pt-1">
           <span>TOTAL</span><span>{money(d.totals.grand)}</span>
         </div>
+        <BalanceRows d={d} opts={opts} />
       </div>
     </div>
 
+    <BankBlock d={d} opts={opts} />
     {opts.terms && <FooterTexts texts={texts} editable={editable} onEdit={onEdit} />}
     {opts.sign && <SignBlock d={d} />}
   </div>
@@ -182,7 +224,7 @@ const LetterheadLayout = ({ d, texts, editable, onEdit, opts = DEFAULT_INV_OPTS,
       </div>
     </div>
     <div className="border-t-2 border-b py-1.5 flex justify-between text-[10px] font-bold" style={{ borderColor: accent }}>
-      <span>TAX INVOICE</span>
+      <span><Editable on={editable} value={texts.invTitle} onChange={v => onEdit?.('invTitle', v)} /></span>
       <span># {d.invoice.invoice_no}</span>
       <span>{d.invoice.dateStr}</span>
     </div>
@@ -204,10 +246,12 @@ const LetterheadLayout = ({ d, texts, editable, onEdit, opts = DEFAULT_INV_OPTS,
         <div className="flex justify-between border-y-2 my-1.5 py-1.5 text-[12px] font-extrabold" style={{ borderColor: accent, color: accent }}>
           <span>Grand Total</span><span>{money(d.totals.grand)}</span>
         </div>
+        <BalanceRows d={d} opts={opts} />
         {opts.words && <div className="text-[8.5px] text-slate-500">{d.amountWords}</div>}
       </div>
     </div>
 
+    <BankBlock d={d} opts={opts} />
     {opts.terms && <FooterTexts texts={texts} editable={editable} onEdit={onEdit} center />}
     {opts.sign && <SignBlock d={d} />}
   </div>
@@ -233,6 +277,7 @@ export const RECEIPT_META = [
 ];
 
 export const DEFAULT_DOC_TEXTS = {
+  invTitle: 'TAX INVOICE',
   invTerms: 'Goods once sold will not be taken back or exchanged. Payment due within agreed credit period. Subject to local jurisdiction.',
   invFooter: 'Thank you for your business!',
   rcptFooter: 'Thank you! Visit again.',

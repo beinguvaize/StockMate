@@ -177,7 +177,11 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
     invoice: {
       invoice_no: invoice.invoice_no || invoice.invoiceNo || invoice.id || '—',
       dateStr: new Date(invoice.date || Date.now()).toLocaleDateString('en-IN'),
+      due_date: invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('en-IN') : null,
+      vehicle_no: invoice.vehicle_no || null,
+      eway_no: invoice.eway_no || invoice.eway_bill_no || null,
     },
+    partyBalance: outstandingBalance,
     items,
     totals: { taxable: taxableAmount, cgst: cgstAmount, sgst: sgstAmount, igst: igstAmount,
               totalTax, grand: grandTotal > 0 ? grandTotal : taxableAmount + totalTax,
@@ -513,6 +517,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
               <div className="p-3 border-r border-slate-900 text-[10px]">
                 <div className="flex gap-3">
                   <div className="flex-1">
+                    {invOpts.bank && (<>
                     <div className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Bank / UPI</div>
                     <div className="space-y-0.5">
                       {safeBusiness.bank_name && <div><span className="text-slate-500">Bank:</span> <b>{safeBusiness.bank_name}</b></div>}
@@ -520,6 +525,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                       {safeBusiness.ifsc_code && <div><span className="text-slate-500">IFSC:</span> <b className="uppercase">{safeBusiness.ifsc_code}</b></div>}
                       {safeBusiness.upi_id && <div><span className="text-slate-500">UPI:</span> <b>{safeBusiness.upi_id}</b></div>}
                     </div>
+                    </>)}
                   </div>
                   {(() => {
                     // QR shows only when bill_settings.show_upi_invoice is
