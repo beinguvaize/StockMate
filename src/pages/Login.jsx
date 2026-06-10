@@ -15,6 +15,33 @@ const Login = () => {
   const navigate = useNavigate();
   const [googleLoading, setGoogleLoading] = useState(false);
 
+  // Inline signup — same page, right panel swaps between login and register.
+  const [mode, setMode] = useState('login'); // 'login' | 'signup'
+  const [signup, setSignup] = useState({ name: '', email: '', password: '', confirm: '' });
+  const [signupLoading, setSignupLoading] = useState(false);
+  const [info, setInfo] = useState('');
+
+  const handleSignUp = async (e) => {
+    e.preventDefault();
+    setError('');
+    setInfo('');
+    if (signup.password !== signup.confirm) { setError('Passwords do not match'); return; }
+    if (signup.password.length < 8) { setError('Password must be at least 8 characters'); return; }
+    setSignupLoading(true);
+    const { data, error: err } = await supabase.auth.signUp({
+      email: signup.email,
+      password: signup.password,
+      options: { data: { full_name: signup.name } },
+    });
+    setSignupLoading(false);
+    if (err) { setError(err.message); return; }
+    if (data?.user && !data.session) {
+      setInfo('Check your email for a confirmation link, then come back to sign in.');
+      return;
+    }
+    navigate('/welcome');
+  };
+
   // Desktop offline status: track navigator.onLine + cached bootstrap so we can
   // (a) show a clear "first sign-in requires internet" warning to fresh users,
   // (b) tell returning users how many days of offline grace remain.
@@ -155,10 +182,13 @@ const Login = () => {
  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] h-[460px] bg-[radial-gradient(ellipse_at_center,rgba(56,224,160,0.16)_0%,rgba(56,224,160,0.08)_28%,rgba(56,224,160,0.03)_55%,transparent_75%)] pointer-events-none z-0" />
  <div className="absolute -top-[80px] left-1/2 -translate-x-1/2 w-[400px] h-[300px] bg-[radial-gradient(ellipse_at_top,rgba(56,224,160,0.07)_0%,transparent_65%)] pointer-events-none z-0" />
 
- <div className="relative z-1 w-[370px] form-card">
- <h1 className="font-space font-bold text-[26px] text-white text-center mb-[34px]">
- WELCOME BACK
+ <div className="relative z-1 w-[370px] form-card max-h-full overflow-y-auto py-6">
+ <h1 className="font-space font-bold text-[26px] text-white text-center mb-[10px]">
+ {mode === 'login' ? 'WELCOME BACK' : 'CREATE ACCOUNT'}
  </h1>
+ <p className="text-center text-[12px] text-[#747576] mb-[24px]">
+ {mode === 'login' ? 'Sign in to your workspace' : '60 days free. No credit card required.'}
+ </p>
 
  {offlineState.desktop && !offlineState.online && (
    <div className={`mb-5 px-4 py-3 rounded-xl border text-[12px] leading-snug ${
@@ -181,6 +211,7 @@ const Login = () => {
    </div>
  )}
 
+ {mode === 'login' ? (
  <form onSubmit={handleSubmit}>
  <div className="mb-[18px]">
  <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">Email Address</label>
@@ -262,6 +293,55 @@ const Login = () => {
  <span className="font-arial font-bold text-[15px] text-[#111] relative z-1">LOG IN</span>
  </button>
  </form>
+ ) : (
+ <form onSubmit={handleSignUp}>
+   {[
+     { key: 'name',     type: 'text',     label: 'Full Name',        ph: 'Full name' },
+     { key: 'email',    type: 'email',    label: 'Work Email',       ph: 'Email address' },
+     { key: 'password', type: 'password', label: 'Password',         ph: 'Password (min 8 chars)' },
+     { key: 'confirm',  type: 'password', label: 'Confirm Password', ph: 'Confirm password' },
+   ].map(f => (
+     <div className="mb-[16px]" key={f.key}>
+       <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">{f.label}</label>
+       <div className="flex items-center bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] transition-colors focus-within:border-[#38e0a0]/45">
+         <input
+           type={f.type}
+           placeholder={f.ph}
+           autoComplete="off"
+           required
+           className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] p-[13px] placeholder:text-gray-700/30"
+           value={signup[f.key]}
+           onChange={(e) => setSignup({ ...signup, [f.key]: e.target.value })}
+         />
+       </div>
+     </div>
+   ))}
+
+   {error && (
+     <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[12px] font-semibold">
+       {error}
+     </div>
+   )}
+   {info && (
+     <div className="mb-4 p-3 rounded-xl bg-[#38e0a0]/10 border border-[#38e0a0]/25 text-[#38e0a0] text-[12px] font-semibold">
+       {info}
+     </div>
+   )}
+
+   <button
+     type="submit"
+     disabled={signupLoading || googleLoading}
+     className="w-full mt-[10px] bg-[#38e0a0] border-none rounded-[6px] cursor-pointer h-[54px] flex items-center justify-center hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-60"
+   >
+     <span className="font-arial font-bold text-[15px] text-[#0d1411]">
+       {signupLoading ? 'CREATING…' : 'START FREE TRIAL'}
+     </span>
+   </button>
+   <p className="mt-3 text-center text-[10.5px] text-[#747576]">
+     By signing up you agree to our Terms of Service.
+   </p>
+ </form>
+ )}
 
  {/* Divider */}
  <div className="flex items-center gap-3 mt-[22px] mb-[18px]">
@@ -292,19 +372,22 @@ const Login = () => {
    <span className="font-bold text-[14px] text-[#747576]">Continue with Google</span>
  </button>
 
- {/* Signup CTA */}
+ {/* Mode toggle — stays on this page */}
  <p className="mt-6 text-center text-[12.5px] text-[#747576]">
-   New to LedgrPro?{' '}
-   <button type="button" onClick={() => navigate('/register')}
+   {mode === 'login' ? 'New to LedgrPro?' : 'Already have an account?'}{' '}
+   <button type="button"
+     onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setInfo(''); }}
      className="text-[#38e0a0] font-bold hover:underline cursor-pointer bg-transparent border-0">
-     Create an account →
+     {mode === 'login' ? 'Create an account →' : 'Sign in →'}
    </button>
  </p>
  </div>
 
+ {mode === 'login' && (
  <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2 text-[#747576] text-[11px] font-normal whitespace-nowrap z-1">
  © 2026 LEDGR PRO. ALL RIGHTS RESERVED.
  </div>
+ )}
  </div>
  </div>
  );
