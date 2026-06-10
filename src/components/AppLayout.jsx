@@ -4,7 +4,7 @@ import { useBilling } from '../hooks/useBilling';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import SyncStatusButton from './SyncStatusButton';
-import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock} from 'lucide-react';
+import { LayoutDashboard, Package, LogOut, Truck, BarChart3, Banknote, User, ShoppingCart, ClipboardList, Wallet, Users as UsersIcon, Settings as SettingsIcon, BookOpen, ShoppingBag, Menu, X, ChevronDown, FileText, Sparkles, Shield, ScrollText, Upload, Factory, CalendarClock, ScanBarcode} from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import { getDefaultAvatar } from '../lib/supabase';
 import NotificationStack from './NotificationStack';
@@ -122,6 +122,7 @@ const Navbar = () => {
    navItem('Day Book', '/daybook', <BookOpen size={20} />, 'daybook'),
    navItem('Vehicles', '/vehicles', <Truck size={20} />, 'vehicles', 'vehicles'),
    navItem('Reports', '/reports', <BarChart3 size={20} />, 'reports'),
+   navItem('Labels', '/labels', <ScanBarcode size={20} />, 'inventory'),
  ];
 
  const allNavItems = [...primaryNavItems, ...moreNavItems];

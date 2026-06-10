@@ -72,7 +72,7 @@ export const FinanceProvider = ({ children }) => {
 
   const deleteExpense = async (expenseId) => {
     if (isSupabaseConfigured) {
-      const { error } = await supabase.from('expenses').delete().eq('id', expenseId);
+      const { error } = await supabase.from('expenses').update({ deleted_at: new Date().toISOString() }).eq('id', expenseId);
       if (error) {
         console.error('Error deleting expense from Supabase:', error);
         setSyncStatus('ERROR');

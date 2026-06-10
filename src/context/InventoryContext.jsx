@@ -296,7 +296,7 @@ export const InventoryProvider = ({ children }) => {
 
   const deleteProduct = async (id) => {
     if (isSupabaseConfigured) {
-      const { error } = await supabase.from('products').delete().eq('id', id).eq('tenant_id', currentTenantId);
+      const { error } = await supabase.from('products').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', currentTenantId);
       if (error) {
         console.error('Error deleting product from Supabase:', error);
         logError({ module: 'Inventory', action: 'Delete Product', error_code: error.code, error_message: error.message, severity: 'Medium' });
@@ -354,7 +354,7 @@ export const InventoryProvider = ({ children }) => {
       setSyncStatus('SYNCING');
       const { error } = await supabase
         .from('product_categories')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', categoryId)
         .eq('tenant_id', currentTenantId);
       if (error) {
@@ -397,7 +397,7 @@ export const InventoryProvider = ({ children }) => {
 
   const deleteVehicle = async (vehicleId) => {
     if (isSupabaseConfigured) {
-      const { error } = await supabase.from('vehicles').delete().eq('id', vehicleId).eq('tenant_id', currentTenantId);
+      const { error } = await supabase.from('vehicles').update({ deleted_at: new Date().toISOString() }).eq('id', vehicleId).eq('tenant_id', currentTenantId);
       if (error) {
         console.error('Error deleting vehicle from Supabase:', error);
       }

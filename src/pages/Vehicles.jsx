@@ -268,7 +268,7 @@ const Vehicles = () => {
       // Fetch location
       const { data: locData } = await supabase
         .from('inventory_locations')
-        .select('*')
+        .select('*').is('deleted_at', null)
         .eq('type', 'VEHICLE')
         .eq('reference_id', vehicleId)
         .maybeSingle();

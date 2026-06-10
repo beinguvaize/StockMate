@@ -44,17 +44,17 @@ export const usePeople = (tenantId) => {
       const [cliCached, supCached, empCached, userCached] = await Promise.all([
         readCacheThenRevalidate(
           'clients',
-          () => supabase.from('clients').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+          () => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
           (rows) => setClients(normalizeNumericRows(rows, CLIENT_NUMERIC)),
         ),
         readCacheThenRevalidate(
           'suppliers',
-          () => supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+          () => supabase.from('suppliers').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
           (rows) => setSuppliers(normalizeNumericRows(rows, SUPPLIER_NUMERIC)),
         ),
         readCacheThenRevalidate(
           'employees',
-          () => supabase.from('employees').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+          () => supabase.from('employees').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
           (rows) => setEmployees(normalizeNumericRows(rows, EMPLOYEE_NUMERIC)),
         ),
         readCacheThenRevalidate(
@@ -108,7 +108,7 @@ export const usePeople = (tenantId) => {
   };
 
   const deleteSupplier = async (id) => {
-    const { error } = await supabase.from('suppliers').delete().eq('id', id).eq('tenant_id', tenantId);
+    const { error } = await supabase.from('suppliers').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     if (!error) await fetchPeopleData();
     return { success: !error, error };
   };
@@ -150,7 +150,7 @@ export const usePeople = (tenantId) => {
   };
 
   const deleteClient = async (id) => {
-    const { error } = await supabase.from('clients').delete().eq('id', id).eq('tenant_id', tenantId);
+    const { error } = await supabase.from('clients').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     if (!error) fetchPeopleData().catch(e => console.error('deleteClient refetch error:', e));
     return { success: !error, error };
   };

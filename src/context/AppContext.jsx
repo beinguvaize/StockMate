@@ -637,7 +637,7 @@ const AppProviderInner = ({ children }) => {
  await reconcileSaleEffects(sale, null);
 
  if (isSupabaseConfigured) {
-  const { error} = await supabase.from('sales').delete().eq('id', saleId).eq('tenant_id', currentTenantId);
+  const { error} = await supabase.from('sales').update({ deleted_at: new Date().toISOString() }).eq('id', saleId).eq('tenant_id', currentTenantId);
   if (error) {
   console.error("Error deleting sale from Supabase:", error);
   logError({
@@ -1069,24 +1069,24 @@ const AppProviderInner = ({ children }) => {
       { data: balancesData},
       { data: invoicesData}
     ] = await Promise.all([
-      supabase.from('products').select('id,sku,name,category,unit,costPrice,sellingPrice,stock,taxRate,tags,image,hsn_code,lowStockThreshold,food_type,is_available,station,modifier_groups,duration_min,tenant_id,updated_at').eq('tenant_id', targetTenantId),
-      supabase.from('clients').select('id,name,phone,email,address,gstin,state,state_code,client_type,credit_days,outstanding_balance,tenant_id,created_at').eq('tenant_id', targetTenantId).is('deleted_at', null),
-      supabase.from('sales').select('id,shopId,date,totalAmount,totalCogs,paymentMethod,paymentStatus,status,items,customerInfo,paidAmount,tenant_id,created_at,invoice_id').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
-      supabase.from('expenses').select('id,category,amount,note,date,tenant_id,created_at').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
-      supabase.from('employees').select('id,name,role,status,daily_rate,days_worked,amount_paid,tenant_id,created_at').eq('tenant_id', targetTenantId),
-      supabase.from('payroll').select('*').eq('tenant_id', targetTenantId).order('processed_at', { ascending: false }).limit(100),
+      supabase.from('products').select('id,sku,name,category,unit,costPrice,sellingPrice,stock,taxRate,tags,image,hsn_code,lowStockThreshold,food_type,is_available,station,modifier_groups,duration_min,tenant_id,updated_at').is('deleted_at', null).eq('tenant_id', targetTenantId),
+      supabase.from('clients').select('id,name,phone,email,address,gstin,state,state_code,client_type,credit_days,outstanding_balance,tenant_id,created_at').is('deleted_at', null).eq('tenant_id', targetTenantId).is('deleted_at', null),
+      supabase.from('sales').select('id,shopId,date,totalAmount,totalCogs,paymentMethod,paymentStatus,status,items,customerInfo,paidAmount,tenant_id,created_at,invoice_id').is('deleted_at', null).eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+      supabase.from('expenses').select('id,category,amount,note,date,tenant_id,created_at').is('deleted_at', null).eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+      supabase.from('employees').select('id,name,role,status,daily_rate,days_worked,amount_paid,tenant_id,created_at').is('deleted_at', null).eq('tenant_id', targetTenantId),
+      supabase.from('payroll').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId).order('processed_at', { ascending: false }).limit(100),
       supabase.from('business_profile').select('*').eq('tenant_id', targetTenantId).maybeSingle(),
       supabase.from('day_book').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(31),
       supabase.from('settings').select('*').eq('tenant_id', targetTenantId),
       supabase.from('client_payments').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
       supabase.from('users').select('*').eq('tenant_id', targetTenantId),
-      supabase.from('vehicles').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('vehicles').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId),
       supabase.from('movement_log').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
       supabase.from('routes').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(100),
-      supabase.from('purchases').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
-      supabase.from('suppliers').select('*').eq('tenant_id', targetTenantId).order('name', { ascending: true }),
-      supabase.from('product_categories').select('*').eq('tenant_id', targetTenantId).order('name'),
-      supabase.from('inventory_locations').select('*').eq('tenant_id', targetTenantId),
+      supabase.from('purchases').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+      supabase.from('suppliers').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId).order('name', { ascending: true }),
+      supabase.from('product_categories').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId).order('name'),
+      supabase.from('inventory_locations').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId),
       supabase.from('inventory_balances').select('*').eq('tenant_id', targetTenantId),
       supabase.from('invoices').select('*').eq('tenant_id', targetTenantId).order('created_at', { ascending: false }).limit(200)
     ]);
@@ -1234,24 +1234,24 @@ const AppProviderInner = ({ children }) => {
         { data: balancesData },
         { data: invoicesData }
       ] = await Promise.all([
-        supabase.from('products').select('id,sku,name,category,unit,costPrice,sellingPrice,stock,taxRate,tags,image,hsn_code,lowStockThreshold,food_type,is_available,station,modifier_groups,duration_min,tenant_id,updated_at').eq('tenant_id', targetTenantId),
-        supabase.from('product_categories').select('*').eq('tenant_id', targetTenantId).order('name'),
-        supabase.from('clients').select('id,name,phone,email,address,gstin,state,state_code,client_type,credit_days,outstanding_balance,tenant_id,created_at').eq('tenant_id', targetTenantId).is('deleted_at', null),
-        supabase.from('sales').select('id,shopId,date,totalAmount,totalCogs,paymentMethod,paymentStatus,status,items,customerInfo,paidAmount,tenant_id,created_at,invoice_id').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
-        supabase.from('expenses').select('id,category,amount,note,date,tenant_id,created_at').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
-        supabase.from('employees').select('id,name,role,status,daily_rate,days_worked,amount_paid,tenant_id,created_at').eq('tenant_id', targetTenantId),
-        supabase.from('payroll').select('*').eq('tenant_id', targetTenantId).order('processed_at', { ascending: false }).limit(100),
+        supabase.from('products').select('id,sku,name,category,unit,costPrice,sellingPrice,stock,taxRate,tags,image,hsn_code,lowStockThreshold,food_type,is_available,station,modifier_groups,duration_min,tenant_id,updated_at').is('deleted_at', null).eq('tenant_id', targetTenantId),
+        supabase.from('product_categories').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId).order('name'),
+        supabase.from('clients').select('id,name,phone,email,address,gstin,state,state_code,client_type,credit_days,outstanding_balance,tenant_id,created_at').is('deleted_at', null).eq('tenant_id', targetTenantId).is('deleted_at', null),
+        supabase.from('sales').select('id,shopId,date,totalAmount,totalCogs,paymentMethod,paymentStatus,status,items,customerInfo,paidAmount,tenant_id,created_at,invoice_id').is('deleted_at', null).eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+        supabase.from('expenses').select('id,category,amount,note,date,tenant_id,created_at').is('deleted_at', null).eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+        supabase.from('employees').select('id,name,role,status,daily_rate,days_worked,amount_paid,tenant_id,created_at').is('deleted_at', null).eq('tenant_id', targetTenantId),
+        supabase.from('payroll').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId).order('processed_at', { ascending: false }).limit(100),
         supabase.from('business_profile').select('*').eq('tenant_id', targetTenantId).maybeSingle(),
         supabase.from('day_book').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(31),
         supabase.from('settings').select('*').eq('tenant_id', targetTenantId),
         supabase.from('client_payments').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
         supabase.from('users').select('*').eq('tenant_id', targetTenantId),
-        supabase.from('vehicles').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('vehicles').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId),
         supabase.from('movement_log').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
         supabase.from('routes').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(100),
-        supabase.from('purchases').select('*').eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
-        supabase.from('suppliers').select('*').eq('tenant_id', targetTenantId).order('name', { ascending: true }),
-        supabase.from('inventory_locations').select('*').eq('tenant_id', targetTenantId),
+        supabase.from('purchases').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
+        supabase.from('suppliers').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId).order('name', { ascending: true }),
+        supabase.from('inventory_locations').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId),
         supabase.from('inventory_balances').select('*').eq('tenant_id', targetTenantId),
         supabase.from('invoices').select('*').eq('tenant_id', targetTenantId).order('created_at', { ascending: false }).limit(200)
       ]);

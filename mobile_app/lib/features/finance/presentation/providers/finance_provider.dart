@@ -16,6 +16,7 @@ final expensesProvider = FutureProvider<List<Expense>>((ref) async {
         .from('expenses')
         .select()
         .eq('tenant_id', ctx.tenantId)
+        .isFilter('deleted_at', null)
         .order('created_at', ascending: false)
         .limit(100);
     return (response as List).map((data) => Expense.fromJson(data)).toList();

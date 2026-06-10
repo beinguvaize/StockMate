@@ -830,9 +830,9 @@ class _VehicleDetailSheet extends StatelessWidget {
               Navigator.pop(dialogContext); // close dialog
               Navigator.pop(context); // close sheet
               try {
-                await supabase
+                await supabase // soft delete
                     .from('vehicles')
-                    .delete()
+                    .update({'deleted_at': DateTime.now().toUtc().toIso8601String()})
                     .eq('id', vehicle.id);
                 ref.invalidate(vehiclesProvider);
               } catch (e) {

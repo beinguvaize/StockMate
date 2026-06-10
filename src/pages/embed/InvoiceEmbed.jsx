@@ -82,7 +82,7 @@ const InvoiceEmbed = () => {
         const [bizRes, cliRes] = await Promise.all([
           supabase.from('business_profile').select('*').eq('tenant_id', invoice.tenant_id).maybeSingle(),
           invoice.client_id
-            ? supabase.from('clients').select('*').eq('id', invoice.client_id).maybeSingle()
+            ? supabase.from('clients').select('*').is('deleted_at', null).eq('id', invoice.client_id).maybeSingle()
             : Promise.resolve({ data: null }),
         ]);
         if (cancelled) return;

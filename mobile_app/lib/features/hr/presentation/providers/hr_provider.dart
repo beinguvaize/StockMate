@@ -11,6 +11,7 @@ final employeesProvider = FutureProvider<List<Employee>>((ref) async {
       .from('employees')
       .select()
       .eq('tenant_id', ctx.tenantId)
+      .isFilter('deleted_at', null)
       .order('name', ascending: true);
 
   return (response as List).map((data) => Employee.fromJson(data)).toList();

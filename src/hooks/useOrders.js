@@ -30,7 +30,7 @@ export const useOrders = (tenantId) => {
       ] = await Promise.all([
         supabase
           .from('orders')
-          .select('*')
+          .select('*').is('deleted_at', null)
           .eq('tenant_id', tenantId)
           .order('created_at', { ascending: false })
           .limit(500),
@@ -124,7 +124,7 @@ export const useOrders = (tenantId) => {
   const deleteOrder = async (id) => {
     const { error } = await supabase
       .from('orders')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id)
       .eq('tenant_id', tenantId);
     if (!error) setOrders(prev => prev.filter(o => o.id !== id));

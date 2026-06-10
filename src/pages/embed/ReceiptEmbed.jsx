@@ -82,14 +82,14 @@ const ReceiptEmbed = () => {
     (async () => {
       try {
         const { data: sale, error: sErr } = await supabase
-          .from('sales').select('*').eq('id', saleId).maybeSingle();
+          .from('sales').select('*').is('deleted_at', null).eq('id', saleId).maybeSingle();
         if (sErr) throw sErr;
         if (!sale) throw new Error('Sale not found');
 
         const [bizRes, cliRes] = await Promise.all([
           supabase.from('business_profile').select('*').eq('tenant_id', sale.tenant_id).maybeSingle(),
           sale.shopId
-            ? supabase.from('clients').select('*').eq('id', sale.shopId).maybeSingle()
+            ? supabase.from('clients').select('*').is('deleted_at', null).eq('id', sale.shopId).maybeSingle()
             : Promise.resolve({ data: null }),
         ]);
         if (cancelled) return;

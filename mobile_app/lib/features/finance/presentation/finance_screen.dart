@@ -763,7 +763,7 @@ class _FinanceScreenState extends ConsumerState<FinanceScreen> {
               Navigator.pop(ctx);
               Navigator.pop(context);
               try {
-                await supabase.from('expenses').delete().eq('id', expense.id);
+                await supabase.from('expenses').update({'deleted_at': DateTime.now().toUtc().toIso8601String()}).eq('id', expense.id); // soft delete
                 ref.invalidate(expensesProvider);
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

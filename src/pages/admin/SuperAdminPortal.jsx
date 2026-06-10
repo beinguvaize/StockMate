@@ -129,8 +129,8 @@ const SuperAdminPortal = () => {
       
       // 2. Fetch Pulse Data (Parallel)
       const [salesRes, purchasesRes, movementRes] = await Promise.all([
-        supabase.from('sales').select('id, totalAmount, created_at, tenant_id').order('created_at', { ascending: false }).limit(10),
-        supabase.from('purchases').select('id, total_amount, created_at, tenant_id, supplier_name').order('created_at', { ascending: false }).limit(10),
+        supabase.from('sales').select('id, totalAmount, created_at, tenant_id').is('deleted_at', null).order('created_at', { ascending: false }).limit(10),
+        supabase.from('purchases').select('id, total_amount, created_at, tenant_id, supplier_name').is('deleted_at', null).order('created_at', { ascending: false }).limit(10),
         supabase.from('movement_log').select('id, type, product_name, quantity, created_at, tenant_id').order('created_at', { ascending: false }).limit(10)
       ]);
 
