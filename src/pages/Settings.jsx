@@ -57,7 +57,7 @@ const PlanUsageBanner = ({ plan = 'STARTER', invoiceCount = 0, userCount = 0, ma
   );
 };
 
-const Settings = () => {
+const Settings = ({ embedded = false, section = null }) => {
   const navigate = useNavigate();
   const { tenantSlug } = useParams();
   const { currentUser, hasPermission, isOwner } = useAuth();
@@ -268,8 +268,18 @@ const Settings = () => {
 }
 
  return (
- <div className="animate-fade-in flex flex-col gap-5 pb-12">
+ <div className={`animate-fade-in flex flex-col gap-5 pb-12 ${embedded && section ? 'settings-embedded' : ''}`}>
+ {embedded && section && (
+   <style dangerouslySetInnerHTML={{ __html: `
+     .settings-embedded [id^="tab-"] { display: none !important; }
+     .settings-embedded #${section} { display: block !important; margin-top: 0 !important; }
+     /* collapse the 2/3+1/3 grid so the lone visible section gets full width */
+     .settings-embedded > .grid { display: block !important; }
+     .settings-embedded > .grid > div { width: 100% !important; }
+   ` }} />
+ )}
  {/* Header Section */}
+ {!embedded && (
  <div className="flex justify-between items-center py-2 border-b border-black/5">
  <div className="flex items-center gap-3">
  <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Settings<span className="text-accent-signature">.</span></h1>
@@ -281,8 +291,10 @@ const Settings = () => {
  </div>
  )}
  </div>
+ )}
 
  {/* ── Sticky tab strip — scrolls to each section ── */}
+ {!embedded && (
  <div className="sticky top-2 z-30 bg-canvas/85 backdrop-blur-xl rounded-2xl border border-black/5 shadow-sm p-1.5 flex items-center gap-1 overflow-x-auto no-scrollbar">
    {[
      { id: 'tab-business',   label: 'Business',   icon: <Building   size={13} /> },
@@ -303,6 +315,7 @@ const Settings = () => {
      </button>
    ))}
  </div>
+ )}
 
  {/* Main Config Grid */}
  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
