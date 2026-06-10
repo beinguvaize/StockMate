@@ -12,6 +12,7 @@ import {
   Phone, Globe, Mail, MapPin, Landmark, QrCode
 } from 'lucide-react';
 import { formatINR, amountToWords } from '../../lib/gstEngine';
+import { INVOICE_LAYOUTS, DEFAULT_DOC_TEXTS, Editable } from './invoiceLayouts';
 import { formatDate } from '../../lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -22,7 +23,7 @@ const Totals = ({ k, v, bold }) => (
   </div>
 );
 
-const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null }) => {
+const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null, editable = false, onEditText = null, textsOverride = null }) => {
   const [zoom, setZoom] = useState(100);
 
   // Inject print isolation CSS into <head> so it's guaranteed to apply
@@ -88,6 +89,17 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
     } catch { return themeOverride || 'classic'; }
   })();
 
+  // Customizable document texts (Settings -> Printing designer).
+  const docTexts = (() => {
+    if (textsOverride) return { ...DEFAULT_DOC_TEXTS, ...textsOverride };
+    try {
+      const tid = safeBusiness.tenant_id || 'default';
+      const prefs = JSON.parse(localStorage.getItem(`print_settings_${tid}`))
+        || JSON.parse(localStorage.getItem('print_settings_default')) || {};
+      return { ...DEFAULT_DOC_TEXTS, ...(prefs.docTexts || {}) };
+    } catch { return DEFAULT_DOC_TEXTS; }
+  })();
+
   // Calculate row counts for filling up to 8 rows
   const minRows = 10;
   
@@ -144,6 +156,23 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
   const igstAmount     = storedIgst    > 0 ? storedIgst    : (isInterstate ? derivedTax : 0);
 
   const emptyRowsNeeded = Math.max(0, minRows - items.length);
+
+  // Data pack for alternative layouts (Modern / Compact / Letterhead).
+  const layoutD = {
+    business: safeBusiness,
+    client: safeClient,
+    invoice: {
+      invoice_no: invoice.invoice_no || invoice.invoiceNo || invoice.id || '—',
+      dateStr: new Date(invoice.date || Date.now()).toLocaleDateString('en-IN'),
+    },
+    items,
+    totals: { taxable: taxableAmount, cgst: cgstAmount, sgst: sgstAmount, igst: igstAmount,
+              totalTax, grand: grandTotal > 0 ? grandTotal : taxableAmount + totalTax,
+              roundOff, paid: paidAmount },
+    isInterstate,
+    amountWords: amountToWords(grandTotal > 0 ? grandTotal : taxableAmount + totalTax),
+  };
+  const AltLayout = INVOICE_LAYOUTS[invTheme] || null;
 
   const tree = (
     <div id={previewMode ? undefined : 'invoice-template-portal'}
@@ -228,6 +257,10 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
           className={`inv-sheet inv-theme-${invTheme} w-[210mm] min-h-[297mm] bg-white shadow-2xl p-[12mm] flex flex-col text-slate-900 transition-all duration-300 print:shadow-none print:transform-none print:p-[10mm] print:w-full print:min-h-0`}
         >
           
+          {AltLayout ? (
+            <AltLayout d={layoutD} texts={docTexts} editable={previewMode && editable} onEdit={onEditText} />
+          ) : (
+          <>
           {/* Standardized compact GST invoice */}
           <div className="border-2 border-slate-900">
             {/* Title */}
@@ -530,6 +563,12 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
               </div>
             </div>
           </div>
+          {/* Classic footer note (customizable) */}
+          <div className="text-center text-[9px] text-slate-500 mt-2">
+            <Editable on={previewMode && editable} value={docTexts.invFooter} onChange={v => onEditText?.('invFooter', v)} />
+          </div>
+          </>
+          )}
         </div>
       </div>
 

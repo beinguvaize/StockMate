@@ -12,6 +12,7 @@ import Settings from '../Settings';
 import Users from '../Users';
 import CashBillPrint from '../sales/components/CashBillPrint';
 import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
+import { INVOICE_LAYOUT_META, RECEIPT_META, DEFAULT_DOC_TEXTS } from '../../components/invoice/invoiceLayouts';
 
 // Sample documents for the print previews — exact production components.
 const SAMPLE_SALE = {
@@ -180,17 +181,22 @@ const PrintPanel = ({ tenantId }) => {
   const { businessProfile } = useTenant();
   const key = `print_settings_${tenantId || 'default'}`;
   const [prefs, setPrefs] = useState(() => {
-    try { return { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', ...(JSON.parse(localStorage.getItem(key)) || {}) }; }
-    catch { return { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic' }; }
+    const base = { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', receiptTemplate: 'classic', docTexts: {} };
+    try { return { ...base, ...(JSON.parse(localStorage.getItem(key)) || {}) }; }
+    catch { return base; }
   });
   const [saved, setSaved] = useState(false);
+  const [docTab, setDocTab] = useState('receipt');
   const save = () => {
     localStorage.setItem(key, JSON.stringify(prefs));
     setSaved(true); setTimeout(() => setSaved(false), 1500);
   };
+  const onEditText = (k, v) =>
+    setPrefs(prev => ({ ...prev, docTexts: { ...(prev.docTexts || {}), [k]: v } }));
+  const texts = { ...DEFAULT_DOC_TEXTS, ...(prefs.docTexts || {}) };
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-3xl space-y-4">
       <Card
         title="Receipt printer"
         description="Applies to cash receipts printed after each sale."
@@ -219,73 +225,78 @@ const PrintPanel = ({ tenantId }) => {
         <FormRow label="Auto-print" hint="Open the print dialog automatically after each sale.">
           <Toggle checked={prefs.autoPrint} onChange={v => setPrefs({ ...prefs, autoPrint: v })} />
         </FormRow>
-        <FormRow label="Sample" hint="Exact receipt at the selected width.">
-          <div className="bg-gray-100 rounded-md p-4 inline-block max-w-full overflow-auto">
-            <CashBillPrint
-              key={prefs.paper}
-              previewMode
-              paperOverride={prefs.paper === '58' ? '58' : '80'}
-              sale={SAMPLE_SALE}
-              business={{ name: businessProfile?.name || 'Your Business', address: businessProfile?.address, phone: businessProfile?.phone }}
-            />
-          </div>
-        </FormRow>
       </Card>
 
       <Card
-        title="A4 invoice template"
-        description="Design used for GST tax invoices printed on A4."
-        footer={<PrimaryBtn onClick={save}>{saved ? <span className="inline-flex items-center gap-1.5"><Check size={13} /> Saved</span> : 'Save changes'}</PrimaryBtn>}
+        title="Document designer"
+        description="Choose a design and click the highlighted text in the preview to edit it. Changes apply to printed documents after saving."
+        footer={<PrimaryBtn onClick={save}>{saved ? <span className="inline-flex items-center gap-1.5"><Check size={13} /> Saved</span> : 'Save design & text'}</PrimaryBtn>}
       >
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {[
-            ['classic', 'Classic',  '#111827', false],
-            ['modern',  'Modern',   '#2563EB', false],
-            ['emerald', 'Emerald',  '#0F766E', false],
-            ['bold',    'Bold',     '#111827', true],
-          ].map(([id, label, color, filled]) => (
-            <button key={id} onClick={() => setPrefs({ ...prefs, invoiceTemplate: id })}
-              className={`text-left rounded-md border p-2 transition-colors ${prefs.invoiceTemplate === id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-gray-200 hover:border-gray-300'}`}>
-              {/* mini A4 thumbnail */}
-              <div className="bg-white border border-gray-200 rounded-sm mx-auto" style={{ width: 74, height: 100, padding: 5 }}>
-                <div className="text-center mb-1 rounded-[1px]"
-                  style={{ fontSize: 5, fontWeight: 700, letterSpacing: 1, padding: '2px 0',
-                    color: filled ? '#fff' : color, background: filled ? color : 'transparent',
-                    borderBottom: filled ? 'none' : `1.5px solid ${color}` }}>
-                  TAX INVOICE
-                </div>
-                {[0,1,2,3].map(i => (
-                  <div key={i} className="flex justify-between" style={{ fontSize: 4, color: '#6b7280', padding: '1.5px 0', borderBottom: '0.5px solid #f3f4f6' }}>
-                    <span>Item {i + 1}</span><span>00.00</span>
-                  </div>
-                ))}
-                <div className="flex justify-between mt-1" style={{ fontSize: 4.5, fontWeight: 700, color: '#111827' }}>
-                  <span>TOTAL</span><span>405.00</span>
-                </div>
-              </div>
-              <div className="text-[12px] font-medium text-gray-700 text-center mt-1.5">{label}</div>
+        {/* doc tabs */}
+        <div className="inline-flex rounded-md border border-gray-300 overflow-hidden mb-4">
+          {[['receipt', 'Thermal receipt'], ['invoice', 'A4 tax invoice']].map(([v, l], i) => (
+            <button key={v} onClick={() => setDocTab(v)}
+              className={`px-4 py-2 text-[13px] font-medium transition-colors ${i > 0 ? 'border-l border-gray-300' : ''} ${
+                docTab === v ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+              {l}
             </button>
           ))}
         </div>
 
-        <div className="mt-5">
-          <div className="text-[12px] font-medium text-gray-500 mb-2">Exact preview — {prefs.invoiceTemplate}</div>
-          <div className="bg-gray-100 rounded-md p-4 overflow-auto">
-            <div style={{ width: 794 * 0.55, height: 1123 * 0.55, overflow: 'hidden' }} className="mx-auto">
-              <div style={{ transform: 'scale(0.55)', transformOrigin: 'top left', width: 794 }}>
-                <InvoiceTemplate
-                  key={prefs.invoiceTemplate}
-                  previewMode
-                  themeOverride={prefs.invoiceTemplate}
-                  invoice={SAMPLE_INVOICE}
-                  businessProfile={businessProfile || { name: 'Your Business' }}
-                  client={SAMPLE_CLIENT}
-                  onClose={() => {}} onPrint={() => {}} onShare={() => {}}
-                />
+        {docTab === 'receipt' ? (
+          <>
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {RECEIPT_META.map(t => (
+                <button key={t.id} onClick={() => setPrefs({ ...prefs, receiptTemplate: t.id })}
+                  className={`text-left rounded-md border p-3 transition-colors ${prefs.receiptTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <div className="text-[13px] font-semibold text-gray-900">{t.name}</div>
+                  <div className="text-[11.5px] text-gray-500">{t.blurb}</div>
+                </button>
+              ))}
+            </div>
+            <div className="bg-gray-100 rounded-md p-4 overflow-auto">
+              <CashBillPrint
+                key={`${prefs.paper}-${prefs.receiptTemplate}-${JSON.stringify(prefs.docTexts)}`}
+                previewMode editable
+                paperOverride={prefs.paper === '58' ? '58' : '80'}
+                receiptOverride={prefs.receiptTemplate}
+                textsOverride={texts}
+                onEditText={onEditText}
+                sale={SAMPLE_SALE}
+                business={{ name: businessProfile?.name || 'Your Business', address: businessProfile?.address, phone: businessProfile?.phone, upi_id: businessProfile?.upi_id }}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              {INVOICE_LAYOUT_META.map(t => (
+                <button key={t.id} onClick={() => setPrefs({ ...prefs, invoiceTemplate: t.id })}
+                  className={`text-left rounded-md border p-3 transition-colors ${prefs.invoiceTemplate === t.id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-gray-200 hover:border-gray-300'}`}>
+                  <div className="text-[13px] font-semibold text-gray-900">{t.name}</div>
+                  <div className="text-[11.5px] text-gray-500">{t.blurb}</div>
+                </button>
+              ))}
+            </div>
+            <div className="bg-gray-100 rounded-md p-4 overflow-auto">
+              <div style={{ width: 794 * 0.62, height: 1123 * 0.62, overflow: 'hidden' }} className="mx-auto">
+                <div style={{ transform: 'scale(0.62)', transformOrigin: 'top left', width: 794 }}>
+                  <InvoiceTemplate
+                    key={`${prefs.invoiceTemplate}-${JSON.stringify(prefs.docTexts)}`}
+                    previewMode editable
+                    themeOverride={prefs.invoiceTemplate}
+                    textsOverride={texts}
+                    onEditText={onEditText}
+                    invoice={SAMPLE_INVOICE}
+                    businessProfile={businessProfile || { name: 'Your Business' }}
+                    client={SAMPLE_CLIENT}
+                    onClose={() => {}} onPrint={() => {}} onShare={() => {}}
+                  />
+                </div>
               </div>
             </div>
-          </div>
-        </div>
+          </>
+        )}
       </Card>
 
       <Card title="Barcode labels" description="Label templates, per-field typography and bulk barcode generation.">
