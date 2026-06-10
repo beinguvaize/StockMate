@@ -176,13 +176,13 @@ const Login = () => {
  </div>
 
  {/* Right Panel: Login Form */}
- <div className="w-full lg:w-1/2 bg-[#1a2320] flex items-center justify-center relative overflow-hidden">
+ <div className="w-full lg:w-1/2 bg-[#1a2320] flex relative overflow-y-auto">
  {/* Decorative Gradients */}
  <div className="absolute top-0 left-0 w-[160px] h-full bg-gradient-to-r from-white/28 via-white/12 to-transparent pointer-events-none z-0" />
  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[560px] h-[460px] bg-[radial-gradient(ellipse_at_center,rgba(56,224,160,0.16)_0%,rgba(56,224,160,0.08)_28%,rgba(56,224,160,0.03)_55%,transparent_75%)] pointer-events-none z-0" />
  <div className="absolute -top-[80px] left-1/2 -translate-x-1/2 w-[400px] h-[300px] bg-[radial-gradient(ellipse_at_top,rgba(56,224,160,0.07)_0%,transparent_65%)] pointer-events-none z-0" />
 
- <div className="relative z-1 w-[370px] form-card max-h-full overflow-y-auto py-6">
+ <div className="relative z-1 w-[370px] form-card m-auto py-10">
  <h1 className="font-space font-bold text-[26px] text-white text-center mb-[10px]">
  {mode === 'login' ? 'WELCOME BACK' : 'CREATE ACCOUNT'}
  </h1>
