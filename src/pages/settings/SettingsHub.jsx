@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import {
   User, Building, Printer, Users as UsersIcon, CreditCard,
-  LifeBuoy, ChevronRight, CheckCircle2, ScanBarcode, ReceiptText, BellRing,
+  LifeBuoy, ChevronRight, Check, BellRing,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
@@ -10,19 +10,70 @@ import { PLANS } from '../../lib/tenancy';
 import Settings from '../Settings';
 import Users from '../Users';
 
-// Settings hub — myBillBook-style left rail with focused panels.
-// Business/Invoice/Data reuse the existing Settings page; Users reuses the
-// existing Users page; Account / Print / Pricing / Support are panels here.
+// Settings hub — corporate-SaaS layout: grouped left rail + card panels with
+// header / body / footer structure and label-left form rows.
 
-const NAV = [
-  { id: 'account',  label: 'Account',            icon: <User size={16} /> },
-  { id: 'business', label: 'Manage Business',    icon: <Building size={16} /> },
-  { id: 'print',    label: 'Print Settings',     icon: <Printer size={16} /> },
-  { id: 'users',    label: 'Manage Users',       icon: <UsersIcon size={16} /> },
-  { id: 'reminders', label: 'Payment Reminders', icon: <BellRing size={16} /> },
-  { id: 'pricing',  label: 'Pricing & Plan',     icon: <CreditCard size={16} /> },
-  { id: 'support',  label: 'Help & Support',     icon: <LifeBuoy size={16} /> },
+const NAV_GROUPS = [
+  { caption: 'General', items: [
+    { id: 'account',  label: 'Account',  icon: <User size={15} /> },
+    { id: 'business', label: 'Business', icon: <Building size={15} /> },
+  ]},
+  { caption: 'Workspace', items: [
+    { id: 'print',     label: 'Printing',          icon: <Printer size={15} /> },
+    { id: 'users',     label: 'Users & roles',     icon: <UsersIcon size={15} /> },
+    { id: 'reminders', label: 'Payment reminders', icon: <BellRing size={15} /> },
+  ]},
+  { caption: 'Billing', items: [
+    { id: 'pricing',  label: 'Plan & billing', icon: <CreditCard size={15} /> },
+  ]},
+  { caption: 'Resources', items: [
+    { id: 'support',  label: 'Help & support', icon: <LifeBuoy size={15} /> },
+  ]},
 ];
+
+// ── Shared primitives ────────────────────────────────────────────────────────
+const Card = ({ title, description, footer, children }) => (
+  <section className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+    {(title || description) && (
+      <header className="px-5 py-4 border-b border-gray-100">
+        <h2 className="text-[14px] font-semibold text-gray-900">{title}</h2>
+        {description && <p className="text-[12.5px] text-gray-500 mt-0.5">{description}</p>}
+      </header>
+    )}
+    <div className="px-5 py-4">{children}</div>
+    {footer && (
+      <footer className="px-5 py-3 bg-gray-50 border-t border-gray-100 flex items-center justify-end gap-2">
+        {footer}
+      </footer>
+    )}
+  </section>
+);
+
+const FormRow = ({ label, hint, children }) => (
+  <div className="grid sm:grid-cols-[180px_1fr] gap-1.5 sm:gap-6 py-3.5 first:pt-0 last:pb-0 border-b border-gray-100 last:border-0 items-start">
+    <div>
+      <div className="text-[13px] font-medium text-gray-700">{label}</div>
+      {hint && <div className="text-[12px] text-gray-400 mt-0.5">{hint}</div>}
+    </div>
+    <div className="min-w-0">{children}</div>
+  </div>
+);
+
+const PrimaryBtn = ({ children, ...props }) => (
+  <button {...props}
+    className="px-3.5 py-2 rounded-md bg-gray-900 text-white text-[13px] font-semibold hover:bg-gray-800 disabled:opacity-50 transition-colors">
+    {children}
+  </button>
+);
+
+const Toggle = ({ checked, onChange }) => (
+  <button type="button" onClick={() => onChange(!checked)} aria-pressed={checked}
+    className={`relative w-9 h-5 rounded-full transition-colors ${checked ? 'bg-gray-900' : 'bg-gray-300'}`}>
+    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${checked ? 'left-[18px]' : 'left-0.5'}`} />
+  </button>
+);
+
+const inputCls = 'w-full max-w-sm border border-gray-300 rounded-md px-3 py-2 text-[13px] text-gray-900 placeholder:text-gray-400 outline-none focus:border-gray-900 focus:ring-2 focus:ring-gray-900/10 transition';
 
 // ── Account ──────────────────────────────────────────────────────────────────
 const AccountPanel = () => {
@@ -39,54 +90,55 @@ const AccountPanel = () => {
     setBusy(true);
     const { error } = await supabase.auth.updateUser({ password: pw });
     setBusy(false);
-    setMsg(error ? error.message : '✓ Password updated.');
+    setMsg(error ? error.message : 'Password updated.');
     if (!error) { setPw(''); setPw2(''); }
   };
 
   return (
-    <div className="max-w-lg space-y-6">
-      <div className="bg-white rounded-xl border border-black/5 shadow-sm p-5">
-        <div className="text-[10px] font-black uppercase tracking-wider text-ink-tertiary mb-3">Profile</div>
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-accent-signature/15 flex items-center justify-center text-accent-signature font-black text-lg">
-            {(currentUser?.name || currentUser?.email || 'U')[0].toUpperCase()}
+    <div className="max-w-2xl space-y-4">
+      <Card title="Profile" description="Your personal account details.">
+        <FormRow label="Name">
+          <div className="text-[13px] text-gray-900 py-1.5">{currentUser?.name || '—'}</div>
+        </FormRow>
+        <FormRow label="Email">
+          <div className="text-[13px] text-gray-900 py-1.5">{currentUser?.email}</div>
+        </FormRow>
+        <FormRow label="Roles">
+          <div className="flex flex-wrap gap-1.5 py-1">
+            {(currentUser?.roles || []).map(r => (
+              <span key={r} className="px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-600">{r}</span>
+            ))}
           </div>
-          <div>
-            <div className="text-[14px] font-bold text-ink-primary">{currentUser?.name || '—'}</div>
-            <div className="text-[12px] text-ink-tertiary">{currentUser?.email}</div>
-            <div className="text-[10px] font-mono text-ink-tertiary mt-0.5">
-              {(currentUser?.roles || []).join(' · ')}
-            </div>
-          </div>
-        </div>
-      </div>
+        </FormRow>
+      </Card>
 
-      <div className="bg-white rounded-xl border border-black/5 shadow-sm p-5">
-        <div className="text-[10px] font-black uppercase tracking-wider text-ink-tertiary mb-3">Change password</div>
-        <div className="space-y-3">
-          <input type="password" placeholder="New password (min 8 chars)" value={pw}
-            onChange={e => setPw(e.target.value)}
-            className="w-full border border-black/10 rounded-lg px-3 py-2.5 text-[13px] outline-none focus:border-accent-signature" />
-          <input type="password" placeholder="Confirm new password" value={pw2}
-            onChange={e => setPw2(e.target.value)}
-            className="w-full border border-black/10 rounded-lg px-3 py-2.5 text-[13px] outline-none focus:border-accent-signature" />
-          {msg && <div className="text-[12px] font-semibold text-ink-secondary">{msg}</div>}
-          <button onClick={changePassword} disabled={busy}
-            className="px-4 py-2 rounded-lg bg-ink-primary text-white text-[12px] font-black disabled:opacity-50">
-            {busy ? 'Saving…' : 'Update Password'}
+      <Card
+        title="Password"
+        description="Use at least 8 characters. You'll stay signed in on this device."
+        footer={<PrimaryBtn onClick={changePassword} disabled={busy}>{busy ? 'Saving…' : 'Update password'}</PrimaryBtn>}
+      >
+        <FormRow label="New password">
+          <input type="password" className={inputCls} placeholder="••••••••" value={pw} onChange={e => setPw(e.target.value)} />
+        </FormRow>
+        <FormRow label="Confirm password">
+          <input type="password" className={inputCls} placeholder="••••••••" value={pw2} onChange={e => setPw2(e.target.value)} />
+          {msg && <p className="text-[12px] text-gray-600 mt-2">{msg}</p>}
+        </FormRow>
+      </Card>
+
+      <Card title="Session">
+        <FormRow label="Sign out" hint="Sign out of LedgrPro on this device.">
+          <button onClick={logout}
+            className="px-3.5 py-2 rounded-md border border-red-200 text-red-600 text-[13px] font-semibold hover:bg-red-50 transition-colors">
+            Log out
           </button>
-        </div>
-      </div>
-
-      <button onClick={logout}
-        className="px-4 py-2 rounded-lg border border-red-200 text-red-600 text-[12px] font-black hover:bg-red-50">
-        Log out
-      </button>
+        </FormRow>
+      </Card>
     </div>
   );
 };
 
-// ── Print settings ───────────────────────────────────────────────────────────
+// ── Printing ─────────────────────────────────────────────────────────────────
 const PrintPanel = ({ tenantId }) => {
   const key = `print_settings_${tenantId || 'default'}`;
   const [prefs, setPrefs] = useState(() => {
@@ -100,58 +152,45 @@ const PrintPanel = ({ tenantId }) => {
   };
 
   return (
-    <div className="max-w-lg space-y-6">
-      <div className="bg-white rounded-xl border border-black/5 shadow-sm p-5">
-        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-ink-tertiary mb-3">
-          <ReceiptText size={13} /> Receipt / thermal printer
-        </div>
-        <div className="space-y-4">
-          <div>
-            <label className="block text-[11px] font-bold text-ink-secondary mb-1.5">Paper width</label>
-            <div className="flex gap-2">
-              {[['58', '58mm (2-inch)'], ['80', '80mm (3-inch)'], ['A4', 'A4 sheet']].map(([v, l]) => (
-                <button key={v} onClick={() => setPrefs({ ...prefs, paper: v })}
-                  className={`px-3.5 py-2 rounded-lg text-[12px] font-bold border ${prefs.paper === v ? 'bg-accent-signature text-white border-accent-signature' : 'border-black/10 text-ink-secondary hover:bg-surface'}`}>
-                  {l}
-                </button>
-              ))}
-            </div>
+    <div className="max-w-2xl space-y-4">
+      <Card
+        title="Receipt printer"
+        description="Applies to cash receipts printed after each sale."
+        footer={<PrimaryBtn onClick={save}>{saved ? <span className="inline-flex items-center gap-1.5"><Check size={13} /> Saved</span> : 'Save changes'}</PrimaryBtn>}
+      >
+        <FormRow label="Paper width" hint="Match your thermal printer roll.">
+          <div className="inline-flex rounded-md border border-gray-300 overflow-hidden">
+            {[['58', '58 mm'], ['80', '80 mm'], ['A4', 'A4']].map(([v, l], i) => (
+              <button key={v} onClick={() => setPrefs({ ...prefs, paper: v })}
+                className={`px-4 py-2 text-[13px] font-medium transition-colors ${i > 0 ? 'border-l border-gray-300' : ''} ${
+                  prefs.paper === v ? 'bg-gray-900 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
+                {l}
+              </button>
+            ))}
           </div>
-          <div>
-            <label className="block text-[11px] font-bold text-ink-secondary mb-1.5">Copies per receipt</label>
-            <div className="flex items-center gap-2">
-              <button onClick={() => setPrefs({ ...prefs, copies: Math.max(1, prefs.copies - 1) })}
-                className="w-8 h-8 rounded-lg border border-black/10 font-bold hover:bg-surface">−</button>
-              <span className="w-8 text-center font-mono font-bold text-[14px]">{prefs.copies}</span>
-              <button onClick={() => setPrefs({ ...prefs, copies: Math.min(3, prefs.copies + 1) })}
-                className="w-8 h-8 rounded-lg border border-black/10 font-bold hover:bg-surface">+</button>
-            </div>
+        </FormRow>
+        <FormRow label="Copies per receipt">
+          <div className="inline-flex items-center rounded-md border border-gray-300 overflow-hidden">
+            <button onClick={() => setPrefs({ ...prefs, copies: Math.max(1, prefs.copies - 1) })}
+              className="w-9 h-9 text-gray-600 hover:bg-gray-50 text-[15px]">−</button>
+            <span className="w-10 text-center text-[13px] font-semibold text-gray-900 border-x border-gray-300 leading-9">{prefs.copies}</span>
+            <button onClick={() => setPrefs({ ...prefs, copies: Math.min(3, prefs.copies + 1) })}
+              className="w-9 h-9 text-gray-600 hover:bg-gray-50 text-[15px]">+</button>
           </div>
-          <label className="flex items-center gap-2 text-[12px] font-semibold text-ink-secondary cursor-pointer">
-            <input type="checkbox" checked={prefs.autoPrint}
-              onChange={e => setPrefs({ ...prefs, autoPrint: e.target.checked })}
-              className="accent-[#D97706]" />
-            Auto-open print dialog after each sale
-          </label>
-          <button onClick={save}
-            className="px-4 py-2 rounded-lg bg-ink-primary text-white text-[12px] font-black">
-            {saved ? '✓ Saved' : 'Save Settings'}
-          </button>
-        </div>
-      </div>
+        </FormRow>
+        <FormRow label="Auto-print" hint="Open the print dialog automatically after each sale.">
+          <Toggle checked={prefs.autoPrint} onChange={v => setPrefs({ ...prefs, autoPrint: v })} />
+        </FormRow>
+      </Card>
 
-      <div className="bg-white rounded-xl border border-black/5 shadow-sm p-5">
-        <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wider text-ink-tertiary mb-2">
-          <ScanBarcode size={13} /> Barcode label printing
-        </div>
-        <p className="text-[12px] text-ink-tertiary mb-3">
-          Label templates, per-field font sizes and bulk barcode generation live in the Labels tool.
-        </p>
-        <a href="labels"
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-accent-signature/40 text-accent-signature text-[12px] font-black hover:bg-accent-signature/10">
-          Open Labels <ChevronRight size={13} />
-        </a>
-      </div>
+      <Card title="Barcode labels" description="Label templates, per-field typography and bulk barcode generation.">
+        <FormRow label="Labels tool" hint="Design and print price labels for products.">
+          <a href="labels"
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md border border-gray-300 text-gray-700 text-[13px] font-semibold hover:bg-gray-50 transition-colors">
+            Open Labels <ChevronRight size={14} />
+          </a>
+        </FormRow>
+      </Card>
     </div>
   );
 };
@@ -190,44 +229,43 @@ const RemindersPanel = ({ tenantId }) => {
 
   return (
     <div className="max-w-2xl">
-      <div className="bg-white rounded-xl border border-black/5 shadow-sm">
-        <div className="px-5 py-4 border-b border-black/5">
-          <div className="text-[13px] font-bold text-ink-primary">Clients with outstanding balance</div>
-          <div className="text-[11px] text-ink-tertiary">One tap sends a WhatsApp payment reminder with the amount prefilled.</div>
-        </div>
+      <Card
+        title="Outstanding balances"
+        description="Send a WhatsApp payment reminder with the client's name and amount prefilled."
+      >
         {loading ? (
-          <div className="p-6 text-center text-[12px] text-ink-tertiary">Loading…</div>
+          <p className="py-4 text-center text-[13px] text-gray-400">Loading…</p>
         ) : rows.length === 0 ? (
-          <div className="p-6 text-center text-[12px] text-ink-tertiary">No outstanding balances. 🎉</div>
+          <p className="py-4 text-center text-[13px] text-gray-400">No outstanding balances.</p>
         ) : (
-          <div className="divide-y divide-black/5 max-h-[480px] overflow-y-auto">
+          <div className="-mx-5 -my-4 divide-y divide-gray-100 max-h-[480px] overflow-y-auto">
             {rows.map(c => (
-              <div key={c.id} className="flex items-center gap-3 px-5 py-3">
+              <div key={c.id} className="flex items-center gap-4 px-5 py-3">
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-bold text-ink-primary truncate">{c.name}</div>
-                  <div className="text-[11px] text-ink-tertiary">{c.phone || 'no phone'}</div>
+                  <div className="text-[13px] font-medium text-gray-900 truncate">{c.name}</div>
+                  <div className="text-[12px] text-gray-400">{c.phone || 'No phone on file'}</div>
                 </div>
-                <div className="text-[13px] font-black text-red-500 font-mono shrink-0">
-                  ₹{Number(c.outstanding_balance).toFixed(0)}
+                <div className="text-[13px] font-semibold text-gray-900 tabular-nums shrink-0">
+                  ₹{Number(c.outstanding_balance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                 </div>
                 {c.phone ? (
                   <a href={waLink(c)} target="_blank" rel="noreferrer"
-                    className="shrink-0 px-3 py-1.5 rounded-lg bg-[#25D366] text-white text-[11px] font-black hover:opacity-90">
-                    WhatsApp
+                    className="shrink-0 px-3 py-1.5 rounded-md border border-gray-300 text-gray-700 text-[12px] font-semibold hover:bg-gray-50 transition-colors">
+                    Send reminder
                   </a>
                 ) : (
-                  <span className="text-[10px] text-ink-tertiary shrink-0">add phone to remind</span>
+                  <span className="text-[11px] text-gray-400 shrink-0">—</span>
                 )}
               </div>
             ))}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 };
 
-// ── Pricing ──────────────────────────────────────────────────────────────────
+// ── Plan & billing ───────────────────────────────────────────────────────────
 const PricingPanel = () => {
   const { currentTenant } = useTenant();
   const plan = currentTenant?.plan || 'STARTER';
@@ -235,77 +273,70 @@ const PricingPanel = () => {
   const daysLeft = trialEnd ? Math.max(0, Math.ceil((trialEnd - Date.now()) / 86400000)) : null;
 
   return (
-    <div className="max-w-3xl space-y-5">
-      <div className="bg-white rounded-xl border border-black/5 shadow-sm p-5 flex items-center justify-between">
-        <div>
-          <div className="text-[10px] font-black uppercase tracking-wider text-ink-tertiary">Current plan</div>
-          <div className="text-xl font-black text-ink-primary mt-1">{plan}</div>
-          {currentTenant?.status === 'TRIAL' && daysLeft != null && (
-            <div className="text-[12px] font-semibold text-accent-signature mt-0.5">
-              Free trial · {daysLeft} day{daysLeft === 1 ? '' : 's'} remaining
-            </div>
-          )}
-        </div>
-        <CheckCircle2 className="text-accent-signature" size={28} />
-      </div>
+    <div className="max-w-3xl space-y-4">
+      <Card title="Current plan">
+        <FormRow label="Plan">
+          <div className="flex items-center gap-2 py-1">
+            <span className="text-[13px] font-semibold text-gray-900">{PLANS[plan]?.label || plan}</span>
+            {currentTenant?.status === 'TRIAL' && daysLeft != null && (
+              <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                Trial · {daysLeft} day{daysLeft === 1 ? '' : 's'} left
+              </span>
+            )}
+          </div>
+        </FormRow>
+        <FormRow label="Billing" hint="Online payments are coming soon.">
+          <div className="text-[13px] text-gray-500 py-1.5">Contact us to upgrade or change plans.</div>
+        </FormRow>
+      </Card>
 
       <div className="grid md:grid-cols-3 gap-4">
         {Object.entries(PLANS).map(([id, p]) => (
-          <div key={id}
-            className={`bg-white rounded-xl border p-5 ${id === plan ? 'border-accent-signature shadow-md' : 'border-black/5 shadow-sm'}`}>
-            <div className="text-[11px] font-black uppercase tracking-wide text-ink-primary">{p.label}</div>
-            <div className="text-lg font-black text-accent-signature my-1">{p.price}</div>
-            <ul className="text-[11px] text-ink-secondary space-y-1 mt-2">
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 size={11} className="text-accent-signature shrink-0" />
-                {(p.modules || []).length} modules
-              </li>
-              <li className="flex items-center gap-1.5">
-                <CheckCircle2 size={11} className="text-accent-signature shrink-0" />
-                {p.maxUsers === -1 ? 'Unlimited users' : `${p.maxUsers} users`}
-              </li>
+          <section key={id}
+            className={`bg-white rounded-lg border p-5 ${id === plan ? 'border-gray-900' : 'border-gray-200'}`}>
+            <div className="flex items-center justify-between">
+              <span className="text-[12px] font-semibold text-gray-900 uppercase tracking-wide">{p.label}</span>
+              {id === plan && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-gray-900 text-white">CURRENT</span>
+              )}
+            </div>
+            <div className="text-[18px] font-semibold text-gray-900 mt-1.5">{p.price}</div>
+            <ul className="text-[12.5px] text-gray-600 space-y-1.5 mt-3">
+              <li className="flex items-center gap-2"><Check size={13} className="text-gray-400 shrink-0" />{(p.modules || []).length} modules</li>
+              <li className="flex items-center gap-2"><Check size={13} className="text-gray-400 shrink-0" />{p.maxUsers === -1 ? 'Unlimited users' : `Up to ${p.maxUsers} users`}</li>
               {(p.features || []).slice(0, 4).map(f => (
-                <li key={f} className="flex items-center gap-1.5">
-                  <CheckCircle2 size={11} className="text-accent-signature shrink-0" />
-                  {String(f).replaceAll('_', ' ')}
+                <li key={f} className="flex items-center gap-2">
+                  <Check size={13} className="text-gray-400 shrink-0" />
+                  <span className="capitalize">{String(f).replaceAll('_', ' ')}</span>
                 </li>
               ))}
             </ul>
-            {id === plan && (
-              <div className="mt-3 text-[10px] font-black text-accent-signature uppercase">Active</div>
-            )}
-          </div>
+          </section>
         ))}
       </div>
-
-      <p className="text-[12px] text-ink-tertiary">
-        To upgrade or change plans, contact us — online payments are coming soon.
-      </p>
     </div>
   );
 };
 
 // ── Support ──────────────────────────────────────────────────────────────────
 const SupportPanel = () => (
-  <div className="max-w-lg space-y-4">
-    {[
-      ['Email support', 'support@ledgrpro.co', 'mailto:support@ledgrpro.co'],
-      ['WhatsApp', 'Chat with us', 'https://wa.me/919778707474'],
-      ['Report a bug', 'Use the Report Issue button at the bottom-right of any page', null],
-    ].map(([t, sub, href]) => (
-      <div key={t} className="bg-white rounded-xl border border-black/5 shadow-sm p-5 flex items-center justify-between">
-        <div>
-          <div className="text-[13px] font-bold text-ink-primary">{t}</div>
-          <div className="text-[12px] text-ink-tertiary">{sub}</div>
-        </div>
-        {href && (
-          <a href={href} target="_blank" rel="noreferrer"
-            className="px-3.5 py-2 rounded-lg border border-accent-signature/40 text-accent-signature text-[12px] font-black hover:bg-accent-signature/10">
-            Open
-          </a>
-        )}
-      </div>
-    ))}
+  <div className="max-w-2xl">
+    <Card title="Help & support" description="We usually respond within a business day.">
+      {[
+        ['Email', 'support@ledgrpro.co', 'mailto:support@ledgrpro.co', 'Send email'],
+        ['WhatsApp', 'Chat with our support team', 'https://wa.me/919778707474', 'Open chat'],
+        ['Report a bug', 'Use the Report Issue button at the bottom-right of any page', null, null],
+      ].map(([t, sub, href, cta]) => (
+        <FormRow key={t} label={t} hint={sub}>
+          {href ? (
+            <a href={href} target="_blank" rel="noreferrer"
+              className="inline-flex px-3.5 py-2 rounded-md border border-gray-300 text-gray-700 text-[13px] font-semibold hover:bg-gray-50 transition-colors">
+              {cta}
+            </a>
+          ) : <span className="text-[13px] text-gray-400 py-1.5 inline-block">—</span>}
+        </FormRow>
+      ))}
+    </Card>
   </div>
 );
 
@@ -315,27 +346,39 @@ const SettingsHub = () => {
   const [active, setActive] = useState('account');
 
   return (
-    <div className="p-4 md:p-6 max-w-7xl mx-auto">
-      <h1 className="text-xl font-black text-ink-primary mb-5">Settings</h1>
-      <div className="flex flex-col lg:flex-row gap-5">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto">
+      <header className="mb-6 pb-5 border-b border-gray-200">
+        <h1 className="text-[20px] font-semibold text-gray-900">Settings</h1>
+        <p className="text-[13px] text-gray-500 mt-0.5">Manage your account, workspace and billing preferences.</p>
+      </header>
+
+      <div className="flex flex-col lg:flex-row gap-8">
         {/* Left rail */}
-        <div className="lg:w-60 shrink-0">
-          <div className="bg-white rounded-xl border border-black/5 shadow-sm p-2 flex lg:flex-col gap-1 overflow-x-auto no-scrollbar">
-            {NAV.map(n => (
-              <button key={n.id} onClick={() => setActive(n.id)}
-                className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-[13px] font-bold whitespace-nowrap transition-all w-full text-left ${
-                  active === n.id
-                    ? 'bg-accent-signature/10 text-accent-signature'
-                    : 'text-ink-secondary hover:bg-surface'
-                }`}>
-                {n.icon} {n.label}
-              </button>
+        <nav className="lg:w-52 shrink-0">
+          <div className="flex lg:flex-col gap-0.5 overflow-x-auto no-scrollbar lg:sticky lg:top-6">
+            {NAV_GROUPS.map(g => (
+              <div key={g.caption} className="lg:mb-4 flex lg:block gap-0.5">
+                <div className="hidden lg:block px-2.5 mb-1.5 text-[10.5px] font-semibold text-gray-400 uppercase tracking-wider">
+                  {g.caption}
+                </div>
+                {g.items.map(n => (
+                  <button key={n.id} onClick={() => setActive(n.id)}
+                    className={`flex items-center gap-2.5 px-2.5 py-[7px] rounded-md text-[13px] whitespace-nowrap w-full text-left transition-colors ${
+                      active === n.id
+                        ? 'bg-gray-200/70 text-gray-900 font-semibold'
+                        : 'text-gray-600 hover:bg-gray-100 font-medium'
+                    }`}>
+                    <span className={active === n.id ? 'text-gray-900' : 'text-gray-400'}>{n.icon}</span>
+                    {n.label}
+                  </button>
+                ))}
+              </div>
             ))}
           </div>
-        </div>
+        </nav>
 
         {/* Panel */}
-        <div className="flex-1 min-w-0">
+        <main className="flex-1 min-w-0">
           {active === 'account'  && <AccountPanel />}
           {active === 'business' && <Settings embedded />}
           {active === 'print'    && <PrintPanel tenantId={currentTenantId} />}
@@ -343,7 +386,7 @@ const SettingsHub = () => {
           {active === 'reminders' && <RemindersPanel tenantId={currentTenantId} />}
           {active === 'pricing'  && <PricingPanel />}
           {active === 'support'  && <SupportPanel />}
-        </div>
+        </main>
       </div>
     </div>
   );
