@@ -285,6 +285,7 @@ const Settings = ({ embedded = false, section = null }) => {
        border-radius: 8px !important;
        box-shadow: none !important;
      }
+     .settings-embedded [class*="shadow-"] { box-shadow: none !important; }
      .settings-embedded .bg-ink-primary {
        background: #f9fafb !important;
        border-bottom: 1px solid #f3f4f6 !important;
@@ -308,9 +309,57 @@ const Settings = ({ embedded = false, section = null }) => {
      }
      .settings-embedded .text-accent-signature { color: #374151 !important; }
      .settings-embedded .border-accent-signature { border-color: #d1d5db !important; }
+
+     /* ── typography: match the hub exactly ── */
+     .settings-embedded { color: #374151; }
+     .settings-embedded h1, .settings-embedded h2 {
+       font-size: 14px !important; font-weight: 600 !important; color: #111827 !important;
+       letter-spacing: 0 !important; font-family: inherit !important;
+     }
+     .settings-embedded h3, .settings-embedded h4 {
+       font-size: 13px !important; font-weight: 600 !important; color: #111827 !important;
+       letter-spacing: 0 !important;
+     }
+     .settings-embedded label,
+     .settings-embedded [class*="text-[9px]"],
+     .settings-embedded [class*="text-[10px]"],
+     .settings-embedded [class*="text-[11px]"] {
+       font-size: 12.5px !important; font-weight: 500 !important;
+       color: #6b7280 !important; letter-spacing: 0 !important;
+       text-transform: none !important;
+     }
+     .settings-embedded [class*="text-[12px]"], .settings-embedded .text-xs,
+     .settings-embedded [class*="text-[13px]"], .settings-embedded .text-sm {
+       font-size: 13px !important; letter-spacing: 0 !important;
+     }
+     .settings-embedded [class*="text-2xl"], .settings-embedded [class*="text-3xl"],
+     .settings-embedded [class*="text-4xl"], .settings-embedded [class*="text-xl"] {
+       font-size: 15px !important; font-weight: 600 !important; color: #111827 !important;
+     }
+     .settings-embedded [class*="font-black"] { font-weight: 600 !important; }
+     .settings-embedded [class*="uppercase"] {
+       text-transform: none !important; letter-spacing: 0 !important;
+     }
+     .settings-embedded [class*="tracking-"] { letter-spacing: 0 !important; }
+     .settings-embedded [class*="font-sora"] { font-family: inherit !important; }
+
+     /* ── controls ── */
      .settings-embedded input, .settings-embedded select, .settings-embedded textarea {
        border-radius: 6px !important;
+       border-color: #d1d5db !important;
+       background: #fff !important;
+       font-size: 13px !important;
+       color: #111827 !important;
      }
+     .settings-embedded input:focus, .settings-embedded select:focus, .settings-embedded textarea:focus {
+       border-color: #111827 !important;
+       box-shadow: 0 0 0 2px rgba(17,24,39,.08) !important;
+     }
+     .settings-embedded .rounded-pill, .settings-embedded [class*="rounded-2xl"],
+     .settings-embedded [class*="rounded-xl"], .settings-embedded [class*="rounded-bento"] {
+       border-radius: 8px !important;
+     }
+     .settings-embedded .bg-canvas { background: #f9fafb !important; }
    ` }} />
  )}
  {/* Header Section */}
