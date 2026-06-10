@@ -12,7 +12,7 @@ import {
   Phone, Globe, Mail, MapPin, Landmark, QrCode
 } from 'lucide-react';
 import { formatINR, amountToWords } from '../../lib/gstEngine';
-import { INVOICE_LAYOUTS, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, Editable } from './invoiceLayouts';
+import { INVOICE_LAYOUTS, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, Editable, CustomFields } from './invoiceLayouts';
 import { formatDate } from '../../lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
 
@@ -23,7 +23,7 @@ const Totals = ({ k, v, bold }) => (
   </div>
 );
 
-const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null, editable = false, onEditText = null, textsOverride = null, optsOverride = null, accentOverride = null }) => {
+const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null, editable = false, onEditText = null, textsOverride = null, optsOverride = null, accentOverride = null, customFieldsOverride = null }) => {
   const [zoom, setZoom] = useState(100);
 
   // Inject print isolation CSS into <head> so it's guaranteed to apply
@@ -100,7 +100,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
     } catch { return DEFAULT_DOC_TEXTS; }
   })();
 
-  const { invOpts, invAccent } = (() => {
+  const { invOpts, invAccent, customFields } = (() => {
     let prefs = {};
     try {
       const tid = safeBusiness.tenant_id || 'default';
@@ -110,6 +110,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
     return {
       invOpts: { ...DEFAULT_INV_OPTS, ...(prefs.invOpts || {}), ...(optsOverride || {}) },
       invAccent: accentOverride || prefs.invAccent || '#0f172a',
+      customFields: customFieldsOverride || prefs.customFields || [],
     };
   })();
 
@@ -182,6 +183,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
       eway_no: invoice.eway_no || invoice.eway_bill_no || null,
     },
     partyBalance: outstandingBalance,
+    customFields,
     items,
     totals: { taxable: taxableAmount, cgst: cgstAmount, sgst: sgstAmount, igst: igstAmount,
               totalTax, grand: grandTotal > 0 ? grandTotal : taxableAmount + totalTax,
@@ -586,6 +588,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
               </div>
             </div>
           </div>
+          <CustomFields fields={customFields} className="mt-2 flex flex-wrap gap-x-4 [&>div]:inline" />
           {/* Classic footer note (customizable) */}
           <div className="text-center text-[9px] text-slate-500 mt-2">
             <Editable on={previewMode && editable} value={docTexts.invFooter} onChange={v => onEditText?.('invFooter', v)} />

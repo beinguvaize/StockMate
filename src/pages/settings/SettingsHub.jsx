@@ -182,7 +182,7 @@ const PrintPanel = ({ tenantId }) => {
   const { businessProfile } = useTenant();
   const key = `print_settings_${tenantId || 'default'}`;
   const [prefs, setPrefs] = useState(() => {
-    const base = { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', receiptTemplate: 'classic', docTexts: {}, invOpts: {}, invAccent: '#0f172a' };
+    const base = { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', receiptTemplate: 'classic', docTexts: {}, invOpts: {}, invAccent: '#0f172a', customFields: [] };
     try { return { ...base, ...(JSON.parse(localStorage.getItem(key)) || {}) }; }
     catch { return base; }
   });
@@ -294,12 +294,13 @@ const PrintPanel = ({ tenantId }) => {
                 <div style={{ width: 794 * 0.55, height: 1123 * 0.55, overflow: 'hidden' }} className="mx-auto">
                   <div style={{ transform: 'scale(0.55)', transformOrigin: 'top left', width: 794 }}>
                     <InvoiceTemplate
-                      key={`${prefs.invoiceTemplate}-${prefs.invAccent}-${JSON.stringify(prefs.docTexts)}-${JSON.stringify(prefs.invOpts)}`}
+                      key={`${prefs.invoiceTemplate}-${prefs.invAccent}-${JSON.stringify(prefs.docTexts)}-${JSON.stringify(prefs.invOpts)}-${JSON.stringify(prefs.customFields)}`}
                       previewMode editable
                       themeOverride={prefs.invoiceTemplate}
                       textsOverride={texts}
                       optsOverride={invOpts}
                       accentOverride={prefs.invAccent}
+                      customFieldsOverride={prefs.customFields}
                       onEditText={onEditText}
                       invoice={SAMPLE_INVOICE}
                       businessProfile={businessProfile || { name: 'Your Business' }}
@@ -336,6 +337,38 @@ const PrintPanel = ({ tenantId }) => {
                     </div>
                   </div>
                 ))}
+
+                {/* Custom fields (label: value pairs printed on every invoice) */}
+                <div>
+                  <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Custom fields</div>
+                  <div className="space-y-2">
+                    {(prefs.customFields || []).map((f, i) => (
+                      <div key={i} className="flex gap-1.5 items-center">
+                        <input value={f.label} placeholder="Label"
+                          onChange={e => {
+                            const cf = [...prefs.customFields]; cf[i] = { ...cf[i], label: e.target.value };
+                            setPrefs({ ...prefs, customFields: cf });
+                          }}
+                          className="w-[38%] border border-gray-300 rounded-md px-2 py-1.5 text-[12px] outline-none focus:border-gray-900" />
+                        <input value={f.value} placeholder="Value"
+                          onChange={e => {
+                            const cf = [...prefs.customFields]; cf[i] = { ...cf[i], value: e.target.value };
+                            setPrefs({ ...prefs, customFields: cf });
+                          }}
+                          className="flex-1 border border-gray-300 rounded-md px-2 py-1.5 text-[12px] outline-none focus:border-gray-900" />
+                        <button onClick={() => setPrefs({ ...prefs, customFields: prefs.customFields.filter((_, j) => j !== i) })}
+                          className="w-6 h-6 shrink-0 rounded border border-gray-200 text-gray-400 hover:text-red-500 hover:border-red-200 text-[12px]">×</button>
+                      </div>
+                    ))}
+                    {(prefs.customFields || []).length < 4 && (
+                      <button onClick={() => setPrefs({ ...prefs, customFields: [...(prefs.customFields || []), { label: '', value: '' }] })}
+                        className="w-full py-1.5 rounded-md border border-dashed border-gray-300 text-[12px] font-medium text-gray-500 hover:border-gray-400 hover:text-gray-700">
+                        + Add field
+                      </button>
+                    )}
+                    <div className="text-[10.5px] text-gray-400">e.g. PAN, FSSAI No, Website — printed on every invoice.</div>
+                  </div>
+                </div>
               </div>
             </div>
           </>
