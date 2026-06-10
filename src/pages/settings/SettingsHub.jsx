@@ -220,15 +220,19 @@ const PrintPanel = ({ tenantId }) => {
     await updateBusinessProfile?.({ signature_url: null });
     setSigBusy(false);
   };
+  const [saveErr, setSaveErr] = useState('');
   const save = async () => {
     localStorage.setItem(key, JSON.stringify(prefs)); // same-browser cache
-    try {
-      // Tenant-level: every device + the mobile app print with these settings.
-      await updateBusinessProfile?.({
-        print_settings: prefs,
-        bill_settings: { ...(businessProfile?.bill_settings || {}), ...billSet },
-      });
-    } catch { /* local cache still saved */ }
+    setSaveErr('');
+    // Tenant-level: every device + the mobile app print with these settings.
+    const res = await updateBusinessProfile?.({
+      print_settings: prefs,
+      bill_settings: { ...(businessProfile?.bill_settings || {}), ...billSet },
+    });
+    if (res && !res.success) {
+      setSaveErr(`Could not save to your workspace: ${res.error?.message || 'permission denied'}. Other devices won't see these settings.`);
+      return;
+    }
     setSaved(true); setTimeout(() => setSaved(false), 1500);
   };
   const onEditText = (k, v) =>
@@ -246,6 +250,11 @@ const PrintPanel = ({ tenantId }) => {
 
   return (
     <div className="max-w-3xl space-y-4">
+      {saveErr && (
+        <div className="px-4 py-2.5 rounded-md bg-red-50 border border-red-200 text-[12.5px] text-red-700 font-medium">
+          {saveErr}
+        </div>
+      )}
       <Card
         title="Receipt printer"
         description="Applies to cash receipts printed after each sale."
