@@ -157,8 +157,8 @@ const AccountPanel = () => {
 const PrintPanel = ({ tenantId }) => {
   const key = `print_settings_${tenantId || 'default'}`;
   const [prefs, setPrefs] = useState(() => {
-    try { return { paper: '80', copies: 1, autoPrint: false, ...(JSON.parse(localStorage.getItem(key)) || {}) }; }
-    catch { return { paper: '80', copies: 1, autoPrint: false }; }
+    try { return { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', ...(JSON.parse(localStorage.getItem(key)) || {}) }; }
+    catch { return { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic' }; }
   });
   const [saved, setSaved] = useState(false);
   const save = () => {
@@ -196,6 +196,60 @@ const PrintPanel = ({ tenantId }) => {
         <FormRow label="Auto-print" hint="Open the print dialog automatically after each sale.">
           <Toggle checked={prefs.autoPrint} onChange={v => setPrefs({ ...prefs, autoPrint: v })} />
         </FormRow>
+        <FormRow label="Sample" hint="Live preview at the selected width.">
+          <div className="bg-gray-100 rounded-md p-4 inline-block">
+            <div className="bg-white shadow-sm font-mono text-gray-900 px-3 py-3 mx-auto"
+              style={{ width: prefs.paper === '58' ? 150 : 210, fontSize: prefs.paper === '58' ? 8 : 9.5, lineHeight: 1.5 }}>
+              <div className="text-center font-bold uppercase">Business Name</div>
+              <div className="text-center" style={{ fontSize: '0.85em' }}>123 Market Road · Tel: 98765 43210</div>
+              <div className="border-t border-dashed border-gray-400 my-1.5" />
+              <div className="flex justify-between"><span>Bill #1042</span><span>10/06/26</span></div>
+              <div className="border-t border-dashed border-gray-400 my-1.5" />
+              <div className="flex justify-between"><span>Item 1 × 2</span><span>₹160.00</span></div>
+              <div className="flex justify-between"><span>Item 2 × 1</span><span>₹245.00</span></div>
+              <div className="border-t border-dashed border-gray-400 my-1.5" />
+              <div className="flex justify-between font-bold"><span>TOTAL</span><span>₹405.00</span></div>
+              <div className="text-center mt-1.5" style={{ fontSize: '0.85em' }}>Thank you! Visit again.</div>
+            </div>
+          </div>
+        </FormRow>
+      </Card>
+
+      <Card
+        title="A4 invoice template"
+        description="Design used for GST tax invoices printed on A4."
+        footer={<PrimaryBtn onClick={save}>{saved ? <span className="inline-flex items-center gap-1.5"><Check size={13} /> Saved</span> : 'Save changes'}</PrimaryBtn>}
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            ['classic', 'Classic',  '#111827', false],
+            ['modern',  'Modern',   '#2563EB', false],
+            ['emerald', 'Emerald',  '#0F766E', false],
+            ['bold',    'Bold',     '#111827', true],
+          ].map(([id, label, color, filled]) => (
+            <button key={id} onClick={() => setPrefs({ ...prefs, invoiceTemplate: id })}
+              className={`text-left rounded-md border p-2 transition-colors ${prefs.invoiceTemplate === id ? 'border-gray-900 ring-2 ring-gray-900/10' : 'border-gray-200 hover:border-gray-300'}`}>
+              {/* mini A4 thumbnail */}
+              <div className="bg-white border border-gray-200 rounded-sm mx-auto" style={{ width: 74, height: 100, padding: 5 }}>
+                <div className="text-center mb-1 rounded-[1px]"
+                  style={{ fontSize: 5, fontWeight: 700, letterSpacing: 1, padding: '2px 0',
+                    color: filled ? '#fff' : color, background: filled ? color : 'transparent',
+                    borderBottom: filled ? 'none' : `1.5px solid ${color}` }}>
+                  TAX INVOICE
+                </div>
+                {[0,1,2,3].map(i => (
+                  <div key={i} className="flex justify-between" style={{ fontSize: 4, color: '#6b7280', padding: '1.5px 0', borderBottom: '0.5px solid #f3f4f6' }}>
+                    <span>Item {i + 1}</span><span>00.00</span>
+                  </div>
+                ))}
+                <div className="flex justify-between mt-1" style={{ fontSize: 4.5, fontWeight: 700, color: '#111827' }}>
+                  <span>TOTAL</span><span>405.00</span>
+                </div>
+              </div>
+              <div className="text-[12px] font-medium text-gray-700 text-center mt-1.5">{label}</div>
+            </button>
+          ))}
+        </div>
       </Card>
 
       <Card title="Barcode labels" description="Label templates, per-field typography and bulk barcode generation.">
