@@ -78,6 +78,16 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
   // Purple Brand Color (Vibrant Purple from sample)
   const BRAND_COLOR = '#7c3aed';
 
+  // A4 template theme from Settings -> Printing (per tenant, localStorage).
+  const invTheme = (() => {
+    try {
+      const tid = safeBusiness.tenant_id || 'default';
+      const prefs = JSON.parse(localStorage.getItem(`print_settings_${tid}`))
+        || JSON.parse(localStorage.getItem('print_settings_default'));
+      return prefs?.invoiceTemplate || 'classic';
+    } catch { return 'classic'; }
+  })();
+
   // Calculate row counts for filling up to 8 rows
   const minRows = 10;
   
@@ -137,6 +147,19 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
 
   return createPortal(
     <div id="invoice-template-portal" className="fixed inset-0 z-[60] flex flex-col items-center bg-slate-900/90 backdrop-blur-2xl overflow-hidden animate-fade-in print:bg-white print:p-0">
+      <style dangerouslySetInnerHTML={{ __html: `
+        .inv-theme-modern  { --inv: #2563EB; }
+        .inv-theme-emerald { --inv: #0F766E; }
+        .inv-theme-bold    { --inv: #111827; }
+        .inv-theme-modern  [class*="border-slate-900"],
+        .inv-theme-emerald [class*="border-slate-900"] { border-color: var(--inv) !important; }
+        .inv-theme-modern .inv-title, .inv-theme-emerald .inv-title { color: var(--inv); }
+        .inv-theme-bold .inv-title {
+          background: var(--inv) !important; color: #fff !important;
+          -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        }
+        .inv-theme-bold .inv-title [class*="text-slate-500"] { color: rgba(255,255,255,.75) !important; }
+      ` }} />
       
       {/* Action Bar - Hidden in Print */}
       <div className="print-hidden w-full h-16 flex items-center justify-between px-6 bg-white/5 border-b border-white/10 print:hidden">
@@ -195,13 +218,13 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
         <div 
           id="invoice-print-area"
           style={{ transform: `scale(${zoom / 100})`, transformOrigin: 'top center' }}
-          className="w-[210mm] min-h-[297mm] bg-white shadow-2xl p-[12mm] flex flex-col text-slate-900 transition-all duration-300 print:shadow-none print:transform-none print:p-[10mm] print:w-full print:min-h-0"
+          className={`inv-sheet inv-theme-${invTheme} w-[210mm] min-h-[297mm] bg-white shadow-2xl p-[12mm] flex flex-col text-slate-900 transition-all duration-300 print:shadow-none print:transform-none print:p-[10mm] print:w-full print:min-h-0`}
         >
           
           {/* Standardized compact GST invoice */}
           <div className="border-2 border-slate-900">
             {/* Title */}
-            <div className="text-center py-2 border-b-2 border-slate-900">
+            <div className="inv-title text-center py-2 border-b-2 border-slate-900">
               <div className="text-[13px] font-bold tracking-[0.3em] uppercase">Tax Invoice</div>
               <div className="text-[9px] text-slate-500 uppercase tracking-widest">Original for Recipient</div>
             </div>
