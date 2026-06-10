@@ -12,7 +12,7 @@ import Settings from '../Settings';
 import Users from '../Users';
 import CashBillPrint from '../sales/components/CashBillPrint';
 import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
-import { INVOICE_LAYOUT_META, RECEIPT_META, DEFAULT_DOC_TEXTS } from '../../components/invoice/invoiceLayouts';
+import { INVOICE_LAYOUT_META, RECEIPT_META, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, ACCENT_SWATCHES } from '../../components/invoice/invoiceLayouts';
 
 // Sample documents for the print previews — exact production components.
 const SAMPLE_SALE = {
@@ -181,7 +181,7 @@ const PrintPanel = ({ tenantId }) => {
   const { businessProfile } = useTenant();
   const key = `print_settings_${tenantId || 'default'}`;
   const [prefs, setPrefs] = useState(() => {
-    const base = { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', receiptTemplate: 'classic', docTexts: {} };
+    const base = { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', receiptTemplate: 'classic', docTexts: {}, invOpts: {}, invAccent: '#0f172a' };
     try { return { ...base, ...(JSON.parse(localStorage.getItem(key)) || {}) }; }
     catch { return base; }
   });
@@ -194,6 +194,15 @@ const PrintPanel = ({ tenantId }) => {
   const onEditText = (k, v) =>
     setPrefs(prev => ({ ...prev, docTexts: { ...(prev.docTexts || {}), [k]: v } }));
   const texts = { ...DEFAULT_DOC_TEXTS, ...(prefs.docTexts || {}) };
+  const invOpts = { ...DEFAULT_INV_OPTS, ...(prefs.invOpts || {}) };
+  const setOpt = (k, v) => setPrefs(prev => ({ ...prev, invOpts: { ...(prev.invOpts || {}), [k]: v } }));
+
+  const OPT_GROUPS = [
+    ['Invoice details', [['logo', 'Business logo'], ['gstin', 'GSTIN'], ['words', 'Amount in words']]],
+    ['Party details', [['clientAddr', 'Client address'], ['phone', 'Phone numbers']]],
+    ['Item table', [['hsn', 'HSN column']]],
+    ['Footer', [['terms', 'Terms & conditions'], ['sign', 'Signature block'], ['upiQr', 'UPI QR code']]],
+  ];
 
   return (
     <div className="max-w-3xl space-y-4">
@@ -278,21 +287,54 @@ const PrintPanel = ({ tenantId }) => {
                 </button>
               ))}
             </div>
-            <div className="bg-gray-100 rounded-md p-4 overflow-auto">
-              <div style={{ width: 794 * 0.62, height: 1123 * 0.62, overflow: 'hidden' }} className="mx-auto">
-                <div style={{ transform: 'scale(0.62)', transformOrigin: 'top left', width: 794 }}>
-                  <InvoiceTemplate
-                    key={`${prefs.invoiceTemplate}-${JSON.stringify(prefs.docTexts)}`}
-                    previewMode editable
-                    themeOverride={prefs.invoiceTemplate}
-                    textsOverride={texts}
-                    onEditText={onEditText}
-                    invoice={SAMPLE_INVOICE}
-                    businessProfile={businessProfile || { name: 'Your Business' }}
-                    client={SAMPLE_CLIENT}
-                    onClose={() => {}} onPrint={() => {}} onShare={() => {}}
-                  />
+            <div className="grid lg:grid-cols-[1fr_230px] gap-4">
+              {/* live preview */}
+              <div className="bg-gray-100 rounded-md p-4 overflow-auto">
+                <div style={{ width: 794 * 0.55, height: 1123 * 0.55, overflow: 'hidden' }} className="mx-auto">
+                  <div style={{ transform: 'scale(0.55)', transformOrigin: 'top left', width: 794 }}>
+                    <InvoiceTemplate
+                      key={`${prefs.invoiceTemplate}-${prefs.invAccent}-${JSON.stringify(prefs.docTexts)}-${JSON.stringify(prefs.invOpts)}`}
+                      previewMode editable
+                      themeOverride={prefs.invoiceTemplate}
+                      textsOverride={texts}
+                      optsOverride={invOpts}
+                      accentOverride={prefs.invAccent}
+                      onEditText={onEditText}
+                      invoice={SAMPLE_INVOICE}
+                      businessProfile={businessProfile || { name: 'Your Business' }}
+                      client={SAMPLE_CLIENT}
+                      onClose={() => {}} onPrint={() => {}} onShare={() => {}}
+                    />
+                  </div>
                 </div>
+              </div>
+
+              {/* control rail */}
+              <div className="space-y-4">
+                <div>
+                  <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Accent colour</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ACCENT_SWATCHES.map(c => (
+                      <button key={c} onClick={() => setPrefs({ ...prefs, invAccent: c })}
+                        className={`w-7 h-7 rounded ${prefs.invAccent === c ? 'ring-2 ring-offset-1 ring-gray-900' : ''}`}
+                        style={{ background: c }} aria-label={c} />
+                    ))}
+                  </div>
+                  <div className="text-[10.5px] text-gray-400 mt-1">Applies to Modern & Letterhead designs.</div>
+                </div>
+                {OPT_GROUPS.map(([group, items]) => (
+                  <div key={group}>
+                    <div className="text-[11px] font-semibold text-gray-500 mb-1.5">{group}</div>
+                    <div className="space-y-1.5">
+                      {items.map(([k, label]) => (
+                        <label key={k} className="flex items-center justify-between text-[12.5px] text-gray-700 cursor-pointer">
+                          {label}
+                          <Toggle checked={invOpts[k]} onChange={v => setOpt(k, v)} />
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </>
