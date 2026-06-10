@@ -116,7 +116,7 @@ export const HRProvider = ({ children }) => {
     if (isSupabaseConfigured) {
       const { error } = await supabase
         .from('employees')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', empId)
         .eq('tenant_id', currentTenantId);
 
@@ -231,7 +231,7 @@ export const HRProvider = ({ children }) => {
     if (isSupabaseConfigured) {
       const { error } = await supabase
         .from('payroll')
-        .delete()
+        .update({ deleted_at: new Date().toISOString() })
         .eq('id', recordId)
         .eq('tenant_id', currentTenantId);
 

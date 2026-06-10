@@ -47,12 +47,12 @@ export const useInventory = (tenantId) => {
       const [cachedProds, cachedCats, cachedBals, cachedLocs] = await Promise.all([
         readCacheThenRevalidate(
           'products',
-          () => supabase.from('products').select('*').eq('tenant_id', tenantId).order('name'),
+          () => supabase.from('products').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
           (rows) => setProducts(rows.map(r => normalizeRow(r, NUMERIC_PRODUCT_COLS))),
         ),
         readCacheThenRevalidate(
           'product_categories',
-          () => supabase.from('product_categories').select('*').eq('tenant_id', tenantId).order('name'),
+          () => supabase.from('product_categories').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
           (rows) => setProductCategories(rows),
         ),
         readCacheThenRevalidate(
@@ -62,7 +62,7 @@ export const useInventory = (tenantId) => {
         ),
         readCacheThenRevalidate(
           'inventory_locations',
-          () => supabase.from('inventory_locations').select('*').eq('tenant_id', tenantId).order('name'),
+          () => supabase.from('inventory_locations').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
           (rows) => setInventoryLocations(rows),
         ),
       ]);
@@ -141,7 +141,7 @@ export const useInventory = (tenantId) => {
   const remove = async (id) => {
     const { error } = await supabase
       .from('products')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id)
       .eq('tenant_id', tenantId);
     if (!error) fetchInventory().catch(e => console.error('remove product refetch error:', e));
@@ -201,7 +201,7 @@ export const useInventory = (tenantId) => {
     if (id === MAIN) return { error: new Error('Cannot delete main warehouse.') };
     const { error } = await supabase
       .from('inventory_locations')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id)
       .eq('tenant_id', tenantId);
     if (!error) await fetchInventory();
@@ -221,7 +221,7 @@ export const useInventory = (tenantId) => {
   };
 
   const deleteProductCategory = async (id) => {
-    const { error } = await supabase.from('product_categories').delete().eq('id', id).eq('tenant_id', tenantId);
+    const { error } = await supabase.from('product_categories').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     if (!error) await fetchInventory();
     return { error };
   };

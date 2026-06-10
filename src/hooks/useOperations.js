@@ -29,7 +29,7 @@ export const useOperations = (tenantId) => {
       ] = await Promise.all([
         supabase.from('routes').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }),
         supabase.from('movement_log').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(200),
-        supabase.from('vehicles').select('*').eq('tenant_id', tenantId).order('name'),
+        supabase.from('vehicles').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
         supabase.from('invoices')
           .select('id, invoice_number, client_name, client_id, grand_total, paid_amount, payment_status, items, delivery_status, delivery_required, vehicle_route_id, delivery_address, delivery_zone, delivery_date, delivery_notes, delivery_fee, created_at')
           .eq('tenant_id', tenantId)
@@ -109,7 +109,7 @@ export const useOperations = (tenantId) => {
   };
 
   const deleteVehicle = async (id) => {
-    const { error } = await supabase.from('vehicles').delete().eq('id', id).eq('tenant_id', tenantId);
+    const { error } = await supabase.from('vehicles').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     if (!error) await fetchOperationsData();
     return { success: !error, error };
   };
@@ -242,7 +242,7 @@ export const useOperations = (tenantId) => {
     if (!resolvedVehicleId && vehicleLocId) {
       const { data: loc } = await supabase
         .from('inventory_locations')
-        .select('reference_id')
+        .select('reference_id').is('deleted_at', null)
         .eq('id', vehicleLocId)
         .maybeSingle();
       resolvedVehicleId = loc?.reference_id || null;
@@ -299,7 +299,7 @@ export const useOperations = (tenantId) => {
     // 1. Ensure vehicle has an inventory_locations row (create if missing)
     let { data: locRows } = await supabase
       .from('inventory_locations')
-      .select('id')
+      .select('id').is('deleted_at', null)
       .eq('tenant_id', tenantId)
       .eq('type', 'VEHICLE')
       .eq('reference_id', vehicleId);
@@ -319,7 +319,7 @@ export const useOperations = (tenantId) => {
     // 2. Find warehouse location (MAIN-WH or first WAREHOUSE type)
     let { data: whRows } = await supabase
       .from('inventory_locations')
-      .select('id')
+      .select('id').is('deleted_at', null)
       .eq('tenant_id', tenantId)
       .eq('type', 'WAREHOUSE')
       .order('created_at', { ascending: true })
@@ -379,7 +379,7 @@ export const useOperations = (tenantId) => {
     // 1. Vehicle location
     const { data: locRows } = await supabase
       .from('inventory_locations')
-      .select('id')
+      .select('id').is('deleted_at', null)
       .eq('tenant_id', tenantId)
       .eq('type', 'VEHICLE')
       .eq('reference_id', vehicleId);
@@ -389,7 +389,7 @@ export const useOperations = (tenantId) => {
     // 2. Warehouse location
     const { data: whRows } = await supabase
       .from('inventory_locations')
-      .select('id')
+      .select('id').is('deleted_at', null)
       .eq('tenant_id', tenantId)
       .eq('type', 'WAREHOUSE')
       .order('created_at', { ascending: true })

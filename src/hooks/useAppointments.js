@@ -11,7 +11,7 @@ export function useAppointments(tenantId) {
     setLoading(true);
     const { data, error } = await supabase
       .from('appointments')
-      .select('*')
+      .select('*').is('deleted_at', null)
       .eq('tenant_id', tenantId)
       .order('start_at', { ascending: true });
     if (!error) setAppointments(data || []);
@@ -47,7 +47,7 @@ export function useAppointments(tenantId) {
   };
 
   const remove = async (id) => {
-    const { error } = await supabase.from('appointments').delete().eq('id', id).eq('tenant_id', tenantId);
+    const { error } = await supabase.from('appointments').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     if (!error) await fetchAll();
     return { error };
   };

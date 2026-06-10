@@ -28,7 +28,7 @@ export const useFinance = (tenantId) => {
       const [expCached, dbCached, cpCached, purCached] = await Promise.all([
         readCacheThenRevalidate(
           'expenses',
-          () => supabase.from('expenses').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          () => supabase.from('expenses').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
           (rows) => setExpenses(normalizeNumericRows(rows, EXPENSE_NUMERIC)),
         ),
         readCacheThenRevalidate(
@@ -43,7 +43,7 @@ export const useFinance = (tenantId) => {
         ),
         readCacheThenRevalidate(
           'purchases',
-          () => supabase.from('purchases').select('id, total_amount, paid_amount, payment_type, date, supplier_id, created_at').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          () => supabase.from('purchases').select('id, total_amount, paid_amount, payment_type, date, supplier_id, created_at').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
           (rows) => setPurchases(normalizeNumericRows(rows, PURCHASE_NUMERIC)),
         ),
       ]);
@@ -132,7 +132,7 @@ export const useFinance = (tenantId) => {
 
   const deleteExpense = async (id) => {
     const { error } = await supabase
-      .from('expenses').delete().eq('id', id).eq('tenant_id', tenantId);
+      .from('expenses').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     if (!error) await fetchFinanceData();
     return { error };
   };

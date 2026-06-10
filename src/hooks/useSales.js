@@ -41,8 +41,8 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     setError(null);
     try {
       const [salesRes, clientsRes, invoicesRes] = await Promise.all([
-        fetchWithCache('sales',    () => supabase.from('sales').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(500)),
-        fetchWithCache('clients',  () => supabase.from('clients').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name')),
+        fetchWithCache('sales',    () => supabase.from('sales').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(500)),
+        fetchWithCache('clients',  () => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name')),
         fetchWithCache('invoices', () => supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(500)),
       ]);
 
@@ -128,7 +128,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
   const remove = async (id) => {
     const { error } = await supabase
       .from('sales')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id)
       .eq('tenant_id', tenantId);
     if (!error) await fetchSales();
@@ -279,7 +279,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         const monthEnd   = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
         const { count } = await supabase
           .from('sales')
-          .select('id', { count: 'exact', head: true })
+          .select('id', { count: 'exact', head: true }).is('deleted_at', null)
           .eq('tenant_id', tenantId)
           .gte('date', monthStart)
           .lte('date', monthEnd);

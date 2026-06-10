@@ -5,7 +5,7 @@
  *
  * Pattern:
  *   const rows = await fetchWithCache('products', () =>
- *     supabase.from('products').select('*').eq('tenant_id', tid).is('deleted_at', null)
+ *     supabase.from('products').select('*').is('deleted_at', null).eq('tenant_id', tid).is('deleted_at', null)
  *   );
  *
  * Behaviour:
@@ -31,7 +31,7 @@ import { enqueue } from './outbox.js';
  *
  *   const cached = await readCacheThenRevalidate(
  *     'products',
- *     () => supabase.from('products').select('*').eq('tenant_id', tid),
+ *     () => supabase.from('products').select('*').is('deleted_at', null).eq('tenant_id', tid),
  *     (fresh) => setProducts(fresh),
  *   );
  *   setProducts(cached);  // instant render

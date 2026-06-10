@@ -613,7 +613,7 @@ export const SalesProvider = ({ children }) => {
       if (isSupabaseConfigured) {
         const { error } = await supabase
           .from('sales')
-          .delete()
+          .update({ deleted_at: new Date().toISOString() })
           .eq('id', saleId)
           .eq('tenant_id', currentTenantId);
         if (error) {

@@ -44,9 +44,9 @@ export function useDayBookData(tenantId, selectedDate) {
     if (firstLoad.current) setLoading(true); // later date-changes refresh silently
     try {
       const [sRes, eRes, pRes, cpRes, spRes] = await Promise.all([
-        supabase.from('sales').select(SEL_SALES).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null),
-        supabase.from('expenses').select(SEL_EXPENSE).eq('tenant_id', tenantId).eq('date', selectedDate),
-        supabase.from('purchases').select(SEL_PURCHASE).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null),
+        supabase.from('sales').select(SEL_SALES).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null),
+        supabase.from('expenses').select(SEL_EXPENSE).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate),
+        supabase.from('purchases').select(SEL_PURCHASE).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null),
         supabase.from('client_payments').select(SEL_CLIENTPAY).eq('tenant_id', tenantId).eq('date', selectedDate),
         supabase.from('supplier_payments').select(SEL_SUPPLIERPAY).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null),
       ]);

@@ -33,12 +33,12 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
       const [purCached, supCached, retCached] = await Promise.all([
         readCacheThenRevalidate(
           'purchases',
-          () => supabase.from('purchases').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(200),
+          () => supabase.from('purchases').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(200),
           (rows) => setData(normalizeNumericRows(rows, PURCHASE_NUMERIC)),
         ),
         readCacheThenRevalidate(
           'suppliers',
-          () => supabase.from('suppliers').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
+          () => supabase.from('suppliers').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name'),
           (rows) => setSuppliers(normalizeNumericRows(rows, SUPPLIER_NUMERIC)),
         ),
         withReturns
@@ -159,7 +159,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
   const remove = async (id) => {
     const { error } = await supabase
       .from('purchases')
-      .delete()
+      .update({ deleted_at: new Date().toISOString() })
       .eq('id', id)
       .eq('tenant_id', tenantId);
     if (!error) await fetchPurchases();

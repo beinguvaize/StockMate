@@ -44,7 +44,7 @@ export const usePlanLimits = () => {
       // Count invoices (sales) this month
       supabase
         .from('sales')
-        .select('id', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true }).is('deleted_at', null)
         .eq('tenant_id', currentTenantId)
         .gte('date', monthStart)
         .lte('date', monthEnd),

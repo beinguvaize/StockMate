@@ -44,8 +44,8 @@ export const usePayroll = (tenantId) => {
         { data: empData, error: empErr },
         { data: payData, error: payErr }
       ] = await Promise.all([
-        supabase.from('employees').select('*').eq('tenant_id', tenantId).order('name'),
-        supabase.from('payroll').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false })
+        supabase.from('employees').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
+        supabase.from('payroll').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('created_at', { ascending: false })
       ]);
 
       if (empErr) throw empErr;
@@ -95,7 +95,7 @@ export const usePayroll = (tenantId) => {
   };
 
   const deleteEmployee = async (id) => {
-    const { error } = await supabase.from('employees').delete().eq('id', id).eq('tenant_id', tenantId);
+    const { error } = await supabase.from('employees').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     if (!error) setEmployees(prev => prev.filter(e => e.id !== id));
     return { success: !error, error };
   };
@@ -107,7 +107,7 @@ export const usePayroll = (tenantId) => {
   };
 
   const deletePayrollRecord = async (id) => {
-    const { error } = await supabase.from('payroll').delete().eq('id', id).eq('tenant_id', tenantId);
+    const { error } = await supabase.from('payroll').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     if (!error) setPayrollRecords(prev => prev.filter(p => p.id !== id));
     return { success: !error, error };
   };
