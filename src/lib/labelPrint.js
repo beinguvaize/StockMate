@@ -48,9 +48,15 @@ export const ean13CheckDigit = (body12) => {
   return String((10 - (sum % 10)) % 10);
 };
 
-// Pick the right symbology for a stored barcode value.
+// True when a 13-digit value has a correct EAN-13 check digit.
+export const isValidEan13 = (value) =>
+  /^\d{13}$/.test(value) && ean13CheckDigit(value.slice(0, 12)) === value[12];
+
+// Pick the right symbology for a stored barcode value. Invalid EAN-13s
+// (wrong check digit — common with hand-typed codes) fall back to CODE128,
+// which renders any value; otherwise react-barcode silently draws nothing.
 export const barcodeFormat = (value) => {
-  if (/^\d{13}$/.test(value)) return 'EAN13';
+  if (isValidEan13(value)) return 'EAN13';
   if (/^\d{12}$/.test(value)) return 'EAN13'; // react-barcode computes check digit
   return 'CODE128';
 };
