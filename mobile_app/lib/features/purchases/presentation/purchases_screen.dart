@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
+import 'package:mobile_app/core/widgets/barcode_scanner_screen.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
@@ -978,7 +979,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
     final results = await Future.wait([
       supabase
           .from('products')
-          .select('id, name, sku, costPrice, stock')
+          .select('id, name, sku, barcode, costPrice, stock')
           .order('name')
           .then((v) => v as List)
           .catchError((_) => <dynamic>[]),
@@ -1906,7 +1907,8 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
             ? widget.products
             : widget.products.where((p) =>
                 ('${p['name']}').toLowerCase().contains(q) ||
-                ('${p['sku'] ?? ''}').toLowerCase().contains(q)).toList();
+                ('${p['sku'] ?? ''}').toLowerCase().contains(q) ||
+                ('${p['barcode'] ?? ''}').contains(q)).toList();
       });
     });
   }
@@ -1915,6 +1917,30 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
   void dispose() {
     _search.dispose();
     super.dispose();
+  }
+
+  // Scan a physical product barcode -> match products.barcode (or SKU) ->
+  // select instantly. The in-aisle way to pick from a large catalog.
+  Future<void> _scanToPick() async {
+    final code = await Navigator.push<String>(
+      context,
+      MaterialPageRoute(
+          builder: (_) => const BarcodeScannerScreen(title: 'Scan product barcode')),
+    );
+    if (code == null || code.isEmpty || !mounted) return;
+    final match = widget.products.firstWhere(
+      (p) => ('${p['barcode'] ?? ''}' == code) || ('${p['sku'] ?? ''}' == code),
+      orElse: () => <String, dynamic>{},
+    );
+    if (match.isNotEmpty) {
+      widget.onSelected(match['id'] as String?);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('No product with barcode "$code"'),
+        backgroundColor: AppColors.danger,
+        behavior: SnackBarBehavior.floating,
+      ));
+    }
   }
 
   @override
@@ -1942,25 +1968,44 @@ class _ProductSearchSheetState extends State<_ProductSearchSheet> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(14),
-                  boxShadow: [AppColors.cardShadow],
-                ),
-                child: TextField(
-                  controller: _search,
-                  autofocus: true,
-                  decoration: InputDecoration(
-                    hintText: 'Search product or SKU...',
-                    hintStyle: GoogleFonts.manrope(
-                        fontSize: 13, color: AppColors.inkTertiary),
-                    prefixIcon: const Icon(LucideIcons.search,
-                        size: 16, color: AppColors.inkTertiary),
-                    border: InputBorder.none,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                        boxShadow: [AppColors.cardShadow],
+                      ),
+                      child: TextField(
+                        controller: _search,
+                        autofocus: true,
+                        decoration: InputDecoration(
+                          hintText: 'Search product or SKU...',
+                          hintStyle: GoogleFonts.manrope(
+                              fontSize: 13, color: AppColors.inkTertiary),
+                          prefixIcon: const Icon(LucideIcons.search,
+                              size: 16, color: AppColors.inkTertiary),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: _scanToPick,
+                    child: Container(
+                      width: 48, height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(LucideIcons.scanLine,
+                          size: 20, color: Colors.white),
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(
