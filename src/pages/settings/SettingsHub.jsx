@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
-import { supabase } from '../../lib/supabase';
+import { supabase, uploadProductImage } from '../../lib/supabase';
 import { PLANS } from '../../lib/tenancy';
 import Settings from '../Settings';
 import Users from '../Users';
@@ -198,6 +198,20 @@ const PrintPanel = ({ tenantId }) => {
   });
   const [saved, setSaved] = useState(false);
   const [docTab, setDocTab] = useState('receipt');
+  const [sigBusy, setSigBusy] = useState(false);
+
+  const uploadSignature = async (file) => {
+    if (!file) return;
+    setSigBusy(true);
+    const { url, error } = await uploadProductImage(file, tenantId);
+    if (!error && url) await updateBusinessProfile?.({ signature_url: url });
+    setSigBusy(false);
+  };
+  const removeSignature = async () => {
+    setSigBusy(true);
+    await updateBusinessProfile?.({ signature_url: null });
+    setSigBusy(false);
+  };
   const save = async () => {
     localStorage.setItem(key, JSON.stringify(prefs));
     try { await updateBusinessProfile?.({ bill_settings: { ...(businessProfile?.bill_settings || {}), ...billSet } }); } catch { /* local prefs still saved */ }
@@ -374,6 +388,29 @@ const PrintPanel = ({ tenantId }) => {
                     </div>
                   </div>
                 ))}
+
+                {/* Signature image */}
+                <div>
+                  <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Signature image</div>
+                  {businessProfile?.signature_url ? (
+                    <div className="space-y-1.5">
+                      <div className="bg-white border border-gray-200 rounded-md p-2 flex justify-center">
+                        <img src={businessProfile.signature_url} alt="signature" className="h-10 object-contain" />
+                      </div>
+                      <button onClick={removeSignature} disabled={sigBusy}
+                        className="w-full py-1.5 rounded-md border border-gray-200 text-[12px] font-medium text-gray-500 hover:text-red-500 hover:border-red-200 disabled:opacity-50">
+                        {sigBusy ? 'Removing…' : 'Remove signature'}
+                      </button>
+                    </div>
+                  ) : (
+                    <label className={`block w-full py-1.5 rounded-md border border-dashed border-gray-300 text-[12px] font-medium text-gray-500 text-center cursor-pointer hover:border-gray-400 hover:text-gray-700 ${sigBusy ? 'opacity-50 pointer-events-none' : ''}`}>
+                      {sigBusy ? 'Uploading…' : '+ Upload signature (PNG)'}
+                      <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                        onChange={e => uploadSignature(e.target.files?.[0])} />
+                    </label>
+                  )}
+                  <div className="text-[10.5px] text-gray-400 mt-1">Transparent PNG works best. Shown above "Authorised Signatory".</div>
+                </div>
 
                 {/* Custom fields (label: value pairs printed on every invoice) */}
                 <div>

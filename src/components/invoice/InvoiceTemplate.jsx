@@ -585,7 +585,9 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                 {invOpts.sign && (
                 <div className="text-right mt-8">
                   <div className="font-bold">For {safeBusiness.name || 'Business'}</div>
-                  <div className="h-12" />
+                  {safeBusiness.signature_url
+                    ? <img src={safeBusiness.signature_url} alt="" className="h-12 object-contain inline-block" />
+                    : <div className="h-12" />}
                   <div className="border-t border-slate-900 pt-1 inline-block min-w-[55mm] text-center">
                     <span className="text-[10px] font-bold">Authorised Signatory</span>
                   </div>
