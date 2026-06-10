@@ -651,6 +651,8 @@ class _AddPurchaseSheet extends ConsumerStatefulWidget {
 class _PurchaseLine {
   String? productId;
   String? scannedName; // item name read off a scanned bill (hint for picking)
+  double? scannedTaxRate; // GST % from the bill (used by create-from-scan)
+  List<Map<String, dynamic>> suggestions = []; // fuzzy candidates for chips
   final qtyCtrl       = TextEditingController();
   final unitPriceCtrl = TextEditingController();
   final totalCtrl     = TextEditingController();
@@ -676,6 +678,7 @@ class _PurchaseLine {
 class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   List<Map<String, dynamic>> _products = [];
   List<Map<String, dynamic>> _suppliers = [];
+  List<Map<String, dynamic>> _aliases = [];
   bool _loadingData = true;
 
   // Header
@@ -773,22 +776,142 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
     }
   }
 
-  // Map extracted JSON onto the form. Matches supplier + products by name;
-  // unmatched products are left for the user to pick (qty/price prefilled).
-  void _applyExtracted(Map<String, dynamic> d) {
-    String norm(String s) => s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
+  // ── Matching helpers ────────────────────────────────────────────────────────
+  static String _normTxt(String s) =>
+      s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9 ]'), ' ').replaceAll(RegExp(r'\s+'), ' ').trim();
 
-    // Supplier match by gstin/name.
-    final supName = (d['supplier_name'] as String?)?.trim();
-    if (supName != null && supName.isNotEmpty && _suppliers.isNotEmpty) {
-      final target = norm(supName);
-      final match = _suppliers.firstWhere(
-        (s) => norm((s['name'] ?? '').toString()) == target ||
-            norm((s['name'] ?? '').toString()).contains(target) ||
-            target.contains(norm((s['name'] ?? '').toString())),
+  // Token-overlap similarity (0..1) with a prefix bonus — tolerant of word
+  // order, pack-size noise and small typos on bill item names.
+  static double _fuzzy(String a, String b) {
+    final ta = _normTxt(a).split(' ').where((t) => t.isNotEmpty).toSet();
+    final tb = _normTxt(b).split(' ').where((t) => t.isNotEmpty).toSet();
+    if (ta.isEmpty || tb.isEmpty) return 0;
+    int hit = 0;
+    for (final t in ta) {
+      if (tb.contains(t)) { hit++; continue; }
+      // prefix tolerance: "sunflwer" ~ "sunflower"
+      if (t.length >= 4 && tb.any((o) => o.startsWith(t.substring(0, 4)) || t.startsWith(o.length >= 4 ? o.substring(0, 4) : o))) {
+        hit++;
+      }
+    }
+    return (2.0 * hit) / (ta.length + tb.length);
+  }
+
+  // Rank products against a scanned name. Returns best-first list of products.
+  List<Map<String, dynamic>> _rankProducts(String name, {int top = 3}) {
+    final scored = _products
+        .map((p) => MapEntry(p, _fuzzy(name, (p['name'] ?? '').toString())))
+        .where((e) => e.value > 0.2)
+        .toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+    return scored.take(top).map((e) => e.key).toList();
+  }
+
+  // Alias memory lookup: supplier-specific first, then any-supplier.
+  String? _aliasMatch(String name) {
+    final key = _normTxt(name).replaceAll(' ', '');
+    Map<String, dynamic>? hit;
+    for (final a in _aliases) {
+      if (a['alias_norm'] != key) continue;
+      if (a['supplier_id'] == _supplierId) { hit = a; break; }
+      hit ??= a;
+    }
+    final pid = hit?['product_id'] as String?;
+    // Only honour aliases that still point at a live product.
+    if (pid != null && _products.any((p) => p['id'] == pid)) return pid;
+    return null;
+  }
+
+  // Link a line to a product + learn the alias for future scans.
+  Future<void> _selectProductForLine(_PurchaseLine line, String? productId) async {
+    setState(() => line.productId = productId);
+    final name = line.scannedName;
+    if (productId == null || name == null || name.isEmpty) return;
+    final key = _normTxt(name).replaceAll(' ', '');
+    try {
+      await supabase.from('product_aliases').upsert({
+        'tenant_id': widget.tenantId,
+        'supplier_id': _supplierId,
+        'alias_norm': key,
+        'alias_raw': name,
+        'product_id': productId,
+      }, onConflict: 'tenant_id,supplier_id,alias_norm');
+      _aliases.removeWhere((a) => a['alias_norm'] == key && a['supplier_id'] == _supplierId);
+      _aliases.add({'supplier_id': _supplierId, 'alias_norm': key, 'product_id': productId});
+    } catch (_) {/* alias save is best-effort */}
+  }
+
+  // One-tap create product from a scanned bill line (name + cost prefilled).
+  Future<void> _createFromScan(_PurchaseLine line) async {
+    final name = line.scannedName;
+    if (name == null || name.isEmpty) return;
+    final rate = double.tryParse(line.unitPriceCtrl.text) ?? 0;
+    final id = 'PROD-${DateTime.now().millisecondsSinceEpoch}-'
+        '${(1000 + (DateTime.now().microsecond % 9000))}';
+    try {
+      await supabase.from('products').insert({
+        'id': id,
+        'name': name,
+        'sku': '',
+        'costPrice': rate,
+        'sellingPrice': rate, // user adjusts margin later in Inventory
+        'stock': 0,           // stock arrives via this purchase itself
+        'lowStockThreshold': 10.0,
+        'category': 'Other',
+        'unit': 'pcs',
+        'taxRate': line.scannedTaxRate ?? 0,
+        'tenant_id': widget.tenantId,
+      });
+      _products.add({'id': id, 'name': name, 'sku': '', 'costPrice': rate, 'stock': 0});
+      await _selectProductForLine(line, id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Product "$name" created'),
+          backgroundColor: AppColors.secondary,
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Create failed: $e'), backgroundColor: AppColors.danger));
+      }
+    }
+  }
+
+  // Map extracted JSON onto the form. Supplier: GSTIN first (exact), then
+  // fuzzy name. Products: learned alias -> fuzzy auto-match -> top-3 chips.
+  void _applyExtracted(Map<String, dynamic> d) {
+    // Supplier by GSTIN (unique + printed on every GST bill).
+    final gstin = (d['gstin'] as String?)?.trim().toUpperCase();
+    if (gstin != null && gstin.length == 15) {
+      final m = _suppliers.firstWhere(
+        (s) => ((s['gstin'] ?? '') as String).toUpperCase() == gstin,
         orElse: () => <String, dynamic>{},
       );
-      if (match.isNotEmpty) _supplierId = match['id'] as String?;
+      if (m.isNotEmpty) _supplierId = m['id'] as String?;
+    }
+    // Fallback: fuzzy supplier name. On a hit, learn the bill GSTIN onto the
+    // supplier record so the next scan matches exactly.
+    if (_supplierId == null) {
+      final supName = (d['supplier_name'] as String?)?.trim();
+      if (supName != null && supName.isNotEmpty && _suppliers.isNotEmpty) {
+        final scored = _suppliers
+            .map((s) => MapEntry(s, _fuzzy(supName, (s['name'] ?? '').toString())))
+            .toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+        if (scored.isNotEmpty && scored.first.value >= 0.5) {
+          final sup = scored.first.key;
+          _supplierId = sup['id'] as String?;
+          final existing = (sup['gstin'] ?? '').toString();
+          if (gstin != null && gstin.length == 15 && existing.isEmpty) {
+            sup['gstin'] = gstin;
+            supabase.from('suppliers').update({'gstin': gstin})
+                .eq('id', sup['id']).eq('tenant_id', widget.tenantId)
+                .then((_) {}, onError: (_) {});
+          }
+        }
+      }
     }
 
     // Date.
@@ -814,19 +937,25 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
         if (qty > 0) line.qtyCtrl.text = qty.toString();
         if (rate > 0) line.unitPriceCtrl.text = rate.toString();
         if (amount > 0) line.totalCtrl.text = amount.toStringAsFixed(2);
+        line.scannedTaxRate = (it['tax_rate'] as num?)?.toDouble();
 
-        // Product match by name.
         final name = (it['name'] as String?)?.trim();
         line.scannedName = (name != null && name.isNotEmpty) ? name : null;
         if (name != null && name.isNotEmpty && _products.isNotEmpty) {
-          final target = norm(name);
-          final pm = _products.firstWhere(
-            (p) => norm((p['name'] ?? '').toString()) == target ||
-                norm((p['name'] ?? '').toString()).contains(target) ||
-                target.contains(norm((p['name'] ?? '').toString())),
-            orElse: () => <String, dynamic>{},
-          );
-          if (pm.isNotEmpty) line.productId = pm['id'] as String?;
+          // 1. Learned alias (exact memory of past picks).
+          final aliasPid = _aliasMatch(name);
+          if (aliasPid != null) {
+            line.productId = aliasPid;
+          } else {
+            // 2. Fuzzy auto-match when confident; 3. else top-3 suggestions.
+            final ranked = _rankProducts(name);
+            if (ranked.isNotEmpty &&
+                _fuzzy(name, (ranked.first['name'] ?? '').toString()) >= 0.75) {
+              line.productId = ranked.first['id'] as String?;
+            } else {
+              line.suggestions = ranked;
+            }
+          }
         }
         _lines.add(line);
       }
@@ -854,8 +983,14 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
           .catchError((_) => <dynamic>[]),
       supabase
           .from('suppliers')
-          .select('id, name')
+          .select('id, name, gstin')
           .order('name')
+          .then((v) => v as List)
+          .catchError((_) => <dynamic>[]),
+      // Learned bill-text -> product mappings (alias memory for bill OCR).
+      supabase
+          .from('product_aliases')
+          .select('supplier_id, alias_norm, product_id')
           .then((v) => v as List)
           .catchError((_) => <dynamic>[]),
     ]);
@@ -864,6 +999,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
       setState(() {
         _products  = results[0].map((e) => Map<String, dynamic>.from(e as Map)).toList();
         _suppliers = results[1].map((e) => Map<String, dynamic>.from(e as Map)).toList();
+        _aliases   = results[2].map((e) => Map<String, dynamic>.from(e as Map)).toList();
         _loadingData = false;
       });
     }
@@ -1183,7 +1319,8 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                 line: line,
                                 products: _products,
                                 canRemove: _lines.length > 1,
-                                onProductChange: (id) => setState(() => line.productId = id),
+                                onProductChange: (id) => _selectProductForLine(line, id),
+                                onCreateFromScan: () => _createFromScan(line),
                                 onQtyChange: (v) => _onQtyChanged(line, v),
                                 onUnitPriceChange: (v) => _onUnitPriceChanged(line, v),
                                 onTotalChange: (v) => _onTotalChanged(line, v),
@@ -1306,6 +1443,7 @@ class _LineItemCard extends StatelessWidget {
   final ValueChanged<String> onUnitPriceChange;
   final ValueChanged<String> onTotalChange;
   final VoidCallback onRemove;
+  final VoidCallback? onCreateFromScan;
 
   const _LineItemCard({
     required this.index,
@@ -1317,7 +1455,25 @@ class _LineItemCard extends StatelessWidget {
     required this.onUnitPriceChange,
     required this.onTotalChange,
     required this.onRemove,
+    this.onCreateFromScan,
   });
+
+  // Searchable full-height picker — dropdowns don't scale past ~50 products.
+  void _openProductSearch(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ProductSearchSheet(
+        products: products,
+        selectedId: line.productId,
+        onSelected: (id) {
+          onProductChange(id);
+          Navigator.pop(context);
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1392,20 +1548,93 @@ class _LineItemCard extends StatelessWidget {
               ),
             ),
 
-          // Product picker
-          _Dropdown(
-            hint: 'Select product...',
-            icon: LucideIcons.package,
-            value: line.productId,
-            items: products.map((p) => DropdownMenuItem(
-              value: p['id'] as String,
-              child: Text(
-                '${p['name']}${p['sku'] != null ? ' (${p['sku']})' : ''}',
-                overflow: TextOverflow.ellipsis,
+          // Product picker — opens a searchable sheet (type to filter).
+          GestureDetector(
+            onTap: () => _openProductSearch(context),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
               ),
-            )).toList(),
-            onChanged: onProductChange,
+              child: Row(
+                children: [
+                  const Icon(LucideIcons.package, size: 16, color: AppColors.inkTertiary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      (selectedProduct != null && selectedProduct.isNotEmpty)
+                          ? '${selectedProduct['name']}'
+                          : 'Select product...',
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.manrope(
+                        fontSize: 13.5,
+                        fontWeight: (selectedProduct != null && selectedProduct.isNotEmpty)
+                            ? FontWeight.w600 : FontWeight.w400,
+                        color: (selectedProduct != null && selectedProduct.isNotEmpty)
+                            ? AppColors.inkPrimary : AppColors.inkTertiary,
+                      ),
+                    ),
+                  ),
+                  const Icon(LucideIcons.search, size: 14, color: AppColors.inkTertiary),
+                ],
+              ),
+            ),
           ),
+
+          // Suggestion chips for unmatched scanned lines: top fuzzy candidates
+          // + one-tap create. Tapping a chip also teaches the alias memory.
+          if (line.productId == null &&
+              (line.suggestions.isNotEmpty || line.scannedName != null))
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  ...line.suggestions.map((p) => GestureDetector(
+                        onTap: () => onProductChange(p['id'] as String?),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryContainer,
+                            borderRadius: BorderRadius.circular(99),
+                          ),
+                          child: Text(
+                            '${p['name']}',
+                            style: GoogleFonts.manrope(
+                                fontSize: 11.5, fontWeight: FontWeight.w700,
+                                color: AppColors.onPrimaryContainer),
+                          ),
+                        ),
+                      )),
+                  if (line.scannedName != null && onCreateFromScan != null)
+                    GestureDetector(
+                      onTap: onCreateFromScan,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(99),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.5)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(LucideIcons.plus, size: 12, color: AppColors.primary),
+                            const SizedBox(width: 4),
+                            Text('Create new',
+                                style: GoogleFonts.manrope(
+                                    fontSize: 11.5, fontWeight: FontWeight.w700,
+                                    color: AppColors.primary)),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
 
           if (selectedProduct != null && selectedProduct.isNotEmpty)
             Padding(
@@ -1643,4 +1872,161 @@ class _UpgradeBanner extends StatelessWidget {
           ),
         ),
       );
+}
+
+// ─── Product search sheet ─────────────────────────────────────────────────────
+// Type-ahead picker for large catalogs (dropdowns stop working past ~50 SKUs).
+class _ProductSearchSheet extends StatefulWidget {
+  final List<Map<String, dynamic>> products;
+  final String? selectedId;
+  final ValueChanged<String?> onSelected;
+
+  const _ProductSearchSheet({
+    required this.products,
+    required this.selectedId,
+    required this.onSelected,
+  });
+
+  @override
+  State<_ProductSearchSheet> createState() => _ProductSearchSheetState();
+}
+
+class _ProductSearchSheetState extends State<_ProductSearchSheet> {
+  final _search = TextEditingController();
+  late List<Map<String, dynamic>> _filtered = widget.products;
+
+  @override
+  void initState() {
+    super.initState();
+    _search.addListener(() {
+      final q = _search.text.toLowerCase();
+      setState(() {
+        _filtered = q.isEmpty
+            ? widget.products
+            : widget.products.where((p) =>
+                ('${p['name']}').toLowerCase().contains(q) ||
+                ('${p['sku'] ?? ''}').toLowerCase().contains(q)).toList();
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      maxChildSize: 0.95,
+      minChildSize: 0.5,
+      builder: (_, ctrl) => Container(
+        decoration: const BoxDecoration(
+          color: AppColors.canvas,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          children: [
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40, height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.outlineVariant,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [AppColors.cardShadow],
+                ),
+                child: TextField(
+                  controller: _search,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Search product or SKU...',
+                    hintStyle: GoogleFonts.manrope(
+                        fontSize: 13, color: AppColors.inkTertiary),
+                    prefixIcon: const Icon(LucideIcons.search,
+                        size: 16, color: AppColors.inkTertiary),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: _filtered.isEmpty
+                  ? Center(
+                      child: Text('No products found',
+                          style: GoogleFonts.manrope(
+                              fontSize: 13, color: AppColors.inkTertiary)),
+                    )
+                  : ListView.builder(
+                      controller: ctrl,
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
+                      itemCount: _filtered.length,
+                      itemBuilder: (context, i) {
+                        final p = _filtered[i];
+                        final isSelected = widget.selectedId == p['id'];
+                        return GestureDetector(
+                          onTap: () => widget.onSelected(p['id'] as String?),
+                          child: Container(
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColors.primaryContainer
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColors.primary
+                                    : Colors.transparent,
+                              ),
+                              boxShadow: [AppColors.cardShadow],
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text('${p['name']}',
+                                          style: GoogleFonts.manrope(
+                                              fontWeight: FontWeight.w600,
+                                              fontSize: 14,
+                                              color: AppColors.inkPrimary)),
+                                      Text(
+                                        'Stock ${p['stock'] ?? 0}'
+                                        '${(p['sku'] ?? '').toString().isNotEmpty ? " · ${p['sku']}" : ""}',
+                                        style: GoogleFonts.jetBrainsMono(
+                                            fontSize: 10,
+                                            color: AppColors.inkTertiary),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Icon(LucideIcons.checkCircle2,
+                                      color: AppColors.primary, size: 18),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
