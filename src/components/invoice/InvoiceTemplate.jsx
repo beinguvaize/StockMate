@@ -79,40 +79,29 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
   // Purple Brand Color (Vibrant Purple from sample)
   const BRAND_COLOR = '#7c3aed';
 
-  // A4 template theme from Settings -> Printing (per tenant, localStorage).
-  const invTheme = (() => {
+  // Print/design prefs: tenant-level (business_profile.print_settings) is the
+  // source of truth so web + mobile (embed WebView) print identically;
+  // localStorage is only a same-browser fallback for older saves.
+  const printPrefs = (() => {
+    if (safeBusiness.print_settings && typeof safeBusiness.print_settings === 'object') {
+      return safeBusiness.print_settings;
+    }
     try {
       const tid = safeBusiness.tenant_id || 'default';
-      const prefs = JSON.parse(localStorage.getItem(`print_settings_${tid}`))
-        || JSON.parse(localStorage.getItem('print_settings_default'));
-      return themeOverride || prefs?.invoiceTemplate || 'classic';
-    } catch { return themeOverride || 'classic'; }
+      return JSON.parse(localStorage.getItem(`print_settings_${tid}`))
+        || JSON.parse(localStorage.getItem('print_settings_default')) || {};
+    } catch { return {}; }
   })();
+  const invTheme = themeOverride || printPrefs.invoiceTemplate || 'classic';
 
   // Customizable document texts (Settings -> Printing designer).
-  const docTexts = (() => {
-    if (textsOverride) return { ...DEFAULT_DOC_TEXTS, ...textsOverride };
-    try {
-      const tid = safeBusiness.tenant_id || 'default';
-      const prefs = JSON.parse(localStorage.getItem(`print_settings_${tid}`))
-        || JSON.parse(localStorage.getItem('print_settings_default')) || {};
-      return { ...DEFAULT_DOC_TEXTS, ...(prefs.docTexts || {}) };
-    } catch { return DEFAULT_DOC_TEXTS; }
-  })();
+  const docTexts = textsOverride
+    ? { ...DEFAULT_DOC_TEXTS, ...textsOverride }
+    : { ...DEFAULT_DOC_TEXTS, ...(printPrefs.docTexts || {}) };
 
-  const { invOpts, invAccent, customFields } = (() => {
-    let prefs = {};
-    try {
-      const tid = safeBusiness.tenant_id || 'default';
-      prefs = JSON.parse(localStorage.getItem(`print_settings_${tid}`))
-        || JSON.parse(localStorage.getItem('print_settings_default')) || {};
-    } catch { /* defaults */ }
-    return {
-      invOpts: { ...DEFAULT_INV_OPTS, ...(prefs.invOpts || {}), ...(optsOverride || {}) },
-      invAccent: accentOverride || prefs.invAccent || '#0f172a',
-      customFields: customFieldsOverride || prefs.customFields || [],
-    };
-  })();
+  const invOpts = { ...DEFAULT_INV_OPTS, ...(printPrefs.invOpts || {}), ...(optsOverride || {}) };
+  const invAccent = accentOverride || printPrefs.invAccent || '#0f172a';
+  const customFields = customFieldsOverride || printPrefs.customFields || [];
 
   // Calculate row counts for filling up to 8 rows
   const minRows = 10;

@@ -12,21 +12,26 @@ const money = (n, sym = '₹') => `${sym}${Number(n || 0).toFixed(2)}`;
 const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹', previewMode = false, paperOverride = null, receiptOverride = null, editable = false, onEditText = null, textsOverride = null }) => {
   const { currentTenantId } = useTenant();
   // Paper width from Settings → Print Settings (58/80mm; A4 falls back to 80).
-  let paper = paperOverride || '80';
+  // Tenant-level prefs first (business.print_settings); localStorage fallback.
+  const dbPrefs = (business && typeof business.print_settings === 'object' && business.print_settings) || null;
+  let paper = paperOverride || dbPrefs?.paper === '58' && '58' || dbPrefs?.paper || '80';
+  if (paper !== '58') paper = '80';
   try {
     const prefs = JSON.parse(localStorage.getItem(`print_settings_${currentTenantId || 'default'}`));
-    if (!paperOverride && prefs?.paper === '58') paper = '58';
+    if (!paperOverride && !dbPrefs && prefs?.paper === '58') paper = '58';
   } catch { /* defaults */ }
   const paperMm = `${paper}mm`;
 
   // Receipt design + customizable footer (Settings -> Printing designer).
-  let rt = receiptOverride || 'classic';
-  let docTexts = { ...DEFAULT_DOC_TEXTS, ...(textsOverride || {}) };
-  try {
-    const prefs = JSON.parse(localStorage.getItem(`print_settings_${currentTenantId || 'default'}`)) || {};
-    if (!receiptOverride && prefs.receiptTemplate) rt = prefs.receiptTemplate;
-    if (!textsOverride) docTexts = { ...DEFAULT_DOC_TEXTS, ...(prefs.docTexts || {}) };
-  } catch { /* defaults */ }
+  let rt = receiptOverride || dbPrefs?.receiptTemplate || 'classic';
+  let docTexts = { ...DEFAULT_DOC_TEXTS, ...(dbPrefs?.docTexts || {}), ...(textsOverride || {}) };
+  if (!dbPrefs) {
+    try {
+      const prefs = JSON.parse(localStorage.getItem(`print_settings_${currentTenantId || 'default'}`)) || {};
+      if (!receiptOverride && prefs.receiptTemplate) rt = prefs.receiptTemplate;
+      if (!textsOverride) docTexts = { ...DEFAULT_DOC_TEXTS, ...(prefs.docTexts || {}) };
+    } catch { /* defaults */ }
+  }
   // Variant styling: divider + header + total treatments.
   const div_ = rt === 'classic' ? 'border-dashed border-black/40' : rt === 'compact' ? 'border-solid border-black/30' : 'border-solid border-black';
   const headerCls = rt === 'bold' ? 'text-lg font-extrabold tracking-widest' : rt === 'compact' ? 'text-sm font-bold' : 'text-base font-bold tracking-wide';
