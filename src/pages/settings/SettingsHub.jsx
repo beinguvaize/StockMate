@@ -49,7 +49,6 @@ const NAV_GROUPS = [
     { id: 'locations',  label: 'Locations',  icon: <Database size={15} /> },
   ]},
   { caption: 'Sales & printing', items: [
-    { id: 'billing',   label: 'Bill layout',       icon: <FileText size={15} /> },
     { id: 'print',     label: 'Printing',          icon: <Printer size={15} /> },
     { id: 'reminders', label: 'Payment reminders', icon: <BellRing size={15} /> },
   ]},
@@ -67,7 +66,7 @@ const NAV_GROUPS = [
 // Hub ids that map to a section of the classic Settings page.
 const CLASSIC_SECTIONS = {
   business: 'tab-business', workspace: 'tab-workspace', categories: 'tab-categories',
-  locations: 'tab-locations', billing: 'tab-billing', data: 'tab-data', api: 'tab-api',
+  locations: 'tab-locations', data: 'tab-data', api: 'tab-api',
 };
 
 // ── Shared primitives ────────────────────────────────────────────────────────
@@ -179,7 +178,18 @@ const AccountPanel = () => {
 
 // ── Printing ─────────────────────────────────────────────────────────────────
 const PrintPanel = ({ tenantId }) => {
-  const { businessProfile } = useTenant();
+  const { businessProfile, updateBusinessProfile } = useTenant();
+  // Receipt content toggles live in business_profile.bill_settings (shared
+  // with the POS receipt) — consolidated here from the old Bill layout tab.
+  const BILL_DEFAULTS = {
+    show_address: true, show_phone: true, show_gstin: true, show_customer_name: true,
+    show_customer_gstin: true, show_tax_breakdown: true, show_upi: true, show_discount: true,
+  };
+  const [billSet, setBillSet] = useState({ ...BILL_DEFAULTS, ...(businessProfile?.bill_settings || {}) });
+  useEffect(() => {
+    setBillSet({ ...BILL_DEFAULTS, ...(businessProfile?.bill_settings || {}) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [businessProfile?.bill_settings]);
   const key = `print_settings_${tenantId || 'default'}`;
   const [prefs, setPrefs] = useState(() => {
     const base = { paper: '80', copies: 1, autoPrint: false, invoiceTemplate: 'classic', receiptTemplate: 'classic', docTexts: {}, invOpts: {}, invAccent: '#0f172a', customFields: [] };
@@ -188,8 +198,9 @@ const PrintPanel = ({ tenantId }) => {
   });
   const [saved, setSaved] = useState(false);
   const [docTab, setDocTab] = useState('receipt');
-  const save = () => {
+  const save = async () => {
     localStorage.setItem(key, JSON.stringify(prefs));
+    try { await updateBusinessProfile?.({ bill_settings: { ...(businessProfile?.bill_settings || {}), ...billSet } }); } catch { /* local prefs still saved */ }
     setSaved(true); setTimeout(() => setSaved(false), 1500);
   };
   const onEditText = (k, v) =>
@@ -264,6 +275,7 @@ const PrintPanel = ({ tenantId }) => {
                 </button>
               ))}
             </div>
+            <div className="grid lg:grid-cols-[1fr_230px] gap-4">
             <div className="bg-gray-100 rounded-md p-4 overflow-auto">
               <CashBillPrint
                 key={`${prefs.paper}-${prefs.receiptTemplate}-${JSON.stringify(prefs.docTexts)}`}
@@ -273,8 +285,33 @@ const PrintPanel = ({ tenantId }) => {
                 textsOverride={texts}
                 onEditText={onEditText}
                 sale={SAMPLE_SALE}
-                business={{ name: businessProfile?.name || 'Your Business', address: businessProfile?.address, phone: businessProfile?.phone, upi_id: businessProfile?.upi_id }}
+                business={{
+                  name: businessProfile?.name || 'Your Business',
+                  address: billSet.show_address ? businessProfile?.address : null,
+                  phone: billSet.show_phone ? businessProfile?.phone : null,
+                  upi_id: billSet.show_upi ? businessProfile?.upi_id : null,
+                }}
               />
+            </div>
+            <div>
+              <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Receipt content</div>
+              <div className="space-y-1.5">
+                {[
+                  ['show_address', 'Business address'],
+                  ['show_phone', 'Phone number'],
+                  ['show_customer_name', 'Customer name'],
+                  ['show_tax_breakdown', 'Tax breakdown'],
+                  ['show_discount', 'Discount line'],
+                  ['show_upi', 'UPI QR / ID'],
+                ].map(([k, label]) => (
+                  <label key={k} className="flex items-center justify-between text-[12.5px] text-gray-700 cursor-pointer">
+                    {label}
+                    <Toggle checked={!!billSet[k]} onChange={v => setBillSet({ ...billSet, [k]: v })} />
+                  </label>
+                ))}
+              </div>
+              <div className="text-[10.5px] text-gray-400 mt-2">Applies to POS receipts. Saved with this card.</div>
+            </div>
             </div>
           </>
         ) : (

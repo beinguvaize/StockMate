@@ -292,18 +292,18 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
             <div className="grid grid-cols-[1.6fr_1fr] border-b border-slate-900">
               <div className="p-3 border-r border-slate-900">
                 <div className="flex items-start gap-3">
-                  {safeBusiness.logo_url ? (
+                  {invOpts.logo && safeBusiness.logo_url ? (
                     <img src={safeBusiness.logo_url} alt="" className="h-10 object-contain" />
                   ) : null}
                   <div className="flex-1">
                     <div className="text-[15px] font-bold uppercase leading-tight">{safeBusiness.name || 'Business Name'}</div>
                     {safeBusiness.address && <div className="text-[10px] text-slate-700 leading-snug mt-0.5">{safeBusiness.address}</div>}
                     <div className="text-[10px] mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-                      {safeBusiness.phone && <span><span className="text-slate-500">Ph:</span> {safeBusiness.phone}</span>}
+                      {invOpts.phone && safeBusiness.phone && <span><span className="text-slate-500">Ph:</span> {safeBusiness.phone}</span>}
                       {safeBusiness.email && <span><span className="text-slate-500">Email:</span> {safeBusiness.email}</span>}
                     </div>
                     <div className="text-[10px] mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
-                      <span><span className="text-slate-500">GSTIN:</span> <b>{safeBusiness.gst_no || 'URD'}</b></span>
+                      {invOpts.gstin && <span><span className="text-slate-500">GSTIN:</span> <b>{safeBusiness.gst_no || 'URD'}</b></span>}
                       {safeBusiness.state && <span><span className="text-slate-500">State:</span> <b>{safeBusiness.state}{safeBusiness.state_code ? ` (${safeBusiness.state_code})` : ''}</b></span>}
                       {safeBusiness.pan_no && <span><span className="text-slate-500">PAN:</span> <b>{safeBusiness.pan_no}</b></span>}
                     </div>
@@ -324,9 +324,9 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
               <div className="p-3 border-r border-slate-900">
                 <div className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-1">Bill To</div>
                 <div className="text-[11px] font-bold">{safeClient.name}</div>
-                {safeClient.address && <div className="text-[10px] text-slate-700 leading-snug mt-0.5">{safeClient.address}</div>}
+                {invOpts.clientAddr && safeClient.address && <div className="text-[10px] text-slate-700 leading-snug mt-0.5">{safeClient.address}</div>}
                 <div className="text-[10px] mt-1 space-y-0.5">
-                  {(safeClient.contact || safeClient.phone) && <div><span className="text-slate-500">Ph:</span> {safeClient.contact || safeClient.phone}</div>}
+                  {invOpts.phone && (safeClient.contact || safeClient.phone) && <div><span className="text-slate-500">Ph:</span> {safeClient.contact || safeClient.phone}</div>}
                   {safeClient.state && <div><span className="text-slate-500">State:</span> <b>{safeClient.state}</b></div>}
                   <div><span className="text-slate-500">GSTIN:</span> <b>{safeClient.gst_no || safeClient.gstin || 'URD'}</b></div>
                 </div>
@@ -345,7 +345,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                 <tr className="bg-slate-100 border-b border-slate-900">
                   <th className="py-1.5 px-1 border-r border-slate-900 text-center w-8">#</th>
                   <th className="py-1.5 px-2 border-r border-slate-900 text-left">Description</th>
-                  <th className="py-1.5 px-1 border-r border-slate-900 text-center w-16">HSN/SAC</th>
+                  {invOpts.hsn && <th className="py-1.5 px-1 border-r border-slate-900 text-center w-16">HSN/SAC</th>}
                   <th className="py-1.5 px-1 border-r border-slate-900 text-right w-12">Qty</th>
                   <th className="py-1.5 px-1 border-r border-slate-900 text-right w-20">Rate</th>
                   <th className="py-1.5 px-1 border-r border-slate-900 text-right w-20">Taxable</th>
@@ -375,9 +375,9 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                       <td className="py-1 px-1 border-r border-slate-200 text-center">{idx + 1}</td>
                       <td className="py-1 px-2 border-r border-slate-200">
                         <div className="font-semibold">{item.name}</div>
-                        {item.sku && <div className="text-[9px] text-slate-500">SKU: {item.sku}</div>}
+                        {invOpts.desc && item.sku && <div className="text-[9px] text-slate-500">SKU: {item.sku}</div>}
                       </td>
-                      <td className="py-1 px-1 border-r border-slate-200 text-center">{item.hsn_code || '—'}</td>
+                      {invOpts.hsn && <td className="py-1 px-1 border-r border-slate-200 text-center">{item.hsn_code || '—'}</td>}
                       <td className="py-1 px-1 border-r border-slate-200 text-right">{qty}<span className="text-slate-400 text-[9px] ml-0.5">{item.unit?.toUpperCase() || 'PCS'}</span></td>
                       <td className="py-1 px-1 border-r border-slate-200 text-right">{rate.toFixed(2)}</td>
                       <td className="py-1 px-1 border-r border-slate-200 text-right">{taxable.toFixed(2)}</td>
@@ -398,12 +398,12 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                 {Array.from({ length: emptyRowsNeeded }).map((_, i) => (
                   <tr key={`empty-${i}`} className="print-empty-row border-b border-slate-100">
                     <td className="py-3 px-1 border-r border-slate-100">&nbsp;</td>
-                    <td colSpan={(invoice.is_interstate || invoice.isInterstate) ? 8 : 9}>&nbsp;</td>
+                    <td colSpan={((invoice.is_interstate || invoice.isInterstate) ? 8 : 9) - (invOpts.hsn ? 0 : 1)}>&nbsp;</td>
                   </tr>
                 ))}
                 {/* Totals row */}
                 <tr className="bg-slate-50 border-t-2 border-slate-900 font-bold">
-                  <td className="py-1.5 px-1 border-r border-slate-900 text-right" colSpan={5}>TOTAL</td>
+                  <td className="py-1.5 px-1 border-r border-slate-900 text-right" colSpan={invOpts.hsn ? 5 : 4}>TOTAL</td>
                   <td className="py-1.5 px-1 border-r border-slate-900 text-right">{parseFloat(taxableAmount).toFixed(2)}</td>
                   <td className="py-1.5 px-1 border-r border-slate-900"></td>
                   {(invoice.is_interstate || invoice.isInterstate) ? (
@@ -425,7 +425,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                 {invOpts.words && (
                 <div className="mb-2">
                   <span className="text-slate-500 font-bold uppercase">Amount in Words: </span>
-                  <span className="font-bold">{amountToWords(grandTotal)}</span>
+                  <span className="font-bold">{amountToWords(grandTotal > 0 ? grandTotal : taxableAmount + totalTax)}</span>
                 </div>
                 )}
                 {/* HSN tax summary */}
@@ -501,9 +501,15 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
                   )
                 )}
                 {roundOff !== 0 && <Totals k="Round Off" v={`₹${parseFloat(roundOff).toFixed(2)}`} />}
+                {invOpts.partyBalance && Math.abs(outstandingBalance) > 0.004 && (
+                  <>
+                    <Totals k="Previous Balance" v={`₹${parseFloat(outstandingBalance).toFixed(2)}`} />
+                    <Totals k="Current Balance" v={`₹${(parseFloat(outstandingBalance) + (grandTotal > 0 ? grandTotal : taxableAmount + totalTax)).toFixed(2)}`} />
+                  </>
+                )}
                 <div className="flex justify-between items-center mt-1 pt-1 border-t-2 border-slate-900">
                   <span className="text-[12px] font-bold uppercase">Grand Total</span>
-                  <span className="text-[14px] font-black">₹{parseFloat(grandTotal).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
+                  <span className="text-[14px] font-black">₹{parseFloat(grandTotal > 0 ? grandTotal : taxableAmount + totalTax).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</span>
                 </div>
                 {paidAmount > 0 && (
                   <>
