@@ -271,11 +271,46 @@ const Settings = ({ embedded = false, section = null }) => {
  <div className={`animate-fade-in flex flex-col gap-5 pb-12 ${embedded && section ? 'settings-embedded' : ''}`}>
  {embedded && section && (
    <style dangerouslySetInnerHTML={{ __html: `
-     .settings-embedded [id^="tab-"] { display: none !important; }
-     .settings-embedded #${section} { display: block !important; margin-top: 0 !important; }
+     /* ── show only the selected section (kills duplicate sibling cards) ── */
+     .settings-embedded > .grid > div > *:not(#${section}):not([id^="${section}-"]) { display: none !important; }
+     .settings-embedded > .grid > div > #${section} { margin-top: 0 !important; }
      /* collapse the 2/3+1/3 grid so the lone visible section gets full width */
      .settings-embedded > .grid { display: block !important; }
      .settings-embedded > .grid > div { width: 100% !important; }
+
+     /* ── corporate SaaS reskin of classic section chrome ── */
+     .settings-embedded .glass-panel {
+       background: #fff !important;
+       border: 1px solid #e5e7eb !important;
+       border-radius: 8px !important;
+       box-shadow: none !important;
+     }
+     .settings-embedded .bg-ink-primary {
+       background: #f9fafb !important;
+       border-bottom: 1px solid #f3f4f6 !important;
+     }
+     .settings-embedded .bg-ink-primary h2,
+     .settings-embedded .bg-ink-primary .text-surface,
+     .settings-embedded .bg-ink-primary .text-white {
+       color: #111827 !important;
+       font-size: 14px !important;
+       font-weight: 600 !important;
+     }
+     .settings-embedded .bg-ink-primary .text-accent-signature,
+     .settings-embedded .bg-ink-primary svg { color: #6b7280 !important; }
+     .settings-embedded .btn-signature,
+     .settings-embedded button.bg-accent-signature,
+     .settings-embedded a.bg-accent-signature {
+       background: #111827 !important;
+       color: #fff !important;
+       border-radius: 6px !important;
+       box-shadow: none !important;
+     }
+     .settings-embedded .text-accent-signature { color: #374151 !important; }
+     .settings-embedded .border-accent-signature { border-color: #d1d5db !important; }
+     .settings-embedded input, .settings-embedded select, .settings-embedded textarea {
+       border-radius: 6px !important;
+     }
    ` }} />
  )}
  {/* Header Section */}
@@ -749,7 +784,7 @@ const Settings = ({ embedded = false, section = null }) => {
  </div>
 
  {/* Product Categories Management */}
- <div className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface">
+ <div id="tab-categories-2" className="glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface mt-5">
  <div className="bg-ink-primary px-5 py-3.5 flex items-center justify-between">
  <div className="flex items-center gap-4">
  <Tag size={20} className="text-accent-signature" />
@@ -856,7 +891,7 @@ const Settings = ({ embedded = false, section = null }) => {
  </div>
 
  {/* Threat Intelligence / Stock Alerts */}
- <div className="glass-panel !rounded-bento p-6 border border-black/5 flex flex-col md:flex-row items-center gap-4 bg-surface shadow-premium">
+ <div id="tab-workspace-2" className="glass-panel !rounded-bento p-6 border border-black/5 flex flex-col md:flex-row items-center gap-4 bg-surface shadow-premium mt-5">
  <div className="w-24 h-24 rounded-pill bg-orange-50 text-orange-500 flex items-center justify-center shrink-0 shadow-sm">
  <Zap size={36} />
  </div>
@@ -1245,15 +1280,15 @@ const Settings = ({ embedded = false, section = null }) => {
    </div>
  </div>
 
- {/* ── Plan Usage ── */}
- <PlanUsageBanner
+ {/* ── Plan Usage (hidden in hub: Plan & billing panel covers it) ── */}
+ {!embedded && <PlanUsageBanner
    plan={plan}
    invoiceCount={invoiceCount}
    userCount={userCount}
    maxInvoices={maxInvoices}
    maxUsers={maxUsers}
    onUpgrade={() => setShowUpgradeModal(true)}
- />
+ />}
 
  {/* Upgrade Modal */}
  {showUpgradeModal && (
