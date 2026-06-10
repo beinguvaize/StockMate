@@ -657,8 +657,9 @@ const Settings = ({ embedded = false, section = null }) => {
       </div>
       
       <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-8">
-        {/* Plan Details */}
-        <div className="flex flex-col gap-4">
+        {/* Plan Details (hidden in hub — Plan & billing panel covers it) */}
+        {!embedded && (
+                <div className="flex flex-col gap-4">
           <div className="p-5 rounded-2xl bg-white border border-gray-300 shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs font-bold text-gray-700 uppercase">Current Plan</span>
@@ -693,6 +694,8 @@ const Settings = ({ embedded = false, section = null }) => {
             })()}
           </div>
         </div>
+
+        )}
 
         {/* Slug Management */}
         <div className="flex flex-col gap-4">
