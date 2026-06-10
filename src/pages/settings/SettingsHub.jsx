@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import {
   User, Building, Printer, Users as UsersIcon, CreditCard,
-  LifeBuoy, ChevronRight, Check, BellRing,
+  LifeBuoy, ChevronRight, Check, BellRing, Zap, Tag, Database,
+  FileText, RotateCcw, ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
@@ -15,21 +16,35 @@ import Users from '../Users';
 
 const NAV_GROUPS = [
   { caption: 'General', items: [
-    { id: 'account',  label: 'Account',  icon: <User size={15} /> },
-    { id: 'business', label: 'Business', icon: <Building size={15} /> },
+    { id: 'account',  label: 'Account',     icon: <User size={15} /> },
+    { id: 'business', label: 'Business',    icon: <Building size={15} /> },
+    { id: 'workspace', label: 'Preferences', icon: <Zap size={15} /> },
   ]},
-  { caption: 'Workspace', items: [
+  { caption: 'Catalog', items: [
+    { id: 'categories', label: 'Categories', icon: <Tag size={15} /> },
+    { id: 'locations',  label: 'Locations',  icon: <Database size={15} /> },
+  ]},
+  { caption: 'Sales & printing', items: [
+    { id: 'billing',   label: 'Invoice template',  icon: <FileText size={15} /> },
     { id: 'print',     label: 'Printing',          icon: <Printer size={15} /> },
-    { id: 'users',     label: 'Users & roles',     icon: <UsersIcon size={15} /> },
     { id: 'reminders', label: 'Payment reminders', icon: <BellRing size={15} /> },
   ]},
-  { caption: 'Billing', items: [
+  { caption: 'Team & billing', items: [
+    { id: 'users',    label: 'Users & roles',  icon: <UsersIcon size={15} /> },
     { id: 'pricing',  label: 'Plan & billing', icon: <CreditCard size={15} /> },
   ]},
-  { caption: 'Resources', items: [
+  { caption: 'Advanced', items: [
+    { id: 'data',     label: 'Data tools', icon: <RotateCcw size={15} /> },
+    { id: 'api',      label: 'API',        icon: <ShieldCheck size={15} /> },
     { id: 'support',  label: 'Help & support', icon: <LifeBuoy size={15} /> },
   ]},
 ];
+
+// Hub ids that map to a section of the classic Settings page.
+const CLASSIC_SECTIONS = {
+  business: 'tab-business', workspace: 'tab-workspace', categories: 'tab-categories',
+  locations: 'tab-locations', billing: 'tab-billing', data: 'tab-data', api: 'tab-api',
+};
 
 // ── Shared primitives ────────────────────────────────────────────────────────
 const Card = ({ title, description, footer, children }) => (
@@ -380,7 +395,9 @@ const SettingsHub = () => {
         {/* Panel */}
         <main className="flex-1 min-w-0">
           {active === 'account'  && <AccountPanel />}
-          {active === 'business' && <Settings embedded />}
+          {CLASSIC_SECTIONS[active] && (
+            <Settings embedded section={CLASSIC_SECTIONS[active]} key={active} />
+          )}
           {active === 'print'    && <PrintPanel tenantId={currentTenantId} />}
           {active === 'users'    && <Users embedded />}
           {active === 'reminders' && <RemindersPanel tenantId={currentTenantId} />}
