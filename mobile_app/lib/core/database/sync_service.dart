@@ -81,9 +81,14 @@ class SyncService {
   // true if the operation was queued for later (caller can show "saved offline"
   // UI), false if it completed online immediately.
 
+  // Network attempts are bounded — on slow/flaky connections we fall back to
+  // the offline queue after 6s instead of freezing the UI for the platform
+  // default (60s+).
+  static const _netTimeout = Duration(seconds: 6);
+
   Future<bool> upsertOnlineOrQueue(String table, Map<String, dynamic> row) async {
     try {
-      await supabase.from(table).upsert(row);
+      await supabase.from(table).upsert(row).timeout(_netTimeout);
       return false;
     } catch (e) {
       debugPrint('[sync] upsert($table) failed online — queueing: $e');
@@ -95,7 +100,7 @@ class SyncService {
   Future<bool> deleteOnlineOrQueue(String table, String id) async {
     try {
       // Soft delete — rows are flagged, never dropped (recoverable + audit).
-      await supabase.from(table).update({'deleted_at': DateTime.now().toUtc().toIso8601String()}).eq('id', id);
+      await supabase.from(table).update({'deleted_at': DateTime.now().toUtc().toIso8601String()}).eq('id', id).timeout(_netTimeout);
       return false;
     } catch (e) {
       debugPrint('[sync] delete($table) failed online — queueing: $e');
@@ -110,7 +115,7 @@ class SyncService {
 
   Future<bool> rpcOnlineOrQueue(String name, Map<String, dynamic> params) async {
     try {
-      await supabase.rpc(name, params: params);
+      await supabase.rpc(name, params: params).timeout(_netTimeout);
       return false;
     } catch (e) {
       debugPrint('[sync] rpc($name) failed online — queueing: $e');

@@ -331,7 +331,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                   style: GoogleFonts.manrope(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w700,
-                                    color: isFailed ? AppColors.inkTertiary : AppColors.success,
+                                    // Paid = green; credit/pending = dark red so
+                                    // unpaid money stands apart at a glance.
+                                    color: isFailed
+                                        ? AppColors.inkTertiary
+                                        : isPaid
+                                            ? AppColors.success
+                                            : const Color(0xFFB91C1C),
                                     decoration: isFailed ? TextDecoration.lineThrough : null,
                                   ),
                                 ),

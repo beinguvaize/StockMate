@@ -2110,20 +2110,28 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
     });
   }
 
+  bool _loadFailed = false;
+
   Future<void> _loadClients() async {
+    setState(() { _loading = true; _loadFailed = false; });
     try {
+      // Bounded: a flaky network must not leave the picker spinning forever
+      // (reported as "customer is not selecting on POS").
       final data = await supabase
           .from('clients')
           .select('id, name, phone, outstanding_balance')
           .isFilter('deleted_at', null)
-          .order('name');
+          .order('name')
+          .timeout(const Duration(seconds: 8));
+      if (!mounted) return;
       setState(() {
         _clients = (data as List).map((d) => Client.fromJson(d as Map<String, dynamic>)).toList();
         _filtered = _clients;
         _loading = false;
       });
     } catch (_) {
-      setState(() => _loading = false);
+      if (!mounted) return;
+      setState(() { _loading = false; _loadFailed = true; });
     }
   }
 
@@ -2243,6 +2251,18 @@ class _ClientPickerSheetState extends State<_ClientPickerSheet> {
             Expanded(
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
+                  : _loadFailed
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('Couldn\'t load clients — check connection',
+                              style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                          const SizedBox(height: 10),
+                          TextButton(onPressed: _loadClients, child: const Text('Retry')),
+                        ],
+                      ),
+                    )
                   : ListView.builder(
                       controller: ctrl,
                       padding: const EdgeInsets.fromLTRB(20, 0, 20, 40),
