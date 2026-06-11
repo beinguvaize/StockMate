@@ -333,10 +333,10 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
   return createPortal(
     <div
       id="pos-receipt-portal"
-      className="fixed inset-0 z-[70] flex flex-col items-center justify-center bg-black/80 backdrop-blur-sm overflow-y-auto py-8"
+      className="fixed inset-0 z-[70] flex flex-col items-center bg-black/80 backdrop-blur-sm overflow-y-auto pb-8"
     >
-      {/* Toolbar */}
-      <div className="print-hidden flex items-center gap-3 mb-6">
+      {/* Toolbar — sticky so Print/Close stay reachable on long receipts */}
+      <div className="print-hidden sticky top-0 z-10 w-full flex items-center justify-center gap-3 py-4 mb-2 bg-black/60 backdrop-blur-md">
         <button
           onClick={() => window.print()}
           className="flex items-center gap-2 px-6 py-3 bg-white text-black rounded-full font-black text-[11px] uppercase tracking-widest hover:scale-105 transition-all shadow-xl"
