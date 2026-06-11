@@ -20,6 +20,7 @@ const resolveSettings = (raw) => { raw = raw ?? {}; return ({
   // on every thermal POS slip (or vice versa).
   show_upi_invoice:    raw.show_upi_invoice    ?? true,
   show_discount:       raw.show_discount       ?? true,
+  show_party_balance:  raw.show_party_balance  ?? true,
   bill_title:          raw.bill_title          || 'TAX INVOICE',
   footer_message:      raw.footer_message      || 'Thank You for Your Business!',
 }); };
@@ -225,6 +226,27 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
                   <span>{fmt(balance)}</span>
                 </div>
               )}
+              {/* Running ledger for registered clients: previous balance from
+                  earlier credit sales + total after this bill. outstanding_
+                  balance is already updated by the sale, so previous = total −
+                  this bill's due. Hidden for walk-ins / zero history. */}
+              {!isVoid && s.show_party_balance && (() => {
+                const totalOut = Number(cli?.outstanding_balance ?? cli?.outstanding ?? 0);
+                const prev = totalOut - balance;
+                if (!(prev > 0.001)) return null;
+                return (
+                  <>
+                    <div className="flex justify-between border-t border-dashed border-black/30 mt-1 pt-1">
+                      <span>Previous Balance</span>
+                      <span>{fmt(prev)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold">
+                      <span>TOTAL BALANCE</span>
+                      <span>{fmt(totalOut)}</span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           </>
         )}

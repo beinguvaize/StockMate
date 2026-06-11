@@ -220,6 +220,7 @@ const PrintPanel = ({ tenantId }) => {
   const BILL_DEFAULTS = {
     show_address: true, show_phone: true, show_gstin: true, show_customer_name: true,
     show_customer_gstin: true, show_tax_breakdown: true, show_upi: true, show_discount: true,
+    show_party_balance: true,
   };
   const [billSet, setBillSet] = useState({ ...BILL_DEFAULTS, ...(businessProfile?.bill_settings || {}) });
   useEffect(() => {
@@ -375,6 +376,7 @@ const PrintPanel = ({ tenantId }) => {
                   ['show_customer_name', 'Customer name'],
                   ['show_tax_breakdown', 'Tax breakdown'],
                   ['show_discount', 'Discount line'],
+                  ['show_party_balance', 'Previous balance'],
                   ['show_upi', 'UPI QR / ID'],
                 ].map(([k, label]) => (
                   <label key={k} className="flex items-center justify-between text-[12.5px] text-gray-700 cursor-pointer">
