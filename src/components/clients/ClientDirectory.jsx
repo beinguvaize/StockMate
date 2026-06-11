@@ -134,6 +134,12 @@ const ClientDirectory = ({
             />
           </div>
 
+          <button
+            onClick={() => navigate('/bulk-add?type=clients')}
+            className="h-10 px-4 rounded-xl bg-white border border-black/10 text-ink-primary text-[13px] font-bold flex items-center gap-2 hover:bg-black/[0.03] transition-all"
+          >
+            Bulk Add
+          </button>
           {/* Add button */}
           {hasPermission('clients', 'edit') && (
             <button

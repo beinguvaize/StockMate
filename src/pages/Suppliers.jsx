@@ -272,6 +272,13 @@ const Suppliers = () => {
          className={`px-3.5 py-1.5 rounded-lg text-[12px] font-bold ${tab === 'PAYMENTS' ? 'bg-white shadow-sm' : 'text-gray-500'}`}>Payments</button>
      </div>
      {!isViewOnly() && tab === 'SUPPLIERS' && (
+       <button
+         className="h-10 px-4 rounded-xl bg-white border border-black/10 text-ink-primary text-[13px] font-bold flex items-center gap-2 hover:bg-black/[0.03] transition-all"
+         onClick={() => { window.location.href = '/bulk-add?type=suppliers'; }}>
+         Bulk Add
+       </button>
+     )}
+     {!isViewOnly() && tab === 'SUPPLIERS' && (
        <button data-testid="onboard-partner-btn"
          className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all"
          onClick={() => setIsAdding(true)}>
