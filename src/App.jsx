@@ -72,7 +72,7 @@ const GuestRoute = ({ children }) => {
   if (!isSyncComplete) return <GlobalLoading />;
 
   if (currentUser) {
-    if (currentTenant) return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
+    if (currentTenant) return <Navigate to="/dashboard" replace />;
     // Authenticated but no workspace yet → send to setup
     return <Navigate to="/welcome" replace />;
   }
@@ -92,41 +92,45 @@ const AuthRoute = ({ children }) => {
   if (loading || !isSyncComplete) return <GlobalLoading />;
   if (!currentUser) return <Navigate to="/login" replace />;
   // Already has workspace → skip setup
-  if (currentTenant) return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
+  if (currentTenant) return <Navigate to="/dashboard" replace />;
   return children;
 };
 
 /**
- * TenantResolver: Validates the :tenantSlug param matches the user's tenant.
+ * TenantGate: tenant chrome guard — slugless. Tenant comes from the session
+ * (TenantContext); URLs no longer carry the workspace name.
  */
-const TenantResolver = ({ children }) => {
-  const { tenantSlug } = useParams();
-  const { currentTenant, resolveTenantBySlug, isSyncComplete, isImpersonating, loading } = useTenant();
+const TenantGate = ({ children }) => {
+  const { loading, isSyncComplete } = useTenant();
+  if (loading || !isSyncComplete) return <GlobalLoading />;
+  return children;
+};
+
+/**
+ * LegacyRedirect: old /:tenantSlug/* links → slugless path. For global
+ * admins the slug is still resolved (deep-link impersonation keeps working).
+ */
+const LegacyRedirect = () => {
+  const { tenantSlug, '*': rest } = useParams();
+  const { currentTenant, resolveTenantBySlug } = useTenant();
   const { currentUser } = useAuth();
-  const [isResolving, setIsResolving] = React.useState(false);
+  const [ready, setReady] = React.useState(false);
 
   React.useEffect(() => {
-    if (tenantSlug && !currentTenant && currentUser?.roles?.includes('GLOBAL_ADMIN') && !isResolving) {
-      setIsResolving(true);
-      resolveTenantBySlug(tenantSlug).finally(() => setIsResolving(false));
-    }
-  }, [tenantSlug, currentTenant, currentUser, isResolving, resolveTenantBySlug]);
+    let cancelled = false;
+    (async () => {
+      if (tenantSlug && currentUser?.roles?.includes('GLOBAL_ADMIN') &&
+          currentTenant?.slug !== tenantSlug) {
+        await resolveTenantBySlug(tenantSlug);
+      }
+      if (!cancelled) setReady(true);
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tenantSlug]);
 
-  if (loading || isResolving || !isSyncComplete) return <GlobalLoading />;
-
-  if (currentTenant && tenantSlug !== currentTenant.slug && !isImpersonating) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-[#141c1a] p-6 text-center">
-        <div className="max-w-md w-full glass-panel border-red-500/20 p-8">
-          <h1 className="text-xl font-bold text-white mb-2">Workspace Not Found</h1>
-          <p className="text-gray-400 text-sm mb-6">The workspace /{tenantSlug} is inaccessible.</p>
-          <button onClick={() => goHref("/")} className="btn-signature w-full">Go Home</button>
-        </div>
-      </div>
-    );
-  }
-
-  return children;
+  if (!ready) return <GlobalLoading />;
+  return <Navigate to={`/${rest || 'dashboard'}`} replace />;
 };
 
 /**
@@ -147,7 +151,7 @@ const RootRedirect = () => {
                          userEmail === 'gladmin@ledgrpro.ca';
 
     if (isGlobalAdmin) return <Navigate to="/nexus-hq" replace />;
-    if (currentTenant) return <Navigate to={`/${currentTenant.slug}/dashboard`} replace />;
+    if (currentTenant) return <Navigate to="/dashboard" replace />;
     // Authenticated, no tenant → new signup → workspace setup
     return <Navigate to="/welcome" replace />;
   }
@@ -182,8 +186,7 @@ function AppRoutes() {
       <Route path="/admin" element={<ProtectedRoute requireGlobalAdmin><AdminPanel /></ProtectedRoute>} />
       <Route path="/nexus-hq" element={<ProtectedRoute requireGlobalAdmin><SuperAdminPortal /></ProtectedRoute>} />
 
-      <Route path="/:tenantSlug" element={<TenantResolver><AppLayout /></TenantResolver>}>
-        <Route index element={<Navigate to="dashboard" replace />} />
+      <Route element={<TenantGate><AppLayout /></TenantGate>}>
         <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
         <Route path="onboarding" element={<ProtectedRoute><Onboarding /></ProtectedRoute>} />
         <Route path="inventory" element={<ProtectedRoute><Inventory /></ProtectedRoute>} />
@@ -215,6 +218,8 @@ function AppRoutes() {
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
+      {/* Legacy workspace-slug URLs → slugless equivalents */}
+      <Route path="/:tenantSlug/*" element={<LegacyRedirect />} />
     </Routes>
     </Suspense>
   );

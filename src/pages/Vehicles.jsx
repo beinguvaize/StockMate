@@ -300,7 +300,7 @@ const Vehicles = () => {
       .sort((a, b) => a.productName.localeCompare(b.productName));
 
     const vehicle = vehicles.find(v => v.id === vehicleId);
-    navigate(`/${currentTenant?.slug}/vehicles/van-sale`, {
+    navigate('/vehicles/van-sale', {
       state: {
         route:        { ...route, _vehicleLocId: vehicleLoc?.id },
         vehicle,

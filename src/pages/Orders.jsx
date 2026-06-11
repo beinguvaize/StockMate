@@ -280,7 +280,7 @@ const Orders = () => {
     setSaving(order.id);
     await advanceStatus(order.id, 'INVOICED');
     setSaving(null);
-    navigate(`/${currentTenant?.slug || ''}/sales`);
+    navigate('/sales');
   };
 
   const handleCancel = async (order) => {
@@ -514,7 +514,7 @@ const Orders = () => {
                   {/* Invoice link — go to Invoices page */}
                   {isInvoice && (
                     <a
-                      href={`/${currentTenant?.slug || ''}/invoices`}
+                      href="/invoices"
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-black hover:bg-amber-100 transition-all"
                       title="Manage on Invoices page"
                     >
