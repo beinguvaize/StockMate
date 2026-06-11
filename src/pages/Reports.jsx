@@ -21,6 +21,7 @@ import ProductProfitabilityReport from '../components/reports/ProductProfitabili
 // --- GST / Tax compliance reports (P1) ---
 import GSTR1Report from '../components/reports/GSTR1Report';
 import GSTR3BReport from '../components/reports/GSTR3BReport';
+import PurchaseRegisterReport from '../components/reports/PurchaseRegisterReport';
 // --- New operational reports ---
 import ClientStatementReport from '../components/reports/ClientStatementReport';
 import BillWiseProfitReport from '../components/reports/BillWiseProfitReport';
@@ -87,6 +88,7 @@ const Reports = () => {
     // --- COMPLIANCE GROUP (India GST) ---
     { id: 'GSTR1',  group: 'COMPLIANCE', label: 'GSTR-1',  icon: <FileText size={18} />,  component: <GSTR1Report />,  permission: 'reports' },
     { id: 'GSTR3B', group: 'COMPLIANCE', label: 'GSTR-3B', icon: <FileCheck size={18} />, component: <GSTR3BReport />, permission: 'reports' },
+    { id: 'PURCHASE_REGISTER', group: 'COMPLIANCE', label: 'Purchase Register', icon: <FileText size={18} />, component: <PurchaseRegisterReport />, permission: 'reports' },
   ].filter(tab => hasPermission(tab.permission, 'view'));
 
   const groupedTabs = useMemo(() => {

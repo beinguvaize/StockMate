@@ -664,3 +664,169 @@ export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { busines
     },
   };
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Filing-pack exports — GST offline-tool Excel workbook, GSTR-3B portal JSON,
+// and a "share with CA" WhatsApp summary. Added for the GST filing pack.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const dl = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+};
+
+/**
+ * GSTR-1 Excel workbook matching the GST offline-tool template sheets:
+ * b2b, b2cl, b2cs, hsn, docs. Headers follow the government template wording
+ * so the offline tool's "Import Excel" maps columns without manual fixes.
+ */
+export const downloadGSTR1Excel = async (gstr1, { gstin = '', fp = '' } = {}) => {
+  const XLSX = await import('xlsx');
+  const wb = XLSX.utils.book_new();
+
+  const sheet = (name, headers, rows) => {
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+    ws['!cols'] = headers.map(h => ({ wch: Math.max(14, String(h).length + 2) }));
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  };
+
+  sheet('b2b', [
+    'GSTIN/UIN of Recipient', 'Invoice Number', 'Invoice date', 'Invoice Value',
+    'Place Of Supply', 'Reverse Charge', 'Invoice Type', 'Rate',
+    'Taxable Value', 'Integrated Tax', 'Central Tax', 'State/UT Tax',
+  ], (gstr1.b2b || []).map(r => [
+    r.gstin, r.invoiceNo, r.date, round2(r.invoiceValue), r.placeOfSupply,
+    r.reverseCharge || 'N', r.invoiceType || 'Regular', r.taxRate,
+    round2(r.taxable), round2(r.igst), round2(r.cgst), round2(r.sgst),
+  ]));
+
+  sheet('b2cl', [
+    'Invoice Number', 'Invoice date', 'Invoice Value', 'Place Of Supply',
+    'Rate', 'Taxable Value', 'Integrated Tax', 'Cess Amount',
+  ], (gstr1.b2cl || []).map(r => [
+    r.invoiceNo, r.date, round2(r.invoiceValue), r.placeOfSupply,
+    r.taxRate, round2(r.taxable), round2(r.igst), round2(r.cess || 0),
+  ]));
+
+  sheet('b2cs', [
+    'Type', 'Place Of Supply', 'Rate', 'Taxable Value',
+    'Integrated Tax', 'Central Tax', 'State/UT Tax', 'Cess Amount',
+  ], (gstr1.b2cs || []).map(r => [
+    r.type || (r.igst > 0 ? 'OE' : 'OE'), r.placeOfSupply, r.taxRate,
+    round2(r.taxable), round2(r.igst || 0), round2(r.cgst || 0),
+    round2(r.sgst || 0), 0,
+  ]));
+
+  sheet('hsn', [
+    'HSN', 'Description', 'UQC', 'Total Quantity', 'Total Value',
+    'Taxable Value', 'Integrated Tax Amount', 'Central Tax Amount',
+    'State/UT Tax Amount', 'Cess Amount', 'Rate',
+  ], (gstr1.hsn || []).map(r => [
+    r.hsn, r.description || '', r.uqc || 'NOS', round2(r.qty),
+    round2((r.taxable || 0) + (r.cgst || 0) + (r.sgst || 0) + (r.igst || 0)),
+    round2(r.taxable), round2(r.igst || 0), round2(r.cgst || 0),
+    round2(r.sgst || 0), 0, r.taxRate,
+  ]));
+
+  sheet('docs', [
+    'Nature of Document', 'Sr. No. From', 'Sr. No. To', 'Total Number', 'Cancelled',
+  ], (gstr1.docs || []).map(r => [
+    r.nature || 'Invoices for outward supply', r.from || '', r.to || '',
+    r.total ?? r.count ?? 0, r.cancelled || 0,
+  ]));
+
+  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  dl(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+     `GSTR1_${gstin || 'export'}_${fp}.xlsx`);
+};
+
+/** GSTR-3B portal JSON (sup_details 3.1 + itc_elg 4A summary). */
+export const downloadGSTR3BJSON = (g3b, { gstin = '', fp = '' } = {}) => {
+  const a = (g3b?.section3_1 || [])[0] || {};
+  const t = { taxable: a.taxable, igst: a.integratedTax, cgst: a.centralTax, sgst: a.stateTax, exempt: 0 };
+  const net = (g3b?.section4 || [])[2] || {};
+  const itc = { integratedTax: net.integratedTax, centralTax: net.centralTax, stateTax: net.stateTax, cess: net.cess };
+  const json = {
+    gstin,
+    ret_period: fp,
+    sup_details: {
+      osup_det: { // 3.1(a) outward taxable supplies
+        txval: round2(t.taxable || 0),
+        iamt:  round2(t.igst || 0),
+        camt:  round2(t.cgst || 0),
+        samt:  round2(t.sgst || 0),
+        csamt: 0,
+      },
+      osup_zero:  { txval: 0, iamt: 0, csamt: 0 },
+      osup_nil_exmp: { txval: round2(t.exempt || 0) },
+      isup_rev:   { txval: 0, iamt: 0, camt: 0, samt: 0, csamt: 0 },
+      osup_nongst: { txval: 0 },
+    },
+    itc_elg: {
+      itc_avl: [
+        { ty: 'OTH',
+          iamt: round2(itc.integratedTax || 0),
+          camt: round2(itc.centralTax || 0),
+          samt: round2(itc.stateTax || 0),
+          csamt: round2(itc.cess || 0) },
+      ],
+      itc_rev: [], itc_net: {
+        iamt: round2(itc.integratedTax || 0),
+        camt: round2(itc.centralTax || 0),
+        samt: round2(itc.stateTax || 0),
+        csamt: round2(itc.cess || 0),
+      }, itc_inelg: [],
+    },
+  };
+  dl(new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' }),
+     `GSTR3B_${gstin || 'export'}_${fp}.json`);
+};
+
+/** GSTR-3B Excel summary (one-sheet, CA-friendly). */
+export const downloadGSTR3BExcel = async (g3b, { gstin = '', fp = '' } = {}) => {
+  const XLSX = await import('xlsx');
+  const a = (g3b?.section3_1 || [])[0] || {};
+  const t = { taxable: a.taxable, igst: a.integratedTax, cgst: a.centralTax, sgst: a.stateTax, exempt: 0 };
+  const net = (g3b?.section4 || [])[2] || {};
+  const itc = { integratedTax: net.integratedTax, centralTax: net.centralTax, stateTax: net.stateTax, cess: net.cess };
+  const aoa = [
+    ['GSTR-3B Summary', '', ''],
+    ['GSTIN', gstin, ''],
+    ['Period', fp, ''],
+    [],
+    ['Section', 'Description', 'Taxable Value', 'IGST', 'CGST', 'SGST'],
+    ['3.1(a)', 'Outward taxable supplies', round2(t.taxable || 0), round2(t.igst || 0), round2(t.cgst || 0), round2(t.sgst || 0)],
+    ['3.1(c)', 'Nil-rated / exempted', round2(t.exempt || 0), 0, 0, 0],
+    [],
+    ['4(A)', 'Eligible ITC (all other)', '', round2(itc.integratedTax || 0), round2(itc.centralTax || 0), round2(itc.stateTax || 0)],
+    [],
+    ['Net tax payable (outward − ITC)', '',
+      '', round2((t.igst || 0) - (itc.integratedTax || 0)),
+      round2((t.cgst || 0) - (itc.centralTax || 0)),
+      round2((t.sgst || 0) - (itc.stateTax || 0))],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 12 }, { wch: 34 }, { wch: 16 }, { wch: 12 }, { wch: 12 }, { wch: 12 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'GSTR-3B');
+  const buf = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  dl(new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }),
+     `GSTR3B_${gstin || 'export'}_${fp}.xlsx`);
+};
+
+/** Open WhatsApp with a filing summary for the CA (files go as a follow-up attach). */
+export const shareGSTWithCA = ({ kind = 'GSTR-1', gstin = '', fp = '', totals = {} }) => {
+  const msg = encodeURIComponent(
+    `${kind} ready for filing\n` +
+    `GSTIN: ${gstin}\nPeriod: ${fp}\n` +
+    `Taxable: ₹${round2(totals.taxable || 0).toLocaleString('en-IN')}\n` +
+    `CGST: ₹${round2(totals.cgst || 0).toLocaleString('en-IN')} · ` +
+    `SGST: ₹${round2(totals.sgst || 0).toLocaleString('en-IN')} · ` +
+    `IGST: ₹${round2(totals.igst || 0).toLocaleString('en-IN')}\n\n` +
+    `Files exported from LedgrPro — attaching the Excel/JSON next.`
+  );
+  window.open(`https://wa.me/?text=${msg}`, '_blank');
+};

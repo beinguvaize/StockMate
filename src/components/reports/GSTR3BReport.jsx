@@ -7,7 +7,13 @@ import {
   Landmark, Wallet, ArrowDownToLine, ArrowUpFromLine, Tag
 } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
-import { buildGSTR3B } from '../../utils/gstReporting';
+import { buildGSTR3B, downloadGSTR3BJSON, downloadGSTR3BExcel, shareGSTWithCA } from '../../utils/gstReporting';
+import { Download } from 'lucide-react';
+
+const fpNow = () => {
+  const now = new Date();
+  return `${String(now.getMonth() + 1).padStart(2, '0')}${now.getFullYear()}`;
+};
 
 /**
  * GSTR-3B — Monthly Summary Return
@@ -206,7 +212,26 @@ const GSTR3BReport = () => {
     },
   };
 
+  const gstin = businessProfile?.gst_no || businessProfile?.gstin || '';
+  const exportBar = (
+    <div className="no-print flex justify-end gap-2 mb-3">
+      <button onClick={() => downloadGSTR3BExcel(gstr3b, { gstin, fp: fpNow() })}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-black transition-colors">
+        <Download size={13} /> Excel Summary
+      </button>
+      <button onClick={() => downloadGSTR3BJSON(gstr3b, { gstin, fp: fpNow() })}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-ink-primary text-white text-[11px] font-black hover:opacity-90 transition-colors">
+        <Download size={13} /> Portal JSON
+      </button>
+      <button onClick={() => shareGSTWithCA({ kind: 'GSTR-3B', gstin, fp: fpNow(), totals: { taxable: gstr3b.summary.totalTurnover, cgst: gstr3b.section3_1?.[0]?.centralTax, sgst: gstr3b.section3_1?.[0]?.stateTax, igst: gstr3b.section3_1?.[0]?.integratedTax } })}
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#25D366] text-white text-[11px] font-black hover:opacity-90 transition-colors">
+        <Download size={13} /> Share with CA
+      </button>
+    </div>
+  );
   return (
+    <>
+    {exportBar}
     <div className="flex flex-col gap-4">
       {/* Compliance summary banner */}
       <div className="no-print flex items-center gap-3 px-4 py-3 rounded-2xl border border-black/5 shadow-sm bg-emerald-50">
@@ -233,6 +258,7 @@ const GSTR3BReport = () => {
 
       <PremiumReportView title="GSTR-3B" tabs={[section3_1Tab, section3_2Tab, section4Tab, section6_1Tab]} />
     </div>
+    </>
   );
 };
 
