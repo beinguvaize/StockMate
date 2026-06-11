@@ -15,7 +15,7 @@ class HRScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         backgroundColor: AppColors.canvas,
         appBar: AppBar(
@@ -65,6 +65,7 @@ class HRScreen extends ConsumerWidget {
             ),
             tabs: const [
               Tab(text: 'EMPLOYEES'),
+              Tab(text: 'ATTENDANCE'),
               Tab(text: 'HISTORY'),
             ],
           ),
@@ -72,6 +73,7 @@ class HRScreen extends ConsumerWidget {
         body: TabBarView(
           children: [
             _EmployeesTab(),
+            const _AttendanceTab(),
             _PayrollHistoryTab(),
           ],
         ),
@@ -1642,6 +1644,182 @@ class _ActionButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+
+// ─── Attendance ───────────────────────────────────────────────────────────────
+// Daily register: every employee gets a status chip row for the selected day.
+// Rows upsert into the shared `attendance` table (unique tenant+employee+day),
+// which feeds payroll later.
+
+final attendanceProvider = FutureProvider.family<Map<String, Map<String, dynamic>>, String>((ref, day) async {
+  final res = await supabase
+      .from('attendance')
+      .select('employee_id, status, check_in')
+      .eq('day', day);
+  final map = <String, Map<String, dynamic>>{};
+  for (final r in (res as List)) {
+    final m = Map<String, dynamic>.from(r as Map);
+    map[m['employee_id'] as String] = m;
+  }
+  return map;
+});
+
+class _AttendanceTab extends ConsumerStatefulWidget {
+  const _AttendanceTab();
+
+  @override
+  ConsumerState<_AttendanceTab> createState() => _AttendanceTabState();
+}
+
+class _AttendanceTabState extends ConsumerState<_AttendanceTab> {
+  DateTime _day = DateTime.now();
+
+  String get _dayStr =>
+      '${_day.year}-${_day.month.toString().padLeft(2, '0')}-${_day.day.toString().padLeft(2, '0')}';
+
+  Future<void> _mark(String employeeId, String status) async {
+    final ctx = ref.read(tenantContextProvider).valueOrNull;
+    if (ctx == null) return;
+    await supabase.from('attendance').upsert({
+      'tenant_id': ctx.tenantId,
+      'employee_id': employeeId,
+      'day': _dayStr,
+      'status': status,
+      'check_in': status == 'PRESENT' || status == 'HALF_DAY'
+          ? DateTime.now().toUtc().toIso8601String()
+          : null,
+    }, onConflict: 'tenant_id,employee_id,day');
+    ref.invalidate(attendanceProvider(_dayStr));
+  }
+
+  static const _statuses = [
+    ('PRESENT', 'P', Color(0xFF16A34A)),
+    ('HALF_DAY', '½', Color(0xFFF59E0B)),
+    ('LEAVE', 'L', Color(0xFF2563EB)),
+    ('ABSENT', 'A', Color(0xFFDC2626)),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final employeesAsync = ref.watch(employeesProvider);
+    final attAsync = ref.watch(attendanceProvider(_dayStr));
+
+    return Column(
+      children: [
+        // day picker row
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
+          child: Row(
+            children: [
+              IconButton(
+                icon: const Icon(LucideIcons.chevronLeft, size: 18),
+                onPressed: () => setState(() => _day = _day.subtract(const Duration(days: 1))),
+              ),
+              Expanded(
+                child: Center(
+                  child: Text(
+                    _dayStr == DateTime.now().toIso8601String().substring(0, 10)
+                        ? 'Today · $_dayStr'
+                        : _dayStr,
+                    style: GoogleFonts.manrope(
+                        fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(LucideIcons.chevronRight, size: 18),
+                onPressed: _day.day == DateTime.now().day &&
+                        _day.month == DateTime.now().month &&
+                        _day.year == DateTime.now().year
+                    ? null
+                    : () => setState(() => _day = _day.add(const Duration(days: 1))),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: employeesAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+            error: (e, _) => Center(child: Text('Error: $e')),
+            data: (employees) {
+              if (employees.isEmpty) {
+                return Center(
+                  child: Text('No employees yet',
+                      style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
+                );
+              }
+              final att = attAsync.asData?.value ?? {};
+              return ListView.builder(
+                padding: const EdgeInsets.fromLTRB(20, 6, 20, 100),
+                itemCount: employees.length,
+                itemBuilder: (context, i) {
+                  final emp = employees[i];
+                  final cur = att[emp.id]?['status'] as String?;
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+                      boxShadow: [AppColors.cardShadow],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(emp.name ?? 'Employee',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.manrope(
+                                      fontSize: 14, fontWeight: FontWeight.w700,
+                                      color: AppColors.inkPrimary)),
+                              Text(cur ?? 'Not marked',
+                                  style: GoogleFonts.manrope(
+                                      fontSize: 11,
+                                      color: cur == null
+                                          ? AppColors.inkTertiary
+                                          : AppColors.inkSecondary)),
+                            ],
+                          ),
+                        ),
+                        ..._statuses.map((st) {
+                          final selected = cur == st.$1;
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: GestureDetector(
+                              onTap: () => _mark(emp.id, st.$1),
+                              child: Container(
+                                width: 34, height: 34,
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  color: selected ? st.$3 : Colors.white,
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                      color: selected ? st.$3 : Colors.black.withValues(alpha: 0.12)),
+                                ),
+                                child: Text(st.$2,
+                                    style: GoogleFonts.manrope(
+                                        fontSize: 13, fontWeight: FontWeight.w800,
+                                        color: selected ? Colors.white : AppColors.inkSecondary)),
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
