@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import RecurringInvoicesModal from '../components/sales/RecurringInvoicesModal';
+import EwayBillModal from '../components/sales/EwayBillModal';
 import { useSales } from '../hooks/useSales';
 import { useInventory } from '../hooks/useInventory';
 import { usePeople } from '../hooks/usePeople';
@@ -105,6 +106,7 @@ const Invoices = () => {
   const { products } = useInventory(currentTenantId);
   const { clients }  = usePeople(currentTenantId);
   const [showRecurring, setShowRecurring] = useState(false);
+  const [ewayInv, setEwayInv] = useState(null);
   const { addNotification } = useNotifications();
 
   const handleRemind = async (inv, cli) => {
@@ -331,6 +333,14 @@ const Invoices = () => {
         </td>
         <td className="px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-end gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
+            {/* e-Way bill */}
+            <button
+              onClick={() => setEwayInv(inv)}
+              title={inv.eway_no ? `e-Way ${inv.eway_no}` : 'Generate e-Way bill'}
+              className={`p-2 rounded-lg transition-colors ${inv.eway_no ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'hover:bg-amber-50 text-gray-400 hover:text-amber-600'}`}
+            >
+              <FileText size={15} />
+            </button>
             {/* Delivery toggle */}
             <button
               onClick={async () => {
@@ -464,6 +474,15 @@ const Invoices = () => {
       </div>
       {showRecurring && (
         <RecurringInvoicesModal tenantId={currentTenantId} clients={clients} onClose={() => setShowRecurring(false)} />
+      )}
+      {ewayInv && (
+        <EwayBillModal
+          invoice={ewayInv}
+          business={businessProfile || {}}
+          client={clients.find(c => c.id === ewayInv.client_id) || { name: ewayInv.client_name }}
+          onClose={() => setEwayInv(null)}
+          onSaved={() => refetchInvoices?.()}
+        />
       )}
 
       {/* Table */}
