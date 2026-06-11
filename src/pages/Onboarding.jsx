@@ -109,7 +109,7 @@ const Onboarding = () => {
     }
   };
 
-  const goToDashboard = () => navigate(`/${slug}/dashboard`);
+  const goToDashboard = () => navigate(`/dashboard`);
 
   return (
     <div className="min-h-screen bg-canvas font-inter flex flex-col items-center justify-start py-12 px-4">
@@ -243,7 +243,7 @@ const Onboarding = () => {
                   Go to <strong>Settings → Business Profile</strong> to add your GST number, address, and upload your logo. This information appears on all your invoices.
                 </p>
                 <button
-                  onClick={() => navigate(`/${slug}/settings`)}
+                  onClick={() => navigate(`/settings`)}
                   className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Open Settings <ChevronRight size={14} />
@@ -257,7 +257,7 @@ const Onboarding = () => {
                   Add products to your inventory. Include HSN code and GST tax rate for accurate billing.
                 </p>
                 <button
-                  onClick={() => navigate(`/${slug}/inventory`)}
+                  onClick={() => navigate(`/inventory`)}
                   className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Go to Inventory <ChevronRight size={14} />
@@ -271,7 +271,7 @@ const Onboarding = () => {
                   Add a client with their GSTIN for B2B billing. Walk-in customers don't need registration.
                 </p>
                 <button
-                  onClick={() => navigate(`/${slug}/clients`)}
+                  onClick={() => navigate(`/clients`)}
                   className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Go to Clients <ChevronRight size={14} />
@@ -285,7 +285,7 @@ const Onboarding = () => {
                   Create your first sale. Use the <strong>Invoice Builder</strong> for formal GST invoices or <strong>POS</strong> for quick counter sales.
                 </p>
                 <button
-                  onClick={() => navigate(`/${slug}/sales`)}
+                  onClick={() => navigate(`/sales`)}
                   className="flex items-center gap-2 px-5 py-3 bg-white border border-gray-300 shadow-sm rounded-xl text-[12px] font-black text-ink-primary hover:bg-white hover:shadow-sm transition-all"
                 >
                   Go to Sales <ChevronRight size={14} />
@@ -329,7 +329,7 @@ const Onboarding = () => {
               {QUICK_ACTIONS.map(action => (
                 <button
                   key={action.label}
-                  onClick={() => navigate(`/${slug}/${action.path}`)}
+                  onClick={() => navigate(`/${action.path}`)}
                   className={`flex flex-col items-center gap-2 p-4 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all text-center ${action.color}`}
                 >
                   {action.icon}

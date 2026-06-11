@@ -184,7 +184,7 @@ export const TenantProvider = ({ children }) => {
     setCurrentTenant(tenant);
     sessionStorage.setItem('nexus_impersonating', 'true');
     sessionStorage.setItem('nexus_impersonated_tenant', JSON.stringify(tenant));
-    goHref(`/${tenant.slug}/dashboard`);
+    goHref('/dashboard');
   };
 
   const stopImpersonating = () => {

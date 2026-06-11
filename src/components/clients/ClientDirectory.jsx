@@ -33,8 +33,7 @@ const ClientDirectory = ({
   const sym = businessProfile?.currencySymbol || '₹';
 
   const goToSettle = (clientId) => {
-    if (slug) navigate(`/${slug}/clients/settle/${clientId}`);
-    else console.warn('goToSettle: slug not available yet');
+    navigate(`/clients/settle/${clientId}`);
   };
 
   return (

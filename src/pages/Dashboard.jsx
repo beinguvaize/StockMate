@@ -522,7 +522,7 @@ const Dashboard = () => {
       </div>
       <div className="flex flex-wrap items-stretch gap-3">
         <button 
-          onClick={() => navigate(`/${slug}/inventory`)}
+          onClick={() => navigate('/inventory')}
           className="btn-signature pl-6 pr-2 py-2 rounded-full shadow-lg hover:shadow-accent-signature/20 text-[12px]"
         >
           <span>DEPLOY INVENTORY</span>
@@ -531,7 +531,7 @@ const Dashboard = () => {
           </div>
         </button>
         <button 
-          onClick={() => navigate(`/${slug}/reports`)}
+          onClick={() => navigate('/reports')}
           className="px-8 flex items-center justify-center rounded-full font-bold text-[11px] tracking-wide text-ink-primary bg-white border border-gray-300 shadow-sm hover:bg-white hover:shadow-premium transition-all uppercase"
         >
           ANALYTICS BROWSER
@@ -1010,7 +1010,7 @@ const Dashboard = () => {
                })()}
              </p>
            </div>
-           <button onClick={() => navigate(`/${slug}/purchases`)} className="ml-3 shrink-0 text-[9px] font-black uppercase tracking-widest text-red-600 bg-red-50 border border-red-100 hover:bg-red-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+           <button onClick={() => navigate('/purchases')} className="ml-3 shrink-0 text-[9px] font-black uppercase tracking-widest text-red-600 bg-red-50 border border-red-100 hover:bg-red-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
              Restock
            </button>
          </div>
@@ -1046,7 +1046,7 @@ const Dashboard = () => {
              </div>
              <div className="flex items-center gap-2 shrink-0 ml-3">
                <span className="text-xs font-black text-amber-600 tabular-nums">₹{pending.toLocaleString()}</span>
-               <button onClick={() => navigate(`/${slug}/payroll`)} className="text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+               <button onClick={() => navigate('/payroll')} className="text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
                  Pay
                </button>
              </div>
@@ -1084,7 +1084,7 @@ const Dashboard = () => {
                </div>
                <div className="flex items-center gap-2 shrink-0 ml-3">
                  <span className={`text-xs font-black tabular-nums ${amtColor}`}>₹{Math.round(out).toLocaleString()}</span>
-                 <button onClick={() => navigate(`/${slug}/clients`)} className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+                 <button onClick={() => navigate('/clients')} className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
                    Collect
                  </button>
                </div>
