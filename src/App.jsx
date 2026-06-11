@@ -50,6 +50,7 @@ const SupplierLedger   = lazy(() => import('./pages/SupplierLedger'));
 const Invoices         = lazy(() => import('./pages/Invoices'));
 const Estimates        = lazy(() => import('./pages/Estimates'));
 const LabelPrinting    = lazy(() => import('./pages/LabelPrinting'));
+const BulkAdd          = lazy(() => import('./pages/BulkAdd'));
 const ClientSettlement = lazy(() => import('./pages/ClientSettlement'));
 const AdminPanel       = lazy(() => import('./pages/AdminPanel'));
 const TenantSetup      = lazy(() => import('./pages/TenantSetup'));
@@ -213,6 +214,7 @@ function AppRoutes() {
         <Route path="invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
         <Route path="estimates" element={<ProtectedRoute><Estimates /></ProtectedRoute>} />
         <Route path="labels" element={<ProtectedRoute><LabelPrinting /></ProtectedRoute>} />
+        <Route path="bulk-add" element={<ProtectedRoute><BulkAdd /></ProtectedRoute>} />
         <Route path="clients/settle/:id" element={<ProtectedRoute><ClientSettlement /></ProtectedRoute>} />
         <Route path="data-tools" element={<ProtectedRoute><DataToolsPage /></ProtectedRoute>} />
       </Route>
