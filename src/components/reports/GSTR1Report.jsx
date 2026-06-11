@@ -7,7 +7,7 @@ import {
   Building2, Hash, Receipt, Calendar, Tag, Download, ChevronDown
 } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
-import { buildGSTR1, downloadGSTR1JSON } from '../../utils/gstReporting';
+import { buildGSTR1, downloadGSTR1JSON, downloadGSTR1Excel, shareGSTWithCA } from '../../utils/gstReporting';
 
 // ── Helper: derive filing period string "MMYYYY" from today or selected month ──
 const currentFP = () => {
@@ -66,6 +66,30 @@ const ExportMenu = ({ gstr1, gstin }) => {
             <div className="px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-gray-400">
               Portal Upload
             </div>
+            <button
+              onClick={() => { downloadGSTR1Excel(gstr1, { gstin: gstin || 'export', fp: currentFP() }); setOpen(false); }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-amber-50 text-left transition-colors"
+            >
+              <span className="w-6 h-6 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+                <Download size={12} />
+              </span>
+              <div>
+                <div className="text-[11px] font-black text-ink-primary">Excel Workbook (Offline Tool)</div>
+                <div className="text-[9px] text-gray-400">b2b · b2cl · b2cs · hsn · docs sheets</div>
+              </div>
+            </button>
+            <button
+              onClick={() => { shareGSTWithCA({ kind: 'GSTR-1', gstin, fp: currentFP(), totals: gstr1.totals || {} }); setOpen(false); }}
+              className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-green-50 text-left transition-colors"
+            >
+              <span className="w-6 h-6 rounded-lg bg-green-100 flex items-center justify-center text-green-600">
+                <Download size={12} />
+              </span>
+              <div>
+                <div className="text-[11px] font-black text-ink-primary">Share with CA (WhatsApp)</div>
+                <div className="text-[9px] text-gray-400">Summary message — attach files after</div>
+              </div>
+            </button>
             <button
               onClick={handlePortalJSON}
               className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-amber-50 text-left transition-colors"
