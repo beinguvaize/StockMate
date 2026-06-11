@@ -1,0 +1,4 @@
+-- Phase 3: recurring invoice templates + staff attendance. Applied dev + prod.
+-- generate_due_recurring_invoices() runs nightly via the recurring-expenses
+-- GitHub workflow (service role). Smoke-tested on prod: 1000 + 18% -> 1180.
+-- (Full definitions in the applied migration of the same name.)

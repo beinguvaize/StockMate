@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
+import RecurringInvoicesModal from '../components/sales/RecurringInvoicesModal';
 import { useSales } from '../hooks/useSales';
 import { useInventory } from '../hooks/useInventory';
 import { usePeople } from '../hooks/usePeople';
@@ -103,6 +104,7 @@ const Invoices = () => {
   const { invoices, createInvoice, markInvoicePaid, enqueueIrn, refetch: refetchInvoices } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
   const { products } = useInventory(currentTenantId);
   const { clients }  = usePeople(currentTenantId);
+  const [showRecurring, setShowRecurring] = useState(false);
   const { addNotification } = useNotifications();
 
   const handleRemind = async (inv, cli) => {
@@ -446,6 +448,12 @@ const Invoices = () => {
             <StatusTab key={k} k={k} label={l} count={c} active={statusFilter === k} onClick={() => setStatusFilter(k)} />
           ))}
           <button
+            onClick={() => setShowRecurring(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-gray-700 hover:text-ink-primary hover:border-black/20 transition-colors"
+          >
+            <TrendingUp size={13} /> Recurring
+          </button>
+          <button
             onClick={handleExport}
             disabled={!filtered.length}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-gray-700 hover:text-ink-primary hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
@@ -454,6 +462,9 @@ const Invoices = () => {
           </button>
         </div>
       </div>
+      {showRecurring && (
+        <RecurringInvoicesModal tenantId={currentTenantId} clients={clients} onClose={() => setShowRecurring(false)} />
+      )}
 
       {/* Table */}
       <Table
