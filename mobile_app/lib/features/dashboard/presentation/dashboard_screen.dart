@@ -9,6 +9,7 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/core/widgets/trial_banner.dart';
 import 'package:mobile_app/core/widgets/banner_carousel.dart';
+import 'package:mobile_app/core/widgets/expiry_alert_card.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/crm_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
 import 'package:mobile_app/features/daybook/presentation/daybook_screen.dart';
@@ -622,6 +623,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       ],
                       const SizedBox(height: 14),
                       const BannerCarousel(),
+                      const ExpiryAlertCard(),
                     ],
                   );
                 },

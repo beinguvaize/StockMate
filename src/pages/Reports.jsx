@@ -22,6 +22,7 @@ import ProductProfitabilityReport from '../components/reports/ProductProfitabili
 import GSTR1Report from '../components/reports/GSTR1Report';
 import GSTR3BReport from '../components/reports/GSTR3BReport';
 import PurchaseRegisterReport from '../components/reports/PurchaseRegisterReport';
+import ExpiryReport from '../components/reports/ExpiryReport';
 // --- New operational reports ---
 import ClientStatementReport from '../components/reports/ClientStatementReport';
 import BillWiseProfitReport from '../components/reports/BillWiseProfitReport';
@@ -66,6 +67,7 @@ const Reports = () => {
     { id: 'CLIENT_STATEMENT', group: 'OPERATIONAL', label: 'Client Statement', icon: <BookMarked size={18} />,   component: <ClientStatementReport />,        permission: 'clients' },
     { id: 'BILL_PROFIT',      group: 'OPERATIONAL', label: 'Bill Profit',      icon: <BarChart2 size={18} />,    component: <BillWiseProfitReport />,         permission: 'sales' },
     { id: 'LOW_STOCK',        group: 'OPERATIONAL', label: 'Low Stock',        icon: <AlertTriangle size={18} />,component: <LowStockReport />,               permission: 'inventory' },
+    { id: 'EXPIRY',           group: 'OPERATIONAL', label: 'Expiry Tracking',  icon: <AlertTriangle size={18} />,component: <ExpiryReport />,                 permission: 'inventory' },
     { id: 'SALES_BY_PARTY',   group: 'OPERATIONAL', label: 'Sales by Party',   icon: <Users size={18} />,        component: <SalePurchaseByPartyReport />,    permission: 'sales' },
     { id: 'PARTY_PROFIT',     group: 'OPERATIONAL', label: 'Party Profit',     icon: <PieChart size={18} />,     component: <PartyProfitReport />,            permission: 'reports' },
     { id: 'CATEGORY_PROFIT',  group: 'OPERATIONAL', label: 'Category Profit',  icon: <Tag size={18} />,          component: <CategoryProfitReport />,         permission: 'inventory' },
