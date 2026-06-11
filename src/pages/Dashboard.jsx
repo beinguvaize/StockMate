@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect} from 'react';
 import { useAuth } from '../context/AuthContext';
 import BannerCarousel from '../components/BannerCarousel';
+import ExpiryAlertCard from '../components/ExpiryAlertCard';
 import { useTenant } from '../context/TenantContext';
 import { supabase } from '../lib/supabase';
 import { useInventory } from '../hooks/useInventory';
@@ -502,6 +503,7 @@ const Dashboard = () => {
  return (
  <div className="animate-fade-in flex flex-col gap-5">
  <BannerCarousel />
+ <ExpiryAlertCard />
   {/* Reference-Style Hero Section (Compressed Height) — fades out after 15s */}
   <div
     style={{ transition: 'opacity 1s ease, max-height 1s ease, margin-bottom 1s ease' }}

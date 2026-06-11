@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/widgets/barcode_scanner_screen.dart';
+import 'package:uuid/uuid.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
@@ -653,6 +654,7 @@ class _AddPurchaseSheet extends ConsumerStatefulWidget {
 
 class _PurchaseLine {
   String? productId;
+  DateTime? expiryDate; // optional — creates a dated batch for expiry tracking
   String? scannedName; // item name read off a scanned bill (hint for picking)
   double? scannedTaxRate; // GST % from the bill (used by create-from-scan)
   List<Map<String, dynamic>> suggestions = []; // fuzzy candidates for chips
@@ -1089,6 +1091,24 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
         };
         final queued = await svc.rpcOnlineOrQueue('process_purchase', params);
         if (queued) queuedCount++;
+
+        // Expiry tracking: dated batch per line when an expiry was set.
+        if (line.expiryDate != null) {
+          final exp = line.expiryDate!;
+          await svc.upsertOnlineOrQueue('product_batches', {
+            'id': const Uuid().v4(),
+            'tenant_id': widget.tenantId,
+            'product_id': line.productId,
+            'purchase_id': id,
+            'supplier_id': _supplierId,
+            'received_date': dateStr,
+            'unit_cost': line.unitCost ?? 0,
+            'qty_received': line.qtyVal,
+            'qty_remaining': line.qtyVal,
+            'expiry_date':
+                '${exp.year}-${exp.month.toString().padLeft(2, '0')}-${exp.day.toString().padLeft(2, '0')}',
+          });
+        }
       }
 
       if (mounted) {
@@ -1326,6 +1346,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                 canRemove: _lines.length > 1,
                                 onProductChange: (id) => _selectProductForLine(line, id),
                                 onCreateFromScan: () => _createFromScan(line),
+                                onExpiryChange: (d) => setState(() => line.expiryDate = d),
                                 onQtyChange: (v) => _onQtyChanged(line, v),
                                 onUnitPriceChange: (v) => _onUnitPriceChanged(line, v),
                                 onTotalChange: (v) => _onTotalChanged(line, v),
@@ -1449,6 +1470,7 @@ class _LineItemCard extends StatelessWidget {
   final ValueChanged<String> onTotalChange;
   final VoidCallback onRemove;
   final VoidCallback? onCreateFromScan;
+  final ValueChanged<DateTime?>? onExpiryChange;
 
   const _LineItemCard({
     required this.index,
@@ -1461,6 +1483,7 @@ class _LineItemCard extends StatelessWidget {
     required this.onTotalChange,
     required this.onRemove,
     this.onCreateFromScan,
+    this.onExpiryChange,
   });
 
   // Searchable full-height picker — dropdowns don't scale past ~50 products.
@@ -1685,6 +1708,45 @@ class _LineItemCard extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+
+          // Optional expiry — creates a dated batch for expiry tracking.
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: GestureDetector(
+              onTap: () async {
+                final picked = await showDatePicker(
+                  context: context,
+                  initialDate: line.expiryDate ?? DateTime.now().add(const Duration(days: 180)),
+                  firstDate: DateTime.now(),
+                  lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+                );
+                onExpiryChange?.call(picked);
+              },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(LucideIcons.calendarClock, size: 13,
+                      color: line.expiryDate != null ? AppColors.warning : AppColors.inkTertiary),
+                  const SizedBox(width: 5),
+                  Text(
+                    line.expiryDate != null
+                        ? 'Expiry: ${line.expiryDate!.day}/${line.expiryDate!.month}/${line.expiryDate!.year}'
+                        : 'Add expiry date (optional)',
+                    style: GoogleFonts.manrope(
+                        fontSize: 11, fontWeight: FontWeight.w600,
+                        color: line.expiryDate != null ? AppColors.warning : AppColors.inkTertiary),
+                  ),
+                  if (line.expiryDate != null) ...[
+                    const SizedBox(width: 6),
+                    GestureDetector(
+                      onTap: () => onExpiryChange?.call(null),
+                      child: const Icon(LucideIcons.x, size: 12, color: AppColors.inkTertiary),
+                    ),
+                  ],
+                ],
+              ),
+            ),
           ),
 
           // Cost vs last

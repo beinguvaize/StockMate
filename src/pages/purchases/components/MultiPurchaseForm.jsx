@@ -9,6 +9,7 @@ const emptyLine = () => ({
   quantity:          '',
   unit_price:        '',
   total_amount:      '',
+  expiry_date:       '',
   barcodeInput:      '',
   barcodeStatus:     null, // null | 'found' | 'not_found'
 });
@@ -106,6 +107,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
         quantity:          parseFloat(l.quantity),
         unit_price:        parseFloat(l.unit_price) || (parseFloat(l.total_amount) / parseFloat(l.quantity)),
         total_amount:      parseFloat(l.total_amount),
+        expiry_date:       l.expiry_date || null,
       })),
     });
   };
@@ -166,8 +168,8 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
         <div className="rounded-2xl border border-black/5 overflow-hidden">
 
           {/* Column headers */}
-          <div className="grid grid-cols-[140px_1fr_80px_100px_100px_32px] gap-2 bg-canvas px-4 py-2.5 border-b border-black/5">
-            {['Barcode / SKU', 'Product', 'Qty', 'Unit Price', 'Total', ''].map(h => (
+          <div className="grid grid-cols-[140px_1fr_72px_92px_92px_112px_32px] gap-2 bg-canvas px-4 py-2.5 border-b border-black/5">
+            {['Barcode / SKU', 'Product', 'Qty', 'Unit Price', 'Total', 'Expiry', ''].map(h => (
               <span key={h} className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{h}</span>
             ))}
           </div>
@@ -179,7 +181,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
               const unitCost = parseFloat(line.unit_price) || null;
 
               return (
-                <div key={line._key} className="grid grid-cols-[140px_1fr_80px_100px_100px_32px] gap-2 items-start px-4 py-3">
+                <div key={line._key} className="grid grid-cols-[140px_1fr_72px_92px_92px_112px_32px] gap-2 items-start px-4 py-3">
 
                   {/* Barcode input */}
                   <div>
@@ -265,6 +267,11 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                   <input required type="number" min="0" step="0.01" placeholder="0.00" className={inp}
                     value={line.total_amount}
                     onChange={e => updateLine(line._key, { total_amount: e.target.value })} />
+
+                  {/* Expiry (optional — creates a dated batch) */}
+                  <input type="date" title="Expiry date (optional)" className={inp}
+                    value={line.expiry_date}
+                    onChange={e => updateLine(line._key, { expiry_date: e.target.value })} />
 
                   {/* Remove */}
                   <button type="button" onClick={() => removeLine(line._key)} disabled={lines.length === 1}

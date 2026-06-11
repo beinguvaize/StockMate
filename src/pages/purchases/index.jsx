@@ -196,6 +196,22 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
       const { error } = await addPurchase(payload);
       if (error) { failed++; continue; }
       await updateWAC(item.linked_product_id, item.quantity, item.unit_price);
+      // Expiry tracking: a dated batch per line when expiry was provided.
+      if (item.expiry_date) {
+        const { supabase } = await import('../../lib/supabase');
+        await supabase.from('product_batches').insert({
+          tenant_id: currentTenantId,
+          product_id: item.linked_product_id,
+          purchase_id: payload.id,
+          supplier_id: header.supplier_id,
+          received_date: header.date,
+          unit_cost: item.unit_price,
+          qty_received: item.quantity,
+          qty_remaining: item.quantity,
+          expiry_date: item.expiry_date,
+          warehouse_id: header.location_id || null,
+        });
+      }
     }
     setAddLoading(false);
     if (failed > 0) alert(`${failed} item(s) failed to save.`);
