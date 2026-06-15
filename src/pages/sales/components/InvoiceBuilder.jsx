@@ -92,11 +92,23 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
 
-  // Edit mode — prefill client + payment from the sale being edited.
+  // Edit mode — prefill client + payment + paid amount from the sale being
+  // edited so the saved status reflects reality. Without this, a blank
+  // "amount received" + CASH defaults to fully-paid, so a Paid sale could
+  // never be edited down to Pending. Prefilling lets the cashier lower it.
   useEffect(() => {
     if (!editId || !editMeta) return;
     setSelectedClientId(editMeta.clientId || 'WALKIN');
     setPaymentMethod(editMeta.paymentMethod || 'CASH');
+    const paid = Number(editMeta.paidAmount ?? 0);
+    const tot  = Number(editMeta.totalAmount ?? 0);
+    // Blank == full for non-credit sales; show the real paid figure otherwise
+    // (0 when fully on credit) so the status round-trips correctly.
+    if ((editMeta.paymentMethod || 'CASH') !== 'CREDIT' && paid >= tot && tot > 0) {
+      setAmountReceived('');
+    } else {
+      setAmountReceived(String(paid));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editId]);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
