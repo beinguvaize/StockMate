@@ -163,6 +163,10 @@ const SalesPage = () => {
   const editMeta = React.useMemo(() => editingSale ? {
     clientId: editingSale.shopId || editingSale.clientId || editingSale.client_id || 'WALKIN',
     paymentMethod: editingSale.paymentMethod || editingSale.payment_method || 'CASH',
+    // Original amount actually paid — prefilled so the edit keeps the real
+    // payment state. Lower it to turn a Paid sale into Pending/Partial.
+    paidAmount: Number(editingSale.paidAmount ?? editingSale.paid_amount ?? 0),
+    totalAmount: Number(editingSale.totalAmount ?? editingSale.total_amount ?? 0),
   } : null, [editingSale]);
 
   const returnedSaleIds = React.useMemo(
