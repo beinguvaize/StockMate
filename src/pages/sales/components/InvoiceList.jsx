@@ -2,7 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Search, Trash2, Printer, Receipt, Package, Wallet, CreditCard, Landmark,
   Download, X, User, Clock, Calendar, CheckCircle2, AlertCircle, RotateCcw, Truck, PackageCheck,
-  FileText
+  FileText, Pencil
 } from 'lucide-react';
 import Table from '../../../shared/Table';
 import Modal from '../../../shared/Modal';
@@ -76,7 +76,7 @@ const DELIVERY_BADGE = {
   FAILED:     { bg: 'bg-red-50',     text: 'text-red-700',     ring: 'ring-red-200/60',     dot: 'bg-red-400',     label: 'Failed'            },
 };
 
-const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [], onDelete, onPrint, onSettle, onReturn, onDispatch, onConvertToInvoice }) => {
+const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [], returnedSaleIds = null, onDelete, onPrint, onSettle, onReturn, onEdit, onDispatch, onConvertToInvoice }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL'); // ALL | PAID | PENDING
   // Resolves cross-tenant cashier names (GLOBAL_ADMIN impersonation, etc.).
@@ -243,6 +243,10 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
     const qty = itemCount(sale);
     const outstanding = outstandingOf(sale);
     const cashier = getCashier(sale);
+    const isReturned = returnedSaleIds ? returnedSaleIds.has(sale.id) : false;
+    // Editing is blocked once a sale has a return or a real GST invoice — the
+    // edit_sale RPC refuses these too (would double-count stock / break filing).
+    const canEdit = !!onEdit && !voided && !isReturned && !sale.invoice_id;
     // Delivery status from linked invoice
     const linkedInvoice = invoices.find(i => i.sale_id === sale.id && i.delivery_required);
     const deliveryStatus = linkedInvoice?.delivery_status?.toUpperCase();
@@ -316,6 +320,12 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
                 Dispatched
               </span>
             )}
+            {isReturned && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold ring-1 bg-rose-50 text-rose-700 ring-rose-200/60">
+                <RotateCcw size={9} />
+                Returned
+              </span>
+            )}
           </div>
         </td>
         <td className="px-4 py-4 text-right" onClick={e => e.stopPropagation()}>
@@ -338,7 +348,16 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
                 <PackageCheck size={15} />
               </button>
             )}
-            {onReturn && Array.isArray(sale.items) && sale.items.length > 0 && (
+            {canEdit && (
+              <button
+                onClick={() => onEdit(sale)}
+                title="Edit sale — stock & balance re-sync"
+                className="p-2 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+              >
+                <Pencil size={15} />
+              </button>
+            )}
+            {onReturn && Array.isArray(sale.items) && sale.items.length > 0 && !isReturned && (
               <button
                 onClick={() => onReturn(sale)}
                 title="Process Return"

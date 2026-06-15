@@ -14,6 +14,7 @@ import InvoiceBuilder from './components/InvoiceBuilder';
 import InvoiceList from './components/InvoiceList';
 import SalePrintDispatcher from './components/SalePrintDispatcher';
 import SalesReturnForm from './components/SalesReturnForm';
+import SalesReturnsList from './components/SalesReturnsList';
 import ConvertToInvoiceSheet from './components/ConvertToInvoiceSheet';
 import TablesFloor from './components/TablesFloor';
 import { useTables } from '../../hooks/useTables';
@@ -67,7 +68,7 @@ const SalesPage = () => {
     addNotification(`KOT #${data.ticket_no} sent to kitchen`, 'success');
     return true;
   };
-  const { sales, clients, invoices, placeSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, convertSaleToInvoice, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
+  const { sales, clients, invoices, salesReturns, placeSale, editSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, convertSaleToInvoice, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
 
   // Wrap placeSale: auto-create invoice for credit sales (settlement) and
   // delivery sales (van dispatch queue), or both when combined.
@@ -139,9 +140,42 @@ const SalesPage = () => {
   const { users: staff = [] } = usePeople(currentTenantId);
 
   const [activeTab, setActiveTab] = useState('pos'); // 'tables' | 'pos' | 'history'
+  const [historyView, setHistoryView] = useState('sales'); // 'sales' | 'returns'
   const [printingSale, setPrintingSale] = useState(null);
   const [returnSale, setReturnSale] = useState(null);
   const [returnLoading, setReturnLoading] = useState(false);
+
+  // Sale being edited → opens the POS builder prefilled. editCart maps the
+  // stored sale.items shape onto InvoiceBuilder cart lines.
+  const [editingSale, setEditingSale] = useState(null);
+  const editCart = React.useMemo(() => {
+    if (!editingSale) return null;
+    return (editingSale.items || []).map(it => {
+      const pid = it.productId || it.id;
+      return {
+        uid: pid, productId: pid, name: it.name || it.productName || 'Item',
+        basePrice: Number(it.rate ?? it.price ?? 0), price: Number(it.rate ?? it.price ?? 0),
+        quantity: Number(it.quantity) || 1, taxRate: Number(it.taxRate ?? it.tax_rate ?? 0),
+        modifiers: [], modLabel: null,
+      };
+    });
+  }, [editingSale]);
+  const editMeta = React.useMemo(() => editingSale ? {
+    clientId: editingSale.shopId || editingSale.clientId || editingSale.client_id || 'WALKIN',
+    paymentMethod: editingSale.paymentMethod || editingSale.payment_method || 'CASH',
+  } : null, [editingSale]);
+
+  const returnedSaleIds = React.useMemo(
+    () => new Set((salesReturns || []).map(r => r.sale_id).filter(Boolean)),
+    [salesReturns]
+  );
+
+  const startEdit = (sale) => { setEditingSale(sale); setActiveTab('pos'); };
+  const handleEditSale = async (saleData) => {
+    const result = await editSale(editingSale.id, saleData);
+    if (result?.error) { addNotification('Update failed: ' + result.error.message, 'error'); return result; }
+    return result;
+  };
 
   // Restaurant: land on the floor (tables) view by default, once.
   const restoDefaulted = React.useRef(false);
@@ -315,38 +349,69 @@ const SalesPage = () => {
                   className="text-[12px] font-bold text-amber-700 hover:underline">← Back to floor</button>
               </div>
             )}
+            {editingSale && (
+              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
+                <span className="text-sm font-bold text-ink-primary">
+                  Editing sale #{String(editingSale.id).split('-').pop()} — stock & balance re-sync on save
+                </span>
+                <button onClick={() => { setEditingSale(null); setActiveTab('history'); }}
+                  className="text-[12px] font-bold text-amber-700 hover:underline">Cancel edit</button>
+              </div>
+            )}
             <InvoiceBuilder
-              key={activeTable?.tab?.id || (estimateCart ? 'estimate' : 'walkin')}
+              key={editingSale?.id || activeTable?.tab?.id || (estimateCart ? 'estimate' : 'walkin')}
               products={products}
               inventoryBalances={inventoryBalances}
               clients={clients}
-              onPlaceSale={isResto && activeTable ? placeTableSale : addSale}
+              onPlaceSale={editingSale ? handleEditSale : (isResto && activeTable ? placeTableSale : addSale)}
               currentTenantId={currentTenantId}
               taxMode={businessProfile?.tax_mode || 'EXCLUSIVE'}
               businessProfile={businessProfile}
               topSellingIds={topSellingIds}
               stores={posStores}
-              initialCart={activeTable?.tab?.cart || estimateCart || null}
+              initialCart={editCart || activeTable?.tab?.cart || estimateCart || null}
               onCartChange={isResto && activeTable ? persistTabCart : null}
               tableLabel={activeTable?.table?.label || null}
               onSendKOT={isResto && activeTable ? sendTableKOT : null}
               businessType={businessType}
+              editId={editingSale?.id || null}
+              editMeta={editMeta}
+              onEditDone={() => { setEditingSale(null); setActiveTab('history'); }}
             />
           </>
         ) : (
-          <InvoiceList
-            sales={sales}
-            clients={clients}
-            staff={staff}
-            products={products}
-            invoices={invoices}
-            onDelete={removeSale}
-            onSettle={settleSale}
-            onPrint={printSale}
-            onReturn={setReturnSale}
-            onDispatch={dispatchSale}
-            onConvertToInvoice={(sale) => setConvertSale(sale)}
-          />
+          <>
+            {/* Sales / Returns sub-tabs */}
+            <div className="flex gap-1 mb-3">
+              {[['sales', 'Sales', sales.length], ['returns', 'Returns', salesReturns.length]].map(([k, label, n]) => (
+                <button key={k} onClick={() => setHistoryView(k)}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                    historyView === k ? 'bg-ink-primary text-white' : 'bg-canvas text-gray-500 hover:text-ink-primary'
+                  }`}>
+                  {label}<span className={`ml-1.5 ${historyView === k ? 'opacity-60' : 'text-gray-400'}`}>{n}</span>
+                </button>
+              ))}
+            </div>
+            {historyView === 'sales' ? (
+              <InvoiceList
+                sales={sales}
+                clients={clients}
+                staff={staff}
+                products={products}
+                invoices={invoices}
+                returnedSaleIds={returnedSaleIds}
+                onDelete={removeSale}
+                onSettle={settleSale}
+                onPrint={printSale}
+                onReturn={setReturnSale}
+                onEdit={startEdit}
+                onDispatch={dispatchSale}
+                onConvertToInvoice={(sale) => setConvertSale(sale)}
+              />
+            ) : (
+              <SalesReturnsList returns={salesReturns} />
+            )}
+          </>
         )}
       </div>
 
