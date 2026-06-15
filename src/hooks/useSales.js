@@ -26,6 +26,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
   const [data, setData] = useState([]);
   const [clients, setClients] = useState([]);
   const [invoices, setInvoices] = useState([]);
+  const [salesReturns, setSalesReturns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const tabId = useRef(Math.random().toString(36).slice(2, 8));
@@ -40,15 +41,17 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     if (!initialLoadDone.current) setLoading(true);
     setError(null);
     try {
-      const [salesRes, clientsRes, invoicesRes] = await Promise.all([
+      const [salesRes, clientsRes, invoicesRes, returnsRes] = await Promise.all([
         fetchWithCache('sales',    () => supabase.from('sales').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(500)),
         fetchWithCache('clients',  () => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name')),
         fetchWithCache('invoices', () => supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(500)),
+        fetchWithCache('sales_returns', () => supabase.from('sales_returns').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500)),
       ]);
 
       setData((salesRes.data || []).map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
       setClients((clientsRes.data || []).map(r => normalizeRow(r, NUMERIC_CLIENT_COLS)));
       setInvoices((invoicesRes.data || []).map(r => normalizeRow(r, NUMERIC_INVOICE_COLS)));
+      setSalesReturns(returnsRes.data || []);
 
       if (salesRes.fromCache && clientsRes.fromCache) {
         setError('Showing cached data — tap Sync Now when online to refresh.');
@@ -259,6 +262,46 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       return { success: true };
     },
     updateSale: update,
+    salesReturns,
+    // Edit a posted sale with full stock/ledger re-sync. Maps the POS sale
+    // shape onto edit_sale, which reverses the original sale's stock + FEFO
+    // batch + auto-invoice effects then re-applies the new items atomically.
+    editSale: async (id, sale) => {
+      if (!id) return { error: new Error('editSale: id required') };
+      if (!currentUser?.id) return { error: new Error('editSale: not authenticated') };
+      const clientId = sale.clientId === 'WALKIN' ? null : (sale.clientId ?? null);
+      const items = (sale.items || []).map(i => ({
+        id: i.productId || i.id,
+        quantity: i.quantity,
+        name: i.name,
+        rate: i.price ?? i.rate ?? 0,
+        taxRate: Number(i.taxRate ?? i.tax_rate ?? 0),
+        hsn: i.hsn || i.hsn_code || null,
+      }));
+      const paymentStatus = sale.status === 'COMPLETED' ? 'PAID'
+                          : sale.status === 'PARTIAL'   ? 'PARTIAL'
+                          : (sale.status || 'PAID');
+      const paidAmount = typeof sale.paidAmount === 'number' ? sale.paidAmount : null;
+      const { error } = await supabase.rpc('edit_sale', {
+        p_id:             id,
+        p_items:          items,
+        p_total_amount:   sale.totalAmount ?? 0,
+        p_payment_method: sale.paymentMethod || 'CASH',
+        p_payment_status: paymentStatus,
+        p_paid_amount:    paidAmount,
+        p_date:           sale.date || todayISOInAppTZ(),
+        p_shop_id:        clientId,
+        p_user_id:        currentUser.id,
+        p_tenant_id:      tenantId || null,
+      });
+      if (error) { console.error('editSale RPC Error:', error); return { error }; }
+      // Record discount for reporting/receipts (edit_sale takes the net total).
+      const discountAmt = Number(sale.discount) || 0;
+      try { await supabase.from('sales').update({ discount: discountAmt }).eq('id', id).eq('tenant_id', tenantId); }
+      catch (e) { console.warn('discount persist skipped:', e?.message); }
+      await fetchSales();
+      return { success: true, id };
+    },
     deleteSale: remove,
     settleSale: settlePayment,
     // --- Invoice API ---

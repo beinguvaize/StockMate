@@ -72,7 +72,8 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
 
 const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [], stores = [],
   // Table POS (restaurant) — bind this builder to a table's running tab.
-  initialCart = null, onCartChange = null, tableLabel = null, onSendKOT = null, businessType = null }) => {
+  initialCart = null, onCartChange = null, tableLabel = null, onSendKOT = null, businessType = null,
+  editId = null, editMeta = null, onEditDone = null }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
   // Restaurant dishes aren't unit-stocked at the POS (recipe deduction is R5),
   // so don't gate adding a dish on warehouse stock.
@@ -90,6 +91,14 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [selectedClientId, setSelectedClientId] = useState('WALKIN');
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
+
+  // Edit mode — prefill client + payment from the sale being edited.
+  useEffect(() => {
+    if (!editId || !editMeta) return;
+    setSelectedClientId(editMeta.clientId || 'WALKIN');
+    setPaymentMethod(editMeta.paymentMethod || 'CASH');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   // POS product view ('list' | 'grid') — persisted per device so the
   // cashier's choice survives a refresh.
@@ -497,7 +506,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         resolvedStatus = isCreditSale ? 'PENDING' : 'COMPLETED';
       }
       const saleData = {
-        id: generateRef('SAL'),
+        id: editId || generateRef('SAL'),
         clientId: selectedClientId,
         items: cart,
         totalAmount: total,
@@ -524,9 +533,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         return; // keep cart + modal so user can retry
       }
       addNotification(
-        fulfillmentType === 'DELIVERY'
-          ? `Sale recorded — added to delivery queue.`
-          : `Sale recorded: ${formatCurrency(total)}`,
+        editId
+          ? `Sale updated: ${formatCurrency(total)}`
+          : fulfillmentType === 'DELIVERY'
+            ? `Sale recorded — added to delivery queue.`
+            : `Sale recorded: ${formatCurrency(total)}`,
         'success'
       );
       setCart([]);
@@ -536,7 +547,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       setAmountReceived('');
       setFulfillmentType('PICKUP');
       setDeliveryDetails({ address: '', zone: '', date: '', notes: '', fee: '' });
+      setSelectedClientId('WALKIN');
+      setPaymentMethod('CASH');
       setShowCheckout(false);
+      if (editId) onEditDone?.();
     } catch (err) {
       addNotification(`Checkout error: ${err.message || err}`, 'error');
     } finally {
