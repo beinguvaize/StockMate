@@ -301,12 +301,28 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     }
   };
 
-  const getAvailableStock = (productId) =>
-    noStockGate
-      ? Infinity
-      : (warehouseStock[productId] !== undefined
-          ? warehouseStock[productId]
-          : (products.find(p => p.id === productId)?.stock ?? 0));
+  // Editing a sale: its original quantities are still deducted from current
+  // stock. edit_sale reverses them before re-applying, so the effective
+  // availability is current stock + what this sale already took. Credit it
+  // back here, else editing fails even with no quantity change.
+  const editStockCredit = useMemo(() => {
+    if (!editId || !Array.isArray(initialCart)) return {};
+    const m = {};
+    initialCart.forEach(it => {
+      const pid = it.productId || it.id;
+      if (pid) m[pid] = (m[pid] || 0) + (Number(it.quantity) || 0);
+    });
+    return m;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId]);
+
+  const getAvailableStock = (productId) => {
+    if (noStockGate) return Infinity;
+    const base = warehouseStock[productId] !== undefined
+      ? warehouseStock[productId]
+      : (products.find(p => p.id === productId)?.stock ?? 0);
+    return base + (editStockCredit[productId] || 0);
+  };
 
   // Modifier picker (restaurant) — set when a dish with modifier groups is tapped.
   const [modPicker, setModPicker] = useState(null); // { product }
