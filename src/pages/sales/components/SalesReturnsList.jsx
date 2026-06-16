@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { RotateCcw, Search } from 'lucide-react';
+import { RotateCcw, Search, Undo2 } from 'lucide-react';
 import { formatCurrency } from '../../../lib/utils';
 
 /**
@@ -7,8 +7,20 @@ import { formatCurrency } from '../../../lib/utils';
  * Read-only register so processed returns are visible (the original
  * complaint: returns "weren't doing anything" because nothing showed them).
  */
-const SalesReturnsList = ({ returns = [] }) => {
+const SalesReturnsList = ({ returns = [], onReverse = null }) => {
   const [q, setQ] = useState('');
+  const [busyId, setBusyId] = useState(null);
+
+  const reverse = async (r) => {
+    if (!onReverse) return;
+    if (!window.confirm(
+      `Undo return #${String(r.id).split('-').pop()} for ${formatCurrency(r.total_amount)}?\n\n` +
+      `Stock will be re-deducted and the customer balance restored. The original sale becomes editable again.`
+    )) return;
+    setBusyId(r.id);
+    await onReverse(r.id);
+    setBusyId(null);
+  };
 
   const rows = useMemo(() => {
     const term = q.trim().toLowerCase();
@@ -66,6 +78,7 @@ const SalesReturnsList = ({ returns = [] }) => {
               <th className="px-4 py-3 text-center">Items</th>
               <th className="px-4 py-3">Reason</th>
               <th className="px-4 py-3 text-right">Amount</th>
+              {onReverse && <th className="px-4 py-3 text-right">Undo</th>}
             </tr>
           </thead>
           <tbody>
@@ -79,6 +92,18 @@ const SalesReturnsList = ({ returns = [] }) => {
                 <td className="px-4 py-3 text-xs font-semibold text-gray-500 text-center">{itemCount(r)}</td>
                 <td className="px-4 py-3 text-xs font-medium text-gray-400 max-w-[200px] truncate">{r.reason || '—'}</td>
                 <td className="px-4 py-3 text-xs font-black text-rose-600 text-right">{formatCurrency(r.total_amount)}</td>
+                {onReverse && (
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => reverse(r)}
+                      disabled={busyId === r.id}
+                      title="Undo return — re-deducts stock, restores balance"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-gray-500 hover:text-rose-600 hover:bg-rose-50 disabled:opacity-40 transition-colors"
+                    >
+                      <Undo2 size={13} /> {busyId === r.id ? 'Undoing…' : 'Undo'}
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
