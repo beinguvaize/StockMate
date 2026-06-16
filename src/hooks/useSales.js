@@ -456,6 +456,19 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       await fetchSales();
       return { success: true };
     },
+    // Undo a sales return — re-deducts the restocked qty, restores the
+    // client's outstanding, and removes the credit note. Lets the original
+    // sale be edited again (edit_sale refuses sales that still have a return).
+    reverseSalesReturn: async (returnId) => {
+      if (!tenantId) return { error: new Error('reverseSalesReturn: no tenant') };
+      const { error } = await supabase.rpc('reverse_sales_return', {
+        p_return_id: returnId,
+        p_tenant_id: tenantId,
+      });
+      if (error) return { error };
+      await fetchSales();
+      return { success: true };
+    },
     markInvoicePaid: async (id) => {
       if (!id) return { error: new Error('markInvoicePaid: id required') };
       // Read grand_total first so paid_amount stays in sync with total.

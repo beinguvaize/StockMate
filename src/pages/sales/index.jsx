@@ -68,7 +68,13 @@ const SalesPage = () => {
     addNotification(`KOT #${data.ticket_no} sent to kitchen`, 'success');
     return true;
   };
-  const { sales, clients, invoices, salesReturns, placeSale, editSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, convertSaleToInvoice, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
+  const { sales, clients, invoices, salesReturns, placeSale, editSale, dispatchSale, createInvoice, deleteSale: removeSale, settleSale, processSalesReturn, reverseSalesReturn, convertSaleToInvoice, loading: salesLoading } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
+
+  const handleReverseReturn = async (returnId) => {
+    const { error } = await reverseSalesReturn(returnId);
+    if (error) { addNotification('Undo failed: ' + error.message, 'error'); return; }
+    addNotification('Return undone — stock re-deducted, sale editable again.', 'success');
+  };
 
   // Wrap placeSale: auto-create invoice for credit sales (settlement) and
   // delivery sales (van dispatch queue), or both when combined.
@@ -413,7 +419,7 @@ const SalesPage = () => {
                 onConvertToInvoice={(sale) => setConvertSale(sale)}
               />
             ) : (
-              <SalesReturnsList returns={salesReturns} />
+              <SalesReturnsList returns={salesReturns} onReverse={handleReverseReturn} />
             )}
           </>
         )}
