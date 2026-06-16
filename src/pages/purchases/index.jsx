@@ -18,7 +18,7 @@ const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, recostBatches, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
   const { products, inventoryLocations, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
@@ -244,41 +244,54 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
     setDupTarget(null);
   };
 
+  // Bound each network step so a stalled request can't leave the form stuck
+  // on "Saving…" forever (the 4-hop client chain was hanging on weak links).
+  const withTimeout = (p, ms, label) => Promise.race([
+    p,
+    new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} timed out — check connection and retry`)), ms)),
+  ]);
+
   const handleEditPurchase = async (data) => {
     setEditLoading(true);
     const orig = editTarget;
-    const qtyDelta = Number(data.quantity) - Number(orig.quantity);
+    try {
+      const qtyDelta = Number(data.quantity) - Number(orig.quantity);
 
-    // Update purchase record fields (metadata only — inventory adjusted separately)
-    const { error } = await updatePurchase(orig.id, {
-      linked_product_id: data.linked_product_id,
-      supplier_id:       data.supplier_id,
-      supplier_name:     suppliers.find(s => s.id === data.supplier_id)?.name || orig.supplier_name,
-      quantity:          Number(data.quantity),
-      total_amount:      Number(data.total_amount),
-      payment_type:      data.payment_type,
-      date:              data.date,
-      notes:             data.notes,
-    });
+      // 1. Update the purchase record.
+      const { error } = await withTimeout(updatePurchase(orig.id, {
+        linked_product_id: data.linked_product_id,
+        supplier_id:       data.supplier_id,
+        supplier_name:     suppliers.find(s => s.id === data.supplier_id)?.name || orig.supplier_name,
+        quantity:          Number(data.quantity),
+        total_amount:      Number(data.total_amount),
+        payment_type:      data.payment_type,
+        date:              data.date,
+        notes:             data.notes,
+      }), 10000, 'Save');
+      if (error) throw error;
 
-    if (error) {
-      alert('Failed to update purchase: ' + error.message);
+      // 2. Recost the batches this purchase created so FIFO/COGS/margin pick up
+      //    the corrected unit price (the old flow never touched batches).
+      if (Number(data.unit_cost) > 0) {
+        const { error: rcErr } = await withTimeout(
+          recostBatches(orig.id, Number(data.unit_cost)), 10000, 'Batch recost');
+        if (rcErr) addNotification('Saved, but batch cost not updated: ' + rcErr.message, 'error');
+      }
+
+      // 3. Adjust inventory for the quantity delta.
+      if (qtyDelta !== 0 && data.linked_product_id) {
+        const { error: adjErr } = await withTimeout(
+          adjustStock(data.linked_product_id, qtyDelta, `Purchase edit: ${orig.id}`, null), 10000, 'Stock adjust');
+        if (adjErr) addNotification('Saved, but stock not adjusted: ' + adjErr.message, 'error');
+      }
+
+      addNotification('Purchase updated', 'success');
+      setEditTarget(null);
+    } catch (e) {
+      addNotification('Could not save purchase: ' + (e?.message || e), 'error');
+    } finally {
       setEditLoading(false);
-      return;
     }
-
-    // Adjust inventory for quantity delta
-    if (qtyDelta !== 0 && data.linked_product_id) {
-      await adjustStock(
-        data.linked_product_id,
-        qtyDelta,
-        `Purchase edit: ${orig.id}`,
-        null
-      );
-    }
-
-    setEditLoading(false);
-    setEditTarget(null);
   };
 
   const handleDeletePurchase = async (pur) => {
