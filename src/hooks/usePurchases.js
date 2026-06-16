@@ -156,6 +156,19 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     return { error };
   };
 
+  // Recost every stock batch created by a purchase to a new per-unit cost.
+  // The app's purchase edit never touched batches, so a corrected unit price
+  // left FIFO/COGS/margin reading the old (wrong) cost. product_batches.purchase_id
+  // links batches back to their source purchase.
+  const recostBatches = async (purchaseId, unitCost) => {
+    const { error } = await supabase
+      .from('product_batches')
+      .update({ unit_cost: unitCost })
+      .eq('purchase_id', purchaseId)
+      .eq('tenant_id', tenantId);
+    return { error };
+  };
+
   const remove = async (id) => {
     const { error } = await supabase
       .from('purchases')
@@ -247,6 +260,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     refetch: fetchPurchases,
     add,
     update,
+    recostBatches,
     updateStatus,
     remove,
     addReturn,
