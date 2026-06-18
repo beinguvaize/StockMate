@@ -594,17 +594,20 @@ const Dashboard = () => {
 
  <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3">
  {[
-   { label: `${datePreset} Sales`,     value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_sales ?? rangeSales) : rangeSales),             icon: <Banknote size={16} />,    tone: 'emerald', delta: kpiData?.sales_delta_pct },
-   { label: `${datePreset} Expenses`,  value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses),    icon: <TrendingDown size={16} />, tone: 'rose',    delta: kpiData?.expenses_delta_pct },
-   { label: 'Cash Balance',            value: Math.round(currentCashBalance),                                                                                icon: <DollarSign size={16} />,  tone: 'amber' },
-   { label: 'Outstanding',             value: Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding),               icon: <Activity size={16} />,    tone: 'amber' },
-   { label: `${datePreset} Purchases`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases), icon: <ShoppingBag size={16} />, tone: 'slate' },
-   { label: 'Salary Pending',          value: Math.round(salariesPending),                                                                                   icon: <Users size={16} />,       tone: 'slate' },
+   { label: `${datePreset} Sales`,     value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_sales ?? rangeSales) : rangeSales),             icon: <Banknote size={16} />,    tone: 'emerald', delta: kpiData?.sales_delta_pct, to: '/sales' },
+   { label: `${datePreset} Expenses`,  value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_expenses ?? rangeExpenses) : rangeExpenses),    icon: <TrendingDown size={16} />, tone: 'rose',    delta: kpiData?.expenses_delta_pct, to: '/expenses' },
+   { label: 'Cash Balance',            value: Math.round(currentCashBalance),                                                                                icon: <DollarSign size={16} />,  tone: 'amber', to: '/daybook' },
+   { label: 'Outstanding',             value: Math.round(kpiData ? (kpiData.outstanding_collections ?? totalOutstanding) : totalOutstanding),               icon: <Activity size={16} />,    tone: 'amber', to: '/clients' },
+   { label: `${datePreset} Purchases`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases), icon: <ShoppingBag size={16} />, tone: 'slate', to: '/purchases' },
+   { label: 'Salary Pending',          value: Math.round(salariesPending),                                                                                   icon: <Users size={16} />,       tone: 'slate', to: '/payroll' },
  ].map((m, i) => {
    const chip = { emerald: 'bg-emerald-50 text-emerald-600', rose: 'bg-rose-50 text-rose-500', amber: 'bg-amber-50 text-amber-600', slate: 'bg-slate-100 text-slate-500' }[m.tone];
    const d = typeof m.delta === 'number' ? m.delta : null;
    return (
-   <div key={i} className="bg-white rounded-2xl border border-black/[0.07] shadow-sm p-4 flex flex-col gap-2 hover:shadow-md transition-shadow">
+   <div key={i} role="button" tabIndex={0}
+     onClick={() => m.to && navigate(m.to)}
+     onKeyDown={(e) => { if (m.to && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); navigate(m.to); } }}
+     className="bg-white rounded-2xl border border-black/[0.07] shadow-sm p-4 flex flex-col gap-2 hover:shadow-md hover:border-black/15 transition-all cursor-pointer">
      <div className="flex items-center justify-between">
        <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${chip}`}>{m.icon}</span>
        {d !== null && (
@@ -697,7 +700,8 @@ const Dashboard = () => {
  <h2 className="text-xl font-bold text-ink-primary mb-4">Operations</h2>
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
  {/* Infrastructure Health */}
- <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+ <div role="button" tabIndex={0} onClick={() => navigate('/inventory')}
+   className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 cursor-pointer hover:shadow-md hover:border-black/15 transition-all">
  <div className="flex justify-between items-start mb-4">
  <div>
  <p className="text-gray-700 text-sm font-medium">Total Products</p>
@@ -713,7 +717,8 @@ const Dashboard = () => {
  </div>
 
  {/* Dispatches */}
- <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+ <div role="button" tabIndex={0} onClick={() => navigate('/vehicles')}
+   className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 cursor-pointer hover:shadow-md hover:border-black/15 transition-all">
  <div className="flex justify-between items-start mb-4">
  <div>
  <p className="text-gray-700 text-sm font-medium">Active Trips</p>
@@ -729,7 +734,8 @@ const Dashboard = () => {
  </div>
 
  {/* Critical Alerts */}
- <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5">
+ <div role="button" tabIndex={0} onClick={() => navigate('/inventory')}
+   className="bg-white p-6 rounded-[2rem] shadow-sm border border-black/5 cursor-pointer hover:shadow-md hover:border-black/15 transition-all">
  <div className="flex justify-between items-start mb-4">
  <div>
  <p className="text-gray-700 text-sm font-medium">Low Stock Items</p>
@@ -998,7 +1004,8 @@ const Dashboard = () => {
        <div className="h-full flex items-center justify-center text-[11px] text-gray-400 font-semibold">All products stocked</div>
      ) : (
        lowStockProducts.map(item => (
-         <div key={item.id} className="flex items-center justify-between px-5 py-3 hover:bg-canvas transition-colors">
+         <div key={item.id} role="button" tabIndex={0} onClick={() => navigate('/inventory')}
+           className="flex items-center justify-between px-5 py-3 hover:bg-canvas transition-colors cursor-pointer">
            <div className="flex-1 min-w-0">
              <p className="text-xs font-bold text-ink-primary truncate">{item.name}</p>
              <p className="text-[10px] text-gray-400 mt-0.5">
@@ -1010,7 +1017,7 @@ const Dashboard = () => {
                })()}
              </p>
            </div>
-           <button onClick={() => navigate('/purchases')} className="ml-3 shrink-0 text-[9px] font-black uppercase tracking-widest text-red-600 bg-red-50 border border-red-100 hover:bg-red-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+           <button onClick={(e) => { e.stopPropagation(); navigate('/purchases'); }} className="ml-3 shrink-0 text-[9px] font-black uppercase tracking-widest text-red-600 bg-red-50 border border-red-100 hover:bg-red-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
              Restock
            </button>
          </div>
@@ -1077,14 +1084,16 @@ const Dashboard = () => {
            const out = client.outstanding_balance || 0;
            const amtColor = out > 5000 ? 'text-red-600' : out >= 1000 ? 'text-orange-500' : 'text-green-600';
            return (
-             <div key={client.id} className="flex items-center justify-between px-5 py-3 hover:bg-canvas transition-colors cursor-pointer">
+             <div key={client.id} role="button" tabIndex={0}
+               onClick={() => navigate(`/clients?client=${client.id}`)}
+               className="flex items-center justify-between px-5 py-3 hover:bg-canvas transition-colors cursor-pointer">
                <div className="flex items-center gap-3 min-w-0">
                  <span className="text-[9px] font-black text-gray-400 shrink-0 w-4 text-center">{idx + 1}</span>
                  <p className="text-xs font-bold text-ink-primary truncate">{client.name}</p>
                </div>
                <div className="flex items-center gap-2 shrink-0 ml-3">
                  <span className={`text-xs font-black tabular-nums ${amtColor}`}>₹{Math.round(out).toLocaleString()}</span>
-                 <button onClick={() => navigate('/clients')} className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+                 <button onClick={(e) => { e.stopPropagation(); navigate(`/clients?client=${client.id}`); }} className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
                    Collect
                  </button>
                </div>

@@ -4,6 +4,7 @@ import { useInventory } from '../hooks/useInventory';
 import { useManufacturing } from '../hooks/useManufacturing';
 import { useNotifications } from '../context/NotificationContext';
 import { formatCurrency } from '../lib/utils';
+import { SkeletonRows } from '../components/ui/States';
 import {
   Factory, Plus, X, Trash2, Layers, ClipboardList,
   CheckCircle2, Package, AlertTriangle,
@@ -65,7 +66,7 @@ const Manufacturing = () => {
         ))}
       </div>
 
-      {loading && <div className="py-16 text-center text-sm text-gray-400">Loading…</div>}
+      {loading && <div className="rounded-2xl border border-black/[0.07] bg-white"><SkeletonRows rows={6} /></div>}
 
       {/* ── PRODUCTION ORDERS ───────────────────────────────────────── */}
       {!loading && tab === 'PRODUCTION' && (

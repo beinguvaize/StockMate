@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { usePeople } from '../hooks/usePeople';
 import { useInventory } from '../hooks/useInventory';
 import { computeOrderTotals } from '../lib/priceResolver';
+import { PageSkeleton } from '../components/ui/States';
 import {
   Plus, X, ChevronDown, ChevronUp, Package,
   User, Calendar, ArrowRight, Check, Trash2,
@@ -304,13 +305,7 @@ const Orders = () => {
     else refetchInvoices();
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-10 h-10 border-4 border-accent-signature/30 border-t-accent-signature rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <PageSkeleton cards={3} rows={8} />;
 
   return (
     <div className="animate-fade-in flex flex-col gap-6 pb-16">

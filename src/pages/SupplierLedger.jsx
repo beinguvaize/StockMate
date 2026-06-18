@@ -5,6 +5,7 @@ import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { usePurchases } from '../hooks/usePurchases';
 import { useInventory } from '../hooks/useInventory';
+import { PageSkeleton } from '../components/ui/States';
 import {
   ArrowLeft, Building2, Phone, Mail, MapPin,
   History, Box, TrendingUp, Calendar, Search,
@@ -162,13 +163,7 @@ const SupplierLedger = () => {
     return { total, count, avg, last, payable, cashPaid, creditTotal, totalReturns, net, totalPaid };
   }, [supplierPurchases, supplierReturns, payments, supplier]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-10 h-10 border-4 border-accent-signature/30 border-t-accent-signature rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <PageSkeleton cards={3} rows={8} />;
 
   if (!supplier) {
     return (

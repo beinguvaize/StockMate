@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNotifications } from '../hooks/useNotifications';
 import { supabase } from '../lib/supabase';
 import { PLANS, TENANT_STATUS, getPlanBadge } from '../lib/tenancy';
+import { SkeletonRows } from '../components/ui/States';
 import { 
   Building2, Users, Activity, Shield, ChevronRight, 
   Search, Plus, ToggleLeft, ToggleRight, Eye, 
@@ -174,9 +175,7 @@ const AdminPanel = () => {
 
         {/* Tenant List */}
         {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <div className="w-10 h-10 border-4 border-accent-signature/30 border-t-accent-signature rounded-full animate-spin" />
-          </div>
+          <div className="rounded-2xl border border-black/[0.07] bg-white"><SkeletonRows rows={6} /></div>
         ) : (
           <div className="space-y-3">
             {filteredTenants.map(tenant => {

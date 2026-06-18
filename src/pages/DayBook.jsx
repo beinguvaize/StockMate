@@ -4,6 +4,7 @@ import { useTenant } from '../context/TenantContext';
 import { useDayBookData } from '../hooks/useDayBookData';
 import { useNotifications } from '../context/NotificationContext';
 import { useInventory } from '../hooks/useInventory';
+import { PageSkeleton } from '../components/ui/States';
 import {
   Calendar, Save, ChevronLeft, ChevronRight,
   ArrowUpRight, ArrowDownRight, RefreshCcw,
@@ -317,11 +318,7 @@ const DayBook = () => {
     setIsClosing(false);
   };
 
-  if (dbLoading) return (
-    <div className="flex items-center justify-center py-20">
-      <div className="w-10 h-10 border-4 border-accent-signature/30 border-t-accent-signature rounded-full animate-spin" />
-    </div>
-  );
+  if (dbLoading) return <PageSkeleton cards={4} rows={9} />;
 
   // ── History full-page view ────────────────────────────────────────────────
   if (showHistory) {

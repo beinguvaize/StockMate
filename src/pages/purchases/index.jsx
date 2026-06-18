@@ -9,6 +9,7 @@ import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, 
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
+import { PageSkeleton } from '../../components/ui/States';
 import { formatCurrency, formatDate, generateRef } from '../../lib/utils';
 import PurchaseForm from './components/PurchaseForm';
 import MultiPurchaseForm from './components/MultiPurchaseForm';
@@ -463,11 +464,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
     );
   };
 
-  if (purLoading || prodLoading) return (
-    <div className="flex items-center justify-center p-20">
-      <div className="text-sm font-bold opacity-50 animate-pulse">Loading purchases...</div>
-    </div>
-  );
+  if (purLoading || prodLoading) return <PageSkeleton cards={3} rows={8} />;
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
