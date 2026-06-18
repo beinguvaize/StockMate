@@ -77,6 +77,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
     qty:     parseFloat(i.qty || i.quantity || 1),
     rate:    parseFloat(i.rate || i.price || 0),
     taxRate: parseFloat(i.taxRate ?? 0),
+    imeis:   Array.isArray(i.imeis) ? i.imeis.filter(Boolean) : [],
   }));
 
   const taxable = items.reduce((s, i) => {
@@ -168,6 +169,11 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
                 <span className="w-14 text-right">{fmt(item.rate)}</span>
                 <span className="w-14 text-right font-semibold">{fmt(amt)}</span>
               </div>
+              {item.imeis.length > 0 && (
+                <div className="text-[8px] text-gray-500 leading-tight">
+                  {item.imeis.map((sn, j) => <div key={j}>IMEI: {sn}</div>)}
+                </div>
+              )}
             </div>
           );
         })}

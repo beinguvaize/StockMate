@@ -200,6 +200,25 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     setNewCust({ type: 'B2C', name: '', phone: '', aadhaar: '', gstin: '' });
     addNotification('Customer added', 'success');
   };
+
+  // IMEI / serial capture. Products flagged track_serial (phones, electronics)
+  // require the unit serial(s) at point of sale. Captured per cart line, one
+  // per unit, stored on the sale item + written to serial_numbers as SOLD.
+  const productById = useMemo(
+    () => Object.fromEntries((products || []).map(p => [p.id, p])),
+    [products]
+  );
+  const serialLines = useMemo(
+    () => cart.filter(l => productById[l.productId]?.track_serial),
+    [cart, productById]
+  );
+  const [lineImeis, setLineImeis] = useState({}); // uid -> string[]
+  const setImei = (uid, idx, val) =>
+    setLineImeis(m => {
+      const arr = [...(m[uid] || [])];
+      arr[idx] = val;
+      return { ...m, [uid]: arr };
+    });
   const searchInputRef = useRef(null);
 
   // Track the most-recently punched product so we can scroll its cart row
@@ -560,6 +579,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       addNotification(`Stock issue: ${stockErrors.join('; ')}`, 'error');
       return;
     }
+    // Serial pre-flight — every serialized unit needs an IMEI/serial.
+    const missingSerial = serialLines.filter(l => {
+      const filled = (lineImeis[l.uid] || []).filter(s => s && s.trim()).length;
+      return filled < l.quantity;
+    });
+    if (missingSerial.length > 0) {
+      addNotification(`Enter IMEI/serial for: ${missingSerial.map(l => l.name).join(', ')}`, 'error');
+      return;
+    }
     setIsSubmitting(true);
     try {
       const isCreditSale = paymentMethod === 'CREDIT';
@@ -578,10 +606,18 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         resolvedPaid   = isCreditSale ? 0 : total;
         resolvedStatus = isCreditSale ? 'PENDING' : 'COMPLETED';
       }
+      const saleId = editId || generateRef('SAL');
+      // Attach captured serials to their line so they print on the bill and
+      // persist in sale.items (no app release needed for the receipt to show them).
+      const itemsWithSerials = cart.map(l =>
+        productById[l.productId]?.track_serial
+          ? { ...l, imeis: (lineImeis[l.uid] || []).map(s => s.trim()).filter(Boolean) }
+          : l
+      );
       const saleData = {
-        id: editId || generateRef('SAL'),
+        id: saleId,
         clientId: selectedClientId,
-        items: cart,
+        items: itemsWithSerials,
         totalAmount: total,
         subtotal: taxableAmount,
         tax: Math.round(tax * 100) / 100,
@@ -605,6 +641,30 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         addNotification(`Checkout failed: ${msg}`, 'error');
         return; // keep cart + modal so user can retry
       }
+      // Persist sold serials (non-fatal — the sale itself already succeeded).
+      if (serialLines.length > 0) {
+        try {
+          const serialRows = [];
+          serialLines.forEach(l =>
+            (lineImeis[l.uid] || []).map(s => s.trim()).filter(Boolean).forEach(serial =>
+              serialRows.push({
+                id: 'SN-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7),
+                tenant_id: currentTenantId,
+                product_id: l.productId,
+                serial,
+                status: 'SOLD',
+                sale_id: result.id || saleId,
+              })
+            )
+          );
+          if (serialRows.length) {
+            const { error: snErr } = await supabase.from('serial_numbers').insert(serialRows);
+            if (snErr) addNotification('Sale saved, but serials not logged: ' + snErr.message, 'error');
+          }
+        } catch (snEx) {
+          addNotification('Sale saved, but serials not logged: ' + (snEx.message || snEx), 'error');
+        }
+      }
       addNotification(
         editId
           ? `Sale updated: ${formatCurrency(total)}`
@@ -613,6 +673,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             : `Sale recorded: ${formatCurrency(total)}`,
         'success'
       );
+      setLineImeis({});
       setCart([]);
       setDiscount('');
       setServiceChargePct(0);
@@ -1502,6 +1563,32 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
                       />
                     </div>
+                  </div>
+                </div>
+              )}
+
+              {/* IMEI / serial capture for serialized products */}
+              {serialLines.length > 0 && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3">
+                  <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-2">IMEI / Serial Number</p>
+                  <div className="space-y-3">
+                    {serialLines.map(l => (
+                      <div key={l.uid}>
+                        <div className="text-[11px] font-bold text-ink-primary mb-1">{l.name} · {l.quantity} unit{l.quantity > 1 ? 's' : ''}</div>
+                        <div className="space-y-1.5">
+                          {Array.from({ length: l.quantity }).map((_, idx) => (
+                            <input
+                              key={idx}
+                              value={(lineImeis[l.uid] || [])[idx] || ''}
+                              onChange={e => setImei(l.uid, idx, e.target.value)}
+                              inputMode="numeric"
+                              placeholder={`Unit ${idx + 1} — scan or type IMEI/serial`}
+                              className="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-amber-400"
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
