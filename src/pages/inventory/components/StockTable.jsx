@@ -110,7 +110,9 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
                   const st = statusOf(qty, reorder);
                   const sell = toNum(product.sellingPrice);
                   return (
-                    <tr key={product.id} className="group border-t border-black/[0.04] hover:bg-amber-500/[0.04] transition-colors">
+                    <tr key={product.id}
+                      onClick={onView ? () => onView(product) : undefined}
+                      className={`group border-t border-black/[0.04] hover:bg-amber-500/[0.04] transition-colors ${onView ? 'cursor-pointer' : ''}`}>
                       <td className="px-5 py-2.5 pl-9 max-w-0 w-full">
                         <div className="flex items-center gap-2 min-w-0">
                           {isResto && <FoodMark type={product.food_type} />}
@@ -144,7 +146,7 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
                       <td className="px-3 py-2.5 text-right font-mono text-[12px] font-semibold whitespace-nowrap"><span className="text-amber-400">{currencySymbol}</span>{sell.toFixed(2)}</td>
                       <td className="px-3 py-2.5 text-right font-mono text-[13px] font-bold whitespace-nowrap">{isService ? '' : <><span className="text-amber-400">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
                       <td className="px-3 py-2.5 text-center">{isService ? null : <span className={`inline-block w-2 h-2 rounded-full ${dotCls(st)}`} />}</td>
-                      <td className="px-4 py-2.5 w-px">
+                      <td className="px-4 py-2.5 w-px" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {onAdjust && (
                             <button onClick={() => onAdjust(product)} title="Adjust stock" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:bg-amber-100 hover:text-amber-700 transition-colors"><SlidersHorizontal size={14} /></button>
