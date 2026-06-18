@@ -155,6 +155,51 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [clientSearch, setClientSearch]     = useState('');
   const [clientDropOpen, setClientDropOpen] = useState(false);
   const clientDropRef = useRef(null);
+
+  // Quick add-customer at POS. Retail shops sell to walk-in individuals who
+  // aren't in the client list yet — capture name + phone (+ optional Aadhaar
+  // for individuals, or GSTIN for a business) without leaving the sale.
+  // New clients are appended locally so they're immediately selectable; the
+  // parent's next fetch reconciles them.
+  const [addedClients, setAddedClients] = useState([]);
+  const allClients = useMemo(() => ([...(clients || []), ...addedClients]), [clients, addedClients]);
+  const [showAddCust, setShowAddCust] = useState(false);
+  const [savingCust, setSavingCust] = useState(false);
+  const [newCust, setNewCust] = useState({ type: 'B2C', name: '', phone: '', aadhaar: '', gstin: '' });
+
+  const saveNewCustomer = async () => {
+    const name = newCust.name.trim();
+    const phone = newCust.phone.trim();
+    if (!name) { addNotification('Customer name required', 'error'); return; }
+    if (!phone) { addNotification('Phone number required', 'error'); return; }
+    if (newCust.type === 'B2B' && newCust.gstin.trim() && newCust.gstin.trim().length !== 15) {
+      addNotification('GSTIN must be 15 characters', 'error'); return;
+    }
+    if (newCust.type === 'B2C' && newCust.aadhaar.trim() && newCust.aadhaar.replace(/\s/g, '').length !== 12) {
+      addNotification('Aadhaar must be 12 digits', 'error'); return;
+    }
+    setSavingCust(true);
+    const id = 'CLI-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+    const row = {
+      id, tenant_id: currentTenantId,
+      name, phone,
+      client_type: newCust.type,
+      gstin: newCust.type === 'B2B' ? (newCust.gstin.trim() || null) : null,
+      gst_no: newCust.type === 'B2B' ? (newCust.gstin.trim() || null) : null,
+      aadhaar: newCust.type === 'B2C' ? (newCust.aadhaar.replace(/\s/g, '').trim() || null) : null,
+      outstanding_balance: 0,
+    };
+    const { error } = await supabase.from('clients').insert(row);
+    setSavingCust(false);
+    if (error) { addNotification('Could not add customer: ' + error.message, 'error'); return; }
+    setAddedClients(prev => [...prev, row]);
+    setSelectedClientId(id);
+    setShowAddCust(false);
+    setClientDropOpen(false);
+    setClientSearch('');
+    setNewCust({ type: 'B2C', name: '', phone: '', aadhaar: '', gstin: '' });
+    addNotification('Customer added', 'success');
+  };
   const searchInputRef = useRef(null);
 
   // Track the most-recently punched product so we can scroll its cart row
@@ -486,7 +531,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   useEffect(() => {
     if (fulfillmentType !== 'DELIVERY') return;
     if (selectedClientId === 'WALKIN') return;
-    const client = clients.find(c => c.id === selectedClientId);
+    const client = allClients.find(c => c.id === selectedClientId);
     if (client?.address && !deliveryDetails.address) {
       setDeliveryDetails(p => ({ ...p, address: client.address }));
     }
@@ -996,7 +1041,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Selected client chip — shown when a real client is picked */}
               {selectedClientId !== 'WALKIN' && !clientDropOpen ? (() => {
-                const sel = (clients || []).find(c => c.id === selectedClientId);
+                const sel = allClients.find(c => c.id === selectedClientId);
                 return (
                   <div className="w-full bg-accent-signature/5 border border-accent-signature/20 rounded-xl px-4 py-3 flex items-center justify-between gap-2">
                     <span className="flex flex-col min-w-0 flex-1">
@@ -1053,7 +1098,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     </button>
 
                     {/* Filtered clients */}
-                    {(clients || [])
+                    {allClients
                       .filter(c =>
                         !clientSearch ||
                         (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
@@ -1083,13 +1128,58 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     }
 
                     {/* Empty state */}
-                    {clientSearch && (clients || []).filter(c =>
+                    {clientSearch && allClients.filter(c =>
                       (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
                       (c.phone || '').toLowerCase().includes(clientSearch.toLowerCase())
                     ).length === 0 && (
                       <div className="px-4 py-5 text-center text-[10px] text-gray-400">No clients match "{clientSearch}"</div>
                     )}
                   </div>
+
+                  {/* Add new customer */}
+                  {!showAddCust ? (
+                    <button
+                      type="button"
+                      onClick={() => { setShowAddCust(true); setNewCust(n => ({ ...n, name: clientSearch.trim() })); }}
+                      className="w-full text-left px-4 py-3 text-[11px] font-bold uppercase tracking-tight flex items-center gap-2 text-accent-signature hover:bg-accent-signature/5 border-t border-black/5"
+                    >
+                      <Plus size={13} /> Add new customer
+                    </button>
+                  ) : (
+                    <div className="p-3 border-t border-black/5 bg-canvas/40 space-y-2">
+                      <div className="flex gap-1 bg-white rounded-lg p-0.5 border border-black/5">
+                        {[['B2C', 'Individual'], ['B2B', 'Business']].map(([v, label]) => (
+                          <button key={v} type="button" onClick={() => setNewCust(n => ({ ...n, type: v }))}
+                            className={`flex-1 h-7 rounded-md text-[11px] font-bold transition-all ${newCust.type === v ? 'bg-accent-signature text-button-text' : 'text-gray-400'}`}>
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                      <input value={newCust.name} onChange={e => setNewCust(n => ({ ...n, name: e.target.value }))}
+                        placeholder="Customer name*"
+                        className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
+                      <input value={newCust.phone} onChange={e => setNewCust(n => ({ ...n, phone: e.target.value }))}
+                        inputMode="numeric" placeholder="Phone number*"
+                        className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
+                      {newCust.type === 'B2C' ? (
+                        <input value={newCust.aadhaar} onChange={e => setNewCust(n => ({ ...n, aadhaar: e.target.value }))}
+                          inputMode="numeric" placeholder="Aadhaar (optional, 12 digits)"
+                          className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
+                      ) : (
+                        <input value={newCust.gstin} onChange={e => setNewCust(n => ({ ...n, gstin: e.target.value.toUpperCase() }))}
+                          placeholder="GSTIN (optional, 15 chars)"
+                          className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
+                      )}
+                      <div className="flex gap-2 pt-0.5">
+                        <button type="button" onClick={() => setShowAddCust(false)}
+                          className="flex-1 h-8 rounded-lg text-[11px] font-bold text-gray-500 border border-black/10 hover:bg-white">Cancel</button>
+                        <button type="button" onClick={saveNewCustomer} disabled={savingCust}
+                          className="flex-1 h-8 rounded-lg text-[11px] font-bold bg-accent-signature text-button-text disabled:opacity-50">
+                          {savingCust ? 'Saving…' : 'Save & select'}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1292,7 +1382,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Client info summary */}
               {selectedClientId !== 'WALKIN' && (() => {
-                const client = clients.find(c => c.id === selectedClientId);
+                const client = allClients.find(c => c.id === selectedClientId);
                 return client ? (
                   <div className="bg-white rounded-2xl border border-black/5 p-4 flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-accent-signature/10 border border-accent-signature/20 flex items-center justify-center text-sm font-black text-ink-primary shrink-0">
@@ -1350,7 +1440,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     </label>
                     {/* Client address shortcut */}
                     {selectedClientId !== 'WALKIN' && (() => {
-                      const client = clients.find(c => c.id === selectedClientId);
+                      const client = allClients.find(c => c.id === selectedClientId);
                       return client?.address && deliveryDetails.address !== client.address ? (
                         <button
                           type="button"
