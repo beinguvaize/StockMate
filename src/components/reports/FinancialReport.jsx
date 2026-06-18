@@ -1,119 +1,136 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
-import { parseLocalDate, formatCurrency } from '../../lib/utils';
-import {
-  DollarSign, TrendingUp, CreditCard, PieChart as PieChartIcon,
-  ArrowUpRight, ArrowDownRight, Download, Activity, Target
-} from 'lucide-react';
+import { formatCurrency } from '../../lib/utils';
+import { supabase } from '../../lib/supabase';
+import { useTenant } from '../../context/TenantContext';
+import { CreditCard, Target, TrendingUp, Scale } from 'lucide-react';
 
+/**
+ * Profit & Loss — now sourced from the double-entry General Ledger
+ * (get_gl_balances) instead of a naive Sales − Expenses calculation.
+ *
+ * The old version credited gross sales (GST-inclusive, returns ignored) and
+ * never subtracted Cost of Goods Sold, so "profit" was overstated several-fold.
+ * The GL posts revenue net of GST, books COGS on every sale, and reverses
+ * returns — so reading it gives a real accrual P&L:
+ *
+ *     Sales Revenue (net) − COGS = Gross Profit − Operating Expenses = Net Profit
+ */
 const FinancialReport = () => {
-  // 1. Fetch Financial Data (Triangulation)
+  const { currentTenantId } = useTenant();
+  const [gl, setGl] = useState([]);
+  const [glLoading, setGlLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const run = async () => {
+      if (!currentTenantId) return;
+      setGlLoading(true);
+      const { data, error } = await supabase.rpc('get_gl_balances', { p_tenant_id: currentTenantId });
+      if (cancelled) return;
+      if (error) {
+        console.error('[P&L] get_gl_balances failed:', error);
+        setGl([]);
+      } else {
+        setGl((data || []).map(r => ({ ...r, balance: Number(r.balance) || 0 })));
+      }
+      setGlLoading(false);
+    };
+    run();
+    return () => { cancelled = true; };
+  }, [currentTenantId]);
+
+  // Payment-mix tab still reads sales directly (collections view, not P&L).
   const { data: sales, loading: salesLoading } = useReportData({
     table: 'sales',
     select: 'totalAmount, date, paymentMethod',
-    dateColumn: 'date'
+    dateColumn: 'date',
   });
 
-  const { data: expenses, loading: expensesLoading } = useReportData({
-    table: 'expenses',
-    select: 'amount, date',
-    dateColumn: 'date'
-  });
+  // ── Build the P&L statement from GL balances ──
+  const pl = useMemo(() => {
+    const acct = (code) => gl.find(a => a.code === code)?.balance || 0;
+    const revenue = gl.filter(a => a.type === 'REVENUE').reduce((s, a) => s + a.balance, 0);
+    const cogs = acct('5000');
+    const opexAccounts = gl
+      .filter(a => a.type === 'EXPENSE' && a.code !== '5000' && a.balance !== 0)
+      .map(a => ({ name: a.name, amount: a.balance }));
+    const opexTotal = opexAccounts.reduce((s, a) => s + a.amount, 0);
+    const grossProfit = revenue - cogs;
+    const netProfit = grossProfit - opexTotal;
+    const gstPayable = acct('2200');
 
-  const { data: payroll, loading: payrollLoading } = useReportData({
-    table: 'payroll',
-    select: 'amount, processed_at',
-    dateColumn: 'processed_at'
-  });
-
-  const loading = salesLoading || expensesLoading || payrollLoading;
-
-  // 2. Process Profit & Loss Metrics
-  const plMetrics = useMemo(() => {
-    const months = {};
-    const now = new Date();
-    
-    // Initialize 6 months
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const key = d.toLocaleString('default', { month: 'short', year: '2-digit' });
-      months[key] = { month: key, revenue: 0, expenses: 0, net: 0 };
-    }
-
-    sales.forEach(s => {
-      const key = parseLocalDate(s.date).toLocaleString('default', { month: 'short', year: '2-digit' });
-      if (months[key]) months[key].revenue += s.totalAmount || 0;
-    });
-
-    expenses.forEach(e => {
-      const key = parseLocalDate(e.date).toLocaleString('default', { month: 'short', year: '2-digit' });
-      if (months[key]) months[key].expenses += e.amount || 0;
-    });
-
-    payroll.forEach(p => {
-      const key = new Date(p.processed_at).toLocaleString('default', { month: 'short', year: '2-digit' });
-      if (months[key]) months[key].expenses += p.amount || 0;
-    });
-
-    const data = Object.values(months).map(m => ({
-      ...m,
-      net: m.revenue - m.expenses,
-      margin: m.revenue > 0 ? ((m.revenue - m.expenses) / m.revenue * 100).toFixed(1) : 0
-    }));
-
-    const totalRevenue = data.reduce((acc, m) => acc + m.revenue, 0);
-    const totalExpenses = data.reduce((acc, m) => acc + m.expenses, 0);
-    const totalNet = totalRevenue - totalExpenses;
-
-    const kpis = [
-      { id: 'rev', label: 'Total Revenue',    value: totalRevenue,  trendDir: 'none', color: 'indigo',  chartData: data.map(d => ({ value: d.revenue })) },
-      { id: 'exp', label: 'Total Expenses',   value: totalExpenses, trendDir: 'none', color: 'rose',    chartData: data.map(d => ({ value: d.expenses })) },
-      { id: 'net', label: 'Net Profit',       value: totalNet,      trendDir: totalNet >= 0 ? 'up' : 'down', color: totalNet >= 0 ? 'emerald' : 'rose', chartData: data.map(d => ({ value: d.net })) }
+    const statement = [
+      { label: 'Sales Revenue (net of GST)', amount: revenue, kind: 'pos' },
+      { label: 'Cost of Goods Sold', amount: -cogs, kind: 'neg' },
+      { label: 'Gross Profit', amount: grossProfit, kind: 'subtotal' },
+      ...opexAccounts.map(a => ({ label: a.name, amount: -a.amount, kind: 'neg' })),
+      { label: 'Net Profit', amount: netProfit, kind: 'total' },
     ];
 
-    return { data, totalRevenue, totalExpenses, totalNet, kpis };
-  }, [sales, expenses, payroll]);
+    return { revenue, cogs, opexTotal, grossProfit, netProfit, gstPayable, statement };
+  }, [gl]);
 
-  // 3. Process Revenue Insights (Payment Mix)
   const insightMetrics = useMemo(() => {
-    const paymentMap = sales.reduce((acc, s) => {
-      const method = s.paymentMethod || 'CASH';
-      if (!acc[method]) acc[method] = { name: method, value: 0, count: 0 };
-      acc[method].value += s.totalAmount || 0;
-      acc[method].count += 1;
+    const map = sales.reduce((acc, s) => {
+      const m = s.paymentMethod || 'CASH';
+      if (!acc[m]) acc[m] = { name: m, value: 0, count: 0 };
+      acc[m].value += s.totalAmount || 0;
+      acc[m].count += 1;
       return acc;
     }, {});
-
-    const paymentMix = Object.values(paymentMap).sort((a, b) => b.value - a.value);
-
-    return { paymentMix };
+    return { paymentMix: Object.values(map).sort((a, b) => b.value - a.value) };
   }, [sales]);
 
-  // 4. Tab Definitions
+  const totalCollected = insightMetrics.paymentMix.reduce((s, m) => s + m.value, 0);
+
   const plTab = {
     id: 'PL_STATEMENT',
     label: 'P&L Statement',
     icon: <Target size={18} />,
-    data: plMetrics.data,
-    loading: loading,
-    totals: { revenue: plMetrics.totalRevenue, expenses: plMetrics.totalExpenses, net: plMetrics.totalNet },
+    data: pl.statement,
+    loading: glLoading,
+    totals: { amount: pl.netProfit },
     columns: [
-      { key: 'month', label: 'Month', sortable: true, width: 140, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
-      { key: 'revenue', label: 'Revenue', type: 'currency', align: 'right', sortable: true, width: 180 },
-      { key: 'expenses', label: 'Expenses', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => <span className="text-red-500 font-bold">{formatCurrency(val)}</span> },
-      { key: 'net', label: 'Net Profit', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => <span className={val >= 0 ? 'text-emerald-500 font-black' : 'text-red-600 font-black'}>{formatCurrency(val)}</span> },
-      { key: 'margin', label: 'Margin %', align: 'right', width: 100, render: (val) => (
-        <span className={`px-2 py-1 rounded-full text-[9px] font-black ${val >= 20 ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>
-          {val}%
-        </span>
-      )}
+      {
+        key: 'label', label: 'Line Item', sortable: false, width: 320,
+        render: (val, row) => (
+          <span className={
+            row.kind === 'total' ? 'font-black text-ink-primary uppercase tracking-tight'
+            : row.kind === 'subtotal' ? 'font-black text-ink-primary'
+            : 'font-semibold text-gray-600'
+          }>{val}</span>
+        ),
+      },
+      {
+        key: 'amount', label: 'Amount', type: 'currency', align: 'right', width: 200,
+        render: (val, row) => {
+          const strong = row.kind === 'total' || row.kind === 'subtotal';
+          const color = row.kind === 'neg' ? 'text-red-500'
+            : val >= 0 ? (strong ? 'text-emerald-600' : 'text-ink-primary')
+            : 'text-red-600';
+          return <span className={`${strong ? 'font-black' : 'font-bold'} ${color}`}>{formatCurrency(val)}</span>;
+        },
+      },
     ],
-    kpis: plMetrics.kpis,
+    kpis: [
+      { id: 'rev', label: 'Revenue (net)', value: pl.revenue, trendDir: 'none', color: 'indigo', chartData: [] },
+      { id: 'gp', label: 'Gross Profit', value: pl.grossProfit, trendDir: pl.grossProfit >= 0 ? 'up' : 'down', color: 'sky', chartData: [] },
+      { id: 'np', label: 'Net Profit', value: pl.netProfit, trendDir: pl.netProfit >= 0 ? 'up' : 'down', color: pl.netProfit >= 0 ? 'emerald' : 'rose', chartData: [] },
+      { id: 'gst', label: 'GST Payable', value: pl.gstPayable, trendDir: 'none', color: 'amber', chartData: [] },
+    ],
     chartConfig: {
-      title: "Revenue vs Expenses by Month", type: 'bar', data: plMetrics.data,
-      series: [{ key: 'revenue', name: 'Revenue', color: '#D97706' }, { key: 'expenses', name: 'Expenses', color: '#f43f5e' }]
-    }
+      title: 'Revenue → Net Profit',
+      type: 'bar',
+      data: [
+        { name: 'Revenue', value: pl.revenue },
+        { name: 'COGS', value: pl.cogs },
+        { name: 'Expenses', value: pl.opexTotal },
+        { name: 'Net Profit', value: pl.netProfit },
+      ],
+      series: [{ key: 'value', name: 'Amount', color: '#D97706' }],
+    },
   };
 
   const mixTab = {
@@ -121,24 +138,25 @@ const FinancialReport = () => {
     label: 'Payment Mix',
     icon: <CreditCard size={18} />,
     data: insightMetrics.paymentMix,
-    loading: loading,
-    totals: { value: plMetrics.totalRevenue },
+    loading: salesLoading,
+    totals: { value: totalCollected },
     columns: [
       { key: 'name', label: 'Payment Method', sortable: true, width: 220, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
       { key: 'count', label: 'Transactions', align: 'right', width: 140, render: (val) => <span className="font-mono text-gray-400">{val}</span> },
       { key: 'value', label: 'Total Collected', type: 'currency', align: 'right', sortable: true, width: 180 },
       { key: 'share', label: 'Share', align: 'right', width: 120, render: (_, row) => {
-        const s = plMetrics.totalRevenue > 0 ? (row.value / plMetrics.totalRevenue) * 100 : 0;
+        const s = totalCollected > 0 ? (row.value / totalCollected) * 100 : 0;
         return <span className="text-[10px] font-black text-accent-signature">{s.toFixed(1)}%</span>;
-      }}
+      } },
     ],
     kpis: [
-      { id: 'primary', label: 'Top Method',      value: insightMetrics.paymentMix[0]?.value || 0,        trendDir: 'none', color: 'indigo',  chartData: [] },
-      { id: 'avg_val', label: 'Avg Ticket Size', value: plMetrics.totalRevenue / (sales.length || 1),    trendDir: 'none', color: 'emerald', chartData: [] }
+      { id: 'primary', label: 'Top Method', value: insightMetrics.paymentMix[0]?.value || 0, trendDir: 'none', color: 'indigo', chartData: [] },
+      { id: 'avg_val', label: 'Avg Ticket Size', value: totalCollected / (sales.length || 1), trendDir: 'none', color: 'emerald', chartData: [] },
     ],
     chartConfig: {
-      title: "Revenue by payment method", type: 'pie', data: insightMetrics.paymentMix.map(m => ({ name: m.name, value: m.value }))
-    }
+      title: 'Revenue by payment method', type: 'pie',
+      data: insightMetrics.paymentMix.map(m => ({ name: m.name, value: m.value })),
+    },
   };
 
   return <PremiumReportView title="Profit & Loss" tabs={[plTab, mixTab]} />;
