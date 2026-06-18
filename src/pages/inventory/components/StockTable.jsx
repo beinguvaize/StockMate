@@ -33,7 +33,7 @@ const statusOf = (qty, reorder) => {
 const dotCls = (s) => s === 'crit' ? 'bg-red-500' : s === 'low' ? 'bg-amber-500' : 'bg-emerald-500';
 const qtyCls = (s) => s === 'crit' ? 'text-red-600' : s === 'low' ? 'text-amber-600' : 'text-ink-primary';
 
-const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, onBatches, currencySymbol = '₹' }) => {
+const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onAdjust, onBatches, currencySymbol = '₹' }) => {
   const { businessType } = useTenant();
   const isResto = businessType === 'RESTAURANT';
   const isService = businessType === 'SERVICES';
@@ -114,7 +114,14 @@ const StockTable = ({ products, inventoryBalances, onEdit, onDelete, onAdjust, o
                       <td className="px-5 py-2.5 pl-9 max-w-0 w-full">
                         <div className="flex items-center gap-2 min-w-0">
                           {isResto && <FoodMark type={product.food_type} />}
-                          <span className="text-[13px] font-bold text-ink-primary truncate">{product.name}</span>
+                          {onView ? (
+                            <button onClick={() => onView(product)}
+                              className="text-[13px] font-bold text-ink-primary truncate hover:text-accent-signature hover:underline text-left">
+                              {product.name}
+                            </button>
+                          ) : (
+                            <span className="text-[13px] font-bold text-ink-primary truncate">{product.name}</span>
+                          )}
                           {isResto && product.is_available === false && (
                             <span className="shrink-0 text-[9px] font-black uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">86</span>
                           )}
