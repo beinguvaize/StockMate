@@ -321,7 +321,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   // (topSellingIds from the parent); fall back to catalogue order for any
   // remaining slots so there are always tiles even before sales history.
   const quickAddProducts = useMemo(() => {
-    const inStock = (p) => p.product_type !== 'RAW' && (warehouseStock[p.id] ?? p.stock ?? 0) > 0;
+    const inStock = (p) => p.product_type !== 'RAW' && (p.product_type === 'SERVICE' || (warehouseStock[p.id] ?? p.stock ?? 0) > 0);
     const byId = new Map(products.map(p => [p.id, p]));
     const ranked = topSellingIds
       .map(id => byId.get(id))
@@ -382,6 +382,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
   const getAvailableStock = (productId) => {
     if (noStockGate) return Infinity;
+    // Services (labor/repair) carry no inventory — always sellable.
+    if (productById[productId]?.product_type === 'SERVICE') return Infinity;
     const base = warehouseStock[productId] !== undefined
       ? warehouseStock[productId]
       : (products.find(p => p.id === productId)?.stock ?? 0);
@@ -757,7 +759,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           {filteredProducts.map(product => {
             const ms = marginStatus[product.id] || {};
             const stock = warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock;
-            const outOfStock = stock <= 0;
+            const isSvc = product.product_type === 'SERVICE';
+            const outOfStock = !isSvc && stock <= 0;
             const lowStock = !outOfStock && stock <= (product.lowStockThreshold || 10);
             const inCart = cart.find(i => i.productId === product.id);
             const cartQty = inCart ? inCart.quantity : 0;
@@ -781,8 +784,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 <span className={`font-mono text-sm font-bold tabular-nums ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>{formatCurrency(product.sellingPrice)}</span>
                 {product.taxRate > 0 && <span className="text-[9px] font-black px-1 rounded bg-blue-50 text-blue-500">{product.taxRate}%</span>}
               </div>
-              <div className={`text-[11px] font-semibold mb-2 ${outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : 'text-gray-400'}`}>
-                {outOfStock ? 'OUT OF STOCK' : lowStock ? `${stock} stk · low` : `${stock} stk`}
+              <div className={`text-[11px] font-semibold mb-2 ${isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : 'text-gray-400'}`}>
+                {isSvc ? 'SERVICE' : outOfStock ? 'OUT OF STOCK' : lowStock ? `${stock} stk · low` : `${stock} stk`}
               </div>
               {!outOfStock && (
                 cartQty > 0 ? (
@@ -815,7 +818,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           {filteredProducts.map(product => {
             const ms = marginStatus[product.id] || {};
             const stock = warehouseStock[product.id] !== undefined ? warehouseStock[product.id] : product.stock;
-            const outOfStock = stock <= 0;
+            const isSvc = product.product_type === 'SERVICE';
+            const outOfStock = !isSvc && stock <= 0;
             const lowStock = !outOfStock && stock <= (product.lowStockThreshold || 10);
             const inCart  = cart.find(i => i.productId === product.id);
             const cartQty = inCart ? inCart.quantity : 0;
@@ -869,9 +873,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   )}
                 </div>
                 <div className={`text-xs font-semibold mt-0.5 ${
-                  outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-gray-400'
+                  isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-gray-400'
                 }`}>
-                  {outOfStock ? 'OUT' : lowStock ? `${stock} stk · low` : `${stock} stk`}
+                  {isSvc ? 'SERVICE' : outOfStock ? 'OUT' : lowStock ? `${stock} stk · low` : `${stock} stk`}
                 </div>
               </div>
 

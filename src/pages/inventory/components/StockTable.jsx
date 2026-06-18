@@ -132,8 +132,8 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
                       </td>
                       <td className="px-3 py-2.5 font-mono text-[11px] text-gray-400 uppercase whitespace-nowrap">{product.sku || '—'}</td>
                       <td className="px-3 py-2.5 text-right whitespace-nowrap">
-                        {isService ? (
-                          <span className="font-mono text-[13px] font-bold text-ink-primary">{product.duration_min ? `${product.duration_min}m` : '—'}</span>
+                        {(isService || product.product_type === 'SERVICE') ? (
+                          <span className="font-mono text-[12px] font-bold text-violet-500">{product.duration_min ? `${product.duration_min}m` : 'Service'}</span>
                         ) : (<>
                           <span className={`font-mono text-[13px] font-bold ${qtyCls(st)}`}>{qty}</span>
                           <span className="text-[9px] text-gray-400 uppercase ml-0.5">{product.unit || 'pcs'}</span>
