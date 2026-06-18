@@ -22,6 +22,7 @@ import {
   getSyncing,
   AUTO_SYNC_INTERVAL_MS,
 } from '../lib/offline/syncEngine.js';
+import { probeConnectivity } from '../lib/supabase.js';
 import { pendingCount as outboxPendingCount } from '../lib/offline/outbox.js';
 
 const AUTO_SYNC_LS_KEY = 'ledgr.autoSync';
@@ -67,20 +68,52 @@ export function OfflineProvider({ children }) {
   // Ref to avoid stale closures in the syncNow callback
   const syncingRef = useRef(false);
 
-  // ── Online / offline events ──
+  // ── Connectivity tracking (probe-based) ──
+  // navigator.onLine alone is unreliable — it false-negatives on transient
+  // blips and can stick "offline" while the network is fine, which scared
+  // users into thinking saves were blocked. Instead, treat the browser
+  // online/offline events as triggers and confirm with a real reachability
+  // probe. Require two consecutive probe failures before showing offline so
+  // a single hiccup doesn't flip the badge; recover immediately on success.
   useEffect(() => {
-    try {
-      const handleOnline = () => setOnline(true);
-      const handleOffline = () => setOnline(false);
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-      return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      };
-    } catch (err) {
-      console.error('[OfflineContext] online/offline listener error:', err);
-    }
+    let cancelled = false;
+    let fails = 0;
+    let inflight = false;
+
+    const check = async () => {
+      if (inflight) return;
+      inflight = true;
+      try {
+        const reachable = await probeConnectivity();
+        if (cancelled) return;
+        if (reachable) {
+          fails = 0;
+          setOnline(true);
+        } else {
+          fails += 1;
+          if (fails >= 2) setOnline(false);
+        }
+      } catch (_) {
+        /* probe never throws, but guard anyway */
+      } finally {
+        inflight = false;
+      }
+    };
+
+    check();
+    const onVis = () => { if (document.visibilityState === 'visible') check(); };
+    window.addEventListener('online', check);
+    window.addEventListener('offline', check);
+    document.addEventListener('visibilitychange', onVis);
+    const iv = setInterval(check, 25000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(iv);
+      window.removeEventListener('online', check);
+      window.removeEventListener('offline', check);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, []);
 
   // ── Refresh pending count helper ──

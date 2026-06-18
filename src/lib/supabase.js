@@ -89,6 +89,30 @@ export const supabase = isSupabaseConfigured
     })
   : null;
 
+// Lightweight reachability probe — hits the Supabase auth health endpoint
+// (tiny, unauthenticated beyond the public anon key) with a short timeout.
+// navigator.onLine is unreliable: it reports false on transient blips and can
+// stay stuck false while the network is actually fine. A real probe lets the
+// online indicator reflect truth and auto-recover.
+export const probeConnectivity = async (timeoutMs = 4000) => {
+  if (!url) return false;
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${url}/auth/v1/health`, {
+      method: 'GET',
+      headers: { apikey: key },
+      cache: 'no-store',
+      signal: ctrl.signal,
+    });
+    return res.ok;
+  } catch (_) {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 // ── Keep realtime alive across token refresh + tab sleep ──────────────────────
 // Long-open tabs go stale because (a) on the ~hourly TOKEN_REFRESHED the new JWT
 // was never re-applied to the realtime socket (it then 401s on reconnect and
