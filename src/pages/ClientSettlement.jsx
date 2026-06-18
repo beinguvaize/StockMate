@@ -5,6 +5,7 @@ import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { useSales } from '../hooks/useSales';
 import { supabase } from '../lib/supabase';
+import { PageSkeleton } from '../components/ui/States';
 import {
   ArrowLeft, Calendar, FileText,
   CheckCircle2, AlertCircle, Search, Clock, Receipt,
@@ -180,13 +181,7 @@ const ClientSettlement = () => {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-10 h-10 border-4 border-accent-signature/30 border-t-accent-signature rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <PageSkeleton cards={3} rows={8} />;
 
   if (!client) {
     return (

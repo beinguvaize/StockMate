@@ -8,6 +8,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { AUDIT_ACTIONS } from '../lib/auditLog';
+import { SkeletonRows } from '../components/ui/States';
 import {
   Shield, Search, Calendar, ChevronDown, ChevronLeft, ChevronRight,
   RefreshCw, Filter, X, Clock, User, Activity, FileText, AlertTriangle,
@@ -305,11 +306,7 @@ const AuditLog = () => {
         </div>
 
         {/* Loading state */}
-        {loading && (
-          <div className="flex items-center justify-center py-16">
-            <RefreshCw size={24} className="animate-spin text-gray-300" />
-          </div>
-        )}
+        {loading && <SkeletonRows rows={8} />}
 
         {/* Empty state */}
         {!loading && rows.length === 0 && (
