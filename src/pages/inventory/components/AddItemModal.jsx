@@ -26,6 +26,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     secondary_unit: '', conversion_factor: '',
     food_type: '', is_available: true, station: '', modifier_groups: [],   // menu (restaurant)
     duration_min: '',   // service catalog
+    track_serial: false,   // serialized stock (IMEI / serial per unit)
   });
 
   const [imageFile, setImageFile]     = useState(null);
@@ -72,6 +73,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
         lowStockThreshold: 10, min_margin: 0, barcode: '',
         food_type: '', is_available: true, station: '',
+        track_serial: false,
       });
       setImagePreview(null);
     }
@@ -145,6 +147,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         station: formData.station?.trim() || null,
         modifier_groups: Array.isArray(formData.modifier_groups) ? formData.modifier_groups : [],
         duration_min: Number(formData.duration_min) || null,
+        track_serial: !!formData.track_serial,
       };
 
       const result = await onSave(parsedData);
@@ -255,6 +258,23 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 </select>
               </div>
             </div>
+
+            {/* Serialized stock — track each unit by IMEI / serial number */}
+            <label className="flex items-center gap-3 mt-1 cursor-pointer select-none">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={!!formData.track_serial}
+                onClick={() => setFormData({ ...formData, track_serial: !formData.track_serial })}
+                className={`relative w-10 h-6 rounded-full transition-colors ${formData.track_serial ? 'bg-accent-signature' : 'bg-gray-300'}`}
+              >
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${formData.track_serial ? 'translate-x-4' : ''}`} />
+              </button>
+              <span className="flex flex-col">
+                <span className="text-[13px] font-bold text-ink-primary">Track IMEI / serial per unit</span>
+                <span className="text-[11px] text-gray-400">Phones, electronics — capture the serial on purchase &amp; sale</span>
+              </span>
+            </label>
 
             {/* Menu details — restaurant only */}
             {isResto && (
