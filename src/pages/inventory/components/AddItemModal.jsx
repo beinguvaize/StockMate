@@ -17,7 +17,6 @@ const DEFAULT_CATEGORIES = [
 const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategories, tenantId }) => {
   const { businessType } = useTenant();
   const isResto = businessType === 'RESTAURANT';
-  const isService = businessType === 'SERVICES';
 
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
@@ -28,6 +27,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     duration_min: '',   // service catalog
     track_serial: false,   // serialized stock (IMEI / serial per unit)
   });
+
+  // A SERVICE product (labor / repair, no stock) gets the service UX in ANY
+  // business mode — lets a retail shop keep products and add services together.
+  const isService = businessType === 'SERVICES' || formData.product_type === 'SERVICE';
 
   const [imageFile, setImageFile]     = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -253,6 +256,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 <select className={inputCls} value={formData.product_type || 'STANDARD'}
                   onChange={e => setFormData({ ...formData, product_type: e.target.value })}>
                   <option value="STANDARD">Standard — bought &amp; sold</option>
+                  <option value="SERVICE">Service — labor / repair (no stock)</option>
                   <option value="RAW">Raw material — consume-only (not sold)</option>
                   <option value="FINISHED">Finished — manufactured</option>
                 </select>

@@ -198,6 +198,7 @@ const Inventory = () => {
           {[
             { id: 'ALL',      label: 'All' },
             { id: 'STANDARD', label: 'Standard' },
+            { id: 'SERVICE',  label: 'Services' },
             { id: 'RAW',      label: 'Raw' },
             { id: 'FINISHED', label: 'Finished' },
           ].map(t => (
