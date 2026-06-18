@@ -50,6 +50,28 @@ export const LoadingBlock = ({ label = 'Loading…', className = '' }) => (
   </div>
 );
 
+/**
+ * Full-page placeholder — header bar + KPI strip + table rows. Use in place of
+ * a blocking spinner so the page's shape appears instantly while data loads.
+ */
+export const PageSkeleton = ({ cards = 4, rows = 8, className = '' }) => (
+  <div className={`animate-fade-in ${className}`}>
+    <div className="flex items-center justify-between mb-5">
+      <Skeleton className="h-7 w-40" />
+      <Skeleton className="h-9 w-28 rounded-xl" />
+    </div>
+    {cards > 0 && <SkeletonCards count={cards} className="mb-5" />}
+    <div className="rounded-2xl border border-black/[0.07] bg-white">
+      <div className="flex items-center gap-3 p-4 border-b border-black/[0.05]">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-4 w-32" />
+        <Skeleton className="h-4 w-20 ml-auto" />
+      </div>
+      <SkeletonRows rows={rows} />
+    </div>
+  </div>
+);
+
 /* ── Empty state ─────────────────────────────────────────────────────────── */
 export const EmptyState = ({
   icon: Icon = Inbox,

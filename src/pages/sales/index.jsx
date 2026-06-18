@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LoadingBlock } from '../../components/ui/States';
+import { PageSkeleton } from '../../components/ui/States';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useSales } from '../../hooks/useSales';
@@ -276,7 +276,7 @@ const SalesPage = () => {
     return () => clearTimeout(t);
   }, [isLoading]);
 
-  if (isLoading && !loadTimeout) return <LoadingBlock label="Loading point of sale…" />;
+  if (isLoading && !loadTimeout) return <PageSkeleton cards={3} rows={8} />;
 
   return (
     <div className="animate-fade-in flex flex-col gap-2">

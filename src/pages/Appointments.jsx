@@ -4,6 +4,7 @@ import { useAppointments } from '../hooks/useAppointments';
 import { usePeople } from '../hooks/usePeople';
 import { useInventory } from '../hooks/useInventory';
 import { useNotifications } from '../context/NotificationContext';
+import { SkeletonRows } from '../components/ui/States';
 import { formatCurrency } from '../lib/utils';
 import { CalendarClock, Plus, X, Clock, User2, Check, Ban } from 'lucide-react';
 
@@ -51,7 +52,7 @@ const Appointments = () => {
       </div>
 
       {loading ? (
-        <div className="py-16 text-center text-sm text-gray-400">Loading…</div>
+        <div className="rounded-2xl border border-black/[0.07] bg-white"><SkeletonRows rows={6} /></div>
       ) : appointments.length === 0 ? (
         <div className="py-16 text-center bg-white rounded-2xl border border-black/5">
           <CalendarClock size={36} className="mx-auto text-gray-300 mb-3" />

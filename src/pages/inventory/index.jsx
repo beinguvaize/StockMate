@@ -11,7 +11,7 @@ import BatchesModal from './components/BatchesModal';
 import PriceListsModal from './components/PriceListsModal';
 import StockAdjustModal from './components/StockAdjustModal';
 import StockHistoryModal from './components/StockHistoryModal';
-import { LoadingBlock } from '../../components/ui/States';
+import { PageSkeleton } from '../../components/ui/States';
 
 const Inventory = () => {
   const { currentUser, isOwner } = useAuth();
@@ -118,7 +118,7 @@ const Inventory = () => {
     }
   };
 
-  if (loading) return <LoadingBlock label="Loading inventory…" />;
+  if (loading) return <PageSkeleton cards={4} rows={10} />;
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
