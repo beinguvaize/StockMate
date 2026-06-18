@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useInventory } from '../../hooks/useInventory';
@@ -11,6 +12,7 @@ import BatchesModal from './components/BatchesModal';
 import PriceListsModal from './components/PriceListsModal';
 import StockAdjustModal from './components/StockAdjustModal';
 import StockHistoryModal from './components/StockHistoryModal';
+import ItemDetailView from './components/ItemDetailView';
 import { PageSkeleton } from '../../components/ui/States';
 
 const Inventory = () => {
@@ -19,15 +21,18 @@ const Inventory = () => {
   const { 
     products, 
     productCategories: categories, 
-    inventoryBalances: balances, 
-    loading, 
-    addProduct, 
-    updateProduct, 
+    inventoryBalances: balances,
+    inventoryLocations,
+    loading,
+    addProduct,
+    updateProduct,
     deleteProduct,
-    adjustStock 
+    adjustStock
   } = useInventory(currentTenantId);
 
   const { priceLists, upsertPrice, deletePrice } = useOrders(currentTenantId);
+  const navigate = useNavigate();
+  const [viewingProduct, setViewingProduct] = useState(null);
 
   const [showAddModal,    setShowAddModal]    = useState(false);
   const [editingProduct,  setEditingProduct]  = useState(null);
@@ -243,11 +248,27 @@ const Inventory = () => {
         products={filteredProducts}
         inventoryBalances={balances}
         currencySymbol={businessProfile?.currencySymbol || '₹'}
+        onView={setViewingProduct}
         onEdit={openEditModal}
         onDelete={(id) => { if (window.confirm('Delete this product?')) deleteProduct(id); }}
         onAdjust={isOwner ? (product) => setAdjustingProduct(product) : null}
         onBatches={setBatchesFor}
       />
+
+      {viewingProduct && (
+        <ItemDetailView
+          product={viewingProduct}
+          locations={inventoryLocations || []}
+          balances={balances || []}
+          tenantId={currentTenantId}
+          currencySymbol={businessProfile?.currencySymbol || '₹'}
+          onClose={() => setViewingProduct(null)}
+          onEdit={(p) => { setViewingProduct(null); openEditModal(p); }}
+          onAdjust={isOwner ? (p) => { setViewingProduct(null); setAdjustingProduct(p); } : null}
+          onPrintBarcode={() => navigate('/labels')}
+          onDelete={(p) => { if (window.confirm('Delete this product?')) { deleteProduct(p.id); setViewingProduct(null); } }}
+        />
+      )}
 
       <AddItemModal
         isOpen={showAddModal}
