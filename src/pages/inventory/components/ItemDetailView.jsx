@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ArrowLeft, ScanLine, SlidersHorizontal, Pencil, Trash2,
-  FileText, Boxes, Users, Warehouse, Tags,
+  FileText, Boxes, Users, Warehouse, Tags, Search, Plus,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { formatCurrency } from '../../../lib/utils';
@@ -23,8 +23,10 @@ const TABS = [
 const ItemDetailView = ({
   product, locations = [], balances = [], tenantId,
   onClose, onEdit, onAdjust, onPrintBarcode, onDelete, currencySymbol = '₹',
+  items = [], onSelect, onCreate,
 }) => {
   const [tab, setTab] = useState('DETAILS');
+  const [listSearch, setListSearch] = useState('');
   const [batches, setBatches] = useState([]);
   const [sales, setSales] = useState([]);
   const [clients, setClients] = useState({});
@@ -103,9 +105,51 @@ const ItemDetailView = ({
     </div>
   );
 
+  const filteredItems = (items || []).filter(it => {
+    const q = listSearch.toLowerCase().trim();
+    if (!q) return true;
+    return (it.name || '').toLowerCase().includes(q) ||
+      (it.sku || '').toLowerCase().includes(q) ||
+      (it.barcode || '').toLowerCase().includes(q);
+  });
+
   return (
-    <div className="fixed inset-0 z-50 bg-canvas overflow-y-auto">
-      <div className="max-w-5xl mx-auto p-4 md:p-6">
+    <div className="fixed inset-0 z-50 bg-canvas flex">
+      {/* Master list */}
+      <aside className="w-72 shrink-0 border-r border-black/[0.07] bg-white flex flex-col">
+        <div className="p-3 border-b border-black/[0.05] space-y-2">
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+            <input value={listSearch} onChange={e => setListSearch(e.target.value)}
+              placeholder="Search item"
+              className="w-full bg-canvas border border-black/[0.06] rounded-lg pl-9 pr-3 py-2 text-xs font-semibold outline-none focus:border-black/20" />
+          </div>
+          {onCreate && (
+            <button onClick={onCreate}
+              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-accent-signature/50 text-accent-signature text-xs font-bold hover:bg-accent-signature/5 transition-colors">
+              <Plus size={14} /> Create Item
+            </button>
+          )}
+        </div>
+        <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+          {filteredItems.map(it => (
+            <button key={it.id} onClick={() => onSelect?.(it)}
+              className={`w-full text-left rounded-xl border p-3 transition-colors ${
+                it.id === pid ? 'border-accent-signature bg-accent-signature/5' : 'border-black/[0.06] hover:border-black/15 bg-white'
+              }`}>
+              <div className="text-[13px] font-bold text-ink-primary truncate">{it.name}</div>
+              <div className="text-[10px] font-mono text-gray-400 mt-0.5 uppercase">{it.sku || it.barcode || ''}</div>
+            </button>
+          ))}
+          {filteredItems.length === 0 && (
+            <div className="px-3 py-8 text-center text-[11px] text-gray-400 font-semibold">No items</div>
+          )}
+        </div>
+      </aside>
+
+      {/* Detail panel */}
+      <div className="flex-1 overflow-y-auto">
+      <div className="max-w-4xl mx-auto p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
           <button onClick={onClose} className="w-9 h-9 rounded-lg border border-black/10 flex items-center justify-center text-gray-600 hover:bg-white transition-colors">
@@ -222,6 +266,7 @@ const ItemDetailView = ({
               ]} />
           </Card>
         )}
+      </div>
       </div>
     </div>
   );
