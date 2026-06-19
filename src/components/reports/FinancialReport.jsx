@@ -1,33 +1,39 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import useReportData from './useReportData';
-import PremiumReportView from './PremiumReportView';
 import { formatCurrency } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../context/TenantContext';
-import { CreditCard, Target } from 'lucide-react';
 
 // Date-range presets. Indian financial year runs Apr 1 → Mar 31.
 const iso = (d) => d.toISOString().slice(0, 10);
 const buildPresets = () => {
   const now = new Date();
   const y = now.getFullYear(), m = now.getMonth();
-  const fyStartYear = m >= 3 ? y : y - 1; // before April → previous FY
+  const fy = m >= 3 ? y : y - 1;
   return [
     { id: 'THIS_MONTH', label: 'This Month', from: iso(new Date(y, m, 1)), to: iso(new Date(y, m + 1, 0)) },
     { id: 'LAST_MONTH', label: 'Last Month', from: iso(new Date(y, m - 1, 1)), to: iso(new Date(y, m, 0)) },
-    { id: 'THIS_FY', label: 'This FY', from: `${fyStartYear}-04-01`, to: `${fyStartYear + 1}-03-31` },
+    { id: 'THIS_FY', label: 'This FY', from: `${fy}-04-01`, to: `${fy + 1}-03-31` },
     { id: 'THIS_YEAR', label: 'This Year', from: `${y}-01-01`, to: `${y}-12-31` },
     { id: 'ALL', label: 'All Time', from: '2000-01-01', to: '2100-01-01' },
   ];
 };
 
-/**
- * Profit & Loss — sourced from get_pl_ranged (mirrors the GL: revenue net of
- * GST, COGS, returns and expenses by business date). A date-range filter lets
- * the owner see profit for a month / FY / year, tying back to the ledger.
- */
+// The equal-length period immediately before [from, to].
+const priorRange = (from, to) => {
+  const f = new Date(from), t = new Date(to);
+  const days = Math.round((t - f) / 86400000) + 1;
+  const pTo = new Date(f); pTo.setDate(pTo.getDate() - 1);
+  const pFrom = new Date(pTo); pFrom.setDate(pFrom.getDate() - days + 1);
+  return { from: iso(pFrom), to: iso(pTo) };
+};
+
+const Cell = ({ children, align = 'right', cls = '' }) => (
+  <td style={{ padding: '9px 16px', textAlign: align }} className={cls}>{children}</td>
+);
+
 const FinancialReport = () => {
-  const { currentTenantId } = useTenant();
+  const { currentTenantId, businessProfile } = useTenant();
+  const cur = businessProfile?.currencySymbol || '₹';
   const presets = useMemo(buildPresets, []);
   const [preset, setPreset] = useState('THIS_FY');
   const [range, setRange] = useState(() => {
@@ -35,13 +41,14 @@ const FinancialReport = () => {
     return { from: p.from, to: p.to };
   });
   const [pl, setPl] = useState(null);
+  const [prior, setPrior] = useState(null);
+  const [expCats, setExpCats] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const applyPreset = (id) => {
     const p = presets.find(x => x.id === id);
     if (!p) return;
-    setPreset(id);
-    setRange({ from: p.from, to: p.to });
+    setPreset(id); setRange({ from: p.from, to: p.to });
   };
 
   useEffect(() => {
@@ -49,12 +56,23 @@ const FinancialReport = () => {
     const run = async () => {
       if (!currentTenantId) return;
       setLoading(true);
-      const { data, error } = await supabase.rpc('get_pl_ranged', {
-        p_tenant_id: currentTenantId, p_from: range.from, p_to: range.to,
-      });
+      const pr = priorRange(range.from, range.to);
+      const [curRes, priorRes, expRes] = await Promise.all([
+        supabase.rpc('get_pl_ranged', { p_tenant_id: currentTenantId, p_from: range.from, p_to: range.to }),
+        supabase.rpc('get_pl_ranged', { p_tenant_id: currentTenantId, p_from: pr.from, p_to: pr.to }),
+        supabase.from('expenses').select('amount, category, date')
+          .eq('tenant_id', currentTenantId).is('deleted_at', null)
+          .gte('date', range.from).lte('date', range.to),
+      ]);
       if (cancelled) return;
-      if (error) { console.error('[P&L] get_pl_ranged failed:', error); setPl(null); }
-      else setPl(Array.isArray(data) ? data[0] : data);
+      setPl(Array.isArray(curRes.data) ? curRes.data[0] : curRes.data);
+      setPrior(Array.isArray(priorRes.data) ? priorRes.data[0] : priorRes.data);
+      const map = {};
+      (expRes.data || []).forEach(e => {
+        const c = e.category || 'Other';
+        map[c] = (map[c] || 0) + Number(e.amount || 0);
+      });
+      setExpCats(Object.entries(map).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount));
       setLoading(false);
     };
     run();
@@ -62,96 +80,52 @@ const FinancialReport = () => {
   }, [currentTenantId, range.from, range.to]);
 
   const m = {
-    revenue: Number(pl?.revenue_net || 0),
-    cogs: Number(pl?.cogs || 0),
-    gross: Number(pl?.gross_profit || 0),
-    expenses: Number(pl?.expenses || 0),
-    net: Number(pl?.net_profit || 0),
-    gst: Number(pl?.output_gst || 0),
-    returns: Number(pl?.returns_total || 0),
+    revenue: Number(pl?.revenue_net || 0), cogs: Number(pl?.cogs || 0),
+    gross: Number(pl?.gross_profit || 0), expenses: Number(pl?.expenses || 0),
+    net: Number(pl?.net_profit || 0), gst: Number(pl?.output_gst || 0),
+  };
+  const p = {
+    revenue: Number(prior?.revenue_net || 0), cogs: Number(prior?.cogs || 0),
+    gross: Number(prior?.gross_profit || 0), expenses: Number(prior?.expenses || 0),
+    net: Number(prior?.net_profit || 0),
+  };
+  const rev = m.revenue || 0;
+  const pct = (v) => rev > 0 ? `${(v / rev * 100).toFixed(1)}%` : '—';
+  const delta = (c, pv) => {
+    if (!pv) return null;
+    const d = (c - pv) / Math.abs(pv) * 100;
+    return d;
+  };
+  const grossMargin = rev > 0 ? (m.gross / rev * 100) : 0;
+  const netMargin = rev > 0 ? (m.net / rev * 100) : 0;
+
+  const Delta = ({ cur: c, prior: pv, expense }) => {
+    const d = delta(c, pv);
+    if (d === null) return <span style={{ color: 'var(--color-text-tertiary)' }}>—</span>;
+    // For expenses, an increase is unfavourable (amber/red); for income, favourable (green).
+    const up = d > 0.05, down = d < -0.05;
+    const good = expense ? down : up;
+    const color = Math.abs(d) < 0.05 ? '#9a9a9a' : good ? '#0F6E56' : (expense ? '#854F0B' : '#A32D2D');
+    return <span style={{ color }}>{d > 0 ? '+' : ''}{d.toFixed(1)}%</span>;
   };
 
-  const statement = [
-    { label: 'Sales Revenue (net of GST)', amount: m.revenue, kind: 'pos' },
-    { label: 'Cost of Goods Sold', amount: -m.cogs, kind: 'neg' },
-    { label: 'Gross Profit', amount: m.gross, kind: 'subtotal' },
-    { label: 'Operating Expenses', amount: -m.expenses, kind: 'neg' },
-    { label: 'Net Profit', amount: m.net, kind: 'total' },
+  const ratioCards = [
+    { label: 'Gross margin', value: `${grossMargin.toFixed(1)}%`, good: grossMargin >= 0 },
+    { label: 'Net margin', value: `${netMargin.toFixed(1)}%`, good: netMargin >= 0 },
+    { label: 'COGS ratio', value: pct(m.cogs) },
+    { label: 'OpEx ratio', value: pct(m.expenses) },
   ];
-
-  // Payment mix (collections) — date-filtered too.
-  const { data: sales } = useReportData({ table: 'sales', select: 'totalAmount, date, paymentMethod', dateColumn: 'date' });
-  const insightMetrics = useMemo(() => {
-    const inRange = (sales || []).filter(s => s.date >= range.from && s.date <= range.to);
-    const map = inRange.reduce((acc, s) => {
-      const mm = s.paymentMethod || 'CASH';
-      if (!acc[mm]) acc[mm] = { name: mm, value: 0, count: 0 };
-      acc[mm].value += s.totalAmount || 0; acc[mm].count += 1;
-      return acc;
-    }, {});
-    return { paymentMix: Object.values(map).sort((a, b) => b.value - a.value) };
-  }, [sales, range]);
-  const totalCollected = insightMetrics.paymentMix.reduce((s, x) => s + x.value, 0);
-
-  const plTab = {
-    id: 'PL_STATEMENT', label: 'P&L Statement', icon: <Target size={18} />,
-    data: statement, loading,
-    columns: [
-      { key: 'label', label: 'Line Item', width: 320, render: (val, row) => (
-        <span className={row.kind === 'total' ? 'font-black text-ink-primary uppercase tracking-tight'
-          : row.kind === 'subtotal' ? 'font-black text-ink-primary' : 'font-semibold text-gray-600'}>{val}</span>
-      ) },
-      { key: 'amount', label: 'Amount', type: 'currency', align: 'right', width: 200, render: (val, row) => {
-        const strong = row.kind === 'total' || row.kind === 'subtotal';
-        const color = row.kind === 'neg' ? 'text-red-500' : val >= 0 ? (strong ? 'text-emerald-600' : 'text-ink-primary') : 'text-red-600';
-        return <span className={`${strong ? 'font-black' : 'font-bold'} ${color}`}>{formatCurrency(val)}</span>;
-      } },
-    ],
-    kpis: [
-      { id: 'rev', label: 'Revenue (net)', value: m.revenue, trendDir: 'none', color: 'indigo', chartData: [] },
-      { id: 'gp', label: 'Gross Profit', value: m.gross, trendDir: m.gross >= 0 ? 'up' : 'down', color: 'sky', chartData: [] },
-      { id: 'np', label: 'Net Profit', value: m.net, trendDir: m.net >= 0 ? 'up' : 'down', color: m.net >= 0 ? 'emerald' : 'rose', chartData: [] },
-      { id: 'gst', label: 'GST Payable', value: m.gst, trendDir: 'none', color: 'amber', chartData: [] },
-    ],
-    chartConfig: {
-      title: 'Revenue → Net Profit', type: 'bar',
-      data: [
-        { name: 'Revenue', value: m.revenue }, { name: 'COGS', value: m.cogs },
-        { name: 'Expenses', value: m.expenses }, { name: 'Net Profit', value: m.net },
-      ],
-      series: [{ key: 'value', name: 'Amount', color: '#D97706' }],
-    },
-  };
-
-  const mixTab = {
-    id: 'PAYMENT_MIX', label: 'Payment Mix', icon: <CreditCard size={18} />,
-    data: insightMetrics.paymentMix, loading,
-    columns: [
-      { key: 'name', label: 'Payment Method', width: 220, render: (v) => <span className="font-black text-ink-primary uppercase tracking-tight">{v}</span> },
-      { key: 'count', label: 'Transactions', align: 'right', width: 140, render: (v) => <span className="font-mono text-gray-400">{v}</span> },
-      { key: 'value', label: 'Total Collected', type: 'currency', align: 'right', width: 180 },
-      { key: 'share', label: 'Share', align: 'right', width: 120, render: (_, row) => {
-        const s = totalCollected > 0 ? (row.value / totalCollected) * 100 : 0;
-        return <span className="text-[10px] font-black text-accent-signature">{s.toFixed(1)}%</span>;
-      } },
-    ],
-    kpis: [
-      { id: 'primary', label: 'Top Method', value: insightMetrics.paymentMix[0]?.value || 0, trendDir: 'none', color: 'indigo', chartData: [] },
-      { id: 'avg', label: 'Avg Ticket', value: totalCollected / (insightMetrics.paymentMix.reduce((s, x) => s + x.count, 0) || 1), trendDir: 'none', color: 'emerald', chartData: [] },
-    ],
-    chartConfig: { title: 'Revenue by payment method', type: 'pie', data: insightMetrics.paymentMix.map(x => ({ name: x.name, value: x.value })) },
-  };
 
   return (
     <div className="flex flex-col gap-3">
       {/* Date range bar */}
       <div className="flex flex-wrap items-center gap-2 no-print">
         <div className="flex gap-1 bg-canvas p-1 rounded-pill">
-          {presets.map(p => (
-            <button key={p.id} onClick={() => applyPreset(p.id)}
+          {presets.map(pr => (
+            <button key={pr.id} onClick={() => applyPreset(pr.id)}
               className={`px-3 py-1.5 rounded-pill text-[11px] font-bold transition-colors ${
-                preset === p.id ? 'bg-accent-signature text-button-text shadow-sm' : 'text-gray-500 hover:text-ink-primary'
-              }`}>{p.label}</button>
+                preset === pr.id ? 'bg-accent-signature text-button-text shadow-sm' : 'text-gray-500 hover:text-ink-primary'
+              }`}>{pr.label}</button>
           ))}
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
@@ -163,7 +137,96 @@ const FinancialReport = () => {
         </div>
       </div>
 
-      <PremiumReportView title="Profit & Loss" tabs={[plTab, mixTab]} />
+      {/* Ratio strip */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {ratioCards.map(c => (
+          <div key={c.label} className="bg-white rounded-2xl border border-black/[0.07] p-4">
+            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{c.label}</div>
+            <div className={`text-2xl font-black tabular-nums mt-1 ${c.good === false ? 'text-rose-600' : c.good ? 'text-emerald-600' : 'text-ink-primary'}`}>{c.value}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Statement */}
+      <div className="bg-white rounded-2xl border border-black/[0.07] overflow-hidden">
+        <div className="px-4 py-3 border-b border-black/[0.05] flex items-center justify-between">
+          <span className="text-[11px] font-black text-gray-500 uppercase tracking-wider">Profit &amp; Loss</span>
+          {loading && <span className="text-[10px] font-bold text-gray-400">Loading…</span>}
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
+            <thead>
+              <tr className="text-[10px] text-gray-400 uppercase tracking-wider">
+                <th style={{ textAlign: 'left', padding: '10px 16px', fontWeight: 700 }}>Line item</th>
+                <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>Amount</th>
+                <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>% of rev</th>
+                <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>Prior</th>
+                <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>Δ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="border-t border-black/[0.05]">
+                <Cell align="left" cls="font-bold text-ink-primary">Sales revenue (net of GST)</Cell>
+                <Cell cls="font-bold tabular-nums">{formatCurrency(m.revenue, cur)}</Cell>
+                <Cell cls="text-gray-400">100.0%</Cell>
+                <Cell cls="text-gray-400">{formatCurrency(p.revenue, cur)}</Cell>
+                <Cell><Delta cur={m.revenue} prior={p.revenue} /></Cell>
+              </tr>
+              <tr className="border-t border-black/[0.05]">
+                <Cell align="left" cls="text-gray-600">Cost of goods sold</Cell>
+                <Cell cls="text-rose-600 tabular-nums">({formatCurrency(m.cogs, cur).replace(cur, '')})</Cell>
+                <Cell cls="text-gray-400">{pct(m.cogs)}</Cell>
+                <Cell cls="text-gray-400">({formatCurrency(p.cogs, cur).replace(cur, '')})</Cell>
+                <Cell><Delta cur={m.cogs} prior={p.cogs} expense /></Cell>
+              </tr>
+              <tr className="border-t border-black/10 bg-canvas/50">
+                <Cell align="left" cls="font-black text-ink-primary">Gross profit</Cell>
+                <Cell cls="font-black text-emerald-600 tabular-nums">{formatCurrency(m.gross, cur)}</Cell>
+                <Cell cls="font-bold">{pct(m.gross)}</Cell>
+                <Cell cls="text-gray-400">{formatCurrency(p.gross, cur)}</Cell>
+                <Cell><Delta cur={m.gross} prior={p.gross} /></Cell>
+              </tr>
+
+              <tr className="border-t border-black/[0.05]">
+                <td colSpan={5} style={{ padding: '7px 16px 3px' }} className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Operating expenses</td>
+              </tr>
+              {expCats.length === 0 && !loading && (
+                <tr><td colSpan={5} style={{ padding: '6px 28px' }} className="text-xs text-gray-400">No expenses in this period</td></tr>
+              )}
+              {expCats.map(c => (
+                <tr key={c.name}>
+                  <td style={{ padding: '6px 16px 6px 28px' }} className="text-gray-600">{c.name}</td>
+                  <Cell cls="tabular-nums">{formatCurrency(c.amount, cur).replace(cur, '')}</Cell>
+                  <Cell cls="text-gray-400">{pct(c.amount)}</Cell>
+                  <Cell cls="text-gray-300">—</Cell>
+                  <Cell cls="text-gray-300">—</Cell>
+                </tr>
+              ))}
+              <tr className="border-t border-black/[0.05]">
+                <Cell align="left" cls="text-gray-700">Total operating expenses</Cell>
+                <Cell cls="text-rose-600 tabular-nums">({formatCurrency(m.expenses, cur).replace(cur, '')})</Cell>
+                <Cell cls="text-gray-400">{pct(m.expenses)}</Cell>
+                <Cell cls="text-gray-400">({formatCurrency(p.expenses, cur).replace(cur, '')})</Cell>
+                <Cell><Delta cur={m.expenses} prior={p.expenses} expense /></Cell>
+              </tr>
+
+              <tr className="border-t-2 border-black/20 bg-canvas/50">
+                <Cell align="left" cls="font-black text-ink-primary">Net profit</Cell>
+                <Cell cls={`font-black text-[15px] tabular-nums ${m.net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(m.net, cur)}</Cell>
+                <Cell cls="font-bold">{pct(m.net)}</Cell>
+                <Cell cls="text-gray-400">{formatCurrency(p.net, cur)}</Cell>
+                <Cell><Delta cur={m.net} prior={p.net} /></Cell>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div className="px-4 py-2.5 border-t border-black/[0.05] flex items-center justify-between text-[11px]">
+          <span className="font-bold text-gray-400 uppercase tracking-wider">GST Payable (memo)</span>
+          <span className="font-black text-amber-600 tabular-nums">{formatCurrency(m.gst, cur)}</span>
+        </div>
+      </div>
+
+      <p className="text-[10px] text-gray-400 px-1">Prior column = the equal-length period immediately before. Δ green = favourable, amber/red = watch. Ties to the ledger.</p>
     </div>
   );
 };
