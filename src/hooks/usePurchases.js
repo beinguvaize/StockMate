@@ -156,16 +156,18 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     return { error };
   };
 
-  // Recost every stock batch created by a purchase to a new per-unit cost.
-  // The app's purchase edit never touched batches, so a corrected unit price
-  // left FIFO/COGS/margin reading the old (wrong) cost. product_batches.purchase_id
-  // links batches back to their source purchase.
+  // Recost a purchase's batches to a new per-unit cost. Routed through the
+  // recost_purchase_batches RPC so it also retro-corrects the COGS already
+  // booked: the cost snapshots of units already sold (sale_batch_consumption)
+  // and each affected sale's totalCogs are updated, re-posting the ledger.
+  // Without this, fixing a cost left historical profit reports reading the
+  // old (wrong) cost on already-sold units.
   const recostBatches = async (purchaseId, unitCost) => {
-    const { error } = await supabase
-      .from('product_batches')
-      .update({ unit_cost: unitCost })
-      .eq('purchase_id', purchaseId)
-      .eq('tenant_id', tenantId);
+    const { error } = await supabase.rpc('recost_purchase_batches', {
+      p_purchase_id: purchaseId,
+      p_unit_cost:   unitCost,
+      p_tenant_id:   tenantId,
+    });
     return { error };
   };
 
