@@ -259,6 +259,9 @@ const Inventory = () => {
       {viewingProduct && (
         <ItemDetailView
           product={viewingProduct}
+          items={filteredProducts}
+          onSelect={setViewingProduct}
+          onCreate={() => { setViewingProduct(null); openAddModal(); }}
           locations={inventoryLocations || []}
           balances={balances || []}
           tenantId={currentTenantId}
