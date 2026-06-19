@@ -27,6 +27,7 @@ const ItemDetailView = ({
 }) => {
   const [tab, setTab] = useState('DETAILS');
   const [listSearch, setListSearch] = useState('');
+  const detailRef = React.useRef(null);
   const [batches, setBatches] = useState([]);
   const [sales, setSales] = useState([]);
   const [clients, setClients] = useState({});
@@ -35,6 +36,13 @@ const ItemDetailView = ({
   const [loading, setLoading] = useState(true);
 
   const pid = product?.id;
+
+  // Picking a different item should show its details from the top — reset the
+  // detail panel scroll (and tab) on selection change.
+  useEffect(() => {
+    setTab('DETAILS');
+    if (detailRef.current) detailRef.current.scrollTop = 0;
+  }, [pid]);
 
   useEffect(() => {
     if (!pid || !tenantId) return;
@@ -151,7 +159,7 @@ const ItemDetailView = ({
       </aside>
 
       {/* Detail panel */}
-      <div className="flex-1 overflow-y-auto">
+      <div ref={detailRef} className="flex-1 overflow-y-auto">
       <div className="max-w-4xl mx-auto p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
