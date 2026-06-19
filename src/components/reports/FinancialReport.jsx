@@ -1,7 +1,13 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  PieChart, Pie, Cell as PieCell,
+} from 'recharts';
 import { formatCurrency } from '../../lib/utils';
 import { supabase } from '../../lib/supabase';
 import { useTenant } from '../../context/TenantContext';
+
+const EXP_COLORS = ['#534AB7', '#1D9E75', '#D85A30', '#EF9F27', '#D4537E', '#888780', '#378ADD', '#A32D2D'];
 
 // Date-range presets. Indian financial year runs Apr 1 → Mar 31.
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -43,6 +49,7 @@ const FinancialReport = () => {
   const [pl, setPl] = useState(null);
   const [prior, setPrior] = useState(null);
   const [expCats, setExpCats] = useState([]);
+  const [monthly, setMonthly] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const applyPreset = (id) => {
@@ -74,6 +81,29 @@ const FinancialReport = () => {
       });
       setExpCats(Object.entries(map).map(([name, amount]) => ({ name, amount })).sort((a, b) => b.amount - a.amount));
       setLoading(false);
+
+      // Trailing 6 months of margin trend, ending at the selected range's month.
+      const anchor = new Date(range.to);
+      const months = Array.from({ length: 6 }).map((_, i) => {
+        const d = new Date(anchor.getFullYear(), anchor.getMonth() - (5 - i), 1);
+        return {
+          label: d.toLocaleString('default', { month: 'short' }),
+          from: iso(new Date(d.getFullYear(), d.getMonth(), 1)),
+          to: iso(new Date(d.getFullYear(), d.getMonth() + 1, 0)),
+        };
+      });
+      const results = await Promise.all(months.map(mo =>
+        supabase.rpc('get_pl_ranged', { p_tenant_id: currentTenantId, p_from: mo.from, p_to: mo.to })));
+      if (cancelled) return;
+      setMonthly(months.map((mo, i) => {
+        const row = Array.isArray(results[i].data) ? results[i].data[0] : results[i].data;
+        const r = Number(row?.revenue_net || 0);
+        return {
+          label: mo.label,
+          gross: r > 0 ? +(Number(row?.gross_profit || 0) / r * 100).toFixed(1) : 0,
+          net: r > 0 ? +(Number(row?.net_profit || 0) / r * 100).toFixed(1) : 0,
+        };
+      }));
     };
     run();
     return () => { cancelled = true; };
@@ -223,6 +253,58 @@ const FinancialReport = () => {
         <div className="px-4 py-2.5 border-t border-black/[0.05] flex items-center justify-between text-[11px]">
           <span className="font-bold text-gray-400 uppercase tracking-wider">GST Payable (memo)</span>
           <span className="font-black text-amber-600 tabular-nums">{formatCurrency(m.gst, cur)}</span>
+        </div>
+      </div>
+
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="bg-white rounded-2xl border border-black/[0.07] p-4">
+          <div className="text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Margin trend · 6 months</div>
+          <div className="flex gap-4 text-[11px] font-bold text-gray-400 mb-2">
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#1D9E75' }} />Gross %</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#378ADD' }} />Net %</span>
+          </div>
+          <div style={{ width: '100%', height: 220 }}>
+            <ResponsiveContainer>
+              <LineChart data={monthly} margin={{ top: 5, right: 8, bottom: 0, left: -18 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#9a9a9a' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#9a9a9a' }} axisLine={false} tickLine={false} unit="%" />
+                <Tooltip formatter={(v) => `${v}%`} contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid rgba(0,0,0,0.08)' }} />
+                <Line type="monotone" dataKey="gross" stroke="#1D9E75" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="net" stroke="#378ADD" strokeWidth={2} strokeDasharray="5 4" dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-black/[0.07] p-4">
+          <div className="text-[11px] font-black text-gray-500 uppercase tracking-wider mb-2">Expense composition</div>
+          {expCats.length === 0 ? (
+            <div className="h-[220px] flex items-center justify-center text-xs font-semibold text-gray-400">No expenses in this period</div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div style={{ width: 150, height: 200 }}>
+                <ResponsiveContainer>
+                  <PieChart>
+                    <Pie data={expCats} dataKey="amount" nameKey="name" innerRadius={42} outerRadius={70} paddingAngle={1}>
+                      {expCats.map((_, i) => <PieCell key={i} fill={EXP_COLORS[i % EXP_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v) => formatCurrency(v, cur)} contentStyle={{ fontSize: 12, borderRadius: 10, border: '1px solid rgba(0,0,0,0.08)' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="flex-1 min-w-0 space-y-1.5">
+                {expCats.slice(0, 6).map((c, i) => (
+                  <div key={c.name} className="flex items-center gap-2 text-[11px]">
+                    <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: EXP_COLORS[i % EXP_COLORS.length] }} />
+                    <span className="font-semibold text-gray-600 truncate flex-1">{c.name}</span>
+                    <span className="font-bold text-ink-primary tabular-nums">{pct(c.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
