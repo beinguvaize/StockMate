@@ -117,13 +117,12 @@ export const useInventory = (tenantId) => {
   const add = async (product) => {
     const id = product.id || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const { created_at: _ca, updated_at: _ua, ...safeProduct } = product;
-    const { data: newProd, error } = await supabase
-      .from('products')
-      .insert({ ...safeProduct, id, tenant_id: tenantId })
-      .select()
-      .single();
+    const row = { ...safeProduct, id, tenant_id: tenantId };
+    // Plain insert — no .select().single() read-back. The post-insert SELECT
+    // adds an RLS round-trip that can stall; we already refetch the list after.
+    const { error } = await supabase.from('products').insert(row);
     if (!error) fetchInventory().catch(e => console.error('add product refetch error:', e));
-    return { data: newProd, error };
+    return { data: error ? null : row, error };
   };
 
   const update = async (id, updates) => {
