@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
 import useRefetchOnFocus from './useRefetchOnFocus';
@@ -117,7 +117,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
       p_location_id: purchase.locationId || null,
       p_tenant_id: tenantId,
     };
-    const { error: rpcError } = await supabase.rpc('process_purchase', rpcParams);
+    const { error: rpcError } = await restRpc('process_purchase', rpcParams);
 
     if (!rpcError) { await fetchPurchases(); return { success: true }; }
 
@@ -147,11 +147,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
   };
 
   const update = async (id, updates) => {
-    const { error } = await supabase
-      .from('purchases')
-      .update(updates)
-      .eq('id', id)
-      .eq('tenant_id', tenantId);
+    const { error } = await restUpdate('purchases', updates, { id, tenant_id: tenantId });
     if (!error) await fetchPurchases();
     return { error };
   };
@@ -163,7 +159,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
   // Without this, fixing a cost left historical profit reports reading the
   // old (wrong) cost on already-sold units.
   const recostBatches = async (purchaseId, unitCost) => {
-    const { error } = await supabase.rpc('recost_purchase_batches', {
+    const { error } = await restRpc('recost_purchase_batches', {
       p_purchase_id: purchaseId,
       p_unit_cost:   unitCost,
       p_tenant_id:   tenantId,
@@ -172,11 +168,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
   };
 
   const remove = async (id) => {
-    const { error } = await supabase
-      .from('purchases')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('tenant_id', tenantId);
+    const { error } = await restUpdate('purchases', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
     if (!error) await fetchPurchases();
     return { error };
   };
@@ -185,17 +177,13 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
   const updateStatus = async (id, status) => {
     const allowed = ['PENDING', 'ORDERED', 'RECEIVED', 'CANCELLED'];
     if (!allowed.includes(status)) return { error: new Error('Invalid status') };
-    const { error } = await supabase
-      .from('purchases')
-      .update({ status })
-      .eq('id', id)
-      .eq('tenant_id', tenantId);
+    const { error } = await restUpdate('purchases', { status }, { id, tenant_id: tenantId });
     if (!error) await fetchPurchases();
     return { error };
   };
 
   const addReturn = async (ret) => {
-    const { data: rpcData, error: rpcErr } = await supabase.rpc('process_purchase_return', {
+    const { data: rpcData, error: rpcErr } = await restRpc('process_purchase_return', {
       p_id:            ret.id,
       p_tenant_id:     tenantId,
       p_purchase_id:   ret.purchase_id,
@@ -220,7 +208,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     if (!supplierId)                  return { error: new Error('supplierId required') };
     if (!(Number(amount) > 0))        return { error: new Error('amount must be positive') };
     const id = `SUPP-${Date.now().toString(36).toUpperCase()}`;
-    const { error } = await supabase.rpc('settle_supplier_payment', {
+    const { error } = await restRpc('settle_supplier_payment', {
       p_id:           id,
       p_tenant_id:    tenantId,
       p_supplier_id:  supplierId,
@@ -240,7 +228,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     if (!supplierId || !purchaseId)   return { error: new Error('supplierId + purchaseId required') };
     if (!(Number(amount) > 0))        return { error: new Error('amount must be positive') };
     const id = `SUPP-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
-    const { error } = await supabase.rpc('settle_purchase_payment', {
+    const { error } = await restRpc('settle_purchase_payment', {
       p_id: id, p_tenant_id: tenantId, p_supplier_id: supplierId, p_purchase_id: purchaseId,
       p_amount: Number(amount), p_method: method,
       p_date: date || new Date().toISOString().slice(0, 10),

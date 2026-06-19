@@ -129,28 +129,55 @@ const readAccessToken = () => {
   }
 };
 
+const restHeaders = (extra = {}) => ({
+  apikey: key,
+  Authorization: `Bearer ${readAccessToken()}`,
+  'Content-Type': 'application/json',
+  ...extra,
+});
+
+const parseRestError = async (res, fallback) => {
+  let msg = fallback;
+  try { const j = await res.json(); msg = j.message || j.details || j.hint || fallback; } catch (_) {}
+  return new Error(msg);
+};
+
 export const restInsert = async (table, row) => {
   if (!url) return { error: new Error('Supabase not configured') };
   try {
     const res = await timedFetch(`${url}/rest/v1/${table}`, {
-      method: 'POST',
-      headers: {
-        apikey: key,
-        Authorization: `Bearer ${readAccessToken()}`,
-        'Content-Type': 'application/json',
-        Prefer: 'return=minimal',
-      },
-      body: JSON.stringify(row),
+      method: 'POST', headers: restHeaders({ Prefer: 'return=minimal' }), body: JSON.stringify(row),
     });
-    if (!res.ok) {
-      let msg = `Save failed (${res.status})`;
-      try { const j = await res.json(); msg = j.message || j.details || j.hint || msg; } catch (_) {}
-      return { error: new Error(msg) };
-    }
+    if (!res.ok) return { error: await parseRestError(res, `Save failed (${res.status})`) };
     return { error: null };
-  } catch (err) {
-    return { error: err };
-  }
+  } catch (err) { return { error: err }; }
+};
+
+// PATCH with eq filters: restUpdate('products', { stock: 5 }, { id, tenant_id }).
+export const restUpdate = async (table, patch, filters = {}) => {
+  if (!url) return { error: new Error('Supabase not configured') };
+  try {
+    const qs = Object.entries(filters)
+      .map(([k, v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
+    const res = await timedFetch(`${url}/rest/v1/${table}?${qs}`, {
+      method: 'PATCH', headers: restHeaders({ Prefer: 'return=minimal' }), body: JSON.stringify(patch),
+    });
+    if (!res.ok) return { error: await parseRestError(res, `Update failed (${res.status})`) };
+    return { error: null };
+  } catch (err) { return { error: err }; }
+};
+
+// Call a Postgres function (RPC) without going through the supabase-js queue.
+export const restRpc = async (fn, params = {}) => {
+  if (!url) return { error: new Error('Supabase not configured') };
+  try {
+    const res = await timedFetch(`${url}/rest/v1/rpc/${fn}`, {
+      method: 'POST', headers: restHeaders(), body: JSON.stringify(params || {}),
+    });
+    if (!res.ok) return { data: null, error: await parseRestError(res, `${fn} failed (${res.status})`) };
+    let data = null; try { data = await res.json(); } catch (_) {}
+    return { data, error: null };
+  } catch (err) { return { data: null, error: err }; }
 };
 
 // ── Keep realtime alive across token refresh + tab sleep ──────────────────────

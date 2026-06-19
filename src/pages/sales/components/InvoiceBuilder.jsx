@@ -3,7 +3,7 @@ import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Ch
 import Button from '../../../shared/Button';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { useNotifications } from '../../../context/NotificationContext';
-import { supabase } from '../../../lib/supabase';
+import { supabase, restInsert } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 
 // Restaurant modifier picker — choose options for a dish before it hits the cart.
@@ -189,7 +189,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       aadhaar: newCust.type === 'B2C' ? (newCust.aadhaar.replace(/\s/g, '').trim() || null) : null,
       outstanding_balance: 0,
     };
-    const { error } = await supabase.from('clients').insert(row);
+    const { error } = await restInsert('clients', row);
     setSavingCust(false);
     if (error) { addNotification('Could not add customer: ' + error.message, 'error'); return; }
     setAddedClients(prev => [...prev, row]);
@@ -660,7 +660,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             )
           );
           if (serialRows.length) {
-            const { error: snErr } = await supabase.from('serial_numbers').insert(serialRows);
+            const { error: snErr } = await restInsert('serial_numbers', serialRows);
             if (snErr) addNotification('Sale saved, but serials not logged: ' + snErr.message, 'error');
           }
         } catch (snEx) {

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase, restInsert } from '../lib/supabase';
+import { supabase, restInsert, restUpdate, restRpc } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { fetchWithCache, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
 
@@ -129,28 +129,20 @@ export const useInventory = (tenantId) => {
   const update = async (id, updates) => {
     // Strip immutable / server-managed columns so Postgres never rejects the UPDATE
     const { id: _id, tenant_id: _tid, created_at: _ca, updated_at: _ua, ...safeUpdates } = updates;
-    const { error } = await supabase
-      .from('products')
-      .update(safeUpdates)
-      .eq('id', id)
-      .eq('tenant_id', tenantId);
+    const { error } = await restUpdate('products', safeUpdates, { id, tenant_id: tenantId });
     if (!error) fetchInventory().catch(e => console.error('update product refetch error:', e));
     return { error };
   };
 
   const remove = async (id) => {
-    const { error } = await supabase
-      .from('products')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('tenant_id', tenantId);
+    const { error } = await restUpdate('products', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
     if (!error) fetchInventory().catch(e => console.error('remove product refetch error:', e));
     return { error };
   };
 
   const adjustStock = async (productId, delta, reason, locationId) => {
     // Legacy support for AppContext RPC call logic
-    const { error } = await supabase.rpc('adjust_inventory_atomic', {
+    const { error } = await restRpc('adjust_inventory_atomic', {
       p_product_id: productId,
       p_location_id: locationId ?? null,
       p_amount:      delta,

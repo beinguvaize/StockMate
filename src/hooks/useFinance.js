@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, restInsert, restUpdate } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
@@ -109,7 +109,7 @@ export const useFinance = (tenantId) => {
   const addExpense = async (expense) => {
     const id = crypto.randomUUID();
     const row = { id, ...toDbRow(expense), tenant_id: tenantId };
-    const { error } = await supabase.from('expenses').insert(row);
+    const { error } = await restInsert('expenses', row);
     if (!error) { await fetchFinanceData(); return { error: null }; }
     if (isOfflineError(error)) {
       try {
@@ -124,15 +124,13 @@ export const useFinance = (tenantId) => {
 
   const updateExpense = async (expense) => {
     const { id, ...data } = expense;
-    const { error } = await supabase
-      .from('expenses').update(toDbRow(data)).eq('id', id).eq('tenant_id', tenantId);
+    const { error } = await restUpdate('expenses', toDbRow(data), { id, tenant_id: tenantId });
     if (!error) await fetchFinanceData();
     return { error };
   };
 
   const deleteExpense = async (id) => {
-    const { error } = await supabase
-      .from('expenses').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
+    const { error } = await restUpdate('expenses', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
     if (!error) await fetchFinanceData();
     return { error };
   };

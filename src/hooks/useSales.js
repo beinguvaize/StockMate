@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { fetchWithCache, queueMutation, isOfflineError, decrementCachedStock } from '../lib/offline/hookAdapter';
 import { generateRef, todayISOInAppTZ } from '../lib/utils';
@@ -101,7 +101,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       name: i.name,
       rate: i.price ?? i.rate ?? 0,
     }));
-    const { error: rpcError } = await supabase.rpc('process_sale', {
+    const { error: rpcError } = await restRpc('process_sale', {
       p_id: sale.id,
       p_shop_id: sale.clientId === 'WALKIN' ? null : sale.clientId,
       p_items: items,
@@ -119,28 +119,20 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
   };
 
   const update = async (id, updates) => {
-    const { error } = await supabase
-      .from('sales')
-      .update(updates)
-      .eq('id', id)
-      .eq('tenant_id', tenantId);
+    const { error } = await restUpdate('sales', updates, { id, tenant_id: tenantId });
     if (!error) await fetchSales();
     return { error };
   };
 
   const remove = async (id) => {
-    const { error } = await supabase
-      .from('sales')
-      .update({ deleted_at: new Date().toISOString() })
-      .eq('id', id)
-      .eq('tenant_id', tenantId);
+    const { error } = await restUpdate('sales', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
     if (!error) await fetchSales();
     return { error };
   };
 
   const settlePayment = async (saleId, amount) => {
      // ... logic to update paidAmount and status
-     const { error } = await supabase.rpc('settle_sale_payment', {
+     const { error } = await restRpc('settle_sale_payment', {
         p_sale_id: saleId,
         p_amount: amount,
         p_tenant_id: tenantId
@@ -220,7 +212,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         ...(paidAmount !== null ? { p_paid_amount: paidAmount } : {}),
       };
 
-      const { error: rpcError } = await supabase.rpc('process_sale', rpcParams);
+      const { error: rpcError } = await restRpc('process_sale', rpcParams);
 
       if (rpcError) {
         // If this is a network error (offline / timeout), queue the sale to
@@ -245,7 +237,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       // a tiny follow-up UPDATE records the discount amount for reporting/receipts.
       const discountAmt = Number(sale.discount) || 0;
       if (discountAmt > 0) {
-        try { await supabase.from('sales').update({ discount: discountAmt }).eq('id', id); }
+        try { await restUpdate('sales', { discount: discountAmt }, { id }); }
         catch (e) { console.warn('discount persist skipped:', e?.message); }
       }
       await fetchSales();
@@ -253,7 +245,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     },
     dispatchSale: async (saleId) => {
       if (!currentUser?.id) return { error: new Error('Not authenticated') };
-      const { error } = await supabase.rpc('dispatch_sale', {
+      const { error } = await restRpc('dispatch_sale', {
         p_sale_id: saleId,
         p_user_id: currentUser.id,
       });
@@ -282,7 +274,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
                           : sale.status === 'PARTIAL'   ? 'PARTIAL'
                           : (sale.status || 'PAID');
       const paidAmount = typeof sale.paidAmount === 'number' ? sale.paidAmount : null;
-      const { error } = await supabase.rpc('edit_sale', {
+      const { error } = await restRpc('edit_sale', {
         p_id:             id,
         p_items:          items,
         p_total_amount:   sale.totalAmount ?? 0,
@@ -297,7 +289,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       if (error) { console.error('editSale RPC Error:', error); return { error }; }
       // Record discount for reporting/receipts (edit_sale takes the net total).
       const discountAmt = Number(sale.discount) || 0;
-      try { await supabase.from('sales').update({ discount: discountAmt }).eq('id', id).eq('tenant_id', tenantId); }
+      try { await restUpdate('sales', { discount: discountAmt }, { id, tenant_id: tenantId }); }
       catch (e) { console.warn('discount persist skipped:', e?.message); }
       await fetchSales();
       return { success: true, id };
@@ -343,7 +335,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       let invoiceNumber = draft.invoice_number;
       if (!invoiceNumber) {
         try {
-          const { data: issued, error: issueErr } = await supabase.rpc(
+          const { data: issued, error: issueErr } = await restRpc(
             'issue_invoice_number',
             { p_tenant_id: tenantId, p_series: 'INV' }
           );
@@ -388,17 +380,14 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         delivery_fee:      draft.delivery_fee       ?? 0,
         is_interstate:     draft.is_interstate      ?? false,
       };
-      const { data: inserted, error: insErr } = await supabase
-        .from('invoices')
-        .insert([row])
-        .select()
-        .single();
+      const { error: insErr } = await restInsert('invoices', row);
       if (insErr) {
         console.error('createInvoice error:', insErr);
         return { error: insErr };
       }
-      setInvoices(prev => [inserted, ...prev]);
-      return { success: true, data: inserted };
+      // We built the row locally — show it optimistically; fetchSales reconciles.
+      setInvoices(prev => [row, ...prev]);
+      return { success: true, data: row };
     },
     // Manually trigger e-invoice IRN generation for a given invoice.
     // Idempotent — re-running on an invoice with a queued/successful job
@@ -406,7 +395,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     enqueueIrn: async (invoiceId) => {
       if (!invoiceId) return { error: new Error('enqueueIrn: invoiceId required') };
       if (!currentUser?.id) return { error: new Error('enqueueIrn: not authenticated') };
-      const { data, error } = await supabase.rpc('enqueue_irn_request', {
+      const { data, error } = await restRpc('enqueue_irn_request', {
         p_invoice_id: invoiceId,
         p_user_id:    currentUser.id,
       });
@@ -421,7 +410,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     convertSaleToInvoice: async (saleId, opts = {}) => {
       if (!saleId) return { error: new Error('convertSaleToInvoice: saleId required') };
       if (!currentUser?.id) return { error: new Error('convertSaleToInvoice: not authenticated') };
-      const { data, error } = await supabase.rpc('convert_sale_to_invoice', {
+      const { data, error } = await restRpc('convert_sale_to_invoice', {
         p_sale_id:         saleId,
         p_user_id:         currentUser.id,
         p_client_id:       opts.client_id        ?? null,
@@ -440,7 +429,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     },
     processSalesReturn: async (ret) => {
       if (!tenantId) return { error: new Error('processSalesReturn: no tenant') };
-      const { error: rpcErr } = await supabase.rpc('process_sales_return', {
+      const { error: rpcErr } = await restRpc('process_sales_return', {
         p_id:           ret.id,
         p_tenant_id:    tenantId,
         p_sale_id:      ret.sale_id || null,
@@ -461,7 +450,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     // sale be edited again (edit_sale refuses sales that still have a return).
     reverseSalesReturn: async (returnId) => {
       if (!tenantId) return { error: new Error('reverseSalesReturn: no tenant') };
-      const { error } = await supabase.rpc('reverse_sales_return', {
+      const { error } = await restRpc('reverse_sales_return', {
         p_return_id: returnId,
         p_tenant_id: tenantId,
       });
@@ -479,15 +468,11 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         .eq('tenant_id', tenantId)
         .single();
       if (readErr) return { error: readErr };
-      const { error: updErr } = await supabase
-        .from('invoices')
-        .update({
-          status: 'PAID',
-          payment_status: 'PAID',
-          paid_amount: inv?.grand_total ?? 0,
-        })
-        .eq('id', id)
-        .eq('tenant_id', tenantId);
+      const { error: updErr } = await restUpdate('invoices', {
+        status: 'PAID',
+        payment_status: 'PAID',
+        paid_amount: inv?.grand_total ?? 0,
+      }, { id, tenant_id: tenantId });
       if (updErr) return { error: updErr };
       setInvoices(prev => prev.map(i => i.id === id
         ? { ...i, status: 'PAID', payment_status: 'PAID', paid_amount: i.grand_total }
