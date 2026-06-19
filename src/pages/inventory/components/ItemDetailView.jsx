@@ -15,9 +15,9 @@ import { formatCurrency } from '../../../lib/utils';
 const TABS = [
   { id: 'DETAILS', label: 'Item Details', icon: FileText },
   { id: 'STOCK',   label: 'Stock Details', icon: Boxes },
-  { id: 'PARTY',   label: 'Party Wise Report', icon: Users },
+  { id: 'PARTY',   label: 'Client Wise Report', icon: Users },
   { id: 'GODOWN',  label: 'Godown', icon: Warehouse },
-  { id: 'PRICES',  label: 'Party Wise Prices', icon: Tags },
+  { id: 'PRICES',  label: 'Client Wise Prices', icon: Tags },
 ];
 
 const ItemDetailView = ({
@@ -30,6 +30,7 @@ const ItemDetailView = ({
   const [batches, setBatches] = useState([]);
   const [sales, setSales] = useState([]);
   const [clients, setClients] = useState({});
+  const [suppliers, setSuppliers] = useState({});
   const [prices, setPrices] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -40,14 +41,15 @@ const ItemDetailView = ({
     let cancelled = false;
     setLoading(true);
     (async () => {
-      const [b, s, c, pl] = await Promise.all([
-        supabase.from('product_batches').select('id, unit_cost, qty_remaining, qty_received, received_date, expiry_date')
+      const [b, s, c, pl, sup] = await Promise.all([
+        supabase.from('product_batches').select('id, unit_cost, qty_remaining, qty_received, received_date, expiry_date, supplier_id, purchase_id')
           .eq('product_id', pid).eq('tenant_id', tenantId).is('deleted_at', null)
           .order('received_date', { ascending: false }),
         supabase.from('sales').select('"shopId", items, date, "totalAmount"')
           .eq('tenant_id', tenantId).is('deleted_at', null).limit(1000),
         supabase.from('clients').select('id, name').eq('tenant_id', tenantId).is('deleted_at', null),
         supabase.from('price_lists').select('*').eq('product_id', pid).eq('tenant_id', tenantId),
+        supabase.from('suppliers').select('id, name').eq('tenant_id', tenantId).is('deleted_at', null),
       ]);
       if (cancelled) return;
       setBatches(b.data || []);
@@ -55,6 +57,7 @@ const ItemDetailView = ({
       setSales((s.data || []).filter(row =>
         Array.isArray(row.items) && row.items.some(it => (it.id || it.productId) === pid)));
       setClients(Object.fromEntries((c.data || []).map(x => [x.id, x.name])));
+      setSuppliers(Object.fromEntries((sup.data || []).map(x => [x.id, x.name])));
       setPrices(pl.data || []);
       setLoading(false);
     })();
@@ -222,9 +225,9 @@ const ItemDetailView = ({
             </div>
             <Card title="Batches">
               {loading ? <Empty text="Loading…" /> : batches.length === 0 ? <Empty text="No batch records" /> : (
-                <Tbl head={['Received', 'Expiry', 'Received Qty', 'Remaining', 'Unit Cost']}
+                <Tbl head={['Received', 'Supplier', 'Expiry', 'Received Qty', 'Remaining', 'Unit Cost']}
                   rows={batches.map(b => [
-                    b.received_date || '—', b.expiry_date || '—',
+                    b.received_date || '—', suppliers[b.supplier_id] || '—', b.expiry_date || '—',
                     b.qty_received ?? '—', b.qty_remaining ?? 0, formatCurrency(b.unit_cost, currencySymbol),
                   ])} />
               )}
@@ -234,9 +237,9 @@ const ItemDetailView = ({
 
         {/* Party Wise Report */}
         {tab === 'PARTY' && (
-          <Card title="Sales by Party">
+          <Card title="Sales by Client">
             {loading ? <Empty text="Loading…" /> : partyReport.length === 0 ? <Empty text="No sales for this item yet" /> : (
-              <Tbl head={['Party', 'Bills', 'Qty Sold', 'Total Value', 'Last Sale']}
+              <Tbl head={['Client', 'Bills', 'Qty Sold', 'Total Value', 'Last Sale']}
                 rows={partyReport.map(p => [p.party, p.count, p.qty, formatCurrency(p.value, currencySymbol), p.last || '—'])} />
             )}
           </Card>
@@ -254,12 +257,12 @@ const ItemDetailView = ({
 
         {/* Party Wise Prices */}
         {tab === 'PRICES' && (
-          <Card title="Party Wise Prices">
-            <Tbl head={['Party / Tier', 'Sales Price']}
+          <Card title="Client Wise Prices">
+            <Tbl head={['Client / Tier', 'Sales Price']}
               rows={[
                 ['All Parties Price', formatCurrency(sell, currencySymbol)],
                 ...prices.map(p => [
-                  (p.client_id ? (clients[p.client_id] || 'Party') : (p.price_tier || p.tier || 'Tier')) +
+                  (p.client_id ? (clients[p.client_id] || 'Client') : (p.price_tier || p.tier || 'Tier')) +
                     (p.min_qty > 1 ? ` (min ${p.min_qty})` : ''),
                   formatCurrency(p.price, currencySymbol),
                 ]),
