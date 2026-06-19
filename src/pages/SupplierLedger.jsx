@@ -627,8 +627,10 @@ const SupplierLedger = () => {
 
       {/* Pay Supplier Modal */}
       {payOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md bg-white rounded-2xl border border-black/5 shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink-primary/10 backdrop-blur-md"
+          onClick={() => { setPayOpen(false); setPayTarget(null); }}>
+          <div onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-md bg-white rounded-2xl border border-black/[0.06] shadow-[0_24px_70px_-20px_rgba(0,0,0,0.35)] overflow-hidden">
             <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
               <div>
                 <h2 className="text-base font-black text-ink-primary leading-none">
