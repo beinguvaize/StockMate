@@ -53,9 +53,15 @@ const SupplierLedger = () => {
     setPaySubmitting(true); setPayError(null);
     const common = { method: payMethod, date: payDate, referenceNo: payRef, note: payNote };
 
+    // The URL param can be a name/slug for legacy links; the resolved supplier
+    // row is the reliable id source.
+    const sid = supplier?.id || payTarget?.supplier_id || id;
+
     if (payTarget) {
       // Pay this one order.
-      const { error } = await payPurchase({ supplierId: id, purchaseId: payTarget.id, amount: amt, ...common });
+      const pid = payTarget.id;
+      if (!sid || !pid) { setPaySubmitting(false); setPayError('Could not resolve supplier / order. Reopen and retry.'); return; }
+      const { error } = await payPurchase({ supplierId: sid, purchaseId: pid, amount: amt, ...common });
       setPaySubmitting(false);
       if (error) { setPayError(error.message || 'Payment failed'); return; }
       setPayOpen(false);
@@ -65,7 +71,8 @@ const SupplierLedger = () => {
     // General payment: settle_supplier_payment auto-allocates FIFO across the
     // oldest unpaid credit orders (one row per order) and books any leftover as
     // an on-account advance. Single source of allocation logic — no JS loop.
-    const { error } = await paySupplier({ supplierId: id, amount: amt, ...common });
+    if (!sid) { setPaySubmitting(false); setPayError('Could not resolve supplier. Reopen and retry.'); return; }
+    const { error } = await paySupplier({ supplierId: sid, amount: amt, ...common });
     setPaySubmitting(false);
     if (error) { setPayError(error.message || 'Payment failed'); return; }
     setPayOpen(false);
