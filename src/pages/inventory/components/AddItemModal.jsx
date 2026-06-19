@@ -153,7 +153,13 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         track_serial: !!formData.track_serial,
       };
 
-      const result = await onSave(parsedData);
+      // Bound the save so a stalled request can't leave the button stuck on
+      // "Saving…" forever — fail fast with a retry message instead.
+      const withTimeout = (pr, ms) => Promise.race([
+        pr,
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Save timed out — check your connection and try again')), ms)),
+      ]);
+      const result = await withTimeout(onSave(parsedData), 15000);
       if (result?.error) {
         setSaveError(result.error.message || 'Failed to save product');
         return;
