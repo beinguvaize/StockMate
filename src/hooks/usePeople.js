@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restInsert, restUpdate } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 import { normalizeNumericRows } from '../lib/numeric';
 import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
 import { generateUUID } from '../lib/utils';
@@ -25,6 +26,7 @@ const SUPPLIER_NUMERIC = ['balance', 'outstanding_balance'];
 const EMPLOYEE_NUMERIC = ['dailyRate', 'monthlySalary', 'balance'];
 
 export const usePeople = (tenantId) => {
+  const { currentUser } = useAuth();
   const [clients, setClients] = useState([]);
   const [suppliers, setSuppliers] = useState([]);
   const [employees, setEmployees] = useState([]);
@@ -300,6 +302,7 @@ export const usePeople = (tenantId) => {
           date,
           payment_method: paymentMethod,
           notes:          notes || null,
+          recorded_by:    currentUser?.id || null,
         });
         if (payErr) console.warn('Payment audit insert failed:', payErr);
 
