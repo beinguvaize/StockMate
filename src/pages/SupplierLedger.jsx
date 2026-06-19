@@ -274,7 +274,7 @@ const SupplierLedger = () => {
             </div>
             {metrics.payable > 0 && hasPermission('purchases', 'edit') !== false && (
               <button
-                onClick={openPay}
+                onClick={() => openPay()}
                 className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-ink-primary text-white text-[12px] font-bold hover:bg-ink-primary/90 transition-all"
               >
                 <CreditCard size={14} className="text-amber-400" /> Record payment
