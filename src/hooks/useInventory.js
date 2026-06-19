@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, restInsert } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { fetchWithCache, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
 
@@ -118,9 +118,10 @@ export const useInventory = (tenantId) => {
     const id = product.id || `PROD-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
     const { created_at: _ca, updated_at: _ua, ...safeProduct } = product;
     const row = { ...safeProduct, id, tenant_id: tenantId };
-    // Plain insert — no .select().single() read-back. The post-insert SELECT
-    // adds an RLS round-trip that can stall; we already refetch the list after.
-    const { error } = await supabase.from('products').insert(row);
+    // Direct PostgREST insert — bypasses the supabase-js auth queue, which can
+    // deadlock on a stuck token refresh and never fire the write at all
+    // (observed: Save hung, zero network sent). restInsert always hits the wire.
+    const { error } = await restInsert('products', row);
     if (!error) fetchInventory().catch(e => console.error('add product refetch error:', e));
     return { data: error ? null : row, error };
   };

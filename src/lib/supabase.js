@@ -113,6 +113,46 @@ export const probeConnectivity = async (timeoutMs = 4000) => {
   }
 };
 
+// Direct PostgREST write — escape hatch around the supabase-js auth queue.
+// supabase-js serializes every write behind its auth-token getter; if a token
+// refresh gets stuck (long sessions, tab sleep, aborted refresh) that getter
+// can deadlock and the write never even hits the network. This posts straight
+// to PostgREST with the persisted access token, so a write always fires.
+const readAccessToken = () => {
+  try {
+    const raw = window.localStorage.getItem('sm-auth-token');
+    if (!raw) return key;
+    const s = JSON.parse(raw);
+    return s?.access_token || s?.currentSession?.access_token || key;
+  } catch (_) {
+    return key;
+  }
+};
+
+export const restInsert = async (table, row) => {
+  if (!url) return { error: new Error('Supabase not configured') };
+  try {
+    const res = await timedFetch(`${url}/rest/v1/${table}`, {
+      method: 'POST',
+      headers: {
+        apikey: key,
+        Authorization: `Bearer ${readAccessToken()}`,
+        'Content-Type': 'application/json',
+        Prefer: 'return=minimal',
+      },
+      body: JSON.stringify(row),
+    });
+    if (!res.ok) {
+      let msg = `Save failed (${res.status})`;
+      try { const j = await res.json(); msg = j.message || j.details || j.hint || msg; } catch (_) {}
+      return { error: new Error(msg) };
+    }
+    return { error: null };
+  } catch (err) {
+    return { error: err };
+  }
+};
+
 // ── Keep realtime alive across token refresh + tab sleep ──────────────────────
 // Long-open tabs go stale because (a) on the ~hourly TOKEN_REFRESHED the new JWT
 // was never re-applied to the realtime socket (it then 401s on reconnect and
