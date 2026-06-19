@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, restInsert, restUpdate } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
 import { generateUUID } from '../lib/utils';
@@ -87,7 +87,7 @@ export const usePeople = (tenantId) => {
   const addSupplier = async (supplier) => {
     const id = supplier.id || generateUUID();
     const row = { id, ...supplier, tenant_id: tenantId };
-    const { error } = await supabase.from('suppliers').insert(row);
+    const { error } = await restInsert('suppliers', row);
     if (!error) { await fetchPeopleData(); return { success: true, error: null }; }
     if (isOfflineError(error)) {
       try {
@@ -102,13 +102,13 @@ export const usePeople = (tenantId) => {
 
   const updateSupplier = async (supplier) => {
     const { id, ...data } = supplier;
-    const { error } = await supabase.from('suppliers').update(data).eq('id', id).eq('tenant_id', tenantId);
+    const { error } = await restUpdate('suppliers', data, { id, tenant_id: tenantId });
     if (!error) await fetchPeopleData();
     return { success: !error, error };
   };
 
   const deleteSupplier = async (id) => {
-    const { error } = await supabase.from('suppliers').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
+    const { error } = await restUpdate('suppliers', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
     if (!error) await fetchPeopleData();
     return { success: !error, error };
   };
@@ -120,7 +120,7 @@ export const usePeople = (tenantId) => {
   const addClient = async (client) => {
     const id = generateUUID();
     const row = { id, ...toClientRow(client), tenant_id: tenantId };
-    const { error } = await supabase.from('clients').insert(row);
+    const { error } = await restInsert('clients', row);
     if (!error) {
       fetchPeopleData().catch(e => console.error('addClient refetch error:', e));
       return { success: true, error: null };
@@ -139,18 +139,14 @@ export const usePeople = (tenantId) => {
 
   const updateClient = async (client) => {
     const { id, ...data } = client;
-    const { error } = await supabase
-      .from('clients')
-      .update(toClientRow(data))
-      .eq('id', id)
-      .eq('tenant_id', tenantId);
+    const { error } = await restUpdate('clients', toClientRow(data), { id, tenant_id: tenantId });
     if (error) console.error('updateClient error:', error);
     else fetchPeopleData().catch(e => console.error('updateClient refetch error:', e));
     return { success: !error, error };
   };
 
   const deleteClient = async (id) => {
-    const { error } = await supabase.from('clients').update({ deleted_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
+    const { error } = await restUpdate('clients', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
     if (!error) fetchPeopleData().catch(e => console.error('deleteClient refetch error:', e));
     return { success: !error, error };
   };
@@ -275,11 +271,7 @@ export const usePeople = (tenantId) => {
               const allocating = Math.min(remaining, owed);
               const newPaid = alreadyPaid + allocating;
               const newStatus = newPaid >= Number(inv.grand_total) ? 'PAID' : 'PARTIAL';
-              await supabase
-                .from('invoices')
-                .update({ payment_status: newStatus, paid_amount: newPaid })
-                .eq('id', inv.id)
-                .eq('tenant_id', tenantId);
+              await restUpdate('invoices', { payment_status: newStatus, paid_amount: newPaid }, { id: inv.id, tenant_id: tenantId });
               remaining -= allocating;
               if (remaining <= 0) break;
             }
@@ -300,19 +292,15 @@ export const usePeople = (tenantId) => {
         // will read the trigger-computed correct value.
 
         // 2. Insert audit record into client_payments
-        const { data: { user } } = await supabase.auth.getUser();
-        const { error: payErr } = await supabase
-          .from('client_payments')
-          .insert({
-            id:             generateUUID(),
-            tenant_id:      tenantId,
-            client_id:      clientId,
-            amount,
-            date,
-            payment_method: paymentMethod,
-            notes:          notes || null,
-            recorded_by:    user?.id || null,
-          });
+        const { error: payErr } = await restInsert('client_payments', {
+          id:             generateUUID(),
+          tenant_id:      tenantId,
+          client_id:      clientId,
+          amount,
+          date,
+          payment_method: paymentMethod,
+          notes:          notes || null,
+        });
         if (payErr) console.warn('Payment audit insert failed:', payErr);
 
         await fetchPeopleData();
