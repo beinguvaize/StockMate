@@ -24,6 +24,7 @@ import GSTR3BReport from '../components/reports/GSTR3BReport';
 import PurchaseRegisterReport from '../components/reports/PurchaseRegisterReport';
 import ExpiryReport from '../components/reports/ExpiryReport';
 import IMEISerialReport from '../components/reports/IMEISerialReport';
+import DailySalesReport from '../components/reports/DailySalesReport';
 // --- New operational reports ---
 import ClientStatementReport from '../components/reports/ClientStatementReport';
 import BillWiseProfitReport from '../components/reports/BillWiseProfitReport';
@@ -59,6 +60,7 @@ const Reports = () => {
   const TABS = [
     // --- OPERATIONAL GROUP ---
     { id: 'BUSINESS',    group: 'OPERATIONAL', label: 'Business Report',     icon: <TrendingUp size={18} />, component: <BusinessReport />,           permission: 'sales' },
+    { id: 'DAILY_SALES', group: 'OPERATIONAL', label: 'Daily Sales',         icon: <BookMarked size={18} />, component: <DailySalesReport />,         permission: 'sales' },
     { id: 'INVENTORY',   group: 'OPERATIONAL', label: 'Inventory',           icon: <Layers size={18} />,     component: <InventoryReport />,          permission: 'inventory' },
     { id: 'PROFITABILITY', group: 'OPERATIONAL', label: 'Product Margins',   icon: <Tag size={18} />,        component: <ProductProfitabilityReport />, permission: 'inventory' },
     { id: 'LOGISTICS',   group: 'OPERATIONAL', label: 'Deliveries',          icon: <Globe size={18} />,      component: <LogisticsReport />,          permission: 'inventory' },

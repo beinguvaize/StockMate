@@ -833,4 +833,5 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
   );
 };
 
+export { DailySalesDetail };
 export default BusinessReport;
