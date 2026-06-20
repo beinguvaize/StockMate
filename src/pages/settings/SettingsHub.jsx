@@ -715,7 +715,7 @@ const SettingsHub = () => {
             <Settings embedded section={CLASSIC_SECTIONS[active]} key={active} />
           )}
           {active === 'appearance' && (isOwner
-            ? <ThemePicker />
+            ? <EmbedSkin><ThemePicker /></EmbedSkin>
             : <div className="text-sm font-semibold text-gray-400 p-6">Only the owner can change the workspace theme.</div>)}
           {active === 'print'    && <PrintPanel tenantId={currentTenantId} />}
           {active === 'users'    && <EmbedSkin><Users embedded /></EmbedSkin>}
