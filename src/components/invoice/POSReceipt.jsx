@@ -22,9 +22,26 @@ const resolveSettings = (raw) => { raw = raw ?? {}; return ({
   show_upi_invoice:    raw.show_upi_invoice    ?? true,
   show_discount:       raw.show_discount       ?? true,
   show_party_balance:  raw.show_party_balance  ?? true,
+  // Every field is independently toggleable.
+  show_bill_no:        raw.show_bill_no        ?? true,
+  show_date:           raw.show_date           ?? true,
+  show_customer_phone: raw.show_customer_phone ?? true,
+  show_payment_status: raw.show_payment_status ?? true,
+  show_footer:         raw.show_footer         ?? true,
+  show_terms:          raw.show_terms          ?? true,
+  // Thermal paper width: '80' (302px) or '58' (219px). Drives the print @page.
+  paper_width:         raw.paper_width         || '80',
   bill_title:          raw.bill_title          || 'TAX INVOICE',
   footer_message:      raw.footer_message      || 'Thank You for Your Business!',
+  // Editable prefix labels (fall back to defaults when blank).
+  labels:              raw.labels              || {},
 }); };
+
+// Prefix-label resolver — tenant override or the default text.
+const lbl = (labels, key, def) => {
+  const v = labels?.[key];
+  return (typeof v === 'string' && v.trim() !== '') ? v : def;
+};
 
 // tendered: optional transient value (number) — when set + > grand total,
 // receipt renders "Tendered / Change" rows. Lost after print since cash
@@ -33,13 +50,17 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
   const biz = businessProfile || {};
   const cli = client || { name: invoice?.client_name || 'Walk-in' };
   const s   = resolveSettings(biz.bill_settings);
+  const L   = (k, def) => lbl(s.labels, k, def);
+  // Thermal paper geometry — 58mm or 80mm, no distortion.
+  const pwMM = s.paper_width === '58' ? 58 : 80;
+  const pwPx = s.paper_width === '58' ? 219 : 302;
 
   useEffect(() => {
     const style = document.createElement('style');
     style.id = 'pos-receipt-print-css';
     style.textContent = `
       @media print {
-        @page { size: 80mm auto; margin: 0; }
+        @page { size: ${pwMM}mm auto; margin: 0; }
         html, body {
           background: white !important;
           margin: 0 !important; padding: 0 !important;
@@ -54,15 +75,15 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
         }
         #pos-receipt-portal .print-hidden { display: none !important; }
         #pos-receipt-sheet {
-          width: 80mm !important; transform: none !important;
+          width: ${pwMM}mm !important; transform: none !important;
           box-shadow: none !important; margin: 0 auto !important;
-          padding: 4mm !important;
+          padding: ${pwMM === 58 ? '2mm' : '4mm'} !important;
         }
       }
     `;
     document.head.appendChild(style);
     return () => { const el = document.getElementById('pos-receipt-print-css'); if (el) el.remove(); };
-  }, []);
+  }, [pwMM]);
 
   if (!invoice) return null;
 
@@ -116,16 +137,16 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
     <div
       id="pos-receipt-sheet"
       className={bare
-        ? 'bg-white font-mono text-[11px] leading-tight w-[302px] px-3 py-4'
-        : 'bg-white font-mono text-[11px] leading-tight w-[302px] px-3 py-4 shadow-2xl'}
-      style={{ fontFamily: "'Courier New', Courier, monospace" }}
+        ? 'bg-white font-mono text-[11px] leading-tight px-3 py-4'
+        : 'bg-white font-mono text-[11px] leading-tight px-3 py-4 shadow-2xl'}
+      style={{ fontFamily: "'Courier New', Courier, monospace", width: `${pwPx}px` }}
     >
         {/* ── Business Header ─────────────────────────────── */}
         <div className="text-center mb-1">
           {s.show_business_name && <div className="text-[14px] font-black uppercase tracking-wide">{biz.name || 'BUSINESS NAME'}</div>}
           {s.show_address  && biz.address && <div className="text-[10px] mt-0.5 whitespace-pre-wrap">{biz.address}</div>}
-          {s.show_phone    && biz.phone   && <div className="text-[10px]">Ph: {biz.phone}</div>}
-          {s.show_gstin    && biz.gst_no  && <div className="text-[10px]">GSTIN: {biz.gst_no}</div>}
+          {s.show_phone    && biz.phone   && <div className="text-[10px]">{L('phone', 'Ph:')} {biz.phone}</div>}
+          {s.show_gstin    && biz.gst_no  && <div className="text-[10px]">{L('gstin', 'GSTIN:')} {biz.gst_no}</div>}
         </div>
 
         <div className="text-center text-[10px] my-1">{DLINE}</div>
@@ -133,17 +154,19 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
         <div className="text-center text-[10px]">{LINE}</div>
 
         {/* ── Invoice Meta ─────────────────────────────────── */}
-        <div className="text-[10px] flex justify-between">
-          <span>#{invoice.invoice_number || invoice.id?.split('-').pop()}</span>
-          <span>{formatDate(invoice.invoice_date || invoice.date)}</span>
-        </div>
+        {(s.show_bill_no || s.show_date) && (
+          <div className="text-[10px] flex justify-between">
+            <span>{s.show_bill_no ? `#${invoice.invoice_number || invoice.id?.split('-').pop()}` : ''}</span>
+            <span>{s.show_date ? formatDate(invoice.invoice_date || invoice.date) : ''}</span>
+          </div>
+        )}
 
         {/* ── Customer ─────────────────────────────────────── */}
         {s.show_customer_name && cli.name && cli.name !== 'Walk-in' && (
-          <div className="text-[10px] mt-0.5">Bill To: <span className="font-bold">{cli.name}</span></div>
+          <div className="text-[10px] mt-0.5">{L('billTo', 'Bill To:')} <span className="font-bold">{cli.name}</span></div>
         )}
-        {cli.phone && <div className="text-[10px]">Ph: {cli.phone}</div>}
-        {s.show_customer_gstin && cli.gstin && <div className="text-[10px]">GSTIN: {cli.gstin}</div>}
+        {s.show_customer_phone && cli.phone && <div className="text-[10px]">{L('phone', 'Ph:')} {cli.phone}</div>}
+        {s.show_customer_gstin && cli.gstin && <div className="text-[10px]">{L('gstin', 'GSTIN:')} {cli.gstin}</div>}
 
         <div className="text-[10px] my-1">{LINE}</div>
 
@@ -184,7 +207,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
         {/* ── Totals ───────────────────────────────────────── */}
         <div className="text-[10px] space-y-0.5">
           <div className="flex justify-between">
-            <span>Subtotal</span>
+            <span>{L('subtotal', 'Subtotal')}</span>
             <span>{fmt(taxable)}</span>
           </div>
           {s.show_discount && discount > 0 && (
@@ -215,7 +238,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
 
         <div className="text-[10px] my-1">{DLINE}</div>
         <div className="flex justify-between text-[13px] font-black">
-          <span>TOTAL</span>
+          <span>{L('total', 'TOTAL')}</span>
           <span>&#8377;{fmt(grandTotal)}</span>
         </div>
 
@@ -279,14 +302,16 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
         <div className="text-[10px] my-1">{DLINE}</div>
 
         {/* ── Payment status ───────────────────────────────── */}
-        <div className="text-center text-[10px] font-bold uppercase tracking-widest">
-          {isVoid ? '*** VOIDED ***' : isPaid ? '*** PAID ***' : '*** PAYMENT DUE ***'}
-        </div>
+        {s.show_payment_status && (
+          <div className="text-center text-[10px] font-bold uppercase tracking-widest">
+            {isVoid ? '*** VOIDED ***' : isPaid ? '*** PAID ***' : '*** PAYMENT DUE ***'}
+          </div>
+        )}
 
         {/* ── Footer ───────────────────────────────────────── */}
         <div className="text-[10px] my-1">{LINE}</div>
         <div className="text-center text-[10px] space-y-0.5">
-          {s.footer_message && <div className="font-bold">{s.footer_message}</div>}
+          {s.show_footer && s.footer_message && <div className="font-bold">{s.footer_message}</div>}
           {s.show_upi && biz.upi_id && (() => {
             // Only render a "Scan to pay" QR when something is actually
             // owed — paid sales hide the QR entirely (avoids confused
@@ -298,7 +323,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
             const due   = Math.max(0, +(total - paid).toFixed(2));
             if (isVoid || isPaid || due <= 0) {
               // Voided or settled → show UPI ID footer only, never a QR.
-              return <div className="mt-0.5">UPI: {biz.upi_id}</div>;
+              return <div className="mt-0.5">{L('upi', 'UPI:')} {biz.upi_id}</div>;
             }
             const note = `Sale ${invoice?.invoice_number || invoice?.id || ''} (Bal Due)`;
             const upiUri =
@@ -320,7 +345,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
               </>
             );
           })()}
-          {biz.invoice_terms && (
+          {s.show_terms && biz.invoice_terms && (
             <div className="text-[9px] text-gray-500 mt-1 whitespace-pre-wrap">
               {biz.invoice_terms.split('\n').slice(0, 2).join('\n')}
             </div>
