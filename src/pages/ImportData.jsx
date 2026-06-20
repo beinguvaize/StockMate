@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { useTenant } from '../context/TenantContext';
-import { supabase } from '../lib/supabase';
+import { supabase, restInsert } from '../lib/supabase';
 import {
   Upload, Download, CheckCircle2, XCircle, AlertCircle,
   Users, Package, Truck, Loader2, FileSpreadsheet, ChevronRight,
@@ -39,7 +39,7 @@ const PRODUCT_COLS = [
   { key: 'taxRate',      label: 'GST Rate (%)',   required: false, type: 'number', note: '0,5,12,18,28' },
   { key: 'unit',         label: 'Unit',           required: false, type: 'string', note: 'e.g. pcs, kg, box' },
   { key: 'hsn',          label: 'HSN Code',       required: false, type: 'string' },
-  { key: 'mrp',          label: 'MRP',            required: false, type: 'number' },
+  { key: 'barcode',      label: 'Barcode',        required: false, type: 'string' },
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -72,7 +72,7 @@ const buildTemplate = (cols, sheetName) => {
     if (c.key === 'taxRate') return 5;
     if (c.key === 'unit') return 'kg';
     if (c.key === 'hsn') return '1006';
-    if (c.key === 'mrp') return 140;
+    if (c.key === 'barcode') return '8901234567890';
     return '';
   });
   const wb = XLSX.utils.book_new();
@@ -245,7 +245,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
             : 'B2C',
           credit_days: Number(row.credit_days) || 0,
         };
-        const { error } = await supabase.from('clients').insert(payload);
+        const { error } = await restInsert('clients', payload);
         error ? failed++ : inserted++;
       } else if (type === 'suppliers') {
         payload = {
@@ -259,7 +259,7 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           notes: String(row.notes || '').trim() || '',
           created_at: new Date().toISOString(),
         };
-        const { error } = await supabase.from('suppliers').insert(payload);
+        const { error } = await restInsert('suppliers', payload);
         if (error) { console.error('Supplier import error:', error.message, payload); failed++; }
         else inserted++;
       } else {
@@ -274,8 +274,9 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           taxRate: Number(row.taxRate) || 0,
           unit: String(row.unit || '').trim() || null,
           hsn_code: String(row.hsn || '').trim() || null,
+          barcode: String(row.barcode || '').trim() || null,
         };
-        const { error } = await supabase.from('products').insert(payload);
+        const { error } = await restInsert('products', payload);
         if (error) { console.error('Product import error:', error.message, payload); failed++; }
         else inserted++;
       }
