@@ -220,6 +220,7 @@ const PrintPanel = ({ tenantId }) => {
   // Receipt content toggles live in business_profile.bill_settings (shared
   // with the POS receipt) — consolidated here from the old Bill layout tab.
   const BILL_DEFAULTS = {
+    show_business_name: true,
     show_address: true, show_phone: true, show_gstin: true, show_customer_name: true,
     show_customer_gstin: true, show_tax_breakdown: true, show_upi: true, show_discount: true,
     show_party_balance: true,
@@ -373,6 +374,7 @@ const PrintPanel = ({ tenantId }) => {
               <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Receipt content</div>
               <div className="space-y-1.5">
                 {[
+                  ['show_business_name', 'Business name'],
                   ['show_address', 'Business address'],
                   ['show_phone', 'Phone number'],
                   ['show_customer_name', 'Customer name'],

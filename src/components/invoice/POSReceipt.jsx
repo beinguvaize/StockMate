@@ -9,6 +9,7 @@ const DLINE = '================================';
 
 /** Merge tenant bill_settings with safe defaults so all keys are always defined. */
 const resolveSettings = (raw) => { raw = raw ?? {}; return ({
+  show_business_name:  raw.show_business_name  ?? true,
   show_address:        raw.show_address        ?? true,
   show_phone:          raw.show_phone          ?? true,
   show_gstin:          raw.show_gstin          ?? true,
@@ -121,7 +122,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
     >
         {/* ── Business Header ─────────────────────────────── */}
         <div className="text-center mb-1">
-          <div className="text-[14px] font-black uppercase tracking-wide">{biz.name || 'BUSINESS NAME'}</div>
+          {s.show_business_name && <div className="text-[14px] font-black uppercase tracking-wide">{biz.name || 'BUSINESS NAME'}</div>}
           {s.show_address  && biz.address && <div className="text-[10px] mt-0.5 whitespace-pre-wrap">{biz.address}</div>}
           {s.show_phone    && biz.phone   && <div className="text-[10px]">Ph: {biz.phone}</div>}
           {s.show_gstin    && biz.gst_no  && <div className="text-[10px]">GSTIN: {biz.gst_no}</div>}
