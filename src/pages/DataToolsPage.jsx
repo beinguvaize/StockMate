@@ -18,8 +18,8 @@ import ImportData from './ImportData';
 
 const MODULES = [
   { key: 'products', label: 'Products',       fields: ['id','sku','name','category','unit','costPrice','sellingPrice','stock','taxRate','tags','image'] },
-  { key: 'shops',    label: 'Clients / Shops', fields: ['id','name','contact','phone','address'] },
-  { key: 'orders',   label: 'Orders',          fields: ['id','shopId','date','totalAmount','totalCogs','paymentMethod','paymentStatus','status'] },
+  { key: 'shops',    label: 'Clients',         fields: ['id','name','contact','phone','address'] },
+  { key: 'orders',   label: 'Sales',           fields: ['id','shopId','date','totalAmount','totalCogs','paymentMethod','paymentStatus','status'] },
   { key: 'expenses', label: 'Expenses',        fields: ['id','category','amount','note','date'] },
   { key: 'employees',label: 'Employees',       fields: ['id','name','role','status','salary'] },
 ];
@@ -48,7 +48,7 @@ export default function DataToolsPage() {
 
   const TABS = [
     { key: 'export', label: 'Export Data' },
-    ...(isOwner ? [{ key: 'excel', label: 'Bulk Import Excel' }] : []),
+    ...(isOwner ? [{ key: 'excel', label: 'Bulk Import · Upload Excel' }] : []),
   ];
 
   const [activeTab, setActiveTab]           = useState('export');
