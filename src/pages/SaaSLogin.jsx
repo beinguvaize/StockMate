@@ -93,7 +93,7 @@ const SaaSLogin = () => {
         <div className="flex justify-center mb-8">
           <img
             src={`${import.meta.env.BASE_URL}logo-white.png`}
-            alt="mylegder"
+            alt="booklegder"
             className="h-12 w-auto object-contain block"
             onError={(e) => { e.target.style.display='none'; }}
           />
