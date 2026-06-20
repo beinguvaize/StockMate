@@ -89,16 +89,14 @@ const SaaSLogin = () => {
 
       <div className="w-full max-w-md relative z-10">
 
-        {/* Logo — white chip so the designed logo reads on the dark canvas */}
+        {/* Logo — white version reads on the dark canvas */}
         <div className="flex justify-center mb-8">
-          <div className="px-5 py-3 rounded-2xl bg-white shadow-[0_12px_36px_rgba(0,0,0,0.4)]">
-            <img
-              src={`${import.meta.env.BASE_URL}logo.png`}
-              alt="LedgrPro"
-              className="h-10 w-auto object-contain block"
-              onError={(e) => { e.target.style.display='none'; }}
-            />
-          </div>
+          <img
+            src={`${import.meta.env.BASE_URL}logo-white.png`}
+            alt="mylegder"
+            className="h-12 w-auto object-contain block"
+            onError={(e) => { e.target.style.display='none'; }}
+          />
         </div>
 
         <div className="bg-[#1a2320] border border-[#253028] rounded-2xl p-8 shadow-[0_24px_60px_rgba(0,0,0,0.45)]">

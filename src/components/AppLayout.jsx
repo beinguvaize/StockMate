@@ -12,6 +12,10 @@ import GlobalLoading from './GlobalLoading';
 import AvatarPicker from './AvatarPicker';
 import SyncStatus from './SyncStatus';
 
+// Brand logo — dark wordmark on light themes, white logo on the dark theme.
+const isDarkTheme = () => typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
+const brandLogo = () => isDarkTheme() ? '/logo-white.png' : '/logo-clear.png';
+
 const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  const config = {
  label: 'Cloud Live',
@@ -198,7 +202,7 @@ const Navbar = () => {
  {/* Branding */}
  <div className="flex items-center gap-4">
  <div className="flex items-center animate-in fade-in duration-700">
-   <img src="/logo-clear.png" alt="LedgrPro" className="h-8 w-auto max-w-[150px] object-contain shrink-0 block" />
+   <img src={brandLogo()} alt="mylegder" className="h-8 w-auto max-w-[150px] object-contain shrink-0 block" />
  </div>
  {currentTenant && (
    <div className="hidden md:flex items-center gap-2">
@@ -364,7 +368,7 @@ const Navbar = () => {
  {/* Drawer Header */}
  <div className="flex items-center justify-between p-5 border-b border-black/5">
  <div className="flex items-center">
-   <img src="/logo-clear.png" alt="LedgrPro" className="h-7 w-auto max-w-[140px] object-contain shrink-0 block" />
+   <img src={brandLogo()} alt="mylegder" className="h-7 w-auto max-w-[140px] object-contain shrink-0 block" />
  </div>
  <button 
  onClick={() => setIsMobileMenuOpen(false)}
