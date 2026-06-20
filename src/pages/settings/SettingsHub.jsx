@@ -12,6 +12,7 @@ import { PLANS } from '../../lib/tenancy';
 import Settings from '../Settings';
 import Users from '../Users';
 import CashBillPrint from '../sales/components/CashBillPrint';
+import POSReceipt from '../../components/invoice/POSReceipt';
 import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
 import { INVOICE_LAYOUT_META, RECEIPT_META, DEFAULT_DOC_TEXTS, DEFAULT_INV_OPTS, ACCENT_SWATCHES } from '../../components/invoice/invoiceLayouts';
 
@@ -222,8 +223,11 @@ const PrintPanel = ({ tenantId }) => {
   const BILL_DEFAULTS = {
     show_business_name: true,
     show_address: true, show_phone: true, show_gstin: true, show_customer_name: true,
-    show_customer_gstin: true, show_tax_breakdown: true, show_upi: true, show_discount: true,
-    show_party_balance: true,
+    show_customer_phone: true, show_customer_gstin: true, show_bill_no: true, show_date: true,
+    show_tax_breakdown: true, show_upi: true, show_discount: true,
+    show_party_balance: true, show_payment_status: true, show_footer: true, show_terms: true,
+    paper_width: '80',
+    labels: {},
   };
   const [billSet, setBillSet] = useState({ ...BILL_DEFAULTS, ...(businessProfile?.bill_settings || {}) });
   useEffect(() => {
@@ -353,35 +357,59 @@ const PrintPanel = ({ tenantId }) => {
               ))}
             </div>
             <div className="grid lg:grid-cols-[1fr_230px] gap-4">
-            <div className="bg-gray-100 rounded-md p-4 overflow-auto">
-              <CashBillPrint
-                key={`${prefs.paper}-${prefs.receiptTemplate}-${JSON.stringify(prefs.docTexts)}`}
-                previewMode editable
-                paperOverride={prefs.paper === '58' ? '58' : '80'}
-                receiptOverride={prefs.receiptTemplate}
-                textsOverride={texts}
-                onEditText={onEditText}
-                sale={SAMPLE_SALE}
-                business={{
-                  name: businessProfile?.name || 'Your Business',
-                  address: billSet.show_address ? businessProfile?.address : null,
-                  phone: billSet.show_phone ? businessProfile?.phone : null,
-                  upi_id: billSet.show_upi ? businessProfile?.upi_id : null,
+            <div className="bg-gray-100 rounded-md p-4 overflow-auto flex justify-center">
+              {/* Live preview = the real receipt component (POSReceipt) so what
+                  you toggle/label/size here is exactly what prints (web + mobile). */}
+              <POSReceipt
+                key={JSON.stringify(billSet)}
+                bare
+                invoice={{
+                  invoice_number: '001042',
+                  invoice_date: new Date().toISOString(),
+                  payment_status: 'PAID',
+                  grand_total: 405, paid_amount: 405, discount_total: 0, round_off: 0,
+                  items: [
+                    { name: 'Basmati Rice 5kg', quantity: 2, rate: 80, taxRate: 0 },
+                    { name: 'Sunflower Oil 1L', quantity: 1, rate: 245, taxRate: 0 },
+                  ],
                 }}
+                businessProfile={{ ...(businessProfile || {}), bill_settings: billSet }}
+                client={{ name: 'Walk-in' }}
               />
             </div>
             <div>
-              <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Receipt content</div>
+              {/* Paper width — strict thermal sizing, no distortion. */}
+              <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Paper width</div>
+              <div className="flex gap-2 mb-4">
+                {[['80', '80mm'], ['58', '58mm']].map(([v, label]) => (
+                  <button key={v} onClick={() => setBillSet({ ...billSet, paper_width: v })}
+                    className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${
+                      (billSet.paper_width || '80') === v
+                        ? 'bg-gray-900 text-white border-gray-900'
+                        : 'bg-white text-gray-600 border-gray-200 hover:border-gray-400'
+                    }`}>{label}</button>
+                ))}
+              </div>
+
+              <div className="text-[11px] font-semibold text-gray-500 mb-1.5">Receipt content — show / hide</div>
               <div className="space-y-1.5">
                 {[
                   ['show_business_name', 'Business name'],
                   ['show_address', 'Business address'],
-                  ['show_phone', 'Phone number'],
+                  ['show_phone', 'Business phone'],
+                  ['show_gstin', 'Business GSTIN'],
+                  ['show_bill_no', 'Bill number'],
+                  ['show_date', 'Date'],
                   ['show_customer_name', 'Customer name'],
+                  ['show_customer_phone', 'Customer phone'],
+                  ['show_customer_gstin', 'Customer GSTIN'],
                   ['show_tax_breakdown', 'Tax breakdown'],
                   ['show_discount', 'Discount line'],
                   ['show_party_balance', 'Previous balance'],
+                  ['show_payment_status', 'Payment status'],
                   ['show_upi', 'UPI QR / ID'],
+                  ['show_footer', 'Footer message'],
+                  ['show_terms', 'Terms & conditions'],
                 ].map(([k, label]) => (
                   <label key={k} className="flex items-center justify-between text-[12.5px] text-gray-700 cursor-pointer">
                     {label}
@@ -389,7 +417,35 @@ const PrintPanel = ({ tenantId }) => {
                   </label>
                 ))}
               </div>
-              <div className="text-[10.5px] text-gray-400 mt-2">Applies to POS receipts. Saved with this card.</div>
+
+              {/* Editable prefix labels */}
+              <div className="text-[11px] font-semibold text-gray-500 mt-4 mb-1.5">Field labels</div>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  ['bill_title', 'Title', billSet.bill_title || ''],
+                  ['footer_message', 'Footer', billSet.footer_message || ''],
+                  ['_lbl_billTo', 'Customer prefix', billSet.labels?.billTo || ''],
+                  ['_lbl_phone', 'Phone prefix', billSet.labels?.phone || ''],
+                  ['_lbl_gstin', 'GSTIN prefix', billSet.labels?.gstin || ''],
+                  ['_lbl_subtotal', 'Subtotal label', billSet.labels?.subtotal || ''],
+                  ['_lbl_total', 'Total label', billSet.labels?.total || ''],
+                  ['_lbl_upi', 'UPI prefix', billSet.labels?.upi || ''],
+                ].map(([k, ph, val]) => (
+                  <input key={k} value={val} placeholder={ph}
+                    onChange={e => {
+                      const v = e.target.value;
+                      if (k.startsWith('_lbl_')) {
+                        const lk = k.replace('_lbl_', '');
+                        setBillSet({ ...billSet, labels: { ...(billSet.labels || {}), [lk]: v } });
+                      } else {
+                        setBillSet({ ...billSet, [k]: v });
+                      }
+                    }}
+                    className="w-full bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-[12px] outline-none focus:border-gray-400" />
+                ))}
+              </div>
+
+              <div className="text-[10.5px] text-gray-400 mt-3">Applies to POS receipts (web + mobile print). Saved with this card.</div>
             </div>
             </div>
           </>
