@@ -218,8 +218,21 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>SKU</label>
-                <input required type="text" className={inputCls} placeholder="SKU-0001"
-                  value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value})} />
+                <div className="flex gap-2">
+                  <input required type="text" className={`${inputCls} flex-1`} placeholder="SKU-0001"
+                    value={formData.sku} onChange={e => setFormData({ ...formData, sku: e.target.value})} />
+                  <button type="button"
+                    onClick={() => {
+                      // Derive a code from the product name (alphanumerics, up to 4 chars) + random suffix.
+                      const base = (formData.name || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase() || 'SKU';
+                      const sku = `${base}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+                      setFormData({ ...formData, sku });
+                    }}
+                    title="Auto-generate a SKU"
+                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-bold hover:bg-accent-signature/10">
+                    <Wand2 size={13} /> Assign
+                  </button>
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Category</label>
