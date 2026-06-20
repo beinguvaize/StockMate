@@ -6,13 +6,13 @@ export const THEMES = [
   // Accent is the amber brand constant across all themes; themes vary only by
   // canvas / dark background. (Hardcoded amber UI means a non-amber accent
   // would clash, so every theme shares the amber accent.)
-  { key: 'amber',     label: 'Amber',      accent: '#D97706', canvas: '#FFFBF0', dark: false },
-  { key: 'signature', label: 'Classic',    accent: '#D97706', canvas: '#F5F5F0', dark: false },
-  { key: 'white',     label: 'White',      accent: '#D97706', canvas: '#FFFFFF', dark: false },
-  { key: 'ocean',     label: 'Cool',       accent: '#D97706', canvas: '#F0F4FF', dark: false },
-  { key: 'rose',      label: 'Warm',       accent: '#D97706', canvas: '#FFF5F7', dark: false },
-  { key: 'slate',     label: 'Slate',      accent: '#D97706', canvas: '#F1F5F9', dark: false },
-  { key: 'dark',      label: 'Dark',       accent: '#F59E0B', canvas: '#0F0F0F', dark: true  },
+  { key: 'white',     label: 'Porcelain', accent: '#D97706', canvas: '#FFFFFF', dark: false },
+  { key: 'signature', label: 'Linen',     accent: '#D97706', canvas: '#F5F5F0', dark: false },
+  { key: 'amber',     label: 'Sand',      accent: '#D97706', canvas: '#FFFBF0', dark: false },
+  { key: 'slate',     label: 'Graphite',  accent: '#D97706', canvas: '#F1F5F9', dark: false },
+  { key: 'ocean',     label: 'Mist',      accent: '#D97706', canvas: '#F0F4FF', dark: false },
+  { key: 'rose',      label: 'Blush',     accent: '#D97706', canvas: '#FFF5F7', dark: false },
+  { key: 'dark',      label: 'Midnight',  accent: '#F59E0B', canvas: '#0F0F0F', dark: true  },
 ];
 
 const applyTheme = (key) => {
