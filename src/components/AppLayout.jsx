@@ -202,7 +202,7 @@ const Navbar = () => {
  {/* Branding */}
  <div className="flex items-center gap-4">
  <div className="flex items-center animate-in fade-in duration-700">
-   <img src={brandLogo()} alt="booklegder" className="h-8 w-auto max-w-[150px] object-contain shrink-0 block" />
+   <img src={brandLogo()} alt="bookledger" className="h-8 w-auto max-w-[150px] object-contain shrink-0 block" />
  </div>
  {currentTenant && (
    <div className="hidden md:flex items-center gap-2">
@@ -368,7 +368,7 @@ const Navbar = () => {
  {/* Drawer Header */}
  <div className="flex items-center justify-between p-5 border-b border-black/5">
  <div className="flex items-center">
-   <img src={brandLogo()} alt="booklegder" className="h-7 w-auto max-w-[140px] object-contain shrink-0 block" />
+   <img src={brandLogo()} alt="bookledger" className="h-7 w-auto max-w-[140px] object-contain shrink-0 block" />
  </div>
  <button 
  onClick={() => setIsMobileMenuOpen(false)}
