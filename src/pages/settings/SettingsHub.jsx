@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import {
   User, Building, Printer, Users as UsersIcon, CreditCard,
   LifeBuoy, ChevronRight, Check, BellRing, Zap, Tag, Database,
-  FileText, RotateCcw, ShieldCheck,
+  FileText, RotateCcw, ShieldCheck, Palette,
 } from 'lucide-react';
+import ThemePicker from '../../components/ThemePicker';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { supabase, uploadProductImage } from '../../lib/supabase';
@@ -43,6 +44,7 @@ const NAV_GROUPS = [
     { id: 'account',  label: 'Account',     icon: <User size={15} /> },
     { id: 'business', label: 'Business',    icon: <Building size={15} /> },
     { id: 'workspace', label: 'Preferences', icon: <Zap size={15} /> },
+    { id: 'appearance', label: 'Appearance', icon: <Palette size={15} /> },
   ]},
   { caption: 'Catalog', items: [
     { id: 'categories', label: 'Categories', icon: <Tag size={15} /> },
@@ -671,6 +673,7 @@ const SupportPanel = () => (
 // ── Hub ──────────────────────────────────────────────────────────────────────
 const SettingsHub = () => {
   const { currentTenantId } = useTenant();
+  const { isOwner } = useAuth();
   const [active, setActive] = useState('account');
 
   return (
@@ -711,6 +714,9 @@ const SettingsHub = () => {
           {CLASSIC_SECTIONS[active] && (
             <Settings embedded section={CLASSIC_SECTIONS[active]} key={active} />
           )}
+          {active === 'appearance' && (isOwner
+            ? <ThemePicker />
+            : <div className="text-sm font-semibold text-gray-400 p-6">Only the owner can change the workspace theme.</div>)}
           {active === 'print'    && <PrintPanel tenantId={currentTenantId} />}
           {active === 'users'    && <EmbedSkin><Users embedded /></EmbedSkin>}
           {active === 'reminders' && <RemindersPanel tenantId={currentTenantId} />}
