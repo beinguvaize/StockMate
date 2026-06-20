@@ -10,7 +10,7 @@ import { useTenant } from '../context/TenantContext';
 
 const ENTITIES = {
   clients: {
-    title: 'Bulk Add Clients',
+    title: 'Bulk Import Clients',
     cols: [
       { key: 'name', label: 'Client Name*', w: 200, required: true },
       { key: 'phone', label: 'Mobile Number', w: 130 },
@@ -23,7 +23,7 @@ const ENTITIES = {
     ],
   },
   suppliers: {
-    title: 'Bulk Add Suppliers',
+    title: 'Bulk Import Suppliers',
     cols: [
       { key: 'name', label: 'Supplier Name*', w: 200, required: true },
       { key: 'contact_person', label: 'Contact Person', w: 150 },
@@ -34,7 +34,7 @@ const ENTITIES = {
     ],
   },
   products: {
-    title: 'Bulk Add Products',
+    title: 'Bulk Import Products',
     cols: [
       { key: 'name', label: 'Product Name*', w: 220, required: true },
       { key: 'category', label: 'Category', w: 120 },
@@ -197,7 +197,7 @@ const BulkAdd = () => {
           className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-gray-900 text-white text-[13px] font-semibold hover:bg-gray-800 disabled:opacity-40 transition-colors"
         >
           {status === 'saving' ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-          Add {validRows.length || ''} {type}
+          Import {validRows.length || ''} {type}
         </button>
       </header>
 

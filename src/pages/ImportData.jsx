@@ -434,9 +434,9 @@ export default function ImportData({ modal = false }) {
       {/* Header — hide when embedded in modal (modal has its own header) */}
       {!modal && (
         <div>
-          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Import Data</h1>
+          <h1 className="text-2xl font-black text-gray-900 tracking-tight">Bulk Import — Upload Excel</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Bulk upload clients and products via Excel. Data is isolated to your account.
+            Bulk import clients, suppliers and products via Excel. Data is isolated to your account.
           </p>
         </div>
       )}

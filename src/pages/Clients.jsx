@@ -225,6 +225,10 @@ const Clients = () => {
  <div className="flex items-center gap-3">
  <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Clients<span className="text-accent-signature">.</span></h1>
  <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Customer network & accounts</span>
+ <button onClick={() => { window.location.href = '/bulk-add?type=clients'; }}
+   className="inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-white border border-black/[0.08] text-ink-primary text-[11px] font-bold hover:bg-black/[0.03] hover:border-black/15 transition-colors">
+   Bulk Import
+ </button>
  </div>
 
  {/* Tab Navigation */}

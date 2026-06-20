@@ -275,7 +275,7 @@ const Suppliers = () => {
        <button
          className="h-10 px-4 rounded-xl bg-white border border-black/10 text-ink-primary text-[13px] font-bold flex items-center gap-2 hover:bg-black/[0.03] transition-all"
          onClick={() => { window.location.href = '/bulk-add?type=suppliers'; }}>
-         Bulk Add
+         Bulk Import
        </button>
      )}
      {!isViewOnly() && tab === 'SUPPLIERS' && (
