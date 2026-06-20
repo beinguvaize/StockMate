@@ -199,7 +199,7 @@ function AppRoutes() {
         <Route path="sales" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
         <Route path="expenses" element={<ProtectedRoute><Expenses /></ProtectedRoute>} />
         <Route path="settings" element={<ProtectedRoute><SettingsHub /></ProtectedRoute>} />
-        <Route path="settings-classic" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+        {/* /settings-classic retired — the hub embeds Settings sections directly. */}
         <Route path="sync-diagnostics" element={<ProtectedRoute><SyncDiagnostics /></ProtectedRoute>} />
         <Route path="audit-log" element={<ProtectedRoute><AuditLog /></ProtectedRoute>} />
         <Route path="users" element={<ProtectedRoute><Users /></ProtectedRoute>} />
