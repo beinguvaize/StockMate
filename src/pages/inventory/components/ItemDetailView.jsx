@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowLeft, ScanLine, SlidersHorizontal, Pencil, Trash2,
   FileText, Boxes, Users, Warehouse, Tags, Search, Plus,
@@ -124,8 +125,11 @@ const ItemDetailView = ({
       (it.barcode || '').toLowerCase().includes(q);
   });
 
-  return (
-    <div className="fixed inset-0 z-50 bg-canvas flex">
+  // Portal to <body>: AppLayout's <main> animates with a transform, which would
+  // otherwise trap this `fixed inset-0` overlay inside <main> (below the sticky
+  // navbar) and clip it to blank. z-[200] keeps it above the navbar (z-50).
+  return createPortal((
+    <div className="fixed inset-0 z-[200] bg-canvas flex">
       {/* Master list */}
       <aside className="w-72 shrink-0 border-r border-black/[0.07] bg-white flex flex-col">
         <div className="p-3 border-b border-black/[0.05] space-y-2">
@@ -280,7 +284,7 @@ const ItemDetailView = ({
       </div>
       </div>
     </div>
-  );
+  ), document.body);
 };
 
 const Card = ({ title, children }) => (
