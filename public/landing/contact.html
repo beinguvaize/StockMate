@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Contact — bookledger</title>
+<meta name="description" content="Talk to the bookledger team about sales, support, or enterprise plans."/>
+<link rel="icon" href="favicon-256.png"/>
+<link rel="canonical" href="https://bookledger.in/contact.html"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { primary:'#1A1815', secondary:'#6b6660', surface:'#FBFAF7', canvas:'#FFFFFF', line:'#E9E6DF', accent:'#D97706', 'accent-700':'#B45309' },
+    fontFamily: { sans:['Manrope','sans-serif'], mono:['JetBrains Mono','monospace'] },
+  }}}
+</script>
+<style>.mono{font-variant-numeric:tabular-nums}</style>
+</head>
+<body class="bg-canvas text-primary font-sans antialiased">
+
+<nav class="bg-canvas/80 backdrop-blur-md border-b border-line w-full sticky top-0 z-50">
+  <div class="flex justify-between items-center w-full px-6 lg:px-8 py-4 max-w-[1200px] mx-auto">
+    <a href="/" class="flex items-center gap-2"><img src="ledgrpro-mark.png" alt="" class="h-7 w-auto"/><span class="text-xl font-extrabold tracking-tight">book<span class="text-accent">ledger</span></span></a>
+    <div class="hidden md:flex gap-7 items-center">
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="features.html">Features</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="integrations.html">Integrations</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="about.html">About</a>
+    </div>
+    <div class="hidden md:flex gap-3 items-center">
+      <a href="https://app.bookledger.in/login" class="text-sm font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
+      <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-700 transition-colors">Get Started</a>
+    </div>
+    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+  </div>
+</nav>
+
+<main class="max-w-[1100px] mx-auto px-6 lg:px-8 pt-20 lg:pt-28 pb-24 grid lg:grid-cols-2 gap-12">
+  <div>
+    <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Contact</span>
+    <h1 class="mt-4 text-4xl md:text-5xl font-light tracking-tight">Talk to us.</h1>
+    <p class="mt-5 text-secondary font-light leading-relaxed max-w-md">Questions about plans, a demo, or enterprise rollout? We usually reply within a business day.</p>
+    <div class="mt-10 space-y-5">
+      <a href="mailto:hello@bookledger.in" class="flex items-center gap-3 group"><span class="w-10 h-10 rounded-xl bg-surface border border-line flex items-center justify-center"><span class="material-symbols-outlined text-accent" style="font-size:18px">mail</span></span><div><div class="text-sm font-medium">Email</div><div class="text-sm text-secondary group-hover:text-accent transition-colors">hello@bookledger.in</div></div></a>
+      <a href="https://wa.me/919495770736" class="flex items-center gap-3 group"><span class="w-10 h-10 rounded-xl bg-surface border border-line flex items-center justify-center"><span class="material-symbols-outlined text-accent" style="font-size:18px">chat</span></span><div><div class="text-sm font-medium">WhatsApp</div><div class="text-sm text-secondary group-hover:text-accent transition-colors mono">+91 94957 70736</div></div></a>
+      <div class="flex items-center gap-3"><span class="w-10 h-10 rounded-xl bg-surface border border-line flex items-center justify-center"><span class="material-symbols-outlined text-accent" style="font-size:18px">schedule</span></span><div><div class="text-sm font-medium">Hours</div><div class="text-sm text-secondary">Mon–Sat · 9am–7pm IST</div></div></div>
+    </div>
+  </div>
+
+  <div class="rounded-2xl border border-line bg-surface p-7 lg:p-8">
+    <form id="cf" class="space-y-4">
+      <div class="grid grid-cols-2 gap-4">
+        <div><label class="text-[11px] font-bold uppercase tracking-wide text-secondary mb-1.5 block">Name</label><input name="name" required class="w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"/></div>
+        <div><label class="text-[11px] font-bold uppercase tracking-wide text-secondary mb-1.5 block">Phone</label><input name="phone" class="w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm mono outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"/></div>
+      </div>
+      <div><label class="text-[11px] font-bold uppercase tracking-wide text-secondary mb-1.5 block">Email</label><input name="email" type="email" required class="w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"/></div>
+      <div><label class="text-[11px] font-bold uppercase tracking-wide text-secondary mb-1.5 block">How can we help?</label><textarea name="message" rows="5" required class="w-full rounded-xl border border-line bg-canvas px-3.5 py-2.5 text-sm outline-none focus:border-accent focus:ring-2 focus:ring-accent/15 resize-none"></textarea></div>
+      <button type="submit" class="w-full bg-accent text-white text-sm font-semibold px-6 py-3 rounded-xl hover:bg-accent-700 shadow-md shadow-accent/25 transition-colors">Send message →</button>
+      <p id="cnote" class="text-center text-[11px] text-secondary font-light"></p>
+    </form>
+  </div>
+</main>
+
+<footer class="bg-canvas border-t border-line w-full">
+  <div class="flex flex-col md:flex-row justify-between items-center w-full px-6 lg:px-8 py-8 max-w-[1200px] mx-auto gap-4">
+    <div class="flex items-center gap-2"><img src="ledgrpro-mark.png" alt="" class="h-7 w-auto"/><span class="text-xl font-extrabold tracking-tight">book<span class="text-accent">ledger</span></span></div>
+    <div class="flex flex-wrap justify-center gap-5">
+      <a class="text-xs text-secondary hover:text-primary" href="features.html">Features</a>
+      <a class="text-xs text-secondary hover:text-primary" href="pricing.html">Pricing</a>
+      <a class="text-xs text-secondary hover:text-primary" href="privacy.html">Privacy</a>
+      <a class="text-xs text-secondary hover:text-primary" href="terms.html">Terms</a>
+      <a class="text-xs text-secondary hover:text-primary" href="security.html">Security</a>
+    </div>
+    <div class="text-xs text-secondary font-light">© 2026 bookledger. Built for Indian business.</div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+  const SUPABASE_URL  = 'https://lmviftlynuhopzmvaxeu.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdmlmdGx5bnVob3B6bXZheGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMDUxMzEsImV4cCI6MjA4ODg4MTEzMX0.DX0HpM6jEYZrRx8Nl8mZxvTjvvMIY2AneJgnkS-e1xA';
+  const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  const cf = document.getElementById('cf'); const note = document.getElementById('cnote');
+  cf.addEventListener('submit', async function(e){
+    e.preventDefault();
+    const f = new FormData(cf);
+    const btn = cf.querySelector('button[type=submit]');
+    btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Sending…';
+    note.className = 'text-center text-[11px] text-secondary font-light'; note.textContent = '';
+    try {
+      const { error } = await sb.from('contact_messages').insert({
+        name: (f.get('name')||'').trim(), email: (f.get('email')||'').trim(),
+        phone: (f.get('phone')||'').trim(), message: (f.get('message')||'').trim(),
+      });
+      if (error) throw error;
+      cf.reset();
+      note.className = 'text-center text-[12px] font-medium text-green-700';
+      note.textContent = 'Thanks! We’ll reply within a business day.';
+      btn.textContent = 'Message sent ✓';
+    } catch (err) {
+      note.className = 'text-center text-[12px] font-medium text-red-600';
+      note.textContent = 'Could not send — please email hello@bookledger.in';
+      btn.disabled = false; btn.textContent = orig;
+    }
+  });
+</script>
+</body></html>
