@@ -32,7 +32,7 @@ const Maintenance = () => {
  </h1>
  
  <p className="text-gray-700 text-sm font-bold leading-relaxed opacity-70 mb-10 px-4">
- Our engineering team is currently upgrading the {businessProfile?.name || 'StockMate'} platform to improve performance and reliability. 
+ Our engineering team is currently upgrading the {businessProfile?.name || 'bookledger'} platform to improve performance and reliability. 
  <br /><br />
  <span className="text-[10px] font-semibold text-ink-primary">Expected downtime: 30 minutes</span>
  </p>

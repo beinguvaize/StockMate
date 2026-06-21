@@ -11,7 +11,7 @@ import {
 const STEPS = [
   {
     id: 'welcome',
-    title: 'Welcome to StockMate!',
+    title: 'Welcome to bookledger!',
     subtitle: 'Your 60-day free trial has started.',
   },
   {
@@ -173,7 +173,7 @@ const Onboarding = () => {
                 <Zap size={28} className="text-black" />
               </div>
               <h1 className="text-2xl font-black text-ink-primary tracking-tight mb-2">
-                Welcome, {currentTenant?.name || 'to StockMate'}!
+                Welcome, {currentTenant?.name || 'to bookledger'}!
               </h1>
               <p className="text-[12px] text-gray-500 font-medium">
                 Your <span className={`font-black ${planInfo.color}`}>{planInfo.label} plan</span> is active.

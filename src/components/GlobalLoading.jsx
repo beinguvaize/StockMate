@@ -38,7 +38,7 @@ const GlobalLoading = () => {
     <div className="relative inline-block">
       <img
         src={`${import.meta.env.BASE_URL}logo.png`}
-        alt="Ledgr Pro"
+        alt="bookledger"
         className="h-10 md:h-14 w-auto block mx-auto mb-2 opacity-90"
       />
       <div className="absolute -bottom-4 left-0 w-full h-[1.5px] bg-black/5 overflow-hidden rounded-full">

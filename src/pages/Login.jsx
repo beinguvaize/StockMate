@@ -167,7 +167,7 @@ const Login = () => {
   <img 
   className="w-[420px] max-w-[88%] block cursor-pointer transition-transform active:scale-95" 
   src={`${import.meta.env.BASE_URL}logo.png`}
-  alt="Ledgr Pro Logo"
+  alt="bookledger Logo"
   onClick={handleLogoClick}
   />
  <p className="text-[13px] text-[#747576] font-medium">
@@ -374,7 +374,7 @@ const Login = () => {
 
  {/* Mode toggle — stays on this page */}
  <p className="mt-6 text-center text-[12.5px] text-[#747576]">
-   {mode === 'login' ? 'New to LedgrPro?' : 'Already have an account?'}{' '}
+   {mode === 'login' ? 'New to bookledger?' : 'Already have an account?'}{' '}
    <button type="button"
      onClick={() => { setMode(mode === 'login' ? 'signup' : 'login'); setError(''); setInfo(''); }}
      className="text-[#38e0a0] font-bold hover:underline cursor-pointer bg-transparent border-0">

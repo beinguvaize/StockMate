@@ -826,7 +826,7 @@ export const shareGSTWithCA = ({ kind = 'GSTR-1', gstin = '', fp = '', totals = 
     `CGST: ₹${round2(totals.cgst || 0).toLocaleString('en-IN')} · ` +
     `SGST: ₹${round2(totals.sgst || 0).toLocaleString('en-IN')} · ` +
     `IGST: ₹${round2(totals.igst || 0).toLocaleString('en-IN')}\n\n` +
-    `Files exported from LedgrPro — attaching the Excel/JSON next.`
+    `Files exported from bookledger — attaching the Excel/JSON next.`
   );
   window.open(`https://wa.me/?text=${msg}`, '_blank');
 };

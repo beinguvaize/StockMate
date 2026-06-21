@@ -204,7 +204,7 @@ const AccountPanel = () => {
       </Card>
 
       <Card title="Session">
-        <FormRow label="Sign out" hint="Sign out of LedgrPro on this device.">
+        <FormRow label="Sign out" hint="Sign out of bookledger on this device.">
           <button onClick={logout}
             className="px-3.5 py-2 rounded-md border border-red-200 text-red-600 text-[13px] font-semibold hover:bg-red-50 transition-colors">
             Log out
