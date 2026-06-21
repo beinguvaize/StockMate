@@ -912,6 +912,10 @@
 // Bridge: when a link inside the template should jump back into the React
 // SPA (Log In / Start Professional / pricing CTAs), postMessage to parent so the
 // outer Landing.jsx can react-router navigate without reloading.
+// The app lives on its own subdomain; the landing is served from the apex.
+// When embedded (iframe in the React app) we postMessage; when standalone
+// (bookledger.in on CF Pages) we send auth routes to the app host.
+const APP_ORIGIN = 'https://app.bookledger.in';
 document.addEventListener('click', (e) => {
   const a = e.target.closest('a');
   if (!a) return;
@@ -924,7 +928,7 @@ document.addEventListener('click', (e) => {
   if (window.parent !== window) {
     window.parent.postMessage({ type: 'ledgr:navigate', to: href }, '*');
   } else {
-    window.location.href = href;
+    window.location.href = APP_ORIGIN + href;
   }
 });
 // Rewrite the trial / pricing CTAs to head into /register too.
