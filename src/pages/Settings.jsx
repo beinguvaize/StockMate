@@ -1145,7 +1145,7 @@ const Settings = ({ embedded = false, section = null }) => {
  <h3 className="text-xl font-semibold mb-1 pt-12">Cloud Security</h3>
  <div className="text-sm font-semibold text-accent-signature mb-10 opacity-70">Status: Cloud Live</div>
  <p className="text-sm font-medium text-white/50 leading-relaxed mb-12 relative z-10">
- Enterprise governance is active. All transactions are synchronized across the Ledgr Pro cloud infrastructure with real-time replication and encryption.
+ Enterprise governance is active. All transactions are synchronized across the bookledger cloud infrastructure with real-time replication and encryption.
  </p>
  <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden mb-5">
  <div className="w-full h-full bg-accent-signature"></div>

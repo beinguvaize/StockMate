@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Integrations — bookledger</title>
+<meta name="description" content="bookledger works with UPI, WhatsApp, payment gateways, GST portal exports, Tally and more."/>
+<link rel="icon" href="favicon-256.png"/>
+<link rel="canonical" href="https://bookledger.in/integrations.html"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { primary:'#1A1815', secondary:'#6b6660', surface:'#FBFAF7', canvas:'#FFFFFF', line:'#E9E6DF', accent:'#D97706', 'accent-700':'#B45309' },
+    fontFamily: { sans:['Manrope','sans-serif'], mono:['JetBrains Mono','monospace'] },
+  }}}
+</script>
+<style>.mono{font-variant-numeric:tabular-nums}</style>
+</head>
+<body class="bg-canvas text-primary font-sans antialiased">
+
+<nav class="bg-canvas/80 backdrop-blur-md border-b border-line w-full sticky top-0 z-50">
+  <div class="flex justify-between items-center w-full px-6 lg:px-8 py-4 max-w-[1200px] mx-auto">
+    <a href="/" class="flex items-center gap-2"><img src="ledgrpro-mark.png" alt="" class="h-7 w-auto"/><span class="text-xl font-extrabold tracking-tight">book<span class="text-accent">ledger</span></span></a>
+    <div class="hidden md:flex gap-7 items-center">
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="features.html">Features</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
+      <a class="text-sm font-medium text-primary" href="integrations.html">Integrations</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="about.html">About</a>
+    </div>
+    <div class="hidden md:flex gap-3 items-center">
+      <a href="https://app.bookledger.in/login" class="text-sm font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
+      <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-700 transition-colors">Get Started</a>
+    </div>
+    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+  </div>
+</nav>
+
+<main class="w-full">
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 pt-20 lg:pt-28 pb-12 text-center">
+    <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Integrations</span>
+    <h1 class="mt-4 text-4xl md:text-5xl font-light tracking-tight">Plays well with your stack.</h1>
+    <p class="mt-5 max-w-xl mx-auto text-secondary font-light leading-relaxed">Collect on UPI, send on WhatsApp, file to the GST portal and export to Excel or Tally. More connectors arrive every month.</p>
+  </section>
+
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 pb-20">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-line rounded-2xl overflow-hidden border border-line">
+      <div class="bg-canvas p-7"><div class="flex items-center justify-between"><span class="material-symbols-outlined text-accent" style="font-size:24px">qr_code_2</span><span class="text-[9px] font-bold uppercase tracking-widest text-accent bg-accent/10 px-2 py-0.5 rounded-full">Live</span></div><h3 class="mt-4 text-lg font-medium">UPI Collections</h3><p class="mt-2 text-sm text-secondary font-light">Dynamic UPI QR on every invoice &amp; POS receipt — collect in seconds.</p></div>
+      <div class="bg-canvas p-7"><div class="flex items-center justify-between"><span class="material-symbols-outlined text-accent" style="font-size:24px">chat</span><span class="text-[9px] font-bold uppercase tracking-widest text-accent bg-accent/10 px-2 py-0.5 rounded-full">Live</span></div><h3 class="mt-4 text-lg font-medium">WhatsApp Share</h3><p class="mt-2 text-sm text-secondary font-light">Send invoices, receipts and payment reminders straight to WhatsApp.</p></div>
+      <div class="bg-canvas p-7"><div class="flex items-center justify-between"><span class="material-symbols-outlined text-accent" style="font-size:24px">description</span><span class="text-[9px] font-bold uppercase tracking-widest text-accent bg-accent/10 px-2 py-0.5 rounded-full">Live</span></div><h3 class="mt-4 text-lg font-medium">GSTR Export</h3><p class="mt-2 text-sm text-secondary font-light">GSTR-1 &amp; 3B ready exports for the GST portal — Excel / JSON.</p></div>
+      <div class="bg-canvas p-7"><div class="flex items-center justify-between"><span class="material-symbols-outlined text-accent" style="font-size:24px">table_view</span><span class="text-[9px] font-bold uppercase tracking-widest text-accent bg-accent/10 px-2 py-0.5 rounded-full">Live</span></div><h3 class="mt-4 text-lg font-medium">Excel &amp; CSV</h3><p class="mt-2 text-sm text-secondary font-light">Export any report to .xlsx or .csv for your accountant.</p></div>
+      <div class="bg-canvas p-7"><div class="flex items-center justify-between"><span class="material-symbols-outlined text-accent" style="font-size:24px">picture_as_pdf</span><span class="text-[9px] font-bold uppercase tracking-widest text-accent bg-accent/10 px-2 py-0.5 rounded-full">Live</span></div><h3 class="mt-4 text-lg font-medium">PDF Letterhead</h3><p class="mt-2 text-sm text-secondary font-light">Print-perfect statements with your business letterhead.</p></div>
+      <div class="bg-canvas p-7"><div class="flex items-center justify-between"><span class="material-symbols-outlined text-accent" style="font-size:24px">credit_card</span><span class="text-[9px] font-bold uppercase tracking-widest text-secondary bg-line px-2 py-0.5 rounded-full">Soon</span></div><h3 class="mt-4 text-lg font-medium">Payment Gateways</h3><p class="mt-2 text-sm text-secondary font-light">Cards &amp; net-banking via Razorpay / Cashfree.</p></div>
+      <div class="bg-canvas p-7"><div class="flex items-center justify-between"><span class="material-symbols-outlined text-accent" style="font-size:24px">sync_alt</span><span class="text-[9px] font-bold uppercase tracking-widest text-secondary bg-line px-2 py-0.5 rounded-full">Soon</span></div><h3 class="mt-4 text-lg font-medium">Tally Export</h3><p class="mt-2 text-sm text-secondary font-light">Hand vouchers to your CA in Tally-compatible format.</p></div>
+      <div class="bg-canvas p-7"><div class="flex items-center justify-between"><span class="material-symbols-outlined text-accent" style="font-size:24px">api</span><span class="text-[9px] font-bold uppercase tracking-widest text-accent bg-accent/10 px-2 py-0.5 rounded-full">Enterprise</span></div><h3 class="mt-4 text-lg font-medium">REST API</h3><p class="mt-2 text-sm text-secondary font-light">Build on your data — products, sales, stock &amp; reports.</p></div>
+      <div class="bg-canvas p-7"><div class="flex items-center justify-between"><span class="material-symbols-outlined text-accent" style="font-size:24px">label</span><span class="text-[9px] font-bold uppercase tracking-widest text-accent bg-accent/10 px-2 py-0.5 rounded-full">Enterprise</span></div><h3 class="mt-4 text-lg font-medium">White-label</h3><p class="mt-2 text-sm text-secondary font-light">Your brand on the app &amp; documents.</p></div>
+    </div>
+  </section>
+
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 py-16 text-center">
+    <h2 class="text-3xl md:text-4xl font-light tracking-tight">Need a specific integration?</h2>
+    <p class="mt-4 text-secondary font-light">Tell us what you use — we ship connectors fast.</p>
+    <a href="contact.html" class="inline-block mt-7 text-sm font-semibold px-7 py-3.5 rounded-full border border-line hover:bg-surface transition-colors">Request an integration</a>
+  </section>
+</main>
+
+<footer class="bg-canvas border-t border-line w-full">
+  <div class="flex flex-col md:flex-row justify-between items-center w-full px-6 lg:px-8 py-8 max-w-[1200px] mx-auto gap-4">
+    <div class="flex items-center gap-2"><img src="ledgrpro-mark.png" alt="" class="h-7 w-auto"/><span class="text-xl font-extrabold tracking-tight">book<span class="text-accent">ledger</span></span></div>
+    <div class="flex flex-wrap justify-center gap-5">
+      <a class="text-xs text-secondary hover:text-primary" href="features.html">Features</a>
+      <a class="text-xs text-secondary hover:text-primary" href="pricing.html">Pricing</a>
+      <a class="text-xs text-secondary hover:text-primary" href="privacy.html">Privacy</a>
+      <a class="text-xs text-secondary hover:text-primary" href="terms.html">Terms</a>
+      <a class="text-xs text-secondary hover:text-primary" href="contact.html">Contact</a>
+    </div>
+    <div class="text-xs text-secondary font-light">© 2026 bookledger. Built for Indian business.</div>
+  </div>
+</footer>
+</body></html>

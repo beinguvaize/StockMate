@@ -1,944 +1,424 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>bookledger — Unified Shop Operations & High-Performance POS</title>
-  <meta name="description" content="Run your shop end-to-end from one screen. POS, inventory, billing, van sales, reports — works offline, GST-ready. Free for 60 days.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
-  <!-- Analytics -->
-  <script defer data-domain="ledgrpro.com" src="https://plausible.io/js/script.js"></script>
-</head>
-<body>
-
-  <!-- Background Overlays -->
-  <div class="bg-grid-overlay"></div>
-  <div class="glow-blob glow-blob-1"></div>
-  <div class="glow-blob glow-blob-2"></div>
-  <div class="glow-blob glow-blob-3"></div>
-
-  <!-- ========== NAVBAR ========== -->
-  <nav class="navbar" id="navbar">
-    <div class="container">
-      <a href="#" class="navbar-logo">
-        <img src="logo.png" alt="bookledger Logo" class="app-logo">
-      </a>
-      <div class="navbar-links" id="navLinks">
-        <a href="#features">Features</a>
-        <a href="#industries">Industries</a>
-        <a href="#pricing">Pricing</a>
-      </div>
-      <div class="navbar-actions">
-        <a  style="font-size:0.9rem; font-weight:600; margin-right:15px; color:var(--text-muted); transition: var(--transition);" id="loginBtn" href="/login" data-spa="1">Log In</a>
-        <a href="#downloadModal" class="btn btn-primary download-trigger" data-platform="Web" id="trialBtn">Download App</a>
-        <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
-      </div>
-    </div>
-  </nav>
-
-  <!-- ========== HERO (Centered Premium SaaS Layout) ========== -->
-  <section class="hero-centered" id="hero">
-    <div class="container">
-      <div class="hero-content text-center">
-        <div class="hero-badge">
-          <span class="pulse-dot"></span> GST-Ready & Free Mobile App
-        </div>
-        <h1 class="hero-h1">GST Billing & Inventory Software <span class="text-highlight">built for growth.</span></h1>
-        <p class="hero-sub mx-auto">Create compliant GST invoices, track stock instantly, recover outstanding dues, and export reports for tax filing. Runs offline. Free on Mobile.</p>
-        
-        <div class="hero-actions" style="justify-content: center;">
-          <a href="#downloadModal" class="btn btn-primary btn-large download-trigger" data-platform="Windows" style="gap: 8px;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M0 3.449L9.75 2.1v9.45H0V3.449zM0 12.45h9.75v9.45L0 20.551v-8.1zM10.95 1.95L24 0v11.55H10.95V1.95zM10.95 12.45H24v11.55l-13.05-1.95v-9.6z"/></svg>
-            Download for Windows (PC)
-          </a>
-          <a href="#downloadModal" class="btn btn-secondary btn-large download-trigger" data-platform="Android" style="gap: 8px;">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.523 15.3l1.816 3.146a.75.75 0 1 1-1.298.75l-1.84-3.188A10.457 10.457 0 0 1 12 16.5c-1.57 0-3.04-.347-4.364-.97l-1.812 3.137a.75.75 0 1 1-1.3-.75l1.825-3.16A10.423 10.423 0 0 1 1.606 10H22.39a10.42 10.42 0 0 1-4.867 5.3zM11 5c0-.55-.45-1-1-1s-1 .45-1 1 .45 1 1 1s1-.45 1-1zm5 0c0-.55-.45-1-1-1s-1 .45-1 1 .45 1 1 1s1-.45 1-1z"/></svg>
-            Download for Android (Mobile)
-          </a>
-        </div>
-      </div>
-
-      <!-- High-Fidelity Browser Window Mockup -->
-      <div class="browser-container">
-        <div class="browser-header">
-          <div class="browser-buttons">
-            <span class="browser-dot red"></span>
-            <span class="browser-dot yellow"></span>
-            <span class="browser-dot green"></span>
-          </div>
-          <div class="browser-url">app.ledgrpro.app/dashboard</div>
-          <div class="browser-actions-icons">
-            <span>⚡ Real-Time Multi-Device Sync Active</span>
-          </div>
-        </div>
-        <div class="browser-content">
-          <img src="/screens/dashboard.png" alt="bookledger Dashboard Workspace" class="browser-image">
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========== TRUST STRIP ========== -->
-  <section class="trust-strip">
-    <div class="container">
-      <p class="trust-label text-center">Used by paper-cup makers, FMCG distributors, retail shops.</p>
-      <div class="logo-strip-grid">
-        <div class="logo-item">Future Dispo Industries</div>
-        <div class="logo-item">Aisha Mart</div>
-        <div class="logo-item">Sunbook Stores</div>
-        <div class="logo-item">Kerala Paper Mills</div>
-        <div class="logo-item">+ more</div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========== INDUSTRIES SECTION ========== -->
-  <section class="section" id="industries" style="background: var(--bg-alt); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
-    <div class="container">
-      <div class="text-center" style="margin-bottom: 40px;">
-        <span class="section-label">✦ Tailored Solutions</span>
-        <h2 class="section-title">Built for Your Business</h2>
-        <p class="section-subtitle mx-auto">No matter your trade, bookledger provides customized workflows to automate your operations.</p>
-      </div>
-
-      <div class="industry-tabs-container">
-        <div class="tabs-selector">
-          <button class="tab-btn active" data-tab="retail">Retail Shops</button>
-          <button class="tab-btn" data-tab="wholesale">Wholesale & Distributors</button>
-          <button class="tab-btn" data-tab="manufacture">Manufacturers</button>
-          <button class="tab-btn" data-tab="services">Services & Traders</button>
-        </div>
-
-        <div class="tab-content">
-          <!-- Retail -->
-          <div class="tab-pane active" id="retail">
-            <div class="tab-text">
-              <span class="tab-tag">Point of Sale</span>
-              <h3>Fast Billing & Queue-Resilient POS</h3>
-              <p>Keep your checkout counter running smoothly. Scan items instantly, process split payments (Cash/UPI/Card), and print thermal receipts. Works offline without missing a beat.</p>
-              <ul class="tab-features">
-                <li><span class="check">✓</span> Barcode scanning</li>
-                <li><span class="check">✓</span> Split payments</li>
-                <li><span class="check">✓</span> Offline billing cache</li>
-                <li><span class="check">✓</span> Thermal printer support</li>
-              </ul>
-            </div>
-            <div class="tab-visual-container">
-              <img src="/screens/sales.png" alt="Retail POS Screen" class="tab-img">
-            </div>
-          </div>
-
-          <!-- Wholesale -->
-          <div class="tab-pane" id="wholesale">
-            <div class="tab-text">
-              <span class="tab-tag">Credit Ledger</span>
-              <h3>Manage Outstanding Dues & Credits</h3>
-              <p>Reconcile accounts receivable and payable effortlessly. Generate aging reports for your clients, record supplier payments, and send direct WhatsApp reminders to recover credits faster.</p>
-              <ul class="tab-features">
-                <li><span class="check">✓</span> Customer credit ledgers</li>
-                <li><span class="check">✓</span> WhatsApp due alerts</li>
-                <li><span class="check">✓</span> Multi-location stock</li>
-                <li><span class="check">✓</span> CA-friendly GSTR file exports</li>
-              </ul>
-            </div>
-            <div class="tab-visual-container">
-              <img src="/screens/vehicles.png" alt="Wholesale Operations" class="tab-img">
-            </div>
-          </div>
-
-          <!-- Manufacture -->
-          <div class="tab-pane" id="manufacture">
-            <div class="tab-text">
-              <span class="tab-tag">Production Recipe</span>
-              <h3>Bill of Materials & Waste Tracking</h3>
-              <p>Perfect for light manufacturers, paper-cup makers, and assemblers. Construct multi-level ingredient lists (BOM), auto-deduct raw materials upon order completion, and calculate yields.</p>
-              <ul class="tab-features">
-                <li><span class="check">✓</span> Multi-level BOM recipes</li>
-                <li><span class="check">✓</span> Auto stock reconciliations</li>
-                <li><span class="check">✓</span> Production daybooks</li>
-                <li><span class="check">✓</span> Material waste logging</li>
-              </ul>
-            </div>
-            <div class="tab-visual-container">
-              <img src="/screens/inventory.png" alt="Manufacturing recipes" class="tab-img">
-            </div>
-          </div>
-
-          <!-- Services -->
-          <div class="tab-pane" id="services">
-            <div class="tab-text">
-              <span class="tab-tag">Client Quoting</span>
-              <h3>Professional Estimates & Invoices</h3>
-              <p>Convert leads to sales in clicks. Send professional estimates, manage job work cards, track delivery challans, and share digital payment links to collect payments directly.</p>
-              <ul class="tab-features">
-                <li><span class="check">✓</span> Quotations & Estimates</li>
-                <li><span class="check">✓</span> Delivery Challans</li>
-                <li><span class="check">✓</span> Bank Account linkages</li>
-                <li><span class="check">✓</span> Expenses daybook log</li>
-              </ul>
-            </div>
-            <div class="tab-visual-container">
-              <img src="/screens/reports.png" alt="Services and Quotes" class="tab-img">
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========== VALUE PROPS SECTION ========== -->
-  <section class="section" id="features">
-    <div class="container">
-      <div class="text-center" style="margin-bottom: 60px;">
-        <span class="section-label">✦ Core Value</span>
-        <h2 class="section-title">Built for Speed & Scale</h2>
-        <p class="section-subtitle mx-auto">Replaces clunky legacy systems and spreadsheets with a single intelligent screen.</p>
-      </div>
-
-      <div class="pillars-grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 20px;">
-        <!-- Feature 1 -->
-        <div class="pillar-card">
-          <div class="pillar-icon">🧾</div>
-          <h3>GST Invoicing</h3>
-          <p>Create professional, customizable GST tax invoices. Print instantly or share directly via WhatsApp with clients.</p>
-          <ul class="pillar-features">
-            <li><span>✓</span> Dual CGST/SGST logs</li>
-            <li><span>✓</span> Professional templates</li>
-            <li><span>✓</span> Direct WhatsApp PDF</li>
-          </ul>
-        </div>
-
-        <!-- Feature 2 -->
-        <div class="pillar-card">
-          <div class="pillar-icon">📦</div>
-          <h3>Inventory Alerts</h3>
-          <p>Track stock levels in real-time. Scan barcodes, organize items by batch, and get automatic warnings on low-stock.</p>
-          <ul class="pillar-features">
-            <li><span>✓</span> Expiry date warnings</li>
-            <li><span>✓</span> Barcode generator</li>
-            <li><span>✓</span> Batch/FIFO margin tracker</li>
-          </ul>
-        </div>
-
-        <!-- Feature 3 -->
-        <div class="pillar-card">
-          <div class="pillar-icon">🔔</div>
-          <h3>Dues Reminders</h3>
-          <p>Maintain receivables and payables seamlessly. Automate payment dues collections via customized messaging alerts.</p>
-          <ul class="pillar-features">
-            <li><span>✓</span> Client credit aging books</li>
-            <li><span>✓</span> Direct WhatsApp reminders</li>
-            <li><span>✓</span> Auto-reconcile receipts</li>
-          </ul>
-        </div>
-
-        <!-- Feature 4 -->
-        <div class="pillar-card">
-          <div class="pillar-icon">💼</div>
-          <h3>CA-Ready GST Filing</h3>
-          <p>Simplify tax filing. Export automated GSTR-1 and GSTR-3B audit spreadsheets directly from transactions.</p>
-          <ul class="pillar-features">
-            <li><span>✓</span> Auto-computed tax brackets</li>
-            <li><span>✓</span> Government-portal formats</li>
-            <li><span>✓</span> Zero-error GSTR reports</li>
-          </ul>
-        </div>
-
-        <!-- Feature 6 -->
-        <div class="pillar-card">
-          <div class="pillar-icon">🖨️</div>
-          <h3>Hardware Compatibility</h3>
-          <p>Works seamlessly with standard billing hardware. Connect thermal rolls, A4/A5 laser prints, and weight scales.</p>
-          <ul class="pillar-features">
-            <li><span>✓</span> 2-inch & 3-inch thermal prints</li>
-            <li><span>✓</span> Laser/Inkjet formats</li>
-            <li><span>✓</span> Weight scale/Scanner link</li>
-          </ul>
-        </div>
-
-        <!-- Feature 7 -->
-        <div class="pillar-card">
-          <div class="pillar-icon">📊</div>
-          <h3>50+ Business Reports</h3>
-          <p>Acquire a complete overview of your shop. Access automated P&L accounts, balance sheets, and stock books.</p>
-          <ul class="pillar-features">
-            <li><span>✓</span> Real-time P&L reporting</li>
-            <li><span>✓</span> Daily sales daybooks</li>
-            <li><span>✓</span> Expiring stock records</li>
-          </ul>
-        </div>
-
-        
-
-      </div>
-    </div>
-  </section>
-
-  <!-- ========== FEATURE SHOWCASE (ALTERNATING SECTIONS) ========== -->
-  <section class="section" style="background: var(--bg-alt); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
-    <div class="container">
-      <div class="text-center" style="margin-bottom: 80px;">
-        <span class="section-label">⚡ Deep Dive</span>
-        <h2 class="section-title">The Complete Operations Workspace</h2>
-        <p class="section-subtitle mx-auto">Unify your checkout counter, warehousing, fleet delivery, and production lines.</p>
-      </div>
-
-      <!-- Feature 1: POS with Cart & FIFO -->
-      <div class="showcase-row">
-        <div class="showcase-text">
-          <span class="showcase-badge">Counter Billing</span>
-          <h3>Sales POS with cart + FIFO costs</h3>
-          <p>Process transactions instantly using our queue-resilient POS. Features a simple cart interface with real-time stock verification. Integrated FIFO (First-In, First-Out) costing models calculate item margins automatically during checkout, letting you see profit metrics instantly.</p>
-          <ul class="showcase-features-list">
-            <li><span class="check">✓</span> High-speed cart checkout with barcode scanner support</li>
-            <li><span class="check">✓</span> FIFO cost calculation for accurate margin tracking</li>
-            <li><span class="check">✓</span> Split payments (Cash, Card, UPI) on a single invoice</li>
-          </ul>
-        </div>
-        <div class="showcase-image-container">
-          <img src="/screens/sales.png" alt="Sales POS Terminal Mockup" class="showcase-img">
-        </div>
-      </div>
-
-      <!-- Feature 2: Real-time reports -->
-      <div class="showcase-row reverse">
-        <div class="showcase-text">
-          <span class="showcase-badge">Intelligence</span>
-          <h3>Real-time reports & premium charts</h3>
-          <p>Get instant visibility into your shop's performance. Access 28 built-in operational reports detailing daily day books, sales velocity, low-stock thresholds, and aging customer credit. Gorgeous premium charts help you visualize gross margins and spot trends instantly.</p>
-          <ul class="showcase-features-list">
-            <li><span class="check">✓</span> 28 automated operations and tax reports</li>
-            <li><span class="check">✓</span> Interactive charts with filters for custom timeframes</li>
-            <li><span class="check">✓</span> Single-click CSV/Excel export for accountants</li>
-          </ul>
-        </div>
-        <div class="showcase-image-container">
-          <img src="/screens/reports.png" alt="Real-time Financial Reports Mockup" class="showcase-img">
-        </div>
-      </div>
-
-      <!-- Feature 3: Mobile driver app -->
-      <div class="showcase-row">
-        <div class="showcase-text">
-          <span class="showcase-badge">Logistics</span>
-          <h3>Mobile driver app with van sales + maps</h3>
-          <p>Coordinate field sales and deliveries seamlessly. The dedicated driver app allows your team to map delivery routes, reconcile van inventory, and execute spot-sales directly from their Android phones. Keeps tracking progress even when offline on remote routes.</p>
-          <ul class="showcase-features-list">
-            <li><span class="check">✓</span> Offline van invoicing and stock reconciliation</li>
-            <li><span class="check">✓</span> Map integrations for optimized delivery routes</li>
-            <li><span class="check">✓</span> Bluetooth thermal printer support for on-the-spot receipts</li>
-          </ul>
-        </div>
-        <div class="showcase-image-container">
-          <img src="/screens/vehicles.png" alt="Mobile Driver App & Logistics Mockup" class="showcase-img">
-        </div>
-      </div>
-
-      <!-- Feature 4: Manufacturing recipes -->
-      <div class="showcase-row reverse">
-        <div class="showcase-text">
-          <span class="showcase-badge">Production</span>
-          <h3>Manufacturing recipes + production orders</h3>
-          <p>Perfect for light manufacturers, paper-cup makers, and recipe-based assembly lines. Build multi-stage Bill of Materials (BOM) recipes, track work-in-progress inventory across assembly lines, and auto-reconcile raw materials when production orders are finished.</p>
-          <ul class="showcase-features-list">
-            <li><span class="check">✓</span> Multi-level recipes (Bill of Materials)</li>
-            <li><span class="check">✓</span> Automatic raw material stock deduction</li>
-            <li><span class="check">✓</span> Waste tracking and yield analysis reports</li>
-          </ul>
-        </div>
-        <div class="showcase-image-container">
-          <img src="/screens/inventory.png" alt="Manufacturing Recipes and Production Orders Mockup" class="showcase-img">
-        </div>
-      </div>
-
-    </div>
-  </section>
-
-  <!-- ========== PRICING ========== -->
-  <section class="section" id="pricing">
-    <div class="container">
-      <div class="text-center">
-        <span class="section-label">💎 Simple Pricing</span>
-        <h2 class="section-title">Honest Plans. Built for Growth.</h2>
-        
-        <!-- Toggle -->
-        <div class="price-toggle-container" style="display: flex; align-items: center; justify-content: center; gap: 15px;">
-          <span id="monthlyLabel" style="color: var(--text-muted); font-weight: 400;">Monthly</span>
-          <label class="switch">
-            <input type="checkbox" id="billingToggle" checked>
-            <span class="slider round"></span>
-          </label>
-          <span id="yearlyLabel" style="font-weight: 600; color: var(--text);">Annually <span style="background: rgba(16,185,129,0.15); color: var(--accent-light); font-size: 0.75rem; padding: 3px 10px; border-radius: 20px; font-weight: 700; margin-left: 5px; border: 1px solid rgba(16,185,129,0.25);">Save 20%</span></span>
-        </div>
-        
-        <p class="section-subtitle mx-auto" style="margin-top: 20px;">Unlock growth tools instantly. No credit card required to start your trial.</p>
-      </div>
-
-      <div class="pricing-grid">
-        <!-- Trial Tier -->
-        <div class="pricing-card" id="planTrial">
-          <div class="plan-name">Starter</div>
-          <div class="price">₹<span class="price-val" data-monthly="0" data-yearly="0">0</span><span class="price-period">/mo</span></div>
-          <div class="period">Free for 60 days</div>
-          <div class="trial-badge">🎁 Risk-Free Sandbox</div>
-          <ul class="pricing-features">
-            <li><span class="check">✓</span> Dashboard & Inventory</li>
-            <li><span class="check">✓</span> Speed POS Counter</li>
-            <li><span class="check">✓</span> Clients & Day Books</li>
-            <li><span class="check">✓</span> Max 1 User</li>
-            <li><span class="check">✓</span> 100 Recommended invoices/mo</li>
-            <li><span class="check">✓</span> Basic Email Support</li>
-          </ul>
-          <a href="#cta" class="btn btn-secondary" id="trialCta">Start Starter</a>
-        </div>
-
-        <!-- Starter Tier -->
-        <div class="pricing-card popular" id="planStarter">
-          <div class="plan-name">Professional</div>
-          <div class="price">₹<span class="price-val" data-monthly="499" data-yearly="499">499</span><span class="price-period">/mo</span></div>
-          <div class="period">Billed annually</div>
-          <div class="trial-badge">🚀 Top Choice: Wholesalers & GST</div>
-          <ul class="pricing-features">
-            <li><span class="check">✓</span> <strong>All Professional Features +</strong></li>
-            <li><span class="check">✓</span> <strong>GST Calculations & Reports</strong></li>
-            <li><span class="check">✓</span> FIFO cost margin models</li>
-            <li><span class="check">✓</span> Max 5 Users</li>
-            <li><span class="check">✓</span> 1,500 Recommended invoices/mo</li>
-            <li><span class="check">✓</span> Priority Chat Support</li>
-          </ul>
-          <a href="#cta" class="btn btn-primary" id="starterCta">Start Professional</a>
-        </div>
-
-        <!-- Pro Tier -->
-        <div class="pricing-card" id="planPro">
-          <div class="plan-name">Enterprise</div>
-          <div class="price">₹<span class="price-val" data-monthly="1499" data-yearly="1499">1499</span><span class="price-period">/mo</span></div>
-          <div class="period">Billed annually</div>
-          <div class="trial-badge">🏢 Best for Multi-Branch Teams</div>
-          <ul class="pricing-features">
-            <li><span class="check">✓</span> <strong>All Professional Features +</strong></li>
-            <li><span class="check">✓</span> <strong>Van Sales Mobile App</strong></li>
-            <li><span class="check">✓</span> Manufacturing recipes (BOM)</li>
-            <li><span class="check">✓</span> User Permission Grid</li>
-            <li><span class="check">✓</span> Unlimited Users & Invoices</li>
-            <li><span class="check">✓</span> API & Webhook Integrations</li>
-          </ul>
-          <a href="#cta" class="btn btn-secondary" id="proCta">Start Enterprise</a>
-        </div>
-      </div>
-      
-      <!-- Detailed Feature Matrix -->
-      <div class="comparison-container">
-        <div class="comparison-title">
-          <h3>Compare Complete Capabilities</h3>
-          <p>Choose the configuration that aligns perfectly with your operational scale</p>
-        </div>
-        
-        <div class="comparison-table-wrapper">
-          <table class="comparison-table">
-            <thead>
-              <tr>
-                <th class="col-feature">Platform Feature</th>
-                <th>Trial</th>
-                <th class="col-popular">Starter</th>
-                <th>Pro</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr class="category-row"><td colspan="4">Core Billing & POS</td></tr>
-              <tr>
-                <td>Offline POS Billing</td>
-                <td><span class="check-icon">✓</span></td>
-                <td class="col-popular"><span class="check-icon">✓</span></td>
-                <td><span class="check-icon">✓</span></td>
-              </tr>
-              <tr>
-                <td>FIFO Margins on Cart</td>
-                <td><span class="cross-icon">✕</span></td>
-                <td class="col-popular"><span class="check-icon">✓</span></td>
-                <td><span class="check-icon">✓</span></td>
-              </tr>
-              <tr>
-                <td>WhatsApp PDF Invoices</td>
-                <td><span class="check-icon">✓</span></td>
-                <td class="col-popular"><span class="check-icon">✓</span></td>
-                <td><span class="check-icon">✓</span></td>
-              </tr>
-              <tr>
-                <td>Recommended invoices/mo</td>
-                <td>Up to 500</td><td class="col-popular">Up to 5,000</td><td>Unlimited</td>
-              </tr>
-
-              <tr class="category-row"><td colspan="4">Compliance & Reports</td></tr>
-              <tr>
-                <td>Day Book Logs</td>
-                <td><span class="check-icon">✓</span></td>
-                <td class="col-popular"><span class="check-icon">✓</span></td>
-                <td><span class="check-icon">✓</span></td>
-              </tr>
-              <tr>
-                <td>Auto GST Invoices</td>
-                <td><span class="cross-icon">✕</span></td>
-                <td class="col-popular"><span class="check-icon">✓</span></td>
-                <td><span class="check-icon">✓</span></td>
-              </tr>
-              <tr>
-                <td>GSTR-1 & 3B Exports</td>
-                <td><span class="cross-icon">✕</span></td>
-                <td class="col-popular"><span class="check-icon">✓</span></td>
-                <td><span class="check-icon">✓</span></td>
-              </tr>
-              <tr>
-                <td>Operational Reports</td>
-                <td>5 Reports</td>
-                <td class="col-popular">15 Reports</td>
-                <td>28 Reports + Charts</td>
-              </tr>
-
-              <tr class="category-row"><td colspan="4">Advanced logistics & Production</td></tr>
-              <tr>
-                <td>Driver Van Sales App</td>
-                <td><span class="cross-icon">✕</span></td>
-                <td class="col-popular"><span class="cross-icon">✕</span></td>
-                <td><span class="check-icon">✓</span></td>
-              </tr>
-              <tr>
-                <td>BOM Manufacturing Recipes</td>
-                <td><span class="cross-icon">✕</span></td>
-                <td class="col-popular"><span class="cross-icon">✕</span></td>
-                <td><span class="check-icon">✓</span></td>
-              </tr>
-              <tr>
-                <td>User Permission Grid</td>
-                <td><span class="cross-icon">✕</span></td>
-                <td class="col-popular"><span class="cross-icon">✕</span></td>
-                <td><span class="check-icon">✓</span></td>
-              </tr>
-              <tr>
-                <td>Open API Access</td>
-                <td><span class="cross-icon">✕</span></td>
-                <td class="col-popular"><span class="cross-icon">✕</span></td>
-                <td><span class="check-icon">✓</span></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========== TESTIMONIALS ========== -->
-  <section class="section" id="testimonials" style="background: var(--bg-alt); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);">
-    <div class="container">
-      <div class="text-center">
-        <span class="section-label">💬 Success Stories</span>
-        <h2 class="section-title">Loved by High-Performance Teams</h2>
-        <p class="section-subtitle mx-auto">See how merchants are modernizing their daily store calculations using bookledger.</p>
-      </div>
-
-      <div class="testimonials-grid">
-        <div class="testimonial-card">
-          <div class="testimonial-stars">★★★★★</div>
-          <blockquote>"bookledger completely changed how our delivery fleets operate. The offline POS and van sales sync is incredible."</blockquote>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar"><img src="https://i.pravatar.cc/150?img=32" alt="Aarav Mehta"></div>
-            <div class="testimonial-info">
-              <div class="name">Aarav Mehta</div>
-              <div class="role">Owner, Future Dispo Industries</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="testimonial-card">
-          <div class="testimonial-stars">★★★★★</div>
-          <blockquote>"We migrated from Tally in hours. The live FIFO margin tracker and automatic GSTR exports saved us countless hours of manual CA checking."</blockquote>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar"><img src="https://i.pravatar.cc/150?img=11" alt="Priya Nair"></div>
-            <div class="testimonial-info">
-              <div class="name">Priya Nair</div>
-              <div class="role">CFO, Aisha Mart</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="testimonial-card">
-          <div class="testimonial-stars">★★★★★</div>
-          <blockquote>"Excellent offline POS terminal. When our store Wi-Fi goes down, checkouts continue without missing a single beat."</blockquote>
-          <div class="testimonial-author">
-            <div class="testimonial-avatar"><img src="https://i.pravatar.cc/150?img=5" alt="Rohan Joshi"></div>
-            <div class="testimonial-info">
-              <div class="name">Rohan Joshi</div>
-              <div class="role">Founder, Elite Retailers</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========== FAQ SECTION ========== -->
-  <section class="section" id="faq">
-    <div class="container">
-      <div class="text-center" style="margin-bottom: 50px;">
-        <span class="section-label">Got Questions?</span>
-        <h2 class="section-title">Frequently Asked Questions</h2>
-      </div>
-
-      <div style="max-width: 800px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;">
-        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; backdrop-filter: blur(10px);">
-          <h4 style="margin-bottom: 12px; color: var(--text); font-weight: 700; font-size: 1.1rem;">How secure is my business data?</h4>
-          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.7;">All business entries are stored on encrypted-at-rest Postgres (Supabase). Your operational data is backed up daily by our hosting provider.</p>
-        </div>
-
-        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; backdrop-filter: blur(10px);">
-          <h4 style="margin-bottom: 12px; color: var(--text); font-weight: 700; font-size: 1.1rem;">Can I export my reports and invoices?</h4>
-          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.7;">Yes. You can export complete day books, client credit ledgers, stock lists, and all 28 analytical reports into clean Excel or CSV spreadsheets at any time.</p>
-        </div>
-
-        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; backdrop-filter: blur(10px);">
-          <h4 style="margin-bottom: 12px; color: var(--text); font-weight: 700; font-size: 1.1rem;">Is bookledger GST-ready?</h4>
-          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.7;">Absolutely. Set tax percentages at item creation, and bookledger handles CGST, SGST, and IGST tagging on every transaction. Export file spreadsheets align perfectly with active government tax filing setups.</p>
-        </div>
-
-        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; backdrop-filter: blur(10px);">
-          <h4 style="margin-bottom: 12px; color: var(--text); font-weight: 700; font-size: 1.1rem;">Does the POS terminal work offline?</h4>
-          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.7;">Yes. The billing checkout runs directly within local browser caches. You can continue scanning products and issuing receipts without an active internet connection; all transactions sync once connection re-establishes.</p>
-        </div>
-
-        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px; backdrop-filter: blur(10px);">
-          <h4 style="margin-bottom: 12px; color: var(--text); font-weight: 700; font-size: 1.1rem;">What happens after the 60-day free trial?</h4>
-          <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.7;">No credit card is required to try bookledger. After your 60-day free trial, you can choose to subscribe to either the Starter or Pro tier, or cancel anytime with no penalties or lock-ins.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========== CTA SECTION ========== -->
-  <section class="section" id="cta" style="background: var(--bg-alt); border-top: 1px solid var(--border);">
-    <div class="container">
-      <div class="cta-section">
-        <img src="logo.png" alt="bookledger Brand Icon" style="height: 52px; width: auto; margin: 0 auto 24px; display: block; filter: brightness(0) invert(1); opacity: 0.8;">
-        <h2>Ready to Run Your Shop end-to-end?</h2>
-        <p>Join thousands of leading wholesalers and retailers using bookledger. Launch your 60-day free trial today.</p>
-        <div class="hero-actions" style="justify-content: center; margin-top: 32px; position: relative;">
-          <a href="#pricing" class="btn btn-primary btn-large">Start Free Trial →</a>
-          <a href="#contact" class="btn btn-secondary btn-large">Request Custom Demo</a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ========== FOOTER ========== -->
-  <footer class="footer" id="footer">
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <a href="#" style="display: inline-block; margin-bottom: 20px;">
-            <img src="logo.png" alt="bookledger Logo" style="height: 44px; filter: brightness(0) invert(1); opacity: 0.85;">
-          </a>
-          <p>The modern operations and ledger platform built for businesses that want to grow smarter, not harder.</p>
-        </div>
-        <div class="footer-col">
-          <h4>Product</h4>
-          <a href="#features">Features</a>
-          <a href="#pricing">Pricing</a>
-          <a href="./integrations.html">Integrations</a>
-          <a href="./changelog.html">Changelog</a>
-        </div>
-        <div class="footer-col">
-          <h4>Support & Company</h4>
-          <a href="./about.html">About Us</a>
-          <a href="./blog.html">Blog</a>
-          <a href="./careers.html">Careers</a>
-          <a href="./contact.html">Contact Support</a>
-        </div>
-        <div class="footer-col">
-          <h4>Legal</h4>
-          <a href="./privacy.html">Privacy Policy</a>
-          <a href="./terms.html">Terms of Service</a>
-          <a href="./security.html">Security Protocol</a>
-        </div>
-      </div>
-
-      <div class="footer-locations" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; padding: 40px 0; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 30px;">
-        <div class="location">
-          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">India</h4>
-          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">Poyisha Rd<br>North Edappally<br>Ernakulam</p>
-        </div>
-        <div class="location">
-          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">London</h4>
-          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">126 Richmond Road, Ilford<br>London, 1G1 1JU</p>
-        </div>
-        <div class="location">
-          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">Qatar</h4>
-          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">Doha</p>
-        </div>
-        <div class="location">
-          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">Canada</h4>
-          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">5415 Cogswell St Halifax<br>B3J 0K8</p>
-        </div>
-      </div>
-
-      <div class="footer-bottom">
-        <span>© 2026 bookledger. All rights reserved.</span>
-        <span>Built for high-performance commerce</span>
-      </div>
-    </div>
-  </footer>
-
-  <!-- ========== DOWNLOAD LEAD MODAL ========== -->
-  <div class="modal-overlay" id="downloadModal">
-    <div class="modal-card">
-      <span class="modal-close" id="modalCloseBtn">&times;</span>
-      <div id="modalFormContent">
-        <h3>Start Your Download</h3>
-        <p>Enter your details below. We will send the installer and a setup guide straight to your WhatsApp / SMS.</p>
-        <form class="modal-form" id="leadCaptureForm" onsubmit="handleLeadSubmit(event)">
-          <input type="hidden" id="selectedPlatform" name="platform" value="Web">
-          <div class="form-group">
-            <label for="leadName" style="display: block; font-size: 12px; font-weight: 500; margin-bottom: 6px; color: var(--text-muted);">Your Name</label>
-            <input type="text" id="leadName" required placeholder="e.g. Aarav Mehta" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.02); color: var(--text); font-family: inherit; font-size: 13.5px; transition: var(--transition);">
-          </div>
-          <div class="form-group">
-            <label for="leadPhone" style="display: block; font-size: 12px; font-weight: 500; margin-bottom: 6px; color: var(--text-muted);">Phone Number (WhatsApp preferred)</label>
-            <input type="tel" id="leadPhone" required pattern="^[6-9]\d{9}$" placeholder="10-digit mobile number" style="width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.02); color: var(--text); font-family: inherit; font-size: 13.5px; transition: var(--transition);">
-          </div>
-          <div class="form-group">
-            <label for="leadBusiness" style="display: block; font-size: 12px; font-weight: 500; margin-bottom: 6px; color: var(--text-muted);">Business Type</label>
-            <select id="leadBusiness" required style="width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: rgba(255, 255, 255, 0.02); color: var(--text); font-family: inherit; font-size: 13.5px; transition: var(--transition);">
-              <option value="" disabled selected>Select your trade</option>
-              <option value="retail">Retail Shop</option>
-              <option value="wholesale">Wholesaler / Distributor</option>
-              <option value="manufacture">Manufacturer</option>
-              <option value="services">Services / Trader</option>
-            </select>
-          </div>
-          <button type="submit" class="btn btn-primary">Get Download Link →</button>
-        </form>
-      </div>
-      <div class="success-message" id="modalSuccessContent">
-        <div class="success-icon">✓</div>
-        <h4>Link Sent Successfully!</h4>
-        <p>We've sent the setup link for your <strong id="successPlatform">Windows</strong> app via WhatsApp / SMS. Please check your phone to install.</p>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== MOBILE DOWNLOAD STRIP ========== -->
-  <div class="mobile-download-strip">
-    <div class="strip-info">
-      <img src="logo.png" alt="bookledger App Icon" class="strip-logo" style="filter: brightness(0) invert(1);">
-      <div class="strip-text">
-        <span class="strip-title">bookledger Mobile</span>
-        <span class="strip-desc">Free Billing & POS App</span>
-      </div>
-    </div>
-    <a href="#downloadModal" class="strip-btn download-trigger" data-platform="Android">Install Free</a>
-  </div>
-
-  <!-- ========== SCRIPTS ========== -->
-  <script>
-    // Navbar scroll background solidify
-    const navbar = document.getElementById('navbar');
-    window.addEventListener('scroll', () => {
-      navbar.classList.toggle('scrolled', window.scrollY > 50);
-    });
-
-    // Smooth scroll for anchor links
-    document.querySelectorAll('a[href^="#"]').forEach(a => {
-      a.addEventListener('click', e => {
-        const href = a.getAttribute('href');
-        if (href !== "#") {
-          e.preventDefault();
-          const target = document.querySelector(href);
-          if (target) {
-            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }
-        }
-      });
-    });
-
-    // Mobile menu toggle
-    const mobileToggle = document.getElementById('mobileToggle');
-    const navLinks = document.getElementById('navLinks');
-    mobileToggle.addEventListener('click', () => {
-      if (navLinks.classList.contains('mobile-active')) {
-        navLinks.classList.remove('mobile-active');
-      } else {
-        navLinks.classList.add('mobile-active');
-      }
-    });
-
-    // Pricing Billing toggle
-    const billingToggle = document.getElementById('billingToggle');
-    const priceVals = document.querySelectorAll('.price-val');
-    const monthlyLabel = document.getElementById('monthlyLabel');
-    const yearlyLabel = document.getElementById('yearlyLabel');
-
-    if (billingToggle) {
-      billingToggle.addEventListener('change', function() {
-        const isYearly = this.checked;
-        
-        priceVals.forEach(val => {
-          const newVal = isYearly ? val.getAttribute('data-yearly') : val.getAttribute('data-monthly');
-          val.style.opacity = 0;
-          setTimeout(() => {
-            val.innerText = newVal;
-            val.style.opacity = 1;
-          }, 150);
-        });
-
-        const periodLabels = document.querySelectorAll('.period');
-        periodLabels.forEach(label => {
-          if (label.innerText !== "Free for 60 days") {
-            label.innerText = isYearly ? "Billed annually" : "Billed monthly";
-          }
-        });
-
-        if (isYearly) {
-          monthlyLabel.style.color = "var(--text-muted)";
-          monthlyLabel.style.fontWeight = "400";
-          yearlyLabel.style.color = "var(--text)";
-          yearlyLabel.style.fontWeight = "600";
-        } else {
-          monthlyLabel.style.color = "var(--text)";
-          monthlyLabel.style.fontWeight = "600";
-          yearlyLabel.style.color = "var(--text-muted)";
-          yearlyLabel.style.fontWeight = "400";
-        }
-      });
-      priceVals.forEach(v => v.style.transition = "opacity 0.15s ease");
-    }
-
-    // Scroll Fade-in Intersection Observer
-    const observerOptions = { threshold: 0.1, rootMargin: '0px 0px -50px 0px' };
-    const fadeObserver = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('fade-in-visible');
-          fadeObserver.unobserve(entry.target);
-        }
-      });
-    }, observerOptions);
-
-    document.querySelectorAll('.pillar-card, .showcase-row, .pricing-card, .testimonial-card').forEach(el => {
-      el.classList.add('fade-in-init');
-      fadeObserver.observe(el);
-    });
-
-    // Industry Tab Switching Logic
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const tabPanes = document.querySelectorAll('.tab-pane');
-
-    tabBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        // Remove active class from all buttons and panes
-        tabBtns.forEach(b => b.classList.remove('active'));
-        tabPanes.forEach(p => p.classList.remove('active'));
-
-        // Add active class to clicked button and matching pane
-        btn.classList.add('active');
-        const targetTab = btn.getAttribute('data-tab');
-        const activePane = document.getElementById(targetTab);
-        if (activePane) {
-          activePane.classList.add('active');
-        }
-      });
-    });
-
-    // Lead Modal triggers
-    const downloadModal = document.getElementById('downloadModal');
-    const modalCloseBtn = document.getElementById('modalCloseBtn');
-    const selectedPlatformInput = document.getElementById('selectedPlatform');
-    const leadFormContent = document.getElementById('modalFormContent');
-    const leadSuccessContent = document.getElementById('modalSuccessContent');
-    const successPlatformSpan = document.getElementById('successPlatform');
-    const leadCaptureForm = document.getElementById('leadCaptureForm');
-
-    function setupModalTriggers() {
-      document.querySelectorAll('.download-trigger').forEach(trigger => {
-        // Remove old listeners if any by cloning or just checking to avoid duplicates
-        const newTrigger = trigger.cloneNode(true);
-        trigger.parentNode.replaceChild(newTrigger, trigger);
-        
-        newTrigger.addEventListener('click', (e) => {
-          e.preventDefault();
-          const platform = newTrigger.getAttribute('data-platform') || 'Web';
-          selectedPlatformInput.value = platform;
-          
-          // Reset form and views
-          leadCaptureForm.reset();
-          leadFormContent.style.display = 'block';
-          leadSuccessContent.style.display = 'none';
-
-          // Open modal
-          downloadModal.classList.add('active');
-        });
-      });
-    }
-    setupModalTriggers();
-
-    modalCloseBtn.addEventListener('click', () => {
-      downloadModal.classList.remove('active');
-    });
-
-    // Close modal when clicking outside card
-    downloadModal.addEventListener('click', (e) => {
-      if (e.target === downloadModal) {
-        downloadModal.classList.remove('active');
-      }
-    });
-
-    // Handle form submit
-    function handleLeadSubmit(e) {
-      e.preventDefault();
-      const platform = selectedPlatformInput.value;
-      successPlatformSpan.textContent = platform;
-
-      // Hide form, show success message
-      leadFormContent.style.display = 'none';
-      leadSuccessContent.style.display = 'block';
-
-      // Auto close modal after 4 seconds
-      setTimeout(() => {
-        downloadModal.classList.remove('active');
-      }, 4000);
-    }
-  </script>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>bookledger — GST Billing &amp; Inventory Software for Indian Businesses</title>
+<meta name="description" content="Create GST invoices, track stock, recover dues, and export GSTR reports. Works offline. Free mobile app. Try free for 30 days — no credit card required."/>
+<meta property="og:type" content="website"/>
+<meta property="og:url" content="https://bookledger.in/"/>
+<meta property="og:title" content="bookledger — GST Billing &amp; Inventory Software for Indian Businesses"/>
+<meta property="og:description" content="Create GST invoices, track stock, recover dues, and export GSTR reports. Works offline. Free mobile app. Try free for 30 days."/>
+<meta property="og:image" content="https://bookledger.in/og.webp"/>
+<meta name="twitter:card" content="summary_large_image"/>
+<meta name="twitter:title" content="bookledger — GST Billing &amp; Inventory Software"/>
+<meta name="twitter:description" content="GST invoices, POS, inventory, van sales — one platform for Indian retailers &amp; distributors."/>
+<meta name="twitter:image" content="https://bookledger.in/og.webp"/>
+<link rel="icon" href="favicon-256.png"/>
+<link rel="canonical" href="https://bookledger.in/"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
 <script>
-// Bridge: when a link inside the template should jump back into the React
-// SPA (Log In / Start Professional / pricing CTAs), postMessage to parent so the
-// outer Landing.jsx can react-router navigate without reloading.
-// The app lives on its own subdomain; the landing is served from the apex.
-// When embedded (iframe in the React app) we postMessage; when standalone
-// (bookledger.in on CF Pages) we send auth routes to the app host.
-const APP_ORIGIN = 'https://app.bookledger.in';
-document.addEventListener('click', (e) => {
-  const a = e.target.closest('a');
-  if (!a) return;
-  const href = a.getAttribute('href') || '';
-  const isSpa = a.dataset.spa === '1' ||
-    href === '/login' || href === '/register' ||
-    href.startsWith('/login?') || href.startsWith('/register?');
-  if (!isSpa) return;
-  e.preventDefault();
-  if (window.parent !== window) {
-    window.parent.postMessage({ type: 'ledgr:navigate', to: href }, '*');
-  } else {
-    window.location.href = APP_ORIGIN + href;
-  }
-});
-// Rewrite the trial / pricing CTAs to head into /register too.
-['trialBtn','trialCta','starterCta','proCta'].forEach((id) => {
-  const el = document.getElementById(id);
-  if (!el) return;
-  el.setAttribute('href', '/register');
-  el.dataset.spa = '1';
-});
+  tailwind.config = { theme: { extend: {
+    colors: {
+      primary: '#1A1815', secondary: '#6b6660', surface: '#FBFAF7',
+      canvas: '#FFFFFF', line: '#E9E6DF', accent: '#D97706', 'accent-700': '#B45309',
+    },
+    fontFamily: { sans: ['Manrope','sans-serif'], mono: ['JetBrains Mono','monospace'] },
+  }}}
 </script>
-</body>
+<style>
+  .parallax{background-attachment:fixed;background-position:center;background-size:cover;background-repeat:no-repeat}
+  @keyframes scroll{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
+  .logo-track{display:flex;width:max-content;animation:scroll 32s linear infinite}
+  .mono{font-variant-numeric:tabular-nums}
+  .reveal{display:grid;grid-template-rows:0fr;transition:grid-template-rows .3s ease}
+  .group:hover .reveal{grid-template-rows:1fr}
+</style>
+</head>
+<body class="bg-canvas text-primary font-sans antialiased">
 
-</html>
+<!-- Nav -->
+<nav class="bg-canvas/80 backdrop-blur-md border-b border-line w-full sticky top-0 z-50">
+  <div class="flex justify-between items-center w-full px-6 lg:px-8 py-4 max-w-[1200px] mx-auto">
+    <a href="/" class="flex items-center gap-2.5">
+      <img src="ledgrpro-mark.png" alt="" class="h-7 w-auto"/><span class="text-xl font-extrabold tracking-tight">book<span class="text-accent">ledger</span></span>
+    </a>
+    <div class="hidden md:flex gap-7 items-center">
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="features.html">Features</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="integrations.html">Integrations</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="about.html">About</a>
+    </div>
+    <div class="hidden md:flex gap-3 items-center">
+      <a href="https://app.bookledger.in/login" class="text-sm font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
+      <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-700 transition-colors">Get Started</a>
+    </div>
+    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+  </div>
+</nav>
+
+<main class="w-full">
+
+  <!-- Title -->
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 pt-24 lg:pt-32 pb-12">
+    <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">GST Billing · Inventory · POS · Offline</span>
+    <h1 class="mt-5 text-4xl md:text-6xl font-light text-primary max-w-4xl leading-[1.05] tracking-tight">
+      Run your shop on one<br/>quiet, fast, offline ledger.
+    </h1>
+    <p class="mt-6 max-w-2xl text-base text-secondary leading-relaxed font-light">
+      Create GST invoices, track stock in real time, recover dues, and file GSTR — on web, desktop and a free mobile app. Works offline, syncs when you're back.
+    </p>
+    <div class="mt-8 flex flex-wrap items-center gap-3">
+      <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-6 py-3 rounded-full hover:bg-accent-700 transition-colors shadow-lg shadow-accent/20">Try free for 30 days</a>
+      <a href="features.html" class="text-sm font-semibold text-primary px-6 py-3 rounded-full border border-line hover:bg-surface transition-colors">See features</a>
+      <span class="text-xs text-secondary font-light">No credit card required</span>
+    </div>
+  </section>
+
+  <!-- Hero product mockup (real UI, not stock art) -->
+  <section class="px-6 lg:px-8 pb-24">
+    <div class="max-w-[1080px] mx-auto rounded-[20px] bg-canvas border border-line shadow-2xl overflow-hidden">
+      <!-- window chrome -->
+      <div class="flex items-center gap-2 px-4 py-3 border-b border-line bg-surface">
+        <span class="w-3 h-3 rounded-full bg-line"></span><span class="w-3 h-3 rounded-full bg-line"></span><span class="w-3 h-3 rounded-full bg-line"></span>
+        <div class="ml-3 flex items-center gap-2 text-[11px] mono text-secondary"><img src="ledgrpro-logo.png" alt="" class="h-4 w-auto"/> · Dashboard</div>
+        <span class="ml-auto text-[10px] mono px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold">● Synced</span>
+      </div>
+      <div class="p-5 lg:p-7 bg-surface">
+        <!-- KPI strip -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-px bg-line rounded-xl overflow-hidden border border-line mb-5">
+          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Today Sales</div><div class="mono text-xl font-bold mt-1.5"><span class="text-accent/60 text-sm">₹</span>84,200</div><div class="text-[10px] font-bold text-emerald-600 mt-1">▲ 12%</div></div>
+          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Stock Value</div><div class="mono text-xl font-bold mt-1.5"><span class="text-accent/60 text-sm">₹</span>1,21,326</div><div class="text-[10px] font-bold text-secondary mt-1">21 SKUs</div></div>
+          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Outstanding</div><div class="mono text-xl font-bold mt-1.5 text-accent"><span class="text-accent/60 text-sm">₹</span>22,150</div><div class="text-[10px] font-bold text-secondary mt-1">5 clients</div></div>
+          <div class="bg-canvas px-4 py-3.5"><div class="text-[10px] uppercase tracking-widest text-secondary font-bold">Today Expenses</div><div class="mono text-xl font-bold mt-1.5"><span class="text-accent/60 text-sm">₹</span>10,740</div><div class="text-[10px] font-bold text-rose-500 mt-1">▼ 4%</div></div>
+        </div>
+        <div class="grid lg:grid-cols-[1.4fr_1fr] gap-5">
+          <!-- chart card -->
+          <div class="rounded-xl bg-canvas border border-line p-5">
+            <div class="flex items-center justify-between mb-4"><span class="text-sm font-semibold">Sales this week</span><span class="mono text-[11px] text-secondary">// 7d</span></div>
+            <div class="flex items-end gap-2.5 h-32">
+              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:46%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Mon</span></div>
+              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:68%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Tue</span></div>
+              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:54%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Wed</span></div>
+              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:82%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Thu</span></div>
+              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:72%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Fri</span></div>
+              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:96%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Sat</span></div>
+              <div class="flex-1 h-full flex flex-col items-center justify-end gap-1.5"><div class="w-full rounded-t-md" style="height:60%;background:linear-gradient(to top,#D97706,#D9770688)"></div><span class="text-[9px] text-secondary font-bold">Sun</span></div>
+            </div>
+          </div>
+          <!-- recent invoices -->
+          <div class="rounded-xl bg-canvas border border-line overflow-hidden">
+            <div class="px-4 py-3 border-b border-line"><span class="mono text-[11px] font-bold text-accent">$ invoices --recent</span></div>
+            <div class="divide-y divide-line text-sm">
+              <div class="flex items-center justify-between px-4 py-2.5"><div><div class="font-semibold">Aisha Store</div><div class="mono text-[10px] text-secondary">INV/2026/0231</div></div><div class="text-right"><div class="mono font-bold"><span class="text-accent/60">₹</span>12,400</div><span class="text-[9px] font-bold text-emerald-600 uppercase">Paid</span></div></div>
+              <div class="flex items-center justify-between px-4 py-2.5"><div><div class="font-semibold">Banu Transport</div><div class="mono text-[10px] text-secondary">INV/2026/0230</div></div><div class="text-right"><div class="mono font-bold"><span class="text-accent/60">₹</span>33,200</div><span class="text-[9px] font-bold text-amber-700 uppercase">Pending</span></div></div>
+              <div class="flex items-center justify-between px-4 py-2.5"><div><div class="font-semibold">Walk-in</div><div class="mono text-[10px] text-secondary">INV/2026/0229</div></div><div class="text-right"><div class="mono font-bold"><span class="text-accent/60">₹</span>880</div><span class="text-[9px] font-bold text-emerald-600 uppercase">Paid</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust roll -->
+  <section class="w-full overflow-hidden py-8 mb-12 border-y border-line bg-surface">
+    <div class="logo-track opacity-60">
+      <div class="flex items-center gap-20 pr-20 text-secondary">
+        <span class="text-sm font-bold tracking-wide">GST READY</span>
+        <span class="text-sm font-light tracking-[0.2em]">OFFLINE POS</span>
+        <span class="text-sm font-medium">FIFO INVENTORY</span>
+        <span class="text-sm font-semibold uppercase">VAN SALES</span>
+        <span class="text-sm tracking-wide">FREE MOBILE APP</span>
+        <span class="text-sm font-bold">GSTR EXPORT</span>
+      </div>
+      <div class="flex items-center gap-20 pr-20 text-secondary">
+        <span class="text-sm font-bold tracking-wide">GST READY</span>
+        <span class="text-sm font-light tracking-[0.2em]">OFFLINE POS</span>
+        <span class="text-sm font-medium">FIFO INVENTORY</span>
+        <span class="text-sm font-semibold uppercase">VAN SALES</span>
+        <span class="text-sm tracking-wide">FREE MOBILE APP</span>
+        <span class="text-sm font-bold">GSTR EXPORT</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Split feature section -->
+  <section class="w-full bg-surface border-y border-line">
+    <div class="flex flex-col lg:flex-row w-full min-h-[640px] max-w-[1200px] mx-auto">
+
+      <!-- Left: app card mock -->
+      <div class="w-full lg:w-3/5 relative flex items-center justify-center overflow-hidden group p-6 lg:p-10">
+        <img src="app-screenshot.webp" alt="bookledger app" class="absolute inset-0 w-full h-full object-cover opacity-10 transition-transform duration-1000 group-hover:scale-105"/>
+        <div class="absolute inset-0 bg-gradient-to-r from-surface/90 to-transparent"></div>
+        <div class="relative z-10 w-full max-w-xl bg-canvas/95 backdrop-blur-xl border border-line rounded-2xl overflow-hidden shadow-2xl transition-transform duration-500 group-hover:-translate-y-1">
+          <div class="px-5 py-4 border-b border-line flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+              <span class="w-2.5 h-2.5 rounded-full bg-accent"></span>
+              <h4 class="text-sm font-semibold tracking-wide">New Invoice</h4>
+            </div>
+            <span class="mono text-[11px] text-secondary">INV/2026/0231</span>
+          </div>
+          <div class="p-6 space-y-5">
+            <div class="grid grid-cols-2 gap-5">
+              <div><label class="text-[10px] font-semibold text-secondary mb-1.5 block tracking-wider uppercase">Client</label><div class="bg-surface rounded-lg px-3 h-10 flex items-center text-sm border border-line">Aisha Store</div></div>
+              <div><label class="text-[10px] font-semibold text-secondary mb-1.5 block tracking-wider uppercase">GSTIN</label><div class="bg-surface rounded-lg px-3 h-10 flex items-center text-sm mono border border-line">33QKYP…1Z7</div></div>
+            </div>
+            <div class="rounded-lg border border-line divide-y divide-line">
+              <div class="flex items-center justify-between px-3 py-2.5 text-sm"><span>Paper Cup 250ml ×40</span><span class="mono font-semibold">₹4,800</span></div>
+              <div class="flex items-center justify-between px-3 py-2.5 text-sm"><span>Food Container ×20</span><span class="mono font-semibold">₹1,300</span></div>
+            </div>
+            <div class="flex items-center justify-between pt-1">
+              <span class="text-[11px] font-bold uppercase tracking-widest text-secondary">Total · incl GST</span>
+              <span class="mono text-2xl font-bold"><span class="text-accent/50 text-lg mr-0.5">₹</span>6,100</span>
+            </div>
+            <div class="flex justify-end gap-3 items-center pt-1">
+              <button class="text-sm font-semibold text-secondary hover:text-primary">Save draft</button>
+              <button class="bg-accent text-white text-sm px-5 py-2.5 rounded-full font-bold hover:bg-accent-700 transition-colors">Create &amp; print</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: reveal list -->
+      <div class="w-full lg:w-2/5 bg-canvas border-l border-line p-6 lg:p-10 flex flex-col">
+        <div class="flex items-center gap-3 mb-5">
+          <span class="material-symbols-outlined text-accent" style="font-size:26px">insights</span>
+          <h2 class="text-3xl font-light tracking-tight">One platform, end to end</h2>
+        </div>
+        <p class="text-secondary text-sm mb-10 leading-relaxed font-light max-w-md">
+          From the counter to the books — billing, stock, collections and compliance stay in sync across every device, online or off.
+        </p>
+        <div class="space-y-1 mt-auto">
+          <div class="group cursor-pointer">
+            <div class="border-t border-line pt-6 pb-4 relative overflow-hidden">
+              <div class="absolute top-0 left-0 h-[2px] bg-accent w-1/3 transition-all duration-500 group-hover:w-full"></div>
+              <h3 class="text-lg font-medium mb-2">Bill in seconds</h3>
+              <div class="reveal"><p class="text-sm text-secondary overflow-hidden leading-relaxed pr-4 font-light">GST-correct invoices, POS receipts and UPI QR — print or share instantly, even offline.</p></div>
+            </div>
+          </div>
+          <div class="group cursor-pointer">
+            <div class="border-t border-line pt-6 pb-4 relative overflow-hidden">
+              <div class="absolute top-0 left-0 h-[2px] bg-accent w-0 transition-all duration-500 group-hover:w-full"></div>
+              <h3 class="text-lg font-medium text-secondary group-hover:text-primary mb-2 transition-colors">Track every unit</h3>
+              <div class="reveal"><p class="text-sm text-secondary overflow-hidden leading-relaxed pr-4 font-light">FIFO costing, batches, low-stock alerts and multi-store inventory that always ties out.</p></div>
+            </div>
+          </div>
+          <div class="group cursor-pointer">
+            <div class="border-t border-line pt-6 pb-4 relative overflow-hidden">
+              <div class="absolute top-0 left-0 h-[2px] bg-accent w-0 transition-all duration-500 group-hover:w-full"></div>
+              <h3 class="text-lg font-medium text-secondary group-hover:text-primary mb-2 transition-colors">Recover &amp; report</h3>
+              <div class="reveal"><p class="text-sm text-secondary overflow-hidden leading-relaxed pr-4 font-light">Track dues, send reminders, settle payments and export GSTR-ready reports in a click.</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- Features grid -->
+  <section id="features" class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24">
+    <div class="max-w-2xl">
+      <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Everything you need</span>
+      <h2 class="mt-4 text-3xl md:text-4xl font-light tracking-tight">A complete back office, not a billing toy.</h2>
+      <p class="mt-4 text-secondary font-light leading-relaxed">Eight tightly-integrated modules. One ledger of truth. Built for Indian retailers, distributors and van-sales operations.</p>
+    </div>
+    <div class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-px bg-line rounded-2xl overflow-hidden border border-line">
+      <!-- feature cards -->
+      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
+        <span class="material-symbols-outlined text-accent" style="font-size:24px">receipt_long</span>
+        <h3 class="mt-4 text-lg font-medium">GST Billing &amp; Invoices</h3>
+        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">CGST/SGST/IGST, inclusive or exclusive, HSN, e-invoice numbering. Print or share — even offline.</p>
+      </div>
+      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
+        <span class="material-symbols-outlined text-accent" style="font-size:24px">point_of_sale</span>
+        <h3 class="mt-4 text-lg font-medium">Offline POS</h3>
+        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Fast counter sales with discounts, hold/park, UPI QR and a dual-screen customer display.</p>
+      </div>
+      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
+        <span class="material-symbols-outlined text-accent" style="font-size:24px">inventory_2</span>
+        <h3 class="mt-4 text-lg font-medium">Inventory &amp; FIFO</h3>
+        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Batches, FIFO/WAC costing, low-stock alerts and multi-store stock that always ties out.</p>
+      </div>
+      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
+        <span class="material-symbols-outlined text-accent" style="font-size:24px">groups</span>
+        <h3 class="mt-4 text-lg font-medium">Clients &amp; Receivables</h3>
+        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Track dues, ageing, statements and settle payments — recover money faster.</p>
+      </div>
+      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
+        <span class="material-symbols-outlined text-accent" style="font-size:24px">payments</span>
+        <h3 class="mt-4 text-lg font-medium">Expenses &amp; ITC</h3>
+        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Recurring expenses, payment methods, input-tax-credit capture and per-store spend.</p>
+      </div>
+      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
+        <span class="material-symbols-outlined text-accent" style="font-size:24px">menu_book</span>
+        <h3 class="mt-4 text-lg font-medium">Day Book &amp; Cash</h3>
+        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Daily cash position, opening/closing, bank reconciliation — per store.</p>
+      </div>
+      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
+        <span class="material-symbols-outlined text-accent" style="font-size:24px">local_shipping</span>
+        <h3 class="mt-4 text-lg font-medium">Van Sales &amp; Routes</h3>
+        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Load vehicles, dispatch routes, sell on the move and reconcile back at the warehouse.</p>
+      </div>
+      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
+        <span class="material-symbols-outlined text-accent" style="font-size:24px">monitoring</span>
+        <h3 class="mt-4 text-lg font-medium">Reports &amp; GSTR</h3>
+        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">28 reports — Balance Sheet, P&amp;L, Trial Balance, ageing, GSTR-1/3B — export to Excel &amp; PDF.</p>
+      </div>
+      <div class="bg-canvas p-7 hover:bg-surface transition-colors">
+        <span class="material-symbols-outlined text-accent" style="font-size:24px">badge</span>
+        <h3 class="mt-4 text-lg font-medium">Payroll &amp; Staff</h3>
+        <p class="mt-2 text-sm text-secondary font-light leading-relaxed">Employees, attendance-based pay runs and salary tracking built in.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Device band -->
+  <section class="w-full bg-primary text-white">
+    <div class="max-w-[1200px] mx-auto px-6 lg:px-8 py-20 grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-10 items-center">
+      <div>
+        <h2 class="text-3xl md:text-4xl font-light tracking-tight">Web, desktop &amp; a free mobile app — fully offline.</h2>
+        <p class="mt-4 text-white/60 font-light leading-relaxed max-w-xl">Ring sales on the counter, bill from your phone on the road, and reconcile on desktop. An offline-first sync engine queues everything and reconciles the moment you're back online — no sale ever lost.</p>
+        <a href="https://app.bookledger.in/register" class="inline-block mt-7 bg-accent text-white text-sm font-semibold px-6 py-3 rounded-full hover:bg-accent-700 transition-colors">Get the apps</a>
+      </div>
+      <div class="flex gap-8">
+        <div class="text-center"><span class="material-symbols-outlined" style="font-size:34px">desktop_windows</span><div class="mt-2 text-xs text-white/50 uppercase tracking-widest">Web · Desktop</div></div>
+        <div class="text-center"><span class="material-symbols-outlined" style="font-size:34px">smartphone</span><div class="mt-2 text-xs text-white/50 uppercase tracking-widest">iOS · Android</div></div>
+        <div class="text-center"><span class="material-symbols-outlined" style="font-size:34px">cloud_off</span><div class="mt-2 text-xs text-white/50 uppercase tracking-widest">Offline</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Stats -->
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 py-20">
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-px bg-line rounded-2xl overflow-hidden border border-line text-center">
+      <div class="bg-canvas py-8"><div class="mono text-3xl font-bold">28</div><div class="mt-1 text-xs uppercase tracking-widest text-secondary">Reports</div></div>
+      <div class="bg-canvas py-8"><div class="mono text-3xl font-bold">3</div><div class="mt-1 text-xs uppercase tracking-widest text-secondary">Platforms</div></div>
+      <div class="bg-canvas py-8"><div class="mono text-3xl font-bold">100%</div><div class="mt-1 text-xs uppercase tracking-widest text-secondary">Offline-ready</div></div>
+      <div class="bg-canvas py-8"><div class="mono text-3xl font-bold">30</div><div class="mt-1 text-xs uppercase tracking-widest text-secondary">Day free trial</div></div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="w-full bg-surface border-y border-line">
+    <div class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24">
+      <h2 class="text-3xl md:text-4xl font-light tracking-tight max-w-xl">Live in three steps.</h2>
+      <div class="mt-12 grid grid-cols-1 md:grid-cols-3 gap-10">
+        <div><div class="mono text-accent text-sm font-bold">01</div><h3 class="mt-3 text-lg font-medium">Create your workspace</h3><p class="mt-2 text-sm text-secondary font-light leading-relaxed">Sign up, add your business &amp; GSTIN. Two minutes, no card.</p></div>
+        <div><div class="mono text-accent text-sm font-bold">02</div><h3 class="mt-3 text-lg font-medium">Add products &amp; clients</h3><p class="mt-2 text-sm text-secondary font-light leading-relaxed">Import your catalogue and parties, or start from a sale.</p></div>
+        <div><div class="mono text-accent text-sm font-bold">03</div><h3 class="mt-3 text-lg font-medium">Bill, track, report</h3><p class="mt-2 text-sm text-secondary font-light leading-relaxed">Run sales, watch stock and cash, file GSTR — all in sync.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing preview -->
+  <section id="pricing" class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24">
+    <div class="text-center max-w-2xl mx-auto">
+      <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Simple pricing</span>
+      <h2 class="mt-4 text-3xl md:text-4xl font-light tracking-tight">Plans that grow with your shop.</h2>
+      <p class="mt-4 text-secondary font-light">Start free for 30 days. The mobile app stays free, forever.</p>
+    </div>
+    <div class="mt-12 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
+      <!-- Free -->
+      <div class="rounded-2xl border border-line bg-canvas p-7 flex flex-col">
+        <div class="text-sm font-semibold uppercase tracking-widest text-secondary">Free</div>
+        <div class="mt-3 mono text-3xl font-bold">₹0</div>
+        <p class="mt-2 text-sm text-secondary font-light">One shop, the essentials.</p>
+        <ul class="mt-5 space-y-2 text-sm text-secondary font-light flex-1">
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Billing, inventory, POS, day book</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> 1 user · 1 store</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Free mobile app</li>
+        </ul>
+        <a href="https://app.bookledger.in/register?plan=free" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full border border-line hover:bg-surface transition-colors">Start free</a>
+      </div>
+      <!-- Growth -->
+      <div class="rounded-2xl border border-line bg-canvas p-7 flex flex-col">
+        <div class="text-sm font-semibold uppercase tracking-widest text-secondary">Growth</div>
+        <div class="mt-3 mono text-3xl font-bold">₹2,999<span class="text-base font-normal text-secondary">/yr</span></div>
+        <p class="mt-2 text-sm text-secondary font-light">A busy shop on full GST.</p>
+        <ul class="mt-5 space-y-2 text-sm text-secondary font-light flex-1">
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Everything in Free +</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Purchases, suppliers, estimates</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> All reports, GSTR, payroll · 3 users</li>
+        </ul>
+        <a href="https://app.bookledger.in/register?plan=growth" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full border border-line hover:bg-surface transition-colors">Start free trial</a>
+      </div>
+      <!-- Pro (featured) -->
+      <div class="rounded-2xl border-2 border-accent bg-canvas p-7 flex flex-col shadow-lg shadow-accent/10 relative">
+        <span class="absolute -top-3 left-7 bg-accent text-white text-[10px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">Most popular</span>
+        <div class="text-sm font-semibold uppercase tracking-widest text-accent">Pro</div>
+        <div class="mt-3 mono text-3xl font-bold">₹5,999<span class="text-base font-normal text-secondary">/yr</span></div>
+        <p class="mt-2 text-sm text-secondary font-light">Multi-store, manufacturing, field sales.</p>
+        <ul class="mt-5 space-y-2 text-sm text-secondary font-light flex-1">
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Everything in Growth +</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Multi-store, manufacturing, van sales</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Restaurant &amp; services, e-invoice · 5 users</li>
+        </ul>
+        <a href="https://app.bookledger.in/register?plan=pro" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full bg-accent text-white hover:bg-accent-700 transition-colors">Start free trial</a>
+      </div>
+      <!-- Enterprise -->
+      <div class="rounded-2xl border border-line bg-canvas p-7 flex flex-col">
+        <div class="text-sm font-semibold uppercase tracking-widest text-secondary">Enterprise</div>
+        <div class="mt-3 mono text-3xl font-bold">Custom</div>
+        <p class="mt-2 text-sm text-secondary font-light">Chains &amp; multi-location teams.</p>
+        <ul class="mt-5 space-y-2 text-sm text-secondary font-light flex-1">
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Everything in Pro +</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Unlimited users &amp; stores, audit log</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> API access &amp; white-label</li>
+        </ul>
+        <a href="contact.html" class="mt-6 text-center text-sm font-semibold px-5 py-2.5 rounded-full border border-line hover:bg-surface transition-colors">Contact sales</a>
+      </div>
+    </div>
+    <p class="mt-6 text-center text-xs text-secondary font-light">Prices exclusive of GST. <a href="pricing.html" class="text-accent hover:underline">Compare all features →</a></p>
+  </section>
+
+  <!-- FAQ -->
+  <section class="w-full bg-surface border-y border-line">
+    <div class="max-w-[760px] mx-auto px-6 lg:px-8 py-24">
+      <h2 class="text-3xl md:text-4xl font-light tracking-tight text-center">Questions, answered.</h2>
+      <div class="mt-10 divide-y divide-line">
+        <div class="group cursor-pointer py-6">
+          <div class="flex items-center justify-between"><h3 class="text-base font-medium">Does it really work offline?</h3><span class="material-symbols-outlined text-secondary transition-transform group-hover:rotate-45" style="font-size:20px">add</span></div>
+          <div class="reveal"><p class="text-sm text-secondary font-light leading-relaxed pt-3 overflow-hidden">Yes. Sales, billing and stock all run fully offline. An outbox queues every change and syncs automatically when you reconnect — nothing is lost.</p></div>
+        </div>
+        <div class="group cursor-pointer py-6">
+          <div class="flex items-center justify-between"><h3 class="text-base font-medium">Is it GST compliant?</h3><span class="material-symbols-outlined text-secondary transition-transform group-hover:rotate-45" style="font-size:20px">add</span></div>
+          <div class="reveal"><p class="text-sm text-secondary font-light leading-relaxed pt-3 overflow-hidden">CGST/SGST/IGST, HSN, inclusive/exclusive tax, and GSTR-1/3B exports are built in. Invoices follow Indian GST formatting.</p></div>
+        </div>
+        <div class="group cursor-pointer py-6">
+          <div class="flex items-center justify-between"><h3 class="text-base font-medium">Can I use it on my phone?</h3><span class="material-symbols-outlined text-secondary transition-transform group-hover:rotate-45" style="font-size:20px">add</span></div>
+          <div class="reveal"><p class="text-sm text-secondary font-light leading-relaxed pt-3 overflow-hidden">Yes — a free iOS &amp; Android app mirrors the web app, including offline billing and print-perfect invoices.</p></div>
+        </div>
+        <div class="group cursor-pointer py-6">
+          <div class="flex items-center justify-between"><h3 class="text-base font-medium">Do I need a card to try it?</h3><span class="material-symbols-outlined text-secondary transition-transform group-hover:rotate-45" style="font-size:20px">add</span></div>
+          <div class="reveal"><p class="text-sm text-secondary font-light leading-relaxed pt-3 overflow-hidden">No. Start a 30-day free trial with just an email. No card, cancel anytime.</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 py-24 text-center">
+    <h2 class="text-3xl md:text-4xl font-light tracking-tight">Start billing in five minutes.</h2>
+    <p class="mt-4 text-secondary font-light">Free for 30 days. Free mobile app forever. No card needed.</p>
+    <a href="https://app.bookledger.in/register" class="inline-block mt-8 bg-accent text-white text-sm font-semibold px-7 py-3.5 rounded-full hover:bg-accent-700 transition-colors shadow-lg shadow-accent/20">Create your workspace</a>
+  </section>
+</main>
+
+<!-- Footer -->
+<footer class="bg-canvas border-t border-line w-full">
+  <div class="flex flex-col md:flex-row justify-between items-center w-full px-6 lg:px-8 py-8 max-w-[1200px] mx-auto gap-4">
+    <div class="flex items-center gap-2"><img src="ledgrpro-mark.png" alt="" class="h-7 w-auto"/><span class="text-xl font-extrabold tracking-tight">book<span class="text-accent">ledger</span></span></div>
+    <div class="flex flex-wrap justify-center gap-5">
+      <a class="text-xs text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
+      <a class="text-xs text-secondary hover:text-primary transition-colors" href="security.html">Security</a>
+      <a class="text-xs text-secondary hover:text-primary transition-colors" href="privacy.html">Privacy</a>
+      <a class="text-xs text-secondary hover:text-primary transition-colors" href="terms.html">Terms</a>
+      <a class="text-xs text-secondary hover:text-primary transition-colors" href="contact.html">Contact</a>
+    </div>
+    <div class="text-xs text-secondary font-light">© 2026 bookledger. Built for Indian business.</div>
+  </div>
+</footer>
+
+</body></html>

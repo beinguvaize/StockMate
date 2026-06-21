@@ -30,7 +30,7 @@ const Landing = () => {
     <iframe
       ref={frameRef}
       src="/landing/index.html"
-      title="LedgrPro"
+      title="bookledger"
       // Fills the whole viewport, no chrome, no scrollbars added by the
       // outer SPA shell.
       style={{

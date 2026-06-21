@@ -255,7 +255,7 @@ const SaaSLogin = () => {
 
         {/* Footer */}
         <p className="text-center text-[10px] text-[#747576] font-semibold mt-6 uppercase tracking-widest">
-          StockMate · GST Billing & Inventory for India
+          bookledger · GST Billing & Inventory for India
         </p>
       </div>
     </div>

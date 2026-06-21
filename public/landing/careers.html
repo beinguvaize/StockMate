@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Careers — bookledger</title>
+  <meta name="description" content="Small team, high impact, remote-friendly. Build business software that works like India does.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+  <!-- Analytics -->
+  <script defer data-domain="bookledger.in" src="https://plausible.io/js/script.js"></script>
+</head>
+<body class="subpage-body">
+
+    <!-- ========== NAVBAR ========== -->
+  <nav class="navbar" id="navbar">
+    <div class="container">
+      <a href="./index.html" class="navbar-logo">
+        <img src="ledgrpro-logo.png" alt="bookledger Logo" class="app-logo">
+      </a>
+      <div class="navbar-links" id="navLinks">
+        <a href="./index.html#features">Features</a>
+        <a href="./index.html#features">Industries</a>
+        <a href="./index.html#pricing">Pricing</a>
+      </div>
+      <div class="navbar-actions">
+        <a href="https://app.bookledger.in/login" style="font-size:0.9rem; font-weight:600; margin-right:15px; color:var(--text-muted); transition: var(--transition);" id="loginBtn">Log In</a>
+        <a href="https://app.bookledger.in/register" class="btn btn-primary" id="trialBtn">Download App</a>
+        <button class="mobile-toggle" id="mobileToggle" aria-label="Toggle menu">☰</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ========== HERO ========== -->
+  <section class="subpage-hero">
+    <div class="container">
+      <div class="subpage-hero-content">
+        <h1>Small Team, <span class="gradient-text">High Impact</span>.</h1>
+        <p>We're a remote-friendly indie SaaS team building the next-generation operating core for Indian commerce. No corporate fluff, just building great products.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== GENERAL APPLICATION ========== -->
+  <section class="section">
+    <div class="container">
+      <div style="max-width: 620px; margin: 0 auto;">
+        <div style="text-align:center; margin-bottom: 32px;">
+          <h2 style="font-weight: 800; font-size: 1.8rem;">Tell us about you</h2>
+          <p style="color: var(--text-muted); margin-top: 10px; line-height:1.6;">No open postings right now — but we’re always glad to meet talented people. Send your resume and we’ll reach out when there’s a fit.</p>
+        </div>
+
+        <form id="jobForm" style="background:#fff; border:1px solid var(--border); border-radius:18px; padding:28px; display:flex; flex-direction:column; gap:16px;">
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
+            <div><label style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Full name</label><input name="name" required style="margin-top:6px; width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:11px; font-size:.9rem;"/></div>
+            <div><label style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Phone</label><input name="phone" style="margin-top:6px; width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:11px; font-size:.9rem;"/></div>
+          </div>
+          <div><label style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Email</label><input name="email" type="email" required style="margin-top:6px; width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:11px; font-size:.9rem;"/></div>
+          <div><label style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Role you're interested in</label><input name="role" placeholder="e.g. Developer, Sales, Support…" style="margin-top:6px; width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:11px; font-size:.9rem;"/></div>
+          <div><label style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">Resume (PDF / DOC, max 5 MB)</label><input name="resume" type="file" accept=".pdf,.doc,.docx" required style="margin-top:6px; width:100%; font-size:.85rem;"/></div>
+          <div><label style="font-size:.72rem; font-weight:700; text-transform:uppercase; letter-spacing:.06em; color:var(--text-muted);">A few words (optional)</label><textarea name="note" rows="3" style="margin-top:6px; width:100%; padding:11px 14px; border:1px solid var(--border); border-radius:11px; font-size:.9rem; resize:none;"></textarea></div>
+          <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Submit application</button>
+          <p id="jobNote" style="text-align:center; font-size:.8rem; color:var(--text-muted);"></p>
+        </form>
+      </div>
+    </div>
+  </section>
+
+    <!-- ========== FOOTER ========== -->
+  <footer class="footer" id="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a href="./index.html" style="display: inline-block; margin-bottom: 20px;">
+            <img src="ledgrpro-logo.png" alt="bookledger Logo" style="height: 44px; filter: brightness(0) invert(1); opacity: 0.85;">
+          </a>
+          <p>The modern operations and ledger platform built for businesses that want to grow smarter, not harder.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Product</h4>
+          <a href="./index.html#features">Features</a>
+          <a href="./index.html#pricing">Pricing</a>
+          <a href="./integrations.html">Integrations</a>
+          <a href="./changelog.html">Changelog</a>
+        </div>
+        <div class="footer-col">
+          <h4>Support & Company</h4>
+          <a href="./about.html">About Us</a>
+          <a href="./blog.html">Blog</a>
+          <a href="./careers.html">Careers</a>
+          <a href="./contact.html">Contact Support</a>
+        </div>
+        <div class="footer-col">
+          <h4>Legal</h4>
+          <a href="./privacy.html">Privacy Policy</a>
+          <a href="./terms.html">Terms of Service</a>
+          <a href="./security.html">Security Protocol</a>
+        </div>
+      </div>
+
+      <div class="footer-locations" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 24px; padding: 40px 0; border-top: 1px solid rgba(255,255,255,0.06); border-bottom: 1px solid rgba(255,255,255,0.06); margin-bottom: 30px;">
+        <div class="location">
+          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">India</h4>
+          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">Poyisha Rd<br>North Edappally<br>Ernakulam</p>
+        </div>
+        <div class="location">
+          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">London</h4>
+          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">126 Richmond Road, Ilford<br>London, 1G1 1JU</p>
+        </div>
+        <div class="location">
+          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">Qatar</h4>
+          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">Doha</p>
+        </div>
+        <div class="location">
+          <h4 style="font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; color: rgba(255,255,255,0.45);">Canada</h4>
+          <p style="font-size: 0.85rem; color: rgba(255,255,255,0.4); line-height: 1.65;">5415 Cogswell St Halifax<br>B3J 0K8</p>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <span>© 2026 bookledger. All rights reserved.</span>
+        <span>Built for high-performance commerce</span>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    // Mobile menu toggle
+    const mobileToggle = document.getElementById('mobileToggle');
+    const navLinks = document.getElementById('navLinks');
+    mobileToggle.addEventListener('click', () => {
+      if (navLinks.classList.contains('mobile-active')) {
+        navLinks.classList.remove('mobile-active');
+      } else {
+        navLinks.classList.add('mobile-active');
+      }
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SB_URL  = 'https://lmviftlynuhopzmvaxeu.supabase.co';
+    const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxtdmlmdGx5bnVob3B6bXZheGV1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMDUxMzEsImV4cCI6MjA4ODg4MTEzMX0.DX0HpM6jEYZrRx8Nl8mZxvTjvvMIY2AneJgnkS-e1xA';
+    const sb = window.supabase.createClient(SB_URL, SB_ANON);
+    const jf = document.getElementById('jobForm'); const jn = document.getElementById('jobNote');
+    jf.addEventListener('submit', async function(e){
+      e.preventDefault();
+      const f = new FormData(jf);
+      const file = f.get('resume');
+      const btn = jf.querySelector('button[type=submit]');
+      jn.style.color = 'var(--text-muted)'; jn.textContent = '';
+      if (file && file.size > 5 * 1024 * 1024) { jn.style.color = '#dc2626'; jn.textContent = 'Resume too large (max 5 MB).'; return; }
+      btn.disabled = true; const orig = btn.textContent; btn.textContent = 'Submitting…';
+      try {
+        let resumeUrl = null;
+        if (file && file.name) {
+          const ext = file.name.split('.').pop();
+          const path = `${Date.now()}-${Math.random().toString(36).slice(2,8)}.${ext}`;
+          const up = await sb.storage.from('resumes').upload(path, file, { upsert: false });
+          if (up.error) throw up.error;
+          resumeUrl = sb.storage.from('resumes').getPublicUrl(path).data.publicUrl;
+        }
+        const { error } = await sb.from('job_applications').insert({
+          name: (f.get('name')||'').trim(), email: (f.get('email')||'').trim(),
+          phone: (f.get('phone')||'').trim(), role: (f.get('role')||'').trim(),
+          resume_url: resumeUrl, note: (f.get('note')||'').trim(),
+        });
+        if (error) throw error;
+        jf.reset();
+        jn.style.color = '#059669'; jn.textContent = 'Thanks! Application received — we’ll be in touch.';
+        btn.textContent = 'Submitted ✓';
+      } catch (err) {
+        jn.style.color = '#dc2626'; jn.textContent = 'Could not submit — email careers@bookledger.in';
+        btn.disabled = false; btn.textContent = orig;
+      }
+    });
+  </script>
+</body>
+</html>

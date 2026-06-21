@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Features — bookledger GST Billing, Inventory, POS &amp; Reports</title>
+<meta name="description" content="Explore bookledger features: GST billing, offline POS, FIFO inventory, receivables, expenses, day book, van sales, payroll and 28 reports — web, desktop and mobile."/>
+<link rel="icon" href="favicon-256.png"/>
+<link rel="canonical" href="https://bookledger.in/features.html"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL@20..48,100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"/>
+<script>
+  tailwind.config = { theme: { extend: {
+    colors: { primary:'#1A1815', secondary:'#6b6660', surface:'#FBFAF7', canvas:'#FFFFFF', line:'#E9E6DF', accent:'#D97706', 'accent-700':'#B45309' },
+    fontFamily: { sans:['Manrope','sans-serif'], mono:['JetBrains Mono','monospace'] },
+  }}}
+</script>
+<style>.mono{font-variant-numeric:tabular-nums}</style>
+</head>
+<body class="bg-canvas text-primary font-sans antialiased">
+
+<nav class="bg-canvas/80 backdrop-blur-md border-b border-line w-full sticky top-0 z-50">
+  <div class="flex justify-between items-center w-full px-6 lg:px-8 py-4 max-w-[1200px] mx-auto">
+    <a href="/" class="flex items-center gap-2"><img src="ledgrpro-mark.png" alt="" class="h-7 w-auto"/><span class="text-xl font-extrabold tracking-tight">book<span class="text-accent">ledger</span></span></a>
+    <div class="hidden md:flex gap-7 items-center">
+      <a class="text-sm font-medium text-primary" href="features.html">Features</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="pricing.html">Pricing</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="integrations.html">Integrations</a>
+      <a class="text-sm font-medium text-secondary hover:text-primary transition-colors" href="about.html">About</a>
+    </div>
+    <div class="hidden md:flex gap-3 items-center">
+      <a href="https://app.bookledger.in/login" class="text-sm font-semibold text-secondary hover:text-primary transition-colors">Sign In</a>
+      <a href="https://app.bookledger.in/register" class="bg-accent text-white text-sm font-semibold px-5 py-2 rounded-full hover:bg-accent-700 transition-colors">Get Started</a>
+    </div>
+    <a href="https://app.bookledger.in/register" class="md:hidden bg-accent text-white text-sm font-semibold px-4 py-2 rounded-full">Start</a>
+  </div>
+</nav>
+
+<main class="w-full">
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 pt-20 lg:pt-28 pb-12">
+    <span class="mono text-[11px] font-semibold uppercase tracking-[0.18em] text-accent">Features</span>
+    <h1 class="mt-4 text-4xl md:text-5xl font-light tracking-tight max-w-3xl leading-tight">Everything a shop needs, in one ledger.</h1>
+    <p class="mt-6 max-w-2xl text-base text-secondary font-light leading-relaxed">From the counter to the books — billing, stock, cash, compliance and people, all in sync across web, desktop and mobile. Offline-first by design.</p>
+  </section>
+
+  <!-- alternating deep-dives -->
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 pb-8 space-y-px bg-line rounded-2xl overflow-hidden border border-line">
+    <!-- block builder via repeated rows -->
+    <div class="bg-canvas grid lg:grid-cols-2">
+      <div class="p-8 lg:p-12">
+        <span class="material-symbols-outlined text-accent" style="font-size:26px">receipt_long</span>
+        <h2 class="mt-4 text-2xl font-light tracking-tight">GST Billing &amp; Invoices</h2>
+        <p class="mt-3 text-sm text-secondary font-light leading-relaxed">GST-correct invoices with CGST/SGST/IGST, inclusive or exclusive tax, HSN codes and standardised e-invoice numbering (INV/FY/####). Print thermal receipts or A4, share on WhatsApp, attach UPI QR — all offline.</p>
+        <ul class="mt-5 grid grid-cols-2 gap-2 text-sm text-secondary font-light">
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Thermal &amp; A4 print</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> UPI QR on invoice</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Credit &amp; partial pay</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Voids &amp; returns</li>
+        </ul>
+      </div>
+      <div class="bg-surface flex items-center justify-center p-8 lg:p-12">
+        <div class="w-full max-w-sm rounded-xl bg-canvas border border-line shadow-lg overflow-hidden">
+          <div class="px-4 py-3 border-b border-line flex justify-between items-center"><span class="text-xs font-semibold">Tax Invoice</span><span class="mono text-[10px] text-secondary">INV/2026/0231</span></div>
+          <div class="p-4 space-y-2 text-sm">
+            <div class="flex justify-between"><span>Paper Cup 250ml ×40</span><span class="mono">₹4,800</span></div>
+            <div class="flex justify-between"><span>Food Container ×20</span><span class="mono">₹1,300</span></div>
+            <div class="flex justify-between text-secondary text-xs"><span>GST (incl)</span><span class="mono">₹931</span></div>
+            <div class="flex justify-between border-t border-line pt-2 font-bold"><span>Total</span><span class="mono"><span class="text-accent/60">₹</span>6,100</span></div>
+          </div>
+          <div class="px-4 pb-4 flex justify-end"><span class="text-[10px] font-bold uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Paid · UPI</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-canvas grid lg:grid-cols-2">
+      <div class="bg-surface flex items-center justify-center p-8 lg:p-12 order-last lg:order-first">
+        <div class="w-full max-w-sm rounded-xl bg-canvas border border-line shadow-lg overflow-hidden">
+          <div class="px-4 py-3 bg-primary text-white flex justify-between items-center"><span class="text-xs font-semibold">Cart · 3 items</span><span class="text-[10px] text-accent">⏸ Hold</span></div>
+          <div class="divide-y divide-line text-sm">
+            <div class="flex justify-between px-4 py-2.5"><span>Paper Cup 210ml ×8</span><span class="mono font-semibold">₹360</span></div>
+            <div class="flex justify-between px-4 py-2.5"><span>HM Cover 1" ×3</span><span class="mono font-semibold">₹390</span></div>
+          </div>
+          <div class="px-4 py-3 border-t border-line space-y-1">
+            <div class="flex justify-between text-xs text-secondary"><span>Discount</span><span class="mono text-rose-500">−₹50</span></div>
+            <div class="flex justify-between font-bold"><span>Total</span><span class="mono"><span class="text-accent/60">₹</span>700</span></div>
+          </div>
+          <div class="p-3"><div class="w-full py-2.5 rounded-lg bg-accent text-white text-sm font-bold text-center">Checkout · ₹700</div></div>
+        </div>
+      </div>
+      <div class="p-8 lg:p-12">
+        <span class="material-symbols-outlined text-accent" style="font-size:26px">point_of_sale</span>
+        <h2 class="mt-4 text-2xl font-light tracking-tight">Offline POS</h2>
+        <p class="mt-3 text-sm text-secondary font-light leading-relaxed">A counter that never waits. Quick product search, category chips, fast-moving quick-add, order discounts and hold/park. Dual-screen customer display and UPI QR built in. Tag every sale to a store and cashier.</p>
+        <ul class="mt-5 grid grid-cols-2 gap-2 text-sm text-secondary font-light">
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Discount &amp; hold sale</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Customer display</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Multi-store &amp; cashier</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Barcode scan</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="bg-canvas grid lg:grid-cols-2">
+      <div class="p-8 lg:p-12">
+        <span class="material-symbols-outlined text-accent" style="font-size:26px">inventory_2</span>
+        <h2 class="mt-4 text-2xl font-light tracking-tight">Inventory &amp; FIFO Costing</h2>
+        <p class="mt-3 text-sm text-secondary font-light leading-relaxed">Real-time stock across stores and vehicles, with product batches, FIFO/WAC costing, reorder levels and low-stock alerts. Adjust, transfer and audit movements — your stock value always ties to the ledger.</p>
+        <ul class="mt-5 grid grid-cols-2 gap-2 text-sm text-secondary font-light">
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> FIFO / WAC</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Batches &amp; expiry</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Low-stock alerts</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Stock adjust &amp; history</li>
+        </ul>
+      </div>
+      <div class="bg-surface flex items-center justify-center p-8 lg:p-12">
+        <div class="w-full max-w-sm rounded-xl bg-canvas border border-line shadow-lg p-4">
+          <div class="text-xs font-semibold mb-3">Stock health</div>
+          <div class="space-y-3 text-sm">
+            <div><div class="flex justify-between mb-1"><span>Paper Cup 250ml</span><span class="mono font-bold">4,200</span></div><div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full rounded-full bg-emerald-500" style="width:84%"></div></div></div>
+            <div><div class="flex justify-between mb-1"><span>Paper Plate 7"</span><span class="mono font-bold text-amber-700">180 · Low</span></div><div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full rounded-full bg-amber-500" style="width:18%"></div></div></div>
+            <div><div class="flex justify-between mb-1"><span>Straw Box Large</span><span class="mono font-bold text-rose-600">12 · Reorder</span></div><div class="h-1.5 rounded-full bg-line overflow-hidden"><div class="h-full rounded-full bg-rose-500" style="width:6%"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-canvas grid lg:grid-cols-2">
+      <div class="bg-surface flex items-center justify-center p-8 lg:p-12 order-last lg:order-first">
+        <div class="w-full max-w-sm rounded-xl bg-canvas border border-line shadow-lg overflow-hidden">
+          <div class="px-4 py-3 border-b border-line flex justify-between items-center"><span class="text-xs font-semibold">Route · KL-07 AB 1234</span><span class="text-[10px] font-bold uppercase text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">On trip</span></div>
+          <div class="divide-y divide-line text-sm">
+            <div class="flex items-center justify-between px-4 py-2.5"><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>Aisha Store</span><span class="mono text-secondary text-xs">delivered</span></div>
+            <div class="flex items-center justify-between px-4 py-2.5"><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-amber-500"></span>Banu Transport</span><span class="mono text-secondary text-xs">next</span></div>
+            <div class="flex items-center justify-between px-4 py-2.5"><span class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-line"></span>City Mart</span><span class="mono text-secondary text-xs">pending</span></div>
+          </div>
+          <div class="px-4 py-3 border-t border-line flex justify-between text-xs"><span class="text-secondary">Van load</span><span class="mono font-bold">1,240 / 2,000 units</span></div>
+        </div>
+      </div>
+      <div class="p-8 lg:p-12">
+        <span class="material-symbols-outlined text-accent" style="font-size:26px">local_shipping</span>
+        <h2 class="mt-4 text-2xl font-light tracking-tight">Van Sales &amp; Routes</h2>
+        <p class="mt-3 text-sm text-secondary font-light leading-relaxed">Load a vehicle, dispatch a route, sell on the move from the mobile app, then reconcile returns at the warehouse. Live vehicle stock and route coverage keep distribution honest.</p>
+        <ul class="mt-5 grid grid-cols-2 gap-2 text-sm text-secondary font-light">
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Vehicle load &amp; dispatch</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Mobile field sales</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Route coverage</li>
+          <li class="flex gap-2"><span class="material-symbols-outlined text-accent" style="font-size:16px">check</span> Warehouse reconcile</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- secondary feature grid -->
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 py-16">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-px bg-line rounded-2xl overflow-hidden border border-line">
+      <div class="bg-canvas p-7"><span class="material-symbols-outlined text-accent" style="font-size:22px">groups</span><h3 class="mt-3 font-medium">Clients &amp; Receivables</h3><p class="mt-2 text-sm text-secondary font-light">Dues, ageing, statements, settlements.</p></div>
+      <div class="bg-canvas p-7"><span class="material-symbols-outlined text-accent" style="font-size:22px">payments</span><h3 class="mt-3 font-medium">Expenses &amp; ITC</h3><p class="mt-2 text-sm text-secondary font-light">Recurring, payment methods, input-tax-credit.</p></div>
+      <div class="bg-canvas p-7"><span class="material-symbols-outlined text-accent" style="font-size:22px">menu_book</span><h3 class="mt-3 font-medium">Day Book &amp; Bank</h3><p class="mt-2 text-sm text-secondary font-light">Cash position, reconciliation, per store.</p></div>
+      <div class="bg-canvas p-7"><span class="material-symbols-outlined text-accent" style="font-size:22px">badge</span><h3 class="mt-3 font-medium">Payroll</h3><p class="mt-2 text-sm text-secondary font-light">Staff, attendance pay runs, salary tracking.</p></div>
+      <div class="bg-canvas p-7"><span class="material-symbols-outlined text-accent" style="font-size:22px">monitoring</span><h3 class="mt-3 font-medium">28 Reports</h3><p class="mt-2 text-sm text-secondary font-light">Balance Sheet, P&amp;L, GSTR — Excel &amp; PDF.</p></div>
+      <div class="bg-canvas p-7"><span class="material-symbols-outlined text-accent" style="font-size:22px">store</span><h3 class="mt-3 font-medium">Multi-store</h3><p class="mt-2 text-sm text-secondary font-light">Stores, cashiers, store-level books.</p></div>
+      <div class="bg-canvas p-7"><span class="material-symbols-outlined text-accent" style="font-size:22px">cloud_off</span><h3 class="mt-3 font-medium">Offline Sync</h3><p class="mt-2 text-sm text-secondary font-light">Outbox queue, auto-reconcile, no lost sale.</p></div>
+      <div class="bg-canvas p-7"><span class="material-symbols-outlined text-accent" style="font-size:22px">shield</span><h3 class="mt-3 font-medium">Roles &amp; Audit</h3><p class="mt-2 text-sm text-secondary font-light">Permissions, audit log, multi-tenant security.</p></div>
+    </div>
+  </section>
+
+  <section class="max-w-[1200px] mx-auto px-6 lg:px-8 py-20 text-center">
+    <h2 class="text-3xl md:text-4xl font-light tracking-tight">See it on your own data.</h2>
+    <a href="https://app.bookledger.in/register" class="inline-block mt-7 bg-accent text-white text-sm font-semibold px-7 py-3.5 rounded-full hover:bg-accent-700 transition-colors shadow-lg shadow-accent/20">Start free for 30 days</a>
+  </section>
+</main>
+
+<footer class="bg-canvas border-t border-line w-full">
+  <div class="flex flex-col md:flex-row justify-between items-center w-full px-6 lg:px-8 py-8 max-w-[1200px] mx-auto gap-4">
+    <div class="flex items-center gap-2"><img src="ledgrpro-mark.png" alt="" class="h-7 w-auto"/><span class="text-xl font-extrabold tracking-tight">book<span class="text-accent">ledger</span></span></div>
+    <div class="flex flex-wrap justify-center gap-5">
+      <a class="text-xs text-secondary hover:text-primary" href="pricing.html">Pricing</a>
+      <a class="text-xs text-secondary hover:text-primary" href="security.html">Security</a>
+      <a class="text-xs text-secondary hover:text-primary" href="privacy.html">Privacy</a>
+      <a class="text-xs text-secondary hover:text-primary" href="terms.html">Terms</a>
+      <a class="text-xs text-secondary hover:text-primary" href="contact.html">Contact</a>
+    </div>
+    <div class="text-xs text-secondary font-light">© 2026 bookledger. Built for Indian business.</div>
+  </div>
+</footer>
+</body></html>
