@@ -285,11 +285,6 @@ const Login = () => {
  disabled={loading || googleLoading}
  className={`btn-login w-full mt-[26px] bg-white border-none rounded-[6px] cursor-pointer h-[54px] flex items-center justify-center hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] active:scale-[0.98] ${btnClicked ? 'clicked' : ''}`}
  >
- <img
- className={`btn-mark ${markSpin ? 'spin' : ''}`}
- src={`${import.meta.env.BASE_URL}mark.png`}
- alt=""
- />
  <span className="font-arial font-bold text-[15px] text-[#111] relative z-1">LOG IN</span>
  </button>
  </form>
