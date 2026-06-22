@@ -46,8 +46,15 @@ class SyncNotifier extends StateNotifier<SyncState> {
       lastSynced: state.lastSynced,
     );
     try {
-      // Verify Supabase connection
-      await supabase.from('tenants').select('id').limit(1);
+      // Verify Supabase connection. MUST have a timeout — without it a hung
+      // supabase call (auth-queue stall) leaves status stuck on `syncing`
+      // forever, and the guard above then bails every retry. Bounded wait
+      // guarantees we always resolve to online or offline.
+      await supabase
+          .from('tenants')
+          .select('id')
+          .limit(1)
+          .timeout(const Duration(seconds: 10));
       state = SyncState(
         status: SyncStatus.online,
         pendingCount: 0,
