@@ -7,7 +7,7 @@ import {
   Landmark, Wallet, ArrowDownToLine, ArrowUpFromLine, Tag
 } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
-import { buildGSTR3B, downloadGSTR3BJSON, downloadGSTR3BExcel, shareGSTWithCA, computeGstSetOff } from '../../utils/gstReporting';
+import { buildGSTR3B, buildGSTR1, downloadGSTR3BJSON, downloadGSTR3BExcel, shareGSTWithCA, computeGstSetOff } from '../../utils/gstReporting';
 import { Download } from 'lucide-react';
 
 const fpNow = () => {
@@ -65,6 +65,29 @@ const GSTR3BReport = () => {
       { head: 'Cess',                  liability: out.cess          || 0, viaItc: setoff.itcUsed.cess, cash: setoff.cash.cess },
     ];
   }, [gstr3b, setoff]);
+
+  // GSTR-1 ↔ GSTR-3B ↔ Books tie-out — the auditor's cross-check that the
+  // outward tax filed in GSTR-1 agrees with GSTR-3B 3.1 and the books.
+  const gstr1 = useMemo(
+    () => buildGSTR1(sales, { businessState, clients, invoices }),
+    [sales, businessState, clients, invoices]
+  );
+  const tieoutRows = useMemo(() => {
+    const out = gstr3b.section3_1?.[0] || {};
+    const g1 = gstr1.totals || {};
+    const row = (metric, a, b) => {
+      const variance = round2((a || 0) - (b || 0));
+      return { metric, gstr1: round2(a || 0), gstr3b: round2(b || 0), variance, status: Math.abs(variance) < 1 ? 'MATCHED' : 'REVIEW' };
+    };
+    return [
+      row('Taxable Value', g1.taxable, out.taxable),
+      row('IGST', g1.igst, out.integratedTax),
+      row('CGST', g1.cgst, out.centralTax),
+      row('SGST / UTGST', g1.sgst, out.stateTax),
+      row('Total Tax', (g1.igst || 0) + (g1.cgst || 0) + (g1.sgst || 0),
+                       (out.integratedTax || 0) + (out.centralTax || 0) + (out.stateTax || 0)),
+    ];
+  }, [gstr3b, gstr1]);
 
   // KPIs across all tabs
   const kpis = useMemo(() => ([
@@ -257,6 +280,32 @@ const GSTR3BReport = () => {
     kpis,
   };
 
+  // --- GSTR-1 ↔ 3B ↔ Books tie-out (formal — no chart) ---
+  const tieoutTab = {
+    id: 'GSTR3B_TIEOUT',
+    label: 'Reconciliation (1 ↔ 3B)',
+    icon: <FileCheck size={18} />,
+    data: tieoutRows,
+    loading,
+    totals: {
+      gstr1: round2(tieoutRows.find(r => r.metric === 'Total Tax')?.gstr1 || 0),
+      gstr3b: round2(tieoutRows.find(r => r.metric === 'Total Tax')?.gstr3b || 0),
+    },
+    columns: [
+      { key: 'metric', label: 'Particular', width: 240,
+        render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">{val}</span> },
+      { key: 'gstr1', label: 'GSTR-1', type: 'currency', align: 'right', width: 170,
+        render: (val) => <span className="font-bold tabular-nums">{formatINR(val)}</span> },
+      { key: 'gstr3b', label: 'GSTR-3B (3.1)', type: 'currency', align: 'right', width: 170,
+        render: (val) => <span className="font-bold tabular-nums">{formatINR(val)}</span> },
+      { key: 'variance', label: 'Variance', type: 'currency', align: 'right', width: 150,
+        render: (val) => <span className={`font-black tabular-nums ${Math.abs(val) < 1 ? 'text-emerald-700' : 'text-rose-600'}`}>{val < 0 ? `(${formatINR(Math.abs(val))})` : formatINR(val)}</span> },
+      { key: 'status', label: 'Status', align: 'center', width: 120,
+        render: (val) => <span className={`font-black text-[10px] uppercase tracking-widest ${val === 'MATCHED' ? 'text-emerald-700' : 'text-rose-600'}`}>{val}</span> },
+    ],
+    kpis,
+  };
+
   const gstin = businessProfile?.gst_no || businessProfile?.gstin || '';
   const exportBar = (
     <div className="no-print flex justify-end gap-2 mb-3">
@@ -301,7 +350,7 @@ const GSTR3BReport = () => {
         </div>
       </div>
 
-      <PremiumReportView title="GSTR-3B" tabs={[section3_1Tab, section3_2Tab, section4Tab, setoffTab, section6_1Tab]} />
+      <PremiumReportView title="GSTR-3B" tabs={[section3_1Tab, section3_2Tab, section4Tab, setoffTab, section6_1Tab, tieoutTab]} />
     </div>
     </>
   );
