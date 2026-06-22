@@ -193,7 +193,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         cart: _cart,
         subtotal: _subtotal,
         selectedClient: _selectedClient,
-        onComplete: (paymentMethod, paidAmount) => _submit(paymentMethod, paidAmount),
+        onComplete: (paymentMethod, paidAmount, discount) => _submit(paymentMethod, paidAmount, discount),
         onRemove: _deleteFromCart,
         ref: ref,
       ),
@@ -223,12 +223,15 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     );
   }
 
-  Future<void> _submit(String paymentMethod, double? paidAmountOverride) async {
+  Future<void> _submit(String paymentMethod, double? paidAmountOverride, [double discount = 0]) async {
     if (_cart.isEmpty) {
       _showError('Cart is empty');
       return;
     }
     try {
+      // Bill total net of any discount — this is what's charged / owed / receipted.
+      final discountAmt = discount.clamp(0, _subtotal).toDouble();
+      final netTotal = (_subtotal - discountAmt).clamp(0, double.infinity).toDouble();
       final saleId = 'SAL-${const Uuid().v4().substring(0, 8).toUpperCase()}';
 
       // Items format mirrors web: { id, quantity, name, rate, taxRate }
@@ -275,7 +278,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         'p_id':              saleId,
         'p_shop_id':         _selectedClient?.id,
         'p_items':           payloadItems,
-        'p_total_amount':    _subtotal,
+        'p_total_amount':    netTotal,
+        'p_discount':        discountAmt,
         'p_payment_method':  pm,
         'p_payment_status':  ps,
         'p_date':            dateStr,
@@ -299,7 +303,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         try {
           final currentOutstanding = _selectedClient!.outstandingBalance ?? 0;
           await supabase.from('clients').update({
-            'outstanding_balance': currentOutstanding + _subtotal,
+            'outstanding_balance': currentOutstanding + netTotal,
           }).eq('id', _selectedClient!.id);
         } catch (_) {}
       }
@@ -340,7 +344,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
               context,
               upiId: upiId,
               merchantName: merchant,
-              amount: _subtotal,
+              amount: netTotal,
               invoiceNo: saleId,
               currencySymbol: symbol,
             );
@@ -369,7 +373,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
           try {
             await supabase.from('sales').update({
               'paymentStatus': 'PAID',
-              'paidAmount': _subtotal,
+              'paidAmount': netTotal,
             }).eq('id', saleId);
           } catch (e) {
             debugPrint('[SALE] mark PAID failed: $e');
@@ -1477,7 +1481,7 @@ class _CheckoutSheet extends StatefulWidget {
   final Client? selectedClient;
   // onComplete now receives an optional paidAmount. NULL means "use the
   // method default" (CASH/UPI/BANK → full pay; CREDIT_SALE → 0).
-  final Future<void> Function(String paymentMethod, double? paidAmount) onComplete;
+  final Future<void> Function(String paymentMethod, double? paidAmount, double discount) onComplete;
   final void Function(Product) onRemove;
   // Pulled from parent so the checkout sheet can read business profile
   // (tax_mode) without spinning up its own ConsumerStatefulWidget.
@@ -1504,22 +1508,24 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   // for CASH/UPI/BANK, or 0 for CREDIT_SALE. When less than the bill
   // total + client selected, balance lands in clients.outstanding_balance.
   late TextEditingController _amountPaidCtrl;
+  // Optional bill-level discount. Mode toggles between flat ₹ and %.
+  late TextEditingController _discountCtrl;
+  String _discountMode = 'AMOUNT'; // 'AMOUNT' | 'PERCENT'
 
   @override
   void initState() {
     super.initState();
     _localCart = List.from(widget.cart);
     _amountPaidCtrl = TextEditingController();
+    _discountCtrl = TextEditingController();
   }
 
   @override
   void dispose() {
     _amountPaidCtrl.dispose();
+    _discountCtrl.dispose();
     super.dispose();
   }
-
-  double get _subtotalNow =>
-      _localCart.fold(0, (s, e) => s + e.lineTotal);
 
   /// Effective paid amount considering payment method + cashier input.
   double? get _effectivePaid {
@@ -1531,7 +1537,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   }
 
   double get _changeOrBalance =>
-      ((_effectivePaid ?? _subtotalNow) - _subtotalNow);
+      ((_effectivePaid ?? _netTotal) - _netTotal);
 
   // Tax math respects tenant tax_mode + per-product taxRate. INCLUSIVE
   // means rate already contains tax — back it out for the Tax line.
@@ -1567,6 +1573,17 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     if (inclusive) return _localCart.fold(0.0, (s, c) => s + c.lineTotal);
     return _subtotal + _tax;
   }
+
+  // Bill-level discount in ₹ (flat amount or computed from %), capped at total.
+  double get _discountAmount {
+    final v = double.tryParse(_discountCtrl.text.trim()) ?? 0;
+    if (v <= 0) return 0;
+    final amt = _discountMode == 'PERCENT' ? _total * v / 100 : v;
+    return amt.clamp(0, _total).toDouble();
+  }
+
+  // Grand total the customer actually pays.
+  double get _netTotal => (_total - _discountAmount).clamp(0, double.infinity).toDouble();
 
   // Average effective tax rate (for display label) — weighted by line total.
   double get _avgTaxRate {
@@ -1844,6 +1861,57 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                           _billRow(
                               'Tax (${_avgTaxRate.toStringAsFixed(_avgTaxRate % 1 == 0 ? 0 : 1)}%${_taxMode == 'INCLUSIVE' ? ' incl' : ''})',
                               '₹${_tax.toStringAsFixed(2)}'),
+                          const SizedBox(height: 14),
+                          // ── Discount input (flat ₹ or %) ──────────
+                          Row(
+                            children: [
+                              Text(
+                                'Discount',
+                                style: GoogleFonts.manrope(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.inkSecondary,
+                                ),
+                              ),
+                              const Spacer(),
+                              // ₹ / % toggle
+                              _discountModeChip('AMOUNT', '₹'),
+                              const SizedBox(width: 6),
+                              _discountModeChip('PERCENT', '%'),
+                              const SizedBox(width: 10),
+                              SizedBox(
+                                width: 76,
+                                child: TextField(
+                                  controller: _discountCtrl,
+                                  textAlign: TextAlign.right,
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.inkPrimary,
+                                  ),
+                                  decoration: InputDecoration(
+                                    hintText: '0',
+                                    isDense: true,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: AppColors.outlineVariant),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(10),
+                                      borderSide: const BorderSide(color: AppColors.primary),
+                                    ),
+                                  ),
+                                  onChanged: (_) => setState(() {}),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (_discountAmount > 0) ...[
+                            const SizedBox(height: 10),
+                            _billRow('Discount', '- ₹${_discountAmount.toStringAsFixed(2)}'),
+                          ],
                           const Padding(
                             padding: EdgeInsets.symmetric(vertical: 10),
                             child: Divider(color: AppColors.outlineVariant),
@@ -1860,7 +1928,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                 ),
                               ),
                               Text(
-                                '₹${_total.toStringAsFixed(2)}',
+                                '₹${_netTotal.toStringAsFixed(2)}',
                                 style: GoogleFonts.manrope(
                                   fontSize: 22,
                                   fontWeight: FontWeight.w800,
@@ -1884,7 +1952,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             ? null
                             : () async {
                                 setState(() => _isLoading = true);
-                                await widget.onComplete(_paymentMethod, _effectivePaid);
+                                await widget.onComplete(_paymentMethod, _effectivePaid, _discountAmount);
                                 if (mounted) setState(() => _isLoading = false);
                               },
                         icon: _isLoading
@@ -1924,6 +1992,32 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   }
 
   // Renders Change due (paid > total) or Balance (paid < total).
+  // ₹ / % toggle chip for the discount input.
+  Widget _discountModeChip(String mode, String label) {
+    final active = _discountMode == mode;
+    return GestureDetector(
+      onTap: () => setState(() => _discountMode = mode),
+      child: Container(
+        width: 30,
+        height: 30,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: active ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: active ? AppColors.primary : AppColors.outlineVariant),
+        ),
+        child: Text(
+          label,
+          style: GoogleFonts.manrope(
+            fontSize: 14,
+            fontWeight: FontWeight.w800,
+            color: active ? Colors.white : AppColors.inkSecondary,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildBalanceChip() {
     final diff = _changeOrBalance; // > 0 = change, < 0 = balance
     if (diff == 0) return const SizedBox.shrink();
