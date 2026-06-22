@@ -7,7 +7,7 @@ import {
   Landmark, Wallet, ArrowDownToLine, ArrowUpFromLine, Tag
 } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
-import { buildGSTR3B, downloadGSTR3BJSON, downloadGSTR3BExcel, shareGSTWithCA } from '../../utils/gstReporting';
+import { buildGSTR3B, downloadGSTR3BJSON, downloadGSTR3BExcel, shareGSTWithCA, computeGstSetOff } from '../../utils/gstReporting';
 import { Download } from 'lucide-react';
 
 const fpNow = () => {
@@ -45,6 +45,26 @@ const GSTR3BReport = () => {
     () => buildGSTR3B(sales, purchases, expenses, { businessState, clients, invoices }),
     [sales, purchases, expenses, clients, invoices, businessState]
   );
+
+  // Statutory credit set-off (Sec 49/49A/49B) → exact cash payable per head.
+  const setoff = useMemo(() => {
+    const out = gstr3b.section3_1?.[0] || {};
+    const net = gstr3b.section4?.[2] || {};
+    return computeGstSetOff(
+      { igst: out.integratedTax, cgst: out.centralTax, sgst: out.stateTax, cess: out.cess },
+      { igst: net.integratedTax, cgst: net.centralTax, sgst: net.stateTax, cess: net.cess },
+    );
+  }, [gstr3b]);
+
+  const setoffRows = useMemo(() => {
+    const out = gstr3b.section3_1?.[0] || {};
+    return [
+      { head: 'Integrated Tax (IGST)', liability: out.integratedTax || 0, viaItc: setoff.itcUsed.igst, cash: setoff.cash.igst },
+      { head: 'Central Tax (CGST)',    liability: out.centralTax    || 0, viaItc: setoff.itcUsed.cgst, cash: setoff.cash.cgst },
+      { head: 'State/UT Tax (SGST)',   liability: out.stateTax      || 0, viaItc: setoff.itcUsed.sgst, cash: setoff.cash.sgst },
+      { head: 'Cess',                  liability: out.cess          || 0, viaItc: setoff.itcUsed.cess, cash: setoff.cash.cess },
+    ];
+  }, [gstr3b, setoff]);
 
   // KPIs across all tabs
   const kpis = useMemo(() => ([
@@ -212,6 +232,31 @@ const GSTR3BReport = () => {
     },
   };
 
+  // --- Set-off worksheet (formal — no chart) ---
+  const setoffTab = {
+    id: 'GSTR3B_SETOFF',
+    label: 'Set-off & Cash Payable',
+    icon: <Landmark size={18} />,
+    data: setoffRows,
+    loading,
+    totals: {
+      liability: round2(setoffRows.reduce((a, r) => a + r.liability, 0)),
+      viaItc: round2(setoffRows.reduce((a, r) => a + r.viaItc, 0)),
+      cash: round2(setoffRows.reduce((a, r) => a + r.cash, 0)),
+    },
+    columns: [
+      { key: 'head', label: 'Tax Head', width: 320,
+        render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">{val}</span> },
+      { key: 'liability', label: 'Output Liability', type: 'currency', align: 'right', width: 180,
+        render: (val) => val > 0 ? <span className="font-bold tabular-nums">{formatINR(val)}</span> : '—' },
+      { key: 'viaItc', label: 'Set-off via ITC', type: 'currency', align: 'right', width: 180,
+        render: (val) => val > 0 ? <span className="font-bold tabular-nums text-emerald-700">({formatINR(val)})</span> : '—' },
+      { key: 'cash', label: 'Payable in Cash', type: 'currency', align: 'right', width: 180,
+        render: (val) => <span className={`font-black tabular-nums ${val > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>{formatINR(val)}</span> },
+    ],
+    kpis,
+  };
+
   const gstin = businessProfile?.gst_no || businessProfile?.gstin || '';
   const exportBar = (
     <div className="no-print flex justify-end gap-2 mb-3">
@@ -256,7 +301,7 @@ const GSTR3BReport = () => {
         </div>
       </div>
 
-      <PremiumReportView title="GSTR-3B" tabs={[section3_1Tab, section3_2Tab, section4Tab, section6_1Tab]} />
+      <PremiumReportView title="GSTR-3B" tabs={[section3_1Tab, section3_2Tab, section4Tab, setoffTab, section6_1Tab]} />
     </div>
     </>
   );
