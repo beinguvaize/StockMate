@@ -1,5 +1,7 @@
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
@@ -124,6 +126,23 @@ class MenuScreen extends ConsumerWidget {
                       ),
 
                       const SizedBox(height: 24),
+
+                      // ── Sync ─────────────────────────────────
+                      _SectionLabel('Sync'),
+                      const SizedBox(height: 12),
+                      _MenuCard(
+                        icon: LucideIcons.refreshCw,
+                        iconColor: const Color(0xFF16A34A),
+                        label: 'Force Sync',
+                        subtitle: 'Push offline changes to the cloud',
+                        feature: 'dashboard',
+                        roles: roles,
+                        plan: plan,
+                        permissions: permissions,
+                        alwaysShow: true,
+                        onTap: () => _forceSyncFromMenu(context, ref),
+                      ),
+                      const SizedBox(height: 20),
 
                       // ── Menu section ─────────────────────────
                       _SectionLabel('Modules'),
@@ -309,6 +328,38 @@ class _SectionLabel extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Manual Force Sync from the More menu. Flushes the offline queue and reports
+/// the result. sync() is idempotent + guarded + timed-out, so it's always safe.
+Future<void> _forceSyncFromMenu(BuildContext context, WidgetRef ref) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final svc = ref.read(syncServiceProvider);
+  final conn = await Connectivity().checkConnectivity();
+  final pending = await svc.pendingCount();
+  if (conn == ConnectivityResult.none) {
+    messenger.showSnackBar(SnackBar(
+      content: Text(pending > 0
+          ? 'No internet — $pending change${pending == 1 ? '' : 's'} saved, will sync when back online.'
+          : 'No internet connection.'),
+      behavior: SnackBarBehavior.floating,
+    ));
+    return;
+  }
+  messenger.showSnackBar(const SnackBar(
+    content: Text('Syncing…'), duration: Duration(milliseconds: 900),
+    behavior: SnackBarBehavior.floating,
+  ));
+  await svc.sync();
+  final left = await svc.pendingCount();
+  if (!context.mounted) return;
+  messenger.showSnackBar(SnackBar(
+    content: Text(left == 0
+        ? 'All changes synced ✓'
+        : '$left change${left == 1 ? '' : 's'} still pending — will retry.'),
+    backgroundColor: left == 0 ? const Color(0xFF16A34A) : const Color(0xFFD97706),
+    behavior: SnackBarBehavior.floating,
+  ));
 }
 
 class _MenuCard extends StatelessWidget {
