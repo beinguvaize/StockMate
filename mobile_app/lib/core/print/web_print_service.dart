@@ -31,7 +31,7 @@ class WebPrintService {
   // dev tenants print from the dev frontend, prod from prod.
   static const String _baseUrl = String.fromEnvironment(
     'WEB_BASE_URL',
-    defaultValue: 'https://ledgrpro-prod.vercel.app',
+    defaultValue: 'https://app.bookledger.in',
   );
 
   static Future<Uint8List?> renderReceiptPdf(String saleId, {double? tendered}) {

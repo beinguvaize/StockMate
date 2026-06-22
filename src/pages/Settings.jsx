@@ -113,8 +113,6 @@ const Settings = ({ embedded = false, section = null }) => {
  const [editingProductCategory, setEditingProductCategory] = useState(null);
  const [editProductValue, setEditProductValue] = useState('');
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
-  const [workspaceSlug, setWorkspaceSlug] = useState(currentTenant?.slug || '');
-  const [isUpdatingSlug, setIsUpdatingSlug] = useState(false);
 
   // ── Branches ──
   const [newLocName, setNewLocName]     = useState('');
@@ -643,8 +641,10 @@ const Settings = ({ embedded = false, section = null }) => {
  </div>
  </div>
 
-  {/* Workspace Management - OWNER ONLY */}
-  {isOwner && (
+  {/* Workspace Management - OWNER ONLY (standalone page only; the hub's Plan &
+      billing panel covers plan, and the slug/login-URL editor was retired when
+      the app moved to slugless URLs). */}
+  {isOwner && !embedded && (
     <div id="tab-workspace" className="scroll-mt-24 glass-panel !p-0 !rounded-bento overflow-hidden border border-black/5 shadow-premium bg-surface mt-5">
       <div className="bg-ink-primary px-5 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -696,45 +696,6 @@ const Settings = ({ embedded = false, section = null }) => {
         </div>
 
         )}
-
-        {/* Slug Management */}
-        <div className="flex flex-col gap-4">
-          <div className="p-5 rounded-2xl bg-white border border-gray-300 shadow-sm">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-wide">Workspace Identifier (URL)</span>
-              <Globe size={16} className="text-accent-signature" />
-            </div>
-            <div className="relative group">
-              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-gray-400">/</span>
-              <input
-                type="text"
-                className="w-full !pl-8 !py-5 bg-surface border-none rounded-lg text-lg font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 transition-all uppercase"
-                value={workspaceSlug}
-                onChange={e => setWorkspaceSlug(e.target.value.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, ''))}
-                placeholder="slug..."
-              />
-            </div>
-            <p className="text-[9px] font-semibold text-gray-500 mt-3 mb-6 uppercase italic">Changing this will update your login URL immediately.</p>
-            <button 
-              disabled={workspaceSlug === currentTenant?.slug || isUpdatingSlug}
-              onClick={async () => {
-                setIsUpdatingSlug(true);
-                const success = await updateTenant({ slug: workspaceSlug });
-                if (success) {
-                  goHref(`/${workspaceSlug}/settings`);
-                }
-                setIsUpdatingSlug(false);
-              }}
-              className={`w-full h-10 rounded-xl text-xs font-bold transition-all ${
-                workspaceSlug === currentTenant?.slug 
-                ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                : 'bg-accent-signature text-button-text shadow-premium'
-              }`}
-            >
-              {isUpdatingSlug ? 'UPDATING WORKSPACE...' : 'UPDATE WORKSPACE URL'}
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   )}
