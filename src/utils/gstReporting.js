@@ -666,6 +666,48 @@ export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { busines
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GST credit set-off worksheet — applies the statutory utilisation order of
+// Sec 49 / 49A / 49B (post-2019): IGST credit clears IGST then CGST then SGST;
+// CGST credit clears CGST then IGST; SGST/UTGST credit clears SGST then IGST;
+// Cess only against Cess. Returns ITC used + cash payable + closing ITC by head.
+// Inputs are plain {igst,cgst,sgst,cess} liability + available-ITC objects.
+// ─────────────────────────────────────────────────────────────────────────────
+export const computeGstSetOff = (output = {}, itc = {}) => {
+  let li = Number(output.igst) || 0, lc = Number(output.cgst) || 0,
+      ls = Number(output.sgst) || 0, lcs = Number(output.cess) || 0;
+  let ci = Number(itc.igst) || 0, cc = Number(itc.cgst) || 0,
+      cs = Number(itc.sgst) || 0, ccs = Number(itc.cess) || 0;
+
+  const take = (avail, due) => Math.min(avail, due);
+  const u = { igstToIgst: 0, igstToCgst: 0, igstToSgst: 0, cgstToCgst: 0, cgstToIgst: 0, sgstToSgst: 0, sgstToIgst: 0, cessToCess: 0 };
+
+  // 1. IGST credit → IGST, CGST, SGST (in that order)
+  u.igstToIgst = take(ci, li); li -= u.igstToIgst; ci -= u.igstToIgst;
+  u.igstToCgst = take(ci, lc); lc -= u.igstToCgst; ci -= u.igstToCgst;
+  u.igstToSgst = take(ci, ls); ls -= u.igstToSgst; ci -= u.igstToSgst;
+  // 2. CGST credit → CGST, then IGST
+  u.cgstToCgst = take(cc, lc); lc -= u.cgstToCgst; cc -= u.cgstToCgst;
+  u.cgstToIgst = take(cc, li); li -= u.cgstToIgst; cc -= u.cgstToIgst;
+  // 3. SGST/UTGST credit → SGST, then IGST
+  u.sgstToSgst = take(cs, ls); ls -= u.sgstToSgst; cs -= u.sgstToSgst;
+  u.sgstToIgst = take(cs, li); li -= u.sgstToIgst; cs -= u.sgstToIgst;
+  // 4. Cess → Cess only
+  u.cessToCess = take(ccs, lcs); lcs -= u.cessToCess; ccs -= u.cessToCess;
+
+  return {
+    detail: u,
+    itcUsed: {
+      igst: round2(u.igstToIgst + u.cgstToIgst + u.sgstToIgst),
+      cgst: round2(u.cgstToCgst + u.igstToCgst),
+      sgst: round2(u.sgstToSgst + u.igstToSgst),
+      cess: round2(u.cessToCess),
+    },
+    cash: { igst: round2(li), cgst: round2(lc), sgst: round2(ls), cess: round2(lcs) },
+    itcClosing: { igst: round2(ci), cgst: round2(cc), sgst: round2(cs), cess: round2(ccs) },
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Filing-pack exports — GST offline-tool Excel workbook, GSTR-3B portal JSON,
 // and a "share with CA" WhatsApp summary. Added for the GST filing pack.
 // ─────────────────────────────────────────────────────────────────────────────
