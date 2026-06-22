@@ -106,53 +106,37 @@ class ProductRepository {
     );
   }
 
-  /// Update only the stock value of a product (manual adjustment).
+  /// Update the stock value of a product (manual adjustment).
+  ///
+  /// IMPORTANT: goes through inventory_balances, never products.stock directly.
+  /// inventory_balances is the source of truth — a DB trigger
+  /// (sync_product_stock_sum) keeps products.stock = SUM(balances). Writing
+  /// products.stock directly bypasses that trigger and drifts the two stores
+  /// apart (the list showed one number, the detail another). The atomic RPC
+  /// also records the movement so Stock History reflects the adjustment.
   Future<void> updateStock(String productId, double newStock,
       {String reason = 'Manual adjustment'}) async {
-    // Read the current row first so we know the delta + carry tenant_id/name.
     final row = await (db.select(db.products)
           ..where((t) => t.id.equals(productId)))
         .getSingleOrNull();
     final delta = newStock - (row?.stock ?? newStock);
 
-    // 1. Local Update
+    // Local update for instant UI; the server value reconciles on next pull.
     await (db.update(db.products)..where((t) => t.id.equals(productId)))
         .write(ProductsCompanion(stock: Value(newStock)));
 
-    // 2. Sync products.stock (absolute → idempotent). tenant_id MUST be in the
-    // payload or the upsert's INSERT path defaults it to a placeholder and the
-    // RLS WITH CHECK rejects it, leaving the change stuck ("N to sync").
-    await syncService.queueMutation(
-      targetTable: 'products',
-      action: 'upsert',
-      payload: {
-        'id': productId,
-        'stock': newStock,
-        if (row?.tenantId != null) 'tenant_id': row!.tenantId,
-      },
-    );
+    if (delta == 0 || row?.tenantId == null) return;
 
-    // 3. Record the movement so Stock History shows manual adjustments (web +
-    // mobile previously only logged sales). Stable id keeps the queued upsert
-    // idempotent — no duplicate entry if the job retries.
-    if (delta != 0 && row?.tenantId != null) {
-      final logId =
-          'LOG-${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecond}';
-      await syncService.queueMutation(
-        targetTable: 'movement_log',
-        action: 'upsert',
-        payload: {
-          'id': logId,
-          'tenant_id': row!.tenantId,
-          'product_id': productId,
-          'product_name': row.name,
-          'type': delta >= 0 ? 'IN' : 'OUT',
-          'quantity': delta.abs(),
-          'reason': reason,
-          'date': DateTime.now().toUtc().toIso8601String(),
-        },
-      );
-    }
+    // Apply the delta to the warehouse balance (p_location_id null → the
+    // tenant's WAREHOUSE). delta = newStock − current total, so the total
+    // lands on newStock even across multiple locations. Offline-queued.
+    await syncService.rpcOnlineOrQueue('adjust_inventory_atomic', {
+      'p_product_id': productId,
+      'p_location_id': null,
+      'p_amount': delta,
+      'p_reason': reason,
+      'p_tenant_id': row!.tenantId,
+    });
   }
 
   /// Update a product with offline support
