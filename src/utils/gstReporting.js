@@ -668,6 +668,90 @@ export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { busines
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GSTR-2B reconciliation — parse the portal's auto-drafted 2B (JSON download)
+// and reconcile it against the purchase register at supplier (GSTIN) level.
+// (Invoice-level needs a supplier bill-number on purchases — not stored yet.)
+// ─────────────────────────────────────────────────────────────────────────────
+export const parseGSTR2B = (raw) => {
+  let json;
+  try { json = typeof raw === 'string' ? JSON.parse(raw) : raw; }
+  catch { return { byGstin: {}, count: 0, error: 'File is not valid JSON. Download the GSTR-2B JSON from the GST portal.' }; }
+
+  // The portal nests B2B under data.docdata.b2b; tolerate a few shapes.
+  const b2b = json?.data?.docdata?.b2b || json?.docdata?.b2b || json?.b2b || [];
+  if (!Array.isArray(b2b)) return { byGstin: {}, count: 0, error: 'No B2B section found in this file.' };
+
+  const byGstin = {};
+  for (const sup of b2b) {
+    const gstin = String(sup.ctin || sup.gstin || '').trim().toUpperCase();
+    if (!gstin) continue;
+    if (!byGstin[gstin]) byGstin[gstin] = { gstin, supplierName: sup.trdnm || sup.trade_name || '', taxable: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, total: 0, invoices: 0 };
+    const r = byGstin[gstin];
+    const invs = sup.inv || sup.invoices || [];
+    for (const inv of invs) {
+      r.invoices += 1;
+      r.total += Number(inv.val) || 0;
+      const items = inv.items || inv.itms || [];
+      if (items.length) {
+        for (const it of items) {
+          const d = it.itm_det || it.det || it;
+          r.taxable += Number(d.txval) || 0;
+          r.igst += Number(d.iamt) || 0;
+          r.cgst += Number(d.camt) || 0;
+          r.sgst += Number(d.samt) || 0;
+          r.cess += Number(d.csamt) || 0;
+        }
+      } else {
+        // Some exports keep totals at invoice level.
+        r.taxable += Number(inv.txval) || 0;
+        r.igst += Number(inv.iamt) || 0;
+        r.cgst += Number(inv.camt) || 0;
+        r.sgst += Number(inv.samt) || 0;
+      }
+    }
+  }
+  Object.values(byGstin).forEach((r) => {
+    ['taxable', 'igst', 'cgst', 'sgst', 'cess', 'total'].forEach((k) => { r[k] = round2(r[k]); });
+  });
+  return { byGstin, count: Object.keys(byGstin).length };
+};
+
+// books / twoB are maps keyed by GSTIN → { gstin, supplierName, taxable, igst, cgst, sgst }
+export const reconcile2B = (books = {}, twoB = {}) => {
+  const gstins = new Set([...Object.keys(books), ...Object.keys(twoB)]);
+  const rows = [];
+  for (const g of gstins) {
+    const b = books[g];
+    const t = twoB[g];
+    const bTax = b?.taxable || 0, tTax = t?.taxable || 0;
+    const bItc = (b?.igst || 0) + (b?.cgst || 0) + (b?.sgst || 0);
+    const tItc = (t?.igst || 0) + (t?.cgst || 0) + (t?.sgst || 0);
+    let status;
+    if (b && !t) status = 'MISSING IN 2B';        // booked but supplier hasn't filed → ITC at risk
+    else if (!b && t) status = 'MISSING IN BOOKS'; // in 2B but not recorded → unclaimed ITC
+    else status = (Math.abs(bTax - tTax) < 1 && Math.abs(bItc - tItc) < 1) ? 'MATCHED' : 'MISMATCH';
+    rows.push({
+      gstin: g, supplier: b?.supplierName || t?.supplierName || '—',
+      booksTaxable: round2(bTax), b2bTaxable: round2(tTax),
+      booksItc: round2(bItc), b2bItc: round2(tItc),
+      diff: round2(bItc - tItc), status,
+    });
+  }
+  const order = { 'MISMATCH': 0, 'MISSING IN 2B': 1, 'MISSING IN BOOKS': 2, 'MATCHED': 3 };
+  rows.sort((a, b) => (order[a.status] - order[b.status]) || (b.b2bItc - a.b2bItc));
+  const summary = {
+    matched: rows.filter(r => r.status === 'MATCHED').length,
+    mismatch: rows.filter(r => r.status === 'MISMATCH').length,
+    missingIn2B: rows.filter(r => r.status === 'MISSING IN 2B').length,
+    missingInBooks: rows.filter(r => r.status === 'MISSING IN BOOKS').length,
+    booksItc: round2(rows.reduce((a, r) => a + r.booksItc, 0)),
+    b2bItc: round2(rows.reduce((a, r) => a + r.b2bItc, 0)),
+    atRiskItc: round2(rows.filter(r => r.status === 'MISSING IN 2B' || r.status === 'MISMATCH').reduce((a, r) => a + Math.max(0, r.booksItc - r.b2bItc), 0)),
+  };
+  return { rows, summary };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GST credit set-off worksheet — applies the statutory utilisation order of
 // Sec 49 / 49A / 49B (post-2019): IGST credit clears IGST then CGST then SGST;
 // CGST credit clears CGST then IGST; SGST/UTGST credit clears SGST then IGST;
