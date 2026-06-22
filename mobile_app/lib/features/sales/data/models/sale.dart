@@ -11,6 +11,7 @@ class Sale {
   final double? discount;
   final double? tax;
   final double? totalAmount;
+  final double? paidAmount;
   final String? date;
   final String? status;
   final DateTime? createdAt;
@@ -29,6 +30,7 @@ class Sale {
     this.discount,
     this.tax,
     this.totalAmount,
+    this.paidAmount,
     this.date,
     this.status,
     this.createdAt,
@@ -57,6 +59,7 @@ class Sale {
       discount: (json['discount'] as num?)?.toDouble(),
       tax: (json['tax'] as num?)?.toDouble(),
       totalAmount: (json['totalAmount'] as num?)?.toDouble(),
+      paidAmount: (json['paidAmount'] as num?)?.toDouble(),
       date: json['date'] as String?,
       status: json['status'] as String?,
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
