@@ -216,7 +216,7 @@ class _GlobalAppBar extends StatelessWidget {
               // Logo — exact center of screen
               Center(
                 child: Image.asset(
-                  'assets/images/logo.png',
+                  'assets/images/logo_linear.png',
                   height: 32,
                   fit: BoxFit.contain,
                 ),
@@ -393,7 +393,7 @@ class _AppDrawer extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 20, 16, 8),
               child: Row(
                 children: [
-                  Image.asset('assets/images/logo.png', height: 30, fit: BoxFit.contain),
+                  Image.asset('assets/images/logo_linear.png', height: 30, fit: BoxFit.contain),
                   const Spacer(),
                 ],
               ),
