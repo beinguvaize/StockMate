@@ -22,6 +22,7 @@ import ProductProfitabilityReport from '../components/reports/ProductProfitabili
 import GSTR1Report from '../components/reports/GSTR1Report';
 import GSTR3BReport from '../components/reports/GSTR3BReport';
 import PurchaseRegisterReport from '../components/reports/PurchaseRegisterReport';
+import GSTR2BReconReport from '../components/reports/GSTR2BReconReport';
 import ExpiryReport from '../components/reports/ExpiryReport';
 import IMEISerialReport from '../components/reports/IMEISerialReport';
 import DailySalesReport from '../components/reports/DailySalesReport';
@@ -95,6 +96,7 @@ const Reports = () => {
     { id: 'GSTR1',  group: 'COMPLIANCE', label: 'GSTR-1',  icon: <FileText size={18} />,  component: <GSTR1Report />,  permission: 'reports' },
     { id: 'GSTR3B', group: 'COMPLIANCE', label: 'GSTR-3B', icon: <FileCheck size={18} />, component: <GSTR3BReport />, permission: 'reports' },
     { id: 'PURCHASE_REGISTER', group: 'COMPLIANCE', label: 'Purchase Register', icon: <FileText size={18} />, component: <PurchaseRegisterReport />, permission: 'reports' },
+    { id: 'GSTR2B_RECON', group: 'COMPLIANCE', label: 'GSTR-2B Reconciliation', icon: <FileCheck size={18} />, component: <GSTR2BReconReport />, permission: 'reports' },
   ].filter(tab => hasPermission(tab.permission, 'view'));
 
   const groupedTabs = useMemo(() => {
