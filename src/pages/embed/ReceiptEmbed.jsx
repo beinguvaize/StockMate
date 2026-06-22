@@ -155,7 +155,7 @@ const ReceiptEmbed = () => {
   }
 
   return (
-    <div data-embed-ready="true" style={{ background: '#fff', minHeight: '100vh', padding: 0 }}>
+    <div data-embed-ready="true" style={{ background: '#fff', width: 'fit-content', padding: 0 }}>
       <POSReceipt
         bare
         invoice={saleToInvoice(state.sale)}

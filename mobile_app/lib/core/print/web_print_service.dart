@@ -138,13 +138,11 @@ class WebPrintService {
             } catch (e) {
               debugPrint('[WebPrint] __renderToPng failed: $e');
             }
-            if (bytes == null || bytes.isEmpty) {
-              try {
-                bytes = await c.createPdf(pdfConfiguration: PDFConfiguration());
-              } catch (_) {
-                bytes = null;
-              }
-            }
+            // NOTE: WKWebView createPdf() defaults to an A4/Letter page and
+            // ignores the receipt's @page size — that was the source of the
+            // big white tail on thermal prints. Both remaining paths size the
+            // output to the receipt sheet itself, so direct print + share
+            // stay compact on 58/80mm rolls.
             if (bytes == null || bytes.isEmpty) {
               bytes = await _screenshotToPdf(c);
             }
@@ -259,43 +257,47 @@ Future<Uint8List?> _renderViaHtml2Canvas(InAppWebViewController c) async {
 /// sized to match. Result prints / shares cleanly via the existing
 /// `printing` package while keeping pixel parity with the web render.
 Future<Uint8List> _screenshotToPdf(InAppWebViewController c) async {
-  // Pull the document's pixel dimensions from JS — DPR is included so
-  // the screenshot resolution matches the device's display density.
-  final dimsRaw = await c.evaluateJavascript(source: '''
+  // Measure the receipt sheet itself (not the whole document) so the page
+  // hugs the slip — no A4 white tail. Falls back to the embed container/body.
+  final rectRaw = await c.evaluateJavascript(source: '''
     (function() {
-      const w = Math.max(
-        document.documentElement.scrollWidth,
-        document.documentElement.clientWidth,
-        document.body ? document.body.scrollWidth : 0
-      );
-      const h = Math.max(
-        document.documentElement.scrollHeight,
-        document.documentElement.clientHeight,
-        document.body ? document.body.scrollHeight : 0
-      );
-      return JSON.stringify({ w: w, h: h, dpr: window.devicePixelRatio || 1 });
+      const el = document.getElementById('pos-receipt-sheet')
+        || document.querySelector('[data-embed-ready="true"]')
+        || document.body;
+      const r = el.getBoundingClientRect();
+      return JSON.stringify({ x: r.left, y: r.top, w: r.width, h: r.height });
     })();
   ''');
-  final dims = (dimsRaw is String)
-      ? jsonDecode(dimsRaw) as Map<String, dynamic>
+  final m = (rectRaw is String)
+      ? jsonDecode(rectRaw) as Map<String, dynamic>
       : <String, dynamic>{};
-  final docW = (dims['w'] as num?)?.toDouble() ?? 800.0;
-  final docH = (dims['h'] as num?)?.toDouble() ?? 1200.0;
+  final x = (m['x'] as num?)?.toDouble() ?? 0.0;
+  final y = (m['y'] as num?)?.toDouble() ?? 0.0;
+  final w = (m['w'] as num?)?.toDouble() ?? 320.0;
+  final h = (m['h'] as num?)?.toDouble() ?? 600.0;
 
-  final png = await c.takeScreenshot();
+  // Capture only the sheet's rectangle (CSS points). InAppWebViewRect uses the
+  // same CSS-point space as getBoundingClientRect.
+  Uint8List? png = await c.takeScreenshot(
+    screenshotConfiguration: ScreenshotConfiguration(
+      rect: InAppWebViewRect(x: x, y: y, width: w, height: h),
+    ),
+  );
+  // Some platforms ignore the rect — fall back to a full capture rather than
+  // failing, but still size the PDF page to the sheet so it stays compact.
+  png ??= await c.takeScreenshot();
   if (png == null || png.isEmpty) {
     throw Exception('takeScreenshot returned empty bytes');
   }
 
-  // Build a one-page PDF sized to the same CSS-pixel dimensions so the
-  // printer / share sheet renders at native resolution. 1 CSS pixel ≈
-  // 0.75 PDF point at 96 DPI.
+  // 1 CSS pixel ≈ 0.75 PDF point at 96 DPI. Page = the sheet, no margin.
   const pxToPt = 72.0 / 96.0;
-  final pageFormat = pdfpkg.PdfPageFormat(docW * pxToPt, docH * pxToPt);
+  final pageFormat = pdfpkg.PdfPageFormat(w * pxToPt, h * pxToPt);
   final doc = pw.Document();
   doc.addPage(pw.Page(
     pageFormat: pageFormat,
-    build: (_) => pw.Image(pw.MemoryImage(png), fit: pw.BoxFit.fill),
+    margin: pw.EdgeInsets.zero,
+    build: (_) => pw.Image(pw.MemoryImage(png!), fit: pw.BoxFit.fill),
   ));
   return doc.save();
 }
