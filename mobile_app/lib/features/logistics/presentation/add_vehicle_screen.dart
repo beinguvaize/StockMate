@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/theme/colors.dart';
-import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/logistics/data/models/vehicle.dart';
+import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/logistics/presentation/providers/logistics_provider.dart';
 
 class AddVehicleScreen extends ConsumerStatefulWidget {
@@ -81,21 +82,25 @@ class _AddVehicleScreenState extends ConsumerState<AddVehicleScreen> {
 
     setState(() => _isLoading = true);
     try {
+      final tenantCtx = ref.read(tenantContextProvider).valueOrNull;
+      if (tenantCtx == null) {
+        throw Exception('No active workspace — sign in again.');
+      }
+      // id + tenant_id are REQUIRED: vehicles.id has no default and tenant_id
+      // defaults to a placeholder that fails RLS. Route through the offline
+      // queue (upsert by id) so add/edit both work online or offline.
       final payload = {
+        'id': _isEditing
+            ? widget.vehicle!.id
+            : 'VEH-${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecond}',
+        'tenant_id': tenantCtx.tenantId,
         'name': _nameController.text.trim(),
         'plateNumber': _plateController.text.trim().toUpperCase(),
         'status': _selectedStatus,
         'driverName': _driverController.text.trim(),
       };
 
-      if (_isEditing) {
-        await supabase
-            .from('vehicles')
-            .update(payload)
-            .eq('id', widget.vehicle!.id);
-      } else {
-        await supabase.from('vehicles').insert(payload);
-      }
+      await ref.read(syncServiceProvider).upsertOnlineOrQueue('vehicles', payload);
 
       if (mounted) {
         ref.invalidate(vehiclesProvider);
