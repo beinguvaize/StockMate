@@ -108,18 +108,25 @@ const DayBook = () => {
     const daySupPays    = (supplierPayments || []).filter(p => p.date === selectedDate);
 
     // ── Receipts ─────────────────────────────────────────────────────────────
+    const paidOf = (s) => Number(s.paidAmount ?? s.paid_amount) || 0;
     const cashSales   = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CASH')
                                 .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
     const bankSales   = daySales.filter(s => ['BANK','UPI','TRANSFER'].includes((s.paymentMethod || '').toUpperCase()))
                                 .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
+    // Credit sales: only the UNPAID portion is receivable. A partial credit sale
+    // (e.g. ₹1,832 with ₹1,500 paid at the counter) leaves ₹332 receivable; the
+    // ₹1,500 paid is real cash collected today (counted in creditPaid below).
     const creditSales = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CREDIT')
-                                .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
+                                .reduce((t, s) => t + Math.max(0, (Number(s.totalAmount) || 0) - paidOf(s)), 0);
+    const creditPaid  = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CREDIT')
+                                .reduce((t, s) => t + Math.min(paidOf(s), Number(s.totalAmount) || 0), 0);
     const cashCollect = dayCollect.filter(p => (p.payment_method || '').toUpperCase() === 'CASH')
                                   .reduce((t, p) => t + (Number(p.amount) || 0), 0);
     const bankCollect = dayCollect.filter(p => ['BANK','UPI','TRANSFER','NEFT','RTGS'].includes((p.payment_method || '').toUpperCase()))
                                   .reduce((t, p) => t + (Number(p.amount) || 0), 0);
-    // cashIn = money that hits the physical cash drawer
-    const cashIn       = cashSales + cashCollect;
+    // cashIn = money that hits the physical cash drawer (incl. amounts paid up
+    // front on partial credit sales).
+    const cashIn       = cashSales + cashCollect + creditPaid;
     const bankIn       = bankSales + bankCollect;
     const totalReceipts = cashIn + bankIn; // full display total
 

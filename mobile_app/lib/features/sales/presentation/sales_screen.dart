@@ -245,9 +245,13 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                       final isPaid    = saleStatus == 'PAID';
                       final isFailed  = saleStatus == 'VOIDED' || saleStatus == 'FAILED';
                       final isPending = saleStatus == 'PENDING';
+                      final isPartial = saleStatus == 'PARTIAL';
+                      final paidAmt   = sale.paidAmount ?? 0;
+                      final dueAmt    = ((sale.totalAmount ?? 0) - paidAmt).clamp(0, double.infinity);
                       String badgeLabel; Color badgeColor;
                       if (isPaid)        { badgeLabel = 'Paid';    badgeColor = AppColors.success; }
                       else if (isFailed) { badgeLabel = 'Failed';  badgeColor = AppColors.danger;  }
+                      else if (isPartial){ badgeLabel = 'Partial'; badgeColor = AppColors.warning; }
                       else if (isPending){ badgeLabel = 'Pending'; badgeColor = AppColors.warning; }
                       else               { badgeLabel = 'Credit';  badgeColor = AppColors.warning; }
                       final initial = customerName.isNotEmpty ? customerName[0].toUpperCase() : 'W';
@@ -357,6 +361,17 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                     ),
                                   ),
                                 ),
+                                if (isPartial) ...[
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Paid ₹${paidAmt.toStringAsFixed(0)} · Due ₹${dueAmt.toStringAsFixed(0)}',
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.inkTertiary,
+                                    ),
+                                  ),
+                                ],
                               ],
                             ),
                           ],

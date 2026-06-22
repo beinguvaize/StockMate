@@ -195,6 +195,9 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         p_shop_id: clientId,
         p_items: items,
         p_total_amount: totalAmount,
+        // Store the bill discount so the receipt's "Discount" line shows it.
+        // p_total_amount is already net of this. RPC defaults it to 0.
+        p_discount: Number(sale.discount) || 0,
         p_payment_method: sale.paymentMethod || 'CASH',
         p_payment_status: paymentStatus,
         p_date: sale.date || todayISOInAppTZ(),
