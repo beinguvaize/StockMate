@@ -112,11 +112,20 @@ class ProductRepository {
     await (db.update(db.products)..where((t) => t.id.equals(productId)))
         .write(ProductsCompanion(stock: Value(newStock)));
 
-    // 2. Sync Queue
+    // 2. Sync Queue. tenant_id MUST be in the payload: the upsert's INSERT
+    // path otherwise defaults tenant_id to a placeholder and the RLS WITH
+    // CHECK rejects it, leaving the change stuck in the queue ("N to sync").
+    final row = await (db.select(db.products)
+          ..where((t) => t.id.equals(productId)))
+        .getSingleOrNull();
     await syncService.queueMutation(
       targetTable: 'products',
       action: 'upsert',
-      payload: {'id': productId, 'stock': newStock},
+      payload: {
+        'id': productId,
+        'stock': newStock,
+        if (row?.tenantId != null) 'tenant_id': row!.tenantId,
+      },
     );
   }
 
