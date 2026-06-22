@@ -42,6 +42,21 @@ const Login = () => {
     navigate('/welcome');
   };
 
+  // Password reset request — own screen (mode === 'forgot').
+  const [resetLoading, setResetLoading] = useState(false);
+  const handleForgot = async (e) => {
+    e.preventDefault();
+    setError(''); setInfo('');
+    if (!credentials.email) { setError('Enter your email address.'); return; }
+    setResetLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(credentials.email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setResetLoading(false);
+    if (error) { setError(error.message); return; }
+    setInfo(`Reset link sent to ${credentials.email}. Check your inbox (and spam).`);
+  };
+
   // Desktop offline status: track navigator.onLine + cached bootstrap so we can
   // (a) show a clear "first sign-in requires internet" warning to fresh users,
   // (b) tell returning users how many days of offline grace remain.
@@ -184,10 +199,12 @@ const Login = () => {
 
  <div className="relative z-1 w-[370px] form-card m-auto py-10">
  <h1 className="font-space font-bold text-[26px] text-white text-center mb-[10px]">
- {mode === 'login' ? 'WELCOME BACK' : 'CREATE ACCOUNT'}
+ {mode === 'login' ? 'WELCOME BACK' : mode === 'signup' ? 'CREATE ACCOUNT' : 'RESET PASSWORD'}
  </h1>
  <p className="text-center text-[12px] text-[#747576] mb-[24px]">
- {mode === 'login' ? 'Sign in to your workspace' : '60 days free. No credit card required.'}
+ {mode === 'login' ? 'Sign in to your workspace'
+   : mode === 'signup' ? '60 days free. No credit card required.'
+   : 'Enter your email — we\'ll send a reset link.'}
  </p>
 
  {offlineState.desktop && !offlineState.online && (
@@ -254,14 +271,7 @@ const Login = () => {
  />
  </div>
  <button type="button"
-  onClick={async () => {
-    if (!credentials.email) { setError('Enter your email above first, then tap Forgot Password.'); return; }
-    const { error } = await supabase.auth.resetPasswordForEmail(credentials.email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
-    if (error) setError(error.message);
-    else setError('Check your inbox — reset link sent to ' + credentials.email);
-  }}
+  onClick={() => { setMode('forgot'); setError(''); setInfo(''); }}
   className="block text-right text-[#747576] text-[12.5px] underline underline-offset-[3px] mt-[9px] cursor-pointer opacity-85 hover:text-white hover:opacity-100 transition-all ml-auto bg-transparent border-0">
  Forgot Password?
  </button>
@@ -288,7 +298,7 @@ const Login = () => {
  <span className="font-arial font-bold text-[15px] text-[#111] relative z-1">LOG IN</span>
  </button>
  </form>
- ) : (
+ ) : mode === 'signup' ? (
  <form onSubmit={handleSignUp}>
    {[
      { key: 'name',     type: 'text',     label: 'Full Name',        ph: 'Full name' },
@@ -336,8 +346,60 @@ const Login = () => {
      By signing up you agree to our Terms of Service.
    </p>
  </form>
+ ) : (
+ <form onSubmit={handleForgot}>
+   <div className="mb-[18px]">
+     <label className="block text-[#747576] text-[14px] font-medium mb-[7px]">Email Address</label>
+     <div className="flex items-center bg-[#0d1411] border-[1.5px] border-[#253028] rounded-[6px] transition-colors focus-within:border-[#38e0a0]/45">
+       <span className="pl-[13px] pr-[13px] text-[#747576] flex items-center shrink-0">
+         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+           <rect x="2" y="4" width="20" height="16" rx="2"/>
+           <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+         </svg>
+       </span>
+       <input
+         type="email"
+         placeholder="you@business.com"
+         autoComplete="email"
+         required
+         autoFocus
+         className="flex-1 bg-transparent border-none outline-none text-[#747576] font-inter text-[14px] pt-[13px] pr-[13px] pb-[13px] pl-0 placeholder:text-gray-700/30"
+         value={credentials.email}
+         onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+       />
+     </div>
+   </div>
+
+   {error && (
+     <div className="mb-4 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-[12px] font-semibold">
+       {error}
+     </div>
+   )}
+   {info && (
+     <div className="mb-4 p-3 rounded-xl bg-[#38e0a0]/10 border border-[#38e0a0]/25 text-[#38e0a0] text-[12px] font-semibold">
+       {info}
+     </div>
+   )}
+
+   <button
+     type="submit"
+     disabled={resetLoading}
+     className="w-full h-[54px] bg-white border-none rounded-[6px] cursor-pointer flex items-center justify-center hover:shadow-[0_8px_28px_rgba(0,0,0,0.45)] active:scale-[0.98] transition-all disabled:opacity-60"
+   >
+     <span className="font-arial font-bold text-[15px] text-[#111]">
+       {resetLoading ? 'SENDING…' : 'SEND RESET LINK'}
+     </span>
+   </button>
+
+   <button type="button"
+     onClick={() => { setMode('login'); setError(''); setInfo(''); }}
+     className="w-full mt-3 text-center text-[12.5px] text-[#747576] hover:text-white transition-colors bg-transparent border-0">
+     ← Back to sign in
+   </button>
+ </form>
  )}
 
+ {mode !== 'forgot' && (<>
  {/* Divider */}
  <div className="flex items-center gap-3 mt-[22px] mb-[18px]">
    <div className="flex-1 h-px bg-white/10" />
@@ -376,11 +438,12 @@ const Login = () => {
      {mode === 'login' ? 'Create an account →' : 'Sign in →'}
    </button>
  </p>
+ </>)}
  </div>
 
  {mode === 'login' && (
  <div className="absolute bottom-[20px] left-1/2 -translate-x-1/2 text-[#747576] text-[11px] font-normal whitespace-nowrap z-1">
- © 2026 LEDGR PRO. ALL RIGHTS RESERVED.
+ © 2026 BOOKLEDGER. ALL RIGHTS RESERVED.
  </div>
  )}
  </div>
