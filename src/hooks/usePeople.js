@@ -261,7 +261,7 @@ export const usePeople = (tenantId) => {
         if (invoiceIds && invoiceIds.length > 0) {
           const { data: invRows } = await supabase
             .from('invoices')
-            .select('id, grand_total, paid_amount')
+            .select('id, grand_total, paid_amount, sale_id')
             .in('id', invoiceIds)
             .eq('tenant_id', tenantId);
 
@@ -274,24 +274,25 @@ export const usePeople = (tenantId) => {
               const newPaid = alreadyPaid + allocating;
               const newStatus = newPaid >= Number(inv.grand_total) ? 'PAID' : 'PARTIAL';
               await restUpdate('invoices', { payment_status: newStatus, paid_amount: newPaid }, { id: inv.id, tenant_id: tenantId });
+
+              // Mirror onto the linked SALE — that's what the outstanding
+              // trigger (_trg_sales_recalc_outstanding) reads. Matching by the
+              // invoice id never worked (sale ids differ), so the balance never
+              // recomputed and drifted. Use sale_id + the cumulative paid.
+              if (inv.sale_id) {
+                await restUpdate('sales',
+                  { paymentStatus: newStatus, paidAmount: newPaid },
+                  { id: inv.sale_id, tenant_id: tenantId });
+              }
               remaining -= allocating;
               if (remaining <= 0) break;
             }
           }
-
-          // Also update any matching sales (POS credit sales)
-          const { error: saleErr } = await supabase
-            .from('sales')
-            .update({ paymentStatus: 'PAID', paidAmount: amount })
-            .in('id', invoiceIds)
-            .eq('tenant_id', tenantId);
-          if (saleErr) console.warn('Sales update failed:', saleErr);
         }
 
-        // Note: clients.outstanding_balance is auto-recomputed by the
-        // on_invoice_payment_sync DB trigger after each invoice update above.
-        // No manual balance decrement needed here — fetchPeopleData() below
-        // will read the trigger-computed correct value.
+        // clients.outstanding_balance is recomputed by the DB trigger off the
+        // sales updates above — never write it directly here (that races the
+        // trigger and drifts the balance).
 
         // 2. Insert audit record into client_payments
         const { error: payErr } = await restInsert('client_payments', {

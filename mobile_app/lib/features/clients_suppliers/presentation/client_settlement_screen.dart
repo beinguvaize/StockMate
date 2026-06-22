@@ -127,30 +127,34 @@ class _ClientSettlementScreenState
         'applied_invoice_ids': _selectedInvoiceIds.toList(),
       });
 
-      // Update client outstanding_balance
-      final newBal =
-          ((widget.client.outstandingBalance ?? 0) - amt)
-              .clamp(0.0, double.infinity);
-      await supabase
-          .from('clients')
-          .update({'outstanding_balance': newBal})
-          .eq('id', widget.client.id)
-          .eq('tenant_id', ctx.tenantId);
-
-      // Mark selected invoices PAID / PARTIAL
+      // Mark selected invoices PAID / PARTIAL — and mirror the payment onto the
+      // linked SALE row. clients.outstanding_balance is maintained by a DB
+      // trigger off the sales table (_trg_sales_recalc_outstanding); updating
+      // the sale is what makes it recompute. We must NOT write
+      // outstanding_balance directly here — that races/overwrites the trigger
+      // and drifts the balance (the bug behind the wrong outstanding total).
       for (final invId in _selectedInvoiceIds) {
         final inv = await supabase
             .from('invoices')
-            .select('grand_total, paid_amount')
+            .select('grand_total, paid_amount, sale_id')
             .eq('id', invId)
             .single();
         final gt = (inv['grand_total'] as num).toDouble();
         final newPaid =
-            ((inv['paid_amount'] as num?)?.toDouble() ?? 0) + amt;
+            (((inv['paid_amount'] as num?)?.toDouble() ?? 0) + amt).clamp(0, gt);
+        final status = newPaid >= gt ? 'PAID' : 'PARTIAL';
         await supabase.from('invoices').update({
-          'paid_amount': newPaid.clamp(0, gt),
-          'payment_status': newPaid >= gt ? 'PAID' : 'PARTIAL',
+          'paid_amount': newPaid,
+          'payment_status': status,
         }).eq('id', invId);
+
+        final saleId = inv['sale_id'] as String?;
+        if (saleId != null) {
+          await supabase.from('sales').update({
+            'paidAmount': newPaid,
+            'paymentStatus': status,
+          }).eq('id', saleId).eq('tenant_id', ctx.tenantId);
+        }
       }
 
       ref.invalidate(clientPaymentsProvider);

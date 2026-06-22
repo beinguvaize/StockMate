@@ -299,14 +299,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
           .rpcOnlineOrQueue('process_sale', rpcParams);
       debugPrint(queued ? '[SALE] queued for offline sync' : '[SALE] RPC success');
 
-      if (paymentMethod == 'CREDIT_SALE' && _selectedClient != null) {
-        try {
-          final currentOutstanding = _selectedClient!.outstandingBalance ?? 0;
-          await supabase.from('clients').update({
-            'outstanding_balance': currentOutstanding + netTotal,
-          }).eq('id', _selectedClient!.id);
-        } catch (_) {}
-      }
+      // NOTE: do NOT touch clients.outstanding_balance here. A DB trigger
+      // (_trg_sales_recalc_outstanding) recomputes it from the client's
+      // unpaid sales whenever process_sale inserts the sale. A manual write
+      // races/overwrites that canonical value and drifts the balance.
 
       // Optimistic local stock decrement so the inventory tab + cart
       // limits reflect the new balance immediately. The next provider
