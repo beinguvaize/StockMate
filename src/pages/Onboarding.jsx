@@ -114,12 +114,20 @@ const Onboarding = () => {
   return (
     <div className="min-h-screen bg-canvas font-inter flex flex-col items-center justify-start py-12 px-4">
 
+      {/* Brand */}
+      <img
+        src={`${import.meta.env.BASE_URL}logo-clear.png`}
+        alt="bookledger"
+        className="h-8 w-auto object-contain mb-8"
+        onError={(e) => { e.target.style.display = 'none'; }}
+      />
+
       {/* Header */}
       <div className="w-full max-w-2xl mb-8">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-accent-signature flex items-center justify-center">
-              <Building2 size={18} className="text-black" />
+              <CheckCircle2 size={18} className="text-white" />
             </div>
             <div>
               <div className="text-[10px] font-black uppercase tracking-widest text-gray-400">Workspace Ready</div>
@@ -169,8 +177,8 @@ const Onboarding = () => {
         {currentStep === 0 && (
           <div className="bg-white border border-black/5 rounded-3xl shadow-premium p-8">
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-accent-signature rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_30px_rgba(200,241,53,0.4)]">
-                <Zap size={28} className="text-black" />
+              <div className="w-16 h-16 bg-accent-signature rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-[0_0_34px_rgba(217,119,6,0.45)]">
+                <Zap size={28} className="text-white" />
               </div>
               <h1 className="text-2xl font-black text-ink-primary tracking-tight mb-2">
                 Welcome, {currentTenant?.name || 'to bookledger'}!
@@ -181,7 +189,7 @@ const Onboarding = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-6 mb-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-8">
               {/* What's included */}
               <div>
                 <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3">What's included</div>
