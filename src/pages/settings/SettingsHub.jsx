@@ -44,7 +44,6 @@ const NAV_GROUPS = [
   { caption: 'General', items: [
     { id: 'account',  label: 'Account',     icon: <User size={15} /> },
     { id: 'business', label: 'Business',    icon: <Building size={15} /> },
-    { id: 'workspace', label: 'Preferences', icon: <Zap size={15} /> },
     { id: 'appearance', label: 'Appearance', icon: <Palette size={15} /> },
   ]},
   { caption: 'Catalog', items: [
@@ -68,7 +67,7 @@ const NAV_GROUPS = [
 
 // Hub ids that map to a section of the classic Settings page.
 const CLASSIC_SECTIONS = {
-  business: 'tab-business', workspace: 'tab-workspace', categories: 'tab-categories',
+  business: 'tab-business', categories: 'tab-categories',
   locations: 'tab-locations', data: 'tab-data', api: 'tab-api',
 };
 
