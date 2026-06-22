@@ -351,12 +351,7 @@ const GSTR1Report = () => {
       { key: 'totalValue', label: 'Total Value', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => <span className="font-black">{formatINR(val)}</span> },
     ],
     kpis,
-    chartConfig: {
-      title: 'HSN taxable value (Top 10)',
-      type: 'bar',
-      data: [...gstr1.hsn].sort((a, b) => b.taxable - a.taxable).slice(0, 10).map((h) => ({ name: h.hsn, value: h.taxable })),
-      series: [{ key: 'value', name: 'Taxable', color: '#D97706' }],
-    },
+    // Formal HSN summary — Table 12 is a tabular statutory schedule; no chart.
     detailFields: [
       { key: 'totalValue', label: 'Total Value', type: 'currency', isHero: true },
       { key: 'hsn', label: 'HSN/SAC Code' },
