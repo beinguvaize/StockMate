@@ -106,18 +106,22 @@ class ProductRepository {
     );
   }
 
-  /// Update only the stock value of a product
-  Future<void> updateStock(String productId, double newStock) async {
+  /// Update only the stock value of a product (manual adjustment).
+  Future<void> updateStock(String productId, double newStock,
+      {String reason = 'Manual adjustment'}) async {
+    // Read the current row first so we know the delta + carry tenant_id/name.
+    final row = await (db.select(db.products)
+          ..where((t) => t.id.equals(productId)))
+        .getSingleOrNull();
+    final delta = newStock - (row?.stock ?? newStock);
+
     // 1. Local Update
     await (db.update(db.products)..where((t) => t.id.equals(productId)))
         .write(ProductsCompanion(stock: Value(newStock)));
 
-    // 2. Sync Queue. tenant_id MUST be in the payload: the upsert's INSERT
-    // path otherwise defaults tenant_id to a placeholder and the RLS WITH
-    // CHECK rejects it, leaving the change stuck in the queue ("N to sync").
-    final row = await (db.select(db.products)
-          ..where((t) => t.id.equals(productId)))
-        .getSingleOrNull();
+    // 2. Sync products.stock (absolute → idempotent). tenant_id MUST be in the
+    // payload or the upsert's INSERT path defaults it to a placeholder and the
+    // RLS WITH CHECK rejects it, leaving the change stuck ("N to sync").
     await syncService.queueMutation(
       targetTable: 'products',
       action: 'upsert',
@@ -127,6 +131,28 @@ class ProductRepository {
         if (row?.tenantId != null) 'tenant_id': row!.tenantId,
       },
     );
+
+    // 3. Record the movement so Stock History shows manual adjustments (web +
+    // mobile previously only logged sales). Stable id keeps the queued upsert
+    // idempotent — no duplicate entry if the job retries.
+    if (delta != 0 && row?.tenantId != null) {
+      final logId =
+          'LOG-${DateTime.now().millisecondsSinceEpoch}-${DateTime.now().microsecond}';
+      await syncService.queueMutation(
+        targetTable: 'movement_log',
+        action: 'upsert',
+        payload: {
+          'id': logId,
+          'tenant_id': row!.tenantId,
+          'product_id': productId,
+          'product_name': row.name,
+          'type': delta >= 0 ? 'IN' : 'OUT',
+          'quantity': delta.abs(),
+          'reason': reason,
+          'date': DateTime.now().toUtc().toIso8601String(),
+        },
+      );
+    }
   }
 
   /// Update a product with offline support
