@@ -202,20 +202,22 @@ class SyncService {
 
       switch (job.action) {
         case 'upsert':
-          await supabase.from(job.targetTable).upsert(payload);
+          // Bounded — a hung supabase call would otherwise stall the whole
+          // queue and latch _flushing, leaving the app stuck on "Syncing…".
+          await supabase.from(job.targetTable).upsert(payload).timeout(_netTimeout);
           break;
         case 'delete':
           final id = payload['id'];
           if (id == null) throw Exception('delete payload missing id');
           // Soft delete — flag, don't drop.
-          await supabase.from(job.targetTable).update({'deleted_at': DateTime.now().toUtc().toIso8601String()}).eq('id', id);
+          await supabase.from(job.targetTable).update({'deleted_at': DateTime.now().toUtc().toIso8601String()}).eq('id', id).timeout(_netTimeout);
           break;
         case 'rpc':
           final name = job.rpcName;
           if (name == null || name.isEmpty) {
             throw Exception('rpc job missing rpcName');
           }
-          await supabase.rpc(name, params: payload);
+          await supabase.rpc(name, params: payload).timeout(_netTimeout);
           break;
         default:
           throw Exception('unknown action ${job.action}');
