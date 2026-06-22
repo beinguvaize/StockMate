@@ -142,9 +142,10 @@ const ClientSettlement = () => {
     const newSelection = isSelected
       ? selectedInvoiceIds.filter(x => x !== inv.id)
       : [...selectedInvoiceIds, inv.id];
+    const due = Math.max(0, (Number(inv.grand_total) || 0) - (Number(inv.paid_amount) || 0));
     const newAmt = isSelected
-      ? Math.max(0, Math.round(((parseFloat(paymentData.amount) || 0) - inv.grand_total) * 100) / 100)
-      : Math.round(((parseFloat(paymentData.amount) || 0) + inv.grand_total) * 100) / 100;
+      ? Math.max(0, Math.round(((parseFloat(paymentData.amount) || 0) - due) * 100) / 100)
+      : Math.round(((parseFloat(paymentData.amount) || 0) + due) * 100) / 100;
     setSelectedInvoiceIds(newSelection);
     setPaymentData({ ...paymentData, amount: newAmt > 0 ? newAmt.toString() : '' });
   };
@@ -155,7 +156,7 @@ const ClientSettlement = () => {
       setPaymentData({ ...paymentData, amount: '0' });
     } else {
       setSelectedInvoiceIds(clientInvoices.map(i => i.id));
-      setPaymentData({ ...paymentData, amount: clientInvoices.reduce((s, i) => s + i.grand_total, 0).toString() });
+      setPaymentData({ ...paymentData, amount: clientInvoices.reduce((s, i) => s + Math.max(0, (Number(i.grand_total) || 0) - (Number(i.paid_amount) || 0)), 0).toString() });
     }
   };
 
@@ -196,11 +197,20 @@ const ClientSettlement = () => {
     );
   }
 
+  // Remaining due on an invoice = grand total minus what's already paid.
+  // The screen previously used the gross grand_total, so a partial payment
+  // never reduced the displayed due / outstanding.
+  const invoiceDue = (i) =>
+    Math.max(0, (Number(i.grand_total) || 0) - (Number(i.paid_amount) || 0));
+
   const selectedTotal = clientInvoices
     .filter(i => selectedInvoiceIds.includes(i.id))
-    .reduce((s, i) => s + i.grand_total, 0);
+    .reduce((s, i) => s + invoiceDue(i), 0);
 
-  const outstanding = client.outstanding_balance || 0;
+  // Outstanding = sum of remaining due across the client's unpaid invoices
+  // (net of partial payments), not the cached clients.outstanding_balance
+  // column which can drift.
+  const outstanding = clientInvoices.reduce((s, i) => s + invoiceDue(i), 0);
 
   return (
     <div className="animate-fade-in pb-16">
@@ -444,11 +454,11 @@ const ClientSettlement = () => {
                         </td>
                         <td className="py-4 px-4 text-right">
                           <div className={`text-sm font-black font-mono tabular-nums ${isSelected ? 'text-ink-primary' : 'text-gray-700'}`}>
-                            {formatCurrency(inv.grand_total)}
+                            {formatCurrency(invoiceDue(inv))}
                           </div>
                           {inv.paid_amount > 0 && (
                             <div className="text-[10px] text-emerald-600 font-semibold mt-0.5">
-                              Paid: {formatCurrency(inv.paid_amount)}
+                              Paid: {formatCurrency(inv.paid_amount)} of {formatCurrency(inv.grand_total)}
                             </div>
                           )}
                         </td>
