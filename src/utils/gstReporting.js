@@ -130,7 +130,9 @@ export const buildTaxLinesFromSale = (sale, { businessState = '', clients = [] }
       // By HSN
       const hsnKey = `${hsn}|${taxRate}|${uqc}`;
       if (!byHSN[hsnKey]) {
-        byHSN[hsnKey] = { hsn, taxRate, uqc, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+        // Use the first product's name as a human-readable HSN description
+        // (no HSN master in the app; the GST portal auto-fills the official one).
+        byHSN[hsnKey] = { hsn, description: String(item.name || item.productName || '').trim(), taxRate, uqc, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
       }
       byHSN[hsnKey].qty     += qty;
       byHSN[hsnKey].taxable += itemTaxable;
@@ -372,7 +374,7 @@ export const buildGSTR1 = (sales = [], { businessState = '', clients = [], invoi
       const key = `${h.hsn}|${h.taxRate}|${h.uqc}`;
       if (!hsnMap[key]) {
         hsnMap[key] = {
-          hsn: h.hsn, description: '', uqc: h.uqc, taxRate: h.taxRate,
+          hsn: h.hsn, description: h.description || '', uqc: h.uqc, taxRate: h.taxRate,
           qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, totalValue: 0,
         };
       }
