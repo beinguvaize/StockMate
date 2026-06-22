@@ -89,6 +89,28 @@ const GSTR3BReport = () => {
     ];
   }, [gstr3b, gstr1]);
 
+  // ITC utilisation ledger — mirrors the electronic credit ledger:
+  // Opening + Availed − Reversed − Utilised = Closing, per head.
+  // Opening starts at 0 (the app does not yet carry a prior-period ITC balance).
+  const itcLedgerRows = useMemo(() => {
+    const A = gstr3b.section4?.[0] || {}; // ITC available (gross)
+    const B = gstr3b.section4?.[1] || {}; // ITC reversed
+    const heads = [
+      { head: 'Integrated Tax (IGST)', k: 'integratedTax', uk: 'igst' },
+      { head: 'Central Tax (CGST)',    k: 'centralTax',    uk: 'cgst' },
+      { head: 'State/UT Tax (SGST)',   k: 'stateTax',      uk: 'sgst' },
+      { head: 'Cess',                  k: 'cess',          uk: 'cess' },
+    ];
+    return heads.map(({ head, k, uk }) => {
+      const opening = 0;
+      const availed = round2(A[k] || 0);
+      const reversed = round2(B[k] || 0);
+      const utilised = round2(setoff.itcUsed[uk] || 0);
+      const closing = round2(opening + availed - reversed - utilised);
+      return { head, opening, availed, reversed, utilised, closing };
+    });
+  }, [gstr3b, setoff]);
+
   // KPIs across all tabs
   const kpis = useMemo(() => ([
     {
@@ -306,6 +328,37 @@ const GSTR3BReport = () => {
     kpis,
   };
 
+  // --- ITC utilisation ledger (formal — no chart) ---
+  const itcLedgerTab = {
+    id: 'GSTR3B_ITC_LEDGER',
+    label: 'ITC Ledger',
+    icon: <ArrowDownToLine size={18} />,
+    data: itcLedgerRows,
+    loading,
+    totals: {
+      opening:  round2(itcLedgerRows.reduce((a, r) => a + r.opening, 0)),
+      availed:  round2(itcLedgerRows.reduce((a, r) => a + r.availed, 0)),
+      reversed: round2(itcLedgerRows.reduce((a, r) => a + r.reversed, 0)),
+      utilised: round2(itcLedgerRows.reduce((a, r) => a + r.utilised, 0)),
+      closing:  round2(itcLedgerRows.reduce((a, r) => a + r.closing, 0)),
+    },
+    columns: [
+      { key: 'head', label: 'Tax Head', width: 240,
+        render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">{val}</span> },
+      { key: 'opening',  label: 'Opening',  type: 'currency', align: 'right', width: 130,
+        render: (val) => <span className="tabular-nums text-gray-500">{formatINR(val)}</span> },
+      { key: 'availed',  label: 'Availed',  type: 'currency', align: 'right', width: 140,
+        render: (val) => val > 0 ? <span className="font-bold tabular-nums text-emerald-700">{formatINR(val)}</span> : '—' },
+      { key: 'reversed', label: 'Reversed', type: 'currency', align: 'right', width: 140,
+        render: (val) => val > 0 ? <span className="font-bold tabular-nums text-rose-600">({formatINR(val)})</span> : '—' },
+      { key: 'utilised', label: 'Utilised', type: 'currency', align: 'right', width: 140,
+        render: (val) => val > 0 ? <span className="font-bold tabular-nums">({formatINR(val)})</span> : '—' },
+      { key: 'closing',  label: 'Closing Balance', type: 'currency', align: 'right', width: 160,
+        render: (val) => <span className="font-black tabular-nums text-ink-primary">{formatINR(val)}</span> },
+    ],
+    kpis,
+  };
+
   const gstin = businessProfile?.gst_no || businessProfile?.gstin || '';
   const exportBar = (
     <div className="no-print flex justify-end gap-2 mb-3">
@@ -350,7 +403,7 @@ const GSTR3BReport = () => {
         </div>
       </div>
 
-      <PremiumReportView title="GSTR-3B" tabs={[section3_1Tab, section3_2Tab, section4Tab, setoffTab, section6_1Tab, tieoutTab]} />
+      <PremiumReportView title="GSTR-3B" tabs={[section3_1Tab, section3_2Tab, section4Tab, itcLedgerTab, setoffTab, section6_1Tab, tieoutTab]} />
     </div>
     </>
   );
