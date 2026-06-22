@@ -527,12 +527,13 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
   Future<void> _showAdjustStock() async {
     final currentStock = widget.product.stock.toInt();
     int adjustment = 0;
+    // Typeable new-stock value; +/- keep it in sync.
+    final stockCtrl = TextEditingController(text: '$currentStock');
 
     await showDialog(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(builder: (ctx, setDlgState) {
-          final newStock = (currentStock + adjustment).clamp(0, 999999);
           return AlertDialog(
             backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -559,19 +560,39 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                     // Minus button
                     _StockAdjustBtn(
                       icon: LucideIcons.minus,
-                      onTap: () => setDlgState(() => adjustment--),
+                      onTap: () => setDlgState(() {
+                        adjustment--;
+                        if (currentStock + adjustment < 0) adjustment = -currentStock;
+                        stockCtrl.text = '${currentStock + adjustment}';
+                      }),
                     ),
-                    const SizedBox(width: 20),
-                    // New stock display
+                    const SizedBox(width: 16),
+                    // New stock — tap to type an exact value
                     Column(
                       children: [
-                        Text(
-                          '$newStock',
-                          style: GoogleFonts.manrope(
-                            fontSize: 40,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.primary,
-                            letterSpacing: -1,
+                        SizedBox(
+                          width: 120,
+                          child: TextField(
+                            controller: stockCtrl,
+                            textAlign: TextAlign.center,
+                            keyboardType: TextInputType.number,
+                            style: GoogleFonts.manrope(
+                              fontSize: 40,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.primary,
+                              letterSpacing: -1,
+                            ),
+                            decoration: const InputDecoration(
+                              border: InputBorder.none,
+                              isDense: true,
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                            onChanged: (v) {
+                              final n = int.tryParse(v.trim());
+                              if (n != null) {
+                                setDlgState(() => adjustment = n.clamp(0, 999999) - currentStock);
+                              }
+                            },
                           ),
                         ),
                         Text(
@@ -583,11 +604,14 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                         ),
                       ],
                     ),
-                    const SizedBox(width: 20),
+                    const SizedBox(width: 16),
                     // Plus button
                     _StockAdjustBtn(
                       icon: LucideIcons.plus,
-                      onTap: () => setDlgState(() => adjustment++),
+                      onTap: () => setDlgState(() {
+                        adjustment++;
+                        stockCtrl.text = '${(currentStock + adjustment).clamp(0, 999999)}';
+                      }),
                     ),
                   ],
                 ),
