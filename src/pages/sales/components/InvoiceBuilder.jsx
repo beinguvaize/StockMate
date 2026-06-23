@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
 import Button from '../../../shared/Button';
 import { formatCurrency, generateRef } from '../../../lib/utils';
+import { tierPrice } from '../../../lib/priceResolver';
 import { useNotifications } from '../../../context/NotificationContext';
 import { supabase, restInsert } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
@@ -404,6 +405,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     const chosen = mods || [];
     const addPrice = chosen.reduce((s, o) => s + (Number(o.price) || 0), 0);
     const modLabel = chosen.map(o => o.name).join(', ') || null;
+    // Price by the selected client's tier (walk-in → retail).
+    const tier = allClients.find(c => c.id === selectedClientId)?.price_tier;
+    const base = tierPrice(product, tier);
     const uid = lineUid(product.id, modLabel);
     const available = getAvailableStock(product.id);
     lastAddedRef.current = product.id;
@@ -428,8 +432,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         uid,
         productId: product.id,
         name: product.name,
-        basePrice: product.sellingPrice,
-        price: (Number(product.sellingPrice) || 0) + addPrice,
+        basePrice: base,
+        price: (Number(base) || 0) + addPrice,
         quantity: 1,
         taxRate: product.taxRate || 0,
         cess: Number(product.cess_rate ?? product.cess ?? 0),
