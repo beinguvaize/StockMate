@@ -161,15 +161,6 @@ const GSTR3BReport = () => {
       { key: 'cess', label: 'Cess', type: 'currency', align: 'right', width: 100, render: (val) => val > 0 ? formatINR(val) : '—' },
     ],
     kpis,
-    chartConfig: {
-      title: 'Outward tax composition',
-      type: 'pie',
-      data: [
-        { name: 'IGST', value: gstr3b.section3_1[0].integratedTax },
-        { name: 'CGST', value: gstr3b.section3_1[0].centralTax },
-        { name: 'SGST', value: gstr3b.section3_1[0].stateTax },
-      ].filter((d) => d.value > 0),
-    },
   };
 
   // --- Section 3.2: Inter-state supplies ---
@@ -192,19 +183,6 @@ const GSTR3BReport = () => {
       { key: 'igst', label: 'IGST', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-black text-rose-500">{formatINR(val)}</span> },
     ],
     kpis,
-    chartConfig: {
-      title: 'Inter-state IGST by destination',
-      type: 'bar',
-      data: Object.values(
-        gstr3b.section3_2.reduce((acc, r) => {
-          const k = r.placeOfSupply;
-          if (!acc[k]) acc[k] = { name: k, value: 0 };
-          acc[k].value += r.igst;
-          return acc;
-        }, {})
-      ),
-      series: [{ key: 'value', name: 'IGST', color: '#ef4444' }],
-    },
     detailFields: [
       { key: 'taxable', label: 'Taxable Value', type: 'currency', isHero: true },
       { key: 'recipientType', label: 'Recipient Type' },
@@ -234,16 +212,6 @@ const GSTR3BReport = () => {
       { key: 'cess', label: 'Cess', type: 'currency', align: 'right', width: 100, render: (val) => val > 0 ? formatINR(val) : '—' },
     ],
     kpis,
-    chartConfig: {
-      title: 'ITC composition (Net Available)',
-      type: 'bar',
-      data: [
-        { name: 'IGST', value: gstr3b.section4[2].integratedTax },
-        { name: 'CGST', value: gstr3b.section4[2].centralTax },
-        { name: 'SGST', value: gstr3b.section4[2].stateTax },
-      ],
-      series: [{ key: 'value', name: 'Net ITC Available', color: '#10b981' }],
-    },
   };
 
   // --- Section 6.1: Tax payment ---
@@ -266,15 +234,6 @@ const GSTR3BReport = () => {
       { key: 'paidInCash', label: 'Paid in Cash', type: 'currency', align: 'right', width: 170, render: (val) => val > 0 ? <span className="font-black text-amber-600">{formatINR(val)}</span> : '—' },
     ],
     kpis,
-    chartConfig: {
-      title: 'Cash vs ITC Payment',
-      type: 'bar',
-      data: gstr3b.section6_1.map((r) => ({ name: r.row, ITC: r.paidThroughITC, Cash: r.paidInCash })),
-      series: [
-        { key: 'ITC', name: 'Paid via ITC', color: '#10b981' },
-        { key: 'Cash', name: 'Paid in Cash', color: '#f59e0b' },
-      ],
-    },
   };
 
   // --- Set-off worksheet (formal — no chart) ---
