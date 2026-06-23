@@ -34,6 +34,7 @@ export function useEstimates(tenantId) {
     const id = `EST-${Date.now().toString(36).toUpperCase()}`;
     const row = {
       id, tenant_id: tenantId,
+      doc_type: est.doc_type || 'QUOTATION',
       estimate_number: est.estimate_number || nextNumber(),
       estimate_date: est.estimate_date || new Date().toISOString().slice(0, 10),
       valid_until: est.valid_until || null,

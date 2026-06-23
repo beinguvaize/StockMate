@@ -111,6 +111,7 @@ const Navbar = () => {
     navItem(t('inventory'), '/inventory', <Package size={20} />, 'inventory', 'inventory'),
     navItem('Appointments', '/appointments', <CalendarClock size={20} />, 'sales', 'appointments'),
     navItem('Sales', '/sales', <ShoppingCart size={20} />, 'sales'),
+    navItem('New Document', '/documents/new', <ClipboardList size={20} />, 'sales'),
     navItem('Invoices', '/invoices', <FileText size={20} />, 'sales'),
     navItem('Purchases', '/purchases', <ShoppingBag size={20} />, 'purchases'),
     navItem('Expenses', '/expenses', <Wallet size={20} />, 'expenses'),
