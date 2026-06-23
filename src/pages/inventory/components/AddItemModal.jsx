@@ -20,7 +20,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
 
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
-    costPrice: '', sellingPrice: '', stock: '', taxRate: 0, cess_rate: 0, hsn_code: '', taxSlab: 'Exempt', tags: '', image: '',
+    costPrice: '', sellingPrice: '', wholesale_price: '', distributor_price: '', price_inclusive: false, tax_status: 'TAXABLE', stock: '', taxRate: 0, cess_rate: 0, hsn_code: '', taxSlab: 'Exempt', tags: '', image: '',
     lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: 'STANDARD',
     secondary_unit: '', conversion_factor: '',
     food_type: '', is_available: true, station: '', modifier_groups: [],   // menu (restaurant)
@@ -75,7 +75,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     } else {
       setFormData({
         name: '', sku: '', category: '', unit: UNITS[0],
-        costPrice: '', sellingPrice: '', stock: '', taxRate: 0, cess_rate: 0, hsn_code: '', taxSlab: 'Exempt', tags: '', image: '',
+        costPrice: '', sellingPrice: '', wholesale_price: '', distributor_price: '', price_inclusive: false, tax_status: 'TAXABLE', stock: '', taxRate: 0, cess_rate: 0, hsn_code: '', taxSlab: 'Exempt', tags: '', image: '',
         lowStockThreshold: 10, min_margin: 0, barcode: '',
         food_type: '', is_available: true, station: '',
         track_serial: false,
@@ -137,6 +137,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         image: imageUrl,
         costPrice:        parseFloat(formData.costPrice)        || 0,
         sellingPrice:     parseFloat(formData.sellingPrice)     || 0,
+        wholesale_price:  parseFloat(formData.wholesale_price)  || null,
+        distributor_price: parseFloat(formData.distributor_price) || null,
+        price_inclusive:  !!formData.price_inclusive,
+        tax_status:       formData.tax_status || 'TAXABLE',
         stock:            parseInt(formData.stock)              || 0,
         lowStockThreshold: parseInt(formData.lowStockThreshold) || 10,
         taxRate:          parseFloat(formData.taxRate)          || 0,
@@ -435,6 +439,34 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               )}
             </div>
 
+            {!isService && (
+              <div className="mt-3">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Price tiers</span>
+                  <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500">
+                    <input type="checkbox" checked={!!formData.price_inclusive}
+                      onChange={e => setFormData({ ...formData, price_inclusive: e.target.checked })} />
+                    Prices include tax
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className={labelCls}>Wholesale (₹) <span className="text-gray-400 font-normal">— bulk</span></label>
+                    <input type="number" step="0.01" className={inputCls} placeholder="0.00"
+                      value={formData.wholesale_price} onChange={e => setFormData({ ...formData, wholesale_price: e.target.value })} />
+                  </div>
+                  <div>
+                    <label className={labelCls}>Distributor (₹) <span className="text-gray-400 font-normal">— reseller</span></label>
+                    <input type="number" step="0.01" className={inputCls} placeholder="0.00"
+                      value={formData.distributor_price} onChange={e => setFormData({ ...formData, distributor_price: e.target.value })} />
+                  </div>
+                  <div className="flex items-end pb-2 text-[11px] text-gray-400">
+                    Retail = Selling Price above. Distributor is your lowest (reseller) rate.
+                  </div>
+                </div>
+              </div>
+            )}
+
             {!isService && (<>
             {/* Alternate unit + conversion (optional) */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -485,6 +517,25 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             </>)}
 
             <Section>Taxation</Section>
+            <div className="mb-3">
+              <label className={labelCls}>Tax status</label>
+              <div className="flex gap-2 flex-wrap">
+                {[
+                  { id: 'TAXABLE', label: 'Taxable' },
+                  { id: 'EXEMPT', label: 'Exempt / Nil' },
+                  { id: 'NONGST', label: 'Non-GST' },
+                ].map(s => (
+                  <button key={s.id} type="button"
+                    onClick={() => setFormData({ ...formData, tax_status: s.id, ...(s.id !== 'TAXABLE' ? { taxRate: 0, cess_rate: 0 } : {}) })}
+                    className={`px-3 py-2 rounded-lg text-xs font-black border transition-all ${
+                      (formData.tax_status || 'TAXABLE') === s.id
+                        ? 'bg-accent-signature text-button-text border-accent-signature shadow-md'
+                        : 'bg-white border-gray-200 text-gray-500 hover:border-accent-signature/40'
+                    }`}>{s.label}</button>
+                ))}
+              </div>
+            </div>
+            {(formData.tax_status || 'TAXABLE') === 'TAXABLE' && (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* GST + Cess slab dropdown */}
               <div>
@@ -525,6 +576,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 <p className="text-[10px] text-gray-400 mt-1">Required for GSTR-1 HSN summary (Table 12).</p>
               </div>
             </div>
+            )}
 
             <Section>Product Photo</Section>
             {/* ── Product Photo ──────────────────────────────────────── */}

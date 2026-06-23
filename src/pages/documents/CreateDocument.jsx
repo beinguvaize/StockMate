@@ -9,6 +9,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { useEstimates } from '../../hooks/useEstimates';
+import { useAccounts } from '../../hooks/useAccounts';
 import { calculateGST } from '../../lib/gstEngine';
 import { PartyPicker, DocItemGrid, TotalsPanel, Field, inr } from '../../components/documents/DocParts';
 
@@ -38,6 +39,7 @@ const CreateDocument = () => {
   const { clients = [], sales = [], placeSale, processSalesReturn, settleSale } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
   const { products = [] } = useInventory(currentTenantId);
   const { create: createEstimate } = useEstimates(currentTenantId);
+  const { accounts = [], addTxn } = useAccounts(currentTenantId);
 
   const initialType = DOC_TYPES[params.get('type')] ? params.get('type') : 'SALES_INVOICE';
   const [docType, setDocType] = useState(initialType);
@@ -49,7 +51,24 @@ const CreateDocument = () => {
   const [payMethod, setPayMethod] = useState('CASH');
   const [markPaid, setMarkPaid] = useState(true);
   const [payAmount, setPayAmount] = useState('');
+  const [depositAccount, setDepositAccount] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Default the deposit account once accounts load (prefer a Cash account).
+  const defaultAccount = useMemo(
+    () => accounts.find((a) => a.type === 'CASH')?.id || accounts[0]?.id || '',
+    [accounts],
+  );
+  const depAcc = depositAccount || defaultAccount;
+
+  // Post a money-in ledger entry to the chosen account (best-effort; a missing
+  // account just skips the ledger, the sale/payment still succeeds).
+  const postIncome = async (amount, refType, refId) => {
+    if (!depAcc || !(Number(amount) > 0)) return;
+    try {
+      await addTxn({ account_id: depAcc, direction: 'IN', amount, mode: payMethod, ref_type: refType, ref_id: refId, note: party?.name || refType });
+    } catch { /* ledger is non-blocking */ }
+  };
 
   const businessState = businessProfile?.state || businessProfile?.business_state || '';
 
@@ -95,6 +114,7 @@ const CreateDocument = () => {
           paidAmount: markPaid ? gst.grandTotal : 0, date,
         });
         if (res?.error) return fail(res.error.message);
+        if (markPaid) await postIncome(gst.grandTotal, 'SALE', res?.id);
         addNotification('Sales invoice saved', 'success');
         return navigate('/invoices');
       }
@@ -140,6 +160,7 @@ const CreateDocument = () => {
         if (!open.length) return fail('No open invoice for this party to settle.');
         res = await settleSale(open[0].id, Number(payAmount));
         if (res?.error) return fail(res.error.message);
+        await postIncome(Number(payAmount), 'PAYMENT', open[0].id);
         addNotification(`Payment of ${inr(payAmount)} recorded`, 'success');
         return navigate('/clients');
       }
@@ -211,6 +232,12 @@ const CreateDocument = () => {
               className="mt-3 w-full text-[12px] border border-black/10 rounded-lg px-2 py-2 outline-none">
               <option>CASH</option><option>BANK</option><option>UPI</option>
             </select>
+            {accounts.length > 0 && (
+              <select value={depAcc} onChange={(e) => setDepositAccount(e.target.value)}
+                className="mt-2 w-full text-[12px] border border-black/10 rounded-lg px-2 py-2 outline-none">
+                {accounts.map((a) => <option key={a.id} value={a.id}>Deposit to: {a.name}</option>)}
+              </select>
+            )}
             <div className="text-[11px] text-gray-400 mt-2">Settles the party's oldest open invoice.</div>
           </div>
         )}
@@ -224,8 +251,16 @@ const CreateDocument = () => {
               Goods once sold are not taken back. Disputes subject to local jurisdiction.
             </div>
           </div>
-          <TotalsPanel gst={gst} gstOn={cfg.gst} interstate={interstate} showPayment={cfg.save === 'invoice'}
-            markPaid={markPaid} setMarkPaid={setMarkPaid} payMethod={payMethod} setPayMethod={setPayMethod} />
+          <div>
+            <TotalsPanel gst={gst} gstOn={cfg.gst} interstate={interstate} showPayment={cfg.save === 'invoice'}
+              markPaid={markPaid} setMarkPaid={setMarkPaid} payMethod={payMethod} setPayMethod={setPayMethod} />
+            {cfg.save === 'invoice' && markPaid && accounts.length > 0 && (
+              <select value={depAcc} onChange={(e) => setDepositAccount(e.target.value)}
+                className="mt-2 w-full text-[12px] border border-black/10 rounded-lg px-2 py-2 outline-none bg-white">
+                {accounts.map((a) => <option key={a.id} value={a.id}>Deposit to: {a.name}</option>)}
+              </select>
+            )}
+          </div>
         </div>
         )}
       </div>
