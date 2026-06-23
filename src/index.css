@@ -348,7 +348,13 @@ table.report-table tbody td.numeric {
   --color-accent-signature-hover: #B45309; /* amber-700 */
   --color-button-text: #FFFFFF;            /* white text on amber */
 
-  --radius-bento: 2rem;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
+  --radius-2xl: 8px;
+  --radius-3xl: 8px;
+  --radius-bento: 8px;
   --radius-pill: 9999px;
 
   --shadow-premium: 0 4px 6px -1px rgba(30, 27, 46, 0.05), 0 10px 40px -10px rgba(30, 27, 46, 0.12);
@@ -367,10 +373,10 @@ table.report-table tbody td.numeric {
   --surface: #FFFFFF;
   --border-color: rgba(30, 27, 46, 0.06);
   
-  --radius-sm: 12px;
-  --radius-md: 20px;
-  --radius-lg: 2rem;
-  --radius-xl: 3rem;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 6px;
+  --radius-xl: 8px;
   --radius-pill: 9999px;
   
   --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.08);
@@ -383,6 +389,21 @@ table.report-table tbody td.numeric {
   * {
     box-sizing: border-box;
   }
+}
+
+/* App-wide corner radius — small, flat. Big "bubbly" radii (2xl/3xl/xl/lg
+   and the bento) are clamped to a small value. Pills and circles
+   (rounded-full / rounded-pill / 50%) are intentionally left alone. */
+.rounded-3xl, .rounded-2xl { border-radius: 8px !important; }
+.rounded-xl { border-radius: 8px !important; }
+.rounded-lg { border-radius: 6px !important; }
+.rounded-md { border-radius: 6px !important; }
+.rounded, .rounded-sm { border-radius: 4px !important; }
+
+/* Form controls are never pills — crisp small radius everywhere. */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select, textarea, .input-field {
+  border-radius: 6px !important;
 }
 
 body {
@@ -442,7 +463,7 @@ body {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 1.25rem;
+  border-radius: 8px;
   box-shadow: var(--shadow-premium);
   padding: 1.25rem;
   transition: var(--transition);
