@@ -691,6 +691,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   String _paymentType = 'CASH';
   DateTime _date = DateTime.now();
   final _notesCtrl = TextEditingController();
+  final _billNoCtrl = TextEditingController(); // supplier bill no — GSTR-2B match
 
   // Lines
   final List<_PurchaseLine> _lines = [_PurchaseLine()];
@@ -972,6 +973,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
   @override
   void dispose() {
     _notesCtrl.dispose();
+    _billNoCtrl.dispose();
     for (final l in _lines) {
       l.dispose();
     }
@@ -1088,6 +1090,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
           'p_user_id':      currentUserId,
           'p_location_id':  null,
           'p_tenant_id':    widget.tenantId,
+          'p_bill_no':      _billNoCtrl.text.trim().isEmpty ? null : _billNoCtrl.text.trim(),
         };
         final queued = await svc.rpcOnlineOrQueue('process_purchase', params);
         if (queued) queuedCount++;
@@ -1291,6 +1294,31 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                   ),
                                 ),
                                 const SizedBox(height: 12),
+                                _label('SUPPLIER BILL NO (OPTIONAL)'),
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: AppColors.canvas,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.black.withValues(alpha: 0.05)),
+                                  ),
+                                  child: TextField(
+                                    controller: _billNoCtrl,
+                                    style: GoogleFonts.manrope(
+                                        fontSize: 13, color: AppColors.inkPrimary),
+                                    decoration: InputDecoration(
+                                      prefixIcon: const Icon(LucideIcons.receipt,
+                                          size: 16, color: AppColors.inkSecondary),
+                                      hintText: "Supplier's invoice no. (for GSTR-2B)",
+                                      hintStyle: GoogleFonts.manrope(
+                                          fontSize: 13,
+                                          color: AppColors.inkSecondary.withValues(alpha: 0.5)),
+                                      border: InputBorder.none,
+                                      contentPadding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 12),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
                                 _label('NOTES (OPTIONAL)'),
                                 Container(
                                   decoration: BoxDecoration(
@@ -1305,7 +1333,7 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
                                     decoration: InputDecoration(
                                       prefixIcon: const Icon(LucideIcons.fileText,
                                           size: 16, color: AppColors.inkSecondary),
-                                      hintText: 'Invoice no., remarks...',
+                                      hintText: 'Remarks...',
                                       hintStyle: GoogleFonts.manrope(
                                           fontSize: 13,
                                           color: AppColors.inkSecondary.withValues(alpha: 0.5)),

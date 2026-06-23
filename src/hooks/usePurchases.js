@@ -116,6 +116,8 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
       p_user_id: purchase.userId,
       p_location_id: purchase.locationId || null,
       p_tenant_id: tenantId,
+      // Supplier's bill/invoice number — needed for invoice-level GSTR-2B match.
+      p_bill_no: purchase.bill_no || null,
     };
     const { error: rpcError } = await restRpc('process_purchase', rpcParams);
 
