@@ -205,15 +205,6 @@ const GSTR1Report = () => {
       { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-black text-rose-500">{formatINR(val)}</span> : '—' },
     ],
     kpis,
-    chartConfig: {
-      title: 'Tax split (CGST vs SGST vs IGST)',
-      type: 'pie',
-      data: [
-        { name: 'CGST', value: gstr1.totals.cgst },
-        { name: 'SGST', value: gstr1.totals.sgst },
-        { name: 'IGST', value: gstr1.totals.igst },
-      ].filter((d) => d.value > 0),
-    },
     detailFields: [
       { key: 'invoiceValue', label: 'Invoice Value', type: 'currency', isHero: true },
       { key: 'gstin', label: 'Recipient GSTIN', icon: <Hash size={12} /> },
@@ -250,19 +241,6 @@ const GSTR1Report = () => {
       { key: 'cess', label: 'Cess', type: 'currency', align: 'right', width: 100 },
     ],
     kpis,
-    chartConfig: {
-      title: 'B2CL invoices by state',
-      type: 'bar',
-      data: Object.values(
-        gstr1.b2cl.reduce((acc, r) => {
-          const k = r.placeOfSupply || 'Unknown';
-          if (!acc[k]) acc[k] = { name: k, value: 0 };
-          acc[k].value += r.taxable;
-          return acc;
-        }, {})
-      ),
-      series: [{ key: 'value', name: 'Taxable', color: '#ef4444' }],
-    },
     detailFields: [
       { key: 'invoiceValue', label: 'Invoice Value', type: 'currency', isHero: true },
       { key: 'invoiceNo', label: 'Invoice Number', icon: <Receipt size={12} /> },
@@ -303,12 +281,6 @@ const GSTR1Report = () => {
       { key: 'igst', label: 'IGST', type: 'currency', align: 'right', width: 120, render: (val) => val > 0 ? <span className="font-black text-rose-500">{formatINR(val)}</span> : '—' },
     ],
     kpis,
-    chartConfig: {
-      title: 'B2CS taxable by rate',
-      type: 'bar',
-      data: gstr1.b2cs.map((r) => ({ name: `${r.taxRate}% · ${r.state}`, value: r.taxable })),
-      series: [{ key: 'value', name: 'Taxable Value', color: '#D97706' }],
-    },
     detailFields: [
       { key: 'taxable', label: 'Taxable Value', type: 'currency', isHero: true },
       { key: 'type', label: 'Supply Type', icon: <Tag size={12} /> },
