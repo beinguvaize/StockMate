@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   FileText, Plus, Search, TrendingUp,
   CheckCircle, Clock, AlertTriangle,
@@ -100,6 +101,7 @@ const TotalRow = ({ label, value, bold, tone }) => {
 
 // ── main ──────────────────────────────────────────────────────────────
 const Invoices = () => {
+  const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile, currentTenant } = useTenant();
   const { invoices, createInvoice, markInvoicePaid, enqueueIrn, refetch: refetchInvoices } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
@@ -407,7 +409,7 @@ const Invoices = () => {
           <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">GST billing & settlement</span>
         </div>
         <button
-          onClick={() => setShowCreator(true)}
+          onClick={() => navigate('/documents/new?type=SALES_INVOICE')}
           className="btn-signature flex items-center gap-2 text-xs font-black"
         >
           <Plus size={12} /> New Invoice

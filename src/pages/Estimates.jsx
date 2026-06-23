@@ -151,7 +151,7 @@ const Estimates = () => {
           <h1 className="text-xl font-extrabold text-ink-primary leading-none">Estimates<span className="text-amber-500">.</span></h1>
           <span className="text-[11px] font-semibold text-gray-400 hidden sm:block">Quotations · convert to sale</span>
         </div>
-        <button onClick={() => { reset(); setAdding(true); }} className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700">
+        <button onClick={() => navigate('/documents/new?type=QUOTATION')} className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700">
           <Plus size={15} strokeWidth={2.6} /> New estimate
         </button>
       </div>
