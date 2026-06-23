@@ -6,6 +6,7 @@
  */
 
 import { round2, formatINR } from './financialCalculations';
+import { computeLineTax } from '../lib/taxLine';
 
 // Indian state codes (GST state codes per GST Act)
 export const STATE_CODES = {
@@ -106,17 +107,11 @@ export const buildTaxLinesFromSale = (sale, { businessState = '', clients = [] }
       const hsn      = String(item.hsn_code || item.hsn || '---');
       const uqc      = String(item.uqc || item.unit || 'NOS').toUpperCase();
 
-      const itemTaxable = qty * rate - discount;
-      const taxAmt      = (itemTaxable * taxRate) / 100;
-      const itemCess    = (itemTaxable * cessRate) / 100;
-
-      let itemCgst = 0, itemSgst = 0, itemIgst = 0;
-      if (interstate) {
-        itemIgst = taxAmt;
-      } else {
-        itemCgst = taxAmt / 2;
-        itemSgst = taxAmt / 2;
-      }
+      // Shared per-line math (same primitive the billing engine uses).
+      const L = computeLineTax({ qty, rate, discountAbs: discount, taxRate, cessRate, interstate });
+      const itemTaxable = L.taxable;
+      const itemCess    = L.cess;
+      const itemCgst = L.cgst, itemSgst = L.sgst, itemIgst = L.igst;
 
       taxable += itemTaxable;
       cgst    += itemCgst;

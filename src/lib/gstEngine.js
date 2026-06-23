@@ -1,9 +1,10 @@
 /**
  * GST Calculation Engine - Ledgr ERP
  * ---------------------------------
- * Handles precise tax calculations, Indian Rupee formatting, 
+ * Handles precise tax calculations, Indian Rupee formatting,
  * and Number-to-Words conversion for GST Compliance.
  */
+import { computeLineTax } from './taxLine';
 
 /**
  * Formats a number as Indian Rupee (INR)
@@ -81,20 +82,14 @@ export const calculateGST = (items = [], businessState = '', clientState = '') =
     const taxRate = Number.isFinite(_tr) ? _tr : 18;
     const hsn = item.hsn_code || item.sku || 'N/A';
 
-    const itemSubtotal = qty * rate;
-    const itemDiscount = (itemSubtotal * discPercent) / 100;
-    const itemTaxable = itemSubtotal - itemDiscount;
-    
-    let itemCGST = 0;
-    let itemSGST = 0;
-    let itemIGST = 0;
-
-    if (isInterstate) {
-      itemIGST = (itemTaxable * taxRate) / 100;
-    } else {
-      itemCGST = (itemTaxable * (taxRate / 2)) / 100;
-      itemSGST = (itemTaxable * (taxRate / 2)) / 100;
-    }
+    // Shared per-line math (same primitive the report engine uses).
+    const L = computeLineTax({ qty, rate, discountPercent: discPercent, taxRate, interstate: isInterstate });
+    const itemSubtotal = L.gross;
+    const itemDiscount = L.discount;
+    const itemTaxable = L.taxable;
+    const itemCGST = L.cgst;
+    const itemSGST = L.sgst;
+    const itemIGST = L.igst;
 
     const itemTotalTax = itemCGST + itemSGST + itemIGST;
     const itemTotal = itemTaxable + itemTotalTax;
