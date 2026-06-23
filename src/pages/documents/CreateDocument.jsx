@@ -11,6 +11,7 @@ import { useInventory } from '../../hooks/useInventory';
 import { useEstimates } from '../../hooks/useEstimates';
 import { useAccounts } from '../../hooks/useAccounts';
 import { calculateGST } from '../../lib/gstEngine';
+import { tierPrice } from '../../lib/priceResolver';
 import { PartyPicker, DocItemGrid, TotalsPanel, Field, inr } from '../../components/documents/DocParts';
 
 const genId = (p) => `${p}-${Date.now().toString(36).toUpperCase()}`;
@@ -83,7 +84,7 @@ const CreateDocument = () => {
 
   const addLine = (p) => setLines((prev) => [...prev, {
     uid: `${p.id}-${Date.now()}`, productId: p.id, name: p.name,
-    hsn: p.hsn_code || p.hsn || '', qty: 1, rate: Number(p.sellingPrice) || 0,
+    hsn: p.hsn_code || p.hsn || '', qty: 1, rate: tierPrice(p, party?.price_tier),
     disc: 0, taxRate: Number(p.taxRate) || 0,
   }]);
   const patchLine = (uid, patch) => setLines((prev) => prev.map((l) => l.uid === uid ? { ...l, ...patch } : l));
