@@ -22,6 +22,7 @@ import NoAccess from './pages/NoAccess';
 
 // ── Lazy (loaded only when route is visited) ─────────────────────────────────
 const Dashboard        = lazy(() => import('./pages/Dashboard'));
+const CreateDocument   = lazy(() => import('./pages/documents/CreateDocument.jsx'));
 const Inventory        = lazy(() => import('./pages/inventory/index.jsx'));
 const Sales            = lazy(() => import('./pages/sales/index.jsx'));
 const Expenses         = lazy(() => import('./pages/Expenses'));
@@ -186,6 +187,10 @@ function AppRoutes() {
       <Route path="/no-access" element={<NoAccess />} />
       <Route path="/admin" element={<ProtectedRoute requireGlobalAdmin><AdminPanel /></ProtectedRoute>} />
       <Route path="/nexus-hq" element={<ProtectedRoute requireGlobalAdmin><SuperAdminPortal /></ProtectedRoute>} />
+
+      {/* Full-page, sidebar-free transaction builder (Sales Invoice, Quotation,
+          Payment In, Sales Return, Credit Note, Delivery Challan, Proforma). */}
+      <Route path="documents/new" element={<ProtectedRoute><TenantGate><CreateDocument /></TenantGate></ProtectedRoute>} />
 
       <Route element={<TenantGate><AppLayout /></TenantGate>}>
         <Route path="dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
