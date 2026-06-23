@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
+import ReportPeriodBar, { useReportPeriod } from './ReportPeriodBar';
 import {
   FileText, Users, Globe, ShoppingBag, Layers, BookOpen,
   Building2, Hash, Receipt, Calendar, Tag, Download, ChevronDown
@@ -144,13 +145,18 @@ const GSTR1Report = () => {
   const businessState = businessProfile?.state || businessProfile?.business_state || 'KERALA';
   const businessGSTIN  = businessProfile?.gstin || businessProfile?.gst_no || '';
 
-  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date' });
+  // Period scoping — GST returns are filed per period. Defaults to This Month.
+  const period = useReportPeriod('THIS_MONTH');
+  const dateRange = { start: period.range.from, end: period.range.to };
+
+  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters: { dateRange } });
   const { data: clients,  loading: l2 } = useReportData({ table: 'clients',  select: '*', nullFilters: { deleted_at: null } });
   // Invoices have pre-computed cgst_amount/sgst_amount/igst_amount — use as primary source
   const { data: invoices, loading: l3 } = useReportData({
     table: 'invoices',
     select: 'id, sale_id, client_id, client_name, invoice_number, invoice_date, date, taxable_amount, cgst_amount, sgst_amount, igst_amount, grand_total, is_interstate, items',
     dateColumn: 'date',
+    filters: { dateRange },
   });
 
   const loading = l1 || l2 || l3;
@@ -374,6 +380,9 @@ const GSTR1Report = () => {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Period selector — matches the P&L / accounting reports */}
+      <ReportPeriodBar {...period} />
+
       {/* Compliance banner */}
       <div className="no-print flex items-center gap-3 px-4 py-3 rounded-2xl border border-black/5 shadow-sm bg-amber-50">
         <FileText className="text-amber-600" size={20} />
