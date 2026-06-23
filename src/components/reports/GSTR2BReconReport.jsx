@@ -2,6 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
+import ReportPeriodBar, { useReportPeriod } from './ReportPeriodBar';
 import { Upload, ShieldCheck, AlertTriangle, FileWarning } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
 import { parseGSTR2B, reconcile2BInvoices } from '../../utils/gstReporting';
@@ -21,7 +22,11 @@ const GSTR2BReconReport = () => {
   const [fileName, setFileName] = useState('');
   const [error, setError] = useState('');
 
-  const { data: purchases, loading } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date' });
+  // Period scoping — books should match the 2B return period being reconciled.
+  const period = useReportPeriod('THIS_MONTH');
+  const dateRange = { start: period.range.from, end: period.range.to };
+
+  const { data: purchases, loading } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date', filters: { dateRange } });
   const { data: suppliers } = useReportData({ table: 'suppliers', select: 'id, name, gstin' });
 
   // Aggregate the purchase register (books) into invoices, keyed by supplier
@@ -107,6 +112,9 @@ const GSTR2BReconReport = () => {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Period selector — matches the P&L / accounting reports */}
+      <ReportPeriodBar {...period} />
+
       {/* Upload bar */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl border border-black/5 shadow-sm bg-white">
         <div className="flex-1">

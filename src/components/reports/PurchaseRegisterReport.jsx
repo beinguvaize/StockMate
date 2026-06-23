@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
+import ReportPeriodBar, { useReportPeriod } from './ReportPeriodBar';
 import { Download, Building2 } from 'lucide-react';
 import { useTenant } from '../../context/TenantContext';
 import { round2 } from '../../utils/financialCalculations';
@@ -20,8 +21,9 @@ const today = () => new Date().toISOString().slice(0, 10);
 const PurchaseRegisterReport = () => {
   const { businessProfile } = useTenant();
   const businessState = businessProfile?.state || '';
-  const [range, setRange] = useState({ start: monthStart(), end: today() });
-  const filters = useMemo(() => ({ dateRange: range }), [range]);
+  const period = useReportPeriod('THIS_MONTH');
+  const range = { start: period.range.from, end: period.range.to };
+  const filters = useMemo(() => ({ dateRange: range }), [range.start, range.end]);
 
   const { data: purchases, loading } = useReportData({
     table: 'purchases', select: '*', dateColumn: 'date', filters,
@@ -117,12 +119,8 @@ const PurchaseRegisterReport = () => {
 
   return (
     <>
-      <div className="no-print flex flex-wrap items-center justify-end gap-2 mb-3">
-        <input type="date" value={range.start} onChange={e => setRange(r => ({ ...r, start: e.target.value }))}
-          className="px-2.5 py-1.5 rounded-lg border border-black/10 text-[12px]" />
-        <span className="text-[11px] text-gray-400">to</span>
-        <input type="date" value={range.end} onChange={e => setRange(r => ({ ...r, end: e.target.value }))}
-          className="px-2.5 py-1.5 rounded-lg border border-black/10 text-[12px]" />
+      <div className="no-print flex flex-wrap items-center gap-2 mb-3">
+        <ReportPeriodBar {...period} />
         <button onClick={exportExcel}
           className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-black transition-colors">
           <Download size={13} /> Excel for CA

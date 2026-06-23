@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useTenant } from '../../context/TenantContext';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
+import ReportPeriodBar, { useReportPeriod } from './ReportPeriodBar';
 import {
   FileCheck, TrendingUp, Package, Globe, CheckCircle2,
   Landmark, Wallet, ArrowDownToLine, ArrowUpFromLine, Tag
@@ -29,14 +30,19 @@ const GSTR3BReport = () => {
   const { businessProfile } = useTenant();
   const businessState = businessProfile?.state || businessProfile?.business_state || 'KERALA';
 
-  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date' });
+  // Period scoping — GSTR-3B is a monthly return. Defaults to This Month.
+  const period = useReportPeriod('THIS_MONTH');
+  const dateRange = { start: period.range.from, end: period.range.to };
+
+  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters: { dateRange } });
   const { data: clients,  loading: l2 } = useReportData({ table: 'clients',  select: '*', nullFilters: { deleted_at: null } });
-  const { data: purchases,loading: l3 } = useReportData({ table: 'purchases',select: '*', dateColumn: 'date' });
-  const { data: expenses, loading: l4 } = useReportData({ table: 'expenses', select: '*', dateColumn: 'date' });
+  const { data: purchases,loading: l3 } = useReportData({ table: 'purchases',select: '*', dateColumn: 'date', filters: { dateRange } });
+  const { data: expenses, loading: l4 } = useReportData({ table: 'expenses', select: '*', dateColumn: 'date', filters: { dateRange } });
   const { data: invoices, loading: l5 } = useReportData({
     table: 'invoices',
     select: 'id, sale_id, client_id, client_name, invoice_number, invoice_date, date, taxable_amount, cgst_amount, sgst_amount, igst_amount, grand_total, is_interstate, items',
     dateColumn: 'date',
+    filters: { dateRange },
   });
 
   const loading = l1 || l2 || l3 || l4 || l5;
@@ -339,6 +345,9 @@ const GSTR3BReport = () => {
     <>
     {exportBar}
     <div className="flex flex-col gap-4">
+      {/* Period selector — matches the P&L / accounting reports */}
+      <ReportPeriodBar {...period} />
+
       {/* Compliance summary banner */}
       <div className="no-print flex items-center gap-3 px-4 py-3 rounded-2xl border border-black/5 shadow-sm bg-emerald-50">
         <CheckCircle2 className="text-emerald-600" size={20} />
