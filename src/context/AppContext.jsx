@@ -1069,7 +1069,7 @@ const AppProviderInner = ({ children }) => {
       { data: balancesData},
       { data: invoicesData}
     ] = await Promise.all([
-      supabase.from('products').select('id,sku,name,category,unit,costPrice,sellingPrice,stock,taxRate,tags,image,hsn_code,lowStockThreshold,food_type,is_available,station,modifier_groups,duration_min,tenant_id,updated_at').is('deleted_at', null).eq('tenant_id', targetTenantId),
+      supabase.from('products').select('id,sku,name,category,unit,costPrice,sellingPrice,stock,taxRate,cess_rate,tags,image,hsn_code,lowStockThreshold,food_type,is_available,station,modifier_groups,duration_min,tenant_id,updated_at').is('deleted_at', null).eq('tenant_id', targetTenantId),
       supabase.from('clients').select('id,name,phone,email,address,gstin,state,state_code,client_type,credit_days,outstanding_balance,tenant_id,created_at').is('deleted_at', null).eq('tenant_id', targetTenantId).is('deleted_at', null),
       supabase.from('sales').select('id,shopId,date,totalAmount,totalCogs,paymentMethod,paymentStatus,status,items,customerInfo,paidAmount,tenant_id,created_at,invoice_id').is('deleted_at', null).eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
       supabase.from('expenses').select('id,category,amount,note,date,tenant_id,created_at').is('deleted_at', null).eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),
@@ -1234,7 +1234,7 @@ const AppProviderInner = ({ children }) => {
         { data: balancesData },
         { data: invoicesData }
       ] = await Promise.all([
-        supabase.from('products').select('id,sku,name,category,unit,costPrice,sellingPrice,stock,taxRate,tags,image,hsn_code,lowStockThreshold,food_type,is_available,station,modifier_groups,duration_min,tenant_id,updated_at').is('deleted_at', null).eq('tenant_id', targetTenantId),
+        supabase.from('products').select('id,sku,name,category,unit,costPrice,sellingPrice,stock,taxRate,cess_rate,tags,image,hsn_code,lowStockThreshold,food_type,is_available,station,modifier_groups,duration_min,tenant_id,updated_at').is('deleted_at', null).eq('tenant_id', targetTenantId),
         supabase.from('product_categories').select('*').is('deleted_at', null).eq('tenant_id', targetTenantId).order('name'),
         supabase.from('clients').select('id,name,phone,email,address,gstin,state,state_code,client_type,credit_days,outstanding_balance,tenant_id,created_at').is('deleted_at', null).eq('tenant_id', targetTenantId).is('deleted_at', null),
         supabase.from('sales').select('id,shopId,date,totalAmount,totalCogs,paymentMethod,paymentStatus,status,items,customerInfo,paidAmount,tenant_id,created_at,invoice_id').is('deleted_at', null).eq('tenant_id', targetTenantId).order('date', { ascending: false }).limit(200),

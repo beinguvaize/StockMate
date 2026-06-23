@@ -83,4 +83,28 @@ export const TAX_SLABS = [
   { label: '28%', value: 28 }
 ];
 
+// Full GST rate list including Compensation Cess combinations (ad-valorem %).
+// `value` = GST rate, `cess` = compensation cess rate on the same taxable base.
+// Used by the product form's tax dropdown so cess goods (autos, aerated
+// drinks, tobacco) capture the right cess at source. Specific/per-unit cess
+// (e.g. coal ₹400/tonne) is not modelled here — ad-valorem only.
+export const TAX_SLABS_WITH_CESS = [
+  { label: '0% (Exempt/Nil)',        value: 0,  cess: 0 },
+  { label: '5%',                     value: 5,  cess: 0 },
+  { label: '12%',                    value: 12, cess: 0 },
+  { label: '18%',                    value: 18, cess: 0 },
+  { label: '28%',                    value: 28, cess: 0 },
+  { label: '28% + 1% Cess (small petrol car)',  value: 28, cess: 1 },
+  { label: '28% + 3% Cess (small diesel car)',  value: 28, cess: 3 },
+  { label: '28% + 12% Cess (aerated drinks)',   value: 28, cess: 12 },
+  { label: '28% + 15% Cess (mid car)',          value: 28, cess: 15 },
+  { label: '28% + 17% Cess',                    value: 28, cess: 17 },
+  { label: '28% + 20% Cess',                    value: 28, cess: 20 },
+  { label: '28% + 22% Cess (SUV/large car)',    value: 28, cess: 22 },
+  { label: '28% + 36% Cess (tobacco)',          value: 28, cess: 36 },
+  { label: '28% + 60% Cess (tobacco)',          value: 28, cess: 60 },
+  { label: '28% + 65% Cess (tobacco)',          value: 28, cess: 65 },
+  { label: '28% + 71% Cess (tobacco)',          value: 28, cess: 71 },
+];
+
 export const UNITS = ['PCS', 'KG', 'LITRE', 'BOX', 'PACK', 'DOZEN', 'SET', 'BAG', 'SQFT', 'MSTR'];

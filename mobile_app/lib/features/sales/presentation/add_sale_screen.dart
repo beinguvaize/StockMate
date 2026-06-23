@@ -243,6 +243,8 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         'name':     c.product.name,
         'rate':     c.unitPrice,
         'taxRate':  c.product.taxRate,
+        'cess':     c.product.cessRate,
+        'hsn':      c.product.hsnCode,
       }).toList();
 
       final now = DateTime.now();

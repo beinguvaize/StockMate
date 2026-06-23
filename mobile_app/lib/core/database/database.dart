@@ -50,9 +50,11 @@ class Products extends Table {
   RealColumn get sellingPrice => real().withDefault(const Constant(0))();
   RealColumn get stock => real().withDefault(const Constant(0))();
   RealColumn get taxRate => real().withDefault(const Constant(0))();
+  RealColumn get cessRate => real().withDefault(const Constant(0))();
+  TextColumn get hsnCode => text().nullable()();
   TextColumn get image => text().nullable()();
   DateTimeColumn get updatedAt => dateTime().nullable()();
-  
+
   @override
   Set<Column> get primaryKey => {id};
 }
@@ -205,7 +207,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -226,6 +228,10 @@ class AppDatabase extends _$AppDatabase {
       if (from < 3) {
         await m.createTable(invoices);
         await m.createTable(businessProfileLocal);
+      }
+      if (from < 4) {
+        await m.addColumn(products, products.cessRate);
+        await m.addColumn(products, products.hsnCode);
       }
     },
   );

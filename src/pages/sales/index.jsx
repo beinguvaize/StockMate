@@ -103,6 +103,7 @@ const SalesPage = () => {
         qty:      i.quantity,
         rate:     i.price,
         taxRate:  i.taxRate || 0,
+        cess:     Number(i.cess ?? i.cess_rate ?? 0),
         sku:      i.sku || '',
         hsn_code: i.hsn_code || '',
         unit:     i.unit || 'PCS',

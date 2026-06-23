@@ -68,6 +68,8 @@ class ProductRepository {
             sellingPrice: Value(product.sellingPrice),
             stock: Value(product.stock),
             taxRate: Value(product.taxRate),
+            cessRate: Value(product.cessRate),
+            hsnCode: Value(product.hsnCode),
             image: Value(product.image),
           ),
           mode: InsertMode.insertOrReplace,
@@ -88,6 +90,8 @@ class ProductRepository {
         'sellingPrice': product.sellingPrice,
         'stock': product.stock,
         'taxRate': product.taxRate,
+        'cess_rate': product.cessRate,
+        'hsn_code': product.hsnCode,
         'image': product.image,
       },
     );
@@ -152,6 +156,8 @@ class ProductRepository {
       sellingPrice: Value(product.sellingPrice),
       stock: Value(product.stock),
       taxRate: Value(product.taxRate),
+      cessRate: Value(product.cessRate),
+      hsnCode: Value(product.hsnCode),
       image: Value(product.image),
     ));
 
@@ -170,6 +176,8 @@ class ProductRepository {
         'sellingPrice': product.sellingPrice,
         'stock': product.stock,
         'taxRate': product.taxRate,
+        'cess_rate': product.cessRate,
+        'hsn_code': product.hsnCode,
         'image': product.image,
       },
     );
