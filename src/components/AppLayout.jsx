@@ -125,6 +125,7 @@ const Navbar = () => {
    navItem('Suppliers', '/suppliers', <Truck size={20} />, 'suppliers'),
    navItem('Payroll', '/payroll', <Banknote size={20} />, 'payroll', 'payroll'),
    navItem('Day Book', '/daybook', <BookOpen size={20} />, 'daybook'),
+   navItem('Cash & Bank', '/accounts', <Banknote size={20} />, 'daybook'),
    navItem('Vehicles', '/vehicles', <Truck size={20} />, 'vehicles', 'vehicles'),
    navItem('Reports', '/reports', <BarChart3 size={20} />, 'reports'),
    navItem('Labels', '/labels', <ScanBarcode size={20} />, 'inventory'),

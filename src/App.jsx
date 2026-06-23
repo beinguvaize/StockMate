@@ -23,6 +23,7 @@ import NoAccess from './pages/NoAccess';
 // ── Lazy (loaded only when route is visited) ─────────────────────────────────
 const Dashboard        = lazy(() => import('./pages/Dashboard'));
 const CreateDocument   = lazy(() => import('./pages/documents/CreateDocument.jsx'));
+const Accounts         = lazy(() => import('./pages/Accounts.jsx'));
 const Inventory        = lazy(() => import('./pages/inventory/index.jsx'));
 const Sales            = lazy(() => import('./pages/sales/index.jsx'));
 const Expenses         = lazy(() => import('./pages/Expenses'));
@@ -213,6 +214,7 @@ function AppRoutes() {
         <Route path="orders" element={<ProtectedRoute><Orders /></ProtectedRoute>} />
         <Route path="payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
         <Route path="daybook" element={<ProtectedRoute><DayBook /></ProtectedRoute>} />
+        <Route path="accounts" element={<ProtectedRoute><Accounts /></ProtectedRoute>} />
         <Route path="purchases" element={<ProtectedRoute><Purchases /></ProtectedRoute>} />
         <Route path="suppliers" element={<ProtectedRoute><Suppliers /></ProtectedRoute>} />
         <Route path="suppliers/ledger/:id" element={<ProtectedRoute><SupplierLedger /></ProtectedRoute>} />
