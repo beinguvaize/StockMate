@@ -971,6 +971,20 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
       type: DriftSqlType.double,
       requiredDuringInsert: false,
       defaultValue: const Constant(0));
+  static const VerificationMeta _cessRateMeta =
+      const VerificationMeta('cessRate');
+  @override
+  late final GeneratedColumn<double> cessRate = GeneratedColumn<double>(
+      'cess_rate', aliasedName, false,
+      type: DriftSqlType.double,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(0));
+  static const VerificationMeta _hsnCodeMeta =
+      const VerificationMeta('hsnCode');
+  @override
+  late final GeneratedColumn<String> hsnCode = GeneratedColumn<String>(
+      'hsn_code', aliasedName, true,
+      type: DriftSqlType.string, requiredDuringInsert: false);
   static const VerificationMeta _imageMeta = const VerificationMeta('image');
   @override
   late final GeneratedColumn<String> image = GeneratedColumn<String>(
@@ -994,6 +1008,8 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
         sellingPrice,
         stock,
         taxRate,
+        cessRate,
+        hsnCode,
         image,
         updatedAt
       ];
@@ -1054,6 +1070,14 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
       context.handle(_taxRateMeta,
           taxRate.isAcceptableOrUnknown(data['tax_rate']!, _taxRateMeta));
     }
+    if (data.containsKey('cess_rate')) {
+      context.handle(_cessRateMeta,
+          cessRate.isAcceptableOrUnknown(data['cess_rate']!, _cessRateMeta));
+    }
+    if (data.containsKey('hsn_code')) {
+      context.handle(_hsnCodeMeta,
+          hsnCode.isAcceptableOrUnknown(data['hsn_code']!, _hsnCodeMeta));
+    }
     if (data.containsKey('image')) {
       context.handle(
           _imageMeta, image.isAcceptableOrUnknown(data['image']!, _imageMeta));
@@ -1091,6 +1115,10 @@ class $ProductsTable extends Products with TableInfo<$ProductsTable, Product> {
           .read(DriftSqlType.double, data['${effectivePrefix}stock'])!,
       taxRate: attachedDatabase.typeMapping
           .read(DriftSqlType.double, data['${effectivePrefix}tax_rate'])!,
+      cessRate: attachedDatabase.typeMapping
+          .read(DriftSqlType.double, data['${effectivePrefix}cess_rate'])!,
+      hsnCode: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}hsn_code']),
       image: attachedDatabase.typeMapping
           .read(DriftSqlType.string, data['${effectivePrefix}image']),
       updatedAt: attachedDatabase.typeMapping
@@ -1115,6 +1143,8 @@ class Product extends DataClass implements Insertable<Product> {
   final double sellingPrice;
   final double stock;
   final double taxRate;
+  final double cessRate;
+  final String? hsnCode;
   final String? image;
   final DateTime? updatedAt;
   const Product(
@@ -1128,6 +1158,8 @@ class Product extends DataClass implements Insertable<Product> {
       required this.sellingPrice,
       required this.stock,
       required this.taxRate,
+      required this.cessRate,
+      this.hsnCode,
       this.image,
       this.updatedAt});
   @override
@@ -1149,6 +1181,10 @@ class Product extends DataClass implements Insertable<Product> {
     map['selling_price'] = Variable<double>(sellingPrice);
     map['stock'] = Variable<double>(stock);
     map['tax_rate'] = Variable<double>(taxRate);
+    map['cess_rate'] = Variable<double>(cessRate);
+    if (!nullToAbsent || hsnCode != null) {
+      map['hsn_code'] = Variable<String>(hsnCode);
+    }
     if (!nullToAbsent || image != null) {
       map['image'] = Variable<String>(image);
     }
@@ -1172,6 +1208,10 @@ class Product extends DataClass implements Insertable<Product> {
       sellingPrice: Value(sellingPrice),
       stock: Value(stock),
       taxRate: Value(taxRate),
+      cessRate: Value(cessRate),
+      hsnCode: hsnCode == null && nullToAbsent
+          ? const Value.absent()
+          : Value(hsnCode),
       image:
           image == null && nullToAbsent ? const Value.absent() : Value(image),
       updatedAt: updatedAt == null && nullToAbsent
@@ -1194,6 +1234,8 @@ class Product extends DataClass implements Insertable<Product> {
       sellingPrice: serializer.fromJson<double>(json['sellingPrice']),
       stock: serializer.fromJson<double>(json['stock']),
       taxRate: serializer.fromJson<double>(json['taxRate']),
+      cessRate: serializer.fromJson<double>(json['cessRate']),
+      hsnCode: serializer.fromJson<String?>(json['hsnCode']),
       image: serializer.fromJson<String?>(json['image']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
     );
@@ -1212,6 +1254,8 @@ class Product extends DataClass implements Insertable<Product> {
       'sellingPrice': serializer.toJson<double>(sellingPrice),
       'stock': serializer.toJson<double>(stock),
       'taxRate': serializer.toJson<double>(taxRate),
+      'cessRate': serializer.toJson<double>(cessRate),
+      'hsnCode': serializer.toJson<String?>(hsnCode),
       'image': serializer.toJson<String?>(image),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
     };
@@ -1228,6 +1272,8 @@ class Product extends DataClass implements Insertable<Product> {
           double? sellingPrice,
           double? stock,
           double? taxRate,
+          double? cessRate,
+          Value<String?> hsnCode = const Value.absent(),
           Value<String?> image = const Value.absent(),
           Value<DateTime?> updatedAt = const Value.absent()}) =>
       Product(
@@ -1241,6 +1287,8 @@ class Product extends DataClass implements Insertable<Product> {
         sellingPrice: sellingPrice ?? this.sellingPrice,
         stock: stock ?? this.stock,
         taxRate: taxRate ?? this.taxRate,
+        cessRate: cessRate ?? this.cessRate,
+        hsnCode: hsnCode.present ? hsnCode.value : this.hsnCode,
         image: image.present ? image.value : this.image,
         updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
       );
@@ -1257,6 +1305,8 @@ class Product extends DataClass implements Insertable<Product> {
           ..write('sellingPrice: $sellingPrice, ')
           ..write('stock: $stock, ')
           ..write('taxRate: $taxRate, ')
+          ..write('cessRate: $cessRate, ')
+          ..write('hsnCode: $hsnCode, ')
           ..write('image: $image, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -1264,8 +1314,21 @@ class Product extends DataClass implements Insertable<Product> {
   }
 
   @override
-  int get hashCode => Object.hash(id, tenantId, sku, name, category, unit,
-      costPrice, sellingPrice, stock, taxRate, image, updatedAt);
+  int get hashCode => Object.hash(
+      id,
+      tenantId,
+      sku,
+      name,
+      category,
+      unit,
+      costPrice,
+      sellingPrice,
+      stock,
+      taxRate,
+      cessRate,
+      hsnCode,
+      image,
+      updatedAt);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -1280,6 +1343,8 @@ class Product extends DataClass implements Insertable<Product> {
           other.sellingPrice == this.sellingPrice &&
           other.stock == this.stock &&
           other.taxRate == this.taxRate &&
+          other.cessRate == this.cessRate &&
+          other.hsnCode == this.hsnCode &&
           other.image == this.image &&
           other.updatedAt == this.updatedAt);
 }
@@ -1295,6 +1360,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
   final Value<double> sellingPrice;
   final Value<double> stock;
   final Value<double> taxRate;
+  final Value<double> cessRate;
+  final Value<String?> hsnCode;
   final Value<String?> image;
   final Value<DateTime?> updatedAt;
   final Value<int> rowid;
@@ -1309,6 +1376,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.sellingPrice = const Value.absent(),
     this.stock = const Value.absent(),
     this.taxRate = const Value.absent(),
+    this.cessRate = const Value.absent(),
+    this.hsnCode = const Value.absent(),
     this.image = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1324,6 +1393,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     this.sellingPrice = const Value.absent(),
     this.stock = const Value.absent(),
     this.taxRate = const Value.absent(),
+    this.cessRate = const Value.absent(),
+    this.hsnCode = const Value.absent(),
     this.image = const Value.absent(),
     this.updatedAt = const Value.absent(),
     this.rowid = const Value.absent(),
@@ -1341,6 +1412,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     Expression<double>? sellingPrice,
     Expression<double>? stock,
     Expression<double>? taxRate,
+    Expression<double>? cessRate,
+    Expression<String>? hsnCode,
     Expression<String>? image,
     Expression<DateTime>? updatedAt,
     Expression<int>? rowid,
@@ -1356,6 +1429,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       if (sellingPrice != null) 'selling_price': sellingPrice,
       if (stock != null) 'stock': stock,
       if (taxRate != null) 'tax_rate': taxRate,
+      if (cessRate != null) 'cess_rate': cessRate,
+      if (hsnCode != null) 'hsn_code': hsnCode,
       if (image != null) 'image': image,
       if (updatedAt != null) 'updated_at': updatedAt,
       if (rowid != null) 'rowid': rowid,
@@ -1373,6 +1448,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       Value<double>? sellingPrice,
       Value<double>? stock,
       Value<double>? taxRate,
+      Value<double>? cessRate,
+      Value<String?>? hsnCode,
       Value<String?>? image,
       Value<DateTime?>? updatedAt,
       Value<int>? rowid}) {
@@ -1387,6 +1464,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
       sellingPrice: sellingPrice ?? this.sellingPrice,
       stock: stock ?? this.stock,
       taxRate: taxRate ?? this.taxRate,
+      cessRate: cessRate ?? this.cessRate,
+      hsnCode: hsnCode ?? this.hsnCode,
       image: image ?? this.image,
       updatedAt: updatedAt ?? this.updatedAt,
       rowid: rowid ?? this.rowid,
@@ -1426,6 +1505,12 @@ class ProductsCompanion extends UpdateCompanion<Product> {
     if (taxRate.present) {
       map['tax_rate'] = Variable<double>(taxRate.value);
     }
+    if (cessRate.present) {
+      map['cess_rate'] = Variable<double>(cessRate.value);
+    }
+    if (hsnCode.present) {
+      map['hsn_code'] = Variable<String>(hsnCode.value);
+    }
     if (image.present) {
       map['image'] = Variable<String>(image.value);
     }
@@ -1451,6 +1536,8 @@ class ProductsCompanion extends UpdateCompanion<Product> {
           ..write('sellingPrice: $sellingPrice, ')
           ..write('stock: $stock, ')
           ..write('taxRate: $taxRate, ')
+          ..write('cessRate: $cessRate, ')
+          ..write('hsnCode: $hsnCode, ')
           ..write('image: $image, ')
           ..write('updatedAt: $updatedAt, ')
           ..write('rowid: $rowid')

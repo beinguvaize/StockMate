@@ -58,8 +58,27 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   }
 
   String _selectedUnit = 'pcs';
-  String _selectedTaxSlab = 'Exempt';
+  String _selectedTaxSlab = '0% (Exempt)';
   double _taxRate = 0.0;
+  double _cessRate = 0.0;
+  final _hsnController = TextEditingController();
+
+  // GST rate + Compensation Cess combinations (ad-valorem %). Mirrors the
+  // web TAX_SLABS_WITH_CESS so both platforms capture cess at source.
+  static const List<Map<String, dynamic>> _taxSlabs = [
+    {'label': '0% (Exempt)',        'rate': 0.0,  'cess': 0.0},
+    {'label': 'GST 5%',             'rate': 5.0,  'cess': 0.0},
+    {'label': 'GST 12%',            'rate': 12.0, 'cess': 0.0},
+    {'label': 'GST 18%',            'rate': 18.0, 'cess': 0.0},
+    {'label': 'GST 28%',            'rate': 28.0, 'cess': 0.0},
+    {'label': 'GST 28% + 1% Cess',  'rate': 28.0, 'cess': 1.0},
+    {'label': 'GST 28% + 3% Cess',  'rate': 28.0, 'cess': 3.0},
+    {'label': 'GST 28% + 12% Cess', 'rate': 28.0, 'cess': 12.0},
+    {'label': 'GST 28% + 15% Cess', 'rate': 28.0, 'cess': 15.0},
+    {'label': 'GST 28% + 17% Cess', 'rate': 28.0, 'cess': 17.0},
+    {'label': 'GST 28% + 22% Cess', 'rate': 28.0, 'cess': 22.0},
+    {'label': 'GST 28% + 60% Cess', 'rate': 28.0, 'cess': 60.0},
+  ];
 
   bool get _isEditMode => widget.product != null;
 
@@ -75,19 +94,14 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
       _sellingController.text = p.sellingPrice.toStringAsFixed(2);
       _stockController.text = p.stock.toStringAsFixed(0);
       _selectedUnit = p.unit ?? 'pcs';
-      final rate = p.taxRate;
-      _taxRate = rate;
-      if (rate == 5.0) {
-        _selectedTaxSlab = 'VAT 5%';
-      } else if (rate == 12.0) {
-        _selectedTaxSlab = 'GST 12%';
-      } else if (rate == 18.0) {
-        _selectedTaxSlab = 'GST 18%';
-      } else if (rate == 28.0) {
-        _selectedTaxSlab = 'GST 28%';
-      } else {
-        _selectedTaxSlab = 'Exempt';
-      }
+      _taxRate = p.taxRate;
+      _cessRate = p.cessRate;
+      _hsnController.text = p.hsnCode ?? '';
+      final match = _taxSlabs.firstWhere(
+        (s) => s['rate'] == _taxRate && s['cess'] == _cessRate,
+        orElse: () => _taxSlabs.first,
+      );
+      _selectedTaxSlab = match['label'] as String;
       supabase
           .from('products')
           .select('barcode')
@@ -111,6 +125,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     _alertController.dispose();
     _categoryController.dispose();
     _barcodeController.dispose();
+    _hsnController.dispose();
     super.dispose();
   }
 
@@ -146,12 +161,18 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           sellingPrice: double.tryParse(_sellingController.text) ?? 0.0,
           stock: double.tryParse(_stockController.text) ?? 0.0,
           taxRate: _taxRate,
+          cessRate: _cessRate,
+          hsnCode: Value(_hsnController.text.trim().isEmpty ? null : _hsnController.text.trim()),
         );
         await repo.updateProduct(updated);
         // Barcode column exists only on Supabase (not in the drift cache).
         final bc = _barcodeController.text.trim();
         await supabase.from('products')
-            .update({'barcode': bc.isEmpty ? null : bc})
+            .update({
+              'barcode': bc.isEmpty ? null : bc,
+              'cess_rate': _cessRate,
+              'hsn_code': _hsnController.text.trim().isEmpty ? null : _hsnController.text.trim(),
+            })
             .eq('id', widget.product!.id);
       } else {
         // Add mode — insert via Supabase directly.
@@ -175,6 +196,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
           'unit': _selectedUnit,
           'taxRate': _taxRate,
           'taxSlab': _selectedTaxSlab,
+          'cess_rate': _cessRate,
+          'hsn_code': _hsnController.text.trim().isEmpty ? null : _hsnController.text.trim(),
           'barcode': _barcodeController.text.trim().isEmpty ? null : _barcodeController.text.trim(),
           'tenant_id': tenantCtx?.tenantId,
         });
@@ -352,27 +375,29 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             ),
             const SizedBox(height: 12),
             _buildDropdownCard(
-              label: 'TAX SLAB',
+              label: 'TAX SLAB (GST + CESS)',
               icon: LucideIcons.percent,
               value: _selectedTaxSlab,
-              items: [
-                {'label': 'Exempt', 'rate': 0.0},
-                {'label': 'VAT 5%', 'rate': 5.0},
-                {'label': 'GST 12%', 'rate': 12.0},
-                {'label': 'GST 18%', 'rate': 18.0},
-                {'label': 'GST 28%', 'rate': 28.0},
-              ].map((m) => m['label'].toString()).toList(),
+              items: _taxSlabs.map((m) => m['label'].toString()).toList(),
               onChanged: (v) {
-                double rate = 0;
-                if (v == 'VAT 5%') rate = 5.0;
-                if (v == 'GST 12%') rate = 12.0;
-                if (v == 'GST 18%') rate = 18.0;
-                if (v == 'GST 28%') rate = 28.0;
+                final slab = _taxSlabs.firstWhere(
+                  (s) => s['label'] == v,
+                  orElse: () => _taxSlabs.first,
+                );
                 setState(() {
                   _selectedTaxSlab = v!;
-                  _taxRate = rate;
+                  _taxRate = slab['rate'] as double;
+                  _cessRate = slab['cess'] as double;
                 });
               },
+            ),
+            const SizedBox(height: 12),
+            _buildField(
+              label: 'HSN / SAC Code',
+              hint: 'e.g. 39231090',
+              controller: _hsnController,
+              icon: LucideIcons.hash,
+              isNumber: true,
             ),
 
             const SizedBox(height: 28),

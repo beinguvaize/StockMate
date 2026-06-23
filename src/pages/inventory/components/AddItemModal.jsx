@@ -3,7 +3,7 @@ import { ImagePlus, CheckCircle2, Percent, Camera, Images, Upload, X, Loader2, W
 import { ean13CheckDigit } from '../../../lib/labelPrint';
 import Modal from '../../../shared/Modal';
 import Button from '../../../shared/Button';
-import { TAX_SLABS, UNITS } from '../../../lib/constants';
+import { TAX_SLABS, TAX_SLABS_WITH_CESS, UNITS } from '../../../lib/constants';
 import { uploadProductImage, listTenantProductImages } from '../../../lib/supabase';
 import { useTenant } from '../../../context/TenantContext';
 
@@ -20,7 +20,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
 
   const [formData, setFormData] = useState({
     name: '', sku: '', category: '', unit: UNITS[0],
-    costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
+    costPrice: '', sellingPrice: '', stock: '', taxRate: 0, cess_rate: 0, hsn_code: '', taxSlab: 'Exempt', tags: '', image: '',
     lowStockThreshold: 10, min_margin: 0, barcode: '', product_type: 'STANDARD',
     secondary_unit: '', conversion_factor: '',
     food_type: '', is_available: true, station: '', modifier_groups: [],   // menu (restaurant)
@@ -62,6 +62,8 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       setFormData({
         ...editingProduct,
         taxRate: editingProduct.taxRate || 0,
+        cess_rate: editingProduct.cess_rate || 0,
+        hsn_code: editingProduct.hsn_code || editingProduct.hsn || '',
         taxSlab: editingProduct.taxSlab || (TAX_SLABS.find(s => s.rate === (editingProduct.taxRate || 0))?.label) || 'Custom',
         tags: editingProduct.tags ? editingProduct.tags.join(', ') : '',
         image: editingProduct.image || '',
@@ -73,7 +75,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     } else {
       setFormData({
         name: '', sku: '', category: '', unit: UNITS[0],
-        costPrice: '', sellingPrice: '', stock: '', taxRate: 0, taxSlab: 'Exempt', tags: '', image: '',
+        costPrice: '', sellingPrice: '', stock: '', taxRate: 0, cess_rate: 0, hsn_code: '', taxSlab: 'Exempt', tags: '', image: '',
         lowStockThreshold: 10, min_margin: 0, barcode: '',
         food_type: '', is_available: true, station: '',
         track_serial: false,
@@ -138,6 +140,8 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         stock:            parseInt(formData.stock)              || 0,
         lowStockThreshold: parseInt(formData.lowStockThreshold) || 10,
         taxRate:          parseFloat(formData.taxRate)          || 0,
+        cess_rate:        parseFloat(formData.cess_rate)        || 0,
+        hsn_code:         (formData.hsn_code || '').trim()      || null,
         min_margin:       parseFloat(formData.min_margin)       || 0,
         secondary_unit:   formData.secondary_unit?.trim() || null,
         conversion_factor: parseFloat(formData.conversion_factor) || null,
@@ -481,26 +485,45 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             </>)}
 
             <Section>Taxation</Section>
-            {/* Tax Slab */}
-            <div>
-              <label className={labelCls}>GST Tax Slab</label>
-              <div className="flex gap-2 flex-wrap">
-                {TAX_SLABS.map(slab => (
-                  <button
-                    key={slab.value}
-                    type="button"
-                    onClick={() => setFormData({ ...formData, taxRate: slab.value })}
-                    className={`px-4 py-2 rounded-lg text-xs font-black border transition-all ${
-                      Number(formData.taxRate) === slab.value
-                        ? 'bg-accent-signature text-button-text border-accent-signature shadow-md scale-105'
-                        : 'bg-white border-gray-200 text-gray-500 shadow-sm hover:border-accent-signature/40 hover:text-ink-primary'
-                    }`}
-                  >
-                    {slab.label}
-                  </button>
-                ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* GST + Cess slab dropdown */}
+              <div>
+                <label className={labelCls}>GST Tax Slab</label>
+                <select
+                  value={TAX_SLABS_WITH_CESS.findIndex(
+                    s => s.value === Number(formData.taxRate) && s.cess === Number(formData.cess_rate || 0)
+                  )}
+                  onChange={(e) => {
+                    const s = TAX_SLABS_WITH_CESS[Number(e.target.value)];
+                    if (s) setFormData({ ...formData, taxRate: s.value, cess_rate: s.cess });
+                  }}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white border border-gray-200 shadow-sm text-xs font-bold text-ink-primary focus:outline-none focus:border-accent-signature/40"
+                >
+                  {/* When the saved combo isn't a standard slab, findIndex returns -1 */}
+                  {TAX_SLABS_WITH_CESS.findIndex(s => s.value === Number(formData.taxRate) && s.cess === Number(formData.cess_rate || 0)) === -1 && (
+                    <option value={-1}>{`${Number(formData.taxRate) || 0}%${Number(formData.cess_rate) ? ` + ${Number(formData.cess_rate)}% Cess` : ''} (custom)`}</option>
+                  )}
+                  {TAX_SLABS_WITH_CESS.map((s, i) => (
+                    <option key={i} value={i}>{s.label}</option>
+                  ))}
+                </select>
+                <p className="text-[10px] text-gray-400 mt-1">GST + Compensation Cess. Applied on invoice & POS checkout.</p>
               </div>
-              <p className="text-[10px] text-gray-400 mt-1">Applied on invoice & POS checkout</p>
+
+              {/* HSN / SAC code */}
+              <div>
+                <label className={labelCls}>HSN / SAC Code</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={formData.hsn_code || ''}
+                  onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value.replace(/[^0-9]/g, '') })}
+                  placeholder="e.g. 39231090"
+                  maxLength={8}
+                  className="w-full px-3 py-2.5 rounded-xl bg-white border border-gray-200 shadow-sm text-xs font-bold text-ink-primary focus:outline-none focus:border-accent-signature/40"
+                />
+                <p className="text-[10px] text-gray-400 mt-1">Required for GSTR-1 HSN summary (Table 12).</p>
+              </div>
             </div>
 
             <Section>Product Photo</Section>

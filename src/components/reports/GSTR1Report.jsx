@@ -381,12 +381,12 @@ const GSTR1Report = () => {
           <div className="text-[11px] font-black uppercase tracking-widest text-amber-700">
             GSTR-1 · Outward Supplies Return · Business State: {businessState}
           </div>
-          <div className="text-[10px] font-bold text-gray-500 mt-0.5">
-            Total Turnover: <span className="font-black text-ink-primary">{formatINR(gstr1.totals.taxable)}</span>
+          <div className="text-[10px] font-bold text-gray-500 mt-0.5 font-mono">
+            Total Turnover: <span className="font-black text-ink-primary tabular-nums">{formatINR(gstr1.totals.taxable)}</span>
             {' · '}
-            Tax Liability: <span className="font-black text-rose-600">{formatINR(gstr1.totals.cgst + gstr1.totals.sgst + gstr1.totals.igst)}</span>
+            Tax Liability: <span className="font-black text-rose-600 tabular-nums">{formatINR(gstr1.totals.cgst + gstr1.totals.sgst + gstr1.totals.igst)}</span>
             {' · '}
-            {gstr1.totals.invoiceCount} Invoices
+            <span className="tabular-nums">{gstr1.totals.invoiceCount}</span> Invoices
             {businessGSTIN && (
               <span className="ml-2 font-mono text-amber-600">· GSTIN: {businessGSTIN}</span>
             )}

@@ -322,6 +322,8 @@ class SyncService {
               sellingPrice: Value((item['sellingPrice'] ?? 0).toDouble()),
               stock: Value((item['stock'] ?? 0).toDouble()),
               taxRate: Value((item['taxRate'] ?? 0).toDouble()),
+              cessRate: Value((item['cess_rate'] ?? 0).toDouble()),
+              hsnCode: Value(item['hsn_code']),
               image: Value(item['image']),
             ),
             mode: InsertMode.insertOrReplace,

@@ -90,9 +90,9 @@ export const buildTaxLinesFromSale = (sale, { businessState = '', clients = [] }
 
   const hasItems = Array.isArray(sale.items) && sale.items.length > 0;
 
-  let taxable = 0, cgst = 0, sgst = 0, igst = 0;
-  const byRate = {}; // taxRate -> { taxable, cgst, sgst, igst }
-  const byHSN = {};  // key -> { hsn, taxRate, uqc, qty, taxable, cgst, sgst, igst }
+  let taxable = 0, cgst = 0, sgst = 0, igst = 0, cess = 0;
+  const byRate = {}; // taxRate -> { taxable, cgst, sgst, igst, cess }
+  const byHSN = {};  // key -> { hsn, taxRate, uqc, qty, taxable, cgst, sgst, igst, cess }
 
   if (hasItems) {
     sale.items.forEach((item) => {
@@ -101,11 +101,14 @@ export const buildTaxLinesFromSale = (sale, { businessState = '', clients = [] }
       const discount = Number(item.discount ?? 0);
       // Items may not carry taxRate — fall back to sale-level tax rate or 18%
       const taxRate  = Number(item.taxRate ?? item.tax_rate ?? sale.taxRate ?? 18);
+      // Compensation cess (ad-valorem %) — 0 unless the product is a cess good.
+      const cessRate = Number(item.cess ?? item.cess_rate ?? 0);
       const hsn      = String(item.hsn_code || item.hsn || '---');
       const uqc      = String(item.uqc || item.unit || 'NOS').toUpperCase();
 
       const itemTaxable = qty * rate - discount;
       const taxAmt      = (itemTaxable * taxRate) / 100;
+      const itemCess    = (itemTaxable * cessRate) / 100;
 
       let itemCgst = 0, itemSgst = 0, itemIgst = 0;
       if (interstate) {
@@ -119,26 +122,29 @@ export const buildTaxLinesFromSale = (sale, { businessState = '', clients = [] }
       cgst    += itemCgst;
       sgst    += itemSgst;
       igst    += itemIgst;
+      cess    += itemCess;
 
       // By rate
-      if (!byRate[taxRate]) byRate[taxRate] = { taxRate, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+      if (!byRate[taxRate]) byRate[taxRate] = { taxRate, taxable: 0, cgst: 0, sgst: 0, igst: 0, cess: 0 };
       byRate[taxRate].taxable += itemTaxable;
       byRate[taxRate].cgst    += itemCgst;
       byRate[taxRate].sgst    += itemSgst;
       byRate[taxRate].igst    += itemIgst;
+      byRate[taxRate].cess    += itemCess;
 
       // By HSN
       const hsnKey = `${hsn}|${taxRate}|${uqc}`;
       if (!byHSN[hsnKey]) {
         // Use the first product's name as a human-readable HSN description
         // (no HSN master in the app; the GST portal auto-fills the official one).
-        byHSN[hsnKey] = { hsn, description: String(item.name || item.productName || '').trim(), taxRate, uqc, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0 };
+        byHSN[hsnKey] = { hsn, description: String(item.name || item.productName || '').trim(), taxRate, uqc, qty: 0, taxable: 0, cgst: 0, sgst: 0, igst: 0, cess: 0 };
       }
       byHSN[hsnKey].qty     += qty;
       byHSN[hsnKey].taxable += itemTaxable;
       byHSN[hsnKey].cgst    += itemCgst;
       byHSN[hsnKey].sgst    += itemSgst;
       byHSN[hsnKey].igst    += itemIgst;
+      byHSN[hsnKey].cess    += itemCess;
     });
 
     // If items had no taxRate info (computed tax = 0) but DB has tax amount, use it
@@ -174,7 +180,7 @@ export const buildTaxLinesFromSale = (sale, { businessState = '', clients = [] }
     byHSN['---|18|NOS'] = { hsn: '---', taxRate: fallbackRate, uqc: 'NOS', qty: 1, taxable: round2(taxable), cgst: round2(cgst), sgst: round2(sgst), igst: round2(igst) };
   }
 
-  const invoiceValue = taxable + cgst + sgst + igst;
+  const invoiceValue = taxable + cgst + sgst + igst + cess;
 
   return {
     saleId: sale.id,
@@ -191,6 +197,7 @@ export const buildTaxLinesFromSale = (sale, { businessState = '', clients = [] }
     cgst: round2(cgst),
     sgst: round2(sgst),
     igst: round2(igst),
+    cess: round2(cess),
     invoiceValue: round2(invoiceValue),
     byRate: Object.values(byRate).map((r) => ({
       ...r,
@@ -198,6 +205,7 @@ export const buildTaxLinesFromSale = (sale, { businessState = '', clients = [] }
       cgst: round2(r.cgst),
       sgst: round2(r.sgst),
       igst: round2(r.igst),
+      cess: round2(r.cess || 0),
     })),
     byHSN: Object.values(byHSN).map((h) => ({
       ...h,
@@ -205,6 +213,7 @@ export const buildTaxLinesFromSale = (sale, { businessState = '', clients = [] }
       cgst: round2(h.cgst),
       sgst: round2(h.sgst),
       igst: round2(h.igst),
+      cess: round2(h.cess || 0),
     })),
   };
 };
@@ -421,6 +430,7 @@ export const buildGSTR1 = (sales = [], { businessState = '', clients = [], invoi
     cgst: round2(lines.reduce((a, l) => a + l.cgst, 0)),
     sgst: round2(lines.reduce((a, l) => a + l.sgst, 0)),
     igst: round2(lines.reduce((a, l) => a + l.igst, 0)),
+    cess: round2(lines.reduce((a, l) => a + (l.cess || 0), 0)),
     invoiceValue: round2(lines.reduce((a, l) => a + l.invoiceValue, 0)),
     invoiceCount,
   };
@@ -617,7 +627,7 @@ export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { busines
     integratedTax: round2(Math.max(taxableSupplies.igst - itcByType.integratedTax, 0)),
     centralTax: round2(Math.max(taxableSupplies.cgst - itcByType.centralTax, 0)),
     stateTax: round2(Math.max(taxableSupplies.sgst - itcByType.stateTax, 0)),
-    cess: 0,
+    cess: round2(Math.max((taxableSupplies.cess || 0) - itcByType.cess, 0)),
   };
 
   // Total tax liability (gross, before ITC)
@@ -630,7 +640,7 @@ export const buildGSTR3B = (sales = [], purchases = [], expenses = [], { busines
   return {
     // Section 3.1
     section3_1: [
-      { row: '(a) Outward taxable supplies', taxable: taxableSupplies.taxable, integratedTax: taxableSupplies.igst, centralTax: taxableSupplies.cgst, stateTax: taxableSupplies.sgst, cess: 0 },
+      { row: '(a) Outward taxable supplies', taxable: taxableSupplies.taxable, integratedTax: taxableSupplies.igst, centralTax: taxableSupplies.cgst, stateTax: taxableSupplies.sgst, cess: round2(taxableSupplies.cess || 0) },
       { row: '(b) Outward taxable supplies (zero rated)', taxable: 0, integratedTax: 0, centralTax: 0, stateTax: 0, cess: 0 },
       { row: '(c) Other outward supplies (Nil rated, exempted)', taxable: 0, integratedTax: 0, centralTax: 0, stateTax: 0, cess: 0 },
       { row: '(d) Inward supplies liable to reverse charge', taxable: 0, integratedTax: 0, centralTax: 0, stateTax: 0, cess: 0 },

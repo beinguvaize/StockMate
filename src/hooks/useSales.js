@@ -175,6 +175,9 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         // even if the product master is later edited. Default 0 if the
         // caller didn't include it (walk-in non-GST sale).
         taxRate: Number(i.taxRate ?? i.tax_rate ?? 0),
+        // Compensation cess rate (ad-valorem %) snapshotted per line for
+        // cess goods (autos, aerated drinks, tobacco). 0 for everything else.
+        cess: Number(i.cess ?? i.cess_rate ?? 0),
         hsn: i.hsn || i.hsn_code || null,
       }));
       const totalAmount = sale.totalAmount ?? 0;
@@ -271,6 +274,9 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         name: i.name,
         rate: i.price ?? i.rate ?? 0,
         taxRate: Number(i.taxRate ?? i.tax_rate ?? 0),
+        // Compensation cess rate (ad-valorem %) snapshotted per line for
+        // cess goods (autos, aerated drinks, tobacco). 0 for everything else.
+        cess: Number(i.cess ?? i.cess_rate ?? 0),
         hsn: i.hsn || i.hsn_code || null,
       }));
       const paymentStatus = sale.status === 'COMPLETED' ? 'PAID'

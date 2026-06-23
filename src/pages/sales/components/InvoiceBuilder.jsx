@@ -432,6 +432,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         price: (Number(product.sellingPrice) || 0) + addPrice,
         quantity: 1,
         taxRate: product.taxRate || 0,
+        cess: Number(product.cess_rate ?? product.cess ?? 0),
+        hsn_code: product.hsn_code || product.hsn || '',
         modifiers: chosen,
         modLabel,
       }];
