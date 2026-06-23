@@ -8,7 +8,10 @@ import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
+import { useEstimates } from '../../hooks/useEstimates';
 import { calculateGST } from '../../lib/gstEngine';
+
+const genId = (p) => `${p}-${Date.now().toString(36).toUpperCase()}`;
 
 // ── Document-type registry ───────────────────────────────────────────────
 // One shell, many documents. Each entry tunes the header, number series,
@@ -16,12 +19,12 @@ import { calculateGST } from '../../lib/gstEngine';
 // document = adding a row here, not a new screen.
 const DOC_TYPES = {
   SALES_INVOICE:   { label: 'Sales invoice',   prefix: 'INV', icon: FileText,        gst: true,  stock: 'OUT',  party: 'Bill to',  save: 'invoice' },
-  QUOTATION:       { label: 'Quotation',        prefix: 'QT',  icon: FileCheck,       gst: true,  stock: 'NONE', party: 'Quote to', save: 'stub' },
-  PAYMENT_IN:      { label: 'Payment in',       prefix: 'PMT', icon: Wallet,          gst: false, stock: 'NONE', party: 'Received from', save: 'stub', noItems: true },
-  SALES_RETURN:    { label: 'Sales return',     prefix: 'SR',  icon: RotateCcw,       gst: true,  stock: 'IN',   party: 'Returned by', save: 'stub' },
-  CREDIT_NOTE:     { label: 'Credit note',      prefix: 'CN',  icon: ReceiptText,     gst: true,  stock: 'NONE', party: 'Credit to', save: 'stub' },
-  DELIVERY_CHALLAN:{ label: 'Delivery challan', prefix: 'DC',  icon: Truck,           gst: false, stock: 'OUT',  party: 'Ship to',   save: 'stub' },
-  PROFORMA:        { label: 'Proforma',         prefix: 'PI',  icon: FileSpreadsheet, gst: true,  stock: 'NONE', party: 'Bill to',   save: 'stub' },
+  QUOTATION:       { label: 'Quotation',        prefix: 'QT',  icon: FileCheck,       gst: true,  stock: 'NONE', party: 'Quote to', save: 'estimate' },
+  PAYMENT_IN:      { label: 'Payment in',       prefix: 'PMT', icon: Wallet,          gst: false, stock: 'NONE', party: 'Received from', save: 'payment', noItems: true },
+  SALES_RETURN:    { label: 'Sales return',     prefix: 'SR',  icon: RotateCcw,       gst: true,  stock: 'IN',   party: 'Returned by', save: 'return' },
+  CREDIT_NOTE:     { label: 'Credit note',      prefix: 'CN',  icon: ReceiptText,     gst: true,  stock: 'NONE', party: 'Credit to', save: 'return' },
+  DELIVERY_CHALLAN:{ label: 'Delivery challan', prefix: 'DC',  icon: Truck,           gst: false, stock: 'OUT',  party: 'Ship to',   save: 'estimate' },
+  PROFORMA:        { label: 'Proforma',         prefix: 'PI',  icon: FileSpreadsheet, gst: true,  stock: 'NONE', party: 'Bill to',   save: 'estimate' },
 };
 
 const inr = (n) => `₹${(Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -32,8 +35,9 @@ const CreateDocument = () => {
   const [params] = useSearchParams();
   const { currentTenantId, currentTenant, businessProfile = {} } = useTenant();
   const { addNotification } = useNotifications();
-  const { clients = [], placeSale } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
+  const { clients = [], sales = [], placeSale, processSalesReturn, settleSale } = useSales(currentTenantId, { plan: currentTenant?.plan || 'STARTER' });
   const { products = [] } = useInventory(currentTenantId);
+  const { create: createEstimate } = useEstimates(currentTenantId);
 
   const initialType = DOC_TYPES[params.get('type')] ? params.get('type') : 'SALES_INVOICE';
   const [docType, setDocType] = useState(initialType);
@@ -47,6 +51,7 @@ const CreateDocument = () => {
   const [query, setQuery] = useState('');
   const [payMethod, setPayMethod] = useState('CASH');
   const [markPaid, setMarkPaid] = useState(true);
+  const [payAmount, setPayAmount] = useState('');
   const [saving, setSaving] = useState(false);
 
   const businessState = businessProfile?.state || businessProfile?.business_state || '';
@@ -77,35 +82,81 @@ const CreateDocument = () => {
     return products.filter((p) => `${p.name} ${p.sku || ''}`.toLowerCase().includes(q)).slice(0, 50);
   }, [products, query]);
 
-  const canSave = party && lines.length > 0 && !saving;
+  const interstate = !!(party?.state && businessState && party.state.toLowerCase() !== businessState.toLowerCase());
+  const lineItems = () => lines.map((l) => ({
+    productId: l.productId, id: l.productId, name: l.name, quantity: Number(l.qty) || 0,
+    qty: Number(l.qty) || 0, price: Number(l.rate) || 0, rate: Number(l.rate) || 0,
+    taxRate: Number(l.taxRate) || 0, cess_rate: Number(l.cess) || 0, hsn_code: l.hsn,
+    discountPercent: Number(l.disc) || 0,
+  }));
+
+  const canSave = !saving && party && (
+    cfg.save === 'payment' ? Number(payAmount) > 0 : lines.length > 0
+  );
 
   const handleSave = async () => {
     if (!canSave) return;
-    if (cfg.save !== 'invoice') {
-      addNotification(`${cfg.label} — save path coming next (shell ready)`, 'info');
-      return;
-    }
     setSaving(true);
+    const fail = (m) => { addNotification(`Save failed: ${m}`, 'error'); setSaving(false); };
     try {
-      const res = await placeSale({
-        clientId: party.id,
-        items: lines.map((l) => ({
-          productId: l.productId, name: l.name, quantity: Number(l.qty) || 0,
-          price: Number(l.rate) || 0, taxRate: Number(l.taxRate) || 0,
-          cess_rate: Number(l.cess) || 0, hsn_code: l.hsn,
-        })),
-        totalAmount: gst.grandTotal,
-        paymentMethod: payMethod,
-        status: markPaid ? 'COMPLETED' : 'PENDING',
-        paidAmount: markPaid ? gst.grandTotal : 0,
-        date,
-      });
-      if (res?.error) { addNotification(`Save failed: ${res.error.message}`, 'error'); setSaving(false); return; }
-      addNotification(`${cfg.label} saved`, 'success');
-      navigate('/invoices');
+      let res;
+      if (cfg.save === 'invoice') {
+        res = await placeSale({
+          clientId: party.id, items: lineItems(), totalAmount: gst.grandTotal,
+          paymentMethod: payMethod, status: markPaid ? 'COMPLETED' : 'PENDING',
+          paidAmount: markPaid ? gst.grandTotal : 0, date,
+        });
+        if (res?.error) return fail(res.error.message);
+        addNotification('Sales invoice saved', 'success');
+        return navigate('/invoices');
+      }
+
+      if (cfg.save === 'estimate') {
+        // Quotation / Proforma / Delivery Challan — non-posting documents
+        // stored in the estimates table, tagged by doc_type.
+        res = await createEstimate({
+          doc_type: docType,
+          client_id: party.id, client_name: party.name, client_gstin: party.gstin || null,
+          client_address: party.address || null, place_of_supply: party.state || businessState || null,
+          is_interstate: interstate, items: gst.items,
+          taxable_amount: gst.taxable, tax_total: gst.totalTax, cgst_amount: gst.cgst,
+          sgst_amount: gst.sgst, igst_amount: gst.igst, discount_total: gst.totalDiscount || 0,
+          round_off: gst.roundOff, grand_total: cfg.gst ? gst.grandTotal : gst.subtotal,
+          status: 'DRAFT',
+        });
+        if (res?.error) return fail(res.error.message);
+        addNotification(`${cfg.label} saved`, 'success');
+        return navigate('/estimates');
+      }
+
+      if (cfg.save === 'return') {
+        // Sales Return + Credit Note both go through process_sales_return,
+        // which restocks goods and credits the client (mints a credit note).
+        res = await processSalesReturn({
+          id: genId(cfg.prefix), sale_id: null, invoice_id: null,
+          client_id: party.id, client_name: party.name,
+          items: lineItems(), total_amount: gst.grandTotal,
+          reason: cfg.label, date,
+        });
+        if (res?.error) return fail(res.error.message);
+        addNotification(`${cfg.label} saved`, 'success');
+        return navigate('/sales');
+      }
+
+      if (cfg.save === 'payment') {
+        // Payment In — settle the party's oldest open sale by the amount.
+        const open = sales
+          .filter((s) => (s.shopId ?? s.shop_id ?? s.clientId) === party.id
+            && Math.max(0, (Number(s.totalAmount) || 0) - (Number(s.paidAmount) || 0)) > 0.5)
+          .sort((a, b) => new Date(a.date) - new Date(b.date));
+        if (!open.length) return fail('No open invoice for this party to settle.');
+        res = await settleSale(open[0].id, Number(payAmount));
+        if (res?.error) return fail(res.error.message);
+        addNotification(`Payment of ${inr(payAmount)} recorded`, 'success');
+        return navigate('/clients');
+      }
     } catch (e) {
-      addNotification(`Save failed: ${e.message}`, 'error');
-      setSaving(false);
+      return fail(e.message);
     }
   };
 
@@ -220,7 +271,25 @@ const CreateDocument = () => {
           </div>
         )}
 
+        {/* Payment In — amount card (no line items) */}
+        {cfg.noItems && (
+          <div className="bg-white rounded-2xl border border-black/10 shadow-sm p-4 max-w-sm">
+            <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Amount received</div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-black text-gray-400">₹</span>
+              <input type="number" value={payAmount} onChange={(e) => setPayAmount(e.target.value)} placeholder="0.00"
+                className="flex-1 text-xl font-black font-mono border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
+            </div>
+            <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)}
+              className="mt-3 w-full text-[12px] border border-black/10 rounded-lg px-2 py-2 outline-none">
+              <option>CASH</option><option>BANK</option><option>UPI</option>
+            </select>
+            <div className="text-[11px] text-gray-400 mt-2">Settles the party's oldest open invoice.</div>
+          </div>
+        )}
+
         {/* Footer: terms + totals */}
+        {!cfg.noItems && (
         <div className="grid md:grid-cols-2 gap-4">
           <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
             <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Terms</div>
@@ -255,6 +324,7 @@ const CreateDocument = () => {
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* Product picker overlay */}
