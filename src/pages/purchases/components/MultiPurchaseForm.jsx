@@ -20,6 +20,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
     location_id:  '',   // target warehouse
     payment_type: 'CASH',
     date:         todayISOInAppTZ(),
+    bill_no:      '',   // supplier's invoice no — for GSTR-2B invoice-level match
     notes:        '',
   });
 
@@ -157,9 +158,15 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
               value={header.date} onChange={e => setHeader(h => ({ ...h, date: e.target.value }))} />
           </div>
           <div>
+            <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Supplier Bill No</label>
+            <input type="text" className="w-full bg-white border border-black/5 rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+              placeholder="Supplier's invoice no. (for GSTR-2B)" value={header.bill_no}
+              onChange={e => setHeader(h => ({ ...h, bill_no: e.target.value }))} />
+          </div>
+          <div>
             <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Notes</label>
             <input type="text" className="w-full bg-white border border-black/5 rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
-              placeholder="Invoice no., remarks..." value={header.notes}
+              placeholder="Remarks..." value={header.notes}
               onChange={e => setHeader(h => ({ ...h, notes: e.target.value }))} />
           </div>
         </div>

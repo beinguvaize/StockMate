@@ -4,16 +4,15 @@ import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
 import { Upload, ShieldCheck, AlertTriangle, FileWarning } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
-import { parseGSTR2B, reconcile2B } from '../../utils/gstReporting';
+import { parseGSTR2B, reconcile2BInvoices } from '../../utils/gstReporting';
 
 /**
  * GSTR-2B Reconciliation
  * ----------------------
  * Upload the portal's auto-drafted GSTR-2B (JSON) and reconcile it against the
- * purchase register at supplier (GSTIN) level. Flags ITC at risk (booked but
- * supplier hasn't filed) and unclaimed ITC (in 2B but not in books).
- * Invoice-level match is a future step (needs a supplier bill-number on
- * purchases). Formal, print-oriented — no charts.
+ * purchase register invoice-by-invoice (supplier GSTIN + bill number). Flags
+ * ITC at risk (booked but not in 2B / values differ) and unclaimed ITC (in 2B
+ * but not in books). Formal, print-oriented — no charts.
  */
 const GSTR2BReconReport = () => {
   const { businessProfile } = useTenant();
@@ -25,29 +24,36 @@ const GSTR2BReconReport = () => {
   const { data: purchases, loading } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date' });
   const { data: suppliers } = useReportData({ table: 'suppliers', select: 'id, name, gstin' });
 
-  // Aggregate the purchase register (books) by supplier GSTIN.
-  const booksByGstin = useMemo(() => {
+  // Aggregate the purchase register (books) into invoices, keyed by supplier
+  // GSTIN + supplier bill number. Lines of one bill collapse into one invoice.
+  const booksInvoices = useMemo(() => {
     const home = String(businessProfile?.gst_no || businessProfile?.gstin || '').slice(0, 2);
     const map = {};
+    let noBill = 0;
     (purchases || []).forEach((p) => {
       const sup = (suppliers || []).find(s => s.id === p.supplier_id) || {};
       const gstin = String(sup.gstin || '').trim().toUpperCase();
       if (!gstin) return; // unregistered supplier → no ITC, skip
+      const bill = String(p.bill_no || '').trim();
+      if (!bill) noBill += 1;
+      const key = `${gstin}|${bill || `__NOBILL_${p.id}`}`;   // no bill no → unique → never matches
       const gross = Number(p.total_amount) || 0;
       const taxable = gross / 1.18;            // register uses an 18% default split
       const tax = gross - taxable;
       const inter = gstin.slice(0, 2) !== home;
-      if (!map[gstin]) map[gstin] = { gstin, supplierName: sup.name || p.supplier_name || '', taxable: 0, igst: 0, cgst: 0, sgst: 0 };
-      map[gstin].taxable += taxable;
-      if (inter) map[gstin].igst += tax; else { map[gstin].cgst += tax / 2; map[gstin].sgst += tax / 2; }
+      if (!map[key]) map[key] = { gstin, inum: bill, supplierName: sup.name || p.supplier_name || '', date: p.date || '', taxable: 0, igst: 0, cgst: 0, sgst: 0, itc: 0, hasBill: !!bill };
+      const r = map[key];
+      r.taxable += taxable; r.itc += tax;
+      if (inter) r.igst += tax; else { r.cgst += tax / 2; r.sgst += tax / 2; }
     });
-    Object.values(map).forEach(r => ['taxable', 'igst', 'cgst', 'sgst'].forEach(k => { r[k] = round2(r[k]); }));
-    return map;
+    const arr = Object.values(map);
+    arr.forEach(r => ['taxable', 'igst', 'cgst', 'sgst', 'itc'].forEach(k => { r[k] = round2(r[k]); }));
+    return { arr, noBill };
   }, [purchases, suppliers, businessProfile]);
 
   const recon = useMemo(
-    () => twoB ? reconcile2B(booksByGstin, twoB.byGstin) : null,
-    [booksByGstin, twoB]
+    () => twoB ? reconcile2BInvoices(booksInvoices.arr, twoB.invoices) : null,
+    [booksInvoices, twoB]
   );
 
   const onFile = async (e) => {
@@ -73,7 +79,7 @@ const GSTR2BReconReport = () => {
 
   const tab = recon ? {
     id: 'GSTR2B_RECON',
-    label: 'Supplier Reconciliation',
+    label: 'Invoice Reconciliation',
     icon: <ShieldCheck size={18} />,
     data: recon.rows,
     loading,
@@ -84,10 +90,12 @@ const GSTR2BReconReport = () => {
       b2bItc: recon.summary.b2bItc,
     },
     columns: [
-      { key: 'gstin', label: 'Supplier GSTIN', width: 170,
+      { key: 'gstin', label: 'Supplier GSTIN', width: 160,
         render: (val) => <span className="font-mono text-[10px] font-bold">{val}</span> },
-      { key: 'supplier', label: 'Supplier', width: 200,
+      { key: 'supplier', label: 'Supplier', width: 170,
         render: (val) => <span className="text-[11px] font-bold text-gray-600">{val}</span> },
+      { key: 'inum', label: 'Bill / Inv No', width: 130,
+        render: (val) => <span className="font-mono text-[10px] font-bold text-gray-700">{val}</span> },
       { key: 'booksTaxable', label: 'Taxable (Books)', type: 'currency', align: 'right', width: 150, render: (v) => <span className="tabular-nums">{formatINR(v)}</span> },
       { key: 'b2bTaxable', label: 'Taxable (2B)', type: 'currency', align: 'right', width: 150, render: (v) => <span className="tabular-nums">{formatINR(v)}</span> },
       { key: 'booksItc', label: 'ITC (Books)', type: 'currency', align: 'right', width: 140, render: (v) => <span className="tabular-nums font-bold">{formatINR(v)}</span> },
@@ -126,7 +134,7 @@ const GSTR2BReconReport = () => {
           {/* Summary band */}
           <div className="grid grid-cols-2 md:grid-cols-5 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-black/[0.07]">
             {[
-              { label: 'Matched', val: recon.summary.matched, sub: 'suppliers', cls: 'text-emerald-600' },
+              { label: 'Matched', val: recon.summary.matched, sub: 'invoices', cls: 'text-emerald-600' },
               { label: 'Mismatch', val: recon.summary.mismatch, sub: 'review', cls: 'text-rose-600' },
               { label: 'Missing in 2B', val: recon.summary.missingIn2B, sub: 'ITC at risk', cls: 'text-amber-600' },
               { label: 'Missing in Books', val: recon.summary.missingInBooks, sub: 'unclaimed', cls: 'text-sky-600' },
@@ -142,7 +150,13 @@ const GSTR2BReconReport = () => {
 
           {recon.summary.missingIn2B + recon.summary.mismatch > 0 && (
             <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-100 text-amber-800 text-[12px] font-semibold">
-              <AlertTriangle size={16} /> {formatINR(recon.summary.atRiskItc)} of ITC may not be claimable yet — these suppliers haven't filed or their values differ. Follow up before claiming.
+              <AlertTriangle size={16} /> {formatINR(recon.summary.atRiskItc)} of ITC may not be claimable yet — these invoices aren't in 2B or their values differ. Follow up before claiming.
+            </div>
+          )}
+
+          {booksInvoices.noBill > 0 && (
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-sky-50 border border-sky-100 text-sky-800 text-[12px] font-semibold">
+              <FileWarning size={16} /> {booksInvoices.noBill} purchase{booksInvoices.noBill > 1 ? 's have' : ' has'} no bill number — can't invoice-match (shown as "Missing in 2B"). Add the supplier bill no on the purchase to match.
             </div>
           )}
 
@@ -154,7 +168,7 @@ const GSTR2BReconReport = () => {
         <div className="text-center py-16 text-gray-400">
           <ShieldCheck size={32} className="mx-auto mb-3 opacity-40" />
           <p className="text-sm font-bold">Upload your GSTR-2B JSON to reconcile it against your purchase register.</p>
-          <p className="text-[11px] mt-1">Matched at supplier (GSTIN) level. Invoice-level match coming once bill numbers are captured on purchases.</p>
+          <p className="text-[11px] mt-1">Matched invoice-by-invoice on supplier GSTIN + bill number.</p>
         </div>
       )}
     </div>

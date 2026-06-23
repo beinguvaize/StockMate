@@ -682,38 +682,83 @@ export const parseGSTR2B = (raw) => {
   if (!Array.isArray(b2b)) return { byGstin: {}, count: 0, error: 'No B2B section found in this file.' };
 
   const byGstin = {};
+  const invoices = [];   // flat invoice-level list for invoice-by-invoice match
   for (const sup of b2b) {
     const gstin = String(sup.ctin || sup.gstin || '').trim().toUpperCase();
     if (!gstin) continue;
-    if (!byGstin[gstin]) byGstin[gstin] = { gstin, supplierName: sup.trdnm || sup.trade_name || '', taxable: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, total: 0, invoices: 0 };
+    const supplierName = sup.trdnm || sup.trade_name || '';
+    if (!byGstin[gstin]) byGstin[gstin] = { gstin, supplierName, taxable: 0, igst: 0, cgst: 0, sgst: 0, cess: 0, total: 0, invoices: 0 };
     const r = byGstin[gstin];
     const invs = sup.inv || sup.invoices || [];
     for (const inv of invs) {
-      r.invoices += 1;
-      r.total += Number(inv.val) || 0;
+      let txv = 0, ig = 0, cg = 0, sg = 0, cs = 0;
       const items = inv.items || inv.itms || [];
       if (items.length) {
         for (const it of items) {
           const d = it.itm_det || it.det || it;
-          r.taxable += Number(d.txval) || 0;
-          r.igst += Number(d.iamt) || 0;
-          r.cgst += Number(d.camt) || 0;
-          r.sgst += Number(d.samt) || 0;
-          r.cess += Number(d.csamt) || 0;
+          txv += Number(d.txval) || 0; ig += Number(d.iamt) || 0;
+          cg += Number(d.camt) || 0;  sg += Number(d.samt) || 0; cs += Number(d.csamt) || 0;
         }
       } else {
-        // Some exports keep totals at invoice level.
-        r.taxable += Number(inv.txval) || 0;
-        r.igst += Number(inv.iamt) || 0;
-        r.cgst += Number(inv.camt) || 0;
-        r.sgst += Number(inv.samt) || 0;
+        txv = Number(inv.txval) || 0; ig = Number(inv.iamt) || 0;
+        cg = Number(inv.camt) || 0;  sg = Number(inv.samt) || 0;
       }
+      r.invoices += 1; r.total += Number(inv.val) || 0;
+      r.taxable += txv; r.igst += ig; r.cgst += cg; r.sgst += sg; r.cess += cs;
+      invoices.push({
+        gstin, supplierName,
+        inum: String(inv.inum || inv.invoice_number || '').trim(),
+        date: inv.dt || inv.date || '',
+        taxable: round2(txv), igst: round2(ig), cgst: round2(cg), sgst: round2(sg),
+        itc: round2(ig + cg + sg), total: round2(Number(inv.val) || (txv + ig + cg + sg)),
+      });
     }
   }
   Object.values(byGstin).forEach((r) => {
     ['taxable', 'igst', 'cgst', 'sgst', 'cess', 'total'].forEach((k) => { r[k] = round2(r[k]); });
   });
-  return { byGstin, count: Object.keys(byGstin).length };
+  return { byGstin, invoices, count: Object.keys(byGstin).length };
+};
+
+// Normalise an invoice number for matching (case/space/leading-zero tolerant).
+const normInv = (s) => String(s || '').toUpperCase().replace(/\s+/g, '').replace(/^0+/, '');
+
+// books / twoB are arrays of { gstin, inum, supplierName, taxable, igst, cgst, sgst, itc }
+export const reconcile2BInvoices = (books = [], twoB = []) => {
+  const key = (g, i) => `${String(g).toUpperCase()}|${normInv(i)}`;
+  const bMap = {}, tMap = {};
+  books.forEach((b) => { bMap[key(b.gstin, b.inum)] = b; });
+  twoB.forEach((t) => { tMap[key(t.gstin, t.inum)] = t; });
+
+  const keys = new Set([...Object.keys(bMap), ...Object.keys(tMap)]);
+  const rows = [];
+  for (const k of keys) {
+    const b = bMap[k], t = tMap[k];
+    const bItc = b?.itc || 0, tItc = t?.itc || 0;
+    const bTax = b?.taxable || 0, tTax = t?.taxable || 0;
+    let status;
+    if (b && !t) status = 'MISSING IN 2B';
+    else if (!b && t) status = 'MISSING IN BOOKS';
+    else status = (Math.abs(bTax - tTax) < 1 && Math.abs(bItc - tItc) < 1) ? 'MATCHED' : 'MISMATCH';
+    rows.push({
+      gstin: (b || t).gstin, supplier: b?.supplierName || t?.supplierName || '—',
+      inum: b?.inum || t?.inum || '—',
+      booksTaxable: round2(bTax), b2bTaxable: round2(tTax),
+      booksItc: round2(bItc), b2bItc: round2(tItc), diff: round2(bItc - tItc), status,
+    });
+  }
+  const order = { 'MISMATCH': 0, 'MISSING IN 2B': 1, 'MISSING IN BOOKS': 2, 'MATCHED': 3 };
+  rows.sort((a, b) => (order[a.status] - order[b.status]) || a.gstin.localeCompare(b.gstin));
+  const summary = {
+    matched: rows.filter(r => r.status === 'MATCHED').length,
+    mismatch: rows.filter(r => r.status === 'MISMATCH').length,
+    missingIn2B: rows.filter(r => r.status === 'MISSING IN 2B').length,
+    missingInBooks: rows.filter(r => r.status === 'MISSING IN BOOKS').length,
+    booksItc: round2(rows.reduce((a, r) => a + r.booksItc, 0)),
+    b2bItc: round2(rows.reduce((a, r) => a + r.b2bItc, 0)),
+    atRiskItc: round2(rows.filter(r => r.status === 'MISSING IN 2B' || r.status === 'MISMATCH').reduce((a, r) => a + Math.max(0, r.booksItc - r.b2bItc), 0)),
+  };
+  return { rows, summary };
 };
 
 // books / twoB are maps keyed by GSTIN → { gstin, supplierName, taxable, igst, cgst, sgst }

@@ -191,6 +191,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
         payment_type:      header.payment_type,
         date:              header.date,
         notes:             header.notes,
+        bill_no:           header.bill_no || null,
         userId:            currentUser?.id,
         locationId:        header.location_id || null,
       };
