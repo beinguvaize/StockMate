@@ -251,27 +251,40 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-  // FIFO next-batch cost + real stock per product
+  // FEFO next-batch cost + nearest expiry per product (pharmacy).
   const [fifoCosts, setFifoCosts] = useState({});
+  const [batchExpiry, setBatchExpiry] = useState({}); // product_id -> 'YYYY-MM-DD' (earliest)
 
   useEffect(() => {
     if (!currentTenantId || !products.length) return;
     supabase
       .from('product_batches')
-      .select('product_id, unit_cost, qty_remaining, received_date, created_at')
+      .select('product_id, unit_cost, qty_remaining, received_date, created_at, expiry_date')
       .in('product_id', products.map(p => p.id))
       .gt('qty_remaining', 0)
+      .order('expiry_date', { ascending: true, nullsFirst: false })
       .order('received_date', { ascending: true })
-      .order('created_at', { ascending: true })
       .then(({ data }) => {
         if (!data) return;
-        const costs = {};
+        const costs = {}, exp = {};
         data.forEach(b => {
+          // First row per product = FEFO (earliest expiry) batch → its cost + expiry.
           if (!costs[b.product_id]) costs[b.product_id] = Number(b.unit_cost);
+          if (!exp[b.product_id] && b.expiry_date) exp[b.product_id] = b.expiry_date;
         });
         setFifoCosts(costs);
+        setBatchExpiry(exp);
       });
   }, [currentTenantId, products]);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const isExpired = (pid) => batchExpiry[pid] && batchExpiry[pid] < todayStr;
+  const isNearExpiry = (pid) => {
+    const d = batchExpiry[pid];
+    if (!d) return false;
+    const days = (new Date(d) - new Date(todayStr)) / 86400000;
+    return days >= 0 && days <= 30;
+  };
 
   // Stock from inventory_balances (same source as Inventory page) — sum across all locations
   const warehouseStock = useMemo(() => {
@@ -408,6 +421,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     const groups = Array.isArray(product.modifier_groups) ? product.modifier_groups : [];
     // Open the picker for dishes with modifiers (unless options already chosen).
     if (mods === undefined && groups.length > 0) { setModPicker({ product }); return; }
+    // Pharmacy: refuse to sell stock whose earliest (FEFO) batch is expired.
+    if (isExpired(product.id)) {
+      addNotification(`${product.name}: stock expired (${batchExpiry[product.id]}) — cannot sell`, 'error');
+      return;
+    }
     const chosen = mods || [];
     const addPrice = chosen.reduce((s, o) => s + (Number(o.price) || 0), 0);
     const modLabel = chosen.map(o => o.name).join(', ') || null;
@@ -805,6 +823,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               <div className={`text-[11px] font-semibold mb-2 ${isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : 'text-gray-400'}`}>
                 {isSvc ? 'SERVICE' : outOfStock ? 'OUT OF STOCK' : lowStock ? `${stock} stk · low` : `${stock} stk`}
               </div>
+              {isExpired(product.id) ? (
+                <div className="text-[9px] font-black px-1.5 py-0.5 rounded bg-red-50 text-red-600 mb-1 inline-block">EXPIRED {batchExpiry[product.id]}</div>
+              ) : isNearExpiry(product.id) ? (
+                <div className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 mb-1 inline-block">EXP {batchExpiry[product.id]}</div>
+              ) : null}
               {!outOfStock && (
                 cartQty > 0 ? (
                   <div className="mt-auto flex items-center justify-between gap-1">
