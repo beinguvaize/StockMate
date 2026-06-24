@@ -6,7 +6,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useAccounts } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Truck } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
@@ -74,6 +74,32 @@ const PurchasesPage = () => {
     });
     return { month, count: (purchases || []).length, payable, itc };
   }, [purchases]);
+
+  // Supplier ledger — per-supplier purchased / paid / payable, sorted by due.
+  const supplierStats = useMemo(() => {
+    const map = {};
+    (purchases || []).forEach((p) => {
+      const sid = p.supplier_id || '__none';
+      if (!map[sid]) map[sid] = { id: sid, name: (suppliers.find(s => s.id === sid)?.name) || p.supplier_name || 'Unknown', purchased: 0, paid: 0, payable: 0, count: 0 };
+      const amt = Number(p.total_amount) || 0;
+      map[sid].purchased += amt;
+      map[sid].paid += Math.min(amt, Number(p.paid_amount) || 0);
+      map[sid].payable += dueOf(p);
+      map[sid].count += 1;
+    });
+    return Object.values(map).sort((a, b) => b.payable - a.payable || b.purchased - a.purchased);
+  }, [purchases, suppliers]);
+
+  const [selectedSupplierId, setSelectedSupplierId] = useState(null);
+  const activeSupplier = selectedSupplierId
+    ? supplierStats.find(s => s.id === selectedSupplierId)
+    : supplierStats[0];
+  const supplierPurchases = useMemo(
+    () => (purchases || [])
+      .filter(p => (p.supplier_id || '__none') === activeSupplier?.id)
+      .sort((a, b) => String(b.date).localeCompare(String(a.date))),
+    [purchases, activeSupplier],
+  );
 
   const filteredPurchases = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -547,7 +573,78 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
             {purchaseReturns.length}
           </span>
         </button>
+        <button
+          onClick={() => setActiveTab('suppliers')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
+            activeTab === 'suppliers' ? 'bg-white shadow text-ink-primary' : 'text-gray-400 hover:text-gray-600'
+          }`}
+        >
+          <Truck size={11} /> Suppliers
+          <span className="ml-1 text-[9px] font-bold bg-black/5 rounded px-1.5 py-0.5">{supplierStats.length}</span>
+        </button>
       </div>
+
+      {/* ── Supplier ledger ── */}
+      {activeTab === 'suppliers' && (
+        <div className="grid md:grid-cols-[260px_1fr] gap-4">
+          {/* Supplier list */}
+          <div className="bg-white border border-black/5 rounded-lg overflow-hidden divide-y divide-black/5 self-start">
+            {supplierStats.length === 0 && <div className="p-4 text-[12px] text-gray-400">No suppliers yet.</div>}
+            {supplierStats.map((s) => (
+              <button key={s.id} onClick={() => setSelectedSupplierId(s.id)}
+                className={`w-full text-left px-3 py-2.5 hover:bg-canvas transition-colors ${activeSupplier?.id === s.id ? 'bg-canvas shadow-[inset_3px_0_0_var(--color-ink-primary)]' : ''}`}>
+                <div className="text-[13px] font-bold text-ink-primary truncate">{s.name}</div>
+                <div className={`text-[11px] font-mono ${s.payable > 0.5 ? 'text-rose-600' : 'text-gray-400'}`}>
+                  {s.payable > 0.5 ? `${formatCurrency(s.payable)} due` : 'settled'}
+                </div>
+              </button>
+            ))}
+          </div>
+
+          {/* Selected supplier ledger */}
+          {activeSupplier && (
+            <div className="bg-white border border-black/5 rounded-lg overflow-hidden">
+              <div className="px-5 py-4 border-b border-black/5">
+                <div className="text-[15px] font-bold text-ink-primary">{activeSupplier.name}</div>
+                <div className="text-[11px] text-gray-400">{activeSupplier.count} purchase{activeSupplier.count !== 1 ? 's' : ''}</div>
+              </div>
+              <div className="grid grid-cols-3 gap-px bg-black/[0.06] border-b border-black/[0.06]">
+                {[
+                  { label: 'Purchased', value: formatCurrency(activeSupplier.purchased) },
+                  { label: 'Paid', value: formatCurrency(activeSupplier.paid), cls: 'text-emerald-700' },
+                  { label: 'Payable', value: formatCurrency(activeSupplier.payable), cls: activeSupplier.payable > 0.5 ? 'text-rose-700' : 'text-ink-primary' },
+                ].map((m, i) => (
+                  <div key={i} className="bg-white px-4 py-3">
+                    <div className="text-[10px] uppercase tracking-wider text-gray-400">{m.label}</div>
+                    <div className={`text-[15px] font-bold font-mono mt-0.5 ${m.cls || 'text-ink-primary'}`}>{m.value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-[80px_1fr_70px_100px_90px] gap-3 px-5 py-2 text-[10px] uppercase tracking-wider text-gray-400 border-b border-black/5">
+                <div>Date</div><div>Item · bill</div><div className="text-right">Qty</div><div className="text-right">Amount</div><div className="text-right">Due</div>
+              </div>
+              <div className="max-h-[420px] overflow-auto divide-y divide-black/5">
+                {supplierPurchases.map((p) => {
+                  const prod = products.find(x => x.id === p.linked_product_id);
+                  const due = dueOf(p);
+                  return (
+                    <div key={p.id} className="grid grid-cols-[80px_1fr_70px_100px_90px] gap-3 px-5 py-2.5 items-center">
+                      <div className="text-[12px] font-mono text-gray-500">{formatDate(p.date)}</div>
+                      <div className="min-w-0">
+                        <div className="text-[13px] font-bold text-ink-primary truncate">{prod?.name || 'Item'}</div>
+                        <div className="text-[10px] font-mono text-gray-400">{p.bill_no ? `Bill ${p.bill_no}` : `#${p.id.split('-').pop()}`}</div>
+                      </div>
+                      <div className="text-right text-[13px] font-mono text-emerald-600">+{p.quantity}</div>
+                      <div className="text-right text-[13px] font-mono font-bold">{formatCurrency(p.total_amount)}</div>
+                      <div className={`text-right text-[12px] font-mono ${due > 0.5 ? 'text-rose-600' : 'text-gray-300'}`}>{due > 0.5 ? formatCurrency(due) : '—'}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Filter / sort bar (purchases tab) ── */}
       {activeTab === 'purchases' && (
@@ -574,14 +671,15 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
         </div>
       )}
 
-      {activeTab === 'purchases' ? (
+      {activeTab === 'purchases' && (
         <Table
           headers={headers}
           rows={filteredPurchases}
           renderRow={renderRow}
           emptyMessage="No purchases match the filters"
         />
-      ) : (
+      )}
+      {activeTab === 'returns' && (
         <Table
           headers={returnHeaders}
           rows={purchaseReturns}
