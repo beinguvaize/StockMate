@@ -60,6 +60,21 @@ const PurchasesPage = () => {
   const _credit = (pt) => ['CREDIT', 'UDHAAR', 'POST-CAPITAL'].includes(String(pt || '').toUpperCase());
   const dueOf = (p) => Math.max(0, Number(p.total_amount || 0) - Number(p.paid_amount || 0));
 
+  // Header summary — this-month spend, count, total payable, derived ITC.
+  const summary = useMemo(() => {
+    const ym = new Date().toISOString().slice(0, 7); // YYYY-MM
+    let month = 0, itc = 0, payable = 0;
+    (purchases || []).forEach((p) => {
+      const amt = Number(p.total_amount) || 0;
+      payable += dueOf(p);
+      if (String(p.date || '').slice(0, 7) === ym) {
+        month += amt;
+        itc += amt - amt / 1.18; // 18% default back-out (matches purchase register)
+      }
+    });
+    return { month, count: (purchases || []).length, payable, itc };
+  }, [purchases]);
+
   const filteredPurchases = useMemo(() => {
     const q = search.trim().toLowerCase();
     let rows = (purchases || []).filter(p => {
@@ -482,17 +497,33 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
-      <div className="flex justify-between items-center py-2 border-b border-black/5">
-        <div className="flex items-center gap-3">
-          <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
-            Purchases<span className="text-accent-signature">.</span>
-          </h1>
-          <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Record stock purchases from suppliers</span>
+      <div className="flex justify-between items-center pb-3 border-b border-black/5">
+        <div>
+          <h1 className="text-[19px] font-bold text-ink-primary leading-none tracking-tight">Purchases</h1>
+          <p className="text-[12px] text-gray-400 mt-1">Inward stock from suppliers</p>
         </div>
-        <div className="flex gap-2 items-center">
-          <Button icon={Plus} onClick={() => setShowAddModal(true)}>Add Purchase</Button>
-        </div>
+        <button onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-ink-primary text-white text-[12px] font-bold hover:opacity-90 transition-opacity">
+          <Plus size={14} /> New purchase
+        </button>
       </div>
+
+      {/* ── Summary strip ── */}
+      {activeTab === 'purchases' && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-black/[0.06] rounded-lg overflow-hidden border border-black/[0.06]">
+          {[
+            { label: 'This month', value: formatCurrency(summary.month) },
+            { label: 'Purchases', value: summary.count },
+            { label: 'Payable', value: formatCurrency(summary.payable), cls: summary.payable > 0 ? 'text-rose-700' : 'text-ink-primary' },
+            { label: 'ITC this month', value: formatCurrency(summary.itc), cls: 'text-emerald-700' },
+          ].map((m, i) => (
+            <div key={i} className="bg-white px-4 py-3">
+              <div className="text-[10px] uppercase tracking-wider text-gray-400">{m.label}</div>
+              <div className={`text-lg font-bold font-mono mt-0.5 ${m.cls || 'text-ink-primary'}`}>{m.value}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* ── Tab switcher ── */}
       <div className="flex gap-1 p-1 bg-canvas rounded-xl border border-black/5 w-fit">
