@@ -2,7 +2,7 @@
 // Mirrors invoice fields but never touches stock or payments. Status flow:
 // DRAFT → SENT → ACCEPTED → CONVERTED (or REJECTED/EXPIRED).
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { supabase, restInsert } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 
 const NUMERIC = ['taxable_amount','tax_total','cgst_amount','sgst_amount','igst_amount','discount_total','round_off','grand_total'];
@@ -58,8 +58,10 @@ export function useEstimates(tenantId) {
       notes: est.notes || null,
     };
     try {
-      const { error } = await supabase.from('estimates').insert(row);
-      if (!error) await fetchAll();
+      // restInsert (direct PostgREST, timeout-guarded) — supabase.from() can
+      // hang under the auth-deadlock, leaving Save with no response.
+      const { error } = await restInsert('estimates', row);
+      if (!error) fetchAll(); // refresh in background — don't block Save
       return { error, id };
     } catch (e) {
       return { error: e, id };
