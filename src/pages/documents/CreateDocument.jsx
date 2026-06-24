@@ -2,8 +2,9 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, FileText, FileCheck, Wallet,
-  RotateCcw, ReceiptText, Truck, FileSpreadsheet,
+  RotateCcw, ReceiptText, Truck, FileSpreadsheet, FilePen,
 } from 'lucide-react';
+import InvoiceTemplate from '../../components/invoice/InvoiceTemplate';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { useSales } from '../../hooks/useSales';
@@ -28,6 +29,7 @@ const DOC_TYPES = {
   CREDIT_NOTE:     { label: 'Credit note',      prefix: 'CN',  icon: ReceiptText,     gst: true,  stock: 'NONE', party: 'Credit to', save: 'return' },
   DELIVERY_CHALLAN:{ label: 'Delivery challan', prefix: 'DC',  icon: Truck,           gst: false, stock: 'OUT',  party: 'Ship to',   save: 'estimate' },
   PROFORMA:        { label: 'Proforma',         prefix: 'PI',  icon: FileSpreadsheet, gst: true,  stock: 'NONE', party: 'Bill to',   save: 'estimate' },
+  MANUAL_INVOICE:  { label: 'Manual bill',      prefix: 'MB',  icon: FilePen,         gst: true,  stock: 'NONE', party: 'Bill to',   save: 'manual', manual: true },
 };
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -54,6 +56,7 @@ const CreateDocument = () => {
   const [payAmount, setPayAmount] = useState('');
   const [depositAccount, setDepositAccount] = useState('');
   const [saving, setSaving] = useState(false);
+  const [printBill, setPrintBill] = useState(null); // manual bill → invoice template preview
 
   // Default the deposit account once accounts load (prefer a Cash account).
   const defaultAccount = useMemo(
@@ -87,6 +90,10 @@ const CreateDocument = () => {
     hsn: p.hsn_code || p.hsn || '', qty: 1, rate: tierPrice(p, party?.price_tier),
     disc: 0, taxRate: Number(p.taxRate) || 0,
   }]);
+  const addBlankLine = () => setLines((prev) => [...prev, {
+    uid: `MB-${Date.now()}-${prev.length}`, productId: null, name: '',
+    hsn: '', qty: 1, rate: 0, disc: 0, taxRate: cfg.gst ? 18 : 0,
+  }]);
   const patchLine = (uid, patch) => setLines((prev) => prev.map((l) => l.uid === uid ? { ...l, ...patch } : l));
   const removeLine = (uid) => setLines((prev) => prev.filter((l) => l.uid !== uid));
 
@@ -98,7 +105,7 @@ const CreateDocument = () => {
     discountPercent: Number(l.disc) || 0,
   }));
 
-  const canSave = !saving && party && (
+  const canSave = !saving && party?.name && (
     cfg.save === 'payment' ? Number(payAmount) > 0 : lines.length > 0
   );
 
@@ -136,6 +143,34 @@ const CreateDocument = () => {
         if (res?.error) return fail(res.error.message);
         addNotification(`${cfg.label} saved`, 'success');
         return navigate('/estimates');
+      }
+
+      if (cfg.save === 'manual') {
+        // Manual bill — non-posting. Stored in estimates (excluded from GST
+        // reports / sales / stock); printed on the invoice template.
+        const num = `MB-${Date.now().toString(36).toUpperCase()}`;
+        res = await createEstimate({
+          doc_type: 'MANUAL_INVOICE', estimate_number: num,
+          client_id: party.id || null, client_name: party.name, client_gstin: party.gstin || null,
+          place_of_supply: party.state || businessState || null, is_interstate: interstate,
+          items: gst.items, taxable_amount: gst.taxable, tax_total: gst.totalTax,
+          cgst_amount: gst.cgst, sgst_amount: gst.sgst, igst_amount: gst.igst,
+          discount_total: gst.totalDiscount || 0, round_off: gst.roundOff, grand_total: gst.grandTotal,
+          status: 'FINAL',
+        });
+        if (res?.error) return fail(res.error.message);
+        addNotification('Manual bill saved', 'success');
+        // Show the printable invoice (no navigation — keep it on screen).
+        setPrintBill({
+          invoice_number: num, invoice_date: date, client_name: party.name,
+          client_gstin: party.gstin || null, place_of_supply: party.state || '',
+          items: gst.items, taxable_amount: gst.taxable, tax_total: gst.totalTax,
+          cgst_amount: gst.cgst, sgst_amount: gst.sgst, igst_amount: gst.igst,
+          round_off: gst.roundOff, grand_total: gst.grandTotal, is_interstate: interstate,
+          payment_status: 'PAID',
+        });
+        setSaving(false);
+        return;
       }
 
       if (cfg.save === 'return') {
@@ -201,7 +236,7 @@ const CreateDocument = () => {
       <div className="max-w-6xl mx-auto p-4 sm:p-6 flex flex-col gap-4">
         {/* Party + meta */}
         <div className="grid md:grid-cols-2 gap-4">
-          <PartyPicker label={cfg.party} party={party} clients={clients} onChange={setParty} />
+          <PartyPicker label={cfg.party} party={party} clients={clients} onChange={setParty} manual={cfg.manual} />
 
           <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4 grid grid-cols-2 gap-3">
             <Field label={`${cfg.prefix} no.`} value={`${cfg.prefix}-XXXX`} mono />
@@ -217,7 +252,7 @@ const CreateDocument = () => {
 
         {/* Item grid */}
         {!cfg.noItems && (
-          <DocItemGrid lines={lines} products={products} gstOn={cfg.gst} onAdd={addLine} onPatch={patchLine} onRemove={removeLine} />
+          <DocItemGrid lines={lines} products={products} gstOn={cfg.gst} onAdd={addLine} onPatch={patchLine} onRemove={removeLine} manual={cfg.manual} onAddBlank={addBlankLine} />
         )}
 
         {/* Payment In — amount card (no line items) */}
@@ -265,6 +300,21 @@ const CreateDocument = () => {
         </div>
         )}
       </div>
+
+      {/* Manual bill — printable invoice preview */}
+      {printBill && (
+        <div className="fixed inset-0 z-50 bg-black/50 overflow-auto p-4 sm:p-8" onClick={() => setPrintBill(null)}>
+          <div className="max-w-3xl mx-auto" onClick={(e) => e.stopPropagation()}>
+            <InvoiceTemplate
+              invoice={printBill}
+              businessProfile={businessProfile}
+              client={{ name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }}
+              onPrint={() => window.print()}
+              onClose={() => { setPrintBill(null); navigate('/estimates'); }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

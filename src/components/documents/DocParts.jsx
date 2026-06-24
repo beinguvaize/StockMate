@@ -21,12 +21,26 @@ export const Row = ({ label, value, muted }) => (
   </div>
 );
 
-export const PartyPicker = ({ label, party, clients = [], onChange }) => {
+export const PartyPicker = ({ label, party, clients = [], onChange, manual = false }) => {
   const [open, setOpen] = useState(false);
   return (
     <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
       <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">{label}</div>
-      {party ? (
+      {manual && (
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <input value={party?.name || ''} placeholder="Customer name"
+            onChange={(e) => onChange({ ...(party || {}), name: e.target.value, manual: true })}
+            className="col-span-2 text-[13px] font-bold border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
+          <input value={party?.gstin || ''} placeholder="GSTIN (optional)"
+            onChange={(e) => onChange({ ...(party || {}), gstin: e.target.value.toUpperCase(), manual: true })}
+            className="font-mono text-[12px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
+          <input value={party?.state || ''} placeholder="State / place of supply"
+            onChange={(e) => onChange({ ...(party || {}), state: e.target.value, manual: true })}
+            className="text-[12px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40" />
+          <button onClick={() => setOpen((v) => !v)} className="col-span-2 text-[11px] font-bold text-accent-signature text-left">{open ? '− hide' : '+ pick an existing client instead'}</button>
+        </div>
+      )}
+      {!manual && (party ? (
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-800 grid place-items-center font-black text-[12px]">{party.name?.slice(0, 2).toUpperCase()}</div>
           <div className="leading-tight">
@@ -37,7 +51,7 @@ export const PartyPicker = ({ label, party, clients = [], onChange }) => {
         </div>
       ) : (
         <button onClick={() => setOpen(true)} className="w-full py-8 rounded-xl border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5">+ Add party</button>
-      )}
+      ))}
       {open && (
         <div className="mt-3 max-h-52 overflow-auto rounded-xl border border-black/10 divide-y divide-black/5">
           {clients.length === 0 && <div className="p-3 text-[12px] text-gray-400">No clients yet.</div>}
@@ -56,7 +70,7 @@ export const PartyPicker = ({ label, party, clients = [], onChange }) => {
 const COLS = 'grid grid-cols-[28px_1.6fr_0.8fr_0.5fr_0.8fr_0.7fr_0.8fr_0.9fr_28px] gap-2';
 const cell = 'border border-black/10 rounded px-1.5 py-1 outline-none focus:border-accent-signature/40';
 
-export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, onPatch, onRemove }) => {
+export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, onPatch, onRemove, manual = false, onAddBlank }) => {
   const [picker, setPicker] = useState(false);
   const [query, setQuery] = useState('');
   const filtered = useMemo(() => {
@@ -76,20 +90,26 @@ export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, on
         return (
           <div key={l.uid} className={`${COLS} px-3 py-2 border-t border-black/5 items-center text-[13px]`}>
             <div className="text-gray-400">{i + 1}</div>
-            <div className="font-bold text-ink-primary truncate">{l.name}</div>
+            {manual
+              ? <input value={l.name} onChange={(e) => onPatch(l.uid, { name: e.target.value })} placeholder="Item name" className={`font-bold ${cell}`} />
+              : <div className="font-bold text-ink-primary truncate">{l.name}</div>}
             <input value={l.hsn} onChange={(e) => onPatch(l.uid, { hsn: e.target.value.replace(/[^0-9]/g, '') })} className={`font-mono text-[12px] ${cell}`} placeholder="HSN" />
             <input type="number" value={l.qty} onChange={(e) => onPatch(l.uid, { qty: e.target.value })} className={`text-right ${cell}`} />
             <input type="number" value={l.rate} onChange={(e) => onPatch(l.uid, { rate: e.target.value })} className={`text-right ${cell}`} />
             <input type="number" value={l.disc} onChange={(e) => onPatch(l.uid, { disc: e.target.value })} className={`text-right ${cell}`} />
-            <div className="text-right text-gray-500">{gstOn ? `${l.taxRate}%` : '—'}</div>
+            {manual && gstOn
+              ? <input type="number" value={l.taxRate} onChange={(e) => onPatch(l.uid, { taxRate: e.target.value })} className={`text-right ${cell}`} />
+              : <div className="text-right text-gray-500">{gstOn ? `${l.taxRate}%` : '—'}</div>}
             <div className="text-right font-bold font-mono">{inr(lineAmt)}</div>
             <button onClick={() => onRemove(l.uid)} className="text-gray-300 hover:text-rose-500"><Trash2 size={14} /></button>
           </div>
         );
       })}
       <div className="flex gap-2 p-2.5 border-t border-black/5">
-        <button onClick={() => setPicker(true)} className="flex-1 py-2.5 rounded-xl border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5"><Plus size={14} className="inline -mt-0.5 mr-1" />Add item</button>
-        <button className="px-4 py-2.5 rounded-xl border border-black/10 text-[13px] font-bold hover:bg-black/5"><ScanLine size={14} className="inline -mt-0.5 mr-1.5" />Scan</button>
+        <button onClick={() => (manual ? onAddBlank?.() : setPicker(true))} className="flex-1 py-2.5 rounded-xl border border-dashed border-accent-signature/40 text-[13px] font-bold text-accent-signature hover:bg-accent-signature/5"><Plus size={14} className="inline -mt-0.5 mr-1" />Add item</button>
+        {manual
+          ? <button onClick={() => setPicker(true)} className="px-4 py-2.5 rounded-xl border border-black/10 text-[13px] font-bold hover:bg-black/5">Pick product</button>
+          : <button className="px-4 py-2.5 rounded-xl border border-black/10 text-[13px] font-bold hover:bg-black/5"><ScanLine size={14} className="inline -mt-0.5 mr-1.5" />Scan</button>}
       </div>
 
       {picker && (

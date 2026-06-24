@@ -58,9 +58,12 @@ export const amountToWords = (amount) => {
  * Returns all tax components and summaries for an invoice.
  */
 export const calculateGST = (items = [], businessState = '', clientState = '') => {
-  const safeBusinessState = typeof businessState === 'string' ? businessState.toLowerCase() : '';
-  const safeClientState = typeof clientState === 'string' ? clientState.toLowerCase() : '';
-  const isInterstate = safeBusinessState !== safeClientState && safeClientState !== '';
+  const safeBusinessState = typeof businessState === 'string' ? businessState.trim().toLowerCase() : '';
+  const safeClientState = typeof clientState === 'string' ? clientState.trim().toLowerCase() : '';
+  // Inter-state only when BOTH states are known and differ. If the seller's
+  // state isn't set (common when the business profile is incomplete), default
+  // to intra-state (CGST+SGST) instead of dumping everything into IGST.
+  const isInterstate = safeBusinessState !== '' && safeClientState !== '' && safeBusinessState !== safeClientState;
   
   let subtotal = 0;
   let totalDiscount = 0;
