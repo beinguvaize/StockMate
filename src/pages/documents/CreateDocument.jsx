@@ -167,7 +167,7 @@ const CreateDocument = () => {
           cgst_amount: gst.cgst, sgst_amount: gst.sgst, igst_amount: gst.igst,
           discount_total: (gst.totalDiscount || 0) + (Number(billDiscount) || 0),
           round_off: gst.roundOff, grand_total: finalTotal, notes: notes || null,
-          status: 'FINAL',
+          status: 'ACCEPTED',
         });
         if (res?.error) return fail(res.error.message);
         addNotification('Manual bill saved', 'success');
