@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useFinance } from '../hooks/useFinance';
 import { useInventory } from '../hooks/useInventory';
+import { useAccounts } from '../hooks/useAccounts';
 import {
   Plus, Search, Calendar, FileText, X, Save, TrendingDown,
   DollarSign, Briefcase, Layers, Receipt, Download
@@ -36,6 +37,9 @@ const Expenses = () => {
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { inventoryLocations } = useInventory(currentTenantId);
+  const { accounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
+  const [payAccount, setPayAccount] = useState('');
+  const payAcc = payAccount || accounts.find(a => a.type === 'CASH')?.id || accounts[0]?.id || '';
   const posStores = (inventoryLocations || []).filter(l => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
   const {
     expenses, addExpense, updateExpense, deleteExpense,
@@ -302,6 +306,13 @@ const Expenses = () => {
  if (error) {
    setFormError(error.message || 'Failed to save expense. Please try again.');
    return;
+ }
+
+ // Money out → post to the chosen Cash/Bank account (new expenses only, non-blocking).
+ if (!editingExpense && payAcc) {
+   try {
+     await addAccountTxn({ account_id: payAcc, direction: 'OUT', amount, mode: formData.payment_method, ref_type: 'EXPENSE', note: note });
+   } catch { /* ledger non-blocking */ }
  }
 
  setIsAdding(false);
@@ -789,6 +800,13 @@ const Expenses = () => {
        <option value="BANK">Bank Transfer</option>
        <option value="CARD">Card</option>
      </select>
+     {accounts.length > 0 && (
+       <select
+         className="mt-2 w-full bg-white border border-black/10 rounded-xl px-4 py-2.5 font-semibold text-xs text-ink-primary outline-none focus:border-amber-500/40 appearance-none cursor-pointer"
+         value={payAcc} onChange={e => setPayAccount(e.target.value)}>
+         {accounts.map(a => <option key={a.id} value={a.id}>From: {a.name}</option>)}
+       </select>
+     )}
    </div>
  </div>
 

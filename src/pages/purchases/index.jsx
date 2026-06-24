@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
+import { useAccounts } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
 import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical } from 'lucide-react';
 import Button from '../../shared/Button';
@@ -20,6 +21,8 @@ const PurchasesPage = () => {
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
   const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, recostBatches, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
+  const { accounts: payAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
+  const payAcc = payAccounts.find(a => a.type === 'CASH')?.id || payAccounts[0]?.id || '';
   const { products, inventoryLocations, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
@@ -213,6 +216,16 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
           expiry_date: item.expiry_date,
           warehouse_id: header.location_id || null,
         });
+      }
+    }
+    // Money out → post the paid total to the default Cash/Bank account
+    // (skip credit purchases; non-blocking).
+    if (failed === 0 && payAcc && !_credit(header.payment_type)) {
+      const total = items.reduce((s, it) => s + (Number(it.total_amount) || 0), 0);
+      if (total > 0) {
+        try {
+          await addAccountTxn({ account_id: payAcc, direction: 'OUT', amount: total, mode: header.payment_type, ref_type: 'PURCHASE', note: `Purchase · ${supplierName}` });
+        } catch { /* ledger non-blocking */ }
       }
     }
     setAddLoading(false);

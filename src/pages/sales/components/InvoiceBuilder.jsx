@@ -3,6 +3,7 @@ import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Ch
 import Button from '../../../shared/Button';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { tierPrice } from '../../../lib/priceResolver';
+import { useAccounts } from '../../../hooks/useAccounts';
 import { useNotifications } from '../../../context/NotificationContext';
 import { supabase, restInsert } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
@@ -92,6 +93,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [selectedClientId, setSelectedClientId] = useState('WALKIN');
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
+
+  // Cash & Bank accounts — money received at checkout posts to one of these.
+  const { accounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
+  const [depositAccount, setDepositAccount] = useState('');
+  const depAcc = depositAccount || accounts.find(a => a.type === 'CASH')?.id || accounts[0]?.id || '';
 
   // Edit mode — prefill client + payment + paid amount from the sale being
   // edited so the saved status reflects reality. Without this, a blank
@@ -648,6 +654,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         const msg = result.error.message || 'Sale could not be recorded';
         addNotification(`Checkout failed: ${msg}`, 'error');
         return; // keep cart + modal so user can retry
+      }
+      // Money received → post to the chosen Cash/Bank account (non-blocking).
+      if (depAcc && Number(resolvedPaid) > 0) {
+        try {
+          await addAccountTxn({ account_id: depAcc, direction: 'IN', amount: Number(resolvedPaid), mode: paymentMethod, ref_type: 'SALE', ref_id: saleId, note: 'POS sale' });
+        } catch { /* ledger non-blocking */ }
       }
       // Persist sold serials (non-fatal — the sale itself already succeeded).
       if (serialLines.length > 0) {
@@ -1726,6 +1738,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     </div>
                   );
                 })()}
+                {accounts.length > 0 && paymentMethod !== 'CREDIT' && (
+                  <select value={depAcc} onChange={(e) => setDepositAccount(e.target.value)}
+                    className="mt-2 w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-xs font-semibold outline-none">
+                    {accounts.map(a => <option key={a.id} value={a.id}>Deposit to: {a.name}</option>)}
+                  </select>
+                )}
               </div>
 
               {/* Confirm */}
