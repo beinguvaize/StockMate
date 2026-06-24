@@ -58,7 +58,11 @@ const PurchasesPage = () => {
   };
 
   const _credit = (pt) => ['CREDIT', 'UDHAAR', 'POST-CAPITAL'].includes(String(pt || '').toUpperCase());
-  const dueOf = (p) => Math.max(0, Number(p.total_amount || 0) - Number(p.paid_amount || 0));
+  // Cash/bank purchases are paid at the counter (paid_amount often left 0 in the
+  // data) — only credit purchases carry a real balance due.
+  const dueOf = (p) => _credit(p.payment_type)
+    ? Math.max(0, Number(p.total_amount || 0) - Number(p.paid_amount || 0))
+    : 0;
 
   // Header summary — this-month spend, count, total payable, derived ITC.
   const summary = useMemo(() => {
