@@ -175,6 +175,19 @@ export const shareToWhatsApp = (invoice, client, businessProfile) => {
   const origin = (typeof window !== 'undefined' && window.location?.origin) || '';
   const viewLink = (origin && invoice.id) ? `${origin}/embed/invoice/${invoice.id}` : '';
 
+  // POS-sourced invoices store only grand_total (no taxable / tax split).
+  // Derive the breakup from the line items so the message isn't blank/NaN.
+  const hasSplit = invoice.cgst_amount != null || invoice.sgst_amount != null || invoice.igst_amount != null;
+  const g = (!hasSplit && Array.isArray(invoice.items) && invoice.items.length)
+    ? calculateGST(invoice.items, businessProfile.state || '', client.state || '')
+    : null;
+  const taxable = invoice.subtotal ?? invoice.taxable_amount ?? g?.taxable;
+  const cgst = invoice.cgst_amount ?? g?.cgst ?? 0;
+  const sgst = invoice.sgst_amount ?? g?.sgst ?? 0;
+  const igst = invoice.igst_amount ?? g?.igst ?? 0;
+  const interstate = invoice.is_interstate ?? (g ? g.isInterstate : false);
+  const grand = invoice.grand_total ?? g?.grandTotal ?? 0;
+
   const msg = `
 *${businessProfile.name}*
 *GST Invoice: ${invoice.invoice_number}*
@@ -184,20 +197,27 @@ Date: ${formatDate(invoice.invoice_date)}
 ${client.gst_no ? `GSTIN: ${client.gst_no}` : 'GSTIN: URD'}
 
 *Items:*
-${invoice.items.map(i => 
-  `• ${i.name} × ${i.qty} = ${formatINR(i.total || (i.taxable + i.totalTax))}`
-).join('\n')}
+${(invoice.items || []).map(i => {
+  const qty  = Number(i.qty ?? i.quantity ?? 0);
+  const rate = Number(i.rate ?? i.price ?? i.sellingPrice ?? 0);
+  const disc = Number(i.discountPercent ?? 0);
+  const line = Number(
+    i.total ??
+    (i.taxable != null ? Number(i.taxable) + Number(i.totalTax || 0) : qty * rate * (1 - disc / 100))
+  ) || 0;
+  return `• ${i.name} × ${qty} = ${formatINR(line)}`;
+}).join('\n')}
 
-*Subtotal:* ${formatINR(invoice.subtotal)}
-${invoice.is_interstate ? 
-  `*IGST:* ${formatINR(invoice.igst_amount)}` : 
-  `*CGST:* ${formatINR(invoice.cgst_amount)}
-*SGST:* ${formatINR(invoice.sgst_amount)}`}
+*Subtotal:* ${formatINR(taxable ?? grand)}
+${interstate ?
+  `*IGST:* ${formatINR(igst)}` :
+  `*CGST:* ${formatINR(cgst)}
+*SGST:* ${formatINR(sgst)}`}
 *─────────────────*
-*TOTAL: ${formatINR(invoice.grand_total)}*
+*TOTAL: ${formatINR(grand)}*
 
 ${invoice.payment_status?.toUpperCase() === 'UNPAID' ? 
-  `⚠️ *Amount Due: ${formatINR(invoice.balance_due || (invoice.grand_total - (invoice.paid_amount || 0)))}*` : 
+  `⚠️ *Amount Due: ${formatINR(invoice.balance_due ?? (grand - (invoice.paid_amount || 0)))}*` :
   '✅ *PAID*'}
 
 ${businessProfile.upi_id ?
