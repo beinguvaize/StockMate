@@ -11,7 +11,7 @@ import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { useEstimates } from '../../hooks/useEstimates';
 import { useAccounts } from '../../hooks/useAccounts';
-import { calculateGST } from '../../lib/gstEngine';
+import { calculateGST, shareToWhatsApp } from '../../lib/gstEngine';
 import { tierPrice } from '../../lib/priceResolver';
 import { PartyPicker, DocItemGrid, TotalsPanel, Field, inr } from '../../components/documents/DocParts';
 
@@ -55,6 +55,10 @@ const CreateDocument = () => {
   const [markPaid, setMarkPaid] = useState(true);
   const [payAmount, setPayAmount] = useState('');
   const [depositAccount, setDepositAccount] = useState('');
+  const [charges, setCharges] = useState('');       // bill-level additional charges
+  const [billDiscount, setBillDiscount] = useState(''); // bill-level discount
+  const [received, setReceived] = useState('');     // partial amount received
+  const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [printBill, setPrintBill] = useState(null); // manual bill → invoice template preview
 
@@ -84,6 +88,10 @@ const CreateDocument = () => {
     })),
     businessState, party?.state || '',
   ), [lines, cfg.gst, businessState, party]);
+
+  // Final payable = line totals + extra charges − bill discount.
+  const finalTotal = Math.max(0, (Number(gst.grandTotal) || 0) + (Number(charges) || 0) - (Number(billDiscount) || 0));
+  const paidNow = markPaid ? finalTotal : (Number(received) || 0);
 
   const addLine = (p) => setLines((prev) => [...prev, {
     uid: `${p.id}-${Date.now()}`, productId: p.id, name: p.name,
@@ -117,12 +125,13 @@ const CreateDocument = () => {
       let res;
       if (cfg.save === 'invoice') {
         res = await placeSale({
-          clientId: party.id, items: lineItems(), totalAmount: gst.grandTotal,
-          paymentMethod: payMethod, status: markPaid ? 'COMPLETED' : 'PENDING',
-          paidAmount: markPaid ? gst.grandTotal : 0, date,
+          clientId: party.id, items: lineItems(), totalAmount: finalTotal,
+          paymentMethod: payMethod,
+          status: markPaid ? 'COMPLETED' : (paidNow > 0 ? 'PARTIAL' : 'PENDING'),
+          paidAmount: paidNow, date, discount: Number(billDiscount) || 0, note: notes || null,
         });
         if (res?.error) return fail(res.error.message);
-        if (markPaid) await postIncome(gst.grandTotal, 'SALE', res?.id);
+        if (paidNow > 0) await postIncome(paidNow, 'SALE', res?.id);
         addNotification('Sales invoice saved', 'success');
         return navigate('/invoices');
       }
@@ -136,9 +145,10 @@ const CreateDocument = () => {
           client_address: party.address || null, place_of_supply: party.state || businessState || null,
           is_interstate: interstate, items: gst.items,
           taxable_amount: gst.taxable, tax_total: gst.totalTax, cgst_amount: gst.cgst,
-          sgst_amount: gst.sgst, igst_amount: gst.igst, discount_total: gst.totalDiscount || 0,
-          round_off: gst.roundOff, grand_total: cfg.gst ? gst.grandTotal : gst.subtotal,
-          status: 'DRAFT',
+          sgst_amount: gst.sgst, igst_amount: gst.igst,
+          discount_total: (gst.totalDiscount || 0) + (Number(billDiscount) || 0),
+          round_off: gst.roundOff, grand_total: cfg.gst ? finalTotal : (Number(gst.subtotal) + (Number(charges) || 0) - (Number(billDiscount) || 0)),
+          notes: notes || null, status: 'DRAFT',
         });
         if (res?.error) return fail(res.error.message);
         addNotification(`${cfg.label} saved`, 'success');
@@ -155,7 +165,8 @@ const CreateDocument = () => {
           place_of_supply: party.state || businessState || null, is_interstate: interstate,
           items: gst.items, taxable_amount: gst.taxable, tax_total: gst.totalTax,
           cgst_amount: gst.cgst, sgst_amount: gst.sgst, igst_amount: gst.igst,
-          discount_total: gst.totalDiscount || 0, round_off: gst.roundOff, grand_total: gst.grandTotal,
+          discount_total: (gst.totalDiscount || 0) + (Number(billDiscount) || 0),
+          round_off: gst.roundOff, grand_total: finalTotal, notes: notes || null,
           status: 'FINAL',
         });
         if (res?.error) return fail(res.error.message);
@@ -166,8 +177,8 @@ const CreateDocument = () => {
           client_gstin: party.gstin || null, place_of_supply: party.state || '',
           items: gst.items, taxable_amount: gst.taxable, tax_total: gst.totalTax,
           cgst_amount: gst.cgst, sgst_amount: gst.sgst, igst_amount: gst.igst,
-          round_off: gst.roundOff, grand_total: gst.grandTotal, is_interstate: interstate,
-          payment_status: 'PAID',
+          round_off: gst.roundOff, grand_total: finalTotal, is_interstate: interstate,
+          notes: notes || null, payment_status: 'PAID',
         });
         setSaving(false);
         return;
@@ -282,15 +293,20 @@ const CreateDocument = () => {
         {!cfg.noItems && (
         <div className="grid md:grid-cols-2 gap-4">
           <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4">
-            <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Terms</div>
+            <div className="text-[10px] uppercase tracking-widest text-gray-400 mb-2">Notes</div>
+            <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Notes for the customer…"
+              className="w-full text-[12px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40 resize-none" />
+            <div className="text-[10px] uppercase tracking-widest text-gray-400 mt-3 mb-1">Terms</div>
             <div className="text-[12px] text-gray-500 leading-relaxed">
               Goods once sold are not taken back. Disputes subject to local jurisdiction.
             </div>
           </div>
           <div>
             <TotalsPanel gst={gst} gstOn={cfg.gst} interstate={interstate} showPayment={cfg.save === 'invoice'}
-              markPaid={markPaid} setMarkPaid={setMarkPaid} payMethod={payMethod} setPayMethod={setPayMethod} />
-            {cfg.save === 'invoice' && markPaid && accounts.length > 0 && (
+              markPaid={markPaid} setMarkPaid={setMarkPaid} payMethod={payMethod} setPayMethod={setPayMethod}
+              charges={charges} setCharges={setCharges} billDiscount={billDiscount} setBillDiscount={setBillDiscount}
+              received={received} setReceived={setReceived} />
+            {cfg.save === 'invoice' && paidNow > 0 && accounts.length > 0 && (
               <select value={depAcc} onChange={(e) => setDepositAccount(e.target.value)}
                 className="mt-2 w-full text-[12px] border border-black/10 rounded-lg px-2 py-2 outline-none bg-white">
                 {accounts.map((a) => <option key={a.id} value={a.id}>Deposit to: {a.name}</option>)}
@@ -310,6 +326,7 @@ const CreateDocument = () => {
               businessProfile={businessProfile}
               client={{ name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }}
               onPrint={() => window.print()}
+              onShare={() => shareToWhatsApp(printBill, { name: printBill.client_name, gst_no: printBill.client_gstin, state: printBill.place_of_supply }, businessProfile)}
               onClose={() => { setPrintBill(null); navigate('/estimates'); }}
             />
           </div>
