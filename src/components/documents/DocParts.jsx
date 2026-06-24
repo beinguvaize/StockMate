@@ -139,30 +139,68 @@ export const DocItemGrid = ({ lines = [], products = [], gstOn = true, onAdd, on
   );
 };
 
-export const TotalsPanel = ({ gst, gstOn = true, interstate = false, showPayment = false, markPaid, setMarkPaid, payMethod, setPayMethod }) => (
-  <div className="bg-white rounded-2xl border border-black/10 shadow-sm p-4">
-    <Row label="Taxable value" value={inr(gst.taxable)} />
-    {gstOn && interstate ? (
-      <Row label="IGST" value={inr(gst.igst)} />
-    ) : gstOn ? (
-      <>
-        <Row label="CGST" value={inr(gst.cgst)} />
-        <Row label="SGST" value={inr(gst.sgst)} />
-      </>
-    ) : null}
-    {!!gst.roundOff && <Row label="Round off" value={inr(gst.roundOff)} muted />}
-    <div className="flex justify-between items-baseline pt-3 mt-2 border-t border-black/10">
-      <span className="font-black text-ink-primary">Total</span>
-      <span className="font-black text-xl font-mono text-amber-800">{inr(gstOn ? gst.grandTotal : gst.subtotal)}</span>
-    </div>
-    {showPayment && (
-      <div className="flex items-center gap-2 mt-3 pt-3 border-t border-black/5">
-        <input id="mp" type="checkbox" checked={markPaid} onChange={(e) => setMarkPaid(e.target.checked)} />
-        <label htmlFor="mp" className="text-[13px] font-bold">Mark paid</label>
-        <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className="ml-auto text-[12px] border border-black/10 rounded-lg px-2 py-1.5 outline-none">
-          <option>CASH</option><option>BANK</option><option>UPI</option><option>CREDIT</option>
-        </select>
+const miniInput = 'w-24 text-right text-[12px] font-mono border border-black/10 rounded px-2 py-1 outline-none focus:border-accent-signature/40';
+
+export const TotalsPanel = ({
+  gst, gstOn = true, interstate = false, showPayment = false,
+  markPaid, setMarkPaid, payMethod, setPayMethod,
+  charges = '', setCharges, billDiscount = '', setBillDiscount,
+  received = '', setReceived,
+}) => {
+  const base = gstOn ? Number(gst.grandTotal) || 0 : Number(gst.subtotal) || 0;
+  const total = Math.max(0, base + (Number(charges) || 0) - (Number(billDiscount) || 0));
+  const balance = Math.max(0, total - (Number(received) || 0));
+  return (
+    <div className="bg-white rounded-2xl border border-black/10 shadow-sm p-4">
+      <Row label="Taxable value" value={inr(gst.taxable)} />
+      {gstOn && interstate ? (
+        <Row label="IGST" value={inr(gst.igst)} />
+      ) : gstOn ? (
+        <>
+          <Row label="CGST" value={inr(gst.cgst)} />
+          <Row label="SGST" value={inr(gst.sgst)} />
+        </>
+      ) : null}
+      {!!gst.roundOff && <Row label="Round off" value={inr(gst.roundOff)} muted />}
+      {setCharges && (
+        <div className="flex justify-between items-center text-[13px] py-1.5">
+          <span className="text-gray-500">Additional charges</span>
+          <input type="number" value={charges} onChange={(e) => setCharges(e.target.value)} placeholder="0.00" className={miniInput} />
+        </div>
+      )}
+      {setBillDiscount && (
+        <div className="flex justify-between items-center text-[13px] py-1.5">
+          <span className="text-gray-500">Bill discount</span>
+          <input type="number" value={billDiscount} onChange={(e) => setBillDiscount(e.target.value)} placeholder="0.00" className={miniInput} />
+        </div>
+      )}
+      <div className="flex justify-between items-baseline pt-3 mt-2 border-t border-black/10">
+        <span className="font-black text-ink-primary">Total</span>
+        <span className="font-black text-xl font-mono text-amber-800">{inr(total)}</span>
       </div>
-    )}
-  </div>
-);
+      {showPayment && (
+        <>
+          <div className="flex items-center gap-2 mt-3 pt-3 border-t border-black/5">
+            <input id="mp" type="checkbox" checked={markPaid} onChange={(e) => setMarkPaid(e.target.checked)} />
+            <label htmlFor="mp" className="text-[13px] font-bold">Mark paid</label>
+            <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} className="ml-auto text-[12px] border border-black/10 rounded-lg px-2 py-1.5 outline-none">
+              <option>CASH</option><option>BANK</option><option>UPI</option><option>CREDIT</option>
+            </select>
+          </div>
+          {setReceived && !markPaid && (
+            <>
+              <div className="flex justify-between items-center text-[13px] py-1.5 mt-1">
+                <span className="text-gray-500">Amount received</span>
+                <input type="number" value={received} onChange={(e) => setReceived(e.target.value)} placeholder="0.00" className={miniInput} />
+              </div>
+              <div className="flex justify-between text-[13px] py-1">
+                <span className="text-gray-500">Balance</span>
+                <span className="font-mono font-bold text-rose-600">{inr(balance)}</span>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
