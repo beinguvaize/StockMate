@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useTenant } from '../context/TenantContext';
 import { useNotifications } from '../context/NotificationContext';
-import { useAccounts } from '../hooks/useAccounts';
+import { useAccounts, emiOf, loanStats } from '../hooks/useAccounts';
 
 const inr = (n) => `₹${(Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const TYPES = [
@@ -20,7 +20,8 @@ const iconFor = (t) => (TYPES.find((x) => x.id === t) || TYPES[1]).icon;
 const Accounts = () => {
   const { currentTenantId } = useTenant();
   const { addNotification } = useNotifications();
-  const { accounts, txns, balances, loading, createAccount, removeAccount, addTxn, transfer } = useAccounts(currentTenantId);
+  const { accounts, txns, balances, loading, createAccount, removeAccount, addTxn, transfer, emiPaidCount, payEMI } = useAccounts(currentTenantId);
+  const [emiFor, setEmiFor] = useState(null); // loan account → pay-EMI modal
 
   const [modal, setModal] = useState(null); // 'add' | 'txn' | 'transfer' | null
   const [active, setActive] = useState(null); // account id for ledger view
@@ -64,17 +65,34 @@ const Accounts = () => {
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {accounts.map((a) => {
             const Icon = iconFor(a.type);
+            const isLoan = a.type === 'LOAN';
+            const ls = isLoan ? loanStats(a, emiPaidCount?.[a.id] || 0) : null;
             return (
-              <button key={a.id} onClick={() => setActive(a.id)}
-                className={`text-left bg-white rounded-2xl border shadow-sm p-4 hover:border-accent-signature/40 transition-colors ${active === a.id ? 'border-accent-signature' : 'border-black/5'}`}>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-800 grid place-items-center"><Icon size={16} /></div>
-                  <div className="font-black text-[13px] text-ink-primary">{a.name}</div>
-                  <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-gray-400">{a.type}</span>
-                </div>
-                <div className="mt-3 font-mono font-black text-xl text-ink-primary">{inr(balances[a.id] || 0)}</div>
-                {a.bank_name && <div className="text-[11px] text-gray-400 mt-0.5">{a.bank_name} {a.account_no ? `· ${a.account_no}` : ''}</div>}
-              </button>
+              <div key={a.id}
+                className={`text-left bg-white rounded-2xl border shadow-sm p-4 transition-colors ${active === a.id ? 'border-accent-signature' : 'border-black/5'}`}>
+                <button onClick={() => setActive(a.id)} className="w-full text-left">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-800 grid place-items-center"><Icon size={16} /></div>
+                    <div className="font-black text-[13px] text-ink-primary">{a.name}</div>
+                    <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-gray-400">{a.type}</span>
+                  </div>
+                  {isLoan ? (
+                    <>
+                      <div className="mt-3 text-[10px] uppercase tracking-widest text-gray-400">Outstanding</div>
+                      <div className="font-mono font-black text-xl text-rose-600">{inr(ls.outstanding)}</div>
+                      <div className="text-[11px] text-gray-500 mt-1">EMI {inr(ls.emi)} · {ls.paid}/{ls.total} paid · {a.loan_rate}% p.a.</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mt-3 font-mono font-black text-xl text-ink-primary">{inr(balances[a.id] || 0)}</div>
+                      {a.bank_name && <div className="text-[11px] text-gray-400 mt-0.5">{a.bank_name} {a.account_no ? `· ${a.account_no}` : ''}</div>}
+                    </>
+                  )}
+                </button>
+                {isLoan && ls.outstanding > 0 && (
+                  <button onClick={() => setEmiFor(a)} className="mt-3 w-full py-2 rounded-lg text-[11px] font-black bg-accent-signature text-white hover:opacity-90">Pay EMI {inr(ls.emi)}</button>
+                )}
+              </div>
             );
           })}
         </div>
@@ -126,7 +144,33 @@ const Accounts = () => {
         if (error) return addNotification(error.message, 'error');
         addNotification('Transfer done', 'success'); setModal(null);
       }} />}
+
+      {emiFor && <PayEMIModal loan={emiFor} accounts={accounts.filter((a) => a.type !== 'LOAN')}
+        stats={loanStats(emiFor, emiPaidCount?.[emiFor.id] || 0)}
+        onClose={() => setEmiFor(null)} onSave={async (fromAccountId) => {
+          const { error } = await payEMI({ loan: emiFor, fromAccountId });
+          if (error) return addNotification(error.message, 'error');
+          addNotification('EMI recorded', 'success'); setEmiFor(null);
+        }} />}
     </div>
+  );
+};
+
+const PayEMIModal = ({ loan, accounts, stats, onClose, onSave }) => {
+  const [from, setFrom] = useState(accounts.find((a) => a.type === 'BANK')?.id || accounts[0]?.id || '');
+  return (
+    <Shell title={`Pay EMI · ${loan.name}`} onClose={onClose}>
+      <div className="grid grid-cols-2 gap-2 text-[12px] mb-3">
+        <div><div className="text-gray-400">EMI</div><div className="font-mono font-bold">{inr(stats.emi)}</div></div>
+        <div><div className="text-gray-400">Outstanding</div><div className="font-mono font-bold text-rose-600">{inr(stats.outstanding)}</div></div>
+        <div className="col-span-2 text-[11px] text-gray-500">{stats.paid}/{stats.total} EMIs paid · interest paid {inr(stats.interestPaid)}</div>
+      </div>
+      <label className={lbl}>Pay from</label>
+      <select className={inp} value={from} onChange={(e) => setFrom(e.target.value)}>
+        {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+      </select>
+      <button disabled={!from} className={primary} onClick={() => onSave(from)}>Pay {inr(stats.emi)}</button>
+    </Shell>
   );
 };
 
@@ -143,11 +187,13 @@ const inp = 'w-full text-[14px] border border-black/10 rounded-lg px-3 py-2 outl
 const primary = 'w-full mt-4 py-2.5 rounded-xl text-[13px] font-black bg-accent-signature text-white hover:opacity-90 disabled:opacity-40';
 
 const AddAccountModal = ({ onClose, onSave }) => {
-  const [f, setF] = useState({ name: '', type: 'BANK', bank_name: '', account_no: '', opening_balance: '' });
+  const [f, setF] = useState({ name: '', type: 'BANK', bank_name: '', account_no: '', opening_balance: '', loan_principal: '', loan_rate: '', loan_tenure_months: '', loan_start: new Date().toISOString().slice(0, 10), lender: '' });
+  const isLoan = f.type === 'LOAN';
+  const previewEmi = isLoan ? emiOf(f.loan_principal, f.loan_rate, f.loan_tenure_months) : 0;
   return (
     <Shell title="Add account" onClose={onClose}>
-      <label className={lbl}>Account name</label>
-      <input className={inp} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="e.g. SBI Current" />
+      <label className={lbl}>{isLoan ? 'Loan name' : 'Account name'}</label>
+      <input className={inp} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder={isLoan ? 'e.g. Shop loan' : 'e.g. SBI Current'} />
       <label className={`${lbl} mt-3`}>Type</label>
       <div className="flex gap-1.5 flex-wrap">
         {TYPES.map((t) => (
@@ -155,15 +201,31 @@ const AddAccountModal = ({ onClose, onSave }) => {
             className={`px-3 py-1.5 rounded-lg text-[12px] font-bold border ${f.type === t.id ? 'bg-accent-signature text-white border-accent-signature' : 'border-black/10 text-gray-500'}`}>{t.label}</button>
         ))}
       </div>
-      {(f.type === 'BANK' || f.type === 'LOAN') && (
+      {(f.type === 'BANK') && (
         <div className="grid grid-cols-2 gap-2 mt-3">
           <div><label className={lbl}>Bank</label><input className={inp} value={f.bank_name} onChange={(e) => setF({ ...f, bank_name: e.target.value })} /></div>
           <div><label className={lbl}>A/c no.</label><input className={inp} value={f.account_no} onChange={(e) => setF({ ...f, account_no: e.target.value })} /></div>
         </div>
       )}
-      <label className={`${lbl} mt-3`}>Opening balance</label>
-      <input type="number" className={inp} value={f.opening_balance} onChange={(e) => setF({ ...f, opening_balance: e.target.value })} placeholder="0.00" />
-      <button disabled={!f.name.trim()} className={primary} onClick={() => onSave(f)}>Add account</button>
+      {isLoan ? (
+        <>
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <div><label className={lbl}>Lender</label><input className={inp} value={f.lender} onChange={(e) => setF({ ...f, lender: e.target.value })} placeholder="HDFC Bank" /></div>
+            <div><label className={lbl}>Principal (₹)</label><input type="number" className={inp} value={f.loan_principal} onChange={(e) => setF({ ...f, loan_principal: e.target.value })} placeholder="500000" /></div>
+            <div><label className={lbl}>Interest % p.a.</label><input type="number" className={inp} value={f.loan_rate} onChange={(e) => setF({ ...f, loan_rate: e.target.value })} placeholder="12" /></div>
+            <div><label className={lbl}>Tenure (months)</label><input type="number" className={inp} value={f.loan_tenure_months} onChange={(e) => setF({ ...f, loan_tenure_months: e.target.value })} placeholder="36" /></div>
+          </div>
+          <label className={`${lbl} mt-3`}>Start date</label>
+          <input type="date" className={inp} value={f.loan_start} onChange={(e) => setF({ ...f, loan_start: e.target.value })} />
+          {previewEmi > 0 && <div className="mt-2 text-[12px] font-bold text-emerald-700">Monthly EMI ≈ {inr(previewEmi)}</div>}
+        </>
+      ) : (
+        <>
+          <label className={`${lbl} mt-3`}>Opening balance</label>
+          <input type="number" className={inp} value={f.opening_balance} onChange={(e) => setF({ ...f, opening_balance: e.target.value })} placeholder="0.00" />
+        </>
+      )}
+      <button disabled={!f.name.trim() || (isLoan && !(previewEmi > 0))} className={primary} onClick={() => onSave(f)}>{isLoan ? 'Add loan' : 'Add account'}</button>
     </Shell>
   );
 };
