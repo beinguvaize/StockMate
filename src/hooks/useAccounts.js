@@ -11,19 +11,22 @@ export const emiOf = (principal, annualRatePct, months) => {
   return Math.round((P * r * f) / (f - 1));
 };
 
-// Replay paid EMIs on a loan to get outstanding + interest/principal paid.
-export const loanStats = (acc, paidCount) => {
+// Replay actual repayments (each with its own amount, supports custom/prepay)
+// to get outstanding + interest/principal split. `payments` = [{amount,...}]
+// oldest-first. Returns per-payment interest/principal too (for history).
+export const loanStats = (acc, payments = []) => {
   const P = Number(acc.loan_principal) || 0;
   const r = (Number(acc.loan_rate) || 0) / 12 / 100;
   const n = Number(acc.loan_tenure_months) || 0;
   const emi = Number(acc.loan_emi) || emiOf(P, acc.loan_rate, n);
   let bal = P, interestPaid = 0, principalPaid = 0;
-  for (let i = 0; i < Math.min(paidCount, n); i++) {
-    const interest = bal * r;
-    const principal = Math.min(emi - interest, bal);
+  const rows = payments.map((p) => {
+    const interest = Math.round(bal * r);
+    const principal = Math.min(Math.round(Number(p.amount) || 0) - interest, Math.round(bal));
     bal -= principal; interestPaid += interest; principalPaid += principal;
-  }
-  return { emi, outstanding: Math.max(0, Math.round(bal)), interestPaid: Math.round(interestPaid), principalPaid: Math.round(principalPaid), paid: Math.min(paidCount, n), total: n };
+    return { ...p, interest, principal: Math.max(0, principal), balanceAfter: Math.max(0, Math.round(bal)) };
+  });
+  return { emi, outstanding: Math.max(0, Math.round(bal)), interestPaid, principalPaid, paid: payments.length, total: n, rows };
 };
 
 // Bank & Cash accounts + their ledger. Mirrors the lightweight hook style
@@ -119,29 +122,33 @@ export function useAccounts(tenantId) {
     return { error };
   };
 
-  // Count of EMIs already paid per loan account (LOAN_EMI ledger entries).
-  const emiPaidCount = useMemo(() => {
+  // Repayments per loan account (LOAN_EMI ledger entries), oldest-first.
+  const loanPayments = useMemo(() => {
     const m = {};
-    txns.forEach((x) => { if (x.ref_type === 'LOAN_EMI' && x.ref_id) m[x.ref_id] = (m[x.ref_id] || 0) + 1; });
+    txns.filter((x) => x.ref_type === 'LOAN_EMI' && x.ref_id)
+      .forEach((x) => { (m[x.ref_id] = m[x.ref_id] || []).push(x); });
+    Object.values(m).forEach((arr) => arr.sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.id).localeCompare(String(b.id))));
     return m;
   }, [txns]);
 
-  // Pay one EMI: money OUT of a funding account, logged against the loan.
-  const payEMI = async ({ loan, fromAccountId, date }) => {
-    const st = loanStats(loan, emiPaidCount[loan.id] || 0);
+  // Record a loan repayment — fixed EMI or a custom amount (part/prepay).
+  const payEMI = async ({ loan, fromAccountId, date, amount, mode = 'BANK' }) => {
+    const st = loanStats(loan, loanPayments[loan.id] || []);
     if (st.outstanding <= 0) return { error: new Error('Loan already cleared') };
-    const interest = Math.round((st.outstanding) * ((Number(loan.loan_rate) || 0) / 12 / 100));
-    const principal = Math.min(st.emi - interest, st.outstanding);
+    const amt = Math.min(Math.round(Number(amount) || st.emi), st.outstanding + Math.round(st.outstanding * ((Number(loan.loan_rate) || 0) / 12 / 100)));
+    if (amt <= 0) return { error: new Error('Enter an amount') };
+    const interest = Math.round(st.outstanding * ((Number(loan.loan_rate) || 0) / 12 / 100));
+    const principal = Math.max(0, amt - interest);
     const d = date || new Date().toISOString().slice(0, 10);
     const row = {
       id: genId('ATX'), tenant_id: tenantId, account_id: fromAccountId, date: d,
-      direction: 'OUT', amount: st.emi, mode: 'BANK', ref_type: 'LOAN_EMI', ref_id: loan.id,
-      note: `EMI · ${loan.name} (int ₹${interest} + prin ₹${Math.round(principal)})`,
+      direction: 'OUT', amount: amt, mode, ref_type: 'LOAN_EMI', ref_id: loan.id,
+      note: `Loan payment · ${loan.name} (int ₹${interest} + prin ₹${principal})`,
     };
     const { error } = await restInsert('account_transactions', row);
     if (!error) fetchAll();
     return { error };
   };
 
-  return { accounts, txns, balances, loading, refetch: fetchAll, createAccount, updateAccount, removeAccount, addTxn, transfer, emiPaidCount, payEMI };
+  return { accounts, txns, balances, loading, refetch: fetchAll, createAccount, updateAccount, removeAccount, addTxn, transfer, loanPayments, payEMI };
 }

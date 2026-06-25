@@ -20,7 +20,7 @@ const iconFor = (t) => (TYPES.find((x) => x.id === t) || TYPES[1]).icon;
 const Accounts = () => {
   const { currentTenantId } = useTenant();
   const { addNotification } = useNotifications();
-  const { accounts, txns, balances, loading, createAccount, removeAccount, addTxn, transfer, emiPaidCount, payEMI } = useAccounts(currentTenantId);
+  const { accounts, txns, balances, loading, createAccount, removeAccount, addTxn, transfer, loanPayments, payEMI } = useAccounts(currentTenantId);
   const [emiFor, setEmiFor] = useState(null); // loan account → pay-EMI modal
 
   const [modal, setModal] = useState(null); // 'add' | 'txn' | 'transfer' | null
@@ -34,6 +34,10 @@ const Accounts = () => {
     () => active ? txns.filter((t) => t.account_id === active) : [],
     [txns, active],
   );
+  const activeAcc = accounts.find((a) => a.id === active);
+  const activeLoan = activeAcc?.type === 'LOAN'
+    ? loanStats(activeAcc, loanPayments?.[active] || [])
+    : null;
 
   return (
     <div className="p-4 sm:p-6 max-w-5xl mx-auto flex flex-col gap-5">
@@ -66,7 +70,7 @@ const Accounts = () => {
           {accounts.map((a) => {
             const Icon = iconFor(a.type);
             const isLoan = a.type === 'LOAN';
-            const ls = isLoan ? loanStats(a, emiPaidCount?.[a.id] || 0) : null;
+            const ls = isLoan ? loanStats(a, loanPayments?.[a.id] || []) : null;
             return (
               <div key={a.id}
                 className={`text-left bg-white rounded-2xl border shadow-sm p-4 transition-colors ${active === a.id ? 'border-accent-signature' : 'border-black/5'}`}>
@@ -102,11 +106,36 @@ const Accounts = () => {
       {active && (
         <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-black/5">
-            <div className="font-black text-[13px] text-ink-primary">{accounts.find((a) => a.id === active)?.name} · ledger</div>
-            <span className="ml-auto font-mono font-black text-[15px]">{inr(balances[active] || 0)}</span>
-            <button onClick={() => setModal('txn')} className="ml-3 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-black/10 hover:bg-black/5"><Plus size={12} className="inline -mt-0.5 mr-1" />Entry</button>
+            <div className="font-black text-[13px] text-ink-primary">{activeAcc?.name} · {activeLoan ? 'repayment history' : 'ledger'}</div>
+            <span className="ml-auto font-mono font-black text-[15px]">{activeLoan ? inr(activeLoan.outstanding) : inr(balances[active] || 0)}</span>
+            {!activeLoan && <button onClick={() => setModal('txn')} className="ml-3 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-black/10 hover:bg-black/5"><Plus size={12} className="inline -mt-0.5 mr-1" />Entry</button>}
+            {activeLoan && activeLoan.outstanding > 0 && <button onClick={() => setEmiFor(activeAcc)} className="ml-3 px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-accent-signature text-white">Pay</button>}
             <button onClick={() => setActive(null)} className="p-1.5 rounded-lg hover:bg-black/5"><X size={15} /></button>
           </div>
+          {activeLoan ? (
+            <>
+              <div className="grid grid-cols-3 gap-px bg-black/[0.06] border-b border-black/[0.06] text-center">
+                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-gray-400">EMI</div><div className="font-mono font-bold text-[13px]">{inr(activeLoan.emi)}</div></div>
+                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-gray-400">Interest paid</div><div className="font-mono font-bold text-[13px] text-amber-700">{inr(activeLoan.interestPaid)}</div></div>
+                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-gray-400">Paid</div><div className="font-mono font-bold text-[13px]">{activeLoan.paid}/{activeLoan.total}</div></div>
+              </div>
+              <div className="grid grid-cols-[80px_1fr_90px_90px_100px] gap-2 px-4 py-2 text-[10px] uppercase tracking-wider text-gray-400 border-b border-black/5">
+                <div>Date</div><div>#</div><div className="text-right">Interest</div><div className="text-right">Principal</div><div className="text-right">Balance</div>
+              </div>
+              <div className="divide-y divide-black/5 max-h-72 overflow-auto">
+                {activeLoan.rows.length === 0 && <div className="p-4 text-[12px] text-gray-400">No repayments yet.</div>}
+                {activeLoan.rows.map((p, i) => (
+                  <div key={p.id} className="grid grid-cols-[80px_1fr_90px_90px_100px] gap-2 px-4 py-2.5 items-center text-[12px]">
+                    <div className="font-mono text-gray-500">{p.date}</div>
+                    <div className="font-mono font-bold">{inr(p.amount)} <span className="text-[10px] text-gray-400">#{i + 1}</span></div>
+                    <div className="text-right font-mono text-amber-700">{inr(p.interest)}</div>
+                    <div className="text-right font-mono text-emerald-700">{inr(p.principal)}</div>
+                    <div className="text-right font-mono text-gray-500">{inr(p.balanceAfter)}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
           <div className="divide-y divide-black/5 max-h-80 overflow-auto">
             {activeTxns.length === 0 && <div className="p-4 text-[12px] text-gray-400">No transactions yet.</div>}
             {activeTxns.map((t) => (
@@ -124,6 +153,7 @@ const Accounts = () => {
               </div>
             ))}
           </div>
+          )}
         </div>
       )}
 
@@ -146,11 +176,11 @@ const Accounts = () => {
       }} />}
 
       {emiFor && <PayEMIModal loan={emiFor} accounts={accounts.filter((a) => a.type !== 'LOAN')}
-        stats={loanStats(emiFor, emiPaidCount?.[emiFor.id] || 0)}
-        onClose={() => setEmiFor(null)} onSave={async (fromAccountId) => {
-          const { error } = await payEMI({ loan: emiFor, fromAccountId });
+        stats={loanStats(emiFor, loanPayments?.[emiFor.id] || [])}
+        onClose={() => setEmiFor(null)} onSave={async (fromAccountId, amount) => {
+          const { error } = await payEMI({ loan: emiFor, fromAccountId, amount });
           if (error) return addNotification(error.message, 'error');
-          addNotification('EMI recorded', 'success'); setEmiFor(null);
+          addNotification('Payment recorded', 'success'); setEmiFor(null);
         }} />}
     </div>
   );
@@ -158,18 +188,29 @@ const Accounts = () => {
 
 const PayEMIModal = ({ loan, accounts, stats, onClose, onSave }) => {
   const [from, setFrom] = useState(accounts.find((a) => a.type === 'BANK')?.id || accounts[0]?.id || '');
+  const [amount, setAmount] = useState(String(stats.emi));
+  const amt = Number(amount) || 0;
+  const interest = Math.round(stats.outstanding * ((Number(loan.loan_rate) || 0) / 12 / 100));
+  const principal = Math.max(0, Math.round(amt) - interest);
   return (
-    <Shell title={`Pay EMI · ${loan.name}`} onClose={onClose}>
+    <Shell title={`Loan payment · ${loan.name}`} onClose={onClose}>
       <div className="grid grid-cols-2 gap-2 text-[12px] mb-3">
         <div><div className="text-gray-400">EMI</div><div className="font-mono font-bold">{inr(stats.emi)}</div></div>
         <div><div className="text-gray-400">Outstanding</div><div className="font-mono font-bold text-rose-600">{inr(stats.outstanding)}</div></div>
-        <div className="col-span-2 text-[11px] text-gray-500">{stats.paid}/{stats.total} EMIs paid · interest paid {inr(stats.interestPaid)}</div>
+        <div className="col-span-2 text-[11px] text-gray-500">{stats.paid}/{stats.total} paid · interest paid {inr(stats.interestPaid)}</div>
       </div>
-      <label className={lbl}>Pay from</label>
+      <label className={lbl}>Amount (EMI or custom / prepay)</label>
+      <input type="number" className={inp} value={amount} onChange={(e) => setAmount(e.target.value)} />
+      <div className="flex gap-1.5 mt-1.5">
+        <button onClick={() => setAmount(String(stats.emi))} className="text-[11px] font-bold px-2 py-1 rounded border border-black/10">EMI</button>
+        <button onClick={() => setAmount(String(stats.outstanding + interest))} className="text-[11px] font-bold px-2 py-1 rounded border border-black/10">Foreclose</button>
+      </div>
+      {amt > 0 && <div className="text-[11px] text-gray-500 mt-2">Interest {inr(interest)} · Principal {inr(principal)}</div>}
+      <label className={`${lbl} mt-3`}>Pay from</label>
       <select className={inp} value={from} onChange={(e) => setFrom(e.target.value)}>
         {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
       </select>
-      <button disabled={!from} className={primary} onClick={() => onSave(from)}>Pay {inr(stats.emi)}</button>
+      <button disabled={!from || !(amt > 0)} className={primary} onClick={() => onSave(from, amt)}>Pay {inr(amt)}</button>
     </Shell>
   );
 };
