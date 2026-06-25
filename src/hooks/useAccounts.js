@@ -146,8 +146,20 @@ export function useAccounts(tenantId) {
       note: `Loan payment · ${loan.name} (int ₹${interest} + prin ₹${principal})`,
     };
     const { error } = await restInsert('account_transactions', row);
-    if (!error) fetchAll();
-    return { error };
+    if (error) return { error };
+    // Book the interest portion as a finance-cost expense so it shows in P&L.
+    // (Principal is a balance-sheet loan reduction, not an expense. The cash
+    // already left via the ledger entry above, so this expense is NOT routed
+    // to an account again.)
+    if (interest > 0) {
+      await restInsert('expenses', {
+        id: genId('EXP'), tenant_id: tenantId, note: `Loan interest · ${loan.name}`,
+        amount: interest, category: 'Interest', date: d, payment_method: mode,
+        created_at: new Date().toISOString(),
+      });
+    }
+    fetchAll();
+    return { error: null };
   };
 
   return { accounts, txns, balances, loading, refetch: fetchAll, createAccount, updateAccount, removeAccount, addTxn, transfer, loanPayments, payEMI };
