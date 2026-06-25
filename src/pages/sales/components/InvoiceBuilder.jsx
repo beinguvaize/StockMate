@@ -3,7 +3,7 @@ import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Ch
 import Button from '../../../shared/Button';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { tierPrice } from '../../../lib/priceResolver';
-import { useAccounts } from '../../../hooks/useAccounts';
+import { useAccounts, accountForMethod } from '../../../hooks/useAccounts';
 import { useNotifications } from '../../../context/NotificationContext';
 import { supabase, restInsert } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
@@ -96,8 +96,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
   // Cash & Bank accounts — money received at checkout posts to one of these.
   const { accounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
-  const [depositAccount, setDepositAccount] = useState('');
-  const depAcc = depositAccount || accounts.find(a => a.type === 'CASH')?.id || accounts[0]?.id || '';
+  const depAcc = accountForMethod(accounts, paymentMethod); // money lands in the method's account
 
   // Edit mode — prefill client + payment + paid amount from the sale being
   // edited so the saved status reflects reality. Without this, a blank
@@ -1761,12 +1760,6 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     </div>
                   );
                 })()}
-                {accounts.length > 0 && paymentMethod !== 'CREDIT' && (
-                  <select value={depAcc} onChange={(e) => setDepositAccount(e.target.value)}
-                    className="mt-2 w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-xs font-semibold outline-none">
-                    {accounts.map(a => <option key={a.id} value={a.id}>Deposit to: {a.name}</option>)}
-                  </select>
-                )}
               </div>
 
               {/* Confirm */}
