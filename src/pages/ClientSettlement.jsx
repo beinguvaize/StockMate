@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { useSales } from '../hooks/useSales';
-import { useAccounts } from '../hooks/useAccounts';
+import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { supabase } from '../lib/supabase';
 import { PageSkeleton } from '../components/ui/States';
 import {
@@ -32,8 +32,6 @@ const ClientSettlement = () => {
   const { clients, recordClientPayment, loading: peoLoading } = usePeople(currentTenantId);
   const { invoices, sales, loading: salesLoading } = useSales(currentTenantId);
   const { accounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
-  const [depositAccount, setDepositAccount] = useState('');
-  const depAcc = depositAccount || accounts.find(a => a.type === 'CASH')?.id || accounts[0]?.id || '';
 
   const loading = peoLoading || salesLoading;
 
@@ -48,6 +46,7 @@ const ClientSettlement = () => {
     notes: '',
     paymentMethod: 'CASH'
   });
+  const depAcc = accountForMethod(accounts, paymentData.paymentMethod);
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([]);
   const [paymentError, setPaymentError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -349,16 +348,6 @@ const ClientSettlement = () => {
                 </select>
               </div>
 
-              {accounts.length > 0 && (
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Deposit to account</label>
-                  <select
-                    className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-4 py-3 text-sm font-bold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
-                    value={depAcc} onChange={e => setDepositAccount(e.target.value)}>
-                    {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                  </select>
-                </div>
-              )}
 
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Notes (optional)</label>

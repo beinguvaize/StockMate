@@ -1,6 +1,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, restInsert, restUpdate } from '../lib/supabase';
 
+// Resolve which account a payment lands in from its method — so there's one
+// choice (the method), not a separate "deposit to" picker. CASH→CASH, UPI→UPI,
+// CARD/BANK→BANK; falls back to the default account, then first non-loan.
+export const accountForMethod = (accounts = [], method = 'CASH') => {
+  const live = accounts.filter((a) => a.type !== 'LOAN');
+  const want = { CASH: 'CASH', UPI: 'UPI', CARD: 'BANK', BANK: 'BANK' }[String(method || '').toUpperCase()] || 'CASH';
+  return (
+    live.find((a) => a.type === want)
+    || live.find((a) => a.is_default)
+    || live[0]
+    || null
+  )?.id || '';
+};
+
 // Reducing-balance EMI for a loan. r = monthly rate. Returns rounded EMI.
 export const emiOf = (principal, annualRatePct, months) => {
   const P = Number(principal) || 0, n = Number(months) || 0;

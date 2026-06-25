@@ -10,7 +10,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useSales } from '../../hooks/useSales';
 import { useInventory } from '../../hooks/useInventory';
 import { useEstimates } from '../../hooks/useEstimates';
-import { useAccounts } from '../../hooks/useAccounts';
+import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { calculateGST, shareToWhatsApp } from '../../lib/gstEngine';
 import { tierPrice } from '../../lib/priceResolver';
 import { PartyPicker, DocItemGrid, TotalsPanel, Field, inr } from '../../components/documents/DocParts';
@@ -54,7 +54,6 @@ const CreateDocument = () => {
   const [payMethod, setPayMethod] = useState('CASH');
   const [markPaid, setMarkPaid] = useState(true);
   const [payAmount, setPayAmount] = useState('');
-  const [depositAccount, setDepositAccount] = useState('');
   const [charges, setCharges] = useState('');       // bill-level additional charges
   const [billDiscount, setBillDiscount] = useState(''); // bill-level discount
   const [received, setReceived] = useState('');     // partial amount received
@@ -62,12 +61,8 @@ const CreateDocument = () => {
   const [saving, setSaving] = useState(false);
   const [printBill, setPrintBill] = useState(null); // manual bill → invoice template preview
 
-  // Default the deposit account once accounts load (prefer a Cash account).
-  const defaultAccount = useMemo(
-    () => accounts.find((a) => a.type === 'CASH')?.id || accounts[0]?.id || '',
-    [accounts],
-  );
-  const depAcc = depositAccount || defaultAccount;
+  // Money lands in the payment method's account (no separate picker).
+  const depAcc = accountForMethod(accounts, payMethod);
 
   // Post a money-in ledger entry to the chosen account (best-effort; a missing
   // account just skips the ledger, the sale/payment still succeeds).
@@ -279,12 +274,6 @@ const CreateDocument = () => {
               className="mt-3 w-full text-[12px] border border-black/10 rounded-lg px-2 py-2 outline-none">
               <option>CASH</option><option>BANK</option><option>UPI</option>
             </select>
-            {accounts.length > 0 && (
-              <select value={depAcc} onChange={(e) => setDepositAccount(e.target.value)}
-                className="mt-2 w-full text-[12px] border border-black/10 rounded-lg px-2 py-2 outline-none">
-                {accounts.map((a) => <option key={a.id} value={a.id}>Deposit to: {a.name}</option>)}
-              </select>
-            )}
             <div className="text-[11px] text-gray-400 mt-2">Settles the party's oldest open invoice.</div>
           </div>
         )}
@@ -306,12 +295,6 @@ const CreateDocument = () => {
               markPaid={markPaid} setMarkPaid={setMarkPaid} payMethod={payMethod} setPayMethod={setPayMethod}
               charges={charges} setCharges={setCharges} billDiscount={billDiscount} setBillDiscount={setBillDiscount}
               received={received} setReceived={setReceived} />
-            {cfg.save === 'invoice' && paidNow > 0 && accounts.length > 0 && (
-              <select value={depAcc} onChange={(e) => setDepositAccount(e.target.value)}
-                className="mt-2 w-full text-[12px] border border-black/10 rounded-lg px-2 py-2 outline-none bg-white">
-                {accounts.map((a) => <option key={a.id} value={a.id}>Deposit to: {a.name}</option>)}
-              </select>
-            )}
           </div>
         </div>
         )}
