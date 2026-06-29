@@ -81,7 +81,7 @@ const ClientStatementReport = () => {
 
   // Data fetching
   const { data: clients,  loading: cLoading }  = useReportData({ table: 'clients',         select: 'id, name, phone, outstanding_balance' });
-  const { data: sales,    loading: sLoading }  = useReportData({ table: 'sales',            select: 'id, date, totalAmount, paymentMethod, customerInfo, shopId', dateColumn: 'date', filters: dateFilters });
+  const { data: sales,    loading: sLoading }  = useReportData({ table: 'sales',            select: 'id, date, totalAmount, paidAmount, paymentMethod, customerInfo, shopId', dateColumn: 'date', filters: dateFilters });
   const { data: invoices, loading: iLoading }  = useReportData({ table: 'invoices',         select: 'id, client_id, client_name, grand_total, paid_amount, payment_status, date, sale_id', dateColumn: 'date', filters: dateFilters });
   const { data: payments, loading: pLoading }  = useReportData({ table: 'client_payments',  select: 'id, client_id, amount, date, payment_method', dateColumn: 'date', filters: dateFilters });
 
@@ -138,6 +138,10 @@ const ClientStatementReport = () => {
           credit:    0,
           raw:       s,
         });
+        // Money paid at the time of sale (cash/UPI at counter) is a credit too —
+        // otherwise the running balance overstates what the client still owes.
+        const atSale = Number(s.paidAmount || 0);
+        if (atSale > 0) rows.push({ date: dateOf(s.date), type: 'PAYMENT', ref: `Paid · ${refOf(s.id, 'SALE')}`, debit: 0, credit: atSale, raw: s });
       }
     });
 
@@ -152,22 +156,15 @@ const ClientStatementReport = () => {
           credit:    0,
           raw:       inv,
         });
+        const atBill = Number(inv.paid_amount || 0);
+        if (atBill > 0) rows.push({ date: dateOf(inv.date), type: 'PAYMENT', ref: `Paid · ${refOf(inv.id, 'INV')}`, debit: 0, credit: atBill, raw: inv });
       }
     });
 
-    // Payments: match by client_id
-    payments.forEach(p => {
-      if (p.client_id === clientId) {
-        rows.push({
-          date:      dateOf(p.date),
-          type:      'PAYMENT',
-          ref:       refOf(p.id, 'PMT'),
-          debit:     0,
-          credit:    Number(p.amount || 0),
-          raw:       p,
-        });
-      }
-    });
+    // NOTE: client_payments are NOT credited separately — settlement receipts
+    // are already folded into each bill's paidAmount (credited above), so
+    // adding them here would double-count. This keeps the closing balance
+    // equal to the client's outstanding_balance (Σ bill − Σ paidAmount).
 
     // Sort chronologically
     rows.sort((a, b) => a.date.localeCompare(b.date));

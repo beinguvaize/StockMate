@@ -7,6 +7,24 @@ import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/sales/data/models/sale.dart';
 import 'package:mobile_app/main.dart' show databaseProvider;
 
+// Total quantity sold per product (from recent sales' items). Used to order
+// the POS / Van product grid with best-sellers first.
+final topSellingQtyProvider = FutureProvider<Map<String, double>>((ref) async {
+  final sales = await ref.watch(recentSalesProvider.future);
+  final m = <String, double>{};
+  for (final s in sales) {
+    for (final it in (s.items ?? const [])) {
+      if (it is! Map) continue;
+      final id = (it['id'] ?? it['productId'])?.toString();
+      if (id == null || id.isEmpty) continue;
+      final q = it['quantity'] ?? it['qty'] ?? 0;
+      final qd = q is num ? q.toDouble() : (double.tryParse('$q') ?? 0);
+      m[id] = (m[id] ?? 0) + qd;
+    }
+  }
+  return m;
+});
+
 // Cache-first recent sales. Mirrors web useSales: tenant-scoped, newest first,
 // 500-row cap. Falls back to local Drift sales table when offline.
 final recentSalesProvider = FutureProvider<List<Sale>>((ref) async {
