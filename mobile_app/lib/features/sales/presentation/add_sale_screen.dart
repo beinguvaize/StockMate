@@ -441,8 +441,12 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
                 .map((p) => p.copyWith(stock: vanQtyMap[p.id]!))
                 .toList();
           } else {
-            displayProducts = allProducts;
+            displayProducts = [...allProducts];
           }
+
+          // Best-sellers first (by total qty sold), then the rest in place.
+          final topQty = ref.watch(topSellingQtyProvider).valueOrNull ?? const {};
+          displayProducts.sort((a, b) => (topQty[b.id] ?? 0).compareTo(topQty[a.id] ?? 0));
 
           final categories = ['All', ...{
             for (final p in displayProducts) if (p.category != null && p.category!.isNotEmpty) p.category!

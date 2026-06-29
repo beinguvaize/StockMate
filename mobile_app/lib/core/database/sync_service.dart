@@ -187,6 +187,16 @@ class SyncService {
     }
   }
 
+  String? _cachedTenantId;
+  Future<String?> _currentTenantId() async {
+    if (_cachedTenantId != null) return _cachedTenantId;
+    final u = supabase.auth.currentUser;
+    if (u == null) return null;
+    _cachedTenantId = u.userMetadata?['tenant_id'] as String?
+        ?? (await supabase.from('users').select('tenant_id').eq('id', u.id).maybeSingle())?['tenant_id'] as String?;
+    return _cachedTenantId;
+  }
+
   Future<void> _processJob(SyncMutation job) async {
     // Mark PROCESSING
     await (db.update(db.syncMutations)..where((t) => t.id.equals(job.id))).write(
@@ -202,6 +212,12 @@ class SyncService {
 
       switch (job.action) {
         case 'upsert':
+          // Stamp the live tenant on tenant-scoped rows. Older queued items
+          // could carry a stale/null tenant_id → RLS rejects them (42501).
+          if (payload.containsKey('tenant_id')) {
+            final tid = await _currentTenantId();
+            if (tid != null) payload['tenant_id'] = tid;
+          }
           // Bounded — a hung supabase call would otherwise stall the whole
           // queue and latch _flushing, leaving the app stuck on "Syncing…".
           await supabase.from(job.targetTable).upsert(payload).timeout(_netTimeout);
