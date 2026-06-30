@@ -1648,7 +1648,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               {/* Payment Method — dynamic from Cash & Bank accounts */}
               <div>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Payment Method</p>
-                <div className="grid grid-cols-2 gap-2">
+
+                {/* Compact pill row — wraps when many accounts */}
+                <div className="flex flex-wrap gap-2">
                   {(payMethods.length > 0
                     ? payMethods
                     : [
@@ -1658,48 +1660,52 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         { key: 'CARD', label: 'Card', type: 'CARD' },
                       ]
                   ).map(({ key, label, type }) => {
-                    const icon = type === 'CASH' ? <Banknote size={22} /> : type === 'UPI' ? <Smartphone size={22} /> : type === 'CARD' ? <CreditCard size={22} /> : <Landmark size={22} />;
+                    const icon = type === 'CASH' ? <Banknote size={15} /> : type === 'UPI' ? <Smartphone size={15} /> : type === 'CARD' ? <CreditCard size={15} /> : <Landmark size={15} />;
                     const isActive = paymentAccountId === key || (!paymentAccountId && paymentMethod === type && payMethods.length === 0);
+                    const showTypeBadge = label.toUpperCase() !== type;
                     return (
                       <button key={key} type="button"
                         onClick={() => { setPaymentMethod(type); setPaymentAccountId(key === type ? null : key); }}
-                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all ${
                           isActive
                             ? 'border-accent-signature bg-accent-signature/5'
                             : 'border-black/8 bg-white hover:border-black/15'
                         }`}
                       >
-                        <div className={`p-2 rounded-xl ${isActive ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
-                          {icon}
-                        </div>
-                        <span className="text-xs font-black uppercase tracking-widest">{label}</span>
+                        <span className={`shrink-0 ${isActive ? 'text-accent-signature' : 'text-gray-400'}`}>{icon}</span>
+                        <span className="text-xs font-black uppercase tracking-widest leading-none">{label}</span>
+                        {showTypeBadge && (
+                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider leading-none ${
+                            isActive ? 'bg-accent-signature/15 text-accent-signature' : 'bg-canvas text-gray-400'
+                          }`}>{type}</span>
+                        )}
+                        {isActive && <Check size={12} className="text-accent-signature shrink-0" />}
                       </button>
                     );
                   })}
-
-                  {/* Credit — client required */}
-                  <button type="button"
-                    onClick={() => {
-                      if (selectedClientId === 'WALKIN') { addNotification('Select a client before choosing Credit.', 'info'); return; }
-                      setPaymentMethod('CREDIT');
-                    }}
-                    className={`col-span-2 p-4 rounded-2xl border-2 transition-all flex items-center justify-center gap-3 ${
-                      selectedClientId === 'WALKIN'
-                        ? 'opacity-40 cursor-not-allowed border-black/8 bg-white'
-                        : paymentMethod === 'CREDIT'
-                        ? 'border-accent-signature bg-accent-signature/5'
-                        : 'border-black/8 bg-white hover:border-black/15'
-                    }`}
-                  >
-                    <div className={`p-2 rounded-xl ${paymentMethod === 'CREDIT' ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
-                      <CreditCard size={22} />
-                    </div>
-                    <div className="text-left">
-                      <div className="text-xs font-black uppercase tracking-widest">Client Credit</div>
-                      {selectedClientId === 'WALKIN' && <div className="text-[9px] text-gray-400">Select a client first</div>}
-                    </div>
-                  </button>
                 </div>
+
+                {/* Client Credit — full-width compact row */}
+                <button type="button"
+                  onClick={() => {
+                    if (selectedClientId === 'WALKIN') { addNotification('Select a client before choosing Credit.', 'info'); return; }
+                    setPaymentMethod('CREDIT');
+                  }}
+                  className={`mt-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 transition-all ${
+                    selectedClientId === 'WALKIN'
+                      ? 'opacity-40 cursor-not-allowed border-black/8 bg-white'
+                      : paymentMethod === 'CREDIT'
+                      ? 'border-accent-signature bg-accent-signature/5'
+                      : 'border-black/8 bg-white hover:border-black/15'
+                  }`}
+                >
+                  <CreditCard size={15} className={paymentMethod === 'CREDIT' ? 'text-accent-signature' : 'text-gray-400'} />
+                  <div className="flex-1 text-left">
+                    <div className="text-xs font-black uppercase tracking-widest leading-none">Client Credit</div>
+                    {selectedClientId === 'WALKIN' && <div className="text-[9px] text-gray-400 mt-0.5">Select a client first</div>}
+                  </div>
+                  {paymentMethod === 'CREDIT' && <Check size={13} className="text-accent-signature shrink-0" />}
+                </button>
               </div>
 
               {/* UPI QR — shown when UPI selected. Cashier sees it inline;
