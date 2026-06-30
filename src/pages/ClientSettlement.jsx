@@ -63,6 +63,7 @@ const ClientSettlement = () => {
       .select('*')
       .eq('client_id', id)
       .eq('tenant_id', currentTenantId)
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(50)
       .then(({ data, error }) => {

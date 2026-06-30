@@ -257,7 +257,9 @@ export const usePeople = (tenantId) => {
       try {
         setLoading(true);
 
-        // 1. Allocate payment across selected invoices, mark each correctly
+        // 1. Allocate payment across selected invoices (or FIFO across all
+        //    unpaid/partial credit sales when no invoices are selected).
+        //    Always update the linked sale so outstanding stays accurate.
         if (invoiceIds && invoiceIds.length > 0) {
           const { data: invRows } = await supabase
             .from('invoices')
@@ -286,6 +288,35 @@ export const usePeople = (tenantId) => {
               }
               remaining -= allocating;
               if (remaining <= 0) break;
+            }
+          }
+        } else {
+          // No invoices selected — FIFO-allocate across unpaid/partial CREDIT
+          // sales so outstanding is always updated even for general payments.
+          const { data: unpaidSales } = await supabase
+            .from('sales')
+            .select('id, "totalAmount", "paidAmount", "paymentStatus"')
+            .eq('tenant_id', tenantId)
+            .eq('"customerInfo"->>\'id\'', clientId)
+            .in('"paymentStatus"', ['UNPAID', 'PARTIAL'])
+            .eq('"paymentMethod"', 'CREDIT')
+            .is('deleted_at', null)
+            .order('date', { ascending: true });
+
+          if (unpaidSales && unpaidSales.length > 0) {
+            let remaining = amount;
+            for (const sale of unpaidSales) {
+              if (remaining <= 0) break;
+              const alreadyPaid = Number(sale.paidAmount) || 0;
+              const owed = Number(sale.totalAmount) - alreadyPaid;
+              if (owed <= 0) continue;
+              const allocating = Math.min(remaining, owed);
+              const newPaid = alreadyPaid + allocating;
+              const newStatus = newPaid >= Number(sale.totalAmount) ? 'PAID' : 'PARTIAL';
+              await restUpdate('sales',
+                { paymentStatus: newStatus, paidAmount: newPaid, lastPaymentDate: date },
+                { id: sale.id, tenant_id: tenantId });
+              remaining -= allocating;
             }
           }
         }
