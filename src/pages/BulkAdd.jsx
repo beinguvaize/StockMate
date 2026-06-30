@@ -38,8 +38,8 @@ const ENTITIES = {
     cols: [
       { key: 'name', label: 'Product Name*', w: 220, required: true },
       { key: 'category', label: 'Category', w: 120 },
-      { key: 'sellingPrice', label: 'Selling Price*', w: 110, num: true, required: true },
-      { key: 'costPrice', label: 'Cost Price', w: 100, num: true },
+      { key: 'sellingPrice', label: 'Selling Price*', w: 110, num: true, required: true, validate: v => Number(v) > 0 || 'Must be > 0' },
+      { key: 'costPrice', label: 'Cost Price*', w: 100, num: true, required: true, validate: v => Number(v) > 0 || 'Must be > 0' },
       { key: 'stock', label: 'Opening Stock', w: 105, num: true },
       { key: 'taxRate', label: 'GST %', w: 75, num: true },
       { key: 'unit', label: 'Unit', w: 70 },

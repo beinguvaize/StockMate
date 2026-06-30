@@ -33,8 +33,8 @@ const SUPPLIER_COLS = [
 const PRODUCT_COLS = [
   { key: 'name',         label: 'Name',          required: true,  type: 'string' },
   { key: 'category',     label: 'Category',      required: false, type: 'string' },
-  { key: 'sellingPrice', label: 'Selling Price',  required: true,  type: 'number' },
-  { key: 'costPrice',    label: 'Cost Price',     required: false, type: 'number' },
+  { key: 'sellingPrice', label: 'Selling Price',  required: true,  type: 'number', mustBePositive: true },
+  { key: 'costPrice',    label: 'Cost Price',     required: true,  type: 'number', mustBePositive: true },
   { key: 'stock',        label: 'Opening Stock',  required: false, type: 'number' },
   { key: 'taxRate',      label: 'GST Rate (%)',   required: false, type: 'number', note: '0,5,12,18,28' },
   { key: 'unit',         label: 'Unit',           required: false, type: 'string', note: 'e.g. pcs, kg, box' },
@@ -132,6 +132,7 @@ const validate = (rows, cols) =>
       }
       if (c.type === 'number' && row[c.key] !== '' && row[c.key] !== undefined) {
         if (isNaN(Number(row[c.key]))) errors.push(`"${c.label}" must be number`);
+        else if (c.mustBePositive && !(Number(row[c.key]) > 0)) errors.push(`"${c.label}" must be > 0`);
       }
     });
     return { row, errors, index: i + 2 }; // +2 for header row
