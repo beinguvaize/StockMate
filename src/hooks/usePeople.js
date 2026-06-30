@@ -316,6 +316,11 @@ export const usePeople = (tenantId) => {
               await restUpdate('sales',
                 { paymentStatus: newStatus, paidAmount: newPaid, lastPaymentDate: date },
                 { id: sale.id, tenant_id: tenantId });
+              // Mirror onto linked invoice so UI outstanding (from invoices table) stays accurate.
+              const invId = `INV-${sale.id}`;
+              await restUpdate('invoices',
+                { payment_status: newStatus, paid_amount: newPaid },
+                { id: invId, tenant_id: tenantId });
               remaining -= allocating;
             }
           }
@@ -346,6 +351,68 @@ export const usePeople = (tenantId) => {
       } finally {
         setLoading(false);
       }
-    }
+    },
+
+    // Soft-delete a client payment and recompute all credit sales FIFO so
+    // outstanding stays accurate after the reversal.
+    deleteClientPayment: async (paymentId, clientId) => {
+      try {
+        // 1. Soft-delete the payment row.
+        const { error } = await restUpdate('client_payments',
+          { deleted_at: new Date().toISOString() },
+          { id: paymentId, tenant_id: tenantId });
+        if (error) return { error };
+
+        // 2. Reload remaining active payments for this client (oldest first).
+        const { data: remaining = [] } = await supabase
+          .from('client_payments')
+          .select('amount, date, created_at')
+          .eq('client_id', clientId)
+          .eq('tenant_id', tenantId)
+          .is('deleted_at', null)
+          .order('date', { ascending: true })
+          .order('created_at', { ascending: true });
+
+        // 3. Get all unpaid/partial CREDIT sales for this client (oldest first).
+        const { data: creditSales = [] } = await supabase
+          .from('sales')
+          .select('id, "totalAmount", "paidAmount"')
+          .eq('tenant_id', tenantId)
+          .filter('"customerInfo"->>\'id\'', 'eq', clientId)
+          .eq('"paymentMethod"', 'CREDIT')
+          .is('deleted_at', null)
+          .order('date', { ascending: true });
+
+        // 4. Reset all credit sales to 0, then replay remaining payments FIFO.
+        const newPaidBySale = Object.fromEntries(creditSales.map(s => [s.id, 0]));
+        let pool = remaining.reduce((t, p) => t + (Number(p.amount) || 0), 0);
+        for (const sale of creditSales) {
+          if (pool <= 0) break;
+          const owed = Number(sale.totalAmount) || 0;
+          const allocating = Math.min(pool, owed);
+          newPaidBySale[sale.id] = allocating;
+          pool -= allocating;
+        }
+
+        // 5. Write updated paidAmount + status back to sales + invoices.
+        for (const sale of creditSales) {
+          const newPaid = newPaidBySale[sale.id];
+          const total = Number(sale.totalAmount) || 0;
+          const newStatus = newPaid >= total ? 'PAID' : newPaid > 0 ? 'PARTIAL' : 'UNPAID';
+          await restUpdate('sales',
+            { paidAmount: newPaid, paymentStatus: newStatus },
+            { id: sale.id, tenant_id: tenantId });
+          await restUpdate('invoices',
+            { paid_amount: newPaid, payment_status: newStatus },
+            { id: `INV-${sale.id}`, tenant_id: tenantId });
+        }
+
+        await fetchPeopleData();
+        return { success: true };
+      } catch (err) {
+        console.error('deleteClientPayment Error:', err);
+        return { success: false, error: err.message };
+      }
+    },
   };
 };
