@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
-import { useAccounts } from '../../hooks/useAccounts';
+import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
 import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical } from 'lucide-react';
 import Button from '../../shared/Button';
@@ -174,6 +174,9 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
     const { error } = await payPurchase({ supplierId: payTarget.supplier_id, purchaseId: payTarget.id, amount: amt, method: payMethod, date: payDate });
     setPaySubmitting(false);
     if (error) { addNotification(`Payment failed: ${error.message}`, 'error'); return; }
+    // Money out → post to the method's Cash/Bank account (non-blocking).
+    const acc = accountForMethod(payAccounts, payMethod);
+    if (acc) { try { await addAccountTxn({ account_id: acc, direction: 'OUT', amount: amt, mode: payMethod, ref_type: 'PURCHASE', ref_id: payTarget.id, note: `Supplier payment · ${payTarget.supplier_name || ''}`, date: payDate }); } catch { /* ledger non-blocking */ } }
     addNotification('Payment recorded', 'success');
     setPayTarget(null); setPayAmount('');
   };
