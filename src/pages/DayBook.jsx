@@ -11,8 +11,7 @@ import {
   FileText, ShieldCheck, Lock, Unlock,
   Banknote, CreditCard, Building2, Receipt,
   TrendingUp, TrendingDown, Clock, AlertTriangle,
-  Users, ShoppingCart, CheckCircle2, History,
-  BarChart2, ChevronDown, ChevronUp
+  Users, ShoppingCart, CheckCircle2, History
 } from 'lucide-react';
 import DailyLedgerDetail from '../components/reports/DailyLedgerDetail';
 import BankReconciliation from '../components/daybook/BankReconciliation';
@@ -266,41 +265,6 @@ const DayBook = () => {
       collectCount: dayCollect.length,
     };
   }, [sales, expenses, clientPayments, purchases, supplierPayments, selectedDate, storeFilter, getDayBookForDate, getPrevDayBook]);
-
-  // ── Weekly P&L ───────────────────────────────────────────────────────────
-  const weekPL = useMemo(() => {
-    const d = new Date(selectedDate + 'T00:00:00');
-    const dow = (d.getDay() + 6) % 7; // 0=Mon … 6=Sun
-    const ws = new Date(d); ws.setDate(d.getDate() - dow);
-    const we = new Date(ws); we.setDate(ws.getDate() + 6);
-    const wsStr = ws.toISOString().slice(0, 10);
-    const weStr = we.toISOString().slice(0, 10);
-
-    const wSales     = (sales     || []).filter(s => s.date >= wsStr && s.date <= weStr && !s.deleted_at);
-    const wExpenses  = (expenses  || []).filter(e => e.date >= wsStr && e.date <= weStr);
-    const wPurchases = (purchases || []).filter(p => p.date >= wsStr && p.date <= weStr);
-
-    const revenue = wSales.reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
-
-    let cogs = 0; let hasCost = false;
-    wSales.forEach(s => {
-      (s.items || []).forEach(item => {
-        const cp = Number(item.costPrice) || 0;
-        if (cp > 0) hasCost = true;
-        cogs += cp * (Number(item.quantity) || 0);
-      });
-    });
-
-    const grossProfit   = revenue - cogs;
-    const grossMargin   = revenue > 0 ? (grossProfit / revenue) * 100 : 0;
-    const totalExpenses = wExpenses.reduce((t, e) => t + (Number(e.amount) || 0), 0);
-    const purchaseCost  = wPurchases.reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
-    const netProfit     = grossProfit - totalExpenses;
-
-    return { wsStr, weStr, revenue, cogs, hasCost, grossProfit, grossMargin, totalExpenses, purchaseCost, netProfit, salesCount: wSales.length };
-  }, [sales, expenses, purchases, selectedDate]);
-
-  const [showWeekPL, setShowWeekPL] = useState(true);
 
   const isDeficit  = ledger.closingBal < 0;
   const variance   = physicalCash !== '' ? (parseFloat(physicalCash) || 0) - ledger.closingBal : null;
@@ -635,59 +599,6 @@ const DayBook = () => {
           sub={isDeficit ? 'Cash deficit' : ledger.isLocked ? 'Day closed' : 'Estimated'}
           icon={isDeficit ? <AlertTriangle size={14} /> : <CheckCircle2 size={14} />}
           color={isDeficit ? 'darkred' : 'dark'} />
-      </div>
-
-      {/* ── Weekly P&L ─────────────────────────────────────────────────────── */}
-      <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
-        <button
-          type="button"
-          onClick={() => setShowWeekPL(v => !v)}
-          className="w-full px-6 py-4 flex items-center justify-between border-b border-black/5 hover:bg-canvas/40 transition-colors"
-        >
-          <div className="flex items-center gap-3">
-            <BarChart2 size={14} className="text-accent-signature" />
-            <span className="text-xs font-black text-ink-primary uppercase tracking-widest">Weekly P&amp;L</span>
-            <span className="text-[9px] font-bold text-gray-400">{weekPL.wsStr} → {weekPL.weStr}</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <span className={`text-[11px] font-black tabular-nums ${weekPL.netProfit >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-              {weekPL.netProfit >= 0 ? '+' : '−'}{cy}{fmt(Math.abs(weekPL.netProfit))} net
-            </span>
-            {showWeekPL ? <ChevronUp size={14} className="text-gray-400" /> : <ChevronDown size={14} className="text-gray-400" />}
-          </div>
-        </button>
-
-        {showWeekPL && (
-          <div className="p-6">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-              {[
-                { label: 'Revenue',       val: weekPL.revenue,       color: 'text-emerald-600', sub: `${weekPL.salesCount} sales` },
-                { label: 'Cost of Goods', val: weekPL.cogs,          color: 'text-orange-500',  sub: weekPL.hasCost ? 'from items' : 'no cost price set' },
-                { label: 'Gross Profit',  val: weekPL.grossProfit,   color: weekPL.grossProfit >= 0 ? 'text-emerald-600' : 'text-red-500',
-                  sub: `${weekPL.grossMargin.toFixed(1)}% margin` },
-                { label: 'Expenses',      val: weekPL.totalExpenses, color: 'text-red-500',     sub: 'operating' },
-                { label: 'Purchases',     val: weekPL.purchaseCost,  color: 'text-amber-600',   sub: 'stock bought' },
-                { label: 'Net Profit',    val: weekPL.netProfit,     color: weekPL.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600',
-                  sub: 'gross − expenses', bold: true },
-              ].map(({ label, val, color, sub, bold }) => (
-                <div key={label} className={`flex flex-col gap-1 ${bold ? 'bg-canvas rounded-xl p-3' : ''}`}>
-                  <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{label}</span>
-                  <span className={`font-mono font-black tabular-nums ${bold ? 'text-lg' : 'text-sm'} ${color}`}>
-                    {val < 0 ? '−' : ''}{cy}{fmt(Math.abs(val))}
-                  </span>
-                  <span className="text-[8px] text-gray-400">{sub}</span>
-                </div>
-              ))}
-            </div>
-
-            {!weekPL.hasCost && (
-              <div className="mt-4 flex items-center gap-2 p-3 bg-amber-50 border border-amber-100 rounded-xl text-[9px] font-bold text-amber-700">
-                <AlertTriangle size={11} />
-                Gross Profit = ₹0 because no cost price is set on products. Set cost price in Inventory to see accurate margins.
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* ── Main content ─────────────────────────────────────────────────────── */}
