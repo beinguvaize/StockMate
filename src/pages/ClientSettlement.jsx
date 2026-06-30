@@ -98,9 +98,11 @@ const ClientSettlement = () => {
         type: 'SALE',
       }));
 
-    // Invoices — debit row only; credit comes from client_payments entries
+    // Invoices — debit row only. Skip PAID+paid_amount=0: those are cash-at-POS
+    // sales already settled, not part of the credit ledger.
     (invoices || [])
       .filter(inv => String(inv.client_id) === String(client.id))
+      .filter(inv => !(inv.payment_status === 'PAID' && (Number(inv.paid_amount) || 0) === 0))
       .forEach(inv => {
         const num = String(inv.invoice_number || '').replace(/^#+/, '');
         rows.push({
@@ -114,7 +116,7 @@ const ClientSettlement = () => {
         });
       });
 
-    // Payments
+    // Payments from client_payments table.
     paymentHistory.forEach(p => rows.push({
       id: p.id,
       date: p.date,
