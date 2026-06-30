@@ -3,7 +3,7 @@ import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Ch
 import Button from '../../../shared/Button';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { tierPrice } from '../../../lib/priceResolver';
-import { useAccounts, accountForMethod } from '../../../hooks/useAccounts';
+import { useAccounts, accountForMethod, buildPaymentMethods } from '../../../hooks/useAccounts';
 import { useNotifications } from '../../../context/NotificationContext';
 import { supabase, restInsert } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
@@ -93,10 +93,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [selectedClientId, setSelectedClientId] = useState('WALKIN');
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [paymentAccountId, setPaymentAccountId] = useState(null); // specific account from dynamic button
 
   // Cash & Bank accounts — money received at checkout posts to one of these.
   const { accounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
-  const depAcc = accountForMethod(accounts, paymentMethod); // money lands in the method's account
+  const payMethods = useMemo(() => buildPaymentMethods(accounts), [accounts]);
+  // Use specific account chosen by cashier; fall back to method-based auto-pick.
+  const depAcc = paymentAccountId
+    ? accountForMethod(accounts, paymentAccountId)
+    : accountForMethod(accounts, paymentMethod);
 
   // Edit mode — prefill client + payment + paid amount from the sale being
   // edited so the saved status reflects reality. Without this, a blank
@@ -722,6 +727,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       setDeliveryDetails({ address: '', zone: '', date: '', notes: '', fee: '' });
       setSelectedClientId('WALKIN');
       setPaymentMethod('CASH');
+      setPaymentAccountId(null);
       setShowCheckout(false);
       if (editId) onEditDone?.();
     } catch (err) {
@@ -1639,30 +1645,37 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 </div>
               )}
 
-              {/* Payment Method */}
+              {/* Payment Method — dynamic from Cash & Bank accounts */}
               <div>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Payment Method</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { key: 'CASH', label: 'Cash',          icon: <Banknote size={22} /> },
-                    { key: 'CARD', label: 'Card',          icon: <CreditCard size={22} /> },
-                    { key: 'UPI',  label: 'UPI',           icon: <Smartphone size={22} /> },
-                    { key: 'BANK', label: 'Bank Transfer', icon: <Landmark size={22} /> },
-                  ].map(({ key, label, icon }) => (
-                    <button key={key} type="button"
-                      onClick={() => setPaymentMethod(key)}
-                      className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
-                        paymentMethod === key
-                          ? 'border-accent-signature bg-accent-signature/5'
-                          : 'border-black/8 bg-white hover:border-black/15'
-                      }`}
-                    >
-                      <div className={`p-2 rounded-xl ${paymentMethod === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
-                        {icon}
-                      </div>
-                      <span className="text-xs font-black uppercase tracking-widest">{label}</span>
-                    </button>
-                  ))}
+                  {(payMethods.length > 0
+                    ? payMethods
+                    : [
+                        { key: 'CASH', label: 'Cash', type: 'CASH' },
+                        { key: 'UPI',  label: 'UPI',  type: 'UPI' },
+                        { key: 'BANK', label: 'Bank', type: 'BANK' },
+                        { key: 'CARD', label: 'Card', type: 'CARD' },
+                      ]
+                  ).map(({ key, label, type }) => {
+                    const icon = type === 'CASH' ? <Banknote size={22} /> : type === 'UPI' ? <Smartphone size={22} /> : type === 'CARD' ? <CreditCard size={22} /> : <Landmark size={22} />;
+                    const isActive = paymentAccountId === key || (!paymentAccountId && paymentMethod === type && payMethods.length === 0);
+                    return (
+                      <button key={key} type="button"
+                        onClick={() => { setPaymentMethod(type); setPaymentAccountId(key === type ? null : key); }}
+                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
+                          isActive
+                            ? 'border-accent-signature bg-accent-signature/5'
+                            : 'border-black/8 bg-white hover:border-black/15'
+                        }`}
+                      >
+                        <div className={`p-2 rounded-xl ${isActive ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
+                          {icon}
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest">{label}</span>
+                      </button>
+                    );
+                  })}
 
                   {/* Credit — client required */}
                   <button type="button"

@@ -1,18 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, restInsert, restUpdate } from '../lib/supabase';
 
-// Resolve which account a payment lands in from its method — so there's one
-// choice (the method), not a separate "deposit to" picker. CASH→CASH, UPI→UPI,
-// CARD/BANK→BANK; falls back to the default account, then first non-loan.
-export const accountForMethod = (accounts = [], method = 'CASH') => {
-  const live = accounts.filter((a) => a.type !== 'LOAN');
-  const want = { CASH: 'CASH', UPI: 'UPI', CARD: 'BANK', BANK: 'BANK' }[String(method || '').toUpperCase()] || 'CASH';
-  return (
-    live.find((a) => a.type === want)
-    || live.find((a) => a.is_default)
-    || live[0]
-    || null
-  )?.id || '';
+// Resolve which account a payment lands in.
+// Pass an account ID directly (from dynamic POS buttons) → returns it as-is
+// after resolving UPI linked_bank_account_id. Pass a method string (CASH/UPI/
+// BANK/CARD) → picks the first matching account, then default, then first.
+export const accountForMethod = (accounts = [], methodOrId = 'CASH') => {
+  const live = accounts.filter((a) => !a.deleted_at && a.type !== 'LOAN');
+  // Direct account ID passed — resolve UPI→linked bank, else return as-is.
+  const byId = live.find((a) => a.id === methodOrId);
+  if (byId) return byId.linked_bank_account_id || byId.id;
+  // Method string path.
+  const want = { CASH: 'CASH', UPI: 'UPI', CARD: 'BANK', BANK: 'BANK' }[String(methodOrId || '').toUpperCase()] || 'CASH';
+  const acc = live.find((a) => a.type === want) || live.find((a) => a.is_default) || live[0] || null;
+  if (!acc) return '';
+  return acc.linked_bank_account_id || acc.id;
+};
+
+// Build dynamic POS payment method buttons from accounts.
+// Returns [{key, label, type, icon?}] ordered CASH → UPI → BANK → CARD,
+// plus CREDIT appended by caller. Each key = account.id for precise routing.
+export const buildPaymentMethods = (accounts = []) => {
+  const live = accounts.filter((a) => !a.deleted_at && !['LOAN'].includes(a.type));
+  const order = ['CASH', 'UPI', 'BANK', 'CARD'];
+  return order.flatMap((t) =>
+    live.filter((a) => a.type === t).map((a) => ({ key: a.id, label: a.name, type: t }))
+  );
 };
 
 // Reducing-balance EMI for a loan. r = monthly rate. Returns rounded EMI.

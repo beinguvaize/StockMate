@@ -157,7 +157,7 @@ const Accounts = () => {
         </div>
       )}
 
-      {modal === 'add' && <AddAccountModal onClose={() => setModal(null)} onSave={async (a) => {
+      {modal === 'add' && <AddAccountModal accounts={accounts} onClose={() => setModal(null)} onSave={async (a) => {
         const { error } = await createAccount(a);
         if (error) return addNotification('Add failed: ' + error.message, 'error');
         addNotification('Account added', 'success'); setModal(null);
@@ -227,9 +227,10 @@ const lbl = 'text-[10px] uppercase tracking-widest text-gray-400 mb-1 block';
 const inp = 'w-full text-[14px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40';
 const primary = 'w-full mt-4 py-2.5 rounded-xl text-[13px] font-black bg-accent-signature text-white hover:opacity-90 disabled:opacity-40';
 
-const AddAccountModal = ({ onClose, onSave }) => {
-  const [f, setF] = useState({ name: '', type: 'BANK', bank_name: '', account_no: '', opening_balance: '', loan_principal: '', loan_rate: '', loan_tenure_months: '', loan_start: new Date().toISOString().slice(0, 10), lender: '' });
+const AddAccountModal = ({ onClose, onSave, accounts = [] }) => {
+  const [f, setF] = useState({ name: '', type: 'BANK', bank_name: '', account_no: '', opening_balance: '', loan_principal: '', loan_rate: '', loan_tenure_months: '', loan_start: new Date().toISOString().slice(0, 10), lender: '', linked_bank_account_id: '' });
   const isLoan = f.type === 'LOAN';
+  const bankAccounts = accounts.filter((a) => a.type === 'BANK' && !a.deleted_at);
   const previewEmi = isLoan ? emiOf(f.loan_principal, f.loan_rate, f.loan_tenure_months) : 0;
   return (
     <Shell title="Add account" onClose={onClose}>
@@ -246,6 +247,15 @@ const AddAccountModal = ({ onClose, onSave }) => {
         <div className="grid grid-cols-2 gap-2 mt-3">
           <div><label className={lbl}>Bank</label><input className={inp} value={f.bank_name} onChange={(e) => setF({ ...f, bank_name: e.target.value })} /></div>
           <div><label className={lbl}>A/c no.</label><input className={inp} value={f.account_no} onChange={(e) => setF({ ...f, account_no: e.target.value })} /></div>
+        </div>
+      )}
+      {(f.type === 'UPI') && bankAccounts.length > 0 && (
+        <div className="mt-3">
+          <label className={lbl}>Settles to bank account</label>
+          <select className={inp} value={f.linked_bank_account_id} onChange={(e) => setF({ ...f, linked_bank_account_id: e.target.value })}>
+            <option value="">— Auto (first bank) —</option>
+            {bankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.bank_name ? ` · ${a.bank_name}` : ''}</option>)}
+          </select>
         </div>
       )}
       {isLoan ? (
