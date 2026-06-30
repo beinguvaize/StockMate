@@ -316,6 +316,11 @@ export const usePeople = (tenantId) => {
               await restUpdate('sales',
                 { paymentStatus: newStatus, paidAmount: newPaid, lastPaymentDate: date },
                 { id: sale.id, tenant_id: tenantId });
+              // Mirror onto linked invoice so UI outstanding (from invoices table) stays accurate.
+              const invId = `INV-${sale.id}`;
+              await restUpdate('invoices',
+                { payment_status: newStatus, paid_amount: newPaid },
+                { id: invId, tenant_id: tenantId });
               remaining -= allocating;
             }
           }
