@@ -113,14 +113,18 @@ const DayBook = () => {
 
     // ── Receipts ─────────────────────────────────────────────────────────────
     const paidOf = (s) => Number(s.paidAmount ?? s.paid_amount) || 0;
-    // Amount actually collected today for a sale: full bill when paid, else the
-    // received (partial) portion — so a part-paid cash sale counts only what
-    // came in, not the whole bill.
+    // Amount actually collected for a sale.
+    // CASH/BANK with no explicit paidAmount → assume fully received (old sales
+    // recorded before paidAmount was tracked). CREDIT always uses explicit value.
     const recv = (s) => {
       const t = Number(s.totalAmount) || 0;
       const st = (s.paymentStatus ?? s.status ?? '').toUpperCase();
       if (st === 'PAID' || st === 'COMPLETED') return t;
-      return Math.min(paidOf(s), t);
+      const rawPaid = s.paidAmount ?? s.paid_amount;
+      const method  = (s.paymentMethod || '').toUpperCase();
+      // paidAmount not recorded + non-credit → assume full (implicit cash payment)
+      if (rawPaid == null && method !== 'CREDIT') return t;
+      return Math.min(Number(rawPaid) || 0, t);
     };
     const isBank = (m) => ['BANK','UPI','TRANSFER'].includes((m || '').toUpperCase());
     const cashSales   = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CASH')
