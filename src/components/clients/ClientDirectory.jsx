@@ -140,6 +140,14 @@ const ClientDirectory = ({
           >
             Bulk Add
           </button>
+          {(topMetrics?.pendingCollections > 0) && (
+            <button
+              onClick={() => navigate('/clients/collect')}
+              className="h-10 px-4 rounded-xl bg-emerald-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-emerald-700 transition-all"
+            >
+              <CreditCard size={15} strokeWidth={2.6} /> Collect Cash
+            </button>
+          )}
           {/* Add button */}
           {hasPermission('clients', 'edit') && (
             <button

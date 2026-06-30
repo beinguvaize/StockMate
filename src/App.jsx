@@ -54,6 +54,7 @@ const Estimates        = lazy(() => import('./pages/Estimates'));
 const LabelPrinting    = lazy(() => import('./pages/LabelPrinting'));
 const BulkAdd          = lazy(() => import('./pages/BulkAdd'));
 const ClientSettlement = lazy(() => import('./pages/ClientSettlement'));
+const CashCollection   = lazy(() => import('./pages/CashCollection'));
 const AdminPanel       = lazy(() => import('./pages/AdminPanel'));
 const TenantSetup      = lazy(() => import('./pages/TenantSetup'));
 const SuperAdminPortal = lazy(() => import('./pages/admin/SuperAdminPortal'));
@@ -238,6 +239,7 @@ function AppRoutes() {
         <Route path="labels" element={<ProtectedRoute><LabelPrinting /></ProtectedRoute>} />
         <Route path="bulk-add" element={<ProtectedRoute><BulkAdd /></ProtectedRoute>} />
         <Route path="clients/settle/:id" element={<ProtectedRoute><ClientSettlement /></ProtectedRoute>} />
+        <Route path="clients/collect"   element={<ProtectedRoute><CashCollection /></ProtectedRoute>} />
         <Route path="data-tools" element={<ProtectedRoute><DataToolsPage /></ProtectedRoute>} />
       </Route>
 
