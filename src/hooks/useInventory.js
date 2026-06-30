@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restInsert, restUpdate, restRpc } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
-import { fetchWithCache, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
+import { fetchWithCache, readCacheThenRevalidate, queueMutation, upsertCachedRow, isOfflineError } from '../lib/offline/hookAdapter';
 
 // Postgres `numeric` arrives as string over the wire (supabase-js preserves
 // precision). Mixing those with JS math causes subtle bugs: `0 + "100"` is
@@ -122,15 +122,34 @@ export const useInventory = (tenantId) => {
     // deadlock on a stuck token refresh and never fire the write at all
     // (observed: Save hung, zero network sent). restInsert always hits the wire.
     const { error } = await restInsert('products', row);
-    if (!error) fetchInventory().catch(e => console.error('add product refetch error:', e));
-    return { data: error ? null : row, error };
+    if (!error) {
+      fetchInventory().catch(e => console.error('add product refetch error:', e));
+      return { data: row, error: null };
+    }
+    if (isOfflineError(error)) {
+      await queueMutation({ table: 'products', type: 'insert', payload: row });
+      await upsertCachedRow('products', row);
+      setProducts(prev => [...prev, normalizeRow(row, NUMERIC_PRODUCT_COLS)]);
+      return { data: row, error: null, queued: true };
+    }
+    return { data: null, error };
   };
 
   const update = async (id, updates) => {
     // Strip immutable / server-managed columns so Postgres never rejects the UPDATE
     const { id: _id, tenant_id: _tid, created_at: _ca, updated_at: _ua, ...safeUpdates } = updates;
     const { error } = await restUpdate('products', safeUpdates, { id, tenant_id: tenantId });
-    if (!error) fetchInventory().catch(e => console.error('update product refetch error:', e));
+    if (!error) {
+      fetchInventory().catch(e => console.error('update product refetch error:', e));
+      return { error: null };
+    }
+    if (isOfflineError(error)) {
+      const payload = { ...safeUpdates, id, tenant_id: tenantId };
+      await queueMutation({ table: 'products', type: 'update', payload });
+      await upsertCachedRow('products', payload);
+      setProducts(prev => prev.map(p => p.id === id ? normalizeRow({ ...p, ...safeUpdates }, NUMERIC_PRODUCT_COLS) : p));
+      return { error: null, queued: true };
+    }
     return { error };
   };
 
@@ -142,15 +161,26 @@ export const useInventory = (tenantId) => {
 
   const adjustStock = async (productId, delta, reason, locationId) => {
     // Legacy support for AppContext RPC call logic
-    const { error } = await restRpc('adjust_inventory_atomic', {
+    const rpcPayload = {
       p_product_id: productId,
       p_location_id: locationId ?? null,
       p_amount:      delta,
       p_reason:      reason,
       p_user_id:     null,
-      p_tenant_id:   tenantId
-    });
-    if (!error) await fetchInventory();
+      p_tenant_id:   tenantId,
+    };
+    const { error } = await restRpc('adjust_inventory_atomic', rpcPayload);
+    if (!error) {
+      await fetchInventory();
+      return { error: null };
+    }
+    if (isOfflineError(error)) {
+      await queueMutation({ table: 'adjust_inventory_atomic', type: 'rpc', payload: rpcPayload });
+      setProducts(prev => prev.map(p =>
+        p.id === productId ? { ...p, stock: (Number(p.stock) || 0) + delta } : p
+      ));
+      return { error: null, queued: true };
+    }
     return { error };
   };
 
