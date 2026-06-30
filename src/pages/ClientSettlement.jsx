@@ -55,20 +55,28 @@ const ClientSettlement = () => {
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [bottomTab, setBottomTab] = useState('HISTORY'); // HISTORY | STATEMENT
 
-  // Fetch payment history for this client, including collector name via profiles join.
+  // Fetch payment history + resolve collector names separately (no FK on recorded_by).
   useEffect(() => {
     if (!id || !currentTenantId) return;
     supabase
       .from('client_payments')
-      .select('*, collector:profiles!recorded_by(name)')
+      .select('*')
       .eq('client_id', id)
       .eq('tenant_id', currentTenantId)
       .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .limit(50)
-      .then(({ data, error }) => {
-        if (error) console.error('client_payments fetch error:', error);
-        else if (data) setPaymentHistory(data);
+      .then(async ({ data, error }) => {
+        if (error) { console.error('client_payments fetch error:', error); return; }
+        if (!data) return;
+        // Resolve collector names from profiles in one query.
+        const userIds = [...new Set(data.map(p => p.recorded_by).filter(Boolean))];
+        let nameMap = {};
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase.from('profiles').select('id, name').in('id', userIds);
+          if (profiles) profiles.forEach(p => { nameMap[p.id] = p.name; });
+        }
+        setPaymentHistory(data.map(p => ({ ...p, collector: p.recorded_by ? { name: nameMap[p.recorded_by] || null } : null })));
       });
   }, [id, currentTenantId, success]); // refetch after successful payment
 
@@ -171,11 +179,20 @@ const ClientSettlement = () => {
     const res = await deleteClientPayment(paymentId, client.id);
     setDeletingPaymentId(null);
     if (res?.error) { alert(`Delete failed: ${res.error.message || res.error}`); return; }
-    // Refetch payment history
-    supabase.from('client_payments').select('*, collector:profiles!recorded_by(name)')
+    // Refetch payment history after delete.
+    supabase.from('client_payments').select('*')
       .eq('client_id', id).eq('tenant_id', currentTenantId).is('deleted_at', null)
       .order('created_at', { ascending: false }).limit(50)
-      .then(({ data }) => { if (data) setPaymentHistory(data); });
+      .then(async ({ data }) => {
+        if (!data) return;
+        const userIds = [...new Set(data.map(p => p.recorded_by).filter(Boolean))];
+        let nameMap = {};
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase.from('profiles').select('id, name').in('id', userIds);
+          if (profiles) profiles.forEach(p => { nameMap[p.id] = p.name; });
+        }
+        setPaymentHistory(data.map(p => ({ ...p, collector: p.recorded_by ? { name: nameMap[p.recorded_by] || null } : null })));
+      });
   };
 
   const handleSubmit = async (e) => {
