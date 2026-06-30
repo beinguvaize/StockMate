@@ -665,6 +665,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         locationId:      storeId || null,
         discount:        discountAmt,
         serviceCharge:   serviceChargeAmt,
+        // Preserve original sale date on edit; omit for new sales (RPC defaults to today).
+        date: editId ? (editMeta?.date || null) : null,
       };
       const result = await onPlaceSale(saleData);
       if (result && result.error) {
