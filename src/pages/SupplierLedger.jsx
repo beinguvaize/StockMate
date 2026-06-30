@@ -5,6 +5,7 @@ import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { usePurchases } from '../hooks/usePurchases';
 import { useInventory } from '../hooks/useInventory';
+import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { PageSkeleton } from '../components/ui/States';
 import {
   ArrowLeft, Building2, Phone, Mail, MapPin,
@@ -22,6 +23,13 @@ const SupplierLedger = () => {
   const { suppliers, loading: peoLoading } = usePeople(currentTenantId);
   const { purchases, purchaseReturns, supplierPayments, paySupplier, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
   const { products, loading: invLoading } = useInventory(currentTenantId);
+  const { accounts: ledgerAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
+  // Post a supplier payment OUT to the method's Cash/Bank account (non-blocking).
+  const postSupplierOut = async (amount, method, date, ref) => {
+    const acc = accountForMethod(ledgerAccounts, method);
+    if (!acc) return;
+    try { await addAccountTxn({ account_id: acc, direction: 'OUT', amount, mode: method, ref_type: 'PURCHASE', ref_id: ref || null, note: `Supplier payment · ${supplier?.name || ''}`, date }); } catch { /* non-blocking */ }
+  };
 
   const loading = peoLoading || purLoading || invLoading;
   const [searchTerm, setSearchTerm] = useState('');
@@ -64,6 +72,7 @@ const SupplierLedger = () => {
       const { error } = await payPurchase({ supplierId: sid, purchaseId: pid, amount: amt, ...common });
       setPaySubmitting(false);
       if (error) { setPayError(error.message || 'Payment failed'); return; }
+      await postSupplierOut(amt, payMethod, payDate, pid);
       setPayOpen(false);
       return;
     }
@@ -75,6 +84,7 @@ const SupplierLedger = () => {
     const { error } = await paySupplier({ supplierId: sid, amount: amt, ...common });
     setPaySubmitting(false);
     if (error) { setPayError(error.message || 'Payment failed'); return; }
+    await postSupplierOut(amt, payMethod, payDate, null);
     setPayOpen(false);
   };
 

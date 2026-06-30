@@ -109,17 +109,26 @@ const DayBook = () => {
 
     // ── Receipts ─────────────────────────────────────────────────────────────
     const paidOf = (s) => Number(s.paidAmount ?? s.paid_amount) || 0;
+    // Amount actually collected today for a sale: full bill when paid, else the
+    // received (partial) portion — so a part-paid cash sale counts only what
+    // came in, not the whole bill.
+    const recv = (s) => {
+      const t = Number(s.totalAmount) || 0;
+      const st = (s.paymentStatus ?? s.status ?? '').toUpperCase();
+      if (st === 'PAID' || st === 'COMPLETED') return t;
+      return Math.min(paidOf(s), t);
+    };
+    const isBank = (m) => ['BANK','UPI','TRANSFER'].includes((m || '').toUpperCase());
     const cashSales   = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CASH')
-                                .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
-    const bankSales   = daySales.filter(s => ['BANK','UPI','TRANSFER'].includes((s.paymentMethod || '').toUpperCase()))
-                                .reduce((t, s) => t + (Number(s.totalAmount) || 0), 0);
-    // Credit sales: only the UNPAID portion is receivable. A partial credit sale
-    // (e.g. ₹1,832 with ₹1,500 paid at the counter) leaves ₹332 receivable; the
-    // ₹1,500 paid is real cash collected today (counted in creditPaid below).
-    const creditSales = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CREDIT')
-                                .reduce((t, s) => t + Math.max(0, (Number(s.totalAmount) || 0) - paidOf(s)), 0);
+                                .reduce((t, s) => t + recv(s), 0);
+    const bankSales   = daySales.filter(s => isBank(s.paymentMethod))
+                                .reduce((t, s) => t + recv(s), 0);
+    // Receivable = the UNPAID remainder of EVERY sale (any method) — incl. partial
+    // cash/UPI sales, not just credit-method ones.
+    const creditSales = daySales.reduce((t, s) => t + Math.max(0, (Number(s.totalAmount) || 0) - recv(s)), 0);
+    // Money received up front on credit-method sales (hits the drawer today).
     const creditPaid  = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CREDIT')
-                                .reduce((t, s) => t + Math.min(paidOf(s), Number(s.totalAmount) || 0), 0);
+                                .reduce((t, s) => t + recv(s), 0);
     const cashCollect = dayCollect.filter(p => (p.payment_method || '').toUpperCase() === 'CASH')
                                   .reduce((t, p) => t + (Number(p.amount) || 0), 0);
     const bankCollect = dayCollect.filter(p => ['BANK','UPI','TRANSFER','NEFT','RTGS'].includes((p.payment_method || '').toUpperCase()))
@@ -170,16 +179,23 @@ const DayBook = () => {
 
     // ── Transaction log ───────────────────────────────────────────────────────
     const entries = [
-      ...daySales.map(s => ({
-        id:        s.id,
-        type:      (s.paymentMethod || '').toUpperCase() === 'CREDIT' ? 'CREDIT_SALE' : 'INCOME',
-        category:  'Sale',
-        title:     s.customerInfo?.name ? `Sale — ${s.customerInfo.name}` : 'Sale (Walk-in)',
-        note:      s.items?.map(i => i.name || i.productName).filter(Boolean).slice(0,3).join(', ') || '',
-        method:    s.paymentMethod || 'CASH',
-        amount:    Number(s.totalAmount) || 0,
-        createdAt: s.created_at || selectedDate,
-      })),
+      ...daySales.map(s => {
+        const tot = Number(s.totalAmount) || 0;
+        const got = recv(s);
+        const due = Math.max(0, tot - got);
+        const items = s.items?.map(i => i.name || i.productName).filter(Boolean).slice(0, 3).join(', ') || '';
+        return {
+          id:        s.id,
+          type:      (s.paymentMethod || '').toUpperCase() === 'CREDIT' ? 'CREDIT_SALE' : 'INCOME',
+          category:  'Sale',
+          title:     s.customerInfo?.name ? `Sale — ${s.customerInfo.name}` : 'Sale (Walk-in)',
+          // Show received vs due so partial payments are explicit.
+          note:      due > 0 ? `${items}${items ? ' · ' : ''}Paid ${got} of ${tot} · due ${due}` : items,
+          method:    s.paymentMethod || 'CASH',
+          amount:    got,
+          createdAt: s.created_at || selectedDate,
+        };
+      }),
       ...dayCollect.map(p => ({
         id:        p.id,
         type:      'INCOME',
