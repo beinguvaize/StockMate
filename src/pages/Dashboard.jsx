@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useEffect} from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import useRefetchOnFocus from '../hooks/useRefetchOnFocus';
 import { useAuth } from '../context/AuthContext';
 import BannerCarousel from '../components/BannerCarousel';
 import ExpiryAlertCard from '../components/ExpiryAlertCard';
@@ -101,10 +102,46 @@ const Dashboard = () => {
   const { routes, movementLog, refetch: refetchOps } = useOperations(currentTenantId);
 
   const isLoading = invLoading || salesLoading || purLoading || finLoading;
-  const refetchAll = () => {
+
+  // Server-side KPI aggregation via Supabase RPC (replaces 7 client-side filters)
+  const [kpiData, setKpiData] = useState(null);
+  const [kpiLoading, setKpiLoading] = useState(true);
+  const fetchKpis = useCallback(() => {
+    if (!currentTenantId) return;
+    const todayStr = new Date().toISOString().split('T')[0];
+    supabase.rpc('get_dashboard_kpis', {
+      p_tenant_id: currentTenantId,
+      p_date: todayStr,
+    }).then(({ data, error }) => {
+      if (!error && data) setKpiData(data);
+      setKpiLoading(false);
+    });
+  }, [currentTenantId]);
+
+  useEffect(() => { fetchKpis(); }, [fetchKpis]);
+
+  const refetchAll = useCallback(() => {
     refetchInventory(); refetchSales(); refetchPurchases();
     refetchFinance(); refetchPeople(); refetchOps();
-  };
+    fetchKpis();
+  }, [refetchInventory, refetchSales, refetchPurchases, refetchFinance, refetchPeople, refetchOps, fetchKpis]);
+
+  useRefetchOnFocus(refetchAll, 15_000);
+
+  // Realtime: auto-refresh dashboard when sales/expenses/payments change
+  const refetchAllRef = useRef(refetchAll);
+  useEffect(() => { refetchAllRef.current = refetchAll; }, [refetchAll]);
+  useEffect(() => {
+    if (!currentTenantId) return;
+    let timer;
+    const trigger = () => { clearTimeout(timer); timer = setTimeout(() => refetchAllRef.current(), 600); };
+    const ch = supabase.channel(`dashboard:${currentTenantId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'sales',           filter: `tenant_id=eq.${currentTenantId}` }, trigger)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'expenses',        filter: `tenant_id=eq.${currentTenantId}` }, trigger)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'client_payments', filter: `tenant_id=eq.${currentTenantId}` }, trigger)
+      .subscribe();
+    return () => { clearTimeout(timer); supabase.removeChannel(ch); };
+  }, [currentTenantId]);
 
   // Placeholders for remaining data
   const payrollRecords = [];
@@ -119,21 +156,6 @@ const Dashboard = () => {
    const t = setTimeout(() => setHeroVisible(false), 15000);
    return () => clearTimeout(t);
  }, []);
-
- // Server-side KPI aggregation via Supabase RPC (replaces 7 client-side filters)
- const [kpiData, setKpiData] = useState(null);
- const [kpiLoading, setKpiLoading] = useState(true);
- useEffect(() => {
-   if (!currentTenantId) return;
-   const todayStr = new Date().toISOString().split('T')[0];
-   supabase.rpc('get_dashboard_kpis', {
-     p_tenant_id: currentTenantId,
-     p_date: todayStr,
-   }).then(({ data, error }) => {
-     if (!error && data) setKpiData(data);
-     setKpiLoading(false);
-   });
- }, [currentTenantId]);
 
  // Pull a clean YYYY-MM-DD out of any input ("2026-05-15", "2026-05-15T00:00:00Z", Date, etc)
  // No Date-object parsing — avoids timezone off-by-one (esp. negative UTC offsets).
