@@ -145,6 +145,41 @@ const ClientSettlement = () => {
         }
       });
 
+    // CASH partial sales with no invoice — not captured above but contribute
+    // to outstanding_balance. Show debit (full amount) + synthetic credit
+    // (amount already paid) so the closing balance reflects the remaining due.
+    (sales || [])
+      .filter(s => String(s.shopId) === String(client.id) || String(s.clientId) === String(client.id))
+      .filter(s => (s.paymentMethod || '').toUpperCase() !== 'CREDIT')
+      .filter(s => ['PARTIAL', 'UNPAID', 'PENDING'].includes((s.paymentStatus || s.status || '').toUpperCase()))
+      .filter(s => !invoicedSaleIds.has(s.id))
+      .filter(s => !s.deleted_at)
+      .forEach(s => {
+        const saleDate = s.date || s.created_at?.slice(0, 10);
+        const total = Number(s.totalAmount) || 0;
+        const paid = Number(s.paidAmount) || 0;
+        rows.push({
+          id: `${s.id}-cash-debit`,
+          date: saleDate,
+          created_at: s.created_at,
+          description: `Cash Sale #${String(s.id).split('-').pop()}`,
+          debit: total,
+          credit: 0,
+          type: 'SALE',
+        });
+        if (paid > 0) {
+          rows.push({
+            id: `${s.id}-cash-credit`,
+            date: saleDate,
+            created_at: s.created_at,
+            description: `Payment (Cash) — Sale #${String(s.id).split('-').pop()}`,
+            debit: 0,
+            credit: paid,
+            type: 'PAYMENT',
+          });
+        }
+      });
+
     // Payments from client_payments table.
     paymentHistory.forEach(p => rows.push({
       id: p.id,
