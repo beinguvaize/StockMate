@@ -85,9 +85,20 @@ const ClientSettlement = () => {
     if (!client) return [];
     const rows = [];
 
-    // Credit POS sales
+    // Build sale method map + set of sale_ids already covered by an invoice.
+    const saleMethodMap = {};
+    (sales || []).forEach(s => { saleMethodMap[s.id] = (s.paymentMethod || '').toUpperCase(); });
+    const invoicedSaleIds = new Set(
+      (invoices || [])
+        .filter(inv => String(inv.client_id) === String(client.id) && inv.deleted_at == null)
+        .map(inv => inv.sale_id)
+        .filter(Boolean)
+    );
+
+    // Credit POS sales NOT covered by an invoice (invoice-based sales show below).
     (sales || [])
       .filter(s => String(s.clientId) === String(client.id) && s.paymentMethod === 'CREDIT')
+      .filter(s => !invoicedSaleIds.has(s.id))
       .forEach(s => rows.push({
         id: s.id,
         date: s.date || s.created_at?.slice(0, 10),
@@ -97,10 +108,6 @@ const ClientSettlement = () => {
         credit: 0,
         type: 'SALE',
       }));
-
-    // Build sale method map to detect non-CREDIT (cash) sales from invoice context.
-    const saleMethodMap = {};
-    (sales || []).forEach(s => { saleMethodMap[s.id] = (s.paymentMethod || '').toUpperCase(); });
 
     // Invoices — debit row only. Skip PAID+paid_amount=0: those are cash-at-POS
     // sales settled at checkout, not part of the credit ledger.
