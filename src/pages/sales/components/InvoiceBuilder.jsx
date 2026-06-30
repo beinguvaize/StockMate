@@ -98,6 +98,18 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   // Cash & Bank accounts — money received at checkout posts to one of these.
   const { accounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
   const payMethods = useMemo(() => buildPaymentMethods(accounts), [accounts]);
+  // Type-based payment groups — one pill per type, sub-selector for multiple accounts.
+  const typeGroups = useMemo(() => {
+    const live = accounts.filter(a => !a.deleted_at && a.type !== 'LOAN');
+    return ['CASH', 'UPI', 'BANK', 'CARD']
+      .map(t => {
+        const accs = live.filter(a => a.type === t);
+        if (!accs.length) return null;
+        const defaultAcc = accs.find(a => a.is_default) || accs[0];
+        return { type: t, accs, defaultAcc };
+      })
+      .filter(Boolean);
+  }, [accounts]);
   // Use specific account chosen by cashier; fall back to method-based auto-pick.
   const depAcc = paymentAccountId
     ? accountForMethod(accounts, paymentAccountId)
@@ -1645,28 +1657,30 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 </div>
               )}
 
-              {/* Payment Method — dynamic from Cash & Bank accounts */}
+              {/* Payment Method */}
               <div>
                 <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Payment Method</p>
 
-                {/* Compact pill row — wraps when many accounts */}
+                {/* Type pills — one per type (CASH / UPI / BANK / CARD) */}
                 <div className="flex flex-wrap gap-2">
-                  {(payMethods.length > 0
-                    ? payMethods
+                  {(typeGroups.length > 0
+                    ? typeGroups
                     : [
-                        { key: 'CASH', label: 'Cash', type: 'CASH' },
-                        { key: 'UPI',  label: 'UPI',  type: 'UPI' },
-                        { key: 'BANK', label: 'Bank', type: 'BANK' },
-                        { key: 'CARD', label: 'Card', type: 'CARD' },
+                        { type: 'CASH', accs: [], defaultAcc: null },
+                        { type: 'UPI',  accs: [], defaultAcc: null },
+                        { type: 'BANK', accs: [], defaultAcc: null },
                       ]
-                  ).map(({ key, label, type }) => {
+                  ).map(({ type, accs, defaultAcc }) => {
                     const icon = type === 'CASH' ? <Banknote size={15} /> : type === 'UPI' ? <Smartphone size={15} /> : type === 'CARD' ? <CreditCard size={15} /> : <Landmark size={15} />;
-                    const isActive = paymentAccountId === key || (!paymentAccountId && paymentMethod === type && payMethods.length === 0);
-                    const showTypeBadge = label.toUpperCase() !== type;
+                    const label = type === 'CASH' ? 'Cash' : type === 'UPI' ? 'UPI' : type === 'CARD' ? 'Card' : 'Bank';
+                    const isActive = paymentMethod === type;
                     return (
-                      <button key={key} type="button"
-                        onClick={() => { setPaymentMethod(type); setPaymentAccountId(key === type ? null : key); }}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 transition-all ${
+                      <button key={type} type="button"
+                        onClick={() => {
+                          setPaymentMethod(type);
+                          setPaymentAccountId(defaultAcc ? defaultAcc.id : null);
+                        }}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${
                           isActive
                             ? 'border-accent-signature bg-accent-signature/5'
                             : 'border-black/8 bg-white hover:border-black/15'
@@ -1674,16 +1688,34 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       >
                         <span className={`shrink-0 ${isActive ? 'text-accent-signature' : 'text-gray-400'}`}>{icon}</span>
                         <span className="text-xs font-black uppercase tracking-widest leading-none">{label}</span>
-                        {showTypeBadge && (
-                          <span className={`text-[8px] font-bold px-1.5 py-0.5 rounded-full uppercase tracking-wider leading-none ${
-                            isActive ? 'bg-accent-signature/15 text-accent-signature' : 'bg-canvas text-gray-400'
-                          }`}>{type}</span>
-                        )}
                         {isActive && <Check size={12} className="text-accent-signature shrink-0" />}
                       </button>
                     );
                   })}
                 </div>
+
+                {/* Account sub-selector — only when active type has >1 account */}
+                {(() => {
+                  const activeGroup = typeGroups.find(g => g.type === paymentMethod);
+                  if (!activeGroup || activeGroup.accs.length <= 1) return null;
+                  return (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest self-center mr-1">Account:</span>
+                      {activeGroup.accs.map(a => (
+                        <button key={a.id} type="button"
+                          onClick={() => setPaymentAccountId(a.id)}
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                            (paymentAccountId === a.id || (!paymentAccountId && a.id === activeGroup.defaultAcc.id))
+                              ? 'border-accent-signature text-accent-signature bg-accent-signature/5'
+                              : 'border-black/10 text-gray-500 hover:border-black/20 bg-white'
+                          }`}
+                        >
+                          {a.name}
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
 
                 {/* Client Credit — full-width compact row */}
                 <button type="button"
