@@ -165,9 +165,24 @@ const RootRedirect = () => {
 };
 
 function AppRoutes() {
-  const { isOwner, hasRole, loading: authLoading } = useAuth();
+  const { isOwner, hasRole, currentUser, loading: authLoading } = useAuth();
   const { loading: tenantLoading } = useTenant();
   const location = useLocation();
+
+  React.useEffect(() => {
+    if (!currentUser) return;
+    const id = requestIdleCallback(() => {
+      Promise.all([
+        import('./pages/inventory/index.jsx'),
+        import('./pages/sales/index.jsx'),
+        import('./pages/Expenses'),
+        import('./pages/Clients'),
+        import('./pages/DayBook'),
+        import('./pages/purchases'),
+      ]).catch(() => {});
+    });
+    return () => cancelIdleCallback(id);
+  }, [!!currentUser]);
 
   if (authLoading || tenantLoading) return <GlobalLoading />;
 

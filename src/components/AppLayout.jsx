@@ -512,8 +512,7 @@ const MainContent = () => {
     : { txt: `Trial ends in ${billing.trialDaysLeft} day${billing.trialDaysLeft === 1 ? '' : 's'}. Add a plan to continue.`, cls: 'bg-ink-primary' };
   return (
     <main
-      key={location.pathname}
-      className={`flex-1 w-full animate-in fade-in slide-in-from-bottom-4 duration-700 ease-out ${
+      className={`flex-1 w-full ${
         isSales
           ? 'px-4 sm:px-6 lg:px-8 py-2 md:py-4'
           : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-2 md:py-6'
