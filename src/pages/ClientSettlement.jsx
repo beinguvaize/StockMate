@@ -55,12 +55,12 @@ const ClientSettlement = () => {
   const [paymentHistory, setPaymentHistory] = useState([]);
   const [bottomTab, setBottomTab] = useState('HISTORY'); // HISTORY | STATEMENT
 
-  // Fetch payment history for this client
+  // Fetch payment history for this client, including collector name via profiles join.
   useEffect(() => {
     if (!id || !currentTenantId) return;
     supabase
       .from('client_payments')
-      .select('*')
+      .select('*, collector:profiles!recorded_by(name)')
       .eq('client_id', id)
       .eq('tenant_id', currentTenantId)
       .is('deleted_at', null)
@@ -540,6 +540,7 @@ const ClientSettlement = () => {
                   <tr className="bg-canvas/50 border-b border-black/5">
                     <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Date</th>
                     <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Method</th>
+                    <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Collected By</th>
                     <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest">Notes</th>
                     <th className="py-3 px-4 text-[10px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
                   </tr>
@@ -559,6 +560,7 @@ const ClientSettlement = () => {
                             <span className="text-xs font-semibold text-ink-primary">{METHOD_LABEL[p.payment_method] || p.payment_method}</span>
                           </div>
                         </td>
+                        <td className="py-3 px-4 text-xs text-gray-500">{p.collector?.name || '—'}</td>
                         <td className="py-3 px-4 text-xs text-gray-500 max-w-[200px] truncate">{p.notes || '—'}</td>
                         <td className="py-3 px-4 text-right">
                           <span className="text-sm font-black text-emerald-600 font-mono tabular-nums">{formatCurrency(p.amount)}</span>
@@ -569,7 +571,7 @@ const ClientSettlement = () => {
                 </tbody>
                 <tfoot className="border-t-2 border-black/10">
                   <tr>
-                    <td colSpan="3" className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Total Collected</td>
+                    <td colSpan="4" className="py-3 px-4 text-xs font-bold text-gray-500 uppercase tracking-widest">Total Collected</td>
                     <td className="py-3 px-4 text-right">
                       <span className="text-sm font-black text-emerald-600 font-mono tabular-nums">
                         {formatCurrency(paymentHistory.reduce((s, p) => s + Number(p.amount), 0))}
