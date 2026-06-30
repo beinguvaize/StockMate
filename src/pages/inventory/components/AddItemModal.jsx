@@ -121,6 +121,18 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
     setSaveError(null);
 
     try {
+      // Mandatory price validation
+      if (!(parseFloat(formData.costPrice) > 0)) {
+        setSaveError('Cost price is required and must be greater than 0.');
+        setUploading(false);
+        return;
+      }
+      if (formData.product_type !== 'RAW' && !(parseFloat(formData.sellingPrice) > 0)) {
+        setSaveError('Selling price is required and must be greater than 0.');
+        setUploading(false);
+        return;
+      }
+
       let imageUrl = formData.image || '';
       if (imageFile) {
         const { url, error } = await uploadProductImage(imageFile, tenantId);

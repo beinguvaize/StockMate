@@ -19,8 +19,12 @@ const QuickCreateProductModal = ({ barcode, onSave, onCancel, loading }) => {
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
+  const [err, setErr] = React.useState('');
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!(parseFloat(form.costPrice) > 0)) { setErr('Cost price required and must be > 0.'); return; }
+    if (!(parseFloat(form.sellingPrice) > 0)) { setErr('Selling price required and must be > 0.'); return; }
+    setErr('');
     onSave({
       ...form,
       costPrice:    parseFloat(form.costPrice)    || 0,
@@ -99,6 +103,8 @@ const QuickCreateProductModal = ({ barcode, onSave, onCancel, loading }) => {
             <input className={`${inp} font-mono`} placeholder="EAN-13 / UPC / custom"
               value={form.barcode} onChange={e => set('barcode', e.target.value)} />
           </div>
+
+          {err && <p className="text-[10px] font-bold text-red-500 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{err}</p>}
 
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onCancel}
