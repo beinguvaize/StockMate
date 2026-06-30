@@ -13,7 +13,7 @@ import useRefetchOnFocus from './useRefetchOnFocus';
 const ALL_STORES = '00000000-0000-0000-0000-000000000000';
 
 // Narrow column lists — only what DayBook's ledger reads.
-const SEL_SALES    = 'id, date, totalAmount, paymentMethod, location_id, created_at, customerInfo, items';
+const SEL_SALES    = 'id, date, totalAmount, paidAmount, paymentStatus, paymentMethod, location_id, created_at, customerInfo, items';
 const SEL_EXPENSE  = 'id, date, amount, payment_method, category, note, created_at, location_id';
 const SEL_PURCHASE = 'id, date, total_amount, paid_amount, payment_type, created_at';
 const SEL_CLIENTPAY = 'id, date, amount, payment_method, notes, created_at';
