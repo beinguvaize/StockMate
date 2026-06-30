@@ -82,9 +82,10 @@ const PartyProfitReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: sales,    loading: sLoading } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters });
-  const { data: clients,  loading: cLoading } = useReportData({ table: 'clients',  select: 'id, name' });
-  const { data: products }                     = useReportData({ table: 'products', select: 'id, costPrice' });
+  const { data: sales,       loading: sLoading } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters });
+  const { data: clients,     loading: cLoading } = useReportData({ table: 'clients',  select: 'id, name' });
+  const { data: products }                        = useReportData({ table: 'products', select: 'id, costPrice' });
+  const { data: consumption }                     = useReportData({ table: 'sale_batch_consumption', select: 'sale_id, qty_taken, unit_cost' });
 
   const loading = sLoading || cLoading;
 
@@ -109,6 +110,15 @@ const PartyProfitReport = () => {
     return m;
   }, [products]);
 
+  const fifoBySale = useMemo(() => {
+    const m = {};
+    (consumption || []).forEach(c => {
+      const v = Number(c.qty_taken || 0) * Number(c.unit_cost || 0);
+      m[c.sale_id] = (m[c.sale_id] || 0) + v;
+    });
+    return m;
+  }, [consumption]);
+
   const { rows, kpis } = useMemo(() => {
     const partyMap = {};
 
@@ -120,16 +130,16 @@ const PartyProfitReport = () => {
       if (!partyMap[key]) partyMap[key] = { name, revenue: 0, cost: 0, orders: 0 };
 
       const items = Array.isArray(s.items) ? s.items : [];
-      if (items.length > 0) {
-        items.forEach(item => {
-          partyMap[key].revenue += calcItemRevenue(item);
-          partyMap[key].cost    += calcItemCost(item, costById);
-        });
-      } else {
-        // No item breakdown — use totalAmount as revenue, cost unknown
-        partyMap[key].revenue += Number(s.totalAmount || 0);
-      }
-      partyMap[key].orders += 1;
+      const revenue = items.length > 0
+        ? items.reduce((acc, it) => acc + calcItemRevenue(it), 0)
+        : Number(s.totalAmount || 0);
+      const cost = fifoBySale[s.id] != null
+        ? fifoBySale[s.id]
+        : items.reduce((acc, it) => acc + calcItemCost(it, costById), 0);
+
+      partyMap[key].revenue += revenue;
+      partyMap[key].cost    += cost;
+      partyMap[key].orders  += 1;
     });
 
     const rows = Object.values(partyMap)
@@ -153,7 +163,7 @@ const PartyProfitReport = () => {
         customerCount: rows.length,
       },
     };
-  }, [sales, clientMap, costById]);
+  }, [sales, clientMap, costById, fifoBySale]);
 
   const exportCSV = () => {
     const csvRows = [
