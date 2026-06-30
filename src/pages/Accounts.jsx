@@ -20,7 +20,7 @@ const iconFor = (t) => (TYPES.find((x) => x.id === t) || TYPES[1]).icon;
 const Accounts = () => {
   const { currentTenantId } = useTenant();
   const { addNotification } = useNotifications();
-  const { accounts, txns, balances, loading, createAccount, removeAccount, addTxn, transfer, loanPayments, payEMI } = useAccounts(currentTenantId);
+  const { accounts, txns, balances, loading, createAccount, removeAccount, setDefaultAccount, addTxn, transfer, loanPayments, payEMI } = useAccounts(currentTenantId);
   const [emiFor, setEmiFor] = useState(null); // loan account → pay-EMI modal
 
   const [modal, setModal] = useState(null); // 'add' | 'txn' | 'transfer' | null
@@ -78,7 +78,12 @@ const Accounts = () => {
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-800 grid place-items-center"><Icon size={16} /></div>
                     <div className="font-black text-[13px] text-ink-primary">{a.name}</div>
-                    <span className="ml-auto text-[9px] font-black uppercase tracking-widest text-gray-400">{a.type}</span>
+                    <div className="ml-auto flex items-center gap-1.5">
+                      {a.is_default && !isLoan && (
+                        <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-accent-signature/10 text-accent-signature border border-accent-signature/20">Default</span>
+                      )}
+                      <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{a.type}</span>
+                    </div>
                   </div>
                   {isLoan ? (
                     <>
@@ -95,6 +100,18 @@ const Accounts = () => {
                 </button>
                 {isLoan && ls.outstanding > 0 && (
                   <button onClick={() => setEmiFor(a)} className="mt-3 w-full py-2 rounded-lg text-[11px] font-black bg-accent-signature text-white hover:opacity-90">Pay EMI {inr(ls.emi)}</button>
+                )}
+                {!isLoan && !a.is_default && (
+                  <button
+                    onClick={async () => {
+                      const { error } = await setDefaultAccount(a.id);
+                      if (error) addNotification('Failed: ' + error.message, 'error');
+                      else addNotification(`${a.name} set as default ${a.type.toLowerCase()}`, 'success');
+                    }}
+                    className="mt-3 w-full py-1.5 rounded-lg text-[11px] font-bold border border-black/10 text-gray-500 hover:bg-black/5 transition-all"
+                  >
+                    Set as default
+                  </button>
                 )}
               </div>
             );

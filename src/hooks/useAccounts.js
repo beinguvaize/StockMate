@@ -123,6 +123,21 @@ export function useAccounts(tenantId) {
     return { error };
   };
 
+  // Mark one account as default for its type; clears is_default on siblings first.
+  const setDefaultAccount = async (id) => {
+    const acc = accounts.find(a => a.id === id);
+    if (!acc) return { error: new Error('Account not found') };
+    // Clear default on all same-type accounts in this tenant
+    await supabase.from('accounts')
+      .update({ is_default: false })
+      .eq('tenant_id', tenantId)
+      .eq('type', acc.type)
+      .is('deleted_at', null);
+    const { error } = await restUpdate('accounts', { is_default: true }, { id, tenant_id: tenantId });
+    if (!error) fetchAll();
+    return { error };
+  };
+
   // Manual ledger entry (money in / out, not tied to a sale).
   const addTxn = async (t) => {
     const row = {
@@ -190,5 +205,5 @@ export function useAccounts(tenantId) {
     return { error: null };
   };
 
-  return { accounts, txns, balances, loading, refetch: fetchAll, createAccount, updateAccount, removeAccount, addTxn, transfer, loanPayments, payEMI };
+  return { accounts, txns, balances, loading, refetch: fetchAll, createAccount, updateAccount, removeAccount, setDefaultAccount, addTxn, transfer, loanPayments, payEMI };
 }

@@ -1701,18 +1701,26 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   return (
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest self-center mr-1">Account:</span>
-                      {activeGroup.accs.map(a => (
-                        <button key={a.id} type="button"
-                          onClick={() => setPaymentAccountId(a.id)}
-                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
-                            (paymentAccountId === a.id || (!paymentAccountId && a.id === activeGroup.defaultAcc.id))
-                              ? 'border-accent-signature text-accent-signature bg-accent-signature/5'
-                              : 'border-black/10 text-gray-500 hover:border-black/20 bg-white'
-                          }`}
-                        >
-                          {a.name}
-                        </button>
-                      ))}
+                      {activeGroup.accs.map(a => {
+                        const isSelected = paymentAccountId === a.id || (!paymentAccountId && a.id === activeGroup.defaultAcc.id);
+                        return (
+                          <button key={a.id} type="button"
+                            onClick={() => setPaymentAccountId(a.id)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                              isSelected
+                                ? 'border-accent-signature text-accent-signature bg-accent-signature/5'
+                                : 'border-black/10 text-gray-500 hover:border-black/20 bg-white'
+                            }`}
+                          >
+                            {a.name}
+                            {a.is_default && (
+                              <span className={`text-[7px] font-black uppercase tracking-wider px-1 py-0.5 rounded ${
+                                isSelected ? 'bg-accent-signature/20 text-accent-signature' : 'bg-black/5 text-gray-400'
+                              }`}>DEFAULT</span>
+                            )}
+                          </button>
+                        );
+                      })}
                     </div>
                   );
                 })()}
