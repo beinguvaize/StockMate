@@ -228,7 +228,7 @@ const inp = 'w-full text-[14px] border border-black/10 rounded-lg px-3 py-2 outl
 const primary = 'w-full mt-4 py-2.5 rounded-xl text-[13px] font-black bg-accent-signature text-white hover:opacity-90 disabled:opacity-40';
 
 const AddAccountModal = ({ onClose, onSave, accounts = [] }) => {
-  const [f, setF] = useState({ name: '', type: 'BANK', bank_name: '', account_no: '', opening_balance: '', loan_principal: '', loan_rate: '', loan_tenure_months: '', loan_start: new Date().toISOString().slice(0, 10), lender: '', linked_bank_account_id: '' });
+  const [f, setF] = useState({ name: '', type: 'BANK', bank_name: '', account_no: '', upi_id: '', opening_balance: '', loan_principal: '', loan_rate: '', loan_tenure_months: '', loan_start: new Date().toISOString().slice(0, 10), lender: '', linked_bank_account_id: '' });
   const isLoan = f.type === 'LOAN';
   const bankAccounts = accounts.filter((a) => a.type === 'BANK' && !a.deleted_at);
   const previewEmi = isLoan ? emiOf(f.loan_principal, f.loan_rate, f.loan_tenure_months) : 0;
@@ -247,6 +247,12 @@ const AddAccountModal = ({ onClose, onSave, accounts = [] }) => {
         <div className="grid grid-cols-2 gap-2 mt-3">
           <div><label className={lbl}>Bank</label><input className={inp} value={f.bank_name} onChange={(e) => setF({ ...f, bank_name: e.target.value })} /></div>
           <div><label className={lbl}>A/c no.</label><input className={inp} value={f.account_no} onChange={(e) => setF({ ...f, account_no: e.target.value })} /></div>
+        </div>
+      )}
+      {(f.type === 'UPI' || f.type === 'BANK') && (
+        <div className="mt-3">
+          <label className={lbl}>UPI ID / Handle <span className="text-gray-300 normal-case tracking-normal">(e.g. shop@upi)</span></label>
+          <input className={inp} value={f.upi_id} onChange={(e) => setF({ ...f, upi_id: e.target.value })} placeholder="e.g. 9876543210@okicici" />
         </div>
       )}
       {(f.type === 'UPI') && bankAccounts.length > 0 && (

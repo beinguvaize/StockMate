@@ -1713,11 +1713,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   drag onto a second (customer-facing) monitor. Display
                   only — the cashier still confirms receipt below. */}
               {paymentMethod === 'UPI' && (() => {
-                const upiId = businessProfile?.upi_id;
+                // Resolve UPI ID: selected account's upi_id → global businessProfile.upi_id
+                const selectedUpiAcc = paymentAccountId
+                  ? accounts.find(a => a.id === paymentAccountId)
+                  : accounts.find(a => a.type === 'UPI' && !a.deleted_at);
+                const upiId = selectedUpiAcc?.upi_id || businessProfile?.upi_id;
                 if (!upiId) {
                   return (
                     <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 text-xs font-semibold text-amber-700">
-                      Add a UPI ID in Settings to show a payment QR.
+                      Add a UPI ID to this account (Settings → Cash & Bank) to show a payment QR.
                     </div>
                   );
                 }
@@ -1741,7 +1745,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     <div className="text-sm font-black text-ink-primary tabular-nums">
                       {formatCurrency(total)}
                     </div>
-                    <div className="text-[10px] text-gray-500">UPI: <b>{upiId}</b></div>
+                    <div className="text-[10px] text-gray-500">
+                      UPI: <b>{upiId}</b>
+                      {selectedUpiAcc && <span className="text-gray-400"> · {selectedUpiAcc.name}</span>}
+                    </div>
                     <button
                       type="button"
                       onClick={() => window.open(

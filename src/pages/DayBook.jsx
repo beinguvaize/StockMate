@@ -2,12 +2,13 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useDayBookData } from '../hooks/useDayBookData';
+import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { useNotifications } from '../context/NotificationContext';
 import { useInventory } from '../hooks/useInventory';
 import { PageSkeleton } from '../components/ui/States';
 import {
   Calendar, Save, ChevronLeft, ChevronRight,
-  ArrowUpRight, ArrowDownRight, RefreshCcw,
+  ArrowUpRight, ArrowDownRight, RefreshCcw, X,
   FileText, ShieldCheck, Lock, Unlock,
   Banknote, CreditCard, Building2, Receipt,
   TrendingUp, TrendingDown, Clock, AlertTriangle,
@@ -86,13 +87,16 @@ const DayBook = () => {
 
   const cy = businessProfile?.currencySymbol || '₹';
   const today = todayISOInAppTZ();
-  const [storeFilter,   setStoreFilter]   = useState(ALL_STORES); // ALL_STORES = whole business
-  const [openingInput,  setOpeningInput]  = useState('');
-  const [physicalCash,  setPhysicalCash]  = useState('');
-  const [isSaving,      setIsSaving]      = useState(false);
-  const [isClosing,     setIsClosing]     = useState(false);
-  const [showReport,    setShowReport]    = useState(false);
-  const [showHistory,   setShowHistory]   = useState(false);
+  const { accounts, addTxn } = useAccounts(currentTenantId);
+
+  const [storeFilter,    setStoreFilter]   = useState(ALL_STORES); // ALL_STORES = whole business
+  const [openingInput,   setOpeningInput]  = useState('');
+  const [physicalCash,   setPhysicalCash]  = useState('');
+  const [isSaving,       setIsSaving]      = useState(false);
+  const [isClosing,      setIsClosing]     = useState(false);
+  const [showReport,     setShowReport]    = useState(false);
+  const [showHistory,    setShowHistory]   = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
 
   // ── Ledger computation ────────────────────────────────────────────────────
   const ledger = useMemo(() => {
@@ -319,25 +323,43 @@ const DayBook = () => {
     });
   };
 
-  const handleCloseDay = async () => {
-    if (isClosing || !window.confirm(`Close ${displayDate(selectedDate)}? This locks the ledger.`)) return;
+  const handleCloseDay = async (physicalCount, note) => {
+    if (isClosing) return;
     setIsClosing(true);
-    const pc = parseFloat(physicalCash);
+    const pc  = typeof physicalCount === 'number' ? physicalCount : parseFloat(physicalCash);
+    const v   = isNaN(pc) ? null : Math.round((pc - ledger.closingBal) * 100) / 100;
     const { error } = await updateDayBook({
       date:             selectedDate,
       location_id:      storeFilter,
       opening_balance:  ledger.openingBal,
       closing_balance:  ledger.closingBal,
       total_sales:      ledger.cashSales + ledger.bankSales + ledger.creditSales,
-      total_expenses:   ledger.totalExpenses + ledger.totalPurchPaid, // expenses + all purchases
+      total_expenses:   ledger.totalExpenses + ledger.totalPurchPaid,
       is_closed:        true,
       closed_at:        new Date().toISOString(),
-      ...(isNaN(pc) ? {} : {
-        physical_cash: pc,
-        variance:      Math.round((pc - ledger.closingBal) * 100) / 100,
-      }),
+      closed_by:        currentUserId,
+      ...(v != null ? { physical_cash: pc, variance: v } : {}),
     });
-    if (error) console.error('Close day error:', error);
+    if (!error && v != null && Math.abs(v) >= 0.01) {
+      const cashAccId = accountForMethod(accounts, 'CASH');
+      if (cashAccId) {
+        await addTxn({
+          account_id: cashAccId,
+          date:       selectedDate,
+          direction:  v > 0 ? 'IN' : 'OUT',
+          amount:     Math.abs(v),
+          mode:       'CASH',
+          ref_type:   'DAY_CLOSE_VARIANCE',
+          note:       note ? `Day close variance · ${note}` : `Day close variance ${selectedDate}`,
+        });
+      }
+    }
+    if (error) {
+      console.error('Close day error:', error);
+      addNotification?.(`Close failed: ${error.message || 'error'}`, 'error');
+    } else {
+      addNotification?.('Day closed & locked', 'success');
+    }
     setIsClosing(false);
   };
 
@@ -931,7 +953,7 @@ const DayBook = () => {
 
           {/* ── Close Day ────────────────────────────────────────────────── */}
           {!ledger.isLocked && ledger.hasOpening && hasPermission('finance', 'edit') && !isFuture && (
-            <button onClick={handleCloseDay} disabled={isClosing}
+            <button onClick={() => setShowCloseModal(true)} disabled={isClosing}
               className="w-full h-12 flex items-center justify-center gap-2 bg-ink-primary text-white font-black text-[10px] uppercase tracking-widest rounded-2xl hover:bg-black transition-all shadow-sm disabled:opacity-40">
               {isClosing ? <RefreshCcw className="animate-spin" size={14} /> : <Lock size={14} />}
               Close & Lock Day
@@ -957,6 +979,19 @@ const DayBook = () => {
         dayExpenses={ledger.expenses}
       />
 
+      {/* ── Close Day modal ──────────────────────────────────────────────────── */}
+      {showCloseModal && (
+        <CloseDayModal
+          date={selectedDate}
+          closingBal={ledger.closingBal}
+          cy={cy}
+          initialPhysical={physicalCash}
+          isClosing={isClosing}
+          onCancel={() => setShowCloseModal(false)}
+          onConfirm={(pc, note) => { setShowCloseModal(false); handleCloseDay(pc, note); }}
+        />
+      )}
+
       {/* ── Report modal ─────────────────────────────────────────────────────── */}
       {showReport && (
         <DailyLedgerDetail
@@ -969,6 +1004,96 @@ const DayBook = () => {
           onClose={() => setShowReport(false)}
         />
       )}
+    </div>
+  );
+};
+
+// ── Close Day Reconciliation Modal ───────────────────────────────────────────
+const CloseDayModal = ({ date, closingBal, cy, initialPhysical, isClosing, onCancel, onConfirm }) => {
+  const [pc,   setPc]   = React.useState(initialPhysical || '');
+  const [note, setNote] = React.useState('');
+  const pcNum   = parseFloat(pc);
+  const v       = !isNaN(pcNum) ? Math.round((pcNum - closingBal) * 100) / 100 : null;
+  const balanced = v != null && Math.abs(v) < 0.01;
+  const surplus  = v != null && v > 0;
+  return (
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" onClick={onCancel}>
+      <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h2 className="text-[15px] font-black text-ink-primary leading-none">Close Day</h2>
+            <p className="text-[10px] font-bold text-gray-400 mt-0.5 uppercase tracking-widest">{displayDate(date)}</p>
+          </div>
+          <button onClick={onCancel} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-black/5">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Expected */}
+        <div className="bg-canvas rounded-xl p-4 mb-4 flex items-center justify-between">
+          <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Expected Cash</span>
+          <span className="font-mono font-black text-lg text-ink-primary tabular-nums">
+            {cy}{fmt(closingBal)}
+          </span>
+        </div>
+
+        {/* Physical count input */}
+        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">
+          Physical Count
+        </label>
+        <div className="relative mb-3">
+          <input
+            type="number" step="0.01" placeholder="Count cash in drawer"
+            className="w-full h-11 border border-gray-300 shadow-sm rounded-xl px-3 pr-8 font-black text-sm outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+            value={pc}
+            onChange={e => setPc(e.target.value)}
+            autoFocus
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-black text-gray-300">{cy}</span>
+        </div>
+
+        {/* Variance */}
+        {v != null && (
+          <div className={`flex items-center justify-between px-4 py-3 rounded-xl mb-3 text-[11px] font-black ${
+            balanced  ? 'bg-emerald-50 border border-emerald-100 text-emerald-700' :
+            surplus   ? 'bg-blue-50 border border-blue-100 text-blue-700' :
+                        'bg-red-50 border border-red-100 text-red-700'
+          }`}>
+            <span>{balanced ? '✓ Balanced' : surplus ? 'Cash Surplus' : 'Cash Short'}</span>
+            <span className="tabular-nums">
+              {balanced ? 'Exact match' : `${surplus ? '+' : '−'}${cy}${fmt(Math.abs(v))}`}
+            </span>
+          </div>
+        )}
+        {v != null && !balanced && (
+          <p className="text-[9px] text-gray-400 mb-3 leading-relaxed">
+            Variance will be recorded as an account adjustment.
+          </p>
+        )}
+
+        {/* Note */}
+        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1 block">Note (optional)</label>
+        <input
+          className="w-full h-9 border border-gray-200 rounded-xl px-3 text-xs font-semibold outline-none focus:border-accent-signature/40 mb-4"
+          placeholder="e.g. Handover to office"
+          value={note} onChange={e => setNote(e.target.value)}
+        />
+
+        <div className="flex gap-2">
+          <button onClick={onCancel}
+            className="flex-1 h-11 rounded-xl border border-black/10 text-[12px] font-bold text-gray-500 hover:bg-black/5 transition-all">
+            Cancel
+          </button>
+          <button
+            disabled={isClosing}
+            onClick={() => onConfirm(isNaN(pcNum) ? null : pcNum, note)}
+            className="flex-[2] h-11 rounded-xl bg-ink-primary text-white text-[12px] font-black hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-40"
+          >
+            {isClosing ? <RefreshCcw className="animate-spin" size={13} /> : <Lock size={13} />}
+            Confirm & Lock Day
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

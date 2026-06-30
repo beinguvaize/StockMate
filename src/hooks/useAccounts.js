@@ -24,7 +24,7 @@ export const buildPaymentMethods = (accounts = []) => {
   const live = accounts.filter((a) => !a.deleted_at && !['LOAN'].includes(a.type));
   const order = ['CASH', 'UPI', 'BANK', 'CARD'];
   return order.flatMap((t) =>
-    live.filter((a) => a.type === t).map((a) => ({ key: a.id, label: a.name, type: t }))
+    live.filter((a) => a.type === t).map((a) => ({ key: a.id, label: a.name, type: t, upi_id: a.upi_id || null }))
   );
 };
 
@@ -97,6 +97,7 @@ export function useAccounts(tenantId) {
       id: genId('ACC'), tenant_id: tenantId,
       name: a.name, type: a.type || 'BANK',
       bank_name: a.bank_name || null, account_no: a.account_no || null, ifsc: a.ifsc || null,
+      upi_id: a.upi_id || null,
       opening_balance: Number(a.opening_balance) || 0, is_default: !!a.is_default,
       lender: a.lender || null,
       loan_principal: isLoan ? Number(a.loan_principal) || 0 : null,
