@@ -98,22 +98,44 @@ const ClientSettlement = () => {
         type: 'SALE',
       }));
 
+    // Build sale method map to detect non-CREDIT (cash) sales from invoice context.
+    const saleMethodMap = {};
+    (sales || []).forEach(s => { saleMethodMap[s.id] = (s.paymentMethod || '').toUpperCase(); });
+
     // Invoices — debit row only. Skip PAID+paid_amount=0: those are cash-at-POS
-    // sales already settled, not part of the credit ledger.
+    // sales settled at checkout, not part of the credit ledger.
+    // For CASH sales with orphan paid_amount (no client_payment row covers them),
+    // emit a synthetic credit so the closing balance matches outstanding.
     (invoices || [])
       .filter(inv => String(inv.client_id) === String(client.id))
       .filter(inv => !(inv.payment_status === 'PAID' && (Number(inv.paid_amount) || 0) === 0))
       .forEach(inv => {
         const num = String(inv.invoice_number || '').replace(/^#+/, '');
+        const invDate = inv.invoice_date || inv.created_at?.slice(0, 10);
         rows.push({
           id: inv.id,
-          date: inv.invoice_date || inv.created_at?.slice(0, 10),
+          date: invDate,
           created_at: inv.created_at,
           description: `Invoice #${num}`,
           debit: Number(inv.grand_total) || 0,
           credit: 0,
           type: 'INVOICE',
         });
+        // Orphan cash payment: sale is non-CREDIT with paid_amount > 0 but no
+        // client_payment row — add synthetic credit to balance the statement.
+        const saleMethod = saleMethodMap[inv.sale_id] || '';
+        const orphanPaid = Number(inv.paid_amount) || 0;
+        if (orphanPaid > 0 && saleMethod !== 'CREDIT' && saleMethod !== '') {
+          rows.push({
+            id: `${inv.id}-orphan`,
+            date: invDate,
+            created_at: inv.created_at,
+            description: `Payment (Cash) — Invoice #${num}`,
+            debit: 0,
+            credit: orphanPaid,
+            type: 'PAYMENT',
+          });
+        }
       });
 
     // Payments from client_payments table.
