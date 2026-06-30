@@ -11,7 +11,7 @@ import {
   ArrowLeft, Calendar, FileText,
   CheckCircle2, AlertCircle, Search, Clock, Receipt,
   Wallet, CreditCard, Smartphone, Landmark, History, BookOpen,
-  TrendingUp, TrendingDown, Phone, MapPin
+  TrendingUp, TrendingDown, Phone, MapPin, Trash2
 } from 'lucide-react';
 import { todayISOInAppTZ, formatDate, formatDateTime, formatCurrency } from '../lib/utils';
 
@@ -29,7 +29,7 @@ const ClientSettlement = () => {
   const navigate = useNavigate();
   const { hasPermission } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
-  const { clients, recordClientPayment, loading: peoLoading } = usePeople(currentTenantId);
+  const { clients, recordClientPayment, deleteClientPayment, loading: peoLoading } = usePeople(currentTenantId);
   const { invoices, sales, loading: salesLoading } = useSales(currentTenantId);
   const { accounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
 
@@ -162,6 +162,20 @@ const ClientSettlement = () => {
       setSelectedInvoiceIds(clientInvoices.map(i => i.id));
       setPaymentData({ ...paymentData, amount: clientInvoices.reduce((s, i) => s + Math.max(0, (Number(i.grand_total) || 0) - (Number(i.paid_amount) || 0)), 0).toString() });
     }
+  };
+
+  const [deletingPaymentId, setDeletingPaymentId] = useState(null);
+  const handleDeletePayment = async (paymentId) => {
+    if (!window.confirm('Delete this payment? Outstanding balance will be recalculated.')) return;
+    setDeletingPaymentId(paymentId);
+    const res = await deleteClientPayment(paymentId, client.id);
+    setDeletingPaymentId(null);
+    if (res?.error) { alert(`Delete failed: ${res.error.message || res.error}`); return; }
+    // Refetch payment history
+    supabase.from('client_payments').select('*, collector:profiles!recorded_by(name)')
+      .eq('client_id', id).eq('tenant_id', currentTenantId).is('deleted_at', null)
+      .order('created_at', { ascending: false }).limit(50)
+      .then(({ data }) => { if (data) setPaymentHistory(data); });
   };
 
   const handleSubmit = async (e) => {
@@ -563,7 +577,17 @@ const ClientSettlement = () => {
                         <td className="py-3 px-4 text-xs text-gray-500">{p.collector?.name || '—'}</td>
                         <td className="py-3 px-4 text-xs text-gray-500 max-w-[200px] truncate">{p.notes || '—'}</td>
                         <td className="py-3 px-4 text-right">
-                          <span className="text-sm font-black text-emerald-600 font-mono tabular-nums">{formatCurrency(p.amount)}</span>
+                          <div className="flex items-center justify-end gap-3">
+                            <span className="text-sm font-black text-emerald-600 font-mono tabular-nums">{formatCurrency(p.amount)}</span>
+                            <button
+                              onClick={() => handleDeletePayment(p.id)}
+                              disabled={deletingPaymentId === p.id}
+                              className="text-gray-300 hover:text-red-500 transition-colors disabled:opacity-40"
+                              title="Delete payment"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
