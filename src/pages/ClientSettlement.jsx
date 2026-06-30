@@ -357,6 +357,13 @@ const ClientSettlement = () => {
                     className="w-full bg-white border border-gray-300 shadow-sm rounded-xl pl-8 pr-4 py-3 text-xl font-black text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 font-mono tabular-nums"
                     value={paymentData.amount}
                     onChange={e => setPaymentData({ ...paymentData, amount: e.target.value })}
+                    onWheel={e => {
+                      e.preventDefault();
+                      const cur = parseFloat(paymentData.amount) || 0;
+                      const delta = e.deltaY < 0 ? 1 : -1;
+                      const next = Math.max(0, Math.round((cur + delta) * 100) / 100);
+                      setPaymentData({ ...paymentData, amount: next.toString() });
+                    }}
                   />
                 </div>
                 {selectedTotal > 0 && (
