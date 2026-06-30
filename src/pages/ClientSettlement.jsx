@@ -279,10 +279,10 @@ const ClientSettlement = () => {
     .filter(i => selectedInvoiceIds.includes(i.id))
     .reduce((s, i) => s + invoiceDue(i), 0);
 
-  // Outstanding = sum of remaining due across the client's unpaid invoices
-  // (net of partial payments), not the cached clients.outstanding_balance
-  // column which can drift.
-  const outstanding = clientInvoices.reduce((s, i) => s + invoiceDue(i), 0);
+  // Use DB-maintained outstanding_balance (kept accurate by triggers) so this
+  // card matches the client list. Invoice-computed value misses CASH partial
+  // sales with no invoice row.
+  const outstanding = Number(client?.outstanding_balance) || 0;
 
   return (
     <div className="animate-fade-in pb-16">
