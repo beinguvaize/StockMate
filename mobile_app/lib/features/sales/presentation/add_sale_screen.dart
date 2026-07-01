@@ -20,9 +20,6 @@ import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/accounts/presentation/providers/accounts_provider.dart';
 import 'package:mobile_app/core/print/web_print_service.dart';
 import 'package:printing/printing.dart';
-import 'package:share_plus/share_plus.dart';
-import 'dart:io';
-import 'package:path_provider/path_provider.dart';
 
 // POS stores (non-vehicle inventory locations) for the multi-store
 // store picker. Cached per session.
@@ -2665,12 +2662,9 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
     try {
       final bytes = await WebPrintService.renderReceiptPdf(widget.saleId);
       if (bytes == null || bytes.isEmpty) throw Exception('Empty PDF');
-      final tmp = await getTemporaryDirectory();
-      final file = File('${tmp.path}/receipt_${widget.saleId}.pdf');
-      await file.writeAsBytes(bytes);
-      await Share.shareXFiles(
-        [XFile(file.path, mimeType: 'application/pdf')],
-        subject: 'Receipt ${widget.saleId}',
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: 'receipt_${widget.saleId}.pdf',
       );
     } catch (e) {
       if (mounted) {
