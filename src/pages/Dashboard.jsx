@@ -11,6 +11,7 @@ import { usePurchases } from '../hooks/usePurchases';
 import { useFinance } from '../hooks/useFinance';
 import { usePeople } from '../hooks/usePeople';
 import { useOperations } from '../hooks/useOperations';
+import { useAccounts } from '../hooks/useAccounts';
 import { DollarSign, TrendingUp, TrendingDown, AlertCircle, ShoppingBag, BarChart3, Banknote, ShoppingCart, Package, Plus, Truck, ShieldCheck, ArrowRight, ArrowUpRight, ArrowDownRight, LayoutDashboard, Activity, Users, Calendar} from 'lucide-react';
 import { useNavigate} from 'react-router-dom';
 import DailyRevenueTrendChart from '../components/DailyRevenueTrendChart';
@@ -100,6 +101,7 @@ const Dashboard = () => {
   const { expenses, dayBook, refetch: refetchFinance, loading: finLoading } = useFinance(currentTenantId);
   const { clients, employees, refetch: refetchPeople } = usePeople(currentTenantId);
   const { routes, movementLog, refetch: refetchOps } = useOperations(currentTenantId);
+  const { accounts, balances: accountBalances } = useAccounts(currentTenantId);
 
   const isLoading = invLoading || salesLoading || purLoading || finLoading;
 
@@ -220,9 +222,15 @@ const Dashboard = () => {
 
  const todayStr = todayISOInAppTZ();
  const currentCashBalance = useMemo(() => {
+   if (accounts && accounts.length > 0) {
+     return accounts
+       .filter(a => a.type !== 'LOAN')
+       .reduce((sum, a) => sum + (accountBalances[a.id] || 0), 0);
+   }
+   // fallback to day book closing balance if accounts not loaded
    const todaysDayBook = (dayBook || []).find(db => db.date === todayStr);
    return todaysDayBook ? (todaysDayBook.closing_balance || 0) : 0;
- }, [dayBook, todayStr]);
+ }, [accounts, accountBalances, dayBook, todayStr]);
 
  const totalOutstanding = useMemo(
    () => (clients || []).reduce((sum, c) => sum + (c.outstanding_balance || 0), 0),
