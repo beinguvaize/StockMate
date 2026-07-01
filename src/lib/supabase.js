@@ -119,23 +119,45 @@ export const probeConnectivity = async (timeoutMs = 4000) => {
 // can deadlock and the write never even hits the network. This posts straight
 // to PostgREST with the persisted access token, so a write always fires.
 //
-// Token acquisition goes through supabase.auth.getSession() which triggers
-// autoRefreshToken when the JWT is expired — preventing "JWT expired" errors
-// on long-open Electron sessions. Falls back to the localStorage token only
-// if the auth client itself is unavailable.
+// Token strategy:
+//   1. Read raw token + expires_at from localStorage (synchronous, no lock).
+//   2. If token is still valid (>60s remaining) → use it immediately.
+//   3. If expired/expiring → call refreshSession() with a 5s hard timeout.
+//      On timeout or error → fall back to the cached token so the request
+//      fires and returns a proper "JWT expired" error rather than hanging.
+//   Never calls getSession() — that goes through the auth lock and can
+//   deadlock on long-open Electron sessions.
 const getValidAccessToken = async () => {
-  if (!supabase) return key;
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.access_token) return session.access_token;
-  } catch (_) {/* offline or restricted storage */}
-  // Fallback: read raw cached token (may be expired, but best effort)
+  let token = key;
+  let expiresAt = 0;
   try {
     const raw = window.localStorage.getItem('sm-auth-token');
-    if (!raw) return key;
-    const s = JSON.parse(raw);
-    return s?.access_token || s?.currentSession?.access_token || key;
-  } catch (_) { return key; }
+    if (raw) {
+      const s = JSON.parse(raw);
+      const sess = s?.currentSession || s;
+      token = sess?.access_token || key;
+      expiresAt = sess?.expires_at || 0; // Unix seconds
+    }
+  } catch (_) {}
+
+  // Fast path: token still valid with 60s buffer — no network call needed.
+  if (token !== key && expiresAt && Date.now() / 1000 < expiresAt - 60) {
+    return token;
+  }
+
+  // Slow path: token expired or expiring — try to refresh, but never hang.
+  if (supabase) {
+    try {
+      const refreshed = await Promise.race([
+        supabase.auth.refreshSession(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('refresh timeout')), 5000)),
+      ]);
+      const fresh = refreshed?.data?.session?.access_token;
+      if (fresh) return fresh;
+    } catch (_) { /* timeout or network failure — fall through to cached token */ }
+  }
+
+  return token;
 };
 
 const restHeaders = async (extra = {}) => ({
