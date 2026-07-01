@@ -118,20 +118,29 @@ export const probeConnectivity = async (timeoutMs = 4000) => {
 // refresh gets stuck (long sessions, tab sleep, aborted refresh) that getter
 // can deadlock and the write never even hits the network. This posts straight
 // to PostgREST with the persisted access token, so a write always fires.
-const readAccessToken = () => {
+//
+// Token acquisition goes through supabase.auth.getSession() which triggers
+// autoRefreshToken when the JWT is expired — preventing "JWT expired" errors
+// on long-open Electron sessions. Falls back to the localStorage token only
+// if the auth client itself is unavailable.
+const getValidAccessToken = async () => {
+  if (!supabase) return key;
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) return session.access_token;
+  } catch (_) {/* offline or restricted storage */}
+  // Fallback: read raw cached token (may be expired, but best effort)
   try {
     const raw = window.localStorage.getItem('sm-auth-token');
     if (!raw) return key;
     const s = JSON.parse(raw);
     return s?.access_token || s?.currentSession?.access_token || key;
-  } catch (_) {
-    return key;
-  }
+  } catch (_) { return key; }
 };
 
-const restHeaders = (extra = {}) => ({
+const restHeaders = async (extra = {}) => ({
   apikey: key,
-  Authorization: `Bearer ${readAccessToken()}`,
+  Authorization: `Bearer ${await getValidAccessToken()}`,
   'Content-Type': 'application/json',
   ...extra,
 });
@@ -146,7 +155,7 @@ export const restInsert = async (table, row) => {
   if (!url) return { error: new Error('Supabase not configured') };
   try {
     const res = await timedFetch(`${url}/rest/v1/${table}`, {
-      method: 'POST', headers: restHeaders({ Prefer: 'return=minimal' }), body: JSON.stringify(row),
+      method: 'POST', headers: await restHeaders({ Prefer: 'return=minimal' }), body: JSON.stringify(row),
     });
     if (!res.ok) return { error: await parseRestError(res, `Save failed (${res.status})`) };
     return { error: null };
@@ -160,7 +169,7 @@ export const restUpdate = async (table, patch, filters = {}) => {
     const qs = Object.entries(filters)
       .map(([k, v]) => `${k}=eq.${encodeURIComponent(v)}`).join('&');
     const res = await timedFetch(`${url}/rest/v1/${table}?${qs}`, {
-      method: 'PATCH', headers: restHeaders({ Prefer: 'return=minimal' }), body: JSON.stringify(patch),
+      method: 'PATCH', headers: await restHeaders({ Prefer: 'return=minimal' }), body: JSON.stringify(patch),
     });
     if (!res.ok) return { error: await parseRestError(res, `Update failed (${res.status})`) };
     return { error: null };
@@ -172,7 +181,7 @@ export const restRpc = async (fn, params = {}) => {
   if (!url) return { error: new Error('Supabase not configured') };
   try {
     const res = await timedFetch(`${url}/rest/v1/rpc/${fn}`, {
-      method: 'POST', headers: restHeaders(), body: JSON.stringify(params || {}),
+      method: 'POST', headers: await restHeaders(), body: JSON.stringify(params || {}),
     });
     if (!res.ok) return { data: null, error: await parseRestError(res, `${fn} failed (${res.status})`) };
     let data = null; try { data = await res.json(); } catch (_) {}
