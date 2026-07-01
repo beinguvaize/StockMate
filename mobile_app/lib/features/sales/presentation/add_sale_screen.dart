@@ -17,6 +17,7 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/widgets/upi_qr_sheet.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
+import 'package:mobile_app/features/accounts/presentation/providers/accounts_provider.dart';
 
 // POS stores (non-vehicle inventory locations) for the multi-store
 // store picker. Cached per session.
@@ -1503,6 +1504,10 @@ class _CheckoutSheet extends StatefulWidget {
 }
 
 class _CheckoutSheetState extends State<_CheckoutSheet> {
+  // Accounts from DB — loaded async. Drives dynamic payment method list.
+  // Falls back to static CASH/UPI/BANK list until loaded.
+  List<AccountModel> _accounts = [];
+  // account.id of selected method, or 'CREDIT_SALE' sentinel.
   String _paymentMethod = 'CASH';
   bool _isLoading = false;
   late List<CartItem> _localCart;
@@ -1514,12 +1519,71 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   late TextEditingController _discountCtrl;
   String _discountMode = 'AMOUNT'; // 'AMOUNT' | 'PERCENT'
 
+  /// Derives the payment type (CASH/UPI/BANK/CREDIT_SALE) from the selected
+  /// account id. Falls through to the raw value when accounts not yet loaded.
+  String get _selectedPayType {
+    if (_paymentMethod == 'CREDIT_SALE') return 'CREDIT_SALE';
+    if (_accounts.isEmpty) return _paymentMethod;
+    final idx = _accounts.indexWhere((a) => a.id == _paymentMethod);
+    return idx >= 0 ? _accounts[idx].type : _paymentMethod;
+  }
+
+  /// Payment method tiles built dynamically from accounts, ordered
+  /// CASH → UPI → BANK (mirrors web buildPaymentMethods ordering).
+  List<_PayMethod> get _payMethods {
+    if (_accounts.isEmpty) {
+      // Fallback while accounts are loading.
+      return const [
+        _PayMethod('CASH', 'Cash', 'Pay at counter', LucideIcons.banknote, 'CASH'),
+        _PayMethod('UPI', 'UPI', 'Customer scans to pay', LucideIcons.qrCode, 'UPI'),
+        _PayMethod('BANK', 'Bank', 'NEFT / RTGS', LucideIcons.building, 'BANK'),
+      ];
+    }
+    const typeOrder = ['CASH', 'UPI', 'BANK', 'CARD'];
+    final sorted = [..._accounts]..sort((a, b) {
+      int rank(String t) { final i = typeOrder.indexOf(t); return i < 0 ? 99 : i; }
+      return rank(a.type).compareTo(rank(b.type));
+    });
+    final methods = sorted.map((acc) {
+      final t = acc.type;
+      final icon = t == 'CASH' ? LucideIcons.banknote
+          : t == 'UPI' ? LucideIcons.qrCode
+          : LucideIcons.building;
+      final sub = t == 'CASH' ? 'Pay at counter'
+          : t == 'UPI' ? 'Customer scans to pay'
+          : 'NEFT / RTGS';
+      return _PayMethod(acc.id, acc.name, sub, icon, t);
+    }).toList();
+    if (widget.selectedClient != null) {
+      methods.add(_PayMethod(
+        'CREDIT_SALE', 'Credit Sale',
+        'Bill to ${widget.selectedClient!.name ?? "Client"}',
+        LucideIcons.clock, 'CREDIT_SALE',
+      ));
+    }
+    return methods;
+  }
+
   @override
   void initState() {
     super.initState();
     _localCart = List.from(widget.cart);
     _amountPaidCtrl = TextEditingController();
     _discountCtrl = TextEditingController();
+    // Load accounts and auto-select the default (or first) account.
+    widget.ref.read(accountsProvider.future).then((accounts) {
+      if (!mounted) return;
+      setState(() {
+        _accounts = accounts;
+        if (accounts.isNotEmpty) {
+          final def = accounts.firstWhere(
+            (a) => a.isDefault,
+            orElse: () => accounts.first,
+          );
+          _paymentMethod = def.id;
+        }
+      });
+    });
   }
 
   @override
@@ -1759,14 +1823,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    ...[
-                      _PayMethod('CASH', 'Cash', 'Pay at counter', LucideIcons.banknote),
-                      _PayMethod('UPI', 'UPI / QR', 'Customer scans to pay', LucideIcons.qrCode),
-                      _PayMethod('BANK', 'Bank Transfer', 'NEFT / RTGS', LucideIcons.building),
-                      if (widget.selectedClient != null)
-                        _PayMethod('CREDIT_SALE', 'Credit Sale',
-                            'Bill to ${widget.selectedClient!.name ?? "Client"}', LucideIcons.clock),
-                    ].map((m) => _buildPaymentOption(m)),
+                    ..._payMethods.map((m) => _buildPaymentOption(m)),
 
                     const SizedBox(height: 16),
 
@@ -1774,7 +1831,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     // Optional. Empty = full pay for CASH/UPI/BANK, 0 for CREDIT.
                     // < total + client present → balance to client outstanding.
                     // > total (cash) → show change due.
-                    if (_paymentMethod != 'CREDIT_SALE') ...[
+                    if (_selectedPayType != 'CREDIT_SALE') ...[
                       Text(
                         'Amount Received (optional)',
                         style: GoogleFonts.manrope(
@@ -1954,7 +2011,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             ? null
                             : () async {
                                 setState(() => _isLoading = true);
-                                await widget.onComplete(_paymentMethod, _effectivePaid, _discountAmount);
+                                await widget.onComplete(_selectedPayType, _effectivePaid, _discountAmount);
                                 if (mounted) setState(() => _isLoading = false);
                               },
                         icon: _isLoading
@@ -2087,7 +2144,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
     return GestureDetector(
       onTap: () {
         setState(() => _paymentMethod = m.key);
-        if (m.key == 'UPI') _showUpiPreview();
+        if (m.type == 'UPI') _showUpiPreview();
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
@@ -2147,11 +2204,12 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
 }
 
 class _PayMethod {
-  final String key;
-  final String label;
+  final String key;     // account.id or 'CREDIT_SALE'
+  final String label;   // account.name or 'Credit Sale'
   final String subtitle;
   final IconData icon;
-  const _PayMethod(this.key, this.label, this.subtitle, this.icon);
+  final String type;    // CASH | UPI | BANK | CREDIT_SALE
+  const _PayMethod(this.key, this.label, this.subtitle, this.icon, this.type);
 }
 
 Widget _billRow(String label, String value) {
