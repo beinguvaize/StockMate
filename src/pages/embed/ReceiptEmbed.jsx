@@ -60,11 +60,17 @@ const ReceiptEmbed = () => {
 
   const [state, setState] = useState({ loading: true, sale: null, client: null, business: null, error: null });
 
-  // Override the viewport meta so the receipt slip is fully painted
-  // regardless of phone width. Receipts are narrower than invoices
-  // (302 CSS px) so 360 is enough; widening here costs nothing.
+  // Reset body margin + set viewport to receipt width so html2canvas
+  // captures the element flush — no 8px browser-default whitespace border.
   useEffect(() => {
     if (typeof document === 'undefined') return;
+    // Body margin reset — critical: default 8px margin causes html2canvas
+    // to include a white border around the captured receipt element.
+    const prevMargin  = document.body.style.margin;
+    const prevPadding = document.body.style.padding;
+    document.body.style.margin  = '0';
+    document.body.style.padding = '0';
+
     const meta = document.querySelector('meta[name="viewport"]') ||
       (() => {
         const m = document.createElement('meta');
@@ -73,8 +79,12 @@ const ReceiptEmbed = () => {
         return m;
       })();
     const prev = meta.getAttribute('content') || '';
-    meta.setAttribute('content', 'width=360, initial-scale=1, user-scalable=no');
-    return () => { meta.setAttribute('content', prev); };
+    meta.setAttribute('content', 'width=320, initial-scale=1, user-scalable=no');
+    return () => {
+      meta.setAttribute('content', prev);
+      document.body.style.margin  = prevMargin;
+      document.body.style.padding = prevPadding;
+    };
   }, []);
 
   useEffect(() => {
@@ -139,11 +149,14 @@ const ReceiptEmbed = () => {
         useCORS:         true,
         backgroundColor: '#ffffff',
         logging:         false,
-        // Force the virtual viewport to be at least the sheet's own
-        // size so it's never partially off-screen on a narrow Android
-        // WebView (which would otherwise produce a blank capture).
-        windowWidth:     Math.max(rect.width, 320),
-        windowHeight:    Math.max(rect.height, 600),
+        // Match virtual window exactly to the receipt element so no
+        // extra whitespace is introduced by a wider layout context.
+        windowWidth:  rect.width,
+        windowHeight: rect.height,
+        x: 0,
+        y: 0,
+        width:  rect.width,
+        height: rect.height,
       });
       return JSON.stringify({
         dataUrl: canvas.toDataURL('image/png'),
