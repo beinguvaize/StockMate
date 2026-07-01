@@ -325,8 +325,8 @@ class _AppDrawer extends ConsumerWidget {
       _DrawerItem(icon: LucideIcons.barChart2, label: 'Reports', color: AppColors.primary, feature: 'reports'),
     ]),
     _DrawerSection(label: 'WORKFORCE & OPS', items: [
-      _DrawerItem(icon: LucideIcons.users2, label: 'HR & Payroll', color: AppColors.secondary, feature: 'hr'),
-      _DrawerItem(icon: LucideIcons.truck,  label: 'Fleet',         color: Color(0xFF5b5f5a), feature: 'logistics'),
+      _DrawerItem(icon: LucideIcons.users2, label: 'Payroll',  color: AppColors.secondary, feature: 'payroll'),
+      _DrawerItem(icon: LucideIcons.truck,  label: 'Vehicles', color: Color(0xFF5b5f5a), feature: 'logistics'),
     ]),
   ];
 
@@ -355,8 +355,8 @@ class _AppDrawer extends ConsumerWidget {
       case 'Inventory':     return const InventoryScreen();
       case 'CRM':           return const CRMScreen();
       case 'Reports':       return const ReportsScreen();
-      case 'HR & Payroll':  return const HRScreen();
-      case 'Fleet':         return const LogisticsScreen();
+      case 'Payroll':   return const HRScreen();
+      case 'Vehicles':  return const LogisticsScreen();
       case 'Settings':      return const SettingsScreen();
       default:              return null;
     }

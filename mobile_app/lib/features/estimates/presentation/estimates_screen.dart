@@ -30,7 +30,7 @@ class _EstimatesScreenState extends ConsumerState<EstimatesScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Estimates & Quotations',
+          'Estimates',
           style: GoogleFonts.manrope(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
         ),
       ),

@@ -27,7 +27,7 @@ class HRScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'HR & Payroll',
+                'Payroll',
                 style: GoogleFonts.manrope(
                   fontSize: 20,
                   fontWeight: FontWeight.w800,

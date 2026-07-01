@@ -16,7 +16,8 @@ const featureMinPlan = {
   'suppliers': 'PRO',
   'gstr': 'PRO',
   'reports': 'PRO',
-  'hr': 'PRO',
+  'payroll': 'PRO',
+  'hr': 'PRO',          // alias — kept for backward compat with existing permission maps
   'orders': 'PRO',
   'accounts': 'PRO',
   'manufacturing': 'PRO',
@@ -30,6 +31,7 @@ const featureMinPlan = {
 const _featureToModuleKey = <String, String>{
   'logistics': 'vehicles',
   'pos': 'sales',
+  'hr': 'payroll',       // mobile legacy key → web module key
 };
 
 String _toModuleKey(String feature) => _featureToModuleKey[feature] ?? feature;

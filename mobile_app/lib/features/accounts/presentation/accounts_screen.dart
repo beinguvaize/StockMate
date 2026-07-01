@@ -22,7 +22,7 @@ class AccountsScreen extends ConsumerWidget {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Cash & Bank Accounts',
+          'Cash & Bank',
           style: GoogleFonts.manrope(
             fontSize: 18,
             fontWeight: FontWeight.w700,

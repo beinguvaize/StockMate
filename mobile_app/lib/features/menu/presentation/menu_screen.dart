@@ -166,7 +166,7 @@ class MenuScreen extends ConsumerWidget {
                       _MenuCard(
                         icon: LucideIcons.wallet,
                         iconColor: const Color(0xFFD97706),
-                        label: 'Finance & Expenses',
+                        label: 'Expenses',
                         subtitle: 'Track daily expenses',
                         feature: 'expenses',
                         roles: roles,
@@ -208,13 +208,13 @@ class MenuScreen extends ConsumerWidget {
                           permissions: permissions,
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen())),
                         ),
-                      if (canAccess('hr', roles: roles, plan: plan, permissions: permissions))
+                      if (canAccess('payroll', roles: roles, plan: plan, permissions: permissions))
                         _MenuCard(
                           icon: LucideIcons.briefcase,
                           iconColor: const Color(0xFF0EA5E9),
-                          label: 'HR & Payroll',
-                          subtitle: 'Manage employees & salaries',
-                          feature: 'hr',
+                          label: 'Payroll',
+                          subtitle: 'Employees & salary management',
+                          feature: 'payroll',
                           roles: roles,
                           plan: plan,
                           permissions: permissions,
@@ -223,7 +223,7 @@ class MenuScreen extends ConsumerWidget {
                       _MenuCard(
                         icon: LucideIcons.wallet,
                         iconColor: const Color(0xFF16A34A),
-                        label: 'Cash & Bank Accounts',
+                        label: 'Cash & Bank',
                         subtitle: 'Account balances & GL',
                         feature: 'accounts',
                         roles: roles,
@@ -234,7 +234,7 @@ class MenuScreen extends ConsumerWidget {
                       _MenuCard(
                         icon: LucideIcons.fileText,
                         iconColor: const Color(0xFF7C3AED),
-                        label: 'Estimates & Quotations',
+                        label: 'Estimates',
                         subtitle: 'Quotes, challans, proforma',
                         feature: 'estimates',
                         roles: roles,
@@ -268,7 +268,7 @@ class MenuScreen extends ConsumerWidget {
                         _MenuCard(
                           icon: LucideIcons.truck,
                           iconColor: const Color(0xFFEA580C),
-                          label: 'Fleet Management',
+                          label: 'Vehicles',
                           subtitle: 'Vehicles & route tracking',
                           feature: 'logistics',
                           roles: roles,
