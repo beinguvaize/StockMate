@@ -206,24 +206,17 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         p_shop_id: clientId,
         p_items: items,
         p_total_amount: totalAmount,
-        // Store the bill discount so the receipt's "Discount" line shows it.
-        // p_total_amount is already net of this. RPC defaults it to 0.
         p_discount: Number(sale.discount) || 0,
         p_payment_method: sale.paymentMethod || 'CASH',
         p_payment_status: paymentStatus,
         p_date: sale.date || todayISOInAppTZ(),
         p_user_id: currentUser.id,
         p_location_id: sale.locationId || null,
-        // Honor impersonation: GLOBAL_ADMIN acting on another tenant must
-        // persist sales under that tenant, not the admin's home tenant.
-        // RPC rejects the override for non-admins (defence-in-depth).
+        p_route_id: sale.routeId || null,
         p_tenant_id: tenantId || null,
         p_delivery_method: sale.fulfillmentType === 'DELIVERY' ? 'DELIVERY' : 'PICKUP',
-        // source_app baked into INSERT (no post-RPC UPDATE needed).
         p_source_app: sourceApp,
-        // Only pass when the caller specified — RPC defaults to method
-        // behaviour when omitted.
-        ...(paidAmount !== null ? { p_paid_amount: paidAmount } : {}),
+        p_paid_amount: paidAmount,   // null when not set — RPC recomputes from payment_status
       };
 
       const { error: rpcError } = await restRpc('process_sale', rpcParams);
