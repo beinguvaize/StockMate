@@ -64,7 +64,7 @@ final activeRouteProvider = StreamProvider<LogisticRoute?>((ref) {
   if (userId == null) return Stream.value(null);
 
   final empId = ref.watch(driverEmployeeIdProvider).asData?.value;
-  final driverIds = <String>{userId, ?empId};
+  final driverIds = <String>{userId, if (empId != null) empId};
 
   const activeStatuses = {'ACTIVE', 'IN_TRANSIT'};
 
@@ -152,8 +152,8 @@ Future<void> updateStopStatus(
   final updates = <String, dynamic>{
     'status':     status,
     'visited_at': DateTime.now().toIso8601String(),
-    'cash_collected': ?cashCollected,
-    'notes': ?notes,
+    if (cashCollected != null) 'cash_collected': cashCollected,
+    if (notes != null) 'notes': notes,
   };
   await supabase.from('route_stops').update(updates).eq('id', stopId);
 

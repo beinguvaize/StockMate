@@ -188,167 +188,6 @@ class Routes extends Table {
   Set<Column> get primaryKey => {id};
 }
 
-// --- EXTENDED OFFLINE TABLES (v5) ---
-// Mirrors web SYNCED_TABLES so offline reads work across all feature modules.
-
-class DayBookLocal extends Table {
-  @override
-  String get tableName => 'day_book_local';
-  TextColumn get id => text()();
-  TextColumn get tenantId => text()();
-  TextColumn get date => text()(); // YYYY-MM-DD
-  RealColumn get openingBalance => real().withDefault(const Constant(0))();
-  RealColumn get closingBalance => real().withDefault(const Constant(0))();
-  RealColumn get totalSales => real().withDefault(const Constant(0))();
-  RealColumn get totalExpenses => real().withDefault(const Constant(0))();
-  RealColumn get physicalCash => real().nullable()();
-  RealColumn get variance => real().nullable()();
-  TextColumn get closedBy => text().nullable()();
-  BoolColumn get isClosed => boolean().withDefault(const Constant(false))();
-  TextColumn get locationId => text().nullable()();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
-class ClientPaymentsLocal extends Table {
-  @override
-  String get tableName => 'client_payments_local';
-  TextColumn get id => text()();
-  TextColumn get tenantId => text()();
-  TextColumn get clientId => text().nullable()();
-  RealColumn get amount => real()();
-  TextColumn get paymentMethod => text().nullable()();
-  TextColumn get date => text().nullable()();
-  TextColumn get notes => text().nullable()();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
-class EmployeesLocal extends Table {
-  @override
-  String get tableName => 'employees_local';
-  TextColumn get id => text()();
-  TextColumn get tenantId => text()();
-  TextColumn get name => text()();
-  TextColumn get role => text().nullable()();
-  TextColumn get phone => text().nullable()();
-  TextColumn get email => text().nullable()();
-  RealColumn get salary => real().nullable()();
-  TextColumn get status => text().nullable()();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
-class VehiclesLocal extends Table {
-  @override
-  String get tableName => 'vehicles_local';
-  TextColumn get id => text()();
-  TextColumn get tenantId => text()();
-  TextColumn get regNumber => text().nullable()();
-  TextColumn get name => text().nullable()();
-  TextColumn get type => text().nullable()();
-  TextColumn get driverId => text().nullable()();
-  TextColumn get status => text().nullable()();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
-class RouteStopsLocal extends Table {
-  @override
-  String get tableName => 'route_stops_local';
-  TextColumn get id => text()();
-  TextColumn get tenantId => text()();
-  TextColumn get routeId => text().nullable()();
-  TextColumn get clientId => text().nullable()();
-  TextColumn get clientName => text().nullable()();
-  IntColumn get stopOrder => integer().nullable()();
-  TextColumn get status => text().nullable()();
-  RealColumn get collectedAmount => real().nullable()();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
-class InventoryBalancesLocal extends Table {
-  @override
-  String get tableName => 'inventory_balances_local';
-  TextColumn get id => text()();
-  TextColumn get tenantId => text()();
-  TextColumn get productId => text()();
-  TextColumn get locationId => text().nullable()();
-  RealColumn get quantity => real().withDefault(const Constant(0))();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
-class InventoryLocationsLocal extends Table {
-  @override
-  String get tableName => 'inventory_locations_local';
-  TextColumn get id => text()();
-  TextColumn get tenantId => text()();
-  TextColumn get name => text()();
-  TextColumn get type => text().nullable()();
-  BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
-class ProductCategoriesLocal extends Table {
-  @override
-  String get tableName => 'product_categories_local';
-  TextColumn get id => text()();
-  TextColumn get tenantId => text()();
-  TextColumn get name => text()();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
-class PurchaseReturnsLocal extends Table {
-  @override
-  String get tableName => 'purchase_returns_local';
-  TextColumn get id => text()();
-  TextColumn get tenantId => text()();
-  TextColumn get purchaseId => text().nullable()();
-  TextColumn get productId => text().nullable()();
-  RealColumn get quantity => real().nullable()();
-  RealColumn get totalAmount => real().nullable()();
-  TextColumn get date => text().nullable()();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
-class UsersLocal extends Table {
-  @override
-  String get tableName => 'users_local';
-  TextColumn get id => text()();
-  TextColumn get tenantId => text()();
-  TextColumn get name => text().nullable()();
-  TextColumn get email => text().nullable()();
-  TextColumn get rolesJson => text().nullable()(); // JSON array
-  TextColumn get status => text().nullable()();
-  DateTimeColumn get updatedAt => dateTime().nullable()();
-
-  @override
-  Set<Column> get primaryKey => {id};
-}
-
 // --- DATABASE CLASS ---
 
 @DriftDatabase(tables: [
@@ -363,23 +202,12 @@ class UsersLocal extends Table {
   Invoices,
   BusinessProfileLocal,
   Routes,
-  // v5 extended offline tables
-  DayBookLocal,
-  ClientPaymentsLocal,
-  EmployeesLocal,
-  VehiclesLocal,
-  RouteStopsLocal,
-  InventoryBalancesLocal,
-  InventoryLocationsLocal,
-  ProductCategoriesLocal,
-  PurchaseReturnsLocal,
-  UsersLocal,
 ])
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -404,18 +232,6 @@ class AppDatabase extends _$AppDatabase {
       if (from < 4) {
         await m.addColumn(products, products.cessRate);
         await m.addColumn(products, products.hsnCode);
-      }
-      if (from < 5) {
-        await m.createTable(dayBookLocal);
-        await m.createTable(clientPaymentsLocal);
-        await m.createTable(employeesLocal);
-        await m.createTable(vehiclesLocal);
-        await m.createTable(routeStopsLocal);
-        await m.createTable(inventoryBalancesLocal);
-        await m.createTable(inventoryLocationsLocal);
-        await m.createTable(productCategoriesLocal);
-        await m.createTable(purchaseReturnsLocal);
-        await m.createTable(usersLocal);
       }
     },
   );

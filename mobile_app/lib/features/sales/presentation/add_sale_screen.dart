@@ -293,7 +293,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         'p_tenant_id':       tenantId,
         'p_delivery_method': 'PICKUP',
         'p_source_app':      'MOBILE',
-        'p_paid_amount': ?paidAmt,
+        if (paidAmt != null) 'p_paid_amount': paidAmt,
       };
 
       // Offline-first: try direct RPC, on network/transient failure queue it.

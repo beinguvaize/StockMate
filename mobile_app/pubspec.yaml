@@ -45,7 +45,7 @@ dependencies:
   flutter_riverpod: ^2.6.1
 
   # Local DB & Storage (Offline Mode)
-  drift: ^2.14.1
+  drift: ^2.20.0
   sqlite3_flutter_libs: ^0.5.17
   path: ^1.8.3
   path_provider: ^2.1.1
@@ -101,7 +101,7 @@ dev_dependencies:
 
   # Code Generation
   build_runner: ^2.4.6
-  drift_dev: ^2.14.1
+  drift_dev: ^2.20.0
   custom_lint: any
 
   # Launcher icon generation

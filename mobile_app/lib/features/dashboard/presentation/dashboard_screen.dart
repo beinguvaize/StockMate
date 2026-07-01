@@ -1205,7 +1205,7 @@ class _KpiCard extends StatelessWidget {
                   ),
                   child: Icon(icon, size: 15, color: valueColor),
                 ),
-                ?trailing,
+                if (trailing != null) trailing!,
               ],
             ),
             const SizedBox(height: 12),
