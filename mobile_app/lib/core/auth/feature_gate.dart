@@ -11,12 +11,16 @@ const featureMinPlan = {
   'expenses': 'STARTER',
   'daybook': 'STARTER',
   'invoices': 'STARTER',
+  'estimates': 'STARTER',
   'purchases': 'PRO',
   'suppliers': 'PRO',
   'gstr': 'PRO',
   'reports': 'PRO',
   'hr': 'PRO',
-  'logistics': 'ENTERPRISE',
+  'orders': 'PRO',
+  'accounts': 'PRO',
+  'manufacturing': 'PRO',
+  'logistics': 'PRO',        // was ENTERPRISE — matches web tenancy.js (PRO)
   'users': 'ENTERPRISE',
   'audit_log': 'ENTERPRISE',
 };

@@ -1,5 +1,7 @@
-import React, { useState, useRef} from 'react';
-import { NavLink, Outlet, Navigate, useParams, useLocation} from 'react-router-dom';
+import React, { useState, useRef, useCallback} from 'react';
+import { NavLink, Outlet, Navigate, useNavigate, useParams, useLocation} from 'react-router-dom';
+import logoClear from '/logo-clear.png';
+import logoWhite from '/logo-white.png';
 import { useBilling } from '../hooks/useBilling';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -14,7 +16,7 @@ import SyncStatus from './SyncStatus';
 
 // Brand logo — dark wordmark on light themes, white logo on the dark theme.
 const isDarkTheme = () => typeof document !== 'undefined' && document.documentElement.getAttribute('data-theme') === 'dark';
-const brandLogo = () => isDarkTheme() ? '/logo-white.png' : '/logo-clear.png';
+const brandLogo = () => isDarkTheme() ? logoWhite : logoClear;
 
 const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  const config = {
@@ -496,7 +498,23 @@ const Navbar = () => {
  );
 };
 
-const MainContent = () => {
+// Slim 40px bar shown in Electron when POS (Sales) is full-screen.
+const KioskBar = ({ onExit }) => (
+  <header className="sticky top-0 z-50 h-10 flex items-center justify-between px-4 bg-canvas/90 backdrop-blur-md border-b border-black/5 shrink-0">
+    <img src={brandLogo()} alt="StockMate" className="h-5 w-auto object-contain" />
+    <div className="flex items-center gap-3">
+      <SyncStatusButton />
+      <button
+        onClick={onExit}
+        className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-ink-primary text-white hover:opacity-80 transition-opacity"
+      >
+        ← Exit POS
+      </button>
+    </div>
+  </header>
+);
+
+const MainContent = ({ kioskMode = false }) => {
   const location = useLocation();
   const { tenantSlug } = useParams();
   const { currentTenant } = useTenant();
@@ -513,7 +531,9 @@ const MainContent = () => {
   return (
     <main
       className={`flex-1 w-full ${
-        isSales
+        kioskMode
+          ? 'p-0 overflow-hidden'
+          : isSales
           ? 'px-4 sm:px-6 lg:px-8 py-2 md:py-4'
           : 'max-w-[1800px] mx-auto px-4 sm:px-6 lg:px-12 py-2 md:py-6'
       }`}
@@ -534,8 +554,25 @@ const MainContent = () => {
 const AppLayout = () => {
   const { currentUser, loading: authLoading } = useAuth();
   const { currentTenant, isImpersonating, stopImpersonating, loading: tenantLoading } = useTenant();
+  const navigate = useNavigate();
   // Apply saved theme on every page load
   useTheme();
+
+  // Kiosk mode: true when Electron window is in full-screen (POS Sales).
+  // Driven by OS-level enter/leave-full-screen events forwarded via IPC so
+  // reload recovery and Esc-key exit both work without React state loss.
+  const [kioskMode, setKioskMode] = React.useState(false);
+  React.useEffect(() => {
+    if (!window.electron?.window) return;
+    const unsub = window.electron.window.onKioskChange(({ inKiosk }) => setKioskMode(inKiosk));
+    return unsub;
+  }, []);
+
+  const handleExitPOS = useCallback(() => {
+    // setKiosk(false) triggers leave-full-screen → kioskChange event → setKioskMode(false)
+    window.electron?.window?.setKiosk(false);
+    navigate(-1);
+  }, [navigate]);
 
   // Desktop one-time bulk pull-down splash. After the first online sign-in
   // we download every tenant table into IDB so subsequent launches render
@@ -543,9 +580,7 @@ const AppLayout = () => {
   const [bulkSyncDismissed, setBulkSyncDismissed] = React.useState(false);
   const [Splash, setSplash] = React.useState(null);
   React.useEffect(() => {
-    const isElectron = typeof navigator !== 'undefined' &&
-      (/Electron/i.test(navigator.userAgent) || !!window?.electron);
-    if (!isElectron || bulkSyncDismissed || !currentTenant?.id) return;
+    if (!window.electron?.isElectron || bulkSyncDismissed || !currentTenant?.id) return;
     (async () => {
       const mod = await import('./BulkSyncSplash.jsx');
       setSplash(() => mod.default);
@@ -578,10 +613,10 @@ const AppLayout = () => {
           </div>
         </div>
       )}
-      <Navbar />
+      {kioskMode ? <KioskBar onExit={handleExitPOS} /> : <Navbar />}
       <NotificationStack />
 
-      <MainContent />
+      <MainContent kioskMode={kioskMode} />
 
       {Splash && !bulkSyncDismissed && currentTenant?.id && (
         <Splash tenantId={currentTenant.id} onDone={() => setBulkSyncDismissed(true)} />

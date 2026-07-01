@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PageSkeleton } from '../../components/ui/States';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
@@ -25,6 +25,15 @@ import { calculateGST } from '../../lib/gstEngine';
 import { supabase } from '../../lib/supabase';
 
 const SalesPage = () => {
+  // Maximize window to full-screen in Electron (POS kiosk mode).
+  // Cleanup restores on navigate-away. OS leave-full-screen event (e.g. Esc
+  // on macOS) is handled in main.cjs → sends kioskChange to AppLayout.
+  useEffect(() => {
+    if (!window.electron?.window) return;
+    window.electron.window.setKiosk(true);
+    return () => window.electron.window.setKiosk(false);
+  }, []);
+
   // Sale picked for GST-invoice conversion. When set, the ConvertToInvoiceSheet
   // modal opens and collects customer / GSTIN info before firing the RPC.
   const [convertSale, setConvertSale] = useState(null);

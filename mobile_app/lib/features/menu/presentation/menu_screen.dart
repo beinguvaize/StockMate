@@ -17,6 +17,10 @@ import 'package:mobile_app/features/logistics/presentation/logistics_screen.dart
 import 'package:mobile_app/features/purchases/presentation/purchases_screen.dart';
 import 'package:mobile_app/features/reports/presentation/reports_screen.dart';
 import 'package:mobile_app/features/settings/presentation/settings_screen.dart';
+import 'package:mobile_app/features/accounts/presentation/accounts_screen.dart';
+import 'package:mobile_app/features/estimates/presentation/estimates_screen.dart';
+import 'package:mobile_app/features/cash_collection/presentation/cash_collection_screen.dart';
+import 'package:mobile_app/features/manufacturing/presentation/manufacturing_screen.dart';
 
 class MenuScreen extends ConsumerWidget {
   const MenuScreen({super.key});
@@ -216,6 +220,50 @@ class MenuScreen extends ConsumerWidget {
                           permissions: permissions,
                           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const HRScreen())),
                         ),
+                      _MenuCard(
+                        icon: LucideIcons.wallet,
+                        iconColor: const Color(0xFF16A34A),
+                        label: 'Cash & Bank Accounts',
+                        subtitle: 'Account balances & GL',
+                        feature: 'accounts',
+                        roles: roles,
+                        plan: plan,
+                        permissions: permissions,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AccountsScreen())),
+                      ),
+                      _MenuCard(
+                        icon: LucideIcons.fileText,
+                        iconColor: const Color(0xFF7C3AED),
+                        label: 'Estimates & Quotations',
+                        subtitle: 'Quotes, challans, proforma',
+                        feature: 'estimates',
+                        roles: roles,
+                        plan: plan,
+                        permissions: permissions,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const EstimatesScreen())),
+                      ),
+                      _MenuCard(
+                        icon: LucideIcons.banknote,
+                        iconColor: const Color(0xFF059669),
+                        label: 'Cash Collection',
+                        subtitle: 'Collect from due clients',
+                        feature: 'clients',
+                        roles: roles,
+                        plan: plan,
+                        permissions: permissions,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CashCollectionScreen())),
+                      ),
+                      _MenuCard(
+                        icon: LucideIcons.factory,
+                        iconColor: const Color(0xFFD97706),
+                        label: 'Manufacturing',
+                        subtitle: 'BOMs & production orders',
+                        feature: 'manufacturing',
+                        roles: roles,
+                        plan: plan,
+                        permissions: permissions,
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManufacturingScreen())),
+                      ),
                       if (canAccess('logistics', roles: roles, plan: plan, permissions: permissions))
                         _MenuCard(
                           icon: LucideIcons.truck,

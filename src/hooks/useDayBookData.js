@@ -26,7 +26,7 @@ export function useDayBookData(tenantId, selectedDate) {
   const [clientPayments, setClientPayments]   = useState([]);
   const [supplierPayments, setSupplierPayments] = useState([]);
   const [dayBook, setDayBook]                 = useState([]); // day_book records (for lookups)
-  const [loading, setLoading]                 = useState(true);
+  const [loading, setLoading]                 = useState(false);
   const fetchRef = useRef(null);
   const firstLoad = useRef(true);
 

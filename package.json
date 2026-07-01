@@ -17,7 +17,7 @@
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
     "electron:dev": "concurrently -k -n VITE,ELECTRON -c blue,magenta \"vite\" \"wait-on tcp:5173 && electron .\"",
-    "electron:preview": "vite build --base=./ && electron .",
+    "electron:preview": "vite build --base=./ && ELECTRON_PREVIEW=1 electron .",
     "electron:build": "vite build --base=./ && electron-builder",
     "electron:build:win": "vite build --base=./ && electron-builder --win",
     "electron:build:mac": "vite build --base=./ && electron-builder --mac",

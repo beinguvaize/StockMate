@@ -53,33 +53,35 @@ export const useFinance = (tenantId) => {
       setClientPayments(normalizeNumericRows(cpCached, CLIENT_PAYMENT_NUMERIC));
       setPurchases(normalizeNumericRows(purCached, PURCHASE_NUMERIC));
 
-      // Recurring templates — small table, fetched directly (online-only
-      // is fine: they only drive the nightly generator + the manage list).
-      const { data: tpls } = await supabase
-        .from('recurring_expense_templates')
+      // Cache reads done — render immediately, remaining fetches run in background.
+      setLoading(false);
+      initialLoadDone.current = true;
+
+      // Supplier payments — cache-first so Day Book shows correct cash flows offline.
+      readCacheThenRevalidate(
+        'supplier_payments',
+        () => supabase.from('supplier_payments')
+          .select('id, supplier_id, supplier_name, amount, payment_method, date, purchase_id, created_at')
+          .eq('tenant_id', tenantId).is('deleted_at', null)
+          .order('date', { ascending: false }).limit(500),
+        (rows) => setSupplierPayments(normalizeNumericRows(rows, SUPPLIER_PAYMENT_NUMERIC)),
+      ).then(cached => setSupplierPayments(normalizeNumericRows(cached, SUPPLIER_PAYMENT_NUMERIC)));
+
+      // Recurring templates + settings: online-only, non-blocking.
+      supabase.from('recurring_expense_templates')
         .select('*').eq('tenant_id', tenantId).is('deleted_at', null)
-        .order('created_at', { ascending: false });
-      setRecurringTemplates(normalizeNumericRows(tpls || [], EXPENSE_NUMERIC));
+        .order('created_at', { ascending: false })
+        .then(({ data: tpls }) => setRecurringTemplates(normalizeNumericRows(tpls || [], EXPENSE_NUMERIC)));
 
-      // Supplier payments — credit-purchase repayments. Needed so the Day Book
-      // reflects cash leaving the drawer on the repayment date.
-      const { data: supPays } = await supabase
-        .from('supplier_payments')
-        .select('id, supplier_id, supplier_name, amount, payment_method, date, purchase_id, created_at')
-        .eq('tenant_id', tenantId).is('deleted_at', null)
-        .order('date', { ascending: false }).limit(500);
-      setSupplierPayments(normalizeNumericRows(supPays || [], SUPPLIER_PAYMENT_NUMERIC));
-
-      // Custom expense categories (per-tenant, stored in settings).
-      const { data: catSetting } = await supabase
-        .from('settings').select('value')
-        .eq('key', 'expense_categories').eq('tenant_id', tenantId).maybeSingle();
-      const arr = Array.isArray(catSetting?.value) ? catSetting.value : [];
-      setCustomCategories(arr.filter(Boolean));
+      supabase.from('settings').select('value')
+        .eq('key', 'expense_categories').eq('tenant_id', tenantId).maybeSingle()
+        .then(({ data: catSetting }) => {
+          const arr = Array.isArray(catSetting?.value) ? catSetting.value : [];
+          setCustomCategories(arr.filter(Boolean));
+        });
     } catch (err) {
       console.error('useFinance error:', err);
       setError(err.message);
-    } finally {
       setLoading(false);
       initialLoadDone.current = true;
     }

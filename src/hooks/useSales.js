@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { fetchWithCache, queueMutation, isOfflineError, decrementCachedStock } from '../lib/offline/hookAdapter';
+import { readCacheThenRevalidate, queueMutation, isOfflineError, decrementCachedStock } from '../lib/offline/hookAdapter';
 import { generateRef, todayISOInAppTZ } from '../lib/utils';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { getPlanLimits } from '../lib/tenancy';
@@ -41,21 +41,29 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     if (!initialLoadDone.current) setLoading(true);
     setError(null);
     try {
-      const [salesRes, clientsRes, invoicesRes, returnsRes] = await Promise.all([
-        fetchWithCache('sales',    () => supabase.from('sales').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false, nullsFirst: false }).limit(500)),
-        fetchWithCache('clients',  () => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).is('deleted_at', null).order('name')),
-        fetchWithCache('invoices', () => supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(500)),
-        fetchWithCache('sales_returns', () => supabase.from('sales_returns').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500)),
+      const [sales, clients, invoicesRows, returns] = await Promise.all([
+        readCacheThenRevalidate('sales',
+          () => supabase.from('sales').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('created_at', { ascending: false, nullsFirst: false }).limit(500),
+          (fresh) => setData(fresh.map(r => normalizeRow(r, NUMERIC_SALE_COLS))),
+        ),
+        readCacheThenRevalidate('clients',
+          () => supabase.from('clients').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('name'),
+          (fresh) => setClients(fresh.map(r => normalizeRow(r, NUMERIC_CLIENT_COLS))),
+        ),
+        readCacheThenRevalidate('invoices',
+          () => supabase.from('invoices').select('*').eq('tenant_id', tenantId).is('deleted_at', null).order('created_at', { ascending: false }).limit(500),
+          (fresh) => setInvoices(fresh.map(r => normalizeRow(r, NUMERIC_INVOICE_COLS))),
+        ),
+        readCacheThenRevalidate('sales_returns',
+          () => supabase.from('sales_returns').select('*').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          (fresh) => setSalesReturns(fresh),
+        ),
       ]);
 
-      setData((salesRes.data || []).map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
-      setClients((clientsRes.data || []).map(r => normalizeRow(r, NUMERIC_CLIENT_COLS)));
-      setInvoices((invoicesRes.data || []).map(r => normalizeRow(r, NUMERIC_INVOICE_COLS)));
-      setSalesReturns(returnsRes.data || []);
-
-      if (salesRes.fromCache && clientsRes.fromCache) {
-        setError('Showing cached data — tap Sync Now when online to refresh.');
-      }
+      setData(sales.map(r => normalizeRow(r, NUMERIC_SALE_COLS)));
+      setClients(clients.map(r => normalizeRow(r, NUMERIC_CLIENT_COLS)));
+      setInvoices(invoicesRows.map(r => normalizeRow(r, NUMERIC_INVOICE_COLS)));
+      setSalesReturns(returns);
     } catch (err) {
       console.error("useSales Fetch Error:", err);
       setError(err.message);

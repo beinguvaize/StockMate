@@ -10,11 +10,10 @@ export function useManufacturing(tenantId) {
   const [orders, setOrders]               = useState([]);
   const [orderMaterials, setOrderMaterials] = useState([]);
   const [orderCosts, setOrderCosts]       = useState([]);
-  const [loading, setLoading]             = useState(true);
+  const [loading, setLoading]             = useState(false);
 
   const fetchAll = useCallback(async () => {
-    if (!tenantId) { setLoading(false); return; }
-    setLoading(true);
+    if (!tenantId) { return; }
     try {
       const [b, bc, o, om, oc] = await Promise.all([
         supabase.from('bom').select('*').eq('tenant_id', tenantId).is('deleted_at', null),
