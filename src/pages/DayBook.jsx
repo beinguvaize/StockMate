@@ -201,6 +201,7 @@ const DayBook = () => {
           note:      due > 0 ? `${items}${items ? ' · ' : ''}Paid ${got} of ${tot} · due ${due}` : items,
           method:    s.paymentMethod || 'CASH',
           amount:    got,
+          invoiceAmount: tot,
           createdAt: s.created_at || selectedDate,
         };
       }),
@@ -723,7 +724,7 @@ const DayBook = () => {
                         {isIncome && !isCreditSale
                           ? <span className="text-[11px] font-black text-emerald-600 tabular-nums">{cy}{fmt(tx.amount)}</span>
                           : isCreditSale
-                            ? <span className="text-[9px] font-bold text-gray-300 tabular-nums italic">{cy}{fmt(tx.amount)}</span>
+                            ? <span className="text-[9px] font-bold text-gray-300 tabular-nums italic">{cy}{fmt(tx.invoiceAmount ?? tx.amount)}</span>
                             : <span className="text-gray-200">—</span>}
                       </td>
                       <td className="py-3 px-4">

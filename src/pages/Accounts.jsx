@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Wallet, Landmark, CreditCard, Banknote, Plus, ArrowRightLeft,
-  ArrowUpRight, ArrowDownLeft, X, Trash2,
+  ArrowUpRight, ArrowDownLeft, X, Trash2, Pencil,
 } from 'lucide-react';
 import { useTenant } from '../context/TenantContext';
 import { useNotifications } from '../context/NotificationContext';
@@ -20,8 +20,9 @@ const iconFor = (t) => (TYPES.find((x) => x.id === t) || TYPES[1]).icon;
 const Accounts = () => {
   const { currentTenantId } = useTenant();
   const { addNotification } = useNotifications();
-  const { accounts, txns, balances, loading, createAccount, removeAccount, setDefaultAccount, addTxn, transfer, loanPayments, payEMI } = useAccounts(currentTenantId);
+  const { accounts, txns, balances, loading, createAccount, updateAccount, removeAccount, setDefaultAccount, addTxn, transfer, loanPayments, payEMI } = useAccounts(currentTenantId);
   const [emiFor, setEmiFor] = useState(null); // loan account → pay-EMI modal
+  const [editAcc, setEditAcc] = useState(null); // account being edited
 
   const [modal, setModal] = useState(null); // 'add' | 'txn' | 'transfer' | null
   const [active, setActive] = useState(null); // account id for ledger view
@@ -101,17 +102,28 @@ const Accounts = () => {
                 {isLoan && ls.outstanding > 0 && (
                   <button onClick={() => setEmiFor(a)} className="mt-3 w-full py-2 rounded-lg text-[11px] font-black bg-accent-signature text-white hover:opacity-90">Pay EMI {inr(ls.emi)}</button>
                 )}
-                {!isLoan && !a.is_default && (
-                  <button
-                    onClick={async () => {
-                      const { error } = await setDefaultAccount(a.id);
-                      if (error) addNotification('Failed: ' + error.message, 'error');
-                      else addNotification(`${a.name} set as default ${a.type.toLowerCase()}`, 'success');
-                    }}
-                    className="mt-3 w-full py-1.5 rounded-lg text-[11px] font-bold border border-black/10 text-gray-500 hover:bg-black/5 transition-all"
-                  >
-                    Set as default
-                  </button>
+                {!isLoan && (
+                  <div className="mt-3 flex gap-2">
+                    {!a.is_default && (
+                      <button
+                        onClick={async () => {
+                          const { error } = await setDefaultAccount(a.id);
+                          if (error) addNotification('Failed: ' + error.message, 'error');
+                          else addNotification(`${a.name} set as default ${a.type.toLowerCase()}`, 'success');
+                        }}
+                        className="flex-1 py-1.5 rounded-lg text-[11px] font-bold border border-black/10 text-gray-500 hover:bg-black/5 transition-all"
+                      >
+                        Set as default
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setEditAcc(a)}
+                      className="px-3 py-1.5 rounded-lg border border-black/10 text-gray-500 hover:bg-black/5 transition-all"
+                      title="Edit account"
+                    >
+                      <Pencil size={13} />
+                    </button>
+                  </div>
                 )}
               </div>
             );
@@ -179,6 +191,12 @@ const Accounts = () => {
         if (error) return addNotification('Add failed: ' + error.message, 'error');
         addNotification('Account added', 'success'); setModal(null);
       }} onDelete={removeAccount} />}
+
+      {editAcc && <EditAccountModal account={editAcc} accounts={accounts} onClose={() => setEditAcc(null)} onSave={async (patch) => {
+        const { error } = await updateAccount(editAcc.id, patch);
+        if (error) return addNotification('Update failed: ' + error.message, 'error');
+        addNotification('Account updated', 'success'); setEditAcc(null);
+      }} />}
 
       {modal === 'txn' && active && <TxnModal accountName={accounts.find((a) => a.id === active)?.name} onClose={() => setModal(null)} onSave={async (t) => {
         const { error } = await addTxn({ ...t, account_id: active });
@@ -337,6 +355,37 @@ const TransferModal = ({ accounts, onClose, onSave }) => {
       <label className={`${lbl} mt-3`}>Amount</label>
       <input type="number" className={inp} value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} placeholder="0.00" />
       <button disabled={!(Number(f.amount) > 0) || f.from === f.to} className={primary} onClick={() => onSave(f)}>Transfer</button>
+    </Shell>
+  );
+};
+
+const EditAccountModal = ({ account, accounts, onClose, onSave }) => {
+  const [f, setF] = useState({
+    name: account.name || '',
+    bank_name: account.bank_name || '',
+    account_no: account.account_no || '',
+    upi_id: account.upi_id || '',
+  });
+  const isBank = account.type === 'BANK';
+  const isUpi  = account.type === 'UPI';
+  const bankAccounts = accounts.filter((a) => a.type === 'BANK' && !a.deleted_at && a.id !== account.id);
+  return (
+    <Shell title={`Edit · ${account.type}`} onClose={onClose}>
+      <label className={lbl}>Account name</label>
+      <input className={inp} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} placeholder="e.g. SBI Current" />
+      {isBank && (
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          <div><label className={lbl}>Bank</label><input className={inp} value={f.bank_name} onChange={(e) => setF({ ...f, bank_name: e.target.value })} /></div>
+          <div><label className={lbl}>A/c no.</label><input className={inp} value={f.account_no} onChange={(e) => setF({ ...f, account_no: e.target.value })} /></div>
+        </div>
+      )}
+      {(isUpi || isBank) && (
+        <div className="mt-3">
+          <label className={lbl}>UPI ID / Handle <span className="text-gray-300 normal-case tracking-normal">(e.g. shop@upi)</span></label>
+          <input className={inp} value={f.upi_id} onChange={(e) => setF({ ...f, upi_id: e.target.value })} placeholder="e.g. 9876543210@okicici" />
+        </div>
+      )}
+      <button disabled={!f.name.trim()} className={primary} onClick={() => onSave(f)}>Save changes</button>
     </Shell>
   );
 };
