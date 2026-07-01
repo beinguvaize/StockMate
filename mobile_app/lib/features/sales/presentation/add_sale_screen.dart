@@ -18,6 +18,11 @@ import 'package:mobile_app/core/widgets/upi_qr_sheet.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/accounts/presentation/providers/accounts_provider.dart';
+import 'package:mobile_app/core/print/web_print_service.dart';
+import 'package:printing/printing.dart';
+import 'package:share_plus/share_plus.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 // POS stores (non-vehicle inventory locations) for the multi-store
 // store picker. Cached per session.
@@ -392,16 +397,9 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       }
 
       if (!mounted) return;
-      // Capture messenger BEFORE popping (after pop, context is invalid)
-      final messenger = ScaffoldMessenger.maybeOf(context);
+      await _SaleSuccessSheet.show(context, saleId: saleId, total: netTotal);
+      if (!mounted) return;
       Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
-      messenger?.showSnackBar(
-        const SnackBar(
-          content: Text('Sale recorded!'),
-          backgroundColor: AppColors.secondary,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
     } catch (e, stack) {
       debugPrint('[SALE] FAILED: $e\n$stack');
       _showError('Sale failed: $e');
@@ -2616,6 +2614,180 @@ class _BarcodeScannerScreen extends StatelessWidget {
             Navigator.pop(context, barcodes.first.rawValue);
           }
         },
+      ),
+    );
+  }
+}
+
+// ── Post-sale success sheet ────────────────────────────────────────────────────
+
+class _SaleSuccessSheet extends StatefulWidget {
+  final String saleId;
+  final double total;
+  const _SaleSuccessSheet({required this.saleId, required this.total});
+
+  static Future<void> show(BuildContext context, {required String saleId, required double total}) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _SaleSuccessSheet(saleId: saleId, total: total),
+    );
+  }
+
+  @override
+  State<_SaleSuccessSheet> createState() => _SaleSuccessSheetState();
+}
+
+class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
+  bool _printing = false;
+  bool _sharing  = false;
+
+  Future<void> _print() async {
+    setState(() => _printing = true);
+    try {
+      final bytes = await WebPrintService.renderReceiptPdf(widget.saleId);
+      if (bytes == null || bytes.isEmpty) throw Exception('Empty PDF');
+      await Printing.layoutPdf(onLayout: (_) async => bytes);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Print failed: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _printing = false);
+    }
+  }
+
+  Future<void> _share() async {
+    setState(() => _sharing = true);
+    try {
+      final bytes = await WebPrintService.renderReceiptPdf(widget.saleId);
+      if (bytes == null || bytes.isEmpty) throw Exception('Empty PDF');
+      final tmp = await getTemporaryDirectory();
+      final file = File('${tmp.path}/receipt_${widget.saleId}.pdf');
+      await file.writeAsBytes(bytes);
+      await Share.shareXFiles(
+        [XFile(file.path, mimeType: 'application/pdf')],
+        subject: 'Receipt ${widget.saleId}',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Share failed: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _sharing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Handle
+          Container(width: 40, height: 4,
+            decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 24),
+          // Success icon
+          Container(
+            width: 64, height: 64,
+            decoration: BoxDecoration(
+              color: AppColors.secondary.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(LucideIcons.checkCircle2, color: AppColors.secondary, size: 32),
+          ),
+          const SizedBox(height: 16),
+          Text('Sale recorded!',
+            style: GoogleFonts.manrope(fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
+          const SizedBox(height: 4),
+          Text('₹${widget.total.toStringAsFixed(2)}',
+            style: GoogleFonts.manrope(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.inkPrimary)),
+          Text(widget.saleId,
+            style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkSecondary)),
+          const SizedBox(height: 28),
+          // Print + Share row
+          Row(children: [
+            Expanded(
+              child: _ActionBtn(
+                icon: LucideIcons.printer,
+                label: 'Print',
+                loading: _printing,
+                onTap: _print,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _ActionBtn(
+                icon: LucideIcons.share2,
+                label: 'Share',
+                loading: _sharing,
+                onTap: _share,
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          // Done
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                elevation: 0,
+              ),
+              child: Text('Done', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 15)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool loading;
+  final VoidCallback onTap;
+  const _ActionBtn({required this.icon, required this.label, required this.loading, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: loading ? null : onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          border: Border.all(color: AppColors.outline),
+          borderRadius: BorderRadius.circular(14),
+          color: loading ? AppColors.surfaceContainer : Colors.white,
+        ),
+        child: loading
+          ? const Center(child: SizedBox(width: 20, height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)))
+          : Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 18, color: AppColors.inkPrimary),
+                const SizedBox(width: 8),
+                Text(label, style: GoogleFonts.manrope(fontWeight: FontWeight.w700,
+                  fontSize: 14, color: AppColors.inkPrimary)),
+              ],
+            ),
       ),
     );
   }
