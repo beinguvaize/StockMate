@@ -323,6 +323,7 @@ const Payroll = () => {
   }
 } catch(err) {
   console.error('Payroll process error:', err);
+  alert('Payroll error: ' + (err?.message || String(err)));
 } finally {
   setIsSaving(false);
 }
