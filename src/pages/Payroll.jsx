@@ -63,14 +63,35 @@ const Payroll = () => {
     [attendance]
   );
 
+  const computeWage = useCallback(
+    (empId, defaultRate) => Object.entries(attendance[empId] || {}).reduce((total, [, a]) => {
+      const weight = STATUS_WEIGHT[a.status] || 0;
+      const rate = a.custom_rate != null ? a.custom_rate : defaultRate;
+      return total + weight * rate;
+    }, 0),
+    [attendance]
+  );
+
   const toggleAttendance = async (empId, dateStr) => {
     const current = attendance[empId]?.[dateStr]?.status;
     const next = ATTENDANCE_CYCLE[current] || 'PRESENT';
+    const existingCustomRate = attendance[empId]?.[dateStr]?.custom_rate ?? null;
     setAttendance(prev => ({
       ...prev,
-      [empId]: { ...(prev[empId] || {}), [dateStr]: { status: next, ot_hours: 0 } },
+      [empId]: { ...(prev[empId] || {}), [dateStr]: { status: next, ot_hours: 0, custom_rate: existingCustomRate } },
     }));
-    await markAttendance(empId, dateStr, next);
+    await markAttendance(empId, dateStr, next, 0, existingCustomRate);
+  };
+
+  const setCustomRate = (empId, dateStr, value) => {
+    const rate = value === '' ? null : parseFloat(value);
+    const current = attendance[empId]?.[dateStr];
+    if (!current) return;
+    setAttendance(prev => ({
+      ...prev,
+      [empId]: { ...prev[empId], [dateStr]: { ...current, custom_rate: rate } },
+    }));
+    markAttendance(empId, dateStr, current.status, current.ot_hours || 0, isNaN(rate) ? null : rate);
   };
 
   const goPrevMonth = () => {
@@ -191,7 +212,7 @@ const Payroll = () => {
       const isDW  = ['DAILY', 'HOURLY'].includes(emp.pay_type);
       const days  = isDW ? computeDays(emp.id) : null;
       const base  = isDW
-        ? Math.round(days * (emp.daily_rate || 0))
+        ? Math.round(computeWage(emp.id, emp.daily_rate || 0))
         : (Number(emp.salary) || Number(emp.basePay) || 0);
       return {
         employeeId:   emp.id,
@@ -203,6 +224,7 @@ const Payroll = () => {
         basePay:      base,
         hoursWorked:  160,
         overtime:     0,
+        commission:   0,
         bonus:        0,
         deductions:   0,
         netPay:       base,
@@ -226,7 +248,7 @@ const Payroll = () => {
   net = (regularHours * updated.basePay) + (otHours * updated.basePay * 1.5);
   updated.overtime = Math.round(otHours * updated.basePay * 1.5);
 } else {
-  net = updated.basePay + updated.overtime + updated.bonus - updated.deductions;
+  net = updated.basePay + updated.overtime + updated.commission + updated.bonus - updated.deductions;
 }
   return { ...updated, netPay: Math.round(net)};
 }
@@ -241,7 +263,8 @@ const Payroll = () => {
   try {
   const totalBase = payRunItems.reduce((sum, i) => sum + i.basePay, 0);
   const totalNet = payRunItems.reduce((sum, i) => sum + i.netPay, 0);
-  const totalOvertime = payRunItems.reduce((sum, i) => sum + (i.payType === 'HOURLY' ? i.overtime : i.overtime), 0);
+  const totalOvertime = payRunItems.reduce((sum, i) => sum + i.overtime, 0);
+  const totalCommission = payRunItems.reduce((sum, i) => sum + (i.commission || 0), 0);
   const totalBonus = payRunItems.reduce((sum, i) => sum + i.bonus, 0);
   const totalDeductions = payRunItems.reduce((sum, i) => sum + i.deductions, 0);
 
@@ -251,6 +274,7 @@ const Payroll = () => {
   totalBase,
   totalNet,
   totalOvertime,
+  totalCommission,
   totalBonus,
   totalDeductions,
   processedAt: new Date().toISOString()
@@ -382,7 +406,7 @@ const Payroll = () => {
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-emerald-100 text-emerald-700 flex items-center justify-center text-[9px] font-bold">✓</span> Present</span>
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-red-50 text-red-500 flex items-center justify-center text-[9px] font-bold">✗</span> Absent</span>
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-amber-50 text-amber-600 flex items-center justify-center text-[9px] font-bold">½</span> Half Day</span>
-          <span className="text-gray-400 italic">Click cell to cycle status</span>
+          <span className="text-gray-400 italic">Click cell to cycle status · Hover to set custom rate</span>
           {attLoading && <span className="text-gray-400 animate-pulse">Loading…</span>}
         </div>
 
@@ -408,7 +432,7 @@ const Payroll = () => {
                 <tbody className="divide-y divide-black/5">
                   {dailyWageEmps.map(emp => {
                     const days = computeDays(emp.id);
-                    const wage = Math.round(days * (emp.daily_rate || 0));
+                    const wage = Math.round(computeWage(emp.id, emp.daily_rate || 0));
                     return (
                       <tr key={emp.id} className="hover:bg-canvas/50">
                         <td className="px-4 py-2 sticky left-0 bg-white z-10">
@@ -417,16 +441,30 @@ const Payroll = () => {
                         </td>
                         {attDays.map(d => {
                           const dateStr = `${attYear}-${padZ(attMonth)}-${padZ(d)}`;
-                          const status  = attendance[emp.id]?.[dateStr]?.status;
+                          const attEntry = attendance[emp.id]?.[dateStr];
+                          const status  = attEntry?.status;
+                          const hasCustomRate = attEntry?.custom_rate != null;
                           return (
                             <td key={d} className="p-0.5 text-center">
-                              <button
-                                onClick={() => toggleAttendance(emp.id, dateStr)}
-                                className={`w-7 h-7 rounded text-[10px] font-bold transition-all cursor-pointer ${statusStyle(status)}`}
-                                title={dateStr}
-                              >
-                                {statusLabel(status)}
-                              </button>
+                              <div className="relative group inline-block">
+                                <button
+                                  onClick={() => toggleAttendance(emp.id, dateStr)}
+                                  className={`w-7 h-7 rounded text-[10px] font-bold transition-all cursor-pointer ${statusStyle(status)} ${hasCustomRate ? 'ring-1 ring-blue-400' : ''}`}
+                                  title={hasCustomRate ? `Custom rate: ${sym}${attEntry.custom_rate}` : dateStr}
+                                >
+                                  {statusLabel(status)}
+                                </button>
+                                {status && status !== 'ABSENT' && (
+                                  <input
+                                    type="number"
+                                    className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 w-14 text-[9px] text-center bg-white border border-black/15 rounded shadow-md opacity-0 group-hover:opacity-100 transition-opacity outline-none focus:opacity-100 focus:ring-1 focus:ring-blue-400 z-20 px-1 py-0.5"
+                                    placeholder={String(emp.daily_rate || '')}
+                                    value={attEntry?.custom_rate ?? ''}
+                                    onClick={e => e.stopPropagation()}
+                                    onChange={e => setCustomRate(emp.id, dateStr, e.target.value)}
+                                  />
+                                )}
+                              </div>
                             </td>
                           );
                         })}
@@ -442,7 +480,7 @@ const Payroll = () => {
                       Total Daily Wage Payout
                     </td>
                     <td className="px-3 py-3 text-right text-sm font-bold tabular-nums" colSpan={2}>
-                      {sym}{dailyWageEmps.reduce((sum, e) => sum + Math.round(computeDays(e.id) * (e.daily_rate || 0)), 0).toLocaleString('en-IN')}
+                      {sym}{dailyWageEmps.reduce((sum, e) => sum + Math.round(computeWage(e.id, e.daily_rate || 0)), 0).toLocaleString('en-IN')}
                     </td>
                   </tr>
                 </tfoot>
@@ -783,7 +821,8 @@ const Payroll = () => {
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70">Employee</th>
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Days / Hours</th>
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Base Pay</th>
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Overtime (1.5x)</th>
+  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Overtime / Extra pay (₹)</th>
+  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Commission (₹)</th>
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Bonus</th>
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Deductions</th>
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Net Pay</th>
@@ -816,6 +855,9 @@ const Payroll = () => {
   ) : (
   <input type="number" className="w-28 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.overtime} onChange={e => updatePayRunItem(item.employeeId, 'overtime', e.target.value)} />
   )}
+  </td>
+  <td className="py-6 text-right">
+  <input type="number" className="w-24 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-emerald-600 outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-sm" value={item.commission || 0} onChange={e => updatePayRunItem(item.employeeId, 'commission', e.target.value)} />
   </td>
   <td className="py-6 text-right">
   <input type="number" className="w-24 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-accent-signature-hover outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.bonus} onChange={e => updatePayRunItem(item.employeeId, 'bonus', e.target.value)} />

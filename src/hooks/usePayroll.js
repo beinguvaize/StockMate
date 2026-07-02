@@ -149,7 +149,7 @@ export const usePayroll = (tenantId) => {
     const lastDay = new Date(year, month, 0).getDate();
     const { data, error } = await supabase
       .from('attendance')
-      .select('employee_id, date, status, ot_hours')
+      .select('employee_id, date, status, ot_hours, custom_rate')
       .eq('tenant_id', tenantId)
       .gte('date', `${year}-${pad(month)}-01`)
       .lte('date', `${year}-${pad(month)}-${pad(lastDay)}`);
@@ -157,16 +157,16 @@ export const usePayroll = (tenantId) => {
     const map = {};
     for (const row of data || []) {
       if (!map[row.employee_id]) map[row.employee_id] = {};
-      map[row.employee_id][row.date] = { status: row.status, ot_hours: row.ot_hours || 0 };
+      map[row.employee_id][row.date] = { status: row.status, ot_hours: row.ot_hours || 0, custom_rate: row.custom_rate ?? null };
     }
     return map;
   }, [tenantId]);
 
-  const markAttendance = useCallback(async (employeeId, date, status, otHours = 0) => {
+  const markAttendance = useCallback(async (employeeId, date, status, otHours = 0, customRate = null) => {
     const { error } = await supabase
       .from('attendance')
       .upsert(
-        { tenant_id: tenantId, employee_id: employeeId, date, status, ot_hours: otHours },
+        { tenant_id: tenantId, employee_id: employeeId, date, status, ot_hours: otHours, custom_rate: customRate },
         { onConflict: 'tenant_id,employee_id,date' }
       );
     if (error) console.error('markAttendance:', error);
