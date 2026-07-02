@@ -75,7 +75,7 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
 const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale, currentTenantId, taxMode = 'EXCLUSIVE', businessProfile = null, topSellingIds = [], stores = [],
   // Table POS (restaurant) — bind this builder to a table's running tab.
   initialCart = null, onCartChange = null, tableLabel = null, onSendKOT = null, businessType = null,
-  editId = null, editMeta = null, onEditDone = null }) => {
+  editId = null, editMeta = null, onEditDone = null, onRecordPayment = null }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
   // Restaurant dishes aren't unit-stocked at the POS (recipe deduction is R5),
   // so don't gate adding a dish on warehouse stock.
@@ -91,6 +91,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   }, [cart]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClientId, setSelectedClientId] = useState('WALKIN');
+  const [outstandingPrompt, setOutstandingPrompt] = useState(null); // { clientId, clientName, outstanding, excess, paymentMethod }
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [paymentAccountId, setPaymentAccountId] = useState(null); // specific account from dynamic button
@@ -730,6 +731,17 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             : `Sale recorded: ${formatCurrency(total)}`,
         'success'
       );
+
+      // Capture before state reset — needed for outstanding prompt.
+      const postClientId      = selectedClientId;
+      const postPaymentMethod = paymentMethod;
+      const postClient        = allClients.find(c => c.id === postClientId);
+      const postOutstanding   = Number(postClient?.outstanding_balance || 0);
+      const amtNum            = parseFloat(amountReceived) || 0;
+      // Excess = amount tendered beyond this bill, capped at what client owes.
+      const excessApplicable  = postClientId !== 'WALKIN' && amtNum > total && postOutstanding > 0
+        ? Math.min(amtNum - total, postOutstanding) : 0;
+
       setLineImeis({});
       setCart([]);
       setDiscount('');
@@ -743,6 +755,17 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       setPaymentAccountId(null);
       setShowCheckout(false);
       if (editId) onEditDone?.();
+
+      // Show outstanding collection prompt for named clients with a balance.
+      if (!editId && onRecordPayment && postClientId !== 'WALKIN' && postOutstanding > 0 && postClient) {
+        setOutstandingPrompt({
+          clientId:      postClientId,
+          clientName:    postClient.name || 'Client',
+          outstanding:   postOutstanding,
+          excess:        excessApplicable,
+          paymentMethod: postPaymentMethod,
+        });
+      }
     } catch (err) {
       addNotification(`Checkout error: ${err.message || err}`, 'error');
     } finally {
@@ -751,6 +774,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   };
 
   return (
+    <>
+    {outstandingPrompt && (
+      <OutstandingPromptModal
+        {...outstandingPrompt}
+        currency={businessProfile?.currencySymbol || '₹'}
+        onRecordPayment={onRecordPayment}
+        onClose={() => setOutstandingPrompt(null)}
+      />
+    )}
     <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-130px)]">
       {/* Modifier picker (restaurant) */}
       {modPicker && (
@@ -1846,7 +1878,154 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       </div>
     )}
   </div>
+    </>
   );
 };
+
+// ─── Outstanding Collection Prompt ───────────────────────────────────────────
+// Shown after a sale completes when the client has an unpaid balance.
+// Two modes:
+//   excess > 0  → customer already overpaid the bill; offer to apply excess
+//                 to their outstanding or give it back as change.
+//   excess = 0  → normal payment; ask if cashier wants to collect outstanding now.
+function OutstandingPromptModal({ clientId, clientName, outstanding, excess, paymentMethod, currency, onRecordPayment, onClose }) {
+  const [collectAmt, setCollectAmt]   = useState(outstanding.toFixed(2));
+  const [method, setMethod]           = useState(paymentMethod === 'CREDIT' ? 'CASH' : paymentMethod);
+  const [busy, setBusy]               = useState(false);
+  const today = new Date().toISOString().slice(0, 10);
+  const fmt   = (v) => `${currency}${Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+  const collect = async (amount) => {
+    if (!amount || amount <= 0) { onClose(); return; }
+    setBusy(true);
+    await onRecordPayment(clientId, amount, today, 'Collected at POS', [], method);
+    setBusy(false);
+    onClose();
+  };
+
+  const methods = ['CASH', 'UPI', 'BANK'];
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+
+        {/* Header */}
+        <div className="px-6 pt-6 pb-4 border-b border-black/5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center text-lg font-black text-amber-600">
+              {clientName.charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <p className="font-bold text-sm text-ink-primary leading-tight">{clientName}</p>
+              <p className="text-xs text-red-500 font-semibold">{fmt(outstanding)} outstanding</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {excess > 0 ? (
+            /* ── Excess mode ── */
+            <>
+              <p className="text-sm text-ink-secondary">
+                Customer paid <span className="font-bold text-ink-primary">{fmt(excess)}</span> extra.
+                Apply to their balance?
+              </p>
+
+              {/* Apply to outstanding */}
+              <button
+                onClick={() => collect(excess)}
+                disabled={busy}
+                className="w-full text-left rounded-2xl border-2 border-signature p-4 hover:bg-signature/5 transition-colors disabled:opacity-50"
+              >
+                <p className="font-bold text-sm text-ink-primary">Apply {fmt(excess)} to outstanding</p>
+                <p className="text-xs text-ink-secondary mt-0.5">
+                  Balance: {fmt(outstanding)} → {fmt(outstanding - excess)} · Change: {currency}0
+                </p>
+              </button>
+
+              {/* Give change */}
+              <button
+                onClick={onClose}
+                disabled={busy}
+                className="w-full text-left rounded-2xl border border-black/10 p-4 hover:bg-canvas transition-colors disabled:opacity-50"
+              >
+                <p className="font-bold text-sm text-ink-primary">Give {fmt(excess)} as change</p>
+                <p className="text-xs text-ink-secondary mt-0.5">Outstanding stays {fmt(outstanding)}</p>
+              </button>
+            </>
+          ) : (
+            /* ── Collect mode ── */
+            <>
+              <p className="text-sm text-ink-secondary">Collect outstanding payment now?</p>
+
+              {/* Amount */}
+              <div>
+                <p className="text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">Amount</p>
+                <div className="flex items-center border border-black/10 rounded-xl px-3 py-2.5 bg-canvas">
+                  <span className="text-sm font-bold text-signature mr-1">{currency}</span>
+                  <input
+                    type="number"
+                    value={collectAmt}
+                    onChange={e => setCollectAmt(e.target.value)}
+                    className="flex-1 bg-transparent text-sm font-semibold text-ink-primary outline-none"
+                    min="0"
+                    max={outstanding}
+                  />
+                </div>
+              </div>
+
+              {/* Method */}
+              <div>
+                <p className="text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">Method</p>
+                <div className="flex gap-2">
+                  {methods.map(m => (
+                    <button
+                      key={m}
+                      onClick={() => setMethod(m)}
+                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${
+                        method === m
+                          ? 'bg-signature text-white'
+                          : 'bg-canvas border border-black/10 text-ink-secondary'
+                      }`}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-2 pt-1">
+                <button
+                  onClick={onClose}
+                  disabled={busy}
+                  className="flex-1 py-3 rounded-2xl border border-black/10 text-sm font-bold text-ink-secondary hover:bg-canvas transition-colors"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={() => collect(Math.min(parseFloat(collectAmt) || 0, outstanding))}
+                  disabled={busy || !parseFloat(collectAmt)}
+                  className="flex-2 flex-grow py-3 rounded-2xl bg-signature text-white text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-40"
+                >
+                  {busy ? 'Recording…' : `Collect ${fmt(Math.min(parseFloat(collectAmt)||0, outstanding))}`}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Cancel for excess mode */}
+        {excess > 0 && (
+          <div className="px-6 pb-5">
+            <button onClick={onClose} className="w-full text-xs text-ink-tertiary hover:text-ink-secondary transition-colors py-2">
+              Cancel
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default InvoiceBuilder;

@@ -153,7 +153,7 @@ const SalesPage = () => {
   const { products, inventoryBalances, inventoryLocations, loading: productsLoading, refetch: refetchInventory } = useInventory(currentTenantId);
   // Stores where POS sales are rung (warehouses/branches, not vehicles).
   const posStores = (inventoryLocations || []).filter(l => (l.type || 'WAREHOUSE') !== 'VEHICLE' && !l.deleted_at);
-  const { users: staff = [] } = usePeople(currentTenantId);
+  const { users: staff = [], recordClientPayment } = usePeople(currentTenantId);
 
   const [activeTab, setActiveTab] = useState('pos'); // 'tables' | 'pos' | 'history'
   const [historyView, setHistoryView] = useState('sales'); // 'sales' | 'returns'
@@ -400,6 +400,7 @@ const SalesPage = () => {
               editId={editingSale?.id || null}
               editMeta={editMeta}
               onEditDone={() => { setEditingSale(null); setActiveTab('history'); }}
+              onRecordPayment={recordClientPayment}
             />
           </>
         ) : (
