@@ -7,7 +7,6 @@ import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
-import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 
 // ─── Data model ───────────────────────────────────────────────────────────────
 class _StatementRow {
@@ -87,39 +86,21 @@ class ClientStatementSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final salesAsync    = ref.watch(recentSalesProvider);
     final invoicesAsync = ref.watch(invoicesProvider);
     final paymentsAsync = ref.watch(clientPaymentsForClientProvider(client.id));
 
     // Determine loading / error states.
-    final isLoading = salesAsync.isLoading ||
-        invoicesAsync.isLoading ||
-        paymentsAsync.isLoading;
+    final isLoading = invoicesAsync.isLoading || paymentsAsync.isLoading;
 
-    final error = salesAsync.error ?? invoicesAsync.error ?? paymentsAsync.error;
+    final error = invoicesAsync.error ?? paymentsAsync.error;
 
     // ── Build statement rows ──────────────────────────────────────────────────
     final rows = <_StatementRow>[];
 
     if (!isLoading && error == null) {
-      // 1. Credit sales rows
-      final sales = salesAsync.valueOrNull ?? const [];
-      for (final sale in sales) {
-        if (sale.shopId != client.id) continue;
-        if ((sale.paymentMethod?.toUpperCase() ?? '') != 'CREDIT') continue;
-        final tailId = sale.id.length >= 6
-            ? sale.id.substring(sale.id.length - 6).toUpperCase()
-            : sale.id.toUpperCase();
-        rows.add(_StatementRow(
-          date: sale.date ?? '',
-          description: 'Credit Sale #$tailId',
-          debit: sale.totalAmount ?? 0,
-          credit: 0,
-          type: 'SALE',
-        ));
-      }
-
-      // 2. Invoice rows
+      // 1. Invoice rows (single source of truth for DR).
+      //    Credit sales that also appear as invoices must NOT be added as
+      //    a separate "Credit Sale" row — that causes double-counting.
       final invoices = invoicesAsync.valueOrNull ?? const [];
       for (final inv in invoices) {
         if (inv.clientId != client.id) continue;
@@ -133,9 +114,24 @@ class ClientStatementSheet extends ConsumerWidget {
           credit: 0,
           type: 'INVOICE',
         ));
+
+        // Inline payment CR: CASH/BANK/UPI sales paid at POS time have
+        // paidAmount > 0 but are NOT tracked in client_payments. Show the
+        // upfront payment as a credit on the same date so the statement
+        // balance matches the actual outstanding.
+        final method = (inv.paymentMethod ?? '').toUpperCase();
+        if (method != 'CREDIT' && inv.paidAmount > 0) {
+          rows.add(_StatementRow(
+            date: dateStr,
+            description: 'Payment (${_methodLabel(method)})',
+            debit: 0,
+            credit: inv.paidAmount,
+            type: 'PAYMENT',
+          ));
+        }
       }
 
-      // 3. Payment rows
+      // 2. Client payment rows (post-sale cash collections).
       final payments = paymentsAsync.valueOrNull ?? const [];
       for (final payment in payments) {
         final notesSuffix = (payment.notes != null && payment.notes!.isNotEmpty)
