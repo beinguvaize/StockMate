@@ -44,6 +44,44 @@ class _CashCollectionScreenState extends ConsumerState<CashCollectionScreen> {
     final amount = double.tryParse(ctrl?.text ?? '') ?? 0;
     if (amount <= 0) return;
     final method = _methods[client.id] ?? 'CASH';
+
+    // Confirmation dialog
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Confirm Payment', style: GoogleFonts.manrope(fontWeight: FontWeight.w800, fontSize: 17, color: AppColors.inkPrimary)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _ConfirmRow(label: 'Client', value: client.name),
+            const SizedBox(height: 8),
+            _ConfirmRow(label: 'Amount', value: '₹${amount.toStringAsFixed(2)}', valueColor: AppColors.primary),
+            const SizedBox(height: 8),
+            _ConfirmRow(label: 'Method', value: method),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Edit', style: GoogleFonts.manrope(fontWeight: FontWeight.w600, color: AppColors.inkSecondary)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              elevation: 0,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Confirm', style: GoogleFonts.manrope(fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
     final tenantCtx = await ref.read(tenantContextProvider.future);
     if (tenantCtx == null) return;
 
@@ -188,11 +226,7 @@ class _CashCollectionScreenState extends ConsumerState<CashCollectionScreen> {
                       final isExpanded = _expandedId == client.id;
                       final isSubmitting = _submitting.contains(client.id);
 
-                      _amountCtrls.putIfAbsent(client.id, () {
-                        final ctrl = TextEditingController();
-                        ctrl.text = client.outstandingBalance.toStringAsFixed(2);
-                        return ctrl;
-                      });
+                      _amountCtrls.putIfAbsent(client.id, () => TextEditingController());
                       _methods.putIfAbsent(client.id, () => 'CASH');
 
                       return _ClientCollectionCard(
@@ -215,6 +249,29 @@ class _CashCollectionScreenState extends ConsumerState<CashCollectionScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ConfirmRow extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? valueColor;
+  const _ConfirmRow({required this.label, required this.value, this.valueColor});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 60,
+          child: Text(label, style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.inkTertiary)),
+        ),
+        Expanded(
+          child: Text(value, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: valueColor ?? AppColors.inkPrimary)),
+        ),
+      ],
     );
   }
 }

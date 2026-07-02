@@ -46,11 +46,12 @@ function SkeletonRow() {
 }
 
 function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
-  const [amount, setAmount]     = useState(String(client.outstanding_balance ?? ''));
-  const [method, setMethod]     = useState('CASH');
-  const [notes, setNotes]       = useState('');
+  const [amount, setAmount]         = useState('');
+  const [method, setMethod]         = useState('CASH');
+  const [notes, setNotes]           = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError]       = useState('');
+  const [error, setError]           = useState('');
+  const [confirming, setConfirming] = useState(false);
 
   const parsedAmount = Number.parseFloat(amount);
   const validAmount  =
@@ -58,13 +59,20 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
     parsedAmount > 0 &&
     parsedAmount <= Number(client.outstanding_balance) + 0.001;
 
-  const handleSubmit = useCallback(async () => {
+  const handleReview = useCallback(() => {
+    if (!validAmount) return;
+    setError('');
+    setConfirming(true);
+  }, [validAmount]);
+
+  const handleConfirm = useCallback(async () => {
     if (!validAmount || submitting) return;
     setSubmitting(true);
     setError('');
     const result = await onSubmit({ clientId: client.id, amount: parsedAmount, method, notes: notes.trim() });
     if (!result?.success) {
       setSubmitting(false);
+      setConfirming(false);
       setError(result?.error || 'Could not record payment. Try again.');
     }
   }, [validAmount, submitting, onSubmit, client.id, parsedAmount, method, notes]);
@@ -158,23 +166,45 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
         </p>
       )}
 
-      {/* Actions */}
-      <div className="mt-4 flex items-center gap-2">
-        <button type="button" onClick={handleSubmit} disabled={!validAmount || submitting}
-          className="btn-signature flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {submitting ? (
-            <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Recording…</>
-          ) : (
-            <><CheckCircle2 className="h-4 w-4" />Record Payment</>
-          )}
-        </button>
-        <button type="button" onClick={onCancel} disabled={submitting}
-          className="rounded-xl border border-black/10 px-4 py-2.5 text-sm font-semibold text-ink-primary/60 transition hover:bg-black/5 disabled:opacity-50"
-        >
-          Cancel
-        </button>
-      </div>
+      {confirming ? (
+        /* ── Confirmation step ── */
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-amber-700/60">Confirm payment</p>
+          <p className="text-base font-bold text-ink-primary">
+            {currencySymbol}{parsedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            <span className="ml-2 text-sm font-semibold text-ink-primary/50">via {method}</span>
+          </p>
+          <p className="text-sm text-ink-primary/60">to <span className="font-semibold text-ink-primary">{client.name}</span></p>
+          <div className="mt-3 flex items-center gap-2">
+            <button type="button" onClick={handleConfirm} disabled={submitting}
+              className="btn-signature flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold disabled:opacity-50"
+            >
+              {submitting
+                ? <><span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" />Recording…</>
+                : <><CheckCircle2 className="h-4 w-4" />Confirm</>}
+            </button>
+            <button type="button" onClick={() => setConfirming(false)} disabled={submitting}
+              className="rounded-xl border border-black/10 px-4 py-2.5 text-sm font-semibold text-ink-primary/60 transition hover:bg-black/5 disabled:opacity-50"
+            >
+              ← Edit
+            </button>
+          </div>
+        </div>
+      ) : (
+        /* ── Normal actions ── */
+        <div className="mt-4 flex items-center gap-2">
+          <button type="button" onClick={handleReview} disabled={!validAmount}
+            className="btn-signature flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <CheckCircle2 className="h-4 w-4" />Record Payment
+          </button>
+          <button type="button" onClick={onCancel}
+            className="rounded-xl border border-black/10 px-4 py-2.5 text-sm font-semibold text-ink-primary/60 transition hover:bg-black/5"
+          >
+            Cancel
+          </button>
+        </div>
+      )}
     </div>
   );
 }
