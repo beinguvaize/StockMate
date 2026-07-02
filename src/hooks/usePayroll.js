@@ -121,6 +121,7 @@ export const usePayroll = (tenantId) => {
 
   const processPayroll = async (record) => {
     const row = {
+      id:                crypto.randomUUID(),
       tenant_id:         tenantId,
       period:            record.period,
       items:             record.items,
