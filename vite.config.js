@@ -20,8 +20,10 @@ export default defineConfig({
     react(),
     tailwindcss(),
     ...(!isElectron ? [VitePWA({
-      registerType: 'prompt',
+      registerType: 'autoUpdate',
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         // Only cache Supabase REST API reads — never auth or realtime.
         // Auth token refresh must always hit the network; realtime is a
