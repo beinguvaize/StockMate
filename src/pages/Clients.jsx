@@ -34,6 +34,7 @@ const Clients = () => {
     supabase
       .from('client_payments')
       .select('*')
+      .is('deleted_at', null)
       .eq('tenant_id', currentTenantId)
       .order('created_at', { ascending: false })
       .limit(500)

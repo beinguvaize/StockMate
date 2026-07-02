@@ -38,7 +38,7 @@ export const useFinance = (tenantId) => {
         ),
         readCacheThenRevalidate(
           'client_payments',
-          () => supabase.from('client_payments').select('id, amount, date, payment_method, notes, client_id, created_at').eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
+          () => supabase.from('client_payments').select('id, amount, date, payment_method, notes, client_id, created_at').is('deleted_at', null).eq('tenant_id', tenantId).order('date', { ascending: false }).limit(500),
           (rows) => setClientPayments(normalizeNumericRows(rows, CLIENT_PAYMENT_NUMERIC)),
         ),
         readCacheThenRevalidate(

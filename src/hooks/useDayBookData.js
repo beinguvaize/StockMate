@@ -47,7 +47,7 @@ export function useDayBookData(tenantId, selectedDate) {
         supabase.from('sales').select(SEL_SALES).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null),
         supabase.from('expenses').select(SEL_EXPENSE).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate),
         supabase.from('purchases').select(SEL_PURCHASE).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null),
-        supabase.from('client_payments').select(SEL_CLIENTPAY).eq('tenant_id', tenantId).eq('date', selectedDate),
+        supabase.from('client_payments').select(SEL_CLIENTPAY).is('deleted_at', null).eq('tenant_id', tenantId).eq('date', selectedDate),
         supabase.from('supplier_payments').select(SEL_SUPPLIERPAY).eq('tenant_id', tenantId).eq('date', selectedDate).is('deleted_at', null),
       ]);
       setSales(sRes.data || []);
