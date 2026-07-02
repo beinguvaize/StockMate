@@ -113,8 +113,11 @@ export const usePayroll = (tenantId) => {
     if (error) return { success: false, error };
     setPayrollRecords(prev => [data, ...prev]);
     // Post one salary expense per employee → DayBook + P&L see it automatically
-    const [yr, mo] = record.period.split('-').map(Number);
-    const expDate = new Date(yr, mo, 0).toISOString().slice(0, 10); // last day of month
+    // period is either YYYY-MM (monthly) or YYYY-MM-DD/YYYY-MM-DD (weekly)
+    const isWeekly = record.period.includes('/');
+    const expDate = isWeekly
+      ? record.period.split('/')[1] // end of week = pay date
+      : (() => { const [yr, mo] = record.period.split('-').map(Number); return new Date(yr, mo, 0).toISOString().slice(0, 10); })();
     for (const item of (record.items || [])) {
       if (!item.netPay || item.netPay <= 0) continue;
       supabase.from('expenses').insert({

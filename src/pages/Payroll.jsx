@@ -35,6 +35,14 @@ const Payroll = () => {
   const [showPayRunModal, setShowPayRunModal] = useState(false);
   const [payRunMonth, setPayRunMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [payRunItems, setPayRunItems] = useState([]);
+  const [payPeriodType, setPayPeriodType] = useState('MONTHLY'); // 'MONTHLY' | 'WEEKLY'
+  const [weekStart, setWeekStart] = useState(() => {
+    const d = new Date();
+    const day = d.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    d.setDate(d.getDate() + diff);
+    return d.toISOString().slice(0, 10);
+  });
 
   // ── Attendance state ─────────────────────────────────────────────────
   const [attendance, setAttendance] = useState({});  // { [empId]: { [dateStr]: { status } } }
@@ -58,8 +66,30 @@ const Payroll = () => {
   const ATTENDANCE_CYCLE = { PRESENT: 'ABSENT', ABSENT: 'HALF_DAY', HALF_DAY: 'PRESENT' };
   const STATUS_WEIGHT    = { PRESENT: 1, HALF_DAY: 0.5, OT: 1, ABSENT: 0 };
 
+  const weekEnd = useMemo(() => {
+    const d = new Date(weekStart);
+    d.setDate(d.getDate() + 6);
+    return d.toISOString().slice(0, 10);
+  }, [weekStart]);
+
   const computeDays = useCallback(
     (empId) => Object.values(attendance[empId] || {}).reduce((s, a) => s + (STATUS_WEIGHT[a.status] || 0), 0),
+    [attendance]
+  );
+
+  const computeDaysForRange = useCallback(
+    (empId, start, end) => Object.entries(attendance[empId] || {}).reduce((s, [d, a]) =>
+      d >= start && d <= end ? s + (STATUS_WEIGHT[a.status] || 0) : s, 0),
+    [attendance]
+  );
+
+  const computeWageForRange = useCallback(
+    (empId, defaultRate, start, end) => Object.entries(attendance[empId] || {}).reduce((total, [d, a]) => {
+      if (d < start || d > end) return total;
+      const weight = STATUS_WEIGHT[a.status] || 0;
+      const rate = a.custom_rate != null ? a.custom_rate : defaultRate;
+      return total + weight * rate;
+    }, 0),
     [attendance]
   );
 
@@ -208,11 +238,16 @@ const Payroll = () => {
   // ===== PAYROLL RUN LOGIC =====
   const openPayRun = () => {
     const activeEmployees = employees.filter(e => e.status === 'ACTIVE');
+    const isWeekly = payPeriodType === 'WEEKLY';
     const items = activeEmployees.map(emp => {
       const isDW  = ['DAILY', 'HOURLY'].includes(emp.pay_type);
-      const days  = isDW ? computeDays(emp.id) : null;
+      const days  = isDW
+        ? (isWeekly ? computeDaysForRange(emp.id, weekStart, weekEnd) : computeDays(emp.id))
+        : null;
       const base  = isDW
-        ? Math.round(computeWage(emp.id, emp.daily_rate || 0))
+        ? Math.round(isWeekly
+            ? computeWageForRange(emp.id, emp.daily_rate || 0, weekStart, weekEnd)
+            : computeWage(emp.id, emp.daily_rate || 0))
         : (Number(emp.salary) || Number(emp.basePay) || 0);
       return {
         employeeId:   emp.id,
@@ -269,7 +304,7 @@ const Payroll = () => {
   const totalDeductions = payRunItems.reduce((sum, i) => sum + i.deductions, 0);
 
   const record = {
-  period: payRunMonth,
+  period: payPeriodType === 'WEEKLY' ? `${weekStart}/${weekEnd}` : payRunMonth,
   items: payRunItems,
   totalBase,
   totalNet,
@@ -809,13 +844,33 @@ const Payroll = () => {
   <div className="p-6 border-b border-black/5 flex justify-between items-start bg-canvas/30">
   <div>
   <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">PROCESS PAYROLL<span className="text-accent-signature">.</span></h1>
-  <p className="text-[10px] font-semibold text-gray-600 opacity-80 mb-6 uppercase">Period: {new Date(payRunMonth).toLocaleString('default', { month: 'long', year: 'numeric'})}</p>
+  <p className="text-[10px] font-semibold text-gray-600 opacity-80 uppercase">
+    {payPeriodType === 'WEEKLY'
+      ? `Week: ${new Date(weekStart + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(weekEnd + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+      : `Period: ${new Date(payRunMonth + '-01').toLocaleString('default', { month: 'long', year: 'numeric' })}`
+    }
+  </p>
   </div>
-  <div className="flex gap-4 items-center">
-  <div className="relative group">
-  <input type="month" className="bg-white border-none rounded-pill px-10 py-5 font-semibold text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all shadow-premium" value={payRunMonth} onChange={e => setPayRunMonth(e.target.value)} />
+  <div className="flex gap-3 items-center">
+  {/* Period type toggle */}
+  <div className="flex bg-canvas rounded-pill border border-black/10 p-1 gap-1">
+    {['MONTHLY', 'WEEKLY'].map(t => (
+      <button key={t} type="button"
+        onClick={() => setPayPeriodType(t)}
+        className={`px-4 py-1.5 rounded-pill text-[11px] font-semibold transition-all cursor-pointer ${payPeriodType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-gray-500 hover:text-ink-primary'}`}>
+        {t === 'MONTHLY' ? 'Monthly' : 'Weekly'}
+      </button>
+    ))}
   </div>
-  <button 
+  {payPeriodType === 'MONTHLY' ? (
+    <input type="month" className="bg-white border-none rounded-pill px-6 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all shadow-premium" value={payRunMonth} onChange={e => setPayRunMonth(e.target.value)} />
+  ) : (
+    <div className="flex flex-col items-end gap-0.5">
+      <label className="text-[9px] font-semibold text-gray-400 uppercase">Week starting (Mon)</label>
+      <input type="date" className="bg-white border-none rounded-pill px-6 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all shadow-premium" value={weekStart} onChange={e => setWeekStart(e.target.value)} />
+    </div>
+  )}
+  <button
   onClick={() => setShowPayRunModal(false)}
   className="w-16 h-16 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary"
   >
