@@ -422,9 +422,17 @@ const Payroll = () => {
                 <thead>
                   <tr className="bg-canvas">
                     <th className="text-left px-4 py-2 text-[9px] font-semibold text-gray-500 uppercase sticky left-0 bg-canvas z-10 w-36">Employee</th>
-                    {attDays.map(d => (
-                      <th key={d} className="px-0.5 py-2 text-center text-[9px] font-semibold text-gray-400 w-8">{d}</th>
-                    ))}
+                    {attDays.map(d => {
+                      const dow = new Date(attYear, attMonth - 1, d).getDay(); // 0=Sun,6=Sat
+                      const isWeekend = dow === 0 || dow === 6;
+                      const dayName = ['Su','Mo','Tu','We','Th','Fr','Sa'][dow];
+                      return (
+                        <th key={d} className={`px-0.5 py-1 text-center w-8 ${isWeekend ? 'bg-orange-50' : ''}`}>
+                          <div className={`text-[8px] font-bold leading-none mb-0.5 ${isWeekend ? 'text-orange-400' : 'text-gray-300'}`}>{dayName}</div>
+                          <div className={`text-[9px] font-semibold ${isWeekend ? 'text-orange-500' : 'text-gray-400'}`}>{d}</div>
+                        </th>
+                      );
+                    })}
                     <th className="px-3 py-2 text-right text-[9px] font-semibold text-gray-500 uppercase w-14">Days</th>
                     <th className="px-3 py-2 text-right text-[9px] font-semibold text-gray-500 uppercase w-24">Wage</th>
                   </tr>
@@ -441,11 +449,13 @@ const Payroll = () => {
                         </td>
                         {attDays.map(d => {
                           const dateStr = `${attYear}-${padZ(attMonth)}-${padZ(d)}`;
+                          const dow = new Date(attYear, attMonth - 1, d).getDay();
+                          const isWeekend = dow === 0 || dow === 6;
                           const attEntry = attendance[emp.id]?.[dateStr];
                           const status  = attEntry?.status;
                           const hasCustomRate = attEntry?.custom_rate != null;
                           return (
-                            <td key={d} className="p-0.5 text-center">
+                            <td key={d} className={`p-0.5 text-center ${isWeekend ? 'bg-orange-50/60' : ''}`}>
                               <div className="relative group inline-block">
                                 <button
                                   onClick={() => toggleAttendance(emp.id, dateStr)}
