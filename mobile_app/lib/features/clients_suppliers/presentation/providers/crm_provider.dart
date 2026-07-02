@@ -83,6 +83,7 @@ final clientPaymentsProvider = FutureProvider<List<ClientPayment>>((ref) async {
       .from('client_payments')
       .select()
       .eq('tenant_id', ctx.tenantId)
+      .isFilter('deleted_at', null)
       .order('created_at', ascending: false)
       .limit(500);
   return (response as List).map((d) => ClientPayment.fromJson(d as Map<String, dynamic>)).toList();
@@ -97,6 +98,7 @@ final clientPaymentsForClientProvider =
       .select()
       .eq('client_id', clientId)
       .eq('tenant_id', ctx.tenantId)
+      .isFilter('deleted_at', null)
       .order('date', ascending: true);
   return (response as List).map((d) => ClientPayment.fromJson(d as Map<String, dynamic>)).toList();
 });

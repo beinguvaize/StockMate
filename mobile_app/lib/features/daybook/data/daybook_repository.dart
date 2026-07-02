@@ -36,7 +36,7 @@ class DaybookRepository {
       _client.from('expenses').select('id, amount, category, note, created_at')
           .eq('tenant_id', tenantId).eq('date', date),
       _client.from('client_payments').select('id, amount, payment_method, notes, client_id, created_at')
-          .eq('tenant_id', tenantId).eq('date', date),
+          .eq('tenant_id', tenantId).eq('date', date).isFilter('deleted_at', null),
       _client.from('purchases').select('id, total_amount, payment_type, supplier_id, created_at')
           .eq('tenant_id', tenantId).eq('date', date),
     ]);
