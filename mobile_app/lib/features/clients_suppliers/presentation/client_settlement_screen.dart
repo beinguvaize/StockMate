@@ -115,6 +115,74 @@ class _ClientSettlementScreenState
       final ctx = await ref.read(tenantContextProvider.future);
       if (ctx == null) return;
 
+      // 1. Allocate payment across invoices — distribute `remaining` so each
+      //    invoice only gets as much as it is owed (mirrors web logic).
+      if (_selectedInvoiceIds.isNotEmpty) {
+        final invRows = await supabase
+            .from('invoices')
+            .select('id, grand_total, paid_amount, sale_id')
+            .inFilter('id', _selectedInvoiceIds.toList());
+        double remaining = amt;
+        for (final inv in (invRows as List)) {
+          if (remaining <= 0) break;
+          final alreadyPaid = ((inv['paid_amount'] as num?)?.toDouble() ?? 0);
+          final gt = (inv['grand_total'] as num).toDouble();
+          final owed = gt - alreadyPaid;
+          if (owed <= 0) continue;
+          final allocating = remaining < owed ? remaining : owed;
+          final newPaid = alreadyPaid + allocating;
+          final status = newPaid >= gt ? 'PAID' : 'PARTIAL';
+          await supabase.from('invoices').update({
+            'paid_amount': newPaid,
+            'payment_status': status,
+          }).eq('id', inv['id'] as String);
+          final saleId = inv['sale_id'] as String?;
+          if (saleId != null) {
+            await supabase.from('sales').update({
+              'paidAmount': newPaid,
+              'paymentStatus': status,
+            }).eq('id', saleId).eq('tenant_id', ctx.tenantId);
+          }
+          remaining -= allocating;
+        }
+      } else {
+        // No invoices selected — FIFO across unpaid/partial CREDIT sales so
+        // outstanding_balance stays accurate even for general cash collections.
+        final unpaidSales = await supabase
+            .from('sales')
+            .select('id, "totalAmount", "paidAmount", "paymentStatus"')
+            .eq('tenant_id', ctx.tenantId)
+            .eq('shopId', widget.client.id)
+            .inFilter('"paymentStatus"', ['UNPAID', 'PARTIAL'])
+            .eq('"paymentMethod"', 'CREDIT')
+            .isFilter('deleted_at', null)
+            .order('date', ascending: true);
+        double remaining = amt;
+        for (final sale in (unpaidSales as List)) {
+          if (remaining <= 0) break;
+          final alreadyPaid = ((sale['paidAmount'] as num?)?.toDouble() ?? 0);
+          final total = (sale['totalAmount'] as num).toDouble();
+          final owed = total - alreadyPaid;
+          if (owed <= 0) continue;
+          final allocating = remaining < owed ? remaining : owed;
+          final newPaid = alreadyPaid + allocating;
+          final status = newPaid >= total ? 'PAID' : 'PARTIAL';
+          await supabase.from('sales').update({
+            'paidAmount': newPaid,
+            'paymentStatus': status,
+          }).eq('id', sale['id'] as String).eq('tenant_id', ctx.tenantId);
+          final invId = 'INV-${sale['id']}';
+          await supabase.from('invoices').update({
+            'paid_amount': newPaid,
+            'payment_status': status,
+          }).eq('id', invId);
+          remaining -= allocating;
+        }
+      }
+
+      // 2. Insert audit record — no `applied_invoice_ids` (column doesn't
+      //    exist in DB). outstanding_balance is recalculated by the DB trigger
+      //    trg_payments_outstanding on client_payments INSERT.
       final paymentId = 'CP-${DateTime.now().millisecondsSinceEpoch}';
       await supabase.from('client_payments').insert({
         'id': paymentId,
@@ -123,39 +191,10 @@ class _ClientSettlementScreenState
         'date': _date,
         'amount': amt,
         'payment_method': _method,
-        'notes': _notesController.text.trim(),
-        'applied_invoice_ids': _selectedInvoiceIds.toList(),
+        'notes': _notesController.text.trim().isEmpty
+            ? null
+            : _notesController.text.trim(),
       });
-
-      // Mark selected invoices PAID / PARTIAL — and mirror the payment onto the
-      // linked SALE row. clients.outstanding_balance is maintained by a DB
-      // trigger off the sales table (_trg_sales_recalc_outstanding); updating
-      // the sale is what makes it recompute. We must NOT write
-      // outstanding_balance directly here — that races/overwrites the trigger
-      // and drifts the balance (the bug behind the wrong outstanding total).
-      for (final invId in _selectedInvoiceIds) {
-        final inv = await supabase
-            .from('invoices')
-            .select('grand_total, paid_amount, sale_id')
-            .eq('id', invId)
-            .single();
-        final gt = (inv['grand_total'] as num).toDouble();
-        final newPaid =
-            (((inv['paid_amount'] as num?)?.toDouble() ?? 0) + amt).clamp(0, gt);
-        final status = newPaid >= gt ? 'PAID' : 'PARTIAL';
-        await supabase.from('invoices').update({
-          'paid_amount': newPaid,
-          'payment_status': status,
-        }).eq('id', invId);
-
-        final saleId = inv['sale_id'] as String?;
-        if (saleId != null) {
-          await supabase.from('sales').update({
-            'paidAmount': newPaid,
-            'paymentStatus': status,
-          }).eq('id', saleId).eq('tenant_id', ctx.tenantId);
-        }
-      }
 
       ref.invalidate(clientPaymentsProvider);
       ref.invalidate(clientPaymentsForClientProvider(widget.client.id));
