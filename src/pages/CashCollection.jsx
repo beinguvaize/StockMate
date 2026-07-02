@@ -110,7 +110,7 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
             type="number" inputMode="decimal" min="0" step="0.01" autoFocus
             value={amount}
             onChange={e => setAmount(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
+            onKeyDown={e => { if (e.key === 'Enter') handleReview(); }}
             className="w-full rounded-xl border border-black/10 bg-canvas py-2.5 pl-9 pr-3 font-mono tabular-nums text-lg font-bold text-ink-primary outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200"
             placeholder="0"
           />
@@ -154,7 +154,7 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
         </label>
         <input id={`notes-${client.id}`} type="text" value={notes}
           onChange={e => setNotes(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') handleSubmit(); }}
+          onKeyDown={e => { if (e.key === 'Enter') handleReview(); }}
           className="w-full rounded-xl border border-black/10 bg-canvas px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200"
           placeholder="optional reference…"
         />
