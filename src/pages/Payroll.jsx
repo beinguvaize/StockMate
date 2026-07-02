@@ -838,130 +838,136 @@ const Payroll = () => {
   )}
 
   {/* Pay Run Modal */}
-  {showPayRunModal && (
+  {showPayRunModal && (() => {
+    const sym = businessProfile?.currencySymbol || '₹';
+    const [prY, prM] = payRunMonth.split('-').map(Number);
+    const periodLabel = payPeriodType === 'WEEKLY'
+      ? `${new Date(weekStart + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(weekEnd + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+      : new Date(prY, prM - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+    const totalNet = payRunItems.reduce((s, i) => s + i.netPay, 0);
+    const inputCls = 'w-full bg-canvas border border-black/8 rounded-lg px-2.5 py-2 text-right text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums';
+    return (
   <div className="modal-overlay">
-  <div className="glass-modal !max-w-[1100px] !p-0 !overflow-hidden flex flex-col">
-  <div className="p-6 border-b border-black/5 flex justify-between items-start bg-canvas/30">
-  <div>
-  <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">PROCESS PAYROLL<span className="text-accent-signature">.</span></h1>
-  <p className="text-[10px] font-semibold text-gray-600 opacity-80 uppercase">
-    {payPeriodType === 'WEEKLY'
-      ? `Week: ${new Date(weekStart + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })} – ${new Date(weekEnd + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
-      : `Period: ${new Date(payRunMonth + '-01').toLocaleString('default', { month: 'long', year: 'numeric' })}`
-    }
-  </p>
-  </div>
-  <div className="flex gap-3 items-center">
-  {/* Period type toggle */}
-  <div className="flex bg-canvas rounded-pill border border-black/10 p-1 gap-1">
-    {['MONTHLY', 'WEEKLY'].map(t => (
-      <button key={t} type="button"
-        onClick={() => setPayPeriodType(t)}
-        className={`px-4 py-1.5 rounded-pill text-[11px] font-semibold transition-all cursor-pointer ${payPeriodType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-gray-500 hover:text-ink-primary'}`}>
-        {t === 'MONTHLY' ? 'Monthly' : 'Weekly'}
-      </button>
-    ))}
-  </div>
-  {payPeriodType === 'MONTHLY' ? (
-    <input type="month" className="bg-white border-none rounded-pill px-6 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all shadow-premium" value={payRunMonth} onChange={e => setPayRunMonth(e.target.value)} />
-  ) : (
-    <div className="flex flex-col items-end gap-0.5">
-      <label className="text-[9px] font-semibold text-gray-400 uppercase">Week starting (Mon)</label>
-      <input type="date" className="bg-white border-none rounded-pill px-6 py-3 font-semibold text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all shadow-premium" value={weekStart} onChange={e => setWeekStart(e.target.value)} />
+  <div className="glass-modal !max-w-[1200px] !p-0 !overflow-hidden flex flex-col" style={{ maxHeight: '90vh' }}>
+
+    {/* Header */}
+    <div className="flex items-center justify-between px-6 py-4 border-b border-black/8 shrink-0">
+      <div>
+        <h2 className="text-base font-semibold text-ink-primary">Process Payroll</h2>
+        <p className="text-[11px] text-gray-500 mt-0.5 flex items-center gap-2">
+          <span>{periodLabel}</span>
+          <span className={`text-[9px] font-bold px-2 py-0.5 rounded-pill uppercase ${payPeriodType === 'WEEKLY' ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>{payPeriodType === 'WEEKLY' ? 'Weekly' : 'Monthly'}</span>
+        </p>
+      </div>
+      <div className="flex items-center gap-3">
+        {/* Period type toggle */}
+        <div className="flex bg-canvas rounded-lg border border-black/8 p-0.5 gap-0.5">
+          {['MONTHLY', 'WEEKLY'].map(t => (
+            <button key={t} type="button" onClick={() => setPayPeriodType(t)}
+              className={`px-3 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${payPeriodType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-gray-500 hover:text-ink-primary'}`}>
+              {t === 'MONTHLY' ? 'Monthly' : 'Weekly'}
+            </button>
+          ))}
+        </div>
+        {payPeriodType === 'MONTHLY' ? (
+          <input type="month" className="bg-canvas border border-black/8 rounded-lg px-3 py-2 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20" value={payRunMonth} onChange={e => setPayRunMonth(e.target.value)} />
+        ) : (
+          <div className="flex flex-col gap-0.5">
+            <label className="text-[9px] font-semibold text-gray-400 uppercase px-1">Week start (Mon)</label>
+            <input type="date" className="bg-canvas border border-black/8 rounded-lg px-3 py-2 text-sm font-semibold text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20" value={weekStart} onChange={e => setWeekStart(e.target.value)} />
+          </div>
+        )}
+        <button onClick={() => setShowPayRunModal(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary">
+          <X size={15} />
+        </button>
+      </div>
     </div>
-  )}
-  <button
-  onClick={() => setShowPayRunModal(false)}
-  className="w-16 h-16 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary"
-  >
-  <X size={28} />
-  </button>
-  </div>
-  </div>
 
-  <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-surface/50">
-  <table className="w-full text-left border-collapse">
-  <thead className="sticky top-0 z-10 bg-surface/50 backdrop-blur-xl">
-  <tr className="border-b-2 border-ink-primary">
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70">Employee</th>
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Days / Hours</th>
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Base Pay</th>
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Overtime / Extra pay (₹)</th>
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Commission (₹)</th>
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Bonus</th>
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Deductions</th>
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Net Pay</th>
-  </tr>
-  </thead>
-  <tbody className="divide-y divide-black/5">
-  {payRunItems.map(item => (
-  <tr key={item.employeeId} className="hover:bg-canvas transition-all duration-300">
-  <td className="py-6">
-  <div className="text-base font-semibold text-ink-primary leading-none mb-1">{item.employeeName}</div>
-  <div className="text-[9px] font-semibold text-gray-700 opacity-60">{item.department} | {item.payType}</div>
-  </td>
-  <td className="py-6 text-right">
-    {item.payType === 'DAILY' ? (
-      <span className="text-sm font-bold text-ink-primary tabular-nums">{item.daysWorked ?? 0} days</span>
-    ) : item.payType === 'HOURLY' ? (
-      <input type="number" className="w-20 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.hoursWorked} onChange={e => updatePayRunItem(item.employeeId, 'hoursWorked', e.target.value)} />
-    ) : (
-      <span className="text-xs font-semibold opacity-60 italic">Fixed</span>
-    )}
-  </td>
-  <td className="py-6 text-right font-semibold text-xs text-gray-700 opacity-60 tabular-nums">
-  {businessProfile?.currencySymbol || ''}{Math.round(item.basePay).toLocaleString()}
-  </td>
-  <td className="py-6 text-right">
-  {item.payType === 'HOURLY' ? (
-  <div className="text-sm font-semibold text-accent-signature-hover tabular-nums">
-  {businessProfile?.currencySymbol || ''}{Math.round(item.overtime).toLocaleString()}
-  </div>
-  ) : (
-  <input type="number" className="w-28 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.overtime} onChange={e => updatePayRunItem(item.employeeId, 'overtime', e.target.value)} />
-  )}
-  </td>
-  <td className="py-6 text-right">
-  <input type="number" className="w-24 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-emerald-600 outline-none focus:ring-4 focus:ring-emerald-500/20 shadow-sm" value={item.commission || 0} onChange={e => updatePayRunItem(item.employeeId, 'commission', e.target.value)} />
-  </td>
-  <td className="py-6 text-right">
-  <input type="number" className="w-24 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-accent-signature-hover outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.bonus} onChange={e => updatePayRunItem(item.employeeId, 'bonus', e.target.value)} />
-  </td>
-  <td className="py-6 text-right">
-  <input type="number" className="w-24 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-red-500 outline-none focus:ring-4 focus:ring-red-500/10 shadow-sm" value={item.deductions} onChange={e => updatePayRunItem(item.employeeId, 'deductions', e.target.value)} />
-  </td>
-  <td className="py-6 text-right font-mono font-bold text-xl text-ink-primary tabular-nums">
-  {businessProfile?.currencySymbol || ''}{Math.round(item.netPay).toLocaleString('en-IN')}
-  </td>
-  </tr>
-  ))}
-  </tbody>
-  </table>
-  </div>
+    {/* Table */}
+    <div className="flex-1 overflow-y-auto custom-scrollbar">
+    <table className="w-full text-left border-collapse">
+      <thead className="sticky top-0 z-10 bg-canvas border-b border-black/8">
+        <tr>
+          <th className="px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Employee</th>
+          <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Days</th>
+          <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Base Pay</th>
+          <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Overtime / Extra</th>
+          <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Commission</th>
+          <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Bonus</th>
+          <th className="px-3 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Deductions</th>
+          <th className="px-5 py-3 text-[10px] font-semibold text-gray-500 uppercase tracking-wide text-right">Net Pay</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-black/5">
+      {payRunItems.map(item => (
+        <tr key={item.employeeId} className="hover:bg-canvas/60 transition-colors">
+          <td className="px-5 py-4">
+            <div className="text-sm font-semibold text-ink-primary leading-none">{item.employeeName}</div>
+            <div className="text-[10px] text-gray-400 font-medium mt-0.5">{item.department} · {item.payType}</div>
+          </td>
+          <td className="px-3 py-4 text-right">
+            {item.payType === 'DAILY' ? (
+              <span className="text-sm font-bold text-ink-primary tabular-nums">{item.daysWorked ?? 0}</span>
+            ) : item.payType === 'HOURLY' ? (
+              <input type="number" className={inputCls + ' !w-20'} value={item.hoursWorked} onChange={e => updatePayRunItem(item.employeeId, 'hoursWorked', e.target.value)} />
+            ) : (
+              <span className="text-xs text-gray-400 italic">Fixed</span>
+            )}
+          </td>
+          <td className="px-3 py-4 text-right text-sm font-semibold text-gray-600 tabular-nums">
+            {sym}{Math.round(item.basePay).toLocaleString('en-IN')}
+          </td>
+          <td className="px-3 py-4 text-right">
+            {item.payType === 'HOURLY' ? (
+              <span className="text-sm font-semibold text-ink-primary tabular-nums">{sym}{Math.round(item.overtime).toLocaleString('en-IN')}</span>
+            ) : (
+              <input type="number" className={inputCls + ' !w-28'} value={item.overtime} onChange={e => updatePayRunItem(item.employeeId, 'overtime', e.target.value)} />
+            )}
+          </td>
+          <td className="px-3 py-4 text-right">
+            <input type="number" className={inputCls + ' !w-24 !text-emerald-600'} value={item.commission || 0} onChange={e => updatePayRunItem(item.employeeId, 'commission', e.target.value)} />
+          </td>
+          <td className="px-3 py-4 text-right">
+            <input type="number" className={inputCls + ' !w-24'} value={item.bonus} onChange={e => updatePayRunItem(item.employeeId, 'bonus', e.target.value)} />
+          </td>
+          <td className="px-3 py-4 text-right">
+            <input type="number" className={inputCls + ' !w-24 !text-red-500'} value={item.deductions} onChange={e => updatePayRunItem(item.employeeId, 'deductions', e.target.value)} />
+          </td>
+          <td className="px-5 py-4 text-right">
+            <span className="text-base font-bold text-ink-primary tabular-nums">{sym}{Math.round(item.netPay).toLocaleString('en-IN')}</span>
+          </td>
+        </tr>
+      ))}
+      </tbody>
+    </table>
+    </div>
 
-  <div className="p-6 bg-ink-primary flex justify-between items-center shadow-2xl relative">
-  <div className="flex gap-16">
-  <div>
-  <div className="text-sm font-semibold text-surface/40 mb-2 leading-none">Total Payout</div>
-  <div className="text-5xl font-semibold text-accent-signature">
-  {businessProfile?.currencySymbol || ''}{payRunItems.reduce((sum, i) => sum + i.netPay, 0).toLocaleString()}
+    {/* Footer */}
+    <div className="px-6 py-4 border-t border-black/8 flex items-center justify-between shrink-0 bg-ink-primary">
+      <div className="flex items-center gap-10">
+        <div>
+          <div className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mb-1">Total Payout</div>
+          <div className="text-2xl font-bold text-accent-signature tabular-nums">{sym}{totalNet.toLocaleString('en-IN')}</div>
+        </div>
+        <div>
+          <div className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mb-1">Employees</div>
+          <div className="text-2xl font-bold text-white">{payRunItems.length}</div>
+        </div>
+        <div>
+          <div className="text-[10px] font-semibold text-white/40 uppercase tracking-wide mb-1">Period</div>
+          <div className="text-sm font-semibold text-white">{periodLabel}</div>
+        </div>
+      </div>
+      <button className="btn-signature !h-12 !px-8 !text-sm flex items-center gap-2.5" onClick={handleProcessPayroll} disabled={isSaving}>
+        <Check size={16} />
+        {isSaving ? 'Processing…' : 'Confirm & Process'}
+      </button>
+    </div>
+
   </div>
   </div>
-  <div>
-  <div className="text-sm font-semibold text-surface/40 mb-2 leading-none">Employees</div>
-  <div className="text-5xl font-semibold text-surface">{payRunItems.length}</div>
-  </div>
-  </div>
-  <button className="btn-signature !h-20 !px-16 !text-lg" onClick={handleProcessPayroll} disabled={isSaving}>
-  {isSaving ? 'PROCESSING...' : 'CONFIRM & PROCESS'}
-  <div className="icon-nest !w-12 !h-12 ml-6">
-  <Check size={28} />
-  </div>
-  </button>
-  </div>
-  </div>
-  </div>
-  )}
+    );
+  })()}
 
   {/* Delete Confirmation Modal */}
   {deleteConfirm && (
