@@ -90,7 +90,7 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
       } catch (_) {}
 
       try {
-        final dbData = await supabase.from('dayBook').select('closing_balance')
+        final dbData = await supabase.from('day_book').select('closing_balance')
             .eq('tenant_id', tenantId).eq('date', todayStr).limit(1);
         if (dbData.isNotEmpty) {
           cashBal = double.tryParse(dbData[0]['closing_balance']?.toString() ?? '0') ?? 0;
