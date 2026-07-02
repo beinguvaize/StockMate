@@ -394,7 +394,18 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       }
 
       if (!mounted) return;
-      await _SaleSuccessSheet.show(context, saleId: saleId, total: netTotal);
+      final tendered    = paidAmountOverride ?? netTotal;
+      final excessAmt   = (tendered - netTotal).clamp(0.0, double.infinity);
+      final outstanding = (_selectedClient?.outstandingBalance ?? 0.0);
+      await _SaleSuccessSheet.show(
+        context,
+        saleId:        saleId,
+        total:         netTotal,
+        client:        _selectedClient,
+        excess:        (excessAmt > 0 && outstanding > 0) ? excessAmt.clamp(0.0, outstanding) : 0,
+        outstanding:   outstanding,
+        paymentMethod: paymentMethod,
+      );
       if (!mounted) return;
       Navigator.of(context, rootNavigator: true).popUntil((r) => r.isFirst);
     } catch (e, stack) {
@@ -2619,16 +2630,43 @@ class _BarcodeScannerScreen extends StatelessWidget {
 // ── Post-sale success sheet ────────────────────────────────────────────────────
 
 class _SaleSuccessSheet extends StatefulWidget {
-  final String saleId;
-  final double total;
-  const _SaleSuccessSheet({required this.saleId, required this.total});
+  final String  saleId;
+  final double  total;
+  final Client? client;
+  final double  outstanding;   // client's pre-sale outstanding balance
+  final double  excess;        // amount already paid beyond this bill (capped at outstanding)
+  final String  paymentMethod;
 
-  static Future<void> show(BuildContext context, {required String saleId, required double total}) {
+  const _SaleSuccessSheet({
+    required this.saleId,
+    required this.total,
+    this.client,
+    this.outstanding = 0,
+    this.excess      = 0,
+    this.paymentMethod = 'CASH',
+  });
+
+  static Future<void> show(
+    BuildContext context, {
+    required String  saleId,
+    required double  total,
+    Client?          client,
+    double           outstanding   = 0,
+    double           excess        = 0,
+    String           paymentMethod = 'CASH',
+  }) {
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _SaleSuccessSheet(saleId: saleId, total: total),
+      builder: (_) => _SaleSuccessSheet(
+        saleId:        saleId,
+        total:         total,
+        client:        client,
+        outstanding:   outstanding,
+        excess:        excess,
+        paymentMethod: paymentMethod,
+      ),
     );
   }
 
@@ -2637,8 +2675,27 @@ class _SaleSuccessSheet extends StatefulWidget {
 }
 
 class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
-  bool _printing = false;
-  bool _sharing  = false;
+  bool _printing  = false;
+  bool _sharing   = false;
+  bool _collecting = false;
+  // For the "collect now" sub-form (no-excess path)
+  late TextEditingController _collectCtrl;
+  String _collectMethod = 'CASH';
+
+  @override
+  void initState() {
+    super.initState();
+    _collectCtrl = TextEditingController(
+      text: widget.outstanding > 0 ? widget.outstanding.toStringAsFixed(2) : '',
+    );
+    if (widget.paymentMethod != 'CREDIT') _collectMethod = widget.paymentMethod;
+  }
+
+  @override
+  void dispose() {
+    _collectCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _print() async {
     setState(() => _printing = true);
@@ -2677,8 +2734,65 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
     }
   }
 
+  Future<void> _recordPayment(double amount) async {
+    if (widget.client == null || amount <= 0) return;
+    setState(() => _collecting = true);
+    try {
+      final ctx = await ProviderScope.containerOf(context).read(tenantContextProvider.future);
+      if (ctx == null) return;
+      final today = DateTime.now().toIso8601String().substring(0, 10);
+      final paymentId = 'CP-${DateTime.now().millisecondsSinceEpoch}';
+      // FIFO across unpaid CREDIT sales first.
+      final unpaidSales = await supabase
+          .from('sales')
+          .select('id, "totalAmount", "paidAmount", "paymentStatus"')
+          .eq('tenant_id', ctx.tenantId)
+          .eq('shopId', widget.client!.id)
+          .inFilter('"paymentStatus"', ['UNPAID', 'PARTIAL'])
+          .eq('"paymentMethod"', 'CREDIT')
+          .isFilter('deleted_at', null)
+          .order('date', ascending: true);
+      double remaining = amount;
+      for (final sale in (unpaidSales as List)) {
+        if (remaining <= 0) break;
+        final alreadyPaid = ((sale['paidAmount'] as num?)?.toDouble() ?? 0);
+        final total       = (sale['totalAmount'] as num).toDouble();
+        final owed        = total - alreadyPaid;
+        if (owed <= 0) continue;
+        final allocating  = remaining < owed ? remaining : owed;
+        final newPaid     = alreadyPaid + allocating;
+        final status      = newPaid >= total ? 'PAID' : 'PARTIAL';
+        await supabase.from('sales').update({'paidAmount': newPaid, 'paymentStatus': status})
+            .eq('id', sale['id'] as String).eq('tenant_id', ctx.tenantId);
+        await supabase.from('invoices').update({'paid_amount': newPaid, 'payment_status': status})
+            .eq('id', 'INV-${sale['id']}');
+        remaining -= allocating;
+      }
+      await supabase.from('client_payments').insert({
+        'id':             paymentId,
+        'client_id':      widget.client!.id,
+        'tenant_id':      ctx.tenantId,
+        'date':           today,
+        'amount':         amount,
+        'payment_method': _collectMethod,
+        'notes':          null,
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Payment record failed: $e'), backgroundColor: AppColors.danger),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _collecting = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final hasOutstanding = widget.outstanding > 0 && widget.client != null;
+    final hasExcess      = widget.excess > 0;
+
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
@@ -2709,28 +2823,156 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
             style: GoogleFonts.manrope(fontSize: 28, fontWeight: FontWeight.w900, color: AppColors.inkPrimary)),
           Text(widget.saleId,
             style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkSecondary)),
-          const SizedBox(height: 28),
+          const SizedBox(height: 24),
           // Print + Share row
           Row(children: [
-            Expanded(
-              child: _ActionBtn(
-                icon: LucideIcons.printer,
-                label: 'Print',
-                loading: _printing,
-                onTap: _print,
-              ),
-            ),
+            Expanded(child: _ActionBtn(icon: LucideIcons.printer, label: 'Print', loading: _printing, onTap: _print)),
             const SizedBox(width: 12),
-            Expanded(
-              child: _ActionBtn(
-                icon: LucideIcons.share2,
-                label: 'Share',
-                loading: _sharing,
-                onTap: _share,
-              ),
-            ),
+            Expanded(child: _ActionBtn(icon: LucideIcons.share2,  label: 'Share', loading: _sharing, onTap: _share)),
           ]),
           const SizedBox(height: 12),
+
+          // ── Outstanding balance prompt ──────────────────────────────────
+          if (hasOutstanding) ...[
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              decoration: BoxDecoration(
+                color: AppColors.canvas,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.black.withValues(alpha: 0.07)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Header
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                    child: Row(
+                      children: [
+                        const Icon(LucideIcons.alertCircle, size: 14, color: AppColors.danger),
+                        const SizedBox(width: 6),
+                        Text(
+                          '${widget.client!.name ?? "Client"} — ₹${widget.outstanding.toStringAsFixed(2)} outstanding',
+                          style: GoogleFonts.manrope(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1, thickness: 1, color: Color(0x0F000000)),
+
+                  if (hasExcess) ...[
+                    // Excess path — two action tiles
+                    _OutstandingTile(
+                      icon: LucideIcons.checkCircle,
+                      iconColor: AppColors.secondary,
+                      title: 'Apply ₹${widget.excess.toStringAsFixed(2)} to outstanding',
+                      subtitle: 'Balance: ₹${widget.outstanding.toStringAsFixed(2)} → ₹${(widget.outstanding - widget.excess).toStringAsFixed(2)} · Change: ₹0',
+                      loading: _collecting,
+                      onTap: () async {
+                        await _recordPayment(widget.excess);
+                        if (mounted) Navigator.of(context).pop();
+                      },
+                    ),
+                    const Divider(height: 1, thickness: 1, color: Color(0x0F000000)),
+                    _OutstandingTile(
+                      icon: LucideIcons.banknote,
+                      iconColor: AppColors.inkSecondary,
+                      title: 'Give ₹${widget.excess.toStringAsFixed(2)} as change',
+                      subtitle: 'Outstanding stays ₹${widget.outstanding.toStringAsFixed(2)}',
+                      loading: false,
+                      onTap: () => Navigator.of(context).pop(),
+                    ),
+                  ] else ...[
+                    // Collect now path — amount input + method chips
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 10, 14, 4),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: Colors.black.withValues(alpha: 0.08)),
+                              ),
+                              child: TextField(
+                                controller: _collectCtrl,
+                                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                style: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.inkPrimary),
+                                decoration: InputDecoration(
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                  prefixText: '₹ ',
+                                  prefixStyle: GoogleFonts.manrope(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          ...['CASH', 'UPI', 'BANK'].map((m) => Padding(
+                            padding: const EdgeInsets.only(left: 4),
+                            child: GestureDetector(
+                              onTap: () => setState(() => _collectMethod = m),
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 120),
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: _collectMethod == m ? AppColors.primaryContainer : Colors.white,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: _collectMethod == m ? AppColors.primaryContainer : Colors.black.withValues(alpha: 0.1)),
+                                ),
+                                child: Text(m, style: GoogleFonts.jetBrainsMono(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
+                              ),
+                            ),
+                          )),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => Navigator.of(context).pop(),
+                              style: OutlinedButton.styleFrom(
+                                side: const BorderSide(color: Color(0x18000000)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                              child: Text('Skip', style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkSecondary)),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            flex: 2,
+                            child: ElevatedButton(
+                              onPressed: _collecting ? null : () async {
+                                final amt = (double.tryParse(_collectCtrl.text) ?? 0).clamp(0.0, widget.outstanding);
+                                await _recordPayment(amt);
+                                if (mounted) Navigator.of(context).pop();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryContainer,
+                                foregroundColor: AppColors.inkPrimary,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                padding: const EdgeInsets.symmetric(vertical: 10),
+                              ),
+                              child: _collecting
+                                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.inkPrimary))
+                                  : Text('Collect', style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ],
+
           // Done
           SizedBox(
             width: double.infinity,
@@ -2747,6 +2989,47 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// Tappable tile inside the outstanding prompt.
+class _OutstandingTile extends StatelessWidget {
+  final IconData icon;
+  final Color    iconColor;
+  final String   title;
+  final String   subtitle;
+  final bool     loading;
+  final VoidCallback onTap;
+  const _OutstandingTile({required this.icon, required this.iconColor, required this.title, required this.subtitle, required this.loading, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: loading ? null : onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: iconColor),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.inkPrimary)),
+                  const SizedBox(height: 1),
+                  Text(subtitle, style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkSecondary)),
+                ],
+              ),
+            ),
+            if (loading)
+              const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary))
+            else
+              const Icon(LucideIcons.chevronRight, size: 16, color: AppColors.inkTertiary),
+          ],
+        ),
       ),
     );
   }
