@@ -247,7 +247,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         try { await restUpdate('sales', { discount: discountAmt }, { id }); }
         catch (e) { console.warn('discount persist skipped:', e?.message); }
       }
-      await fetchSales();
+      fetchSales(); // fire-and-forget — don't block the checkout button reset
       return { success: true, id };
     },
     dispatchSale: async (saleId) => {
