@@ -4,7 +4,18 @@ import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
 const EMPLOYEE_NUMERIC = ['daily_rate', 'days_worked', 'amount_paid', 'salary'];
-const PAYROLL_NUMERIC  = ['gross', 'net', 'deductions', 'bonus', 'days_worked'];
+const PAYROLL_NUMERIC  = ['total_base', 'total_net', 'total_overtime', 'total_commission', 'total_bonus', 'total_deductions'];
+
+// Map DB snake_case payroll row → camelCase for UI
+const toPayrollRecord = (row) => ({
+  ...row,
+  totalBase:        Number(row.total_base       || 0),
+  totalNet:         Number(row.total_net        || 0),
+  totalOvertime:    Number(row.total_overtime   || 0),
+  totalCommission:  Number(row.total_commission || 0),
+  totalBonus:       Number(row.total_bonus      || 0),
+  totalDeductions:  Number(row.total_deductions || 0),
+});
 
 // Map camelCase form fields → snake_case DB columns
 const toEmployeeRow = (emp) => ({
@@ -60,7 +71,7 @@ export const usePayroll = (tenantId) => {
       if (payErr) throw payErr;
 
       setEmployees(normalizeNumericRows(empData, EMPLOYEE_NUMERIC));
-      setPayrollRecords(normalizeNumericRows(payData, PAYROLL_NUMERIC));
+      setPayrollRecords((payData || []).map(toPayrollRecord));
     } catch (err) {
       console.error("usePayroll Fetch Error:", err);
       setError(err.message);
@@ -109,9 +120,21 @@ export const usePayroll = (tenantId) => {
   };
 
   const processPayroll = async (record) => {
-    const { data, error } = await supabase.from('payroll').insert([{ ...record, tenant_id: tenantId }]).select().single();
-    if (error) return { success: false, error };
-    setPayrollRecords(prev => [data, ...prev]);
+    const row = {
+      tenant_id:         tenantId,
+      period:            record.period,
+      items:             record.items,
+      total_base:        record.totalBase,
+      total_net:         record.totalNet,
+      total_overtime:    record.totalOvertime,
+      total_commission:  record.totalCommission,
+      total_bonus:       record.totalBonus,
+      total_deductions:  record.totalDeductions,
+      processed_at:      record.processedAt,
+    };
+    const { data, error } = await supabase.from('payroll').insert([row]).select().single();
+    if (error) { console.error('processPayroll insert error:', error); return { success: false, error }; }
+    setPayrollRecords(prev => [toPayrollRecord(data), ...prev]);
     // Post one salary expense per employee → DayBook + P&L see it automatically
     // period is either YYYY-MM (monthly) or YYYY-MM-DD/YYYY-MM-DD (weekly)
     const isWeekly = record.period.includes('/');

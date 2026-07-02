@@ -315,10 +315,12 @@ const Payroll = () => {
   processedAt: new Date().toISOString()
 };
 
-  const success = await processPayroll(record);
-  if (success) {
-  setShowPayRunModal(false);
-}
+  const result = await processPayroll(record);
+  if (result?.success) {
+    setShowPayRunModal(false);
+  } else {
+    alert('Failed to save payroll: ' + (result?.error?.message || 'Unknown error'));
+  }
 } catch(err) {
   console.error('Payroll process error:', err);
 } finally {
