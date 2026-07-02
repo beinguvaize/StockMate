@@ -102,8 +102,24 @@ export const usePayroll = (tenantId) => {
 
   const processPayroll = async (record) => {
     const { data, error } = await supabase.from('payroll').insert([{ ...record, tenant_id: tenantId }]).select().single();
-    if (!error) setPayrollRecords(prev => [data, ...prev]);
-    return { success: !error, error };
+    if (error) return { success: false, error };
+    setPayrollRecords(prev => [data, ...prev]);
+    // Post one salary expense per employee → DayBook + P&L see it automatically
+    const [yr, mo] = record.period.split('-').map(Number);
+    const expDate = new Date(yr, mo, 0).toISOString().slice(0, 10); // last day of month
+    for (const item of (record.items || [])) {
+      if (!item.netPay || item.netPay <= 0) continue;
+      supabase.from('expenses').insert({
+        id: crypto.randomUUID(),
+        tenant_id: tenantId,
+        category: 'Salary',
+        amount: item.netPay,
+        note: `Payroll ${record.period} — ${item.employeeName}`,
+        date: expDate,
+        payment_method: 'CASH',
+      }).catch(e => console.error('salary expense insert error:', e));
+    }
+    return { success: true };
   };
 
   const deletePayrollRecord = async (id) => {
@@ -118,17 +134,50 @@ export const usePayroll = (tenantId) => {
     return { success: !error, error };
   };
 
-  return { 
-    employees, 
-    payrollRecords, 
-    loading, 
-    error, 
-    refetch: fetchPayrollData, 
-    addEmployee, 
-    updateEmployee, 
+  // ── Attendance ────────────────────────────────────────────────────────
+  const loadAttendance = useCallback(async (year, month) => {
+    if (!tenantId) return {};
+    const pad = (n) => String(n).padStart(2, '0');
+    const lastDay = new Date(year, month, 0).getDate();
+    const { data, error } = await supabase
+      .from('attendance')
+      .select('employee_id, date, status, ot_hours')
+      .eq('tenant_id', tenantId)
+      .gte('date', `${year}-${pad(month)}-01`)
+      .lte('date', `${year}-${pad(month)}-${pad(lastDay)}`);
+    if (error) { console.error('loadAttendance:', error); return {}; }
+    const map = {};
+    for (const row of data || []) {
+      if (!map[row.employee_id]) map[row.employee_id] = {};
+      map[row.employee_id][row.date] = { status: row.status, ot_hours: row.ot_hours || 0 };
+    }
+    return map;
+  }, [tenantId]);
+
+  const markAttendance = useCallback(async (employeeId, date, status, otHours = 0) => {
+    const { error } = await supabase
+      .from('attendance')
+      .upsert(
+        { tenant_id: tenantId, employee_id: employeeId, date, status, ot_hours: otHours },
+        { onConflict: 'tenant_id,employee_id,date' }
+      );
+    if (error) console.error('markAttendance:', error);
+    return { success: !error };
+  }, [tenantId]);
+
+  return {
+    employees,
+    payrollRecords,
+    loading,
+    error,
+    refetch: fetchPayrollData,
+    addEmployee,
+    updateEmployee,
     deleteEmployee,
     processPayroll,
     deletePayrollRecord,
-    resetEmployeesDailyData
+    resetEmployeesDailyData,
+    loadAttendance,
+    markAttendance,
   };
 };

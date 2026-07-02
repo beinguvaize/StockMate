@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePayroll } from '../hooks/usePayroll';
 import { usePeople } from '../hooks/usePeople';
-import { DollarSign, Trash2, X, Check, CreditCard, UserPlus, Lock, Receipt, Link2 } from 'lucide-react';
+import { DollarSign, Trash2, X, Check, CreditCard, UserPlus, Lock, Receipt, Link2, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 
 // Sub-components
 import PayrollHeader from '../components/payroll/PayrollHeader';
@@ -18,10 +18,11 @@ const Payroll = () => {
   const { hasPermission, hasRole } = useAuth();
   const { currentTenantId, businessProfile } = useTenant();
   const { users } = usePeople(currentTenantId);
-  const { 
+  const {
     employees, addEmployee, updateEmployee, deleteEmployee,
     payrollRecords, processPayroll, deletePayrollRecord, resetEmployeesDailyData,
-    loading: payLoading 
+    loadAttendance, markAttendance,
+    loading: payLoading
   } = usePayroll(currentTenantId);
 
   const isViewOnly = () => false;
@@ -34,6 +35,52 @@ const Payroll = () => {
   const [showPayRunModal, setShowPayRunModal] = useState(false);
   const [payRunMonth, setPayRunMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
   const [payRunItems, setPayRunItems] = useState([]);
+
+  // ── Attendance state ─────────────────────────────────────────────────
+  const [attendance, setAttendance] = useState({});  // { [empId]: { [dateStr]: { status } } }
+  const [attLoading, setAttLoading] = useState(false);
+
+  const attYear  = useMemo(() => parseInt(payRunMonth.split('-')[0]), [payRunMonth]);
+  const attMonth = useMemo(() => parseInt(payRunMonth.split('-')[1]), [payRunMonth]);
+  const daysInMonth = useMemo(() => new Date(attYear, attMonth, 0).getDate(), [attYear, attMonth]);
+  const attDays  = useMemo(() => Array.from({ length: daysInMonth }, (_, i) => i + 1), [daysInMonth]);
+  const padZ     = (n) => String(n).padStart(2, '0');
+
+  const dailyWageEmps = useMemo(
+    () => employees.filter(e => e.status === 'ACTIVE' && ['DAILY', 'HOURLY'].includes(e.pay_type)),
+    [employees]
+  );
+  const monthlyEmps = useMemo(
+    () => employees.filter(e => e.status === 'ACTIVE' && !['DAILY', 'HOURLY'].includes(e.pay_type)),
+    [employees]
+  );
+
+  const ATTENDANCE_CYCLE = { PRESENT: 'ABSENT', ABSENT: 'HALF_DAY', HALF_DAY: 'PRESENT' };
+  const STATUS_WEIGHT    = { PRESENT: 1, HALF_DAY: 0.5, OT: 1, ABSENT: 0 };
+
+  const computeDays = useCallback(
+    (empId) => Object.values(attendance[empId] || {}).reduce((s, a) => s + (STATUS_WEIGHT[a.status] || 0), 0),
+    [attendance]
+  );
+
+  const toggleAttendance = async (empId, dateStr) => {
+    const current = attendance[empId]?.[dateStr]?.status;
+    const next = ATTENDANCE_CYCLE[current] || 'PRESENT';
+    setAttendance(prev => ({
+      ...prev,
+      [empId]: { ...(prev[empId] || {}), [dateStr]: { status: next, ot_hours: 0 } },
+    }));
+    await markAttendance(empId, dateStr, next);
+  };
+
+  const goPrevMonth = () => {
+    const d = new Date(attYear, attMonth - 2, 1);
+    setPayRunMonth(`${d.getFullYear()}-${padZ(d.getMonth() + 1)}`);
+  };
+  const goNextMonth = () => {
+    const d = new Date(attYear, attMonth, 1);
+    setPayRunMonth(`${d.getFullYear()}-${padZ(d.getMonth() + 1)}`);
+  };
   
   const [empForm, setEmpForm] = useState({
   name: '', email: '', phone: '', department: DEPARTMENTS[0],
@@ -131,22 +178,31 @@ const Payroll = () => {
 
   // ===== PAYROLL RUN LOGIC =====
   const openPayRun = () => {
-  const activeEmployees = employees.filter(e => e.status === 'ACTIVE');
-  const items = activeEmployees.map(emp => ({
-  employeeId: emp.id,
-  employeeName: emp.name,
-  department: emp.department,
-  payType: emp.payType,
-  basePay: Number(emp.salary) || Number(emp.basePay) || 0,
-  hoursWorked: 160,
-  overtime: 0,
-  bonus: 0,
-  deductions: 0,
-  netPay: Number(emp.salary) || Number(emp.basePay) || 0
-}));
-  setPayRunItems(items);
-  setShowPayRunModal(true);
-};
+    const activeEmployees = employees.filter(e => e.status === 'ACTIVE');
+    const items = activeEmployees.map(emp => {
+      const isDW  = ['DAILY', 'HOURLY'].includes(emp.pay_type);
+      const days  = isDW ? computeDays(emp.id) : null;
+      const base  = isDW
+        ? Math.round(days * (emp.daily_rate || 0))
+        : (Number(emp.salary) || Number(emp.basePay) || 0);
+      return {
+        employeeId:   emp.id,
+        employeeName: emp.name,
+        department:   emp.department,
+        payType:      emp.pay_type || emp.payType,
+        daysWorked:   days,
+        dailyRate:    emp.daily_rate || 0,
+        basePay:      base,
+        hoursWorked:  160,
+        overtime:     0,
+        bonus:        0,
+        deductions:   0,
+        netPay:       base,
+      };
+    });
+    setPayRunItems(items);
+    setShowPayRunModal(true);
+  };
 
   const updatePayRunItem = (empId, field, value) => {
   const numVal = parseFloat(value) || 0;
@@ -209,13 +265,23 @@ const Payroll = () => {
   const lastPayRun = useMemo(() => payrollRecords.length > 0 ? payrollRecords[0] : null, [payrollRecords]);
 
   useEffect(() => {
-  if (showForm || showPayRunModal || showSalaryModal || deleteConfirm) {
-  document.body.style.overflow = 'hidden';
-} else {
-  document.body.style.overflow = 'unset';
-}
-  return () => { document.body.style.overflow = 'unset';};
-}, [showForm, showPayRunModal, showSalaryModal, deleteConfirm]);
+    if (showForm || showPayRunModal || showSalaryModal || deleteConfirm) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [showForm, showPayRunModal, showSalaryModal, deleteConfirm]);
+
+  // Load attendance whenever the active month changes
+  useEffect(() => {
+    if (!currentTenantId) return;
+    setAttLoading(true);
+    loadAttendance(attYear, attMonth).then(map => {
+      setAttendance(map);
+      setAttLoading(false);
+    });
+  }, [attYear, attMonth, currentTenantId]);
 
   return (
   <>
@@ -234,18 +300,25 @@ const Payroll = () => {
 
   <div className="flex flex-col gap-4 mt-2">
   <div className="pill-nav self-start">
-  <button
-  onClick={() => setActiveTab('EMPLOYEES')}
-  className={`px-10 py-2 rounded-pill text-[10px] font-semibold transition-all ${activeTab === 'EMPLOYEES' ? 'bg-ink-primary text-surface shadow-premium' : 'text-gray-700 hover:text-ink-primary'}`}
-  >
-  Employees
-  </button>
-  <button
-  onClick={() => setActiveTab('HISTORY')}
-  className={`px-10 py-2 rounded-pill text-[10px] font-semibold transition-all ${activeTab === 'HISTORY' ? 'bg-ink-primary text-surface shadow-premium' : 'text-gray-700 hover:text-ink-primary'}`}
-  >
-  Pay History
-  </button>
+    <button
+      onClick={() => setActiveTab('EMPLOYEES')}
+      className={`px-10 py-2 rounded-pill text-[10px] font-semibold transition-all ${activeTab === 'EMPLOYEES' ? 'bg-ink-primary text-surface shadow-premium' : 'text-gray-700 hover:text-ink-primary'}`}
+    >
+      Employees
+    </button>
+    <button
+      onClick={() => setActiveTab('ATTENDANCE')}
+      className={`px-10 py-2 rounded-pill text-[10px] font-semibold transition-all flex items-center gap-1.5 ${activeTab === 'ATTENDANCE' ? 'bg-ink-primary text-surface shadow-premium' : 'text-gray-700 hover:text-ink-primary'}`}
+    >
+      <Calendar size={10} />
+      Attendance
+    </button>
+    <button
+      onClick={() => setActiveTab('HISTORY')}
+      className={`px-10 py-2 rounded-pill text-[10px] font-semibold transition-all ${activeTab === 'HISTORY' ? 'bg-ink-primary text-surface shadow-premium' : 'text-gray-700 hover:text-ink-primary'}`}
+    >
+      Pay History
+    </button>
   </div>
 
   {activeTab === 'EMPLOYEES' && (
@@ -263,13 +336,151 @@ const Payroll = () => {
   )}
 
   {activeTab === 'HISTORY' && (
-  <PayHistory 
-  payrollRecords={payrollRecords}
-  currencySymbol={businessProfile?.currencySymbol || ''}
-  openPayRun={openPayRun}
-  deletePayrollRecord={deletePayrollRecord}
-  />
+    <PayHistory
+      payrollRecords={payrollRecords}
+      currencySymbol={businessProfile?.currencySymbol || ''}
+      openPayRun={openPayRun}
+      deletePayrollRecord={deletePayrollRecord}
+    />
   )}
+
+  {activeTab === 'ATTENDANCE' && (() => {
+    const sym = businessProfile?.currencySymbol || '₹';
+    const monthLabel = new Date(attYear, attMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' });
+
+    const statusStyle = (s) => {
+      if (s === 'PRESENT')  return 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200';
+      if (s === 'ABSENT')   return 'bg-red-50 text-red-500 hover:bg-red-100';
+      if (s === 'HALF_DAY') return 'bg-amber-50 text-amber-600 hover:bg-amber-100';
+      return 'bg-canvas text-gray-300 hover:bg-gray-100 hover:text-gray-500';
+    };
+    const statusLabel = (s) => s === 'PRESENT' ? '✓' : s === 'ABSENT' ? '✗' : s === 'HALF_DAY' ? '½' : '·';
+
+    return (
+      <div className="flex flex-col gap-6">
+        {/* Month navigator */}
+        <div className="flex items-center gap-3 self-start bg-white border border-black/8 rounded-pill px-4 py-2 shadow-sm">
+          <button onClick={goPrevMonth} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-ink-primary">
+            <ChevronLeft size={14} />
+          </button>
+          <span className="text-sm font-semibold text-ink-primary min-w-[160px] text-center">{monthLabel}</span>
+          <button onClick={goNextMonth} className="w-6 h-6 flex items-center justify-center rounded-full hover:bg-black/5 transition-all text-ink-primary">
+            <ChevronRight size={14} />
+          </button>
+        </div>
+
+        {/* Legend */}
+        <div className="flex items-center gap-4 text-[10px] font-semibold">
+          <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-emerald-100 text-emerald-700 flex items-center justify-center text-[9px] font-bold">✓</span> Present</span>
+          <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-red-50 text-red-500 flex items-center justify-center text-[9px] font-bold">✗</span> Absent</span>
+          <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-amber-50 text-amber-600 flex items-center justify-center text-[9px] font-bold">½</span> Half Day</span>
+          <span className="text-gray-400 italic">Click cell to cycle status</span>
+          {attLoading && <span className="text-gray-400 animate-pulse">Loading…</span>}
+        </div>
+
+        {/* Daily wage grid */}
+        {dailyWageEmps.length > 0 && (
+          <div className="bg-white rounded-2xl border border-black/5 overflow-hidden shadow-sm">
+            <div className="px-4 py-3 border-b border-black/5 flex items-center gap-2">
+              <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">Daily Wage / Hourly Employees</span>
+              <span className="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-pill font-bold uppercase">Attendance tracked</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="border-collapse" style={{ minWidth: `${140 + attDays.length * 34 + 120}px` }}>
+                <thead>
+                  <tr className="bg-canvas">
+                    <th className="text-left px-4 py-2 text-[9px] font-semibold text-gray-500 uppercase sticky left-0 bg-canvas z-10 w-36">Employee</th>
+                    {attDays.map(d => (
+                      <th key={d} className="px-0.5 py-2 text-center text-[9px] font-semibold text-gray-400 w-8">{d}</th>
+                    ))}
+                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-gray-500 uppercase w-14">Days</th>
+                    <th className="px-3 py-2 text-right text-[9px] font-semibold text-gray-500 uppercase w-24">Wage</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-black/5">
+                  {dailyWageEmps.map(emp => {
+                    const days = computeDays(emp.id);
+                    const wage = Math.round(days * (emp.daily_rate || 0));
+                    return (
+                      <tr key={emp.id} className="hover:bg-canvas/50">
+                        <td className="px-4 py-2 sticky left-0 bg-white z-10">
+                          <div className="text-xs font-semibold text-ink-primary leading-none truncate max-w-[120px]">{emp.name}</div>
+                          <div className="text-[8px] text-gray-400 font-semibold mt-0.5">{sym}{(emp.daily_rate || 0).toLocaleString('en-IN')}/day</div>
+                        </td>
+                        {attDays.map(d => {
+                          const dateStr = `${attYear}-${padZ(attMonth)}-${padZ(d)}`;
+                          const status  = attendance[emp.id]?.[dateStr]?.status;
+                          return (
+                            <td key={d} className="p-0.5 text-center">
+                              <button
+                                onClick={() => toggleAttendance(emp.id, dateStr)}
+                                className={`w-7 h-7 rounded text-[10px] font-bold transition-all cursor-pointer ${statusStyle(status)}`}
+                                title={dateStr}
+                              >
+                                {statusLabel(status)}
+                              </button>
+                            </td>
+                          );
+                        })}
+                        <td className="px-3 py-2 text-right text-xs font-bold text-ink-primary tabular-nums">{days}</td>
+                        <td className="px-3 py-2 text-right text-xs font-bold text-emerald-600 tabular-nums">{sym}{wage.toLocaleString('en-IN')}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-ink-primary text-surface">
+                    <td className="px-4 py-3 text-[10px] font-semibold sticky left-0 bg-ink-primary z-10" colSpan={attDays.length + 1}>
+                      Total Daily Wage Payout
+                    </td>
+                    <td className="px-3 py-3 text-right text-sm font-bold tabular-nums" colSpan={2}>
+                      {sym}{dailyWageEmps.reduce((sum, e) => sum + Math.round(computeDays(e.id) * (e.daily_rate || 0)), 0).toLocaleString('en-IN')}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Monthly salary employees */}
+        {monthlyEmps.length > 0 && (
+          <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+            <div className="px-4 py-3 border-b border-black/5">
+              <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">Monthly Salary Employees</span>
+            </div>
+            <div className="divide-y divide-black/5">
+              {monthlyEmps.map(emp => (
+                <div key={emp.id} className="flex items-center justify-between px-4 py-3">
+                  <div>
+                    <div className="text-sm font-semibold text-ink-primary">{emp.name}</div>
+                    <div className="text-[9px] font-semibold text-gray-400 uppercase mt-0.5">{emp.department} · {emp.pay_type}</div>
+                  </div>
+                  <div className="text-sm font-bold text-ink-primary tabular-nums">
+                    Fixed {sym}{(Number(emp.salary) || 0).toLocaleString('en-IN')}/mo
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {employees.filter(e => e.status === 'ACTIVE').length === 0 && (
+          <div className="text-center py-16 text-gray-400 text-sm font-semibold">No active employees. Add employees first.</div>
+        )}
+
+        {/* Process payroll CTA */}
+        {employees.filter(e => e.status === 'ACTIVE').length > 0 && (
+          <div className="flex justify-end pt-2">
+            <button onClick={openPayRun} className="btn-signature !h-14 !px-10 !text-sm flex items-center gap-3">
+              PROCESS {new Date(attYear, attMonth - 1).toLocaleString('default', { month: 'long' }).toUpperCase()} PAYROLL
+              <div className="icon-nest !w-8 !h-8 ml-2"><Check size={16} /></div>
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  })()}
   </div>
   </div>
 
@@ -504,7 +715,7 @@ const Payroll = () => {
   <thead className="sticky top-0 z-10 bg-surface/50 backdrop-blur-xl">
   <tr className="border-b-2 border-ink-primary">
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70">Employee</th>
-  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Hours</th>
+  <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Days / Hours</th>
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Base Pay</th>
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Overtime (1.5x)</th>
   <th className="pb-6 text-[10px] font-semibold text-gray-700 opacity-70 text-right">Bonus</th>
@@ -520,11 +731,13 @@ const Payroll = () => {
   <div className="text-[9px] font-semibold text-gray-700 opacity-60">{item.department} | {item.payType}</div>
   </td>
   <td className="py-6 text-right">
-  {item.payType === 'HOURLY' ? (
-  <input type="number" className="w-20 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.hoursWorked} onChange={e => updatePayRunItem(item.employeeId, 'hoursWorked', e.target.value)} />
-  ) : (
-  <span className="text-xs font-semibold opacity-60 italic">N/A</span>
-  )}
+    {item.payType === 'DAILY' ? (
+      <span className="text-sm font-bold text-ink-primary tabular-nums">{item.daysWorked ?? 0} days</span>
+    ) : item.payType === 'HOURLY' ? (
+      <input type="number" className="w-20 bg-canvas border-none rounded-xl p-3 text-right font-semibold text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 shadow-sm" value={item.hoursWorked} onChange={e => updatePayRunItem(item.employeeId, 'hoursWorked', e.target.value)} />
+    ) : (
+      <span className="text-xs font-semibold opacity-60 italic">Fixed</span>
+    )}
   </td>
   <td className="py-6 text-right font-semibold text-xs text-gray-700 opacity-60 tabular-nums">
   {businessProfile?.currencySymbol || ''}{Math.round(item.basePay).toLocaleString()}
