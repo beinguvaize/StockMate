@@ -85,7 +85,10 @@ const Payroll = () => {
   const [empForm, setEmpForm] = useState({
   name: '', email: '', phone: '', department: DEPARTMENTS[0],
   position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '',
-  dailyRate: 500, daysWorked: 0, userId: ''
+  dailyRate: 500, daysWorked: 0, userId: '',
+  dob: '', gender: '', bloodGroup: '', emergencyContact: '',
+  joiningDate: '', employmentType: 'FULL_TIME',
+  aadhaar: '', pan: '', pfAccount: '', esiNo: '',
 });
   
   // Modals state
@@ -97,7 +100,7 @@ const Payroll = () => {
   // ===== EMPLOYEE CRUD =====
   const openAdd = () => {
   setEditingEmployee(null);
-  setEmpForm({ name: '', email: '', phone: '', department: DEPARTMENTS[0], position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '', dailyRate: 500, daysWorked: 0, userId: ''});
+  setEmpForm({ name: '', email: '', phone: '', department: DEPARTMENTS[0], position: '', payType: 'MONTHLY', basePay: '', bankAccount: '', notes: '', dailyRate: 500, daysWorked: 0, userId: '', dob: '', gender: '', bloodGroup: '', emergencyContact: '', joiningDate: '', employmentType: 'FULL_TIME', aadhaar: '', pan: '', pfAccount: '', esiNo: '' });
   setShowForm(true);
 };
 
@@ -110,7 +113,12 @@ const Payroll = () => {
   bankAccount: emp.bank_account || emp.bankAccount || '', notes: emp.notes || '',
   dailyRate: emp.daily_rate ?? emp.dailyRate ?? 500,
   daysWorked: emp.days_worked ?? emp.daysWorked ?? 0,
-  userId: emp.user_id || ''
+  userId: emp.user_id || '',
+  dob: emp.dob || '', gender: emp.gender || '', bloodGroup: emp.blood_group || '',
+  emergencyContact: emp.emergency_contact || '', joiningDate: emp.joining_date || '',
+  employmentType: emp.employment_type || 'FULL_TIME',
+  aadhaar: emp.aadhaar || '', pan: emp.pan || '',
+  pfAccount: emp.pf_account || '', esiNo: emp.esi_no || '',
 });
   setShowForm(true);
 };
@@ -521,169 +529,227 @@ const Payroll = () => {
   </div>
   )}
 
-  {/* Payout Form Modal */}
+  {/* Employee Form Modal */}
   {showForm && (
   <div className="modal-overlay">
-  <div className="glass-modal">
-  <div className="flex justify-between items-start mb-4">
-  <div>
-  <h1 className="text-4xl font-black font-sora text-ink-primary leading-[0.9] tracking-tight mb-1 uppercase">{editingEmployee ? 'EDIT EMPLOYEE' : 'ADD EMPLOYEE'}<span className="text-accent-signature">.</span></h1>
-  <p className="text-[10px] font-semibold text-gray-500 mb-6 uppercase tracking-wider">{editingEmployee ? 'Update employee details' : 'Add a new employee to payroll'}</p>
-  </div>
-  <button 
-  onClick={() => setShowForm(false)}
-  className="w-8 h-8 rounded-pill border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary"
-  >
-  <X size={16} />
-  </button>
-  </div>
+  <div className="glass-modal !max-w-2xl !p-0 overflow-hidden flex flex-col" style={{maxHeight:'90vh'}}>
 
-  <form onSubmit={handleSubmit} className="space-y-4">
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-  <div className="md:col-span-2">
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Full Name</label>
-  <input
-  required
-  type="text"
-  className="w-full bg-canvas border-none rounded-lg p-4 font-medium text-sm text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
-  placeholder="e.g. John Smith"
-  value={empForm.name} 
-  onChange={e => setEmpForm({ ...empForm, name: e.target.value})} 
-  />
-  </div>
+    {/* Header */}
+    <div className="flex items-center justify-between px-6 py-4 border-b border-black/8 shrink-0">
+      <div>
+        <h2 className="text-base font-semibold text-ink-primary">{editingEmployee ? 'Edit employee' : 'Add employee'}</h2>
+        <p className="text-[11px] text-gray-500 mt-0.5">{editingEmployee ? 'Update staff member details' : 'New staff member will be added to payroll'}</p>
+      </div>
+      <button onClick={() => setShowForm(false)} className="w-8 h-8 rounded-full border border-black/10 flex items-center justify-center hover:bg-black/5 transition-all cursor-pointer text-ink-primary">
+        <X size={15} />
+      </button>
+    </div>
 
-  <div>
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1 flex items-center gap-1">
-    <Link2 size={10} /> Link to User Account <span className="text-gray-400">(optional)</span>
-  </label>
-  <select
-    className="w-full bg-canvas border-none rounded-lg p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer"
-    value={empForm.userId}
-    onChange={e => {
-      const u = users.find(u => u.id === e.target.value);
-      setEmpForm(prev => ({
-        ...prev,
-        userId: e.target.value,
-        // Auto-fill name + email if blank
-        name: prev.name || u?.name || prev.name,
-        email: prev.email || u?.email || prev.email,
-      }));
-    }}
-  >
-    <option value="">— No linked account —</option>
-    {(users || []).map(u => (
-      <option key={u.id} value={u.id}>
-        {u.name || u.email} {u.roles?.includes('DRIVER') ? '(Driver)' : ''}
-      </option>
-    ))}
-  </select>
-  {empForm.userId && (
-    <p className="text-[10px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
-      <Check size={10} /> Linked — van dispatch will use this account
-    </p>
-  )}
-  </div>
+    {/* Scrollable body */}
+    <form onSubmit={handleSubmit} className="overflow-y-auto flex-1 px-6 py-5 space-y-6">
 
-  <div>
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Department</label>
-  <select
-  className="w-full bg-canvas border-none rounded-lg p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer"
-  value={empForm.department}
-  onChange={e => setEmpForm({ ...empForm, department: e.target.value})}
-  >
-  {DEPARTMENTS.map(d => <option key={d} value={d}>{d.toUpperCase()}</option>)}
-  </select>
-  </div>
+      {/* ── Personal ── */}
+      <div>
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Personal information</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="col-span-2">
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Full name</label>
+            <input required type="text" placeholder="e.g. Ramesh Kumar"
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={empForm.name} onChange={e => setEmpForm({...empForm, name: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Date of birth</label>
+            <input type="date"
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={empForm.dob} onChange={e => setEmpForm({...empForm, dob: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Gender</label>
+            <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer"
+              value={empForm.gender} onChange={e => setEmpForm({...empForm, gender: e.target.value})}>
+              <option value="">Select</option>
+              <option value="MALE">Male</option>
+              <option value="FEMALE">Female</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Blood group</label>
+            <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer"
+              value={empForm.bloodGroup} onChange={e => setEmpForm({...empForm, bloodGroup: e.target.value})}>
+              <option value="">Select</option>
+              {['A+','A−','B+','B−','O+','O−','AB+','AB−'].map(g => <option key={g} value={g}>{g}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Phone</label>
+            <input type="tel" placeholder="9876543210"
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={empForm.phone} onChange={e => setEmpForm({...empForm, phone: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Emergency contact</label>
+            <input type="tel" placeholder="Family member's number"
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={empForm.emergencyContact} onChange={e => setEmpForm({...empForm, emergencyContact: e.target.value})} />
+          </div>
+        </div>
+      </div>
 
-  <div>
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Position / Role</label>
-  <input
-  required
-  type="text"
-  className="w-full bg-canvas border-none rounded-lg p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
-  placeholder="e.g. Driver, Cashier, Warehouse Staff"
-  value={empForm.position} 
-  onChange={e => setEmpForm({ ...empForm, position: e.target.value})} 
-  />
-  </div>
+      {/* ── Employment ── */}
+      <div className="border-t border-black/6 pt-5">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Employment</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Date of joining</label>
+            <input type="date"
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={empForm.joiningDate} onChange={e => setEmpForm({...empForm, joiningDate: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Employment type</label>
+            <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer"
+              value={empForm.employmentType} onChange={e => setEmpForm({...empForm, employmentType: e.target.value})}>
+              <option value="FULL_TIME">Full-time</option>
+              <option value="PART_TIME">Part-time</option>
+              <option value="CONTRACT">Contract</option>
+              <option value="INTERN">Intern</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Department</label>
+            <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer"
+              value={empForm.department} onChange={e => setEmpForm({...empForm, department: e.target.value})}>
+              {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Position / role</label>
+            <input required type="text" placeholder="e.g. Driver, Cashier, Warehouse Staff"
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={empForm.position} onChange={e => setEmpForm({...empForm, position: e.target.value})} />
+          </div>
+          <div className="col-span-2">
+            <label className="block text-[11px] font-medium text-gray-600 mb-1 flex items-center gap-1">
+              <Link2 size={10} /> Link to user account <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer"
+              value={empForm.userId}
+              onChange={e => {
+                const u = users.find(u => u.id === e.target.value);
+                setEmpForm(prev => ({ ...prev, userId: e.target.value, name: prev.name || u?.name || prev.name, email: prev.email || u?.email || prev.email }));
+              }}>
+              <option value="">— No linked account —</option>
+              {(users || []).map(u => <option key={u.id} value={u.id}>{u.name || u.email}{u.roles?.includes('DRIVER') ? ' (Driver)' : ''}</option>)}
+            </select>
+            {empForm.userId && <p className="text-[10px] text-emerald-600 font-semibold mt-1 flex items-center gap-1"><Check size={10} /> Linked — van dispatch will use this account</p>}
+          </div>
+        </div>
+      </div>
 
-  <div>
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-60 mb-1">Pay Type</label>
-  <select 
-  className="w-full bg-canvas border-none rounded-lg p-3.5 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all appearance-none cursor-pointer" 
-  value={empForm.payType} 
-  onChange={e => setEmpForm({ ...empForm, payType: e.target.value})}
-  >
-  {PAY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-  </select>
-  </div>
+      {/* ── Pay structure ── */}
+      <div className="border-t border-black/6 pt-5">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-3">Pay structure</p>
+        <div className="flex gap-2 mb-4 bg-canvas border border-black/8 rounded-lg p-1">
+          {PAY_TYPES.map(t => (
+            <button key={t} type="button"
+              onClick={() => setEmpForm({...empForm, payType: t})}
+              className={`flex-1 py-1.5 rounded-md text-[11px] font-semibold transition-all cursor-pointer ${empForm.payType === t ? 'bg-ink-primary text-surface shadow-sm' : 'text-gray-500 hover:text-ink-primary'}`}>
+              {t === 'MONTHLY' ? 'Monthly' : t === 'DAILY' ? 'Daily' : t === 'HOURLY' ? 'Hourly' : 'Weekly'}
+            </button>
+          ))}
+        </div>
+        {(empForm.payType === 'MONTHLY' || empForm.payType === 'WEEKLY') ? (
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">{empForm.payType === 'MONTHLY' ? 'Monthly salary (₹)' : 'Weekly pay (₹)'}</label>
+            <input required type="number" step="0.01" placeholder="e.g. 15000"
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={empForm.basePay} onChange={e => setEmpForm({...empForm, basePay: e.target.value})} />
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-[11px] font-medium text-gray-600 mb-1">{empForm.payType === 'DAILY' ? 'Daily rate (₹)' : 'Hourly rate (₹)'}</label>
+              <input required type="number" step="0.01" placeholder="e.g. 500"
+                className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+                value={empForm.dailyRate} onChange={e => setEmpForm({...empForm, dailyRate: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-gray-600 mb-1">Days worked (this cycle)</label>
+              <input type="number" placeholder="0"
+                className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+                value={empForm.daysWorked} onChange={e => setEmpForm({...empForm, daysWorked: e.target.value})} />
+            </div>
+          </div>
+        )}
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Payment mode</label>
+            <select className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 appearance-none cursor-pointer">
+              <option>Cash</option>
+              <option>Bank transfer</option>
+              <option>UPI</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Bank account / UPI ID</label>
+            <input type="text" placeholder="Account no. or handle@upi"
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={empForm.bankAccount} onChange={e => setEmpForm({...empForm, bankAccount: e.target.value})} />
+          </div>
+        </div>
+      </div>
 
-  <div className="p-4 rounded-lg bg-ink-primary flex flex-col justify-center">
-  <label className="block text-[8px] font-semibold text-surface/40 mb-2">Base Salary / Pay</label>
-  <div className="flex items-center gap-2">
-  <span className="text-xl font-semibold text-surface/30">{businessProfile?.currencySymbol || ''}</span>
-  <input 
-  required 
-  type="number" 
-  step="0.01" 
-  className="bg-transparent border-none w-full p-0 text-2xl font-semibold text-accent-signature outline-none tabular-nums" 
-  value={empForm.basePay} 
-  onChange={e => setEmpForm({ ...empForm, basePay: e.target.value})} 
-  />
-  </div>
-  </div>
+      {/* ── Statutory ── */}
+      <div className="border-t border-black/6 pt-5">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1">Statutory IDs</p>
+        <p className="text-[11px] text-gray-400 mb-3">Required for PF, TDS and ESI compliance</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">Aadhaar number</label>
+            <input type="text" placeholder="XXXX XXXX XXXX" maxLength={14}
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={empForm.aadhaar} onChange={e => setEmpForm({...empForm, aadhaar: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">
+              PAN <span className="text-[9px] bg-red-50 text-red-500 font-bold px-1.5 py-0.5 rounded ml-1">TDS</span>
+            </label>
+            <input type="text" placeholder="ABCDE1234F" maxLength={10}
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20 uppercase"
+              value={empForm.pan} onChange={e => setEmpForm({...empForm, pan: e.target.value.toUpperCase()})} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">PF account no.</label>
+            <input type="text" placeholder="MH/BOM/12345/000/0000000"
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={empForm.pfAccount} onChange={e => setEmpForm({...empForm, pfAccount: e.target.value})} />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-1">ESI no.</label>
+            <input type="text" placeholder="31-00-123456-000-0001"
+              className="w-full bg-canvas border border-black/8 rounded-lg px-3 py-2.5 text-sm text-ink-primary outline-none focus:ring-2 focus:ring-accent-signature/20"
+              value={empForm.esiNo} onChange={e => setEmpForm({...empForm, esiNo: e.target.value})} />
+          </div>
+        </div>
+      </div>
 
-  <div> 
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Daily Wage (Optional)</label>
-  <div className="grid grid-cols-2 gap-2 bg-canvas p-3 rounded-lg border border-black/5">
-  <div>
-  <label className="text-[8px] font-semibold opacity-[0.85] mb-1 block">Daily Rate</label>
-  <input 
-  type="number" 
-  className="w-full bg-surface border-none rounded-xl p-3 font-semibold text-sm text-ink-primary outline-none" 
-  placeholder="0.00"
-  value={empForm.dailyRate} 
-  onChange={e => setEmpForm({ ...empForm, dailyRate: e.target.value})} 
-  />
-  </div>
-  <div>
-  <label className="text-[8px] font-semibold opacity-[0.85] mb-1 block">Days Worked</label>
-  <input 
-  type="number" 
-  className="w-full bg-surface border-none rounded-xl p-3 font-semibold text-sm text-ink-primary outline-none" 
-  placeholder="0"
-  value={empForm.daysWorked} 
-  onChange={e => setEmpForm({ ...empForm, daysWorked: e.target.value})} 
-  />
-  </div>
-  </div>
-  </div>
+    </form>
 
-  <div>
-  <label className="block text-[10px] font-semibold text-gray-700 opacity-70 mb-1.5">Bank Account / UPI ID</label>
-  <div className="relative">
-  <input
-  type="text"
-  className="w-full bg-canvas border-none rounded-lg p-5 pl-14 font-semibold text-xs text-ink-primary outline-none focus:ring-4 focus:ring-accent-signature/20 transition-all"
-  placeholder="e.g. account number or UPI ID"
-  value={empForm.bankAccount} 
-  onChange={e => setEmpForm({ ...empForm, bankAccount: e.target.value})} 
-  />
-  <CreditCard size={18} className="absolute left-6 top-1/2 -translate-y-1/2 text-ink-primary opacity-20" />
-  </div>
-  </div>
-  </div>
+    {/* Footer */}
+    <div className="px-6 py-4 border-t border-black/8 flex gap-3 justify-end shrink-0">
+      <button type="button" onClick={() => setShowForm(false)}
+        className="px-5 py-2 rounded-lg border border-black/10 text-sm font-medium text-gray-600 hover:bg-black/5 transition-all cursor-pointer">
+        Cancel
+      </button>
+      <button form="emp-form-inner" type="submit" onClick={handleSubmit} disabled={isSaving}
+        className="btn-signature px-6 py-2 !rounded-lg !text-sm flex items-center gap-2">
+        <UserPlus size={15} />
+        {isSaving ? 'Saving…' : (editingEmployee ? 'Save changes' : 'Add employee')}
+      </button>
+    </div>
 
-  <div className="grid grid-cols-2 gap-4 pt-4">
-  <button type="button" className="px-8 py-2 rounded-pill border border-black/10 font-semibold text-ink-primary text-xs hover:bg-black/5 transition-all cursor-pointer" onClick={() => setShowForm(false)}>Cancel</button>
-  <button type="submit" className="btn-signature !h-14 !text-sm flex items-center justify-center px-6 !rounded-pill">
-  {editingEmployee ? 'SAVE CHANGES' : 'ADD EMPLOYEE'}
-  <div className="icon-nest !w-10 !h-10 ml-4">
-  <UserPlus size={18} />
-  </div>
-  </button>
-  </div>
-  </form>
   </div>
   </div>
   )}

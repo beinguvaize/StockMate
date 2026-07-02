@@ -8,22 +8,30 @@ const PAYROLL_NUMERIC  = ['gross', 'net', 'deductions', 'bonus', 'days_worked'];
 
 // Map camelCase form fields → snake_case DB columns
 const toEmployeeRow = (emp) => ({
-  name:         emp.name         ?? null,
-  email:        emp.email        ?? null,
-  phone:        emp.phone        ?? null,
-  department:   emp.department   ?? null,
-  position:     emp.position     ?? null,
-  status:       emp.status       ?? 'ACTIVE',
-  pay_type:     emp.payType      ?? emp.pay_type    ?? null,
-  salary:       emp.basePay      != null ? Number(emp.basePay)    : (emp.salary      != null ? Number(emp.salary)      : null),
-  daily_rate:   emp.dailyRate    != null ? Number(emp.dailyRate)  : (emp.daily_rate  != null ? Number(emp.daily_rate)  : null),
-  days_worked:  emp.daysWorked   != null ? Number(emp.daysWorked) : (emp.days_worked != null ? Number(emp.days_worked) : null),
-  amount_paid:  emp.amountPaid   != null ? Number(emp.amountPaid) : (emp.amount_paid != null ? Number(emp.amount_paid) : null),
-  bank_account: emp.bankAccount  ?? emp.bank_account ?? null,
-  notes:        emp.notes        ?? null,
-  // Coerce empty string → null (|| not ??): an unlinked employee sends ''
-  // which would otherwise hit employees_user_id_fkey.
-  user_id:      emp.user_id      || emp.userId       || null,
+  name:              emp.name              ?? null,
+  email:             emp.email             ?? null,
+  phone:             emp.phone             ?? null,
+  department:        emp.department        ?? null,
+  position:          emp.position          ?? null,
+  status:            emp.status            ?? 'ACTIVE',
+  pay_type:          emp.payType           ?? emp.pay_type         ?? null,
+  salary:            emp.basePay      != null ? Number(emp.basePay)    : (emp.salary      != null ? Number(emp.salary)      : null),
+  daily_rate:        emp.dailyRate    != null ? Number(emp.dailyRate)  : (emp.daily_rate  != null ? Number(emp.daily_rate)  : null),
+  days_worked:       emp.daysWorked   != null ? Number(emp.daysWorked) : (emp.days_worked != null ? Number(emp.days_worked) : null),
+  amount_paid:       emp.amountPaid   != null ? Number(emp.amountPaid) : (emp.amount_paid != null ? Number(emp.amount_paid) : null),
+  bank_account:      emp.bankAccount       ?? emp.bank_account     ?? null,
+  notes:             emp.notes             ?? null,
+  user_id:           emp.user_id           || emp.userId            || null,
+  dob:               emp.dob               || null,
+  gender:            emp.gender            || null,
+  blood_group:       emp.bloodGroup        ?? emp.blood_group       ?? null,
+  emergency_contact: emp.emergencyContact  ?? emp.emergency_contact ?? null,
+  joining_date:      emp.joiningDate       ?? emp.joining_date      ?? null,
+  employment_type:   emp.employmentType    ?? emp.employment_type   ?? 'FULL_TIME',
+  aadhaar:           emp.aadhaar           || null,
+  pan:               emp.pan               || null,
+  pf_account:        emp.pfAccount         ?? emp.pf_account        ?? null,
+  esi_no:            emp.esiNo             ?? emp.esi_no            ?? null,
 });
 
 export const usePayroll = (tenantId) => {
