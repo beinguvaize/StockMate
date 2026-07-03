@@ -233,13 +233,25 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
             await queueMutation({ table: 'sales', type: 'update', payload: { id, discount: discountAmt } });
           }
           // Optimistic sale row so lists/DayBook reflect it before sync.
+          const optimisticPaid = paidAmount ?? (paymentStatus === 'PAID' ? totalAmount : 0);
           await upsertCachedRow('sales', {
             id, tenant_id: tenantId, shopId: clientId, items,
             totalAmount, discount: Number(sale.discount) || 0,
             paymentMethod: sale.paymentMethod || 'CASH', paymentStatus,
-            paidAmount: paidAmount ?? (paymentStatus === 'PAID' ? totalAmount : 0),
+            paidAmount: optimisticPaid,
             date: sale.date || todayISOInAppTZ(), created_at: new Date().toISOString(),
           });
+          // Credit/partial sale: bump the client's outstanding in state AND the
+          // IDB cache so the balance survives reloads/offline reads before sync.
+          const unpaid = Math.max(0, Number(totalAmount) - Number(optimisticPaid));
+          if (clientId && unpaid > 0) {
+            const curClient = clients.find(c => c.id === clientId);
+            if (curClient) {
+              const updated = { ...curClient, outstanding_balance: Number(curClient.outstanding_balance || 0) + unpaid };
+              await upsertCachedRow('clients', updated);
+              setClients(prev => prev.map(c => c.id === clientId ? updated : c));
+            }
+          }
           fetchSales();
           return { success: true, id, queued: true };
         } catch (qErr) {

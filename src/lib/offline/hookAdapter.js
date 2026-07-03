@@ -143,12 +143,31 @@ export async function fetchWithCache(table, queryFn) {
 /**
  * Enqueue a write for later replay by the sync engine.
  * Returns the outbox opId.
+ *
+ * Every queued op also schedules a debounced sync (~3s) when online, so the
+ * server catches up within seconds instead of waiting for the 10-min auto
+ * interval — otherwise background revalidates serve stale server rows and
+ * optimistic balances appear to "jump back".
  */
+let _syncSoonTimer = null;
+function scheduleSyncSoon() {
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
+  clearTimeout(_syncSoonTimer);
+  _syncSoonTimer = setTimeout(async () => {
+    try {
+      const { syncNow } = await import('./syncEngine.js');
+      await syncNow();
+    } catch (_) {/* next auto/manual sync will retry */}
+  }, 3000);
+}
+
 export async function queueMutation({ table, type = 'insert', payload }) {
   // Outbox queue only meaningful on desktop. Web hooks should never call
   // this — if they do, no-op so we don't grow web's IDB silently.
   if (!isElectron()) return null;
-  return enqueue({ table, type, payload });
+  const opId = await enqueue({ table, type, payload });
+  scheduleSyncSoon();
+  return opId;
 }
 
 /**

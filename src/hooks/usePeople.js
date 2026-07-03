@@ -291,7 +291,14 @@ export const usePeople = (tenantId) => {
             p_notes: notes || null, p_recorded_by: currentUser?.id || null,
           },
         });
-        // Optimistic: reflect the collection on the client's balance locally.
+        // Optimistic: reflect the collection on the client's balance locally —
+        // BOTH React state and the IDB cache, otherwise an app reload/offline
+        // read serves the stale cached balance and the number "jumps back".
+        const cur = clients.find(c => c.id === clientId);
+        if (cur) {
+          const updated = { ...cur, outstanding_balance: Math.max(0, Number(cur.outstanding_balance || 0) - Number(amount)) };
+          await upsertCachedRow('clients', updated);
+        }
         setClients(prev => prev.map(c => c.id === clientId
           ? { ...c, outstanding_balance: Math.max(0, Number(c.outstanding_balance || 0) - Number(amount)) }
           : c));
