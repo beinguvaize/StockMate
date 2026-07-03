@@ -44,26 +44,26 @@ const Accounts = () => {
     <div className="p-4 sm:p-6 max-w-5xl mx-auto flex flex-col gap-5">
       <div className="flex items-center gap-3">
         <div>
-          <h1 className="text-2xl font-black text-ink-primary leading-none">Cash &amp; bank<span className="text-accent-signature">.</span></h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">Accounts, balances and money movement</p>
+          <h1 className="text-xl font-semibold text-ink-primary leading-none">Cash &amp; bank</h1>
+          <p className="text-[12px] text-gray-400 mt-1">Accounts, balances and money movement</p>
         </div>
         <div className="ml-auto flex gap-2">
-          <button onClick={() => setModal('transfer')} className="px-3 py-2 rounded-xl text-[12px] font-bold border border-black/10 hover:bg-black/5"><ArrowRightLeft size={14} className="inline -mt-0.5 mr-1.5" />Transfer</button>
-          <button onClick={() => setModal('add')} className="px-4 py-2 rounded-xl text-[12px] font-black bg-accent-signature text-white hover:opacity-90"><Plus size={14} className="inline -mt-0.5 mr-1" />Add account</button>
+          <button onClick={() => setModal('transfer')} className="px-3 py-2 rounded-lg text-[12px] font-semibold border border-black/10 text-gray-600 hover:bg-black/5 transition-colors"><ArrowRightLeft size={14} className="inline -mt-0.5 mr-1.5" />Transfer</button>
+          <button onClick={() => setModal('add')} className="px-4 py-2 rounded-lg text-[12px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity"><Plus size={14} className="inline -mt-0.5 mr-1" />Add account</button>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-black/5 shadow-sm p-4 flex items-baseline gap-3">
-        <span className="text-[11px] uppercase tracking-widest text-gray-400">Total balance</span>
-        <span className="text-2xl font-black font-mono text-ink-primary ml-auto">{inr(totalBalance)}</span>
+      <div className="bg-white rounded-xl border border-black/8 shadow-sm p-4 flex items-baseline gap-3">
+        <span className="text-[11px] uppercase tracking-wide text-gray-400 font-medium">Total balance</span>
+        <span className="text-2xl font-semibold font-mono text-ink-primary ml-auto tabular-nums">{inr(totalBalance)}</span>
       </div>
 
       {loading ? (
-        <div className="text-center py-16 text-gray-400 text-sm font-bold animate-pulse">Loading accounts…</div>
+        <div className="text-center py-16 text-gray-400 text-sm font-medium animate-pulse">Loading accounts…</div>
       ) : accounts.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
-          <Wallet size={32} className="mx-auto mb-3 opacity-40" />
-          <p className="text-sm font-bold">No accounts yet.</p>
+          <Wallet size={28} className="mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-semibold text-gray-500">No accounts yet.</p>
           <p className="text-[12px] mt-1">Add a Cash, Bank or Loan account to track money.</p>
         </div>
       ) : (
@@ -74,33 +74,34 @@ const Accounts = () => {
             const ls = isLoan ? loanStats(a, loanPayments?.[a.id] || []) : null;
             return (
               <div key={a.id}
-                className={`text-left bg-white rounded-2xl border shadow-sm p-4 transition-colors ${active === a.id ? 'border-accent-signature' : 'border-black/5'}`}>
+                className={`text-left bg-white rounded-xl border shadow-sm p-4 transition-colors ${active === a.id ? 'border-accent-signature ring-1 ring-accent-signature/20' : 'border-black/8'}`}>
                 <button onClick={() => setActive(a.id)} className="w-full text-left">
                   <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-800 grid place-items-center"><Icon size={16} /></div>
-                    <div className="font-black text-[13px] text-ink-primary">{a.name}</div>
+                    <div className="w-8 h-8 rounded-lg bg-canvas border border-black/8 text-ink-primary grid place-items-center"><Icon size={15} /></div>
+                    <div className="font-semibold text-[13px] text-ink-primary">{a.name}</div>
                     <div className="ml-auto flex items-center gap-1.5">
                       {a.is_default && !isLoan && (
-                        <span className="text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full bg-accent-signature/10 text-accent-signature border border-accent-signature/20">Default</span>
+                        <span className="text-[8px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-accent-signature/10 text-accent-signature border border-accent-signature/20">Default</span>
                       )}
-                      <span className="text-[9px] font-black uppercase tracking-widest text-gray-400">{a.type}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wide text-gray-400">{a.type}</span>
                     </div>
                   </div>
                   {isLoan ? (
                     <>
-                      <div className="mt-3 text-[10px] uppercase tracking-widest text-gray-400">Outstanding</div>
-                      <div className="font-mono font-black text-xl text-rose-600">{inr(ls.outstanding)}</div>
+                      <div className="mt-3 text-[10px] uppercase tracking-wide text-gray-400 font-medium">Outstanding</div>
+                      <div className="font-mono font-semibold text-xl text-rose-600 tabular-nums">{inr(ls.outstanding)}</div>
                       <div className="text-[11px] text-gray-500 mt-1">EMI {inr(ls.emi)} · {ls.paid}/{ls.total} paid · {a.loan_rate}% p.a.</div>
                     </>
                   ) : (
                     <>
-                      <div className="mt-3 font-mono font-black text-xl text-ink-primary">{inr(balances[a.id] || 0)}</div>
+                      <div className="mt-3 font-mono font-semibold text-xl text-ink-primary tabular-nums">{inr(balances[a.id] || 0)}</div>
                       {a.bank_name && <div className="text-[11px] text-gray-400 mt-0.5">{a.bank_name} {a.account_no ? `· ${a.account_no}` : ''}</div>}
+                      {a.upi_id && !a.bank_name && <div className="text-[11px] text-gray-400 mt-0.5">{a.upi_id}</div>}
                     </>
                   )}
                 </button>
                 {isLoan && ls.outstanding > 0 && (
-                  <button onClick={() => setEmiFor(a)} className="mt-3 w-full py-2 rounded-lg text-[11px] font-black bg-accent-signature text-white hover:opacity-90">Pay EMI {inr(ls.emi)}</button>
+                  <button onClick={() => setEmiFor(a)} className="mt-3 w-full py-2 rounded-lg text-[11px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity">Pay EMI {inr(ls.emi)}</button>
                 )}
                 {!isLoan && (
                   <div className="mt-3 flex gap-2">
@@ -111,17 +112,18 @@ const Accounts = () => {
                           if (error) addNotification('Failed: ' + error.message, 'error');
                           else addNotification(`${a.name} set as default ${a.type.toLowerCase()}`, 'success');
                         }}
-                        className="flex-1 py-1.5 rounded-lg text-[11px] font-bold border border-black/10 text-gray-500 hover:bg-black/5 transition-all"
+                        className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-black/10 text-gray-500 hover:bg-black/5 transition-colors"
                       >
                         Set as default
                       </button>
                     )}
                     <button
                       onClick={() => setEditAcc(a)}
-                      className="px-3 py-1.5 rounded-lg border border-black/10 text-gray-500 hover:bg-black/5 transition-all"
+                      className={`${a.is_default ? 'flex-1' : ''} px-3 py-1.5 rounded-lg border border-black/10 text-gray-500 hover:bg-black/5 transition-colors flex items-center justify-center gap-1.5`}
                       title="Edit account"
                     >
                       <Pencil size={13} />
+                      {a.is_default && <span className="text-[11px] font-semibold">Edit</span>}
                     </button>
                   </div>
                 )}
@@ -190,12 +192,18 @@ const Accounts = () => {
         const { error } = await createAccount(a);
         if (error) return addNotification('Add failed: ' + error.message, 'error');
         addNotification('Account added', 'success'); setModal(null);
-      }} onDelete={removeAccount} />}
+      }} />}
 
       {editAcc && <EditAccountModal account={editAcc} accounts={accounts} onClose={() => setEditAcc(null)} onSave={async (patch) => {
         const { error } = await updateAccount(editAcc.id, patch);
         if (error) return addNotification('Update failed: ' + error.message, 'error');
         addNotification('Account updated', 'success'); setEditAcc(null);
+      }} onDelete={async () => {
+        const { error } = await removeAccount(editAcc.id);
+        if (error) return addNotification('Delete failed: ' + error.message, 'error');
+        addNotification('Account deleted', 'success');
+        setEditAcc(null);
+        if (active === editAcc.id) setActive(null);
       }} />}
 
       {modal === 'txn' && active && <TxnModal accountName={accounts.find((a) => a.id === active)?.name} onClose={() => setModal(null)} onSave={async (t) => {
@@ -359,16 +367,16 @@ const TransferModal = ({ accounts, onClose, onSave }) => {
   );
 };
 
-const EditAccountModal = ({ account, accounts, onClose, onSave }) => {
+const EditAccountModal = ({ account, accounts, onClose, onSave, onDelete }) => {
   const [f, setF] = useState({
     name: account.name || '',
     bank_name: account.bank_name || '',
     account_no: account.account_no || '',
     upi_id: account.upi_id || '',
   });
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const isBank = account.type === 'BANK';
   const isUpi  = account.type === 'UPI';
-  const bankAccounts = accounts.filter((a) => a.type === 'BANK' && !a.deleted_at && a.id !== account.id);
   return (
     <Shell title={`Edit · ${account.type}`} onClose={onClose}>
       <label className={lbl}>Account name</label>
@@ -385,7 +393,27 @@ const EditAccountModal = ({ account, accounts, onClose, onSave }) => {
           <input className={inp} value={f.upi_id} onChange={(e) => setF({ ...f, upi_id: e.target.value })} placeholder="e.g. 9876543210@okicici" />
         </div>
       )}
+      <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400 bg-canvas rounded-lg px-3 py-2">
+        <span>Opening balance</span>
+        <span className="font-mono font-semibold text-gray-500">{inr(account.opening_balance)}</span>
+      </div>
       <button disabled={!f.name.trim()} className={primary} onClick={() => onSave(f)}>Save changes</button>
+
+      {onDelete && (
+        confirmDelete ? (
+          <div className="mt-3 border border-rose-200 bg-rose-50 rounded-lg p-3">
+            <p className="text-[11px] text-rose-700 font-medium mb-2">Delete "{account.name}"? Transaction history stays, but the account is removed from the list.</p>
+            <div className="flex gap-2">
+              <button onClick={() => setConfirmDelete(false)} className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold border border-black/10 text-gray-600 hover:bg-black/5">Cancel</button>
+              <button onClick={onDelete} className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold bg-rose-600 text-white hover:opacity-90">Delete account</button>
+            </div>
+          </div>
+        ) : (
+          <button onClick={() => setConfirmDelete(true)} className="mt-3 w-full py-2 rounded-lg text-[11px] font-semibold text-rose-500 border border-rose-200 hover:bg-rose-50 transition-colors flex items-center justify-center gap-1.5">
+            <Trash2 size={13} /> Delete account
+          </button>
+        )
+      )}
     </Shell>
   );
 };

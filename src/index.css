@@ -206,12 +206,12 @@ table.report-table tbody td.numeric {
   --color-ink-primary: #111111;
   --color-ink-secondary: #444444;
   --color-ink-tertiary: #6B7280;
-  --color-accent-signature: #D97706;
-  --color-accent-signature-hover: #B45309;
+  --color-accent-signature: #4F46E5;
+  --color-accent-signature-hover: #4338CA;
   --color-button-text: #FFFFFF;
   --bg-color: #FFFFFF;
-  --accent-lime: #D97706;
-  --accent-lime-hover: #B45309;
+  --accent-lime: #4F46E5;
+  --accent-lime-hover: #4338CA;
   --border-color: rgba(0,0,0,0.08);
 }
 
@@ -259,11 +259,11 @@ table.report-table tbody td.numeric {
   --color-ink-primary: #0F172A;
   --color-ink-secondary: #334155;
   --color-ink-tertiary: #64748B;
-  --color-accent-signature: #D97706;
-  --color-accent-signature-hover: #B45309;
+  --color-accent-signature: #4F46E5;
+  --color-accent-signature-hover: #4338CA;
   --color-button-text: #FFFFFF;
   --bg-color: #F0F4FF;
-  --accent-lime: #D97706;
+  --accent-lime: #4F46E5;
   --accent-lime-hover: #2563EB;
 }
 
@@ -273,11 +273,11 @@ table.report-table tbody td.numeric {
   --color-ink-primary: #1A0A0F;
   --color-ink-secondary: #4A2535;
   --color-ink-tertiary: #9F6882;
-  --color-accent-signature: #D97706;
-  --color-accent-signature-hover: #B45309;
+  --color-accent-signature: #4F46E5;
+  --color-accent-signature-hover: #4338CA;
   --color-button-text: #FFFFFF;
   --bg-color: #FFF5F7;
-  --accent-lime: #D97706;
+  --accent-lime: #4F46E5;
   --accent-lime-hover: #E11D48;
 }
 
@@ -287,11 +287,11 @@ table.report-table tbody td.numeric {
   --color-ink-primary: #1C1208;
   --color-ink-secondary: #4A3010;
   --color-ink-tertiary: #92692A;
-  --color-accent-signature: #D97706;
-  --color-accent-signature-hover: #B45309;
+  --color-accent-signature: #4F46E5;
+  --color-accent-signature-hover: #4338CA;
   --color-button-text: #FFFFFF;
   --bg-color: #FFFBF0;
-  --accent-lime: #F59E0B;
+  --accent-lime: #818CF8;
   --accent-lime-hover: #D97706;
 }
 
@@ -301,8 +301,8 @@ table.report-table tbody td.numeric {
   --color-ink-primary: #0F172A;
   --color-ink-secondary: #334155;
   --color-ink-tertiary: #64748B;
-  --color-accent-signature: #D97706;
-  --color-accent-signature-hover: #B45309;
+  --color-accent-signature: #4F46E5;
+  --color-accent-signature-hover: #4338CA;
   --color-button-text: #FFFFFF;
   --bg-color: #F1F5F9;
   --accent-lime: #6366F1;
@@ -315,11 +315,11 @@ table.report-table tbody td.numeric {
   --color-ink-primary: #F5F5F0;
   --color-ink-secondary: #A3A3A3;
   --color-ink-tertiary: #737373;
-  --color-accent-signature: #F59E0B;
-  --color-accent-signature-hover: #D97706;
+  --color-accent-signature: #818CF8;
+  --color-accent-signature-hover: #6366F1;
   --color-button-text: #111111;
   --bg-color: #0F0F0F;
-  --accent-lime: #F59E0B;
+  --accent-lime: #818CF8;
   --accent-lime-hover: #4F46E5;
   --text-main: #F5F5F0;
   --surface: #1A1A1A;
@@ -341,11 +341,11 @@ table.report-table tbody td.numeric {
 @theme {
   --color-canvas: #F8F9FC;          /* cool off-white page */
   --color-surface: #FFFFFF;
-  --color-ink-primary: #1E1B2E;     /* near-black with a violet cast */
+  --color-ink-primary: #101828;     /* neutral near-black */
   --color-ink-secondary: #4B5563;
   --color-ink-tertiary: #6B7280;    /* gray-500 — legible muted text */
-  --color-accent-signature: #D97706;       /* amber-600 (brand) */
-  --color-accent-signature-hover: #B45309; /* amber-700 */
+  --color-accent-signature: #4F46E5;       /* indigo-600 (brand) */
+  --color-accent-signature-hover: #4338CA; /* indigo-700 */
   --color-button-text: #FFFFFF;            /* white text on amber */
 
   --radius-sm: 4px;
@@ -366,8 +366,8 @@ table.report-table tbody td.numeric {
   /* Legacy explicit CSS vars — kept in sync with the Indigo @theme. */
   --bg-color: #F8F9FC;
   --bg-gradient: linear-gradient(135deg, #F8F9FC 0%, #EEF0F7 100%);
-  --accent-lime: #D97706;       /* legacy name, now amber */
-  --accent-lime-hover: #B45309;
+  --accent-lime: #4F46E5;       /* legacy name, now indigo */
+  --accent-lime-hover: #4338CA;
   --text-main: #1E1B2E;
   --text-muted: #4B5563;
   --surface: #FFFFFF;

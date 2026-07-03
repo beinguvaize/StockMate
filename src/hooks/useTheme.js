@@ -3,16 +3,16 @@ import { useTenant } from '../context/TenantContext';
 import { supabase } from '../lib/supabase';
 
 export const THEMES = [
-  // Accent is the amber brand constant across all themes; themes vary only by
-  // canvas / dark background. (Hardcoded amber UI means a non-amber accent
-  // would clash, so every theme shares the amber accent.)
-  { key: 'white',     label: 'Porcelain', accent: '#D97706', canvas: '#FFFFFF', dark: false },
-  { key: 'signature', label: 'Linen',     accent: '#D97706', canvas: '#F5F5F0', dark: false },
-  { key: 'amber',     label: 'Sand',      accent: '#D97706', canvas: '#FFFBF0', dark: false },
-  { key: 'slate',     label: 'Graphite',  accent: '#D97706', canvas: '#F1F5F9', dark: false },
-  { key: 'ocean',     label: 'Mist',      accent: '#D97706', canvas: '#F0F4FF', dark: false },
-  { key: 'rose',      label: 'Blush',     accent: '#D97706', canvas: '#FFF5F7', dark: false },
-  { key: 'dark',      label: 'Midnight',  accent: '#F59E0B', canvas: '#0F0F0F', dark: true  },
+  // Accent is the indigo brand constant across all themes; themes vary only by
+  // canvas / dark background. (Hardcoded indigo UI means a non-indigo accent
+  // would clash, so every theme shares the indigo accent.)
+  { key: 'white',     label: 'Porcelain', accent: '#4F46E5', canvas: '#FFFFFF', dark: false },
+  { key: 'signature', label: 'Linen',     accent: '#4F46E5', canvas: '#F5F5F0', dark: false },
+  { key: 'amber',     label: 'Sand',      accent: '#4F46E5', canvas: '#FFFBF0', dark: false },
+  { key: 'slate',     label: 'Graphite',  accent: '#4F46E5', canvas: '#F1F5F9', dark: false },
+  { key: 'ocean',     label: 'Mist',      accent: '#4F46E5', canvas: '#F0F4FF', dark: false },
+  { key: 'rose',      label: 'Blush',     accent: '#4F46E5', canvas: '#FFF5F7', dark: false },
+  { key: 'dark',      label: 'Midnight',  accent: '#818CF8', canvas: '#0F0F0F', dark: true  },
 ];
 
 const applyTheme = (key) => {
