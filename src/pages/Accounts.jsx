@@ -27,13 +27,35 @@ const Accounts = () => {
   const [modal, setModal] = useState(null); // 'add' | 'txn' | 'transfer' | null
   const [active, setActive] = useState(null); // account id for ledger view
 
+  // Linked UPI accounts merge into their bank's card — not shown standalone.
+  const isLinkedUpi = (a) => a.type === 'UPI' && a.linked_bank_account_id;
+  const visibleAccounts = useMemo(() => accounts.filter((a) => !isLinkedUpi(a)), [accounts]);
+  const upiHandlesFor = useMemo(() => {
+    const map = {};
+    accounts.filter(isLinkedUpi).forEach((u) => {
+      (map[u.linked_bank_account_id] = map[u.linked_bank_account_id] || []).push(u.upi_id || u.name);
+    });
+    return map;
+  }, [accounts]);
+
+  // Merged balance = account's own + any linked UPI accounts folded in (so a
+  // stray pre-link balance parked on a now-hidden UPI account never vanishes).
+  const mergedBalance = (id) =>
+    (balances[id] || 0) + (upiHandlesFor[id]?.length ? accounts.filter((u) => u.linked_bank_account_id === id).reduce((s, u) => s + (balances[u.id] || 0), 0) : 0);
+
   const totalBalance = useMemo(
     () => accounts.reduce((s, a) => s + (balances[a.id] || 0), 0),
     [accounts, balances],
   );
+  // Include historic txns posted directly to a since-linked UPI account, so a
+  // merged bank card's ledger shows its full money trail, not just post-link entries.
+  const linkedUpiIds = useMemo(
+    () => accounts.filter(isLinkedUpi).filter((u) => u.linked_bank_account_id === active).map((u) => u.id),
+    [accounts, active],
+  );
   const activeTxns = useMemo(
-    () => active ? txns.filter((t) => t.account_id === active) : [],
-    [txns, active],
+    () => active ? txns.filter((t) => t.account_id === active || linkedUpiIds.includes(t.account_id)) : [],
+    [txns, active, linkedUpiIds],
   );
   const activeAcc = accounts.find((a) => a.id === active);
   const activeLoan = activeAcc?.type === 'LOAN'
@@ -68,10 +90,11 @@ const Accounts = () => {
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {accounts.map((a) => {
+          {visibleAccounts.map((a) => {
             const Icon = iconFor(a.type);
             const isLoan = a.type === 'LOAN';
             const ls = isLoan ? loanStats(a, loanPayments?.[a.id] || []) : null;
+            const linkedUpi = upiHandlesFor[a.id];
             return (
               <div key={a.id}
                 className={`text-left bg-white rounded-xl border shadow-sm p-4 transition-colors ${active === a.id ? 'border-accent-signature ring-1 ring-accent-signature/20' : 'border-black/8'}`}>
@@ -94,9 +117,16 @@ const Accounts = () => {
                     </>
                   ) : (
                     <>
-                      <div className="mt-3 font-mono font-semibold text-xl text-ink-primary tabular-nums">{inr(balances[a.id] || 0)}</div>
+                      <div className="mt-3 font-mono font-semibold text-xl text-ink-primary tabular-nums">{inr(mergedBalance(a.id))}</div>
                       {a.bank_name && <div className="text-[11px] text-gray-400 mt-0.5">{a.bank_name} {a.account_no ? `· ${a.account_no}` : ''}</div>}
                       {a.upi_id && !a.bank_name && <div className="text-[11px] text-gray-400 mt-0.5">{a.upi_id}</div>}
+                      {linkedUpi?.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {linkedUpi.map((h) => (
+                            <span key={h} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-canvas border border-black/8 text-gray-500">{h}</span>
+                          ))}
+                        </div>
+                      )}
                     </>
                   )}
                 </button>
@@ -138,7 +168,7 @@ const Accounts = () => {
         <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-black/5">
             <div className="font-black text-[13px] text-ink-primary">{activeAcc?.name} · {activeLoan ? 'repayment history' : 'ledger'}</div>
-            <span className="ml-auto font-mono font-black text-[15px]">{activeLoan ? inr(activeLoan.outstanding) : inr(balances[active] || 0)}</span>
+            <span className="ml-auto font-mono font-black text-[15px]">{activeLoan ? inr(activeLoan.outstanding) : inr(mergedBalance(active))}</span>
             {!activeLoan && <button onClick={() => setModal('txn')} className="ml-3 px-2.5 py-1.5 rounded-lg text-[11px] font-bold border border-black/10 hover:bg-black/5"><Plus size={12} className="inline -mt-0.5 mr-1" />Entry</button>}
             {activeLoan && activeLoan.outstanding > 0 && <button onClick={() => setEmiFor(activeAcc)} className="ml-3 px-2.5 py-1.5 rounded-lg text-[11px] font-black bg-accent-signature text-white">Pay</button>}
             <button onClick={() => setActive(null)} className="p-1.5 rounded-lg hover:bg-black/5"><X size={15} /></button>
