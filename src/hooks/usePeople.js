@@ -277,6 +277,26 @@ export const usePeople = (tenantId) => {
     deleteClient,
 
     recordClientPayment: async (clientId, amount, date, notes, invoiceIds, paymentMethod = 'CASH') => {
+      // Desktop offline-first: queue the server-side settle RPC. It runs at
+      // sync time AFTER any queued sale RPCs (outbox is FIFO), so allocation
+      // sees the sale that may have just been made offline. The old JS
+      // orchestration below would race the unsynced sale and allocate nothing.
+      if (isElectron()) {
+        const payId = generateUUID();
+        await queueMutation({
+          table: 'settle_client_payment', type: 'rpc',
+          payload: {
+            p_id: payId, p_tenant_id: tenantId, p_client_id: clientId,
+            p_amount: Number(amount), p_date: date, p_method: paymentMethod,
+            p_notes: notes || null, p_recorded_by: currentUser?.id || null,
+          },
+        });
+        // Optimistic: reflect the collection on the client's balance locally.
+        setClients(prev => prev.map(c => c.id === clientId
+          ? { ...c, outstanding_balance: Math.max(0, Number(c.outstanding_balance || 0) - Number(amount)) }
+          : c));
+        return { success: true, queued: true };
+      }
       try {
         setLoading(true);
 

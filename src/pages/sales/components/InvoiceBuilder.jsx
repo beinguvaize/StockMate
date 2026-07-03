@@ -7,6 +7,7 @@ import { useAccounts, accountForMethod, buildPaymentMethods } from '../../../hoo
 import { useNotifications } from '../../../context/NotificationContext';
 import { supabase, restInsert } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
+import CashBillPrint from './CashBillPrint';
 
 // Restaurant modifier picker — choose options for a dish before it hits the cart.
 const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' }) => {
@@ -92,6 +93,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedClientId, setSelectedClientId] = useState('WALKIN');
   const [outstandingPrompt, setOutstandingPrompt] = useState(null); // { clientId, clientName, outstanding, excess, paymentMethod }
+  const [printSale, setPrintSale] = useState(null); // completed-sale snapshot for the receipt
   const [showCheckout, setShowCheckout] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [paymentAccountId, setPaymentAccountId] = useState(null); // specific account from dynamic button
@@ -732,6 +734,18 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         'success'
       );
 
+      // Receipt snapshot — captured before the cart resets so the cashier
+      // can print an 80mm bill for the sale that just completed.
+      if (!editId) {
+        setPrintSale({
+          id: saleId,
+          items: cart.map(i => ({ name: i.name, quantity: i.quantity, price: i.price })),
+          totalAmount: total,
+          date: new Date().toISOString(),
+          paymentMethod,
+        });
+      }
+
       // Capture before state reset — needed for outstanding prompt.
       const postClientId      = selectedClientId;
       const postPaymentMethod = paymentMethod;
@@ -781,6 +795,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         currency={businessProfile?.currencySymbol || '₹'}
         onRecordPayment={onRecordPayment}
         onClose={() => setOutstandingPrompt(null)}
+      />
+    )}
+    {/* Post-sale receipt — waits until the outstanding prompt (if any) is done */}
+    {printSale && !outstandingPrompt && (
+      <CashBillPrint
+        sale={printSale}
+        business={businessProfile || {}}
+        currencySymbol={businessProfile?.currencySymbol || '₹'}
+        onClose={() => setPrintSale(null)}
       />
     )}
     <div className="flex flex-col lg:flex-row gap-4 h-[calc(100vh-130px)]">
