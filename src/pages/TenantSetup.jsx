@@ -10,30 +10,39 @@ import { goHref } from '../lib/nav';
 
 const PLANS = [
   {
-    id: 'STARTER',
-    label: 'Starter',
-    price: '₹499',
-    tagline: 'For a single shop finding its feet.',
-    features: ['Dashboard', 'Inventory', 'Sales & POS', 'GST Invoices', 'Clients', 'Expenses', '500 invoices/mo', '2 users'],
-    locked: ['Purchases', 'Suppliers', 'Reports', 'Payroll', 'Vehicles'],
+    id: 'FREE',
+    label: 'Free',
+    price: '₹0',
+    tagline: 'Try everything a single shop needs.',
+    features: ['Dashboard', 'Inventory', 'Sales & POS', 'GST Invoices', 'Clients', 'Expenses', '100 invoices/mo', '1 user'],
+    locked: ['Purchases', 'Suppliers', 'Reports', 'Payroll'],
     icon: <Zap size={16} />,
   },
   {
-    id: 'PRO',
-    label: 'Professional',
-    price: '₹1,499',
-    tagline: 'For growing teams that need the full stack.',
+    id: 'GROWTH',
+    label: 'Growth',
+    price: '₹2,999/yr',
+    tagline: 'For a shop finding its feet.',
     badge: 'Most Popular',
-    features: ['All Starter features', 'Purchases & Suppliers', 'Vehicles & Routes', 'Payroll', 'GSTR Export', 'Price Lists', 'WAC Costing', '10 users'],
-    locked: ['Multi-Location Inventory', 'White Label', 'API Access'],
+    features: ['All Free features', 'Purchases & Suppliers', 'Payroll', 'Reports', 'GSTR Export', '1,000 invoices/mo', '3 users'],
+    locked: ['Vehicles', 'Manufacturing', 'Multi-Location Inventory'],
+    icon: <Star size={16} />,
+  },
+  {
+    id: 'PRO',
+    label: 'Pro',
+    price: '₹5,999/yr',
+    tagline: 'For growing teams that need the full stack.',
+    features: ['All Growth features', 'Vehicles & Routes', 'Estimates', 'Manufacturing', 'Multi-Location Inventory', 'Price Lists', 'WAC Costing', 'Unlimited invoices', '5 users'],
+    locked: ['White Label', 'API Access'],
     icon: <Star size={16} />,
   },
   {
     id: 'ENTERPRISE',
     label: 'Enterprise',
-    price: '₹3,499',
+    price: 'Custom',
     tagline: 'For multi-location & power operations.',
-    features: ['All Pro features', 'Multi-Location Inventory', 'User Management', 'Audit Log', 'API Access', 'White Label', 'Unlimited users'],
+    features: ['All Pro features', 'User Management', 'Audit Log', 'API Access', 'White Label', 'Priority Support', 'Unlimited users'],
     locked: [],
     icon: <Shield size={16} />,
   },
@@ -53,7 +62,7 @@ const TRUST = [
 
 const TenantSetup = () => {
   const [step, setStep] = useState(1); // 1 = plan, 2 = business name + industry
-  const [selectedPlan, setSelectedPlan] = useState('STARTER');
+  const [selectedPlan, setSelectedPlan] = useState('GROWTH');
   const [businessType, setBusinessType] = useState('RETAIL'); // industry / vertical
   const [businessName, setBusinessName] = useState('');
   const [isLoading, setIsLoading] = useState(false);

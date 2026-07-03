@@ -97,7 +97,8 @@ const Onboarding = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [completed, setCompleted] = useState(new Set());
 
-  const plan = currentTenant?.plan || 'STARTER';
+  const rawPlan = currentTenant?.plan || 'STARTER';
+  const plan = rawPlan === 'GROWTH' ? 'STARTER' : rawPlan === 'FREE' ? 'STARTER' : rawPlan;
   const planInfo = PLAN_FEATURES[plan] || PLAN_FEATURES.STARTER;
   const slug = tenantSlug || currentTenant?.slug;
   const isLastStep = currentStep === STEPS.length - 1;

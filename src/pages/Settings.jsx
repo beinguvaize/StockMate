@@ -668,7 +668,7 @@ const Settings = ({ embedded = false, section = null }) => {
             {(() => {
               const plan = (currentTenant?.plan || 'STARTER').toUpperCase();
               const isTop = plan === 'ENTERPRISE';
-              const blurb = plan === 'STARTER'
+              const blurb = (plan === 'STARTER' || plan === 'GROWTH' || plan === 'FREE')
                 ? 'The foundational ledger for growing teams.'
                 : plan === 'PRO'
                 ? 'Advanced operations and pipeline tooling.'

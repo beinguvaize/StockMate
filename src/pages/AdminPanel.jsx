@@ -157,7 +157,7 @@ const AdminPanel = () => {
             />
           </div>
           <div className="flex items-center gap-2 bg-white p-1.5 rounded-xl shadow-sm border border-black/5">
-            {['ALL', 'STARTER', 'PRO', 'ENTERPRISE'].map(plan => (
+            {['ALL', 'FREE', 'GROWTH', 'PRO', 'ENTERPRISE'].map(plan => (
               <button
                 key={plan}
                 onClick={() => setSelectedPlan(plan)}
@@ -210,7 +210,8 @@ const AdminPanel = () => {
                         onChange={(e) => updatePlan(tenant, e.target.value)}
                         className={`text-[11px] font-bold px-3 py-1.5 rounded-lg border-0 appearance-none cursor-pointer ${getPlanBadge(tenant.plan)}`}
                       >
-                        <option value="STARTER">STARTER</option>
+                        <option value="FREE">FREE</option>
+                        <option value="GROWTH">GROWTH</option>
                         <option value="PRO">PRO</option>
                         <option value="ENTERPRISE">ENTERPRISE</option>
                       </select>

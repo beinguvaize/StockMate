@@ -4,44 +4,68 @@
  */
 
 // --- Plan Definitions ---
+// Single source of truth, aligned 1:1 with the public pricing page at
+// bookledger.in/pricing (website pricing wins — decided Jul 2026).
+// Ladder: FREE < GROWTH < PRO < ENTERPRISE.
 // maxInvoices: monthly invoice cap (-1 = unlimited)
 // maxUsers:    seat cap (-1 = unlimited)
 export const PLANS = {
-  STARTER: {
-    label: 'Starter',
-    price: '₹499/mo',
+  FREE: {
+    label: 'Free',
+    price: '₹0',
     modules: ['dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices'],
     features: [],
-    maxUsers: 2,
-    maxInvoices: 500,
+    maxUsers: 1,
+    maxInvoices: 100,
     color: 'bg-gray-100 text-gray-600',
   },
+  GROWTH: {
+    label: 'Growth',
+    price: '₹2,999/yr',
+    modules: [
+      'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
+      'purchases', 'suppliers', 'payroll', 'reports', 'estimates',
+    ],
+    features: ['gstr_export'],
+    maxUsers: 3,
+    maxInvoices: 1000,
+    color: 'bg-emerald-50 text-emerald-600',
+  },
   PRO: {
-    label: 'Professional',
-    price: '₹1,499/mo',
+    label: 'Pro',
+    price: '₹5,999/yr',
     modules: [
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports',
+      'estimates', 'manufacturing',
     ],
-    features: ['price_lists', 'wac_costing', 'gstr_export'],
-    maxUsers: 10,
+    features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory'],
+    maxUsers: 5,
     maxInvoices: -1,
     color: 'bg-blue-50 text-blue-600',
   },
   ENTERPRISE: {
     label: 'Enterprise',
-    price: '₹3,499/mo',
+    price: 'Custom',
     modules: [
       'dashboard', 'inventory', 'sales', 'clients', 'expenses', 'daybook', 'invoices',
       'purchases', 'suppliers', 'vehicles', 'orders', 'payroll', 'reports',
+      'estimates', 'manufacturing',
       'users', 'settings', 'audit-log',
     ],
-    features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory', 'api_access', 'white_label'],
+    features: ['price_lists', 'wac_costing', 'gstr_export', 'multi_location_inventory', 'api_access', 'white_label', 'priority_support'],
     maxUsers: -1,
     maxInvoices: -1,
     color: 'bg-purple-50 text-purple-600',
   },
+  // Legacy alias — old tenants row may still say STARTER until the DB
+  // migration runs; treat it as GROWTH (grandfathered) so nothing breaks.
+  STARTER: null, // resolved below
 };
+PLANS.STARTER = PLANS.GROWTH;
+
+// Ladder order for "minimum plan" comparisons.
+export const PLAN_ORDER = { FREE: 0, STARTER: 1, GROWTH: 1, PRO: 2, ENTERPRISE: 3 };
 
 /**
  * Returns the limits for a given plan.
