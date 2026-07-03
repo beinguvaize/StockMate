@@ -37,6 +37,13 @@ export const SYNCED_TABLES = [
   'client_payments',
   'purchase_returns',
   'business_profile',
+  'accounts',
+  'account_transactions',
+  'estimates',
+  'payroll',
+  'attendance',
+  'supplier_payments',
+  'sales_returns',
 ];
 
 // Default off. UI toggles auto-sync via startSync({ intervalMs }).

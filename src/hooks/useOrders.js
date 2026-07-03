@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import useRefetchOnFocus from './useRefetchOnFocus';
+import { isElectron } from '../lib/offline/hookAdapter';
 
 const ORDER_NUMERIC = ['subtotal', 'discount', 'grand_total'];
 
@@ -63,7 +64,7 @@ export const useOrders = (tenantId) => {
 
   // ── Realtime ─────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || isElectron()) return;
     const channel = supabase
       .channel(`orders-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {

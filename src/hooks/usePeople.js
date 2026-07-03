@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restInsert, restUpdate } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { normalizeNumericRows } from '../lib/numeric';
-import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
+import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate, isElectron } from '../lib/offline/hookAdapter';
 import { generateUUID } from '../lib/utils';
 
 const DEFAULT_PERMISSIONS = {
@@ -89,6 +89,12 @@ export const usePeople = (tenantId) => {
   const addSupplier = async (supplier) => {
     const id = supplier.id || generateUUID();
     const row = { id, ...supplier, tenant_id: tenantId };
+    if (isElectron()) {
+      await queueMutation({ table: 'suppliers', type: 'insert', payload: row });
+      await upsertCachedRow('suppliers', row);
+      setSuppliers(prev => normalizeNumericRows([row, ...prev], SUPPLIER_NUMERIC));
+      return { success: true, error: null, queued: true };
+    }
     const { error } = await restInsert('suppliers', row);
     if (!error) { await fetchPeopleData(); return { success: true, error: null }; }
     if (isOfflineError(error)) {
@@ -104,6 +110,11 @@ export const usePeople = (tenantId) => {
 
   const updateSupplier = async (supplier) => {
     const { id, ...data } = supplier;
+    if (isElectron()) {
+      await queueMutation({ table: 'suppliers', type: 'update', payload: { ...data, id } });
+      setSuppliers(prev => prev.map(x => x.id === id ? { ...x, ...data } : x));
+      return { success: true, error: null, queued: true };
+    }
     const { error } = await restUpdate('suppliers', data, { id, tenant_id: tenantId });
     if (!error) await fetchPeopleData();
     return { success: !error, error };
@@ -122,6 +133,12 @@ export const usePeople = (tenantId) => {
   const addClient = async (client) => {
     const id = generateUUID();
     const row = { id, ...toClientRow(client), tenant_id: tenantId };
+    if (isElectron()) {
+      await queueMutation({ table: 'clients', type: 'insert', payload: row });
+      await upsertCachedRow('clients', row);
+      setClients(prev => normalizeNumericRows([row, ...prev], CLIENT_NUMERIC));
+      return { success: true, error: null, queued: true };
+    }
     const { error } = await restInsert('clients', row);
     if (!error) {
       fetchPeopleData().catch(e => console.error('addClient refetch error:', e));
@@ -141,6 +158,12 @@ export const usePeople = (tenantId) => {
 
   const updateClient = async (client) => {
     const { id, ...data } = client;
+    if (isElectron()) {
+      const payload = { ...toClientRow(data), id };
+      await queueMutation({ table: 'clients', type: 'update', payload });
+      setClients(prev => prev.map(x => x.id === id ? { ...x, ...payload } : x));
+      return { success: true, error: null, queued: true };
+    }
     const { error } = await restUpdate('clients', toClientRow(data), { id, tenant_id: tenantId });
     if (error) console.error('updateClient error:', error);
     else fetchPeopleData().catch(e => console.error('updateClient refetch error:', e));

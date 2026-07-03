@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, restInsert, restUpdate } from '../lib/supabase';
+import { isElectron, queueMutation, upsertCachedRow } from '../lib/offline/hookAdapter';
 
 // Resolve which account a payment lands in.
 // Pass an account ID directly (from dynamic POS buttons) → returns it as-is
@@ -111,6 +112,12 @@ export function useAccounts(tenantId) {
       loan_start: isLoan ? (a.loan_start || new Date().toISOString().slice(0, 10)) : null,
       loan_emi: isLoan ? emiOf(a.loan_principal, a.loan_rate, a.loan_tenure_months) : null,
     };
+    if (isElectron()) {
+      await queueMutation({ table: 'accounts', type: 'insert', payload: row });
+      await upsertCachedRow('accounts', row);
+      fetchAll();
+      return { error: null, queued: true };
+    }
     const { error } = await restInsert('accounts', row);
     if (!error) fetchAll();
     return { error };
@@ -119,12 +126,22 @@ export function useAccounts(tenantId) {
   const updateAccount = async (id, patch) => {
     const row = { ...patch, updated_at: new Date().toISOString() };
     if ('linked_bank_account_id' in row) row.linked_bank_account_id = row.linked_bank_account_id || null;
+    if (isElectron()) {
+      await queueMutation({ table: 'accounts', type: 'update', payload: { ...row, id } });
+      fetchAll();
+      return { error: null, queued: true };
+    }
     const { error } = await restUpdate('accounts', row, { id, tenant_id: tenantId });
     if (!error) fetchAll();
     return { error };
   };
 
   const removeAccount = async (id) => {
+    if (isElectron()) {
+      await queueMutation({ table: 'accounts', type: 'delete', payload: { id } });
+      fetchAll();
+      return { error: null, queued: true };
+    }
     const { error } = await restUpdate('accounts', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
     if (!error) fetchAll();
     return { error };
@@ -154,6 +171,12 @@ export function useAccounts(tenantId) {
       mode: t.mode || null, ref_type: t.ref_type || 'MANUAL', ref_id: t.ref_id || null,
       counter_account_id: t.counter_account_id || null, note: t.note || null,
     };
+    if (isElectron()) {
+      await queueMutation({ table: 'account_transactions', type: 'insert', payload: row });
+      await upsertCachedRow('account_transactions', row);
+      fetchAll();
+      return { error: null, queued: true };
+    }
     const { error } = await restInsert('account_transactions', row);
     if (!error) fetchAll();
     return { error };
@@ -167,6 +190,13 @@ export function useAccounts(tenantId) {
     const d = date || new Date().toISOString().slice(0, 10);
     const out = { id: genId('ATX'), tenant_id: tenantId, account_id: from, date: d, direction: 'OUT', amount: amt, ref_type: 'TRANSFER', counter_account_id: to, note: note || 'Transfer out' };
     const inn = { id: genId('ATX'), tenant_id: tenantId, account_id: to,   date: d, direction: 'IN',  amount: amt, ref_type: 'TRANSFER', counter_account_id: from, note: note || 'Transfer in' };
+    if (isElectron()) {
+      await queueMutation({ table: 'account_transactions', type: 'insert', payload: [out, inn] });
+      await upsertCachedRow('account_transactions', out);
+      await upsertCachedRow('account_transactions', inn);
+      fetchAll();
+      return { error: null, queued: true };
+    }
     const { error } = await restInsert('account_transactions', [out, inn]);
     if (!error) fetchAll();
     return { error };

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
-import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
+import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate, isElectron } from '../lib/offline/hookAdapter';
 import useRefetchOnFocus from './useRefetchOnFocus';
 
 const PURCHASE_NUMERIC = ['quantity', 'total_amount', 'paid_amount', 'unit_price', 'tax'];
@@ -91,7 +91,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
 
   // ── Realtime — purchases + purchase_returns ───────────────────────────
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || isElectron()) return;
     const channel = supabase
       .channel(`purchases-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {
@@ -122,6 +122,30 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
       // Supplier's bill/invoice number — needed for invoice-level GSTR-2B match.
       p_bill_no: purchase.bill_no || null,
     };
+    // Desktop offline-first: queue the RPC immediately, never wait on network.
+    if (isElectron()) {
+      try {
+        await queueMutation({ table: 'process_purchase', type: 'rpc', payload: rpcParams });
+        const cachedRow = {
+          id: purchase.id,
+          tenant_id: tenantId,
+          linked_product_id: purchase.linked_product_id,
+          quantity: purchase.quantity,
+          total_amount: purchase.total_amount,
+          supplier_id: purchase.supplier_id || null,
+          supplier_name: purchase.supplier_name || null,
+          payment_type: purchase.payment_type,
+          date: purchase.date,
+          notes: purchase.notes || null,
+          status: 'PENDING',
+          created_at: new Date().toISOString(),
+        };
+        await upsertCachedRow('purchases', cachedRow);
+        setData(prev => normalizeNumericRows([cachedRow, ...prev], PURCHASE_NUMERIC));
+        return { success: true, queued: true };
+      } catch (qErr) { console.error('purchases add local-first queue error:', qErr); }
+    }
+
     const { error: rpcError } = await restRpc('process_purchase', rpcParams);
 
     if (!rpcError) { await fetchPurchases(); return { success: true }; }
@@ -213,7 +237,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     if (!supplierId)                  return { error: new Error('supplierId required') };
     if (!(Number(amount) > 0))        return { error: new Error('amount must be positive') };
     const id = `SUPP-${Date.now().toString(36).toUpperCase()}`;
-    const { error } = await restRpc('settle_supplier_payment', {
+    const params = {
       p_id:           id,
       p_tenant_id:    tenantId,
       p_supplier_id:  supplierId,
@@ -222,7 +246,14 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
       p_date:         date || new Date().toISOString().slice(0, 10),
       p_reference_no: referenceNo || null,
       p_note:         note || null,
-    });
+    };
+    // Desktop offline-first: queue the RPC.
+    if (isElectron()) {
+      await queueMutation({ table: 'settle_supplier_payment', type: 'rpc', payload: params });
+      fetchPurchases();
+      return { success: true, id, queued: true };
+    }
+    const { error } = await restRpc('settle_supplier_payment', params);
     if (error) return { error };
     await fetchPurchases();
     return { success: true, id };
@@ -233,12 +264,19 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     if (!supplierId || !purchaseId)   return { error: new Error('supplierId + purchaseId required') };
     if (!(Number(amount) > 0))        return { error: new Error('amount must be positive') };
     const id = `SUPP-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 1000)}`;
-    const { error } = await restRpc('settle_purchase_payment', {
+    const params = {
       p_id: id, p_tenant_id: tenantId, p_supplier_id: supplierId, p_purchase_id: purchaseId,
       p_amount: Number(amount), p_method: method,
       p_date: date || new Date().toISOString().slice(0, 10),
       p_reference_no: referenceNo || null, p_note: note || null,
-    });
+    };
+    // Desktop offline-first: queue the RPC.
+    if (isElectron()) {
+      await queueMutation({ table: 'settle_purchase_payment', type: 'rpc', payload: params });
+      fetchPurchases();
+      return { success: true, id, queued: true };
+    }
+    const { error } = await restRpc('settle_purchase_payment', params);
     if (error) return { error };
     await fetchPurchases();
     return { success: true, id };

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restInsert, restUpdate } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
 import useRefetchOnFocus from './useRefetchOnFocus';
-import { queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate } from '../lib/offline/hookAdapter';
+import { queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate, isElectron } from '../lib/offline/hookAdapter';
 
 const EXPENSE_NUMERIC       = ['amount'];
 const DAYBOOK_NUMERIC       = ['opening_balance', 'closing_balance', 'total_sales', 'total_expenses'];
@@ -111,6 +111,13 @@ export const useFinance = (tenantId) => {
   const addExpense = async (expense) => {
     const id = crypto.randomUUID();
     const row = { id, ...toDbRow(expense), tenant_id: tenantId };
+    // Desktop offline-first: queue + cache immediately.
+    if (isElectron()) {
+      await queueMutation({ table: 'expenses', type: 'insert', payload: row });
+      await upsertCachedRow('expenses', row);
+      setExpenses(prev => normalizeNumericRows([row, ...prev], EXPENSE_NUMERIC));
+      return { error: null, queued: true };
+    }
     const { error } = await restInsert('expenses', row);
     if (!error) { await fetchFinanceData(); return { error: null }; }
     if (isOfflineError(error)) {
@@ -126,12 +133,24 @@ export const useFinance = (tenantId) => {
 
   const updateExpense = async (expense) => {
     const { id, ...data } = expense;
+    if (isElectron()) {
+      const payload = { ...toDbRow(data), id, tenant_id: tenantId };
+      await queueMutation({ table: 'expenses', type: 'update', payload });
+      await upsertCachedRow('expenses', payload);
+      setExpenses(prev => normalizeNumericRows(prev.map(e => e.id === id ? { ...e, ...payload } : e), EXPENSE_NUMERIC));
+      return { error: null, queued: true };
+    }
     const { error } = await restUpdate('expenses', toDbRow(data), { id, tenant_id: tenantId });
     if (!error) await fetchFinanceData();
     return { error };
   };
 
   const deleteExpense = async (id) => {
+    if (isElectron()) {
+      await queueMutation({ table: 'expenses', type: 'delete', payload: { id } });
+      setExpenses(prev => prev.filter(e => e.id !== id));
+      return { error: null, queued: true };
+    }
     const { error } = await restUpdate('expenses', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
     if (!error) await fetchFinanceData();
     return { error };

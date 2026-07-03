@@ -5,6 +5,7 @@ import BannerCarousel from '../components/BannerCarousel';
 import ExpiryAlertCard from '../components/ExpiryAlertCard';
 import { useTenant } from '../context/TenantContext';
 import { supabase } from '../lib/supabase';
+import { isElectron } from '../lib/offline/hookAdapter';
 import { useInventory } from '../hooks/useInventory';
 import { useSales } from '../hooks/useSales';
 import { usePurchases } from '../hooks/usePurchases';
@@ -134,7 +135,7 @@ const Dashboard = () => {
   const refetchAllRef = useRef(refetchAll);
   useEffect(() => { refetchAllRef.current = refetchAll; }, [refetchAll]);
   useEffect(() => {
-    if (!currentTenantId) return;
+    if (!currentTenantId || isElectron()) return;
     let timer;
     const trigger = () => { clearTimeout(timer); timer = setTimeout(() => refetchAllRef.current(), 600); };
     const ch = supabase.channel(`dashboard:${currentTenantId}`)

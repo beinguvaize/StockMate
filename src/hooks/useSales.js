@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, restRpc, restUpdate, restInsert } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
-import { readCacheThenRevalidate, queueMutation, isOfflineError, decrementCachedStock } from '../lib/offline/hookAdapter';
+import { readCacheThenRevalidate, queueMutation, isOfflineError, decrementCachedStock, isElectron, upsertCachedRow } from '../lib/offline/hookAdapter';
 import { generateRef, todayISOInAppTZ } from '../lib/utils';
 import useRefetchOnFocus from './useRefetchOnFocus';
 import { getPlanLimits } from '../lib/tenancy';
@@ -81,8 +81,10 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
   useRefetchOnFocus(fetchSales);
 
   // ── Realtime — invoices + sales ───────────────────────────────────────
+  // Desktop is offline-first: no live websocket — fresh data arrives via
+  // the sync engine's pullDeltas (auto every 10 min / Sync Now / reconnect).
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || isElectron()) return;
     const channel = supabase
       .channel(`sales-realtime-${tenantId}-${tabId.current}`)
       .on('postgres_changes', {
@@ -219,16 +221,41 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         p_paid_amount: paidAmount,   // null when not set — RPC recomputes from payment_status
       };
 
+      // Desktop is offline-first: never wait for the network at the counter.
+      // Queue the RPC + decrement cached stock immediately; the sync engine
+      // pushes it on the next auto/manual sync.
+      if (isElectron()) {
+        try {
+          await queueMutation({ table: 'process_sale', type: 'rpc', payload: rpcParams });
+          await decrementCachedStock(items);
+          const discountAmt = Number(sale.discount) || 0;
+          if (discountAmt > 0) {
+            await queueMutation({ table: 'sales', type: 'update', payload: { id, discount: discountAmt } });
+          }
+          // Optimistic sale row so lists/DayBook reflect it before sync.
+          await upsertCachedRow('sales', {
+            id, tenant_id: tenantId, shopId: clientId, items,
+            totalAmount, discount: Number(sale.discount) || 0,
+            paymentMethod: sale.paymentMethod || 'CASH', paymentStatus,
+            paidAmount: paidAmount ?? (paymentStatus === 'PAID' ? totalAmount : 0),
+            date: sale.date || todayISOInAppTZ(), created_at: new Date().toISOString(),
+          });
+          fetchSales();
+          return { success: true, id, queued: true };
+        } catch (qErr) {
+          console.error('placeSale local-first queue error:', qErr);
+          // fall through to the online path as a last resort
+        }
+      }
+
       const { error: rpcError } = await restRpc('process_sale', rpcParams);
 
       if (rpcError) {
-        // If this is a network error (offline / timeout), queue the sale to
-        // the outbox so the cashier doesn't lose the transaction. Sync engine
-        // replays it via the same RPC on next "Sync Now".
+        // Web safety net: on a network error, queue the sale so the cashier
+        // doesn't lose the transaction (no-op on web where outbox is disabled).
         if (isOfflineError(rpcError)) {
           try {
             await queueMutation({ table: 'process_sale', type: 'rpc', payload: rpcParams });
-            // Optimistic local stock decrement so cashier can't oversell while offline.
             await decrementCachedStock(items);
             return { success: true, id, queued: true };
           } catch (qErr) {
@@ -284,7 +311,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
                           : sale.status === 'PARTIAL'   ? 'PARTIAL'
                           : (sale.status || 'PAID');
       const paidAmount = typeof sale.paidAmount === 'number' ? sale.paidAmount : null;
-      const { error } = await restRpc('edit_sale', {
+      const editParams = {
         p_id:             id,
         p_items:          items,
         p_total_amount:   sale.totalAmount ?? 0,
@@ -295,7 +322,22 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
         p_shop_id:        clientId,
         p_user_id:        currentUser.id,
         p_tenant_id:      tenantId || null,
-      });
+      };
+      // Desktop offline-first: queue the edit RPC; sync engine replays it.
+      if (isElectron()) {
+        try {
+          await queueMutation({ table: 'edit_sale', type: 'rpc', payload: editParams });
+          const discountAmt = Number(sale.discount) || 0;
+          if (discountAmt > 0) {
+            await queueMutation({ table: 'sales', type: 'update', payload: { id, discount: discountAmt } });
+          }
+          fetchSales();
+          return { success: true, id, queued: true };
+        } catch (qErr) {
+          console.error('editSale local-first queue error:', qErr);
+        }
+      }
+      const { error } = await restRpc('edit_sale', editParams);
       if (error) { console.error('editSale RPC Error:', error); return { error }; }
       // Record discount for reporting/receipts (edit_sale takes the net total).
       const discountAmt = Number(sale.discount) || 0;

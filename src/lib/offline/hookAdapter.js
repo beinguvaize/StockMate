@@ -152,6 +152,29 @@ export async function queueMutation({ table, type = 'insert', payload }) {
 }
 
 /**
+ * Local-first write. On desktop the write NEVER waits for the network:
+ * it is queued to the outbox and (optionally) applied to the IDB cache
+ * immediately, then pushed to supabase by the sync engine (auto every
+ * 10 min, on the Sync Now button, or on reconnect). On web it simply
+ * runs the provided online write so web behaviour is byte-for-byte
+ * unchanged.
+ *
+ *   return localFirstWrite({
+ *     table: 'expenses', type: 'insert', payload: row,
+ *     cacheRow: row,                      // optimistic IDB upsert (optional)
+ *     onlineWrite: () => restInsert('expenses', row),   // web path
+ *   });
+ */
+export async function localFirstWrite({ table, type = 'insert', payload, cacheRow, onlineWrite }) {
+  if (!isElectron()) return onlineWrite();
+  await enqueue({ table, type, payload });
+  if (cacheRow) {
+    try { await putRecords(table, [cacheRow]); } catch (_) {/* best-effort */}
+  }
+  return { success: true, queued: true, error: null };
+}
+
+/**
  * Convenience: detect whether an error is a network/offline error vs
  * a real domain error (RLS, constraint, etc).
  */

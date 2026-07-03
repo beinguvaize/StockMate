@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { normalizeNumericRows } from '../lib/numeric';
+import { isElectron } from '../lib/offline/hookAdapter';
 
 const MOVEMENT_NUMERIC = ['quantity'];
 
@@ -68,7 +69,7 @@ export const useOperations = (tenantId) => {
   // Critical for live dispatch board: manager sees stop updates from driver
   // instantly without manual refresh.
   useEffect(() => {
-    if (!tenantId) return;
+    if (!tenantId || isElectron()) return;
 
     const channel = supabase
       .channel(`ops-realtime-${tenantId}-${tabId.current}`)
