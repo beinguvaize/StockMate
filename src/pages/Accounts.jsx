@@ -26,6 +26,7 @@ const Accounts = () => {
 
   const [modal, setModal] = useState(null); // 'add' | 'txn' | 'transfer' | null
   const [active, setActive] = useState(null); // account id for ledger view
+  const [ledgerFilter, setLedgerFilter] = useState('ALL'); // 'ALL' | 'UPI' | 'DIRECT'
 
   // Linked UPI accounts merge into their bank's card — not shown standalone.
   const isLinkedUpi = (a) => a.type === 'UPI' && a.linked_bank_account_id;
@@ -53,10 +54,16 @@ const Accounts = () => {
     () => accounts.filter(isLinkedUpi).filter((u) => u.linked_bank_account_id === active).map((u) => u.id),
     [accounts, active],
   );
-  const activeTxns = useMemo(
+  const isUpiTxn = (t) => t.mode === 'UPI' || linkedUpiIds.includes(t.account_id);
+  const activeTxnsAll = useMemo(
     () => active ? txns.filter((t) => t.account_id === active || linkedUpiIds.includes(t.account_id)) : [],
     [txns, active, linkedUpiIds],
   );
+  const activeTxns = useMemo(() => {
+    if (ledgerFilter === 'UPI') return activeTxnsAll.filter(isUpiTxn);
+    if (ledgerFilter === 'DIRECT') return activeTxnsAll.filter((t) => !isUpiTxn(t));
+    return activeTxnsAll;
+  }, [activeTxnsAll, ledgerFilter, linkedUpiIds]);
   const activeAcc = accounts.find((a) => a.id === active);
   const activeLoan = activeAcc?.type === 'LOAN'
     ? loanStats(activeAcc, loanPayments?.[active] || [])
@@ -98,7 +105,7 @@ const Accounts = () => {
             return (
               <div key={a.id}
                 className={`text-left bg-white rounded-xl border shadow-sm p-4 transition-colors ${active === a.id ? 'border-accent-signature ring-1 ring-accent-signature/20' : 'border-black/8'}`}>
-                <button onClick={() => setActive(a.id)} className="w-full text-left">
+                <button onClick={() => { setActive(a.id); setLedgerFilter('ALL'); }} className="w-full text-left">
                   <div className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded-lg bg-canvas border border-black/8 text-ink-primary grid place-items-center"><Icon size={15} /></div>
                     <div className="font-semibold text-[13px] text-ink-primary">{a.name}</div>
@@ -197,23 +204,38 @@ const Accounts = () => {
               </div>
             </>
           ) : (
-          <div className="divide-y divide-black/5 max-h-80 overflow-auto">
-            {activeTxns.length === 0 && <div className="p-4 text-[12px] text-gray-400">No transactions yet.</div>}
-            {activeTxns.map((t) => (
-              <div key={t.id} className="flex items-center gap-3 px-4 py-2.5">
-                <div className={`w-7 h-7 rounded-lg grid place-items-center ${t.direction === 'IN' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
-                  {t.direction === 'IN' ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}
-                </div>
-                <div className="leading-tight">
-                  <div className="text-[12px] font-bold text-ink-primary">{t.note || t.ref_type}</div>
-                  <div className="text-[10px] text-gray-400">{t.date} · {t.ref_type}</div>
-                </div>
-                <div className={`ml-auto font-mono font-bold text-[13px] ${t.direction === 'IN' ? 'text-emerald-700' : 'text-rose-600'}`}>
-                  {t.direction === 'IN' ? '+' : '−'}{inr(t.amount)}
-                </div>
+          <>
+            {linkedUpiIds.length > 0 && (
+              <div className="flex gap-1.5 px-4 pt-3 pb-1">
+                {[['ALL', 'All'], ['UPI', 'UPI only'], ['DIRECT', 'Bank/other']].map(([k, label]) => (
+                  <button key={k} onClick={() => setLedgerFilter(k)}
+                    className={`px-2.5 py-1 rounded-full text-[10px] font-semibold border transition-colors ${ledgerFilter === k ? 'bg-ink-primary text-white border-ink-primary' : 'border-black/10 text-gray-500 hover:bg-black/5'}`}>
+                    {label}
+                  </button>
+                ))}
               </div>
-            ))}
-          </div>
+            )}
+            <div className="divide-y divide-black/5 max-h-80 overflow-auto">
+              {activeTxns.length === 0 && <div className="p-4 text-[12px] text-gray-400">No transactions yet.</div>}
+              {activeTxns.map((t) => (
+                <div key={t.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <div className={`w-7 h-7 rounded-lg grid place-items-center ${t.direction === 'IN' ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600'}`}>
+                    {t.direction === 'IN' ? <ArrowDownLeft size={14} /> : <ArrowUpRight size={14} />}
+                  </div>
+                  <div className="leading-tight">
+                    <div className="text-[12px] font-bold text-ink-primary flex items-center gap-1.5">
+                      {t.note || t.ref_type}
+                      {isUpiTxn(t) && <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-canvas border border-black/8 text-gray-500">UPI</span>}
+                    </div>
+                    <div className="text-[10px] text-gray-400">{t.date} · {t.ref_type}</div>
+                  </div>
+                  <div className={`ml-auto font-mono font-bold text-[13px] ${t.direction === 'IN' ? 'text-emerald-700' : 'text-rose-600'}`}>
+                    {t.direction === 'IN' ? '+' : '−'}{inr(t.amount)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
           )}
         </div>
       )}
