@@ -8,9 +8,22 @@
  *  - startSync() / stopSync() manage the 5-min interval + online listener.
  */
 
-import { supabase } from '../supabase.js';
+import { supabase, restRpc, restInsert, restUpdate } from '../supabase.js';
 import { allOps, removeOp, bumpAttempts } from './outbox.js';
 import { putRecords, getMeta, setMeta } from './cache.js';
+
+// Hard ceiling per network call during sync. supabase-js's auth queue can
+// deadlock on a stuck token refresh and hang a .from()/.rpc() call forever —
+// which froze isSyncing=true, greyed out Sync Now, and left the outbox
+// pending count stuck. Every sync call is either a timeout-guarded rest*
+// helper or wrapped in this.
+const SYNC_CALL_TIMEOUT_MS = 15000;
+const withTimeout = (promise, ms = SYNC_CALL_TIMEOUT_MS, label = 'sync call') =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ]);
 
 // ─── Config ──────────────────────────────────────────────────────────────────
 
@@ -78,19 +91,20 @@ export async function pushOutbox() {
     const ops = await allOps();
     for (const op of ops) {
       try {
+        // rest* helpers hit PostgREST directly with their own timeout guard —
+        // never the supabase-js auth queue (which can deadlock and hang sync).
         let result;
         if (op.type === 'rpc') {
           // op.table holds the RPC function name (e.g. "process_sale")
-          result = await supabase.rpc(op.table, op.payload);
+          result = await withTimeout(restRpc(op.table, op.payload), SYNC_CALL_TIMEOUT_MS, `rpc ${op.table}`);
         } else if (op.type === 'insert') {
-          result = await supabase.from(op.table).insert(op.payload);
+          result = await withTimeout(restInsert(op.table, op.payload), SYNC_CALL_TIMEOUT_MS, `insert ${op.table}`);
         } else if (op.type === 'update') {
-          result = await supabase.from(op.table).update(op.payload).eq('id', op.payload.id);
+          result = await withTimeout(restUpdate(op.table, op.payload, { id: op.payload.id }), SYNC_CALL_TIMEOUT_MS, `update ${op.table}`);
         } else if (op.type === 'delete') {
-          result = await supabase
-            .from(op.table)
-            .update({ deleted_at: new Date().toISOString() })
-            .eq('id', op.payload.id);
+          result = await withTimeout(
+            restUpdate(op.table, { deleted_at: new Date().toISOString() }, { id: op.payload.id }),
+            SYNC_CALL_TIMEOUT_MS, `delete ${op.table}`);
         }
 
         if (result?.error) {
@@ -141,12 +155,14 @@ export async function pullDeltas() {
       const metaKey = `lastSync:${table}`;
       const lastSync = (await getMeta(metaKey)) || '1970-01-01T00:00:00.000Z';
 
-      const { data, error } = await supabase
-        .from(table)
-        .select('*')
-        .gt('updated_at', lastSync)
-        .order('updated_at', { ascending: true })
-        .limit(1000);
+      const { data, error } = await withTimeout(
+        supabase
+          .from(table)
+          .select('*')
+          .gt('updated_at', lastSync)
+          .order('updated_at', { ascending: true })
+          .limit(1000),
+        SYNC_CALL_TIMEOUT_MS, `pull ${table}`);
 
       if (error) {
         // Table might not exist or RLS blocks it — log and continue
@@ -201,7 +217,7 @@ export async function bulkSync(tenantId, onProgress) {
         let q = supabase.from(table).select('*').range(from, from + PAGE_SIZE - 1);
         // tenant filter where applicable
         try {
-          const { data, error } = await q.eq('tenant_id', tenantId);
+          const { data, error } = await withTimeout(q.eq('tenant_id', tenantId), SYNC_CALL_TIMEOUT_MS, `bulk ${table}`);
           if (error) throw error;
           if (data && data.length) {
             await putRecords(table, data);
