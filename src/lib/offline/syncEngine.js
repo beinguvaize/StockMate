@@ -147,45 +147,54 @@ export async function pushOutbox() {
 
 // ─── Pull deltas ← Supabase ──────────────────────────────────────────────────
 
+// Tables are pulled in parallel batches — sequentially, a slow/erroring
+// table ate its full timeout before the next started, so one cycle over
+// 40+ tables could take many minutes with isSyncing stuck true (blocking
+// every manual Sync Now in the meantime).
+const PULL_BATCH = 8;
+const PULL_TIMEOUT_MS = 8000;
+
+async function pullOne(table) {
+  try {
+    const metaKey = `lastSync:${table}`;
+    const lastSync = (await getMeta(metaKey)) || '1970-01-01T00:00:00.000Z';
+
+    const { data, error } = await withTimeout(
+      supabase
+        .from(table)
+        .select('*')
+        .gt('updated_at', lastSync)
+        .order('updated_at', { ascending: true })
+        .limit(1000),
+      PULL_TIMEOUT_MS, `pull ${table}`);
+
+    if (error) {
+      // Table might not exist or RLS blocks it — log and continue
+      console.warn(`[offline/sync] pullDeltas error for table "${table}":`, error.message);
+      return;
+    }
+
+    if (data && data.length > 0) {
+      await putRecords(table, data);
+
+      // Advance the watermark to the latest updated_at seen
+      const maxTs = data.reduce(
+        (max, row) => (row.updated_at > max ? row.updated_at : max),
+        ''
+      );
+      if (maxTs) {
+        await setMeta(metaKey, maxTs);
+      }
+    }
+  } catch (err) {
+    console.error(`[offline/sync] pullDeltas threw for table "${table}":`, err);
+  }
+}
+
 export async function pullDeltas() {
   if (!supabase) return;
-
-  for (const table of SYNCED_TABLES) {
-    try {
-      const metaKey = `lastSync:${table}`;
-      const lastSync = (await getMeta(metaKey)) || '1970-01-01T00:00:00.000Z';
-
-      const { data, error } = await withTimeout(
-        supabase
-          .from(table)
-          .select('*')
-          .gt('updated_at', lastSync)
-          .order('updated_at', { ascending: true })
-          .limit(1000),
-        SYNC_CALL_TIMEOUT_MS, `pull ${table}`);
-
-      if (error) {
-        // Table might not exist or RLS blocks it — log and continue
-        console.warn(`[offline/sync] pullDeltas error for table "${table}":`, error.message);
-        continue;
-      }
-
-      if (data && data.length > 0) {
-        await putRecords(table, data);
-
-        // Advance the watermark to the latest updated_at seen
-        const maxTs = data.reduce(
-          (max, row) => (row.updated_at > max ? row.updated_at : max),
-          ''
-        );
-        if (maxTs) {
-          await setMeta(metaKey, maxTs);
-        }
-      }
-    } catch (err) {
-      console.error(`[offline/sync] pullDeltas threw for table "${table}":`, err);
-      // continue with next table
-    }
+  for (let i = 0; i < SYNCED_TABLES.length; i += PULL_BATCH) {
+    await Promise.allSettled(SYNCED_TABLES.slice(i, i + PULL_BATCH).map(pullOne));
   }
 }
 
@@ -266,21 +275,47 @@ export async function isBulkSyncDone() {
 
 /**
  * Run a full sync cycle: push outbox, then pull deltas.
- * Guarded by `isSyncing` so concurrent calls are no-ops.
- * Returns the ISO timestamp of when this sync completed, or null if skipped.
+ *
+ * Single-flight with follow-up: if a cycle is already running, the call
+ * doesn't silently no-op (that made "Sync Now" claim success while newly
+ * queued ops sat untouched) — it schedules one follow-up cycle after the
+ * current one and resolves when that finishes, so the caller's ops are
+ * guaranteed a push attempt.
  */
-export async function syncNow() {
-  if (isSyncing) return null;
+let _running = null;
+let _followUp = false;
+
+async function _cycle() {
   isSyncing = true;
   try {
     await pushOutbox();
     await pullDeltas();
     return new Date().toISOString();
   } catch (err) {
-    console.error('[offline/sync] syncNow threw unexpectedly:', err);
+    console.error('[offline/sync] sync cycle threw unexpectedly:', err);
     return null;
   } finally {
     isSyncing = false;
+  }
+}
+
+export async function syncNow() {
+  if (_running) {
+    _followUp = true;
+    return _running;
+  }
+  _running = (async () => {
+    let ts = await _cycle();
+    while (_followUp) {
+      _followUp = false;
+      ts = await _cycle();
+    }
+    return ts;
+  })();
+  try {
+    return await _running;
+  } finally {
+    _running = null;
   }
 }
 
