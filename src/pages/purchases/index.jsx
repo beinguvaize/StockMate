@@ -22,7 +22,6 @@ const PurchasesPage = () => {
   const { addNotification } = useNotifications();
   const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, recostBatches, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
   const { accounts: payAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
-  const payAcc = payAccounts.find(a => a.type === 'CASH')?.id || payAccounts[0]?.id || '';
   const { products, inventoryLocations, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
@@ -243,6 +242,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
     }
     // Money out → post the paid total to the default Cash/Bank account
     // (skip credit purchases; non-blocking).
+    const payAcc = accountForMethod(payAccounts, header.payment_type);
     if (failed === 0 && payAcc && !_credit(header.payment_type)) {
       const total = items.reduce((s, it) => s + (Number(it.total_amount) || 0), 0);
       if (total > 0) {
