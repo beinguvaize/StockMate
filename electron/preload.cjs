@@ -26,4 +26,11 @@ contextBridge.exposeInMainWorld('electron', {
       return () => ipcRenderer.removeListener('window:kioskChange', handler);
     },
   },
+  troubleshoot: {
+    onAction: (callback) => {
+      const handler = (_event, payload) => callback(payload);
+      ipcRenderer.on('troubleshoot:action', handler);
+      return () => ipcRenderer.removeListener('troubleshoot:action', handler);
+    },
+  },
 });

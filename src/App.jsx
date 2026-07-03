@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom';
+import { BrowserRouter, HashRouter, Routes, Route, Navigate, useLocation, useParams, useNavigate } from 'react-router-dom';
 import { goHref } from './lib/nav';
 
 // Electron loads via file:// — BrowserRouter breaks there, use HashRouter.
@@ -266,12 +266,48 @@ const FloatingChrome = () => {
   );
 };
 
+// Desktop Troubleshoot menu (Electron menu bar) → in-app actions.
+function TroubleshootListener() {
+  const navigate = useNavigate();
+  React.useEffect(() => {
+    const api = typeof window !== 'undefined' ? window.electron?.troubleshoot : null;
+    if (!api?.onAction) return;
+    const off = api.onAction(async ({ action }) => {
+      try {
+        if (action === 'sync-now') {
+          const { syncNow } = await import('./lib/offline/syncEngine.js');
+          await syncNow();
+          alert('Sync complete.');
+        } else if (action === 'diagnostics') {
+          navigate('/sync-diagnostics');
+        } else if (action === 'reset-cache') {
+          const ok = confirm(
+            'Clear local data and re-download everything from the cloud?\n\n' +
+            'Unsynced offline changes will be lost. Use this only if the app shows wrong or stale numbers.'
+          );
+          if (!ok) return;
+          const { clearOps } = await import('./lib/offline/outbox.js');
+          const { clearAll } = await import('./lib/offline/cache.js');
+          await clearOps();
+          await clearAll();
+          window.location.reload();
+        }
+      } catch (err) {
+        alert('Troubleshoot action failed: ' + (err?.message || err));
+      }
+    });
+    return off;
+  }, [navigate]);
+  return null;
+}
+
 function App() {
   return (
     <Router>
       <ErrorBoundary>
         <AppRoutes />
       </ErrorBoundary>
+      <TroubleshootListener />
       <FloatingChrome />
     </Router>
   );

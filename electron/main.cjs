@@ -97,6 +97,18 @@ app.whenReady().then(() => {
       { role: 'viewMenu' },
       { role: 'windowMenu' },
       {
+        label: 'Troubleshoot',
+        submenu: [
+          { label: 'Sync Now',              click: () => sendTroubleshoot('sync-now') },
+          { label: 'Sync Diagnostics…',     click: () => sendTroubleshoot('diagnostics') },
+          { type: 'separator' },
+          { label: 'Clear Local Data & Re-download…', click: () => sendTroubleshoot('reset-cache') },
+          { type: 'separator' },
+          { label: 'Reload App', accelerator: 'CmdOrCtrl+Shift+R', click: () => mainWindow?.webContents.reloadIgnoringCache() },
+          { label: 'Open Developer Console', click: () => mainWindow?.webContents.openDevTools({ mode: 'detach' }) },
+        ],
+      },
+      {
         label: 'Help',
         submenu: [
           { label: 'Check for Updates…', click: () => checkForUpdates() },
@@ -122,6 +134,13 @@ app.on('window-all-closed', () => {
 /* ── IPC: renderer-triggered update actions ────────────────────────────── */
 ipcMain.handle('update:check', () => { checkForUpdates(); return true; });
 ipcMain.handle('update:install', () => { autoUpdater.quitAndInstall(); });
+
+/* ── Troubleshoot menu → renderer ──────────────────────────────────────── */
+function sendTroubleshoot(action) {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('troubleshoot:action', { action });
+  }
+}
 
 /* ── IPC: kiosk / full-screen window control ───────────────────────────── */
 function sendKioskChange(inKiosk) {
