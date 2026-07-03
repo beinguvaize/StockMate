@@ -1208,6 +1208,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         <span className="text-[9px] text-gray-400 font-medium truncate mt-0.5">{sel?.phone || sel?.address}</span>
                       )}
                     </span>
+                    {Number(sel?.outstanding_balance) > 0 && (
+                      <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500 whitespace-nowrap">
+                        Due {formatCurrency(sel.outstanding_balance)}
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={() => { setSelectedClientId('WALKIN'); setClientSearch(''); setClientDropOpen(false); }}
@@ -1280,6 +1285,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                               </span>
                             )}
                           </span>
+                          {Number(c.outstanding_balance) > 0 && (
+                            <span className="shrink-0 ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500">
+                              Due {formatCurrency(c.outstanding_balance)}
+                            </span>
+                          )}
                           {selectedClientId === c.id && <Check size={12} className="shrink-0 text-accent-signature ml-2" />}
                         </button>
                       ))
@@ -1546,10 +1556,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     <div className="w-9 h-9 rounded-xl bg-accent-signature/10 border border-accent-signature/20 flex items-center justify-center text-sm font-black text-ink-primary shrink-0">
                       {client.name.charAt(0).toUpperCase()}
                     </div>
-                    <div>
-                      <div className="text-sm font-bold text-ink-primary">{client.name}</div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold text-ink-primary truncate">{client.name}</div>
                       {client.phone && <div className="text-[10px] text-gray-400 font-medium">{client.phone}</div>}
                     </div>
+                    {Number(client.outstanding_balance) > 0 && (
+                      <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full bg-red-50 text-red-500 whitespace-nowrap">
+                        Due {formatCurrency(client.outstanding_balance)}
+                      </span>
+                    )}
                   </div>
                 ) : null;
               })()}
