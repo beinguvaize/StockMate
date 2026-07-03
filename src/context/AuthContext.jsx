@@ -83,6 +83,25 @@ export const AuthProvider = ({ children }) => {
           // Merge session email into profile to ensure bypass logic always has the data
           const enrichedProfile = { ...profile, email: session.user.email };
 
+          // Desktop: the offline cache + outbox are keyed per app, NOT per
+          // tenant. If a different tenant logs in, wipe both — otherwise the
+          // UI serves the previous tenant's cached rows (numbers "flicker")
+          // and, far worse, the previous tenant's queued writes would replay
+          // under the new login.
+          if (isDesktop && enrichedProfile.tenant_id) {
+            try {
+              const { getMeta, setMeta, clearAll } = await import('../lib/offline/cache.js');
+              const prevTenant = await getMeta('cacheTenantId');
+              if (prevTenant && prevTenant !== enrichedProfile.tenant_id) {
+                console.info('[auth] tenant switch — clearing offline cache + outbox');
+                const { clearOps } = await import('../lib/offline/outbox.js');
+                await clearOps();
+                await clearAll(); // wipes records + meta (incl. bulkSync flag → fresh download)
+              }
+              await setMeta('cacheTenantId', enrichedProfile.tenant_id);
+            } catch (_) {/* cache guard is best-effort */}
+          }
+
           // Ensure bootstrap admins always have their roles in state even if DB is out of sync
           if (isSuperUser && !enrichedProfile.roles?.includes('GLOBAL_ADMIN')) {
              enrichedProfile.roles = [...(enrichedProfile.roles || []), 'GLOBAL_ADMIN', 'OWNER'];
