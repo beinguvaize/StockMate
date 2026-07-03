@@ -373,10 +373,12 @@ const EditAccountModal = ({ account, accounts, onClose, onSave, onDelete }) => {
     bank_name: account.bank_name || '',
     account_no: account.account_no || '',
     upi_id: account.upi_id || '',
+    linked_bank_account_id: account.linked_bank_account_id || '',
   });
   const [confirmDelete, setConfirmDelete] = useState(false);
   const isBank = account.type === 'BANK';
   const isUpi  = account.type === 'UPI';
+  const bankAccounts = accounts.filter((a) => a.type === 'BANK' && !a.deleted_at && a.id !== account.id);
   return (
     <Shell title={`Edit · ${account.type}`} onClose={onClose}>
       <label className={lbl}>Account name</label>
@@ -391,6 +393,16 @@ const EditAccountModal = ({ account, accounts, onClose, onSave, onDelete }) => {
         <div className="mt-3">
           <label className={lbl}>UPI ID / Handle <span className="text-gray-300 normal-case tracking-normal">(e.g. shop@upi)</span></label>
           <input className={inp} value={f.upi_id} onChange={(e) => setF({ ...f, upi_id: e.target.value })} placeholder="e.g. 9876543210@okicici" />
+        </div>
+      )}
+      {isUpi && (
+        <div className="mt-3">
+          <label className={lbl}>Settles to bank account <span className="text-gray-300 normal-case tracking-normal">(where UPI money actually lands)</span></label>
+          <select className={inp} value={f.linked_bank_account_id} onChange={(e) => setF({ ...f, linked_bank_account_id: e.target.value })}>
+            <option value="">— Auto (first bank) —</option>
+            {bankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.bank_name ? ` · ${a.bank_name}` : ''}</option>)}
+          </select>
+          {bankAccounts.length === 0 && <p className="text-[10px] text-amber-600 mt-1">No bank accounts yet — add one first to link this UPI ID.</p>}
         </div>
       )}
       <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400 bg-canvas rounded-lg px-3 py-2">

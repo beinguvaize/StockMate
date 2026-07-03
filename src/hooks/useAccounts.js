@@ -98,6 +98,7 @@ export function useAccounts(tenantId) {
       name: a.name, type: a.type || 'BANK',
       bank_name: a.bank_name || null, account_no: a.account_no || null, ifsc: a.ifsc || null,
       upi_id: a.upi_id || null,
+      linked_bank_account_id: a.linked_bank_account_id || null,
       opening_balance: Number(a.opening_balance) || 0, is_default: !!a.is_default,
       lender: a.lender || null,
       loan_principal: isLoan ? Number(a.loan_principal) || 0 : null,
@@ -112,7 +113,9 @@ export function useAccounts(tenantId) {
   };
 
   const updateAccount = async (id, patch) => {
-    const { error } = await restUpdate('accounts', { ...patch, updated_at: new Date().toISOString() }, { id, tenant_id: tenantId });
+    const row = { ...patch, updated_at: new Date().toISOString() };
+    if ('linked_bank_account_id' in row) row.linked_bank_account_id = row.linked_bank_account_id || null;
+    const { error } = await restUpdate('accounts', row, { id, tenant_id: tenantId });
     if (!error) fetchAll();
     return { error };
   };
