@@ -4,7 +4,8 @@ import { supabase, restInsert, restUpdate } from '../lib/supabase';
 // Resolve which account a payment lands in.
 // Pass an account ID directly (from dynamic POS buttons) → returns it as-is
 // after resolving UPI linked_bank_account_id. Pass a method string (CASH/UPI/
-// BANK/CARD) → picks the first matching account, then default, then first.
+// BANK/CARD) → picks the DEFAULT account of that type first, then any account
+// of that type, then any default account, then the first account overall.
 export const accountForMethod = (accounts = [], methodOrId = 'CASH') => {
   const live = accounts.filter((a) => !a.deleted_at && a.type !== 'LOAN');
   // Direct account ID passed — resolve UPI→linked bank, else return as-is.
@@ -12,7 +13,10 @@ export const accountForMethod = (accounts = [], methodOrId = 'CASH') => {
   if (byId) return byId.linked_bank_account_id || byId.id;
   // Method string path.
   const want = { CASH: 'CASH', UPI: 'UPI', CARD: 'BANK', BANK: 'BANK' }[String(methodOrId || '').toUpperCase()] || 'CASH';
-  const acc = live.find((a) => a.type === want) || live.find((a) => a.is_default) || live[0] || null;
+  const acc = live.find((a) => a.type === want && a.is_default)
+    || live.find((a) => a.type === want)
+    || live.find((a) => a.is_default)
+    || live[0] || null;
   if (!acc) return '';
   return acc.linked_bank_account_id || acc.id;
 };
