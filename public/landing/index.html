@@ -78,57 +78,77 @@
         </div>
       </div>
 
-      <!-- One ledger on every screen: laptop + tablet + phone (drawn UI, no stock art) -->
-      <div class="relative pb-10 mt-4 lg:mt-0 max-w-[560px] mx-auto lg:max-w-none w-full" aria-hidden="true">
+      <!-- One ledger on every screen: real laptop / tablet / phone frames -->
+      <div class="relative pb-14 mt-4 lg:mt-0 max-w-[560px] mx-auto lg:max-w-none w-full" aria-hidden="true">
+
         <!-- Laptop -->
-        <div class="relative z-10 mx-auto w-[92%]">
-          <div class="rounded-t-xl border border-line bg-surface shadow-2xl overflow-hidden">
-            <div class="flex items-center gap-1.5 px-3 py-2 border-b border-line bg-canvas">
-              <span class="w-2 h-2 rounded-full bg-line"></span><span class="w-2 h-2 rounded-full bg-line"></span><span class="w-2 h-2 rounded-full bg-line"></span>
-              <span class="ml-2 text-[9px] mono text-secondary">Dashboard</span>
-              <span class="ml-auto text-[8px] mono px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold">● Synced</span>
-            </div>
-            <div class="p-3 bg-surface">
-              <div class="grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden border border-line mb-2.5">
-                <div class="bg-canvas px-2.5 py-2"><div class="text-[7px] uppercase tracking-widest text-secondary font-bold">Sales</div><div class="mono text-[11px] font-bold mt-0.5">₹84,200</div></div>
-                <div class="bg-canvas px-2.5 py-2"><div class="text-[7px] uppercase tracking-widest text-secondary font-bold">Stock</div><div class="mono text-[11px] font-bold mt-0.5">₹1.2L</div></div>
-                <div class="bg-canvas px-2.5 py-2"><div class="text-[7px] uppercase tracking-widest text-secondary font-bold">Due</div><div class="mono text-[11px] font-bold mt-0.5 text-accent">₹22,150</div></div>
+        <div class="relative z-10 mx-auto w-[94%]">
+          <!-- lid / screen with dark bezel -->
+          <div class="rounded-t-2xl bg-[#1c1917] p-[6px] pb-0 shadow-2xl">
+            <div class="rounded-t-lg overflow-hidden bg-surface">
+              <div class="flex items-center gap-1.5 px-3 py-1.5 border-b border-line bg-canvas">
+                <span class="w-1.5 h-1.5 rounded-full bg-rose-300"></span><span class="w-1.5 h-1.5 rounded-full bg-amber-300"></span><span class="w-1.5 h-1.5 rounded-full bg-emerald-300"></span>
+                <span class="ml-2 text-[9px] mono text-secondary">Dashboard</span>
+                <span class="ml-auto text-[8px] mono px-1.5 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-bold">● Synced</span>
               </div>
-              <div class="flex items-end gap-1.5 h-16 rounded-lg border border-line bg-canvas p-2.5">
-                <div class="flex-1 rounded-t" style="height:45%;background:#D97706aa"></div>
-                <div class="flex-1 rounded-t" style="height:65%;background:#D97706aa"></div>
-                <div class="flex-1 rounded-t" style="height:52%;background:#D97706aa"></div>
-                <div class="flex-1 rounded-t" style="height:80%;background:#D97706"></div>
-                <div class="flex-1 rounded-t" style="height:70%;background:#D97706aa"></div>
-                <div class="flex-1 rounded-t" style="height:95%;background:#D97706"></div>
-                <div class="flex-1 rounded-t" style="height:58%;background:#D97706aa"></div>
+              <div class="p-3 bg-surface">
+                <div class="grid grid-cols-3 gap-px bg-line rounded-lg overflow-hidden border border-line mb-2.5">
+                  <div class="bg-canvas px-2.5 py-2"><div class="text-[7px] uppercase tracking-widest text-secondary font-bold">Sales</div><div class="mono text-[11px] font-bold mt-0.5">₹84,200</div></div>
+                  <div class="bg-canvas px-2.5 py-2"><div class="text-[7px] uppercase tracking-widest text-secondary font-bold">Stock</div><div class="mono text-[11px] font-bold mt-0.5">₹1.2L</div></div>
+                  <div class="bg-canvas px-2.5 py-2"><div class="text-[7px] uppercase tracking-widest text-secondary font-bold">Due</div><div class="mono text-[11px] font-bold mt-0.5 text-accent">₹22,150</div></div>
+                </div>
+                <div class="flex items-end gap-1.5 h-20 rounded-lg border border-line bg-canvas p-2.5">
+                  <div class="flex-1 rounded-t" style="height:45%;background:#D97706aa"></div>
+                  <div class="flex-1 rounded-t" style="height:65%;background:#D97706aa"></div>
+                  <div class="flex-1 rounded-t" style="height:52%;background:#D97706aa"></div>
+                  <div class="flex-1 rounded-t" style="height:80%;background:#D97706"></div>
+                  <div class="flex-1 rounded-t" style="height:70%;background:#D97706aa"></div>
+                  <div class="flex-1 rounded-t" style="height:95%;background:#D97706"></div>
+                  <div class="flex-1 rounded-t" style="height:58%;background:#D97706aa"></div>
+                </div>
               </div>
             </div>
           </div>
-          <div class="h-3 rounded-b-xl bg-line/70 border border-line border-t-0 mx-[-4%]"></div>
-        </div>
-
-        <!-- Tablet -->
-        <div class="absolute z-20 left-0 -bottom-2 w-[34%] rounded-2xl border border-line bg-surface shadow-xl overflow-hidden">
-          <div class="px-2.5 py-1.5 border-b border-line bg-canvas flex items-center justify-between">
-            <span class="text-[8px] mono text-secondary font-bold">Inventory</span>
-            <span class="text-[7px] mono text-emerald-600 font-bold">● Live</span>
-          </div>
-          <div class="p-2.5 space-y-1.5">
-            <div class="flex items-center justify-between rounded-md border border-line bg-canvas px-2 py-1.5"><span class="text-[8px] font-semibold text-primary">Mayil sheet 18*18</span><span class="mono text-[8px] font-bold text-emerald-600">124</span></div>
-            <div class="flex items-center justify-between rounded-md border border-line bg-canvas px-2 py-1.5"><span class="text-[8px] font-semibold text-primary">Paper Cup 210ml</span><span class="mono text-[8px] font-bold text-emerald-600">86</span></div>
-            <div class="flex items-center justify-between rounded-md border border-line bg-canvas px-2 py-1.5"><span class="text-[8px] font-semibold text-primary">HM Cover 00"</span><span class="mono text-[8px] font-bold text-accent">12</span></div>
+          <!-- hinge + aluminium deck -->
+          <div class="relative mx-[-5%]">
+            <div class="h-[10px] rounded-b-[14px] bg-gradient-to-b from-[#d6d3d1] to-[#a8a29e] shadow-md"></div>
+            <div class="absolute left-1/2 -translate-x-1/2 top-0 w-[18%] h-[5px] rounded-b-lg bg-[#8c8681]"></div>
           </div>
         </div>
 
-        <!-- Phone -->
-        <div class="absolute z-30 right-1 -bottom-6 w-[22%] rounded-[18px] border border-line bg-surface shadow-2xl overflow-hidden">
-          <div class="flex justify-center pt-1.5 pb-1 bg-canvas border-b border-line"><span class="w-8 h-1 rounded-full bg-line"></span></div>
-          <div class="p-2 space-y-1.5">
-            <div class="text-[7px] mono font-bold uppercase tracking-widest text-secondary">New Sale</div>
-            <div class="rounded-md border border-line bg-canvas px-1.5 py-1"><div class="text-[7px] font-semibold text-primary">2 × Mayil 12*12</div><div class="mono text-[7px] text-secondary">₹190.00</div></div>
-            <div class="rounded-md border border-line bg-canvas px-1.5 py-1"><div class="text-[7px] font-semibold text-primary">5 × 16*20 RAAJ</div><div class="mono text-[7px] text-secondary">₹220.00</div></div>
-            <div class="rounded-full bg-accent text-white text-center text-[7px] font-bold py-1.5">Charge ₹410</div>
+        <!-- Tablet (portrait, dark bezel, camera dot) -->
+        <div class="absolute z-20 left-0 -bottom-6 w-[35%]">
+          <div class="rounded-[20px] bg-[#1c1917] p-[7px] shadow-2xl">
+            <div class="flex justify-center pb-[4px]"><span class="w-1 h-1 rounded-full bg-[#57534e]"></span></div>
+            <div class="rounded-[13px] overflow-hidden bg-surface">
+              <div class="px-2.5 py-1.5 border-b border-line bg-canvas flex items-center justify-between">
+                <span class="text-[8px] mono text-secondary font-bold">Inventory</span>
+                <span class="text-[7px] mono text-emerald-600 font-bold">● Live</span>
+              </div>
+              <div class="p-2.5 space-y-1.5">
+                <div class="flex items-center justify-between rounded-md border border-line bg-canvas px-2 py-1.5"><span class="text-[8px] font-semibold text-primary">Mayil sheet 18*18</span><span class="mono text-[8px] font-bold text-emerald-600">124</span></div>
+                <div class="flex items-center justify-between rounded-md border border-line bg-canvas px-2 py-1.5"><span class="text-[8px] font-semibold text-primary">Paper Cup 210ml</span><span class="mono text-[8px] font-bold text-emerald-600">86</span></div>
+                <div class="flex items-center justify-between rounded-md border border-line bg-canvas px-2 py-1.5"><span class="text-[8px] font-semibold text-primary">HM Cover 00"</span><span class="mono text-[8px] font-bold text-accent">12</span></div>
+                <div class="flex items-center justify-between rounded-md border border-line bg-canvas px-2 py-1.5"><span class="text-[8px] font-semibold text-primary">Bike Holder BS-150</span><span class="mono text-[8px] font-bold text-emerald-600">31</span></div>
+              </div>
+            </div>
+            <div class="flex justify-center pt-[4px]"><span class="w-4 h-4 rounded-full border border-[#57534e]"></span></div>
+          </div>
+        </div>
+
+        <!-- Phone (slim bezel, punch-hole, home indicator) -->
+        <div class="absolute z-30 right-0 -bottom-10 w-[21%]">
+          <div class="rounded-[22px] bg-[#1c1917] p-[5px] shadow-2xl">
+            <div class="rounded-[17px] overflow-hidden bg-surface relative">
+              <div class="absolute top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full bg-[#1c1917] z-10"></div>
+              <div class="pt-3.5 px-2 pb-2 space-y-1.5">
+                <div class="text-[7px] mono font-bold uppercase tracking-widest text-secondary">New Sale</div>
+                <div class="rounded-md border border-line bg-canvas px-1.5 py-1"><div class="text-[7px] font-semibold text-primary">2 × Mayil 12*12</div><div class="mono text-[7px] text-secondary">₹190.00</div></div>
+                <div class="rounded-md border border-line bg-canvas px-1.5 py-1"><div class="text-[7px] font-semibold text-primary">5 × 16*20 RAAJ</div><div class="mono text-[7px] text-secondary">₹220.00</div></div>
+                <div class="rounded-full bg-accent text-white text-center text-[7px] font-bold py-1.5">Charge ₹410</div>
+                <div class="flex justify-center pt-0.5 pb-0.5"><span class="w-7 h-[3px] rounded-full bg-line"></span></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
