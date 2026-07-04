@@ -227,14 +227,45 @@ if (supabase && typeof window !== 'undefined') {
   });
 
   // (2) On tab return, re-apply auth + reconnect the socket so live updates
-  //     resume without a page reload.
+  //     resume without a page reload — PLUS a stall watchdog.
+  //
+  // The auth queue inside supabase-js can deadlock after long idle (stuck
+  // token refresh). When that happens EVERY query through the client hangs
+  // forever — pages sit on loading skeletons until the user manually
+  // reloads. Worse, getSession() below goes through the same queue, so the
+  // old recovery path hung too. The watchdog races getSession() against a
+  // timeout; if it stalls while the network itself is fine (checked via a
+  // raw fetch that bypasses the client), the client is wedged beyond repair
+  // in-place — reload the page automatically. That's the permanent version
+  // of the manual refresh users were forced to do.
+  let _hiddenAt = 0;
   document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState !== 'visible') return;
-    supabase.auth.getSession().then(({ data }) => {
+    if (document.visibilityState === 'hidden') { _hiddenAt = Date.now(); return; }
+
+    const hiddenFor = _hiddenAt ? Date.now() - _hiddenAt : 0;
+
+    const canary = supabase.auth.getSession().then(({ data }) => {
       const token = data?.session?.access_token;
       if (token) { try { supabase.realtime.setAuth(token); } catch (_) {/* noop */} }
       try { supabase.realtime.connect(); } catch (_) {/* noop */}
-    }).catch(() => {/* offline / restricted — ignore */});
+      return true;
+    }).catch(() => true); // resolved-with-error still proves the queue is alive
+
+    // Only run the reload watchdog after a real idle period (>60s hidden) —
+    // quick tab switches never trigger it.
+    if (hiddenFor < 60_000) return;
+
+    const timeout = new Promise((resolve) => setTimeout(() => resolve(false), 7000));
+    Promise.race([canary, timeout]).then(async (alive) => {
+      if (alive) return;
+      // Queue stalled. Confirm the network is actually up before reloading,
+      // so we don't reload-loop an offline laptop.
+      const reachable = await probeConnectivity();
+      if (reachable) {
+        console.warn('[supabase] auth queue stalled after idle — auto-reloading to recover');
+        window.location.reload();
+      }
+    });
   });
 }
 
