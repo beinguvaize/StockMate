@@ -38,6 +38,7 @@ import AllTransactionsReport from '../components/reports/AllTransactionsReport';
 import ItemPartyReport from '../components/reports/ItemPartyReport';
 import ProductSalesReport from '../components/reports/ProductSalesReport';
 import PurchasesReport from '../components/reports/PurchasesReport';
+import ProductMovementReport from '../components/reports/ProductMovementReport';
 
 import {
   TrendingUp, Package, UserCircle, Truck,
@@ -79,6 +80,7 @@ const Reports = () => {
     { id: 'ALL_TRANSACTIONS', group: 'OPERATIONAL', label: 'All Transactions', icon: <ArrowLeftRight size={18} />, component: <AllTransactionsReport />,      permission: 'reports' },
     { id: 'ITEM_PARTY',       group: 'OPERATIONAL', label: 'Item × Party',     icon: <GitFork size={18} />,      component: <ItemPartyReport />,              permission: 'sales' },
     { id: 'PRODUCT_SALES',    group: 'OPERATIONAL', label: 'Product Sales',    icon: <Package size={18} />,      component: <ProductSalesReport />,           permission: 'sales' },
+    { id: 'PRODUCT_MOVEMENT', group: 'OPERATIONAL', label: 'Fast / Slow Movers', icon: <Activity size={18} />,   component: <ProductMovementReport />,        permission: 'inventory' },
     { id: 'PURCHASES',        group: 'OPERATIONAL', label: 'Purchases',        icon: <ShoppingBag size={18} />,  component: <PurchasesReport />,              permission: 'purchases' },
 
     // --- ACCOUNTING GROUP ---

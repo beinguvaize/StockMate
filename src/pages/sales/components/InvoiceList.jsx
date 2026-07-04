@@ -103,6 +103,9 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
   }, [sales, staff]);
   const [dateFilter, setDateFilter] = useState('TODAY');   // ALL | TODAY | 7D | 30D | CUSTOM — default Today
   const [customRange, setCustomRange] = useState({ from: '', to: '' });
+  const [payFilter, setPayFilter] = useState('ALL');        // ALL | CASH | UPI | CARD | BANK | CREDIT
+  const [cashierFilter, setCashierFilter] = useState('ALL');
+  const [sort, setSort] = useState({ key: 'date', dir: 'desc' });
   const [detailSale, setDetailSale] = useState(null);
   const [settleInput, setSettleInput] = useState('');
 
@@ -182,15 +185,65 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
       // Pending tab = genuinely owed money; exclude paid AND voided.
       if (statusFilter === 'PENDING' && (isPaidStatus(status) || isVoidStatus(status))) return false;
       if (statusFilter === 'FAILED' && !isVoidStatus(status)) return false;
+      if (payFilter !== 'ALL' && (sale.paymentMethod || '').toUpperCase() !== payFilter) return false;
+      if (cashierFilter !== 'ALL' && (getCashier(sale) || '—') !== cashierFilter) return false;
       if (!q) return true;
       const name = getClientName(sale).toLowerCase();
       return (sale.id || '').toLowerCase().includes(q) || name.includes(q);
     });
-  }, [sales, searchTerm, statusFilter, inDateRange, getClientName]);
+  }, [sales, searchTerm, statusFilter, inDateRange, getClientName, payFilter, cashierFilter, getCashier]);
+
+  // ---------- Sorting ----------
+  const sortedSales = useMemo(() => {
+    const dirMul = sort.dir === 'asc' ? 1 : -1;
+    const val = (s) => {
+      switch (sort.key) {
+        case 'date':    return new Date(s.created_at || s.date || 0).getTime();
+        case 'invoice': return String(s.id || '');
+        case 'client':  return getClientName(s).toLowerCase();
+        case 'cashier': return (getCashier(s) || '').toLowerCase();
+        case 'items':   return itemCount(s);
+        case 'amount':  return Number(s.totalAmount) || 0;
+        case 'status':  return getStatus(s);
+        default:        return 0;
+      }
+    };
+    return [...filteredSales].sort((a, b) => {
+      const va = val(a), vb = val(b);
+      if (va < vb) return -1 * dirMul;
+      if (va > vb) return 1 * dirMul;
+      return 0;
+    });
+  }, [filteredSales, sort, getClientName, getCashier]);
+
+  const toggleSort = (key) => setSort(prev =>
+    prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: ['date', 'amount', 'items'].includes(key) ? 'desc' : 'asc' }
+  );
+
+  const SortLabel = ({ k, children }) => (
+    <button onClick={() => toggleSort(k)} className="inline-flex items-center gap-1 hover:text-ink-primary transition-colors cursor-pointer select-none">
+      {children}
+      <span className={`text-[9px] leading-none ${sort.key === k ? 'text-accent-signature' : 'text-gray-300'}`}>
+        {sort.key === k ? (sort.dir === 'asc' ? '▲' : '▼') : '▲▼'}
+      </span>
+    </button>
+  );
+
+  // Distinct cashiers / methods present in the current date window (for dropdowns).
+  const cashierOptions = useMemo(() => {
+    const set = new Set();
+    for (const s of sales) { if (inDateRange(s)) set.add(getCashier(s) || '—'); }
+    return [...set].sort();
+  }, [sales, inDateRange, getCashier]);
+  const payOptions = useMemo(() => {
+    const set = new Set();
+    for (const s of sales) { if (inDateRange(s) && s.paymentMethod) set.add(String(s.paymentMethod).toUpperCase()); }
+    return [...set].sort();
+  }, [sales, inDateRange]);
 
   // ---------- CSV export ----------
   const handleExport = () => {
-    const rows = filteredSales.map(s => ({
+    const rows = sortedSales.map(s => ({
       date: s.date || '',
       time: formatTime(s.created_at),
       invoice: shortRef(s.id),
@@ -223,13 +276,13 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
   };
 
   const headers = [
-    { label: 'Date / Time' },
-    { label: 'Invoice' },
-    { label: 'Client' },
-    { label: 'Cashier' },
-    { label: 'Items', className: 'text-center' },
-    { label: 'Amount', className: 'text-right' },
-    { label: 'Status', className: 'text-center' },
+    { label: <SortLabel k="date">Date / Time</SortLabel> },
+    { label: <SortLabel k="invoice">Invoice</SortLabel> },
+    { label: <SortLabel k="client">Client</SortLabel> },
+    { label: <SortLabel k="cashier">Cashier</SortLabel> },
+    { label: <SortLabel k="items">Items</SortLabel>, className: 'text-center' },
+    { label: <SortLabel k="amount">Amount</SortLabel>, className: 'text-right' },
+    { label: <SortLabel k="status">Status</SortLabel>, className: 'text-center' },
     { label: '', className: 'text-right' },
   ];
 
@@ -478,9 +531,29 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           <StatusTab k="PAID" label="Paid" count={summary.paid} />
           <StatusTab k="PENDING" label="Pending" count={summary.pending} />
           {summary.failed > 0 && <StatusTab k="FAILED" label="Failed" count={summary.failed} />}
+          <select
+            value={payFilter}
+            onChange={e => setPayFilter(e.target.value)}
+            className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-gray-600 outline-none cursor-pointer"
+            title="Payment method"
+          >
+            <option value="ALL">All methods</option>
+            {payOptions.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          {cashierOptions.length > 1 && (
+            <select
+              value={cashierFilter}
+              onChange={e => setCashierFilter(e.target.value)}
+              className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-gray-600 outline-none cursor-pointer"
+              title="Cashier"
+            >
+              <option value="ALL">All cashiers</option>
+              {cashierOptions.map(c => <option key={c} value={c}>{c}</option>)}
+            </select>
+          )}
           <button
             onClick={handleExport}
-            disabled={!filteredSales.length}
+            disabled={!sortedSales.length}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-gray-700 hover:text-ink-primary hover:border-black/20 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             title="Export CSV"
           >
@@ -492,7 +565,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
       {/* Table */}
       <Table
         headers={headers}
-        rows={filteredSales}
+        rows={sortedSales}
         renderRow={renderRow}
         emptyMessage={
           <div className="flex flex-col items-center gap-2 py-8 text-gray-500">
