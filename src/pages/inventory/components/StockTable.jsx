@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { PackagePlus, Eye, Trash2, SlidersHorizontal } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { PackagePlus, Eye, Trash2, SlidersHorizontal, Pencil } from 'lucide-react';
 import { useTenant } from '../../../context/TenantContext';
 
 // Veg/non-veg/egg square (restaurant menu). null = nothing.
@@ -33,10 +33,12 @@ const statusOf = (qty, reorder) => {
 const dotCls = (s) => s === 'crit' ? 'bg-red-500' : s === 'low' ? 'bg-amber-500' : 'bg-emerald-500';
 const qtyCls = (s) => s === 'crit' ? 'text-red-600' : s === 'low' ? 'text-amber-600' : 'text-ink-primary';
 
-const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onAdjust, onBatches, currencySymbol = '₹' }) => {
+const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onAdjust, onBatches, onBulkEdit, onBulkDelete, currencySymbol = '₹' }) => {
   const { businessType } = useTenant();
   const isResto = businessType === 'RESTAURANT';
   const isService = businessType === 'SERVICES';
+  const [sort, setSort] = useState({ key: null, dir: 'asc' });
+  const [selected, setSelected] = useState(() => new Set());
   const stockOf = (product) =>
     inventoryBalances.filter(b => b.product_id === product.id)
       .reduce((acc, b) => acc + toNum(b.quantity), 0) || toNum(product.stock);
@@ -48,14 +50,45 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
       const cat = p.category || 'Uncategorised';
       (map[cat] = map[cat] || []).push(p);
     });
+    const sortVal = (p) => {
+      switch (sort.key) {
+        case 'name':    return (p.name || '').toLowerCase();
+        case 'sku':     return (p.sku || '').toLowerCase();
+        case 'stock':   return stockOf(p);
+        case 'reorder': return reorderOf(p);
+        case 'cost':    return toNum(p.costPrice);
+        case 'sell':    return toNum(p.sellingPrice);
+        case 'value':   return stockOf(p) * toNum(p.sellingPrice);
+        default:        return 0;
+      }
+    };
+    const cmp = (a, b) => {
+      if (!sort.key) return 0;
+      const va = sortVal(a), vb = sortVal(b);
+      const r = va < vb ? -1 : va > vb ? 1 : 0;
+      return sort.dir === 'asc' ? r : -r;
+    };
     return Object.entries(map)
       .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([cat, items]) => ({
         cat,
-        items,
+        items: sort.key ? [...items].sort(cmp) : items,
         subValue: items.reduce((t, p) => t + stockOf(p) * toNum(p.sellingPrice), 0),
       }));
-  }, [products, inventoryBalances]);
+  }, [products, inventoryBalances, sort]);
+
+  const toggleSort = (key) => setSort(prev =>
+    prev.key === key ? (prev.dir === 'asc' ? { key, dir: 'desc' } : { key: null, dir: 'asc' }) : { key, dir: 'asc' });
+
+  const allIds = useMemo(() => products.map(p => p.id), [products]);
+  const allSelected = selected.size > 0 && allIds.every(id => selected.has(id));
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(allIds));
+  const toggleOne = (id) => setSelected(prev => {
+    const next = new Set(prev);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const clearSelection = () => setSelected(new Set());
 
   if (!products.length) {
     return (
@@ -66,8 +99,17 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
     );
   }
 
-  const TH = ({ children, align = 'left', extra = '' }) => (
-    <th className={`px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''} ${extra}`}>{children}</th>
+  const TH = ({ children, align = 'left', extra = '', sortKey = null }) => (
+    <th className={`px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''} ${extra}`}>
+      {sortKey ? (
+        <button onClick={() => toggleSort(sortKey)} className="inline-flex items-center gap-1 hover:text-ink-primary transition-colors cursor-pointer uppercase tracking-widest">
+          {children}
+          <span className={`text-[8px] ${sort.key === sortKey ? 'text-amber-500' : 'text-gray-300'}`}>
+            {sort.key === sortKey ? (sort.dir === 'asc' ? '▲' : '▼') : '▲▼'}
+          </span>
+        </button>
+      ) : children}
+    </th>
   );
 
   return (
@@ -80,13 +122,19 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
         <table className="w-full text-left">
           <thead>
             <tr className="border-b border-black/10">
-              <TH extra="pl-5 w-full">{isService ? 'Service' : 'Product'}</TH>
-              <TH>SKU</TH>
-              <TH align="right">{isService ? 'Duration' : 'Stock'}</TH>
-              <TH align="right">{isService ? '' : 'Reorder'}</TH>
-              <TH align="right">{isService ? '' : 'Cost'}</TH>
-              <TH align="right">{isService ? 'Price' : 'Sell'}</TH>
-              <TH align="right">{isService ? '' : 'Value'}</TH>
+              {(onBulkEdit || onBulkDelete) && (
+                <th className="pl-5 pr-1 py-2.5 w-px">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll}
+                    className="w-3.5 h-3.5 rounded border-gray-300 accent-amber-500 cursor-pointer" />
+                </th>
+              )}
+              <TH extra="pl-5 w-full" sortKey="name">{isService ? 'Service' : 'Product'}</TH>
+              <TH sortKey="sku">SKU</TH>
+              <TH align="right" sortKey={isService ? null : 'stock'}>{isService ? 'Duration' : 'Stock'}</TH>
+              <TH align="right" sortKey={isService ? null : 'reorder'}>{isService ? '' : 'Reorder'}</TH>
+              <TH align="right" sortKey={isService ? null : 'cost'}>{isService ? '' : 'Cost'}</TH>
+              <TH align="right" sortKey="sell">{isService ? 'Price' : 'Sell'}</TH>
+              <TH align="right" sortKey={isService ? null : 'value'}>{isService ? '' : 'Value'}</TH>
               <TH align="center"> </TH>
               <TH align="right"> </TH>
             </tr>
@@ -95,7 +143,7 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
             {groups.map(({ cat, items, subValue }) => (
               <React.Fragment key={cat}>
                 <tr className="bg-black/[0.025]">
-                  <td colSpan={2} className="px-5 py-2 text-[11px] font-black uppercase tracking-widest text-gray-500">
+                  <td colSpan={(onBulkEdit || onBulkDelete) ? 3 : 2} className="px-5 py-2 text-[11px] font-black uppercase tracking-widest text-gray-500">
                     {cat} <span className="text-gray-400 ml-1">{items.length}</span>
                   </td>
                   <td colSpan={4} />
@@ -112,7 +160,13 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
                   return (
                     <tr key={product.id}
                       onClick={onView ? () => onView(product) : undefined}
-                      className={`group border-t border-black/[0.04] hover:bg-amber-500/[0.04] transition-colors ${onView ? 'cursor-pointer' : ''}`}>
+                      className={`group border-t border-black/[0.04] hover:bg-amber-500/[0.04] transition-colors ${onView ? 'cursor-pointer' : ''} ${selected.has(product.id) ? 'bg-amber-500/[0.06]' : ''}`}>
+                      {(onBulkEdit || onBulkDelete) && (
+                        <td className="pl-5 pr-1 py-2.5 w-px" onClick={(e) => e.stopPropagation()}>
+                          <input type="checkbox" checked={selected.has(product.id)} onChange={() => toggleOne(product.id)}
+                            className="w-3.5 h-3.5 rounded border-gray-300 accent-amber-500 cursor-pointer" />
+                        </td>
+                      )}
                       <td className="px-5 py-2.5 pl-9 max-w-0 w-full">
                         <div className="flex items-center gap-2 min-w-0">
                           {isResto && <FoodMark type={product.food_type} />}
@@ -163,6 +217,28 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
           </tbody>
         </table>
       </div>
+      {selected.size > 0 && (onBulkEdit || onBulkDelete) && (
+        <div className="sticky bottom-0 px-5 py-3 bg-ink-primary flex items-center gap-3 shadow-2xl">
+          <span className="text-[12px] font-bold text-white">{selected.size} selected</span>
+          <button onClick={clearSelection} className="text-[11px] font-semibold text-white/60 hover:text-white transition-colors">Clear</button>
+          <div className="ml-auto flex items-center gap-2">
+            {onBulkEdit && (
+              <button
+                onClick={() => onBulkEdit(products.filter(p => selected.has(p.id)), clearSelection)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold bg-accent-signature text-white hover:opacity-90 transition-opacity">
+                <Pencil size={13} /> Bulk edit
+              </button>
+            )}
+            {onBulkDelete && (
+              <button
+                onClick={() => onBulkDelete(products.filter(p => selected.has(p.id)), clearSelection)}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold bg-red-500/90 text-white hover:bg-red-500 transition-colors">
+                <Trash2 size={13} /> Delete
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };

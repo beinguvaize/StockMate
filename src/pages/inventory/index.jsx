@@ -39,6 +39,7 @@ const Inventory = () => {
   const [batchesFor,      setBatchesFor]      = useState(null);
   const [showPriceLists,  setShowPriceLists]  = useState(false);
   const [adjustingProduct, setAdjustingProduct] = useState(null);
+  const [bulkEdit, setBulkEdit] = useState(null); // { products, clear }
   const [adjustSaving,     setAdjustSaving]     = useState(false);
   const [showHistory,      setShowHistory]      = useState(false);
 
@@ -254,7 +255,36 @@ const Inventory = () => {
         onDelete={(id) => { if (window.confirm('Delete this product?')) deleteProduct(id); }}
         onAdjust={isOwner ? (product) => setAdjustingProduct(product) : null}
         onBatches={setBatchesFor}
+        onBulkEdit={isOwner ? (prods, clear) => setBulkEdit({ products: prods, clear }) : null}
+        onBulkDelete={isOwner ? async (prods, clear) => {
+          if (!window.confirm(`Delete ${prods.length} selected product${prods.length === 1 ? '' : 's'}?`)) return;
+          for (const p of prods) await deleteProduct(p.id);
+          clear();
+        } : null}
       />
+
+      {bulkEdit && (
+        <BulkEditModal
+          count={bulkEdit.products.length}
+          categories={categoryOptions}
+          onClose={() => setBulkEdit(null)}
+          onApply={async (patch) => {
+            for (const p of bulkEdit.products) {
+              const updates = {};
+              if (patch.category) updates.category = patch.category;
+              if (patch.reorder !== '') updates.lowStockThreshold = Number(patch.reorder);
+              if (patch.pricePct !== '') {
+                const pct = Number(patch.pricePct) / 100;
+                updates.sellingPrice = Math.round(Number(p.sellingPrice || 0) * (1 + pct) * 100) / 100;
+              }
+              if (patch.sellPrice !== '') updates.sellingPrice = Number(patch.sellPrice);
+              if (Object.keys(updates).length) await updateProduct(p.id, updates);
+            }
+            bulkEdit.clear();
+            setBulkEdit(null);
+          }}
+        />
+      )}
 
       {viewingProduct && (
         <ItemDetailView
@@ -317,6 +347,58 @@ const Inventory = () => {
           onClose={() => setShowHistory(false)}
         />
       )}
+    </div>
+  );
+};
+
+// Bulk edit — blank fields are left unchanged on every selected product.
+const BulkEditModal = ({ count, categories, onClose, onApply }) => {
+  const [f, setF] = useState({ category: '', pricePct: '', sellPrice: '', reorder: '' });
+  const [saving, setSaving] = useState(false);
+  const dirty = f.category || f.pricePct !== '' || f.sellPrice !== '' || f.reorder !== '';
+  const inp = 'w-full text-[13px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-amber-500/40 bg-white';
+  const lbl = 'text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block';
+  return (
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center mb-1">
+          <div className="font-black text-[15px] text-ink-primary">Bulk edit</div>
+          <button onClick={onClose} className="ml-auto text-gray-400 hover:text-ink-primary"><X size={18} /></button>
+        </div>
+        <p className="text-[11px] text-gray-400 mb-4">{count} products selected · blank fields stay unchanged</p>
+
+        <label className={lbl}>Category</label>
+        <select className={inp} value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })}>
+          <option value="">— keep current —</option>
+          {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+        </select>
+
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          <div>
+            <label className={lbl}>Price change %</label>
+            <input type="number" step="0.1" placeholder="e.g. 5 or -10" className={inp}
+              value={f.pricePct} onChange={(e) => setF({ ...f, pricePct: e.target.value, sellPrice: '' })} />
+          </div>
+          <div>
+            <label className={lbl}>Or set sell price</label>
+            <input type="number" step="0.01" placeholder="fixed price" className={inp}
+              value={f.sellPrice} onChange={(e) => setF({ ...f, sellPrice: e.target.value, pricePct: '' })} />
+          </div>
+        </div>
+
+        <div className="mt-3">
+          <label className={lbl}>Reorder level</label>
+          <input type="number" placeholder="low-stock threshold" className={inp}
+            value={f.reorder} onChange={(e) => setF({ ...f, reorder: e.target.value })} />
+        </div>
+
+        <button
+          disabled={!dirty || saving}
+          onClick={async () => { setSaving(true); try { await onApply(f); } finally { setSaving(false); } }}
+          className="w-full mt-5 py-2.5 rounded-xl text-[13px] font-black bg-accent-signature text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
+          {saving ? 'Applying…' : `Apply to ${count} products`}
+        </button>
+      </div>
     </div>
   );
 };
