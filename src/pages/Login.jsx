@@ -11,9 +11,17 @@ const Login = () => {
   const [markSpin, setMarkSpin] = useState(false);
   const [logoClickCount, setLogoClickCount] = useState(0);
   const [lastClickTime, setLastClickTime] = useState(0);
-  const { login, logout, loading} = useAuth();
+  const { login, logout, loading, currentUser } = useAuth();
   const navigate = useNavigate();
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Already signed in (e.g. clicked "Sign In" on the landing page in a new
+  // tab while a session exists) → don't show the form; hand off to
+  // RootRedirect, which routes global admins to /nexus-hq and everyone else
+  // to their tenant dashboard.
+  useEffect(() => {
+    if (!loading && currentUser) navigate('/', { replace: true });
+  }, [loading, currentUser, navigate]);
 
   // Inline signup — same page, right panel swaps between login and register.
   const [mode, setMode] = useState('login'); // 'login' | 'signup'
