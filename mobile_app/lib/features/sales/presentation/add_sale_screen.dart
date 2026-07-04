@@ -1545,21 +1545,23 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
         _PayMethod('BANK', 'Bank', 'NEFT / RTGS', LucideIcons.building, 'BANK'),
       ];
     }
+    // One tile per payment TYPE — the default account of that type (or the
+    // first one when none is flagged default). Cashiers pick a method, not
+    // an account; listing every account cluttered the sheet.
     const typeOrder = ['CASH', 'UPI', 'BANK', 'CARD'];
-    final sorted = [..._accounts]..sort((a, b) {
-      int rank(String t) { final i = typeOrder.indexOf(t); return i < 0 ? 99 : i; }
-      return rank(a.type).compareTo(rank(b.type));
-    });
-    final methods = sorted.map((acc) {
-      final t = acc.type;
+    final methods = <_PayMethod>[];
+    for (final t in typeOrder) {
+      final ofType = _accounts.where((a) => a.type == t).toList();
+      if (ofType.isEmpty) continue;
+      final acc = ofType.firstWhere((a) => a.isDefault, orElse: () => ofType.first);
       final icon = t == 'CASH' ? LucideIcons.banknote
           : t == 'UPI' ? LucideIcons.qrCode
           : LucideIcons.building;
       final sub = t == 'CASH' ? 'Pay at counter'
           : t == 'UPI' ? 'Customer scans to pay'
           : 'NEFT / RTGS';
-      return _PayMethod(acc.id, acc.name, sub, icon, t);
-    }).toList();
+      methods.add(_PayMethod(acc.id, acc.name, sub, icon, t));
+    }
     if (widget.selectedClient != null) {
       methods.add(_PayMethod(
         'CREDIT_SALE', 'Credit Sale',
@@ -1582,11 +1584,17 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
       setState(() {
         _accounts = accounts;
         if (accounts.isNotEmpty) {
-          final def = accounts.firstWhere(
-            (a) => a.isDefault,
-            orElse: () => accounts.first,
-          );
-          _paymentMethod = def.id;
+          // Mirror _payMethods: first tile is the default CASH account (or
+          // first account of the first type present in CASH→UPI→BANK→CARD).
+          const typeOrder = ['CASH', 'UPI', 'BANK', 'CARD'];
+          AccountModel? pick;
+          for (final t in typeOrder) {
+            final ofType = accounts.where((a) => a.type == t).toList();
+            if (ofType.isEmpty) continue;
+            pick = ofType.firstWhere((a) => a.isDefault, orElse: () => ofType.first);
+            break;
+          }
+          _paymentMethod = (pick ?? accounts.first).id;
         }
       });
     });
