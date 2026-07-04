@@ -272,6 +272,15 @@ export const AuthProvider = ({ children }) => {
   };
 
   const login = async (email, password) => {
+    // Fresh sign-in always starts clean: drop any impersonation left in this
+    // tab's sessionStorage — otherwise a global admin who impersonated a
+    // tenant earlier gets silently dumped back into that tenant (possibly a
+    // suspended one) instead of Nexus HQ.
+    try {
+      sessionStorage.removeItem('nexus_impersonating');
+      sessionStorage.removeItem('nexus_impersonated_tenant');
+    } catch (_) {/* storage unavailable — ignore */}
+
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) return { success: false, error: error.message };
 
@@ -318,6 +327,11 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     await supabase.auth.signOut();
     setCurrentUser(null);
+    // Impersonation must not outlive the session that started it.
+    try {
+      sessionStorage.removeItem('nexus_impersonating');
+      sessionStorage.removeItem('nexus_impersonated_tenant');
+    } catch (_) {/* ignore */}
     // Clear desktop offline bootstrap so next launch requires online sign-in
     try {
       const { clearBootstrap, isElectron } = await import('../lib/offline/authGuard.js');
