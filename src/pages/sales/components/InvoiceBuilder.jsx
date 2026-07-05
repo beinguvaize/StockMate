@@ -694,13 +694,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         addNotification(`Checkout failed: ${msg}`, 'error');
         return; // keep cart + modal so user can retry
       }
-      // Money received → post to the chosen Cash/Bank account (fire-and-forget,
-      // truly non-blocking — addTxn returns {error}, never throws, so the old
-      // try/await/catch pattern still blocked for up to 30s on network delays).
-      if (depAcc && Number(resolvedPaid) > 0) {
-        addAccountTxn({ account_id: depAcc, direction: 'IN', amount: Number(resolvedPaid), mode: paymentMethod, ref_type: 'SALE', ref_id: saleId, note: 'POS sale' })
-          .catch(() => {});
-      }
+      // Money received → the DB trigger trg_sales_post_ledger posts the
+      // account_transactions IN entry server-side now (idempotent on sale id),
+      // so web, desktop AND mobile sales all hit Cash & Bank identically.
+      // No client-side posting — doing both double-counted the sale.
       // Persist sold serials (non-fatal — the sale itself already succeeded).
       if (serialLines.length > 0) {
         try {
