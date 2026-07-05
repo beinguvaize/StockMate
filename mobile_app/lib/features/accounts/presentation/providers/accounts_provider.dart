@@ -10,6 +10,9 @@ class AccountModel {
   final double balance;
   final bool isDefault;
   final String? upiId;
+  final String? linkedBankAccountId;
+  /// UPI handles of linked UPI accounts folded into this bank card (web parity).
+  final List<String> linkedUpiHandles;
 
   const AccountModel({
     required this.id,
@@ -18,7 +21,17 @@ class AccountModel {
     required this.balance,
     required this.isDefault,
     this.upiId,
+    this.linkedBankAccountId,
+    this.linkedUpiHandles = const [],
   });
+
+  AccountModel copyWith({double? balance, List<String>? linkedUpiHandles}) => AccountModel(
+        id: id, name: name, type: type,
+        balance: balance ?? this.balance,
+        isDefault: isDefault, upiId: upiId,
+        linkedBankAccountId: linkedBankAccountId,
+        linkedUpiHandles: linkedUpiHandles ?? this.linkedUpiHandles,
+      );
 }
 
 final accountsProvider = FutureProvider<List<AccountModel>>((ref) async {
@@ -29,7 +42,7 @@ final accountsProvider = FutureProvider<List<AccountModel>>((ref) async {
     // opening_balance + Σ IN − Σ OUT in account_transactions (mirrors web).
     final accountRows = await supabase
         .from('accounts')
-        .select('id, name, type, opening_balance, is_default, upi_id')
+        .select('id, name, type, opening_balance, is_default, upi_id, linked_bank_account_id')
         .eq('tenant_id', ctx.tenantId)
         .isFilter('deleted_at', null)
         .order('is_default', ascending: false)
@@ -53,7 +66,7 @@ final accountsProvider = FutureProvider<List<AccountModel>>((ref) async {
       txnNet[acId] = (txnNet[acId] ?? 0) + (dir == 'IN' ? amt : -amt);
     }
 
-    return accounts.map((r) {
+    final all = accounts.map((r) {
       final opening = (r['opening_balance'] as num?)?.toDouble() ?? 0;
       final id = r['id'] as String;
       return AccountModel(
@@ -63,10 +76,35 @@ final accountsProvider = FutureProvider<List<AccountModel>>((ref) async {
         balance: opening + (txnNet[id] ?? 0),
         isDefault: r['is_default'] as bool? ?? false,
         upiId: r['upi_id'] as String?,
+        linkedBankAccountId: r['linked_bank_account_id'] as String?,
       );
     }).toList();
+
+    return all;
   } catch (e) {
     debugPrint('[accountsProvider] failed: $e');
     return [];
   }
 });
+
+
+/// Web-parity display merge: UPI accounts linked to a bank are payment
+/// handles, not money stores — fold each one's balance into its bank card
+/// and surface the handle as a badge. Use for DISPLAY ONLY (the Accounts
+/// screen); checkout tiles need the raw list so UPI stays selectable.
+List<AccountModel> mergeLinkedUpiForDisplay(List<AccountModel> accounts) {
+  final linkedUpi =
+      accounts.where((a) => a.type == 'UPI' && a.linkedBankAccountId != null).toList();
+  if (linkedUpi.isEmpty) return accounts;
+  return accounts
+      .where((a) => !(a.type == 'UPI' && a.linkedBankAccountId != null))
+      .map((a) {
+    final mine = linkedUpi.where((u) => u.linkedBankAccountId == a.id).toList();
+    if (mine.isEmpty) return a;
+    final folded = mine.fold<double>(0, (s, u) => s + u.balance);
+    return a.copyWith(
+      balance: a.balance + folded,
+      linkedUpiHandles: mine.map((u) => u.upiId ?? u.name).toList(),
+    );
+  }).toList();
+}

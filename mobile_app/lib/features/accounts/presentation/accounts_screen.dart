@@ -35,7 +35,9 @@ class AccountsScreen extends ConsumerWidget {
         error: (e, _) => Center(
           child: Text('Error loading accounts', style: GoogleFonts.manrope(color: AppColors.danger)),
         ),
-        data: (accounts) {
+        data: (rawAccounts) {
+          // Linked UPI accounts fold into their bank card (web parity).
+          final accounts = mergeLinkedUpiForDisplay(rawAccounts);
           if (accounts.isEmpty) {
             return Center(
               child: Column(
@@ -188,6 +190,20 @@ class _AccountCard extends StatelessWidget {
                 ),
                 if (account.upiId != null && account.upiId!.isNotEmpty)
                   Text(account.upiId!, style: GoogleFonts.jetBrainsMono(fontSize: 11, color: AppColors.inkTertiary)),
+                // Linked UPI handles folded into this bank card (web parity)
+                for (final h in account.linkedUpiHandles)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.canvas,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: AppColors.outlineVariant.withValues(alpha: 0.5)),
+                      ),
+                      child: Text(h, style: GoogleFonts.jetBrainsMono(fontSize: 10, color: AppColors.inkTertiary)),
+                    ),
+                  ),
               ],
             ),
           ),
