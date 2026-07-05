@@ -278,6 +278,7 @@ const Inventory = () => {
                 updates.sellingPrice = Math.round(Number(p.sellingPrice || 0) * (1 + pct) * 100) / 100;
               }
               if (patch.sellPrice !== '') updates.sellingPrice = Number(patch.sellPrice);
+              if (patch.gstRate !== '') updates.taxRate = Number(patch.gstRate);
               if (Object.keys(updates).length) await updateProduct(p.id, updates);
             }
             bulkEdit.clear();
@@ -353,9 +354,9 @@ const Inventory = () => {
 
 // Bulk edit — blank fields are left unchanged on every selected product.
 const BulkEditModal = ({ count, categories, onClose, onApply }) => {
-  const [f, setF] = useState({ category: '', pricePct: '', sellPrice: '', reorder: '' });
+  const [f, setF] = useState({ category: '', pricePct: '', sellPrice: '', reorder: '', gstRate: '' });
   const [saving, setSaving] = useState(false);
-  const dirty = f.category || f.pricePct !== '' || f.sellPrice !== '' || f.reorder !== '';
+  const dirty = f.category || f.pricePct !== '' || f.sellPrice !== '' || f.reorder !== '' || f.gstRate !== '';
   const inp = 'w-full text-[13px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-amber-500/40 bg-white';
   const lbl = 'text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block';
   return (
@@ -386,10 +387,23 @@ const BulkEditModal = ({ count, categories, onClose, onApply }) => {
           </div>
         </div>
 
-        <div className="mt-3">
-          <label className={lbl}>Reorder level</label>
-          <input type="number" placeholder="low-stock threshold" className={inp}
-            value={f.reorder} onChange={(e) => setF({ ...f, reorder: e.target.value })} />
+        <div className="grid grid-cols-2 gap-2 mt-3">
+          <div>
+            <label className={lbl}>Reorder level</label>
+            <input type="number" placeholder="low-stock threshold" className={inp}
+              value={f.reorder} onChange={(e) => setF({ ...f, reorder: e.target.value })} />
+          </div>
+          <div>
+            <label className={lbl}>GST rate</label>
+            <select className={inp} value={f.gstRate} onChange={(e) => setF({ ...f, gstRate: e.target.value })}>
+              <option value="">— keep current —</option>
+              <option value="0">0% (exempt / unregistered)</option>
+              <option value="5">5%</option>
+              <option value="12">12%</option>
+              <option value="18">18%</option>
+              <option value="28">28%</option>
+            </select>
+          </div>
         </div>
 
         <button
