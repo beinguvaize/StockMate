@@ -205,10 +205,15 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
         <div className="text-[10px] mt-1">{LINE}</div>
 
         {/* ── Totals ───────────────────────────────────────── */}
+        {/* Subtotal must tie with TOTAL on the slip. When the CGST/SGST
+            breakdown is shown, subtotal is the taxable base (base + taxes
+            = total). When the breakdown is HIDDEN, printing the base made
+            the receipt look wrong (e.g. Subtotal 4894.07 → TOTAL 5775 with
+            nothing in between) — show the gross sum instead. */}
         <div className="text-[10px] space-y-0.5">
           <div className="flex justify-between">
             <span>{L('subtotal', 'Subtotal')}</span>
-            <span>{fmt(taxable)}</span>
+            <span>{fmt(s.show_tax_breakdown && totalTax > 0 ? taxable : taxable + totalTax)}</span>
           </div>
           {s.show_discount && discount > 0 && (
             <div className="flex justify-between">
