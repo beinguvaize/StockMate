@@ -308,12 +308,10 @@ const Expenses = () => {
    return;
  }
 
- // Money out → post to the chosen Cash/Bank account (new expenses only, non-blocking).
- if (!editingExpense && payAcc) {
-   try {
-     await addAccountTxn({ account_id: payAcc, direction: 'OUT', amount, mode: formData.payment_method, ref_type: 'EXPENSE', note: note });
-   } catch { /* ledger non-blocking */ }
- }
+ // Money out → the DB trigger trg_expenses_post_ledger posts the OUT entry
+ // server-side (idempotent per expense id, syncs on edit/delete too), so
+ // web, desktop and mobile expenses all hit Cash & Bank identically.
+ // Client-side posting removed — doing both double-counted.
 
  setIsAdding(false);
  setEditingExpense(null);
