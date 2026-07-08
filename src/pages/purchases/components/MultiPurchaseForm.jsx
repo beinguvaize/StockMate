@@ -1,7 +1,71 @@
 import React, { useState, useMemo, useRef } from 'react';
-import { Plus, Trash2, CheckCircle2, Barcode, AlertCircle } from 'lucide-react';
+import { Plus, Trash2, CheckCircle2, Barcode, AlertCircle, Search, X } from 'lucide-react';
 import { todayISOInAppTZ } from '../../../lib/utils';
 import QuickCreateProductModal from './QuickCreateProductModal';
+
+// Searchable product combobox — plain <select> is unusable once the catalog
+// grows past a few dozen items (no way to filter by typing).
+const ProductPicker = ({ products, value, onSelect }) => {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const wrapRef = useRef(null);
+  const selected = products.find(p => p.id === value);
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return products.slice(0, 50);
+    return products.filter(p =>
+      p.name?.toLowerCase().includes(q) ||
+      p.sku?.toLowerCase().includes(q) ||
+      p.barcode?.toLowerCase?.().includes(q)
+    ).slice(0, 50);
+  }, [products, query]);
+
+  return (
+    <div ref={wrapRef} className="relative">
+      <div className="relative">
+        <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" />
+        <input
+          type="text"
+          className={`w-full bg-white border border-gray-300 shadow-sm rounded-lg pl-6 pr-6 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20 ${selected ? '' : 'text-gray-400'}`}
+          placeholder="Search product…"
+          value={open ? query : (selected?.name || '')}
+          onFocus={() => { setQuery(''); setOpen(true); }}
+          onChange={e => { setQuery(e.target.value); setOpen(true); }}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+        />
+        {selected && !open && (
+          <button
+            type="button"
+            tabIndex={-1}
+            onMouseDown={e => { e.preventDefault(); onSelect(''); setQuery(''); }}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"
+          >
+            <X size={11} />
+          </button>
+        )}
+      </div>
+      {open && (
+        <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-black/10 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+          {filtered.length === 0 && (
+            <div className="px-3 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">No matches</div>
+          )}
+          {filtered.map(p => (
+            <button
+              key={p.id}
+              type="button"
+              onMouseDown={e => { e.preventDefault(); onSelect(p.id); setQuery(''); setOpen(false); }}
+              className={`w-full text-left px-3 py-2 text-xs font-bold hover:bg-canvas transition-colors border-b border-black/[0.03] last:border-0 ${p.id === value ? 'text-accent-signature bg-accent-signature/5' : 'text-ink-primary'}`}
+            >
+              {p.name}
+              <span className="block text-[9px] font-medium text-gray-400 mt-0.5">Stock: {p.stock ?? 0}{p.sku ? ` · ${p.sku}` : ''}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
 const emptyLine = () => ({
   _key:              Math.random().toString(36).slice(2),
@@ -222,24 +286,20 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                     )}
                   </div>
 
-                  {/* Product dropdown */}
+                  {/* Product picker — searchable */}
                   <div>
-                    <select
-                      required
-                      className={`w-full bg-white border border-gray-300 shadow-sm rounded-lg p-2 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20 ${line.linked_product_id ? '' : 'text-gray-400'}`}
+                    <ProductPicker
+                      products={products}
                       value={line.linked_product_id}
-                      onChange={e => {
-                        const prod = products.find(p => p.id === e.target.value);
+                      onSelect={(id) => {
+                        const prod = products.find(p => p.id === id);
                         updateLine(line._key, {
-                          linked_product_id: e.target.value,
+                          linked_product_id: id,
                           barcodeInput:      prod?.barcode || prod?.sku || line.barcodeInput,
-                          barcodeStatus:     e.target.value ? 'found' : null,
+                          barcodeStatus:     id ? 'found' : null,
                         });
                       }}
-                    >
-                      <option value="">Select product…</option>
-                      {products.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    </select>
+                    />
                     {product && (
                       <p className="text-[8px] font-bold text-gray-400 mt-1 ml-1">
                         Stock: {product.stock ?? 0}
