@@ -582,9 +582,9 @@ const ClientSettlement = () => {
                                       {items.map((it, i) => (
                                         <tr key={i}>
                                           <td className="py-2 px-3 text-[11px] font-bold text-ink-primary">{it.name}</td>
-                                          <td className="py-2 px-3 text-[11px] font-semibold text-gray-600 text-right tabular-nums">{it.qty}</td>
+                                          <td className="py-2 px-3 text-[11px] font-semibold text-gray-600 text-right tabular-nums">{it.quantity ?? it.qty}</td>
                                           <td className="py-2 px-3 text-[11px] font-semibold text-gray-600 text-right tabular-nums">{formatCurrency(it.rate)}</td>
-                                          <td className="py-2 px-3 text-[11px] font-black text-ink-primary text-right tabular-nums">{formatCurrency((Number(it.qty) || 0) * (Number(it.rate) || 0))}</td>
+                                          <td className="py-2 px-3 text-[11px] font-black text-ink-primary text-right tabular-nums">{formatCurrency((Number(it.quantity ?? it.qty) || 0) * (Number(it.rate) || 0))}</td>
                                         </tr>
                                       ))}
                                     </tbody>
