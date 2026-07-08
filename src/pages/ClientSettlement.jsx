@@ -11,7 +11,7 @@ import {
   ArrowLeft, Calendar, FileText,
   CheckCircle2, AlertCircle, Search, Clock, Receipt,
   Wallet, CreditCard, Smartphone, Landmark, History, BookOpen,
-  TrendingUp, TrendingDown, Phone, MapPin, Trash2
+  TrendingUp, TrendingDown, Phone, MapPin, Trash2, ChevronDown
 } from 'lucide-react';
 import { todayISOInAppTZ, formatDate, formatDateTime, formatCurrency } from '../lib/utils';
 
@@ -48,6 +48,7 @@ const ClientSettlement = () => {
   });
   const depAcc = accountForMethod(accounts, paymentData.paymentMethod);
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([]);
+  const [expandedInvoiceId, setExpandedInvoiceId] = useState(null);
   const [paymentError, setPaymentError] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -511,43 +512,89 @@ const ClientSettlement = () => {
                 <tbody className="divide-y divide-black/5">
                   {clientInvoices.map((inv, idx) => {
                     const isSelected = selectedInvoiceIds.includes(inv.id);
+                    const isExpanded = expandedInvoiceId === inv.id;
+                    const items = Array.isArray(inv.items) ? inv.items : [];
                     return (
-                      <tr key={inv.id} onClick={() => toggleInvoice(inv)}
-                        className={`cursor-pointer transition-colors ${isSelected ? 'bg-accent-signature/5' : 'hover:bg-canvas/60'}`}>
-                        <td className="py-3 px-4 text-[10px] font-semibold text-gray-400">{idx + 1}</td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2.5">
-                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isSelected ? 'bg-ink-primary text-accent-signature' : 'bg-white border border-gray-300 shadow-sm text-gray-400'}`}>
-                              <Receipt size={13} />
+                      <React.Fragment key={inv.id}>
+                        <tr onClick={() => toggleInvoice(inv)}
+                          className={`cursor-pointer transition-colors ${isSelected ? 'bg-accent-signature/5' : 'hover:bg-canvas/60'}`}>
+                          <td className="py-3 px-4 text-[10px] font-semibold text-gray-400">{idx + 1}</td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2.5">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${isSelected ? 'bg-ink-primary text-accent-signature' : 'bg-white border border-gray-300 shadow-sm text-gray-400'}`}>
+                                <Receipt size={13} />
+                              </div>
+                              <div>
+                                <div className="text-xs font-bold text-ink-primary">#{String(inv.invoice_number || '').replace(/^#+/, '')}</div>
+                                <div className="text-[9px] text-gray-400 font-semibold mt-0.5">{inv.payment_status === 'PARTIAL' ? 'Partial' : 'Unpaid'}</div>
+                              </div>
                             </div>
-                            <div>
-                              <div className="text-xs font-bold text-ink-primary">#{String(inv.invoice_number || '').replace(/^#+/, '')}</div>
-                              <div className="text-[9px] text-gray-400 font-semibold mt-0.5">{inv.payment_status === 'PARTIAL' ? 'Partial' : 'Unpaid'}</div>
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="text-xs font-semibold text-ink-primary">{formatDate(inv.invoice_date || inv.created_at)}</div>
+                            <div className="text-[9px] text-gray-400 mt-0.5 flex items-center gap-1">
+                              <Clock size={9} />{new Date(inv.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </div>
-                          </div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="text-xs font-semibold text-ink-primary">{formatDate(inv.invoice_date || inv.created_at)}</div>
-                          <div className="text-[9px] text-gray-400 mt-0.5 flex items-center gap-1">
-                            <Clock size={9} />{new Date(inv.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </div>
-                        </td>
-                        <td className="py-3 px-4 text-right">
-                          <div className={`text-xs font-black font-mono tabular-nums ${isSelected ? 'text-ink-primary' : 'text-gray-700'}`}>
-                            {formatCurrency(invoiceDue(inv))}
-                          </div>
-                          {inv.paid_amount > 0 && (
-                            <div className="text-[9px] text-emerald-600 font-semibold mt-0.5">
-                              Paid: {formatCurrency(inv.paid_amount)} of {formatCurrency(inv.grand_total)}
+                          </td>
+                          <td className="py-3 px-4 text-right">
+                            <div className={`text-xs font-black font-mono tabular-nums ${isSelected ? 'text-ink-primary' : 'text-gray-700'}`}>
+                              {formatCurrency(invoiceDue(inv))}
                             </div>
-                          )}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          <div className={`w-5 h-5 mx-auto rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-accent-signature border-accent-signature' : 'border-black/10 bg-white'}`}>
-                            {isSelected && <CheckCircle2 size={11} className="text-ink-primary" />}
-                          </div>
-                        </td>
-                      </tr>
+                            {inv.paid_amount > 0 && (
+                              <div className="text-[9px] text-emerald-600 font-semibold mt-0.5">
+                                Paid: {formatCurrency(inv.paid_amount)} of {formatCurrency(inv.grand_total)}
+                              </div>
+                            )}
+                          </td>
+                          <td className="py-3 px-4">
+                            <div className="flex items-center gap-2 justify-end">
+                              <button
+                                type="button"
+                                onClick={e => { e.stopPropagation(); setExpandedInvoiceId(isExpanded ? null : inv.id); }}
+                                className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:bg-black/5 hover:text-ink-primary transition-colors"
+                                title="View items"
+                              >
+                                <ChevronDown size={13} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                              </button>
+                              <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'bg-accent-signature border-accent-signature' : 'border-black/10 bg-white'}`}>
+                                {isSelected && <CheckCircle2 size={11} className="text-ink-primary" />}
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                        {isExpanded && (
+                          <tr className="bg-canvas/40">
+                            <td colSpan={5} className="px-4 pb-3 pt-0">
+                              <div className="rounded-xl border border-black/5 bg-white overflow-hidden">
+                                {items.length === 0 ? (
+                                  <div className="px-4 py-3 text-[10px] font-semibold text-gray-400">No item details on this invoice.</div>
+                                ) : (
+                                  <table className="w-full text-left">
+                                    <thead>
+                                      <tr className="border-b border-black/5">
+                                        <th className="py-2 px-3 text-[8px] font-black text-gray-400 uppercase tracking-widest">Product</th>
+                                        <th className="py-2 px-3 text-[8px] font-black text-gray-400 uppercase tracking-widest text-right">Qty</th>
+                                        <th className="py-2 px-3 text-[8px] font-black text-gray-400 uppercase tracking-widest text-right">Rate</th>
+                                        <th className="py-2 px-3 text-[8px] font-black text-gray-400 uppercase tracking-widest text-right">Amount</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-black/[0.04]">
+                                      {items.map((it, i) => (
+                                        <tr key={i}>
+                                          <td className="py-2 px-3 text-[11px] font-bold text-ink-primary">{it.name}</td>
+                                          <td className="py-2 px-3 text-[11px] font-semibold text-gray-600 text-right tabular-nums">{it.qty}</td>
+                                          <td className="py-2 px-3 text-[11px] font-semibold text-gray-600 text-right tabular-nums">{formatCurrency(it.rate)}</td>
+                                          <td className="py-2 px-3 text-[11px] font-black text-ink-primary text-right tabular-nums">{formatCurrency((Number(it.qty) || 0) * (Number(it.rate) || 0))}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
                     );
                   })}
                 </tbody>
