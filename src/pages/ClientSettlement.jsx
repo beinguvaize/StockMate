@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { usePeople } from '../hooks/usePeople';
 import { useSales } from '../hooks/useSales';
-import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import { supabase } from '../lib/supabase';
 import { PageSkeleton } from '../components/ui/States';
 import {
@@ -31,7 +30,6 @@ const ClientSettlement = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const { clients, recordClientPayment, deleteClientPayment, loading: peoLoading } = usePeople(currentTenantId);
   const { invoices, sales, loading: salesLoading } = useSales(currentTenantId);
-  const { accounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
 
   const loading = peoLoading || salesLoading;
 
@@ -46,7 +44,6 @@ const ClientSettlement = () => {
     notes: '',
     paymentMethod: 'CASH'
   });
-  const depAcc = accountForMethod(accounts, paymentData.paymentMethod);
   const [selectedInvoiceIds, setSelectedInvoiceIds] = useState([]);
   const [expandedInvoiceId, setExpandedInvoiceId] = useState(null);
   const [paymentError, setPaymentError] = useState('');
@@ -274,12 +271,9 @@ const ClientSettlement = () => {
       if (res?.success === false) {
         setPaymentError(res.error || 'Payment failed. Try again.');
       } else {
-        // Money received → post to the chosen Cash/Bank account (non-blocking).
-        if (depAcc) {
-          try {
-            await addAccountTxn({ account_id: depAcc, direction: 'IN', amount: amt, mode: paymentData.paymentMethod, ref_type: 'PAYMENT', ref_id: client.id, note: `Receipt · ${client.name}`, date: paymentData.date });
-          } catch { /* ledger non-blocking */ }
-        }
+        // Money-received posting to Cash & Bank now happens in the DB
+        // (trg_client_payments_post_ledger on client_payments) — one place,
+        // every platform, instead of duplicated per client here.
         setSuccess(true);
         setTimeout(() => navigate(-1), 1200);
       }
