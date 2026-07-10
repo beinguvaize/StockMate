@@ -7,7 +7,7 @@ import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:mobile_app/features/logistics/presentation/providers/driver_provider.dart';
 import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
-import 'package:mobile_app/core/database/database.dart' hide Client;
+import 'package:mobile_app/core/database/database.dart' hide Client, Sale, Invoice;
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:uuid/uuid.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
@@ -19,6 +19,10 @@ import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_p
 import 'package:mobile_app/main.dart' show syncServiceProvider;
 import 'package:mobile_app/features/accounts/presentation/providers/accounts_provider.dart';
 import 'package:mobile_app/core/print/web_print_service.dart';
+import 'package:mobile_app/core/print/pos_receipt_pdf.dart' as pos_pdf;
+import 'package:mobile_app/features/invoices/data/models/invoice.dart';
+import 'package:mobile_app/features/sales/data/models/sale.dart';
+import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:printing/printing.dart';
 
 // POS stores (non-vehicle inventory locations) for the multi-store
@@ -2705,11 +2709,47 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
     super.dispose();
   }
 
-  Future<void> _print() async {
-    setState(() => _printing = true);
+  // Web-rendered receipt first (pixel-parity with the desktop layout); if
+  // that fails or times out (flaky network right after checkout is common
+  // on mobile data), build the same slip locally instead of hard-failing —
+  // see core/print/pos_receipt_pdf.dart, shared with invoice_detail_screen.
+  Future<Uint8List> _receiptBytes() async {
     try {
       final bytes = await WebPrintService.renderReceiptPdf(widget.saleId);
       if (bytes == null || bytes.isEmpty) throw Exception('Empty PDF');
+      return bytes;
+    } catch (e) {
+      debugPrint('[print] web render failed, fallback to local: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Printed using standard layout (offline-friendly).'),
+          backgroundColor: AppColors.secondary,
+          behavior: SnackBarBehavior.floating,
+          duration: Duration(seconds: 3),
+        ));
+      }
+      final row = await supabase.from('sales').select('*').eq('id', widget.saleId).maybeSingle();
+      if (row == null) rethrow;
+      final sale = Sale.fromJson(row);
+      final invoice = Invoice.fromSale(sale);
+      final tenantId = row['tenant_id'] as String?;
+      BusinessProfile? biz;
+      if (tenantId != null) {
+        final bizRow = await supabase
+            .from('business_profile')
+            .select('*')
+            .eq('tenant_id', tenantId)
+            .maybeSingle();
+        if (bizRow != null) biz = BusinessProfile.fromJson(bizRow);
+      }
+      return pos_pdf.buildPosReceiptPdf(invoice, biz);
+    }
+  }
+
+  Future<void> _print() async {
+    setState(() => _printing = true);
+    try {
+      final bytes = await _receiptBytes();
       await Printing.layoutPdf(onLayout: (_) async => bytes);
     } catch (e) {
       if (mounted) {
@@ -2725,8 +2765,7 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
   Future<void> _share() async {
     setState(() => _sharing = true);
     try {
-      final bytes = await WebPrintService.renderReceiptPdf(widget.saleId);
-      if (bytes == null || bytes.isEmpty) throw Exception('Empty PDF');
+      final bytes = await _receiptBytes();
       await Printing.sharePdf(
         bytes: bytes,
         filename: 'receipt_${widget.saleId}.pdf',
