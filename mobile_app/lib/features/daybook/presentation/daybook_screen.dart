@@ -129,7 +129,7 @@ class _DayBookScreenState extends ConsumerState<DayBookScreen> {
               ),
             ),
             Text(
-              'DAILY LEDGER',
+              'DAY BOOK',
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 9,
                 fontWeight: FontWeight.w600,

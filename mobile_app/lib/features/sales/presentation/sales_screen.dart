@@ -383,7 +383,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                 },
                 loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
                 error: (err, stack) => Center(
-                  child: Text('Error: $err', style: GoogleFonts.manrope(color: AppColors.danger)),
+                  child: Text('Could not load sales. Check your internet and try again.', style: GoogleFonts.manrope(color: AppColors.danger)),
                 ),
               ),
             ),

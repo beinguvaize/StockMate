@@ -121,9 +121,10 @@ class ClientStatementSheet extends ConsumerWidget {
         // balance matches the actual outstanding.
         final method = (inv.paymentMethod ?? '').toUpperCase();
         if (method != 'CREDIT' && inv.paidAmount > 0) {
+          final label = _methodLabel(method);
           rows.add(_StatementRow(
             date: dateStr,
-            description: 'Payment (${_methodLabel(method)})',
+            description: label.isEmpty ? 'Payment received' : 'Payment received ($label)',
             debit: 0,
             credit: inv.paidAmount,
             type: 'PAYMENT',
@@ -137,9 +138,11 @@ class ClientStatementSheet extends ConsumerWidget {
         final notesSuffix = (payment.notes != null && payment.notes!.isNotEmpty)
             ? ' — ${payment.notes}'
             : '';
+        final label = _methodLabel(payment.paymentMethod);
+        final base = label.isEmpty ? 'Payment received' : 'Payment received ($label)';
         rows.add(_StatementRow(
           date: payment.date,
-          description: 'Payment (${_methodLabel(payment.paymentMethod)})$notesSuffix',
+          description: '$base$notesSuffix',
           debit: 0,
           credit: payment.amount,
           type: 'PAYMENT',
@@ -253,7 +256,7 @@ class _StatementBody extends StatelessWidget {
             const Icon(LucideIcons.bookOpen, size: 13, color: AppColors.inkTertiary),
             const SizedBox(width: 6),
             Text(
-              'TRANSACTION LEDGER',
+              'BILLS & PAYMENTS',
               style: GoogleFonts.jetBrainsMono(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
@@ -482,9 +485,12 @@ class _LedgerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDebit    = row.type == 'SALE' || row.type == 'INVOICE';
-    final isCr       = row.balance <= 0;
-    final balColor   = isCr ? AppColors.success : AppColors.danger;
-    final balLabel   = isCr ? 'Cr' : 'Dr';
+    final balColor   = row.balance > 0.005 ? AppColors.danger : AppColors.success;
+    final balLabel   = row.balance > 0.005
+        ? 'Still owes ${_fmtRupee(row.balance)}'
+        : row.balance < -0.005
+            ? 'You owe them ${_fmtRupee(row.balance.abs())}'
+            : 'Fully paid';
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -542,7 +548,7 @@ class _LedgerCard extends StatelessWidget {
             children: [
               if (isDebit && row.debit > 0) ...[
                 Text(
-                  'Dr ${_fmtRupee(row.debit)}',
+                  'Billed ${_fmtRupee(row.debit)}',
                   style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -553,7 +559,7 @@ class _LedgerCard extends StatelessWidget {
               ],
               if (!isDebit && row.credit > 0) ...[
                 Text(
-                  'Cr ${_fmtRupee(row.credit)}',
+                  'Paid ${_fmtRupee(row.credit)}',
                   style: GoogleFonts.manrope(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -563,7 +569,7 @@ class _LedgerCard extends StatelessWidget {
                 const SizedBox(width: 12),
               ],
               const Spacer(),
-              // Running balance chip
+              // Running balance chip — plain wording instead of Dr/Cr.
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -571,8 +577,8 @@ class _LedgerCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  'Bal ${_fmtRupee(row.balance.abs())} $balLabel',
-                  style: GoogleFonts.jetBrainsMono(
+                  balLabel,
+                  style: GoogleFonts.manrope(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: balColor,
@@ -614,6 +620,9 @@ class _TypePill extends StatelessWidget {
         ? AppColors.success.withValues(alpha: 0.12)
         : AppColors.danger.withValues(alpha: 0.10);
     final fg    = isPayment ? AppColors.success : AppColors.danger;
+    // Plain words instead of accounting terms — this screen is read by
+    // shopkeepers, not accountants.
+    final label = isPayment ? 'PAYMENT' : 'BILL';
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -622,7 +631,7 @@ class _TypePill extends StatelessWidget {
         borderRadius: BorderRadius.circular(99),
       ),
       child: Text(
-        type,
+        label,
         style: GoogleFonts.jetBrainsMono(
           fontSize: 9,
           fontWeight: FontWeight.w700,

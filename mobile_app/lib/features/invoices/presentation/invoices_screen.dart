@@ -99,7 +99,7 @@ class _InvoicesScreenState extends ConsumerState<InvoicesScreen> {
       ),
       body: invoicesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => Center(child: Text('Error: $e', style: GoogleFonts.manrope(color: AppColors.danger))),
+        error: (e, _) => Center(child: Text('Could not load invoices. Check your internet and try again.', style: GoogleFonts.manrope(color: AppColors.danger))),
         data: (allInvoices) {
           // ── Stats — matching web logic ──────────────────────────────────────
           // Outstanding = sum of (grand_total - paid_amount) for unpaid invoices

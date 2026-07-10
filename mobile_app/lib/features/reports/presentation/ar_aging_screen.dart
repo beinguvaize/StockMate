@@ -283,7 +283,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
             backgroundColor: AppColors.surface,
             elevation: 0,
             title: Text(
-              'AR Aging',
+              'Money to Collect',
               style: GoogleFonts.manrope(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -411,7 +411,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                   childAspectRatio: 1.55,
                   children: [
                     ReportKpiTile(
-                      label: 'Total Receivables',
+                      label: 'Total to collect',
                       value: compactINR(totalReceivables),
                       subtitle: formatINR(totalReceivables),
                       color: const Color(0xFF1D4ED8),
@@ -455,7 +455,7 @@ class _ArAgingScreenState extends ConsumerState<ArAgingScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'AGING BREAKDOWN',
+                        'HOW OVERDUE',
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 10,
                           fontWeight: FontWeight.w600,

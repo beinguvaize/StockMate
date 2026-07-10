@@ -485,7 +485,7 @@ class _DesktopShellState extends ConsumerState<DesktopShell> {
                     loading: () => const Center(
                       child: CircularProgressIndicator(),
                     ),
-                    error: (e, _) => Center(child: Text('Error: $e')),
+                    error: (e, _) => Center(child: Text('Could not load. Check your internet and try again.')),
                   ),
                 ),
               ],

@@ -253,7 +253,7 @@ class _ClientSettlementScreenState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Settle Account',
+              'Collect Payment',
               style: GoogleFonts.manrope(
                 color: AppColors.inkPrimary,
                 fontSize: 20,

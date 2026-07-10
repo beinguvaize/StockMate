@@ -704,7 +704,7 @@ class InvoiceDetailScreen extends ConsumerWidget {
                 style: GoogleFonts.manrope(
                     fontSize: 20, fontWeight: FontWeight.w800, color: AppColors.inkPrimary)),
             const SizedBox(height: 4),
-            Text('Outstanding: ₹${outstanding.toStringAsFixed(2)}',
+            Text('Balance due: ₹${outstanding.toStringAsFixed(2)}',
                 style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkTertiary)),
             const SizedBox(height: 20),
             Container(

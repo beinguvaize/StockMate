@@ -100,9 +100,9 @@ class _HubItem {
 final _reportHubItems = <_HubItem>[
   _HubItem('Sales Summary', 'Revenue, COGS, margin by day',
       LucideIcons.trendingUp, const Color(0xFF059669), () => const SalesSummaryScreen()),
-  _HubItem('AR Aging', 'Receivables by overdue bucket',
+  _HubItem('Money to Collect', 'Client dues by how overdue',
       LucideIcons.users, const Color(0xFF2563EB), () => const ArAgingScreen()),
-  _HubItem('AP Aging', 'Payables to suppliers',
+  _HubItem('Money to Pay', 'Supplier dues by how overdue',
       LucideIcons.truck, const Color(0xFF7C3AED), () => const ApAgingScreen()),
   _HubItem('Inventory', 'Stock value + dead stock',
       LucideIcons.package, const Color(0xFFF59E0B), () => const InventoryReportScreen()),

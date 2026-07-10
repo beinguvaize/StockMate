@@ -184,7 +184,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   );
                 },
                 loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-                error: (e, _) => Text('Error: $e', style: GoogleFonts.manrope(color: AppColors.danger)),
+                error: (e, _) => Text('Could not load settings. Check your internet and try again.', style: GoogleFonts.manrope(color: AppColors.danger)),
               ),
 
               const SizedBox(height: 24),

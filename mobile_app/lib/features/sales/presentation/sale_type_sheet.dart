@@ -168,8 +168,9 @@ class _SaleTypeSheetState extends State<_SaleTypeSheet> {
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadingVan = false);
-      ScaffoldMessenger.of(parentCtx)
-          .showSnackBar(SnackBar(content: Text('Error: $e')));
+      debugPrint('[saleType] failed: $e');
+      ScaffoldMessenger.of(parentCtx).showSnackBar(const SnackBar(
+          content: Text('Something went wrong. Please try again.')));
     }
   }
 

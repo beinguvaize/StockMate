@@ -255,9 +255,9 @@ class _CRMHeader extends StatelessWidget {
         ? [
             _Stat('Total clients', LucideIcons.users,
                 clientCount.toString(), 'Active accounts'),
-            _Stat('Receivables', LucideIcons.receipt,
-                _compact(totalReceivables), 'Outstanding'),
-            _Stat('Top debtor', LucideIcons.alertCircle,
+            _Stat('To collect', LucideIcons.receipt,
+                _compact(totalReceivables), 'From clients'),
+            _Stat('Owes you most', LucideIcons.alertCircle,
                 topDebtorAmt > 0 ? _compact(topDebtorAmt) : '—', topDebtorName),
             _Stat('Top buyer', LucideIcons.trendingUp,
                 topBuyerAmt > 0 ? _compact(topBuyerAmt) : '—', topBuyerName),
@@ -265,9 +265,9 @@ class _CRMHeader extends StatelessWidget {
         : [
             _Stat('Total suppliers', LucideIcons.truck,
                 supplierCount.toString(), 'Active vendors'),
-            _Stat('Payables', LucideIcons.receipt,
-                _compact(totalPayable), 'Amount due'),
-            _Stat('Top payable', LucideIcons.alertCircle,
+            _Stat('To pay', LucideIcons.receipt,
+                _compact(totalPayable), 'To suppliers'),
+            _Stat('You owe most', LucideIcons.alertCircle,
                 topPayableAmt > 0 ? _compact(topPayableAmt) : '—', topPayableName),
             _Stat('On-time rate', LucideIcons.checkCircle2,
                 '—', 'Last 90 days'),
@@ -524,7 +524,7 @@ class _ClientsTab extends ConsumerWidget {
               child: Row(children: [
                 _ToolbarBtn(
                   icon: LucideIcons.calendarClock,
-                  label: 'Aging report',
+                  label: 'Overdue report',
                   onTap: () => Navigator.push(context,
                       MaterialPageRoute(builder: (_) => const ClientAgingScreen())),
                 ),
@@ -1034,7 +1034,7 @@ class _ClientDetailSheet extends StatelessWidget {
                           );
                         },
                         icon: const Icon(LucideIcons.checkCircle2, size: 14),
-                        label: Text('Settle account',
+                        label: Text('Collect payment',
                             style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w600)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _kHeaderBg,
@@ -1133,7 +1133,7 @@ class _SuppliersTab extends ConsumerWidget {
                         border: Border.all(color: const Color(0xFF9FD5B3)),
                       ),
                       child: Text(
-                        '₹${totalPayable.toStringAsFixed(0)} payable',
+                        '₹${totalPayable.toStringAsFixed(0)} to pay',
                         style: GoogleFonts.manrope(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,

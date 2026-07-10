@@ -433,13 +433,13 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
             loading: () =>
                 const Center(child: CircularProgressIndicator(color: AppColors.primary)),
             error: (e, _) => Center(
-                child: Text('Error: $e',
+                child: Text('Could not load purchases. Check your internet and try again.',
                     style: GoogleFonts.manrope(color: AppColors.danger))),
           );
         },
         loading: () =>
             const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error: (e, _) => Center(child: Text('Error: $e')),
+        error: (e, _) => Center(child: Text('Could not load. Check your internet and try again.')),
       ),
     );
   }
@@ -1130,10 +1130,11 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Error: $e'),
+        debugPrint('[purchases] save failed: $e');
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Could not save. Check your internet and try again.'),
           backgroundColor: AppColors.danger,
-          duration: const Duration(seconds: 6),
+          duration: Duration(seconds: 6),
         ));
       }
     } finally {
