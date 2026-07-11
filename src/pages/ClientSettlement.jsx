@@ -204,14 +204,39 @@ const ClientSettlement = () => {
 
   const clientInvoices = useMemo(() => {
     if (!client) return [];
-    return (invoices || [])
-      .filter(inv => inv.client_id === client.id && inv.payment_status !== 'PAID')
+    const invRows = (invoices || [])
+      .filter(inv => inv.client_id === client.id && inv.payment_status !== 'PAID');
+    const invoicedSaleIds = new Set(invRows.map(i => i.sale_id).filter(Boolean));
+
+    // Part-paid / unpaid CASH-type sales with no invoice — they carry a real
+    // balance too, so the cashier must be able to see and settle them here,
+    // not just credit invoices. Synthetic rows use a SALE: id prefix so the
+    // allocation path knows to update the sale row directly.
+    const saleRows = (sales || [])
+      .filter(s => String(s.shopId) === String(client.id) || String(s.clientId) === String(client.id))
+      .filter(s => (s.paymentMethod || '').toUpperCase() !== 'CREDIT')
+      .filter(s => ['PARTIAL', 'UNPAID', 'PENDING'].includes((s.paymentStatus || s.status || '').toUpperCase()))
+      .filter(s => !invoicedSaleIds.has(s.id))
+      .filter(s => !s.deleted_at)
+      .map(s => ({
+        id: `SALE:${s.id}`,
+        invoice_number: `Sale ${String(s.id).split('-').pop()}`,
+        invoice_date: s.date,
+        created_at: s.created_at,
+        grand_total: Number(s.totalAmount) || 0,
+        paid_amount: Number(s.paidAmount) || 0,
+        payment_status: (s.paymentStatus || 'UNPAID').toUpperCase(),
+        items: s.items,
+        isSale: true,
+      }));
+
+    return [...invRows, ...saleRows]
       .filter(inv =>
         inv.invoice_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         String(inv.grand_total).includes(searchTerm)
       )
       .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-  }, [client, invoices, searchTerm]);
+  }, [client, invoices, sales, searchTerm]);
 
   const toggleInvoice = (inv) => {
     const isSelected = selectedInvoiceIds.includes(inv.id);
@@ -468,7 +493,7 @@ const ClientSettlement = () => {
 
           {/* Toolbar — fixed */}
           <div className="shrink-0 flex items-center gap-2 px-4 py-3 border-b border-black/5 bg-white">
-            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Unpaid Invoices</span>
+            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Unpaid Bills</span>
             <span className="text-[10px] font-semibold text-gray-400">({clientInvoices.length})</span>
             <div className="flex-1" />
             <div className="relative">
@@ -489,7 +514,7 @@ const ClientSettlement = () => {
             {clientInvoices.length === 0 ? (
               <div className="h-full flex flex-col items-center justify-center py-16 text-center">
                 <CheckCircle2 size={36} className="mb-3 text-emerald-400 opacity-40" />
-                <p className="text-sm font-bold text-gray-400">No outstanding invoices</p>
+                <p className="text-sm font-bold text-gray-400">No outstanding bills</p>
                 <p className="text-xs text-gray-400 mt-1">This client has no pending payments.</p>
               </div>
             ) : (
@@ -520,7 +545,9 @@ const ClientSettlement = () => {
                               </div>
                               <div>
                                 <div className="text-xs font-bold text-ink-primary">#{String(inv.invoice_number || '').replace(/^#+/, '')}</div>
-                                <div className="text-[9px] text-gray-400 font-semibold mt-0.5">{inv.payment_status === 'PARTIAL' ? 'Partial' : 'Unpaid'}</div>
+                                <div className="text-[9px] text-gray-400 font-semibold mt-0.5">
+                                  {inv.isSale ? 'Cash sale · ' : ''}{inv.payment_status === 'PARTIAL' ? 'Partial' : 'Unpaid'}
+                                </div>
                               </div>
                             </div>
                           </td>
@@ -577,8 +604,8 @@ const ClientSettlement = () => {
                                         <tr key={i}>
                                           <td className="py-2 px-3 text-[11px] font-bold text-ink-primary">{it.name}</td>
                                           <td className="py-2 px-3 text-[11px] font-semibold text-gray-600 text-right tabular-nums">{it.quantity ?? it.qty}</td>
-                                          <td className="py-2 px-3 text-[11px] font-semibold text-gray-600 text-right tabular-nums">{formatCurrency(it.rate)}</td>
-                                          <td className="py-2 px-3 text-[11px] font-black text-ink-primary text-right tabular-nums">{formatCurrency((Number(it.quantity ?? it.qty) || 0) * (Number(it.rate) || 0))}</td>
+                                          <td className="py-2 px-3 text-[11px] font-semibold text-gray-600 text-right tabular-nums">{formatCurrency(it.rate ?? it.price)}</td>
+                                          <td className="py-2 px-3 text-[11px] font-black text-ink-primary text-right tabular-nums">{formatCurrency((Number(it.quantity ?? it.qty) || 0) * (Number(it.rate ?? it.price) || 0))}</td>
                                         </tr>
                                       ))}
                                     </tbody>

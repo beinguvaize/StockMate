@@ -10,6 +10,8 @@ import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
+import 'package:mobile_app/features/sales/data/models/sale.dart';
+import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 
 class ClientSettlementScreen extends ConsumerStatefulWidget {
   final Client client;
@@ -59,10 +61,41 @@ class _ClientSettlementScreenState
     }
   }
 
-  List<Invoice> _unpaidInvoices(List<Invoice> all) => all
-      .where((inv) =>
-          inv.clientId == widget.client.id && inv.paymentStatus != 'PAID')
-      .toList();
+  /// Unpaid invoices PLUS part-paid/unpaid cash-type sales that were never
+  /// converted to an invoice — those carry a real balance too, so the cashier
+  /// must be able to see and settle them here. Synthetic rows get a `SALE:`
+  /// id prefix so _submit knows to allocate onto the sale row directly.
+  List<Invoice> _unpaidInvoices(List<Invoice> all, List<Sale> sales) {
+    final invRows = all
+        .where((inv) =>
+            inv.clientId == widget.client.id && inv.paymentStatus != 'PAID')
+        .toList();
+    final invoicedSaleIds =
+        invRows.map((i) => i.saleId).whereType<String>().toSet();
+
+    final saleRows = sales.where((s) {
+      if (s.shopId != widget.client.id) return false;
+      final method = (s.paymentMethod ?? '').toUpperCase();
+      if (method == 'CREDIT') return false;
+      final st = (s.paymentStatus ?? s.status ?? '').toUpperCase();
+      if (!['PARTIAL', 'UNPAID', 'PENDING'].contains(st)) return false;
+      return !invoicedSaleIds.contains(s.id);
+    }).map((s) => Invoice(
+          id: 'SALE:${s.id}',
+          invoiceNumber: 'Sale ${s.id.split('-').last}',
+          clientId: s.shopId,
+          clientName: s.displayCustomerName,
+          invoiceDate: s.date,
+          dueDate: s.date,
+          grandTotal: s.totalAmount ?? 0,
+          paidAmount: s.paidAmount ?? 0,
+          paymentStatus: (s.paymentStatus ?? 'UNPAID').toUpperCase(),
+          paymentMethod: s.paymentMethod,
+          items: s.items,
+        ));
+
+    return [...invRows, ...saleRows];
+  }
 
   double _selectedTotal(List<Invoice> unpaid) => unpaid
       .where((inv) => _selectedInvoiceIds.contains(inv.id))
@@ -115,35 +148,73 @@ class _ClientSettlementScreenState
       final ctx = await ref.read(tenantContextProvider.future);
       if (ctx == null) return;
 
-      // 1. Allocate payment across invoices — distribute `remaining` so each
-      //    invoice only gets as much as it is owed (mirrors web logic).
+      // 1. Allocate payment across selected rows — real invoices first, then
+      //    SALE:-prefixed synthetic rows (part-paid cash sales without an
+      //    invoice). Mirrors web logic.
       if (_selectedInvoiceIds.isNotEmpty) {
-        final invRows = await supabase
-            .from('invoices')
-            .select('id, grand_total, paid_amount, sale_id').isFilter('deleted_at', null)
-            .inFilter('id', _selectedInvoiceIds.toList());
+        final realInvoiceIds =
+            _selectedInvoiceIds.where((x) => !x.startsWith('SALE:')).toList();
+        final saleOnlyIds = _selectedInvoiceIds
+            .where((x) => x.startsWith('SALE:'))
+            .map((x) => x.substring(5))
+            .toList();
         double remaining = amt;
-        for (final inv in (invRows as List)) {
-          if (remaining <= 0) break;
-          final alreadyPaid = ((inv['paid_amount'] as num?)?.toDouble() ?? 0);
-          final gt = (inv['grand_total'] as num).toDouble();
-          final owed = gt - alreadyPaid;
-          if (owed <= 0) continue;
-          final allocating = remaining < owed ? remaining : owed;
-          final newPaid = alreadyPaid + allocating;
-          final status = newPaid >= gt ? 'PAID' : 'PARTIAL';
-          await supabase.from('invoices').update({
-            'paid_amount': newPaid,
-            'payment_status': status,
-          }).eq('id', inv['id'] as String);
-          final saleId = inv['sale_id'] as String?;
-          if (saleId != null) {
+
+        if (realInvoiceIds.isNotEmpty) {
+          final invRows = await supabase
+              .from('invoices')
+              .select('id, grand_total, paid_amount, sale_id')
+              .isFilter('deleted_at', null)
+              .inFilter('id', realInvoiceIds);
+          for (final inv in (invRows as List)) {
+            if (remaining <= 0) break;
+            final alreadyPaid = ((inv['paid_amount'] as num?)?.toDouble() ?? 0);
+            final gt = (inv['grand_total'] as num).toDouble();
+            final owed = gt - alreadyPaid;
+            if (owed <= 0) continue;
+            final allocating = remaining < owed ? remaining : owed;
+            final newPaid = alreadyPaid + allocating;
+            final status = newPaid >= gt ? 'PAID' : 'PARTIAL';
+            await supabase.from('invoices').update({
+              'paid_amount': newPaid,
+              'payment_status': status,
+            }).eq('id', inv['id'] as String);
+            final saleId = inv['sale_id'] as String?;
+            if (saleId != null) {
+              await supabase.from('sales').update({
+                'paidAmount': newPaid,
+                'paymentStatus': status,
+              }).eq('id', saleId).eq('tenant_id', ctx.tenantId);
+            }
+            remaining -= allocating;
+          }
+        }
+
+        // Selected cash sales (no invoice) — allocate directly on the sale
+        // rows; the outstanding trigger recomputes from these.
+        if (saleOnlyIds.isNotEmpty && remaining > 0) {
+          final saleRows = await supabase
+              .from('sales')
+              .select('id, "totalAmount", "paidAmount"')
+              .isFilter('deleted_at', null)
+              .inFilter('id', saleOnlyIds)
+              .eq('tenant_id', ctx.tenantId);
+          for (final sale in (saleRows as List)) {
+            if (remaining <= 0) break;
+            final alreadyPaid = ((sale['paidAmount'] as num?)?.toDouble() ?? 0);
+            final total = (sale['totalAmount'] as num).toDouble();
+            final owed = total - alreadyPaid;
+            if (owed <= 0) continue;
+            final allocating = remaining < owed ? remaining : owed;
+            final newPaid = alreadyPaid + allocating;
+            final status = newPaid >= total ? 'PAID' : 'PARTIAL';
             await supabase.from('sales').update({
               'paidAmount': newPaid,
               'paymentStatus': status,
-            }).eq('id', saleId).eq('tenant_id', ctx.tenantId);
+              'lastPaymentDate': _date,
+            }).eq('id', sale['id'] as String).eq('tenant_id', ctx.tenantId);
+            remaining -= allocating;
           }
-          remaining -= allocating;
         }
 
         // 2. Audit record for the invoice-selected path. (The no-selection
@@ -222,6 +293,7 @@ class _ClientSettlementScreenState
   Widget build(BuildContext context) {
     final client = widget.client;
     final invoicesAsync = ref.watch(invoicesProvider);
+    final salesAsync = ref.watch(recentSalesProvider);
     final outstanding = client.outstandingBalance ?? 0.0;
 
     return Scaffold(
@@ -268,7 +340,10 @@ class _ClientSettlementScreenState
             _ClientSummaryCard(
               client: client,
               outstanding: outstanding,
-              invoicesAsync: invoicesAsync,
+              unpaidCount: _unpaidInvoices(
+                invoicesAsync.valueOrNull ?? const <Invoice>[],
+                salesAsync.valueOrNull ?? const <Sale>[],
+              ).length,
             ),
 
             const SizedBox(height: 16),
@@ -429,7 +504,8 @@ class _ClientSettlementScreenState
               loading: () => const SizedBox.shrink(),
               error: (err, _) => const SizedBox.shrink(),
               data: (allInvoices) {
-                final unpaid = _unpaidInvoices(allInvoices);
+                final sales = salesAsync.valueOrNull ?? const <Sale>[];
+                final unpaid = _unpaidInvoices(allInvoices, sales);
                 if (unpaid.isEmpty) return const SizedBox.shrink();
 
                 final selTotal = _selectedTotal(unpaid);
@@ -476,7 +552,7 @@ class _ClientSettlementScreenState
                                 MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                '${unpaid.length} unpaid invoice${unpaid.length == 1 ? '' : 's'}',
+                                '${unpaid.length} unpaid bill${unpaid.length == 1 ? '' : 's'}',
                                 style: GoogleFonts.manrope(
                                   fontSize: 12,
                                   color: AppColors.inkTertiary,
@@ -650,24 +726,16 @@ class _ClientSettlementScreenState
 class _ClientSummaryCard extends StatelessWidget {
   final Client client;
   final double outstanding;
-  final AsyncValue<List<Invoice>> invoicesAsync;
+  final int unpaidCount;
 
   const _ClientSummaryCard({
     required this.client,
     required this.outstanding,
-    required this.invoicesAsync,
+    required this.unpaidCount,
   });
 
   @override
   Widget build(BuildContext context) {
-    final unpaidCount = invoicesAsync.whenOrNull(
-          data: (all) => all
-              .where((inv) =>
-                  inv.clientId == client.id && inv.paymentStatus != 'PAID')
-              .length,
-        ) ??
-        0;
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -712,7 +780,7 @@ class _ClientSummaryCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '$unpaidCount unpaid invoice${unpaidCount == 1 ? '' : 's'}',
+                  '$unpaidCount unpaid bill${unpaidCount == 1 ? '' : 's'}',
                   style: GoogleFonts.manrope(
                     fontSize: 12,
                     color: AppColors.inkTertiary,

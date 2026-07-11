@@ -311,15 +311,20 @@ export const usePeople = (tenantId) => {
         //    unpaid/partial credit sales when no invoices are selected).
         //    Always update the linked sale so outstanding stays accurate.
         if (invoiceIds && invoiceIds.length > 0) {
-          const { data: invRows } = await supabase
-            .from('invoices')
-            .select('id, grand_total, paid_amount, sale_id')
-            .in('id', invoiceIds)
-            .eq('tenant_id', tenantId);
+          // Selection may mix real invoices and SALE:-prefixed synthetic rows
+          // (part-paid cash sales without an invoice, listed alongside).
+          const realInvoiceIds = invoiceIds.filter(x => !String(x).startsWith('SALE:'));
+          const saleOnlyIds    = invoiceIds.filter(x => String(x).startsWith('SALE:')).map(x => String(x).slice(5));
+          let remaining = amount;
 
-          if (invRows && invRows.length > 0) {
-            let remaining = amount;
-            for (const inv of invRows) {
+          if (realInvoiceIds.length > 0) {
+            const { data: invRows } = await supabase
+              .from('invoices')
+              .select('id, grand_total, paid_amount, sale_id')
+              .in('id', realInvoiceIds)
+              .eq('tenant_id', tenantId);
+
+            for (const inv of (invRows || [])) {
               const alreadyPaid = Number(inv.paid_amount) || 0;
               const owed = Number(inv.grand_total) - alreadyPaid;
               const allocating = Math.min(remaining, owed);
@@ -336,6 +341,30 @@ export const usePeople = (tenantId) => {
                   { paymentStatus: newStatus, paidAmount: newPaid },
                   { id: inv.sale_id, tenant_id: tenantId });
               }
+              remaining -= allocating;
+              if (remaining <= 0) break;
+            }
+          }
+
+          // Selected cash sales (no invoice) — allocate the rest directly on
+          // the sale rows; the outstanding trigger recomputes from these.
+          if (saleOnlyIds.length > 0 && remaining > 0) {
+            const { data: saleRows } = await supabase
+              .from('sales')
+              .select('id, "totalAmount", "paidAmount"')
+              .in('id', saleOnlyIds)
+              .eq('tenant_id', tenantId);
+
+            for (const sale of (saleRows || [])) {
+              const alreadyPaid = Number(sale.paidAmount) || 0;
+              const owed = Number(sale.totalAmount) - alreadyPaid;
+              if (owed <= 0) continue;
+              const allocating = Math.min(remaining, owed);
+              const newPaid = alreadyPaid + allocating;
+              const newStatus = newPaid >= Number(sale.totalAmount) ? 'PAID' : 'PARTIAL';
+              await restUpdate('sales',
+                { paymentStatus: newStatus, paidAmount: newPaid, lastPaymentDate: date },
+                { id: sale.id, tenant_id: tenantId });
               remaining -= allocating;
               if (remaining <= 0) break;
             }
