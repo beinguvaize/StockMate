@@ -40,13 +40,31 @@ export async function readCacheThenRevalidate(table, queryFn, onRefresh) {
   if (!isElectron()) {
     // Web: skip cache. Block until the network resolves so the existing
     // hook contract stays the same.
-    try {
+    const run = async () => {
       const res = await queryFn();
       if (res?.error) throw res.error;
       return Array.isArray(res?.data) ? res.data : [];
+    };
+    try {
+      return await run();
     } catch (err) {
-      console.warn(`[hookAdapter] ${table} web fetch failed:`, err);
-      return [];
+      // First-load races (auth token mid-refresh, momentary network blip)
+      // used to settle the hook on an empty list with no retry — the page
+      // stayed blank until a manual refresh. Retry once after a beat, and
+      // if that also fails push the data in via onRefresh when it recovers.
+      console.warn(`[hookAdapter] ${table} web fetch failed, retrying:`, err?.message || err);
+      try {
+        await new Promise((r) => setTimeout(r, 1200));
+        return await run();
+      } catch (err2) {
+        console.warn(`[hookAdapter] ${table} web retry failed:`, err2?.message || err2);
+        if (typeof onRefresh === 'function') {
+          setTimeout(async () => {
+            try { onRefresh(await run()); } catch (_) { /* stays empty */ }
+          }, 4000);
+        }
+        return [];
+      }
     }
   }
 
