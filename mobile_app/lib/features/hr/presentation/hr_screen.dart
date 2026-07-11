@@ -244,12 +244,12 @@ class _EmployeesTab extends ConsumerWidget {
   }
 
   static String _formatCompact(double value) {
-    if (value >= 100000) {
-      return '${(value / 100000).toStringAsFixed(1)}L';
-    } else if (value >= 1000) {
-      return '${(value / 1000).toStringAsFixed(1)}K';
-    }
-    return value.toStringAsFixed(0);
+    final whole = value.round();
+    final s = whole.abs().toString();
+    final grouped = s.length <= 3
+        ? s
+        : '${s.substring(0, s.length - 3).replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},')},${s.substring(s.length - 3)}';
+    return '${whole < 0 ? '-' : ''}$grouped';
   }
 
   void _openProcessPayroll(

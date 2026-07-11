@@ -89,10 +89,12 @@ class _PurchasesScreenState extends ConsumerState<PurchasesScreen> {
   static const _filters = ['All Orders', 'Cash', 'Credit'];
 
   static String _compact(double v) {
-    if (v >= 10000000) return '₹${(v / 10000000).toStringAsFixed(1)}Cr';
-    if (v >= 100000)   return '₹${(v / 100000).toStringAsFixed(1)}L';
-    if (v >= 1000)     return '₹${(v / 1000).toStringAsFixed(1)}K';
-    return '₹${v.toStringAsFixed(0)}';
+    final whole = v.round();
+    final s = whole.abs().toString();
+    final grouped = s.length <= 3
+        ? s
+        : '${s.substring(0, s.length - 3).replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},')},${s.substring(s.length - 3)}';
+    return '${whole < 0 ? '-' : ''}₹$grouped';
   }
 
   static String _fmtDate(String? d) {
