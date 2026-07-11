@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { supabase, restInsert, restUpdate } from '../lib/supabase';
+import { supabase, restInsert, restUpdate, restRpc } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { normalizeNumericRows } from '../lib/numeric';
 import { fetchWithCache, queueMutation, upsertCachedRow, isOfflineError, readCacheThenRevalidate, isElectron } from '../lib/offline/hookAdapter';
@@ -341,39 +341,24 @@ export const usePeople = (tenantId) => {
             }
           }
         } else {
-          // No invoices selected — FIFO-allocate across unpaid/partial CREDIT
-          // sales so outstanding is always updated even for general payments.
-          const { data: unpaidSales } = await supabase
-            .from('sales')
-            .select('id, "totalAmount", "paidAmount", "paymentStatus"')
-            .eq('tenant_id', tenantId)
-            .eq('"customerInfo"->>\'id\'', clientId)
-            .in('"paymentStatus"', ['UNPAID', 'PARTIAL'])
-            .eq('"paymentMethod"', 'CREDIT')
-            .is('deleted_at', null)
-            .order('date', { ascending: true });
-
-          if (unpaidSales && unpaidSales.length > 0) {
-            let remaining = amount;
-            for (const sale of unpaidSales) {
-              if (remaining <= 0) break;
-              const alreadyPaid = Number(sale.paidAmount) || 0;
-              const owed = Number(sale.totalAmount) - alreadyPaid;
-              if (owed <= 0) continue;
-              const allocating = Math.min(remaining, owed);
-              const newPaid = alreadyPaid + allocating;
-              const newStatus = newPaid >= Number(sale.totalAmount) ? 'PAID' : 'PARTIAL';
-              await restUpdate('sales',
-                { paymentStatus: newStatus, paidAmount: newPaid, lastPaymentDate: date },
-                { id: sale.id, tenant_id: tenantId });
-              // Mirror onto linked invoice so UI outstanding (from invoices table) stays accurate.
-              const invId = `INV-${sale.id}`;
-              await restUpdate('invoices',
-                { payment_status: newStatus, paid_amount: newPaid },
-                { id: invId, tenant_id: tenantId });
-              remaining -= allocating;
-            }
-          }
+          // No invoices selected — allocation now lives server-side in the
+          // settle_client_payment RPC (FIFO across ALL unpaid/partial sales,
+          // credit AND part-paid cash/UPI, oldest first). One implementation
+          // for web, desktop outbox and mobile. The RPC also inserts the
+          // client_payments audit row, so return directly from this branch.
+          const { error: rpcErr } = await restRpc('settle_client_payment', {
+            p_id: generateUUID(),
+            p_tenant_id: tenantId,
+            p_client_id: clientId,
+            p_amount: Number(amount),
+            p_date: date,
+            p_method: paymentMethod,
+            p_notes: notes || null,
+            p_recorded_by: currentUser?.id || null,
+          });
+          if (rpcErr) throw new Error(rpcErr.message || 'Settlement failed');
+          await fetchPeopleData();
+          return { success: true };
         }
 
         // clients.outstanding_balance is recomputed by the DB trigger off the

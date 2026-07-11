@@ -145,56 +145,42 @@ class _ClientSettlementScreenState
           }
           remaining -= allocating;
         }
-      } else {
-        // No invoices selected — FIFO across unpaid/partial CREDIT sales so
-        // outstanding_balance stays accurate even for general cash collections.
-        final unpaidSales = await supabase
-            .from('sales')
-            .select('id, "totalAmount", "paidAmount", "paymentStatus"')
-            .eq('tenant_id', ctx.tenantId)
-            .eq('shopId', widget.client.id)
-            .inFilter('"paymentStatus"', ['UNPAID', 'PARTIAL'])
-            .eq('"paymentMethod"', 'CREDIT')
-            .isFilter('deleted_at', null)
-            .order('date', ascending: true);
-        double remaining = amt;
-        for (final sale in (unpaidSales as List)) {
-          if (remaining <= 0) break;
-          final alreadyPaid = ((sale['paidAmount'] as num?)?.toDouble() ?? 0);
-          final total = (sale['totalAmount'] as num).toDouble();
-          final owed = total - alreadyPaid;
-          if (owed <= 0) continue;
-          final allocating = remaining < owed ? remaining : owed;
-          final newPaid = alreadyPaid + allocating;
-          final status = newPaid >= total ? 'PAID' : 'PARTIAL';
-          await supabase.from('sales').update({
-            'paidAmount': newPaid,
-            'paymentStatus': status,
-          }).eq('id', sale['id'] as String).eq('tenant_id', ctx.tenantId);
-          final invId = 'INV-${sale['id']}';
-          await supabase.from('invoices').update({
-            'paid_amount': newPaid,
-            'payment_status': status,
-          }).eq('id', invId);
-          remaining -= allocating;
-        }
-      }
 
-      // 2. Insert audit record — no `applied_invoice_ids` (column doesn't
-      //    exist in DB). outstanding_balance is recalculated by the DB trigger
-      //    trg_payments_outstanding on client_payments INSERT.
-      final paymentId = 'CP-${DateTime.now().millisecondsSinceEpoch}';
-      await supabase.from('client_payments').insert({
-        'id': paymentId,
-        'client_id': widget.client.id,
-        'tenant_id': ctx.tenantId,
-        'date': _date,
-        'amount': amt,
-        'payment_method': _method,
-        'notes': _notesController.text.trim().isEmpty
-            ? null
-            : _notesController.text.trim(),
-      });
+        // 2. Audit record for the invoice-selected path. (The no-selection
+        //    path below uses the settle_client_payment RPC, which inserts
+        //    its own audit row — inserting here too would double-count.)
+        //    outstanding_balance is recalculated by the DB trigger
+        //    trg_payments_outstanding on client_payments INSERT.
+        final paymentId = 'CP-${DateTime.now().millisecondsSinceEpoch}';
+        await supabase.from('client_payments').insert({
+          'id': paymentId,
+          'client_id': widget.client.id,
+          'tenant_id': ctx.tenantId,
+          'date': _date,
+          'amount': amt,
+          'payment_method': _method,
+          'notes': _notesController.text.trim().isEmpty
+              ? null
+              : _notesController.text.trim(),
+        });
+      } else {
+        // No invoices selected — allocation lives server-side in the
+        // settle_client_payment RPC (FIFO across ALL unpaid/partial sales,
+        // credit AND part-paid cash/UPI, oldest first). Same implementation
+        // web and desktop use; it inserts the audit row itself.
+        await supabase.rpc('settle_client_payment', params: {
+          'p_id': 'CP-${DateTime.now().millisecondsSinceEpoch}',
+          'p_tenant_id': ctx.tenantId,
+          'p_client_id': widget.client.id,
+          'p_amount': amt,
+          'p_date': _date,
+          'p_method': _method,
+          'p_notes': _notesController.text.trim().isEmpty
+              ? null
+              : _notesController.text.trim(),
+          'p_recorded_by': supabase.auth.currentUser?.id,
+        });
+      }
 
       ref.invalidate(clientPaymentsProvider);
       ref.invalidate(clientPaymentsForClientProvider(widget.client.id));
