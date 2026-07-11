@@ -46,7 +46,7 @@ final driverEmployeeIdProvider = FutureProvider<String?>((ref) async {
   try {
     final row = await supabase
         .from('employees')
-        .select('id')
+        .select('id').isFilter('deleted_at', null)
         .eq('user_id', userId)
         .maybeSingle();
     return row?['id']?.toString();
@@ -99,7 +99,7 @@ final vanStockProvider = StreamProvider.family<List<VanStockItem>, String>((ref,
   // 1. Resolve the inventory_location id for this vehicle (one-time lookup)
   final locRes = await supabase
       .from('inventory_locations')
-      .select('id')
+      .select('id').isFilter('deleted_at', null)
       .eq('type', 'VEHICLE')
       .eq('reference_id', vehicleId)
       .maybeSingle();
@@ -120,7 +120,7 @@ final vanStockProvider = StreamProvider.family<List<VanStockItem>, String>((ref,
     final productIds = withStock.map((r) => r['product_id'] as String).toList();
     final prodRes = await supabase
         .from('products')
-        .select('id, name, "sellingPrice"')
+        .select('id, name, "sellingPrice"').isFilter('deleted_at', null)
         .inFilter('id', productIds);
 
     final prodMap = <String, Map<String, dynamic>>{
@@ -189,7 +189,7 @@ Future<({bool success, String? error})> placeVanSale({
   // Resolve van inventory location
   final locRes = await supabase
       .from('inventory_locations')
-      .select('id')
+      .select('id').isFilter('deleted_at', null)
       .eq('type', 'VEHICLE')
       .eq('reference_id', vehicleId)
       .maybeSingle();

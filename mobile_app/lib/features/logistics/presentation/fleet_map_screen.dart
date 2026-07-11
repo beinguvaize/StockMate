@@ -57,7 +57,7 @@ class _FleetMapScreenState extends ConsumerState<FleetMapScreen> {
           .order('updated_at', ascending: false);
       final vehicles = await supabase
           .from('vehicles')
-          .select('id, name')
+          .select('id, name').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId);
 
       final nameById = {

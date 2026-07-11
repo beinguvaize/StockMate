@@ -57,7 +57,7 @@ Future<void> _resolveAndOpenVanSale(
   // Fetch VEHICLE inventory locations (id = locationId, reference_id = vehicleId)
   var locQuery = supabase
       .from('inventory_locations')
-      .select('id, reference_id')
+      .select('id, reference_id').isFilter('deleted_at', null)
       .eq('type', 'VEHICLE');
   if (tenantId != null && tenantId.isNotEmpty) {
     locQuery = locQuery.eq('tenant_id', tenantId);
@@ -81,7 +81,7 @@ Future<void> _resolveAndOpenVanSale(
 
   final vehicles = (await supabase
       .from('vehicles')
-      .select('id, name, plate, "plateNumber"')
+      .select('id, name, plate, "plateNumber"').isFilter('deleted_at', null)
       .inFilter('id', vehicleIds)) as List<dynamic>;
 
   if (vehicles.isEmpty) {

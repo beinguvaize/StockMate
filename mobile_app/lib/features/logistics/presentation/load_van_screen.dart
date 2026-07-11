@@ -54,7 +54,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
       // Warehouse location
       final whRows = await supabase
           .from('inventory_locations')
-          .select('id')
+          .select('id').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId)
           .eq('type', 'WAREHOUSE')
           .limit(1);
@@ -68,7 +68,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
           .eq('location_id', _warehouseLocId!);
       final prods = await supabase
           .from('products')
-          .select('id, name')
+          .select('id, name').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId);
 
       final nameById = {
@@ -117,7 +117,7 @@ class _LoadVanScreenState extends ConsumerState<LoadVanScreen> {
       // Resolve / create the vehicle inventory location
       final vRows = await supabase
           .from('inventory_locations')
-          .select('id')
+          .select('id').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId)
           .eq('type', 'VEHICLE')
           .eq('reference_id', widget.vehicleId);

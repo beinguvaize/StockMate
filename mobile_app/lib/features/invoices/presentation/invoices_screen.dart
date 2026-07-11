@@ -23,7 +23,7 @@ final invoicesProvider = FutureProvider<List<Invoice>>((ref) async {
   // diverge between phone and browser even on the same data.
   final response = await supabase
       .from('invoices')
-      .select()
+      .select().isFilter('deleted_at', null)
       .order('invoice_date', ascending: false)
       .order('invoice_number', ascending: false)
       .limit(500);

@@ -120,7 +120,7 @@ class _ClientSettlementScreenState
       if (_selectedInvoiceIds.isNotEmpty) {
         final invRows = await supabase
             .from('invoices')
-            .select('id, grand_total, paid_amount, sale_id')
+            .select('id, grand_total, paid_amount, sale_id').isFilter('deleted_at', null)
             .inFilter('id', _selectedInvoiceIds.toList());
         double remaining = amt;
         for (final inv in (invRows as List)) {

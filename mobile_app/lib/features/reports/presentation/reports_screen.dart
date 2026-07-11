@@ -41,19 +41,19 @@ final _reportSummaryProvider = FutureProvider.family<_ReportSummary,
 
   final salesData = await supabase
       .from('sales')
-      .select('totalAmount')
+      .select('totalAmount').isFilter('deleted_at', null)
       .gte('date', start)
       .lte('date', end);
 
   final expensesData = await supabase
       .from('expenses')
-      .select('amount')
+      .select('amount').isFilter('deleted_at', null)
       .gte('date', start)
       .lte('date', end);
 
   final purchasesData = await supabase
       .from('purchases')
-      .select('total_amount')
+      .select('total_amount').isFilter('deleted_at', null)
       .gte('date', start)
       .lte('date', end);
 

@@ -64,7 +64,7 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
 
       try {
         final salesData = await supabase
-            .from('sales').select('totalAmount')
+            .from('sales').select('totalAmount').isFilter('deleted_at', null)
             .eq('tenant_id', tenantId).gte('date', todayStr).lt('date', tomorrowStr);
         for (var s in salesData) {
           salesSum += double.tryParse(s['totalAmount']?.toString() ?? '0') ?? 0;
@@ -73,7 +73,7 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
 
       try {
         final expData = await supabase
-            .from('expenses').select('amount')
+            .from('expenses').select('amount').isFilter('deleted_at', null)
             .eq('tenant_id', tenantId).gte('date', todayStr).lt('date', tomorrowStr);
         for (var e in expData) {
           expensesSum += double.tryParse(e['amount']?.toString() ?? '0') ?? 0;
@@ -82,7 +82,7 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
 
       try {
         final pchData = await supabase
-            .from('purchases').select('total_amount')
+            .from('purchases').select('total_amount').isFilter('deleted_at', null)
             .eq('tenant_id', tenantId).gte('date', todayStr).lt('date', tomorrowStr);
         for (var p in pchData) {
           purchasesSum += double.tryParse(p['total_amount']?.toString() ?? '0') ?? 0;
@@ -98,7 +98,7 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
       } catch (_) {}
 
       try {
-        final cpData = await supabase.from('clients').select('outstanding_balance').eq('tenant_id', tenantId);
+        final cpData = await supabase.from('clients').select('outstanding_balance').isFilter('deleted_at', null).eq('tenant_id', tenantId);
         for (var c in cpData) {
           outstandingSum += double.tryParse(c['outstanding_balance']?.toString() ?? '0') ?? 0;
         }
@@ -106,7 +106,7 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
 
       try {
         final emData = await supabase.from('employees')
-            .select('daily_rate, days_worked, amount_paid').eq('tenant_id', tenantId);
+            .select('daily_rate, days_worked, amount_paid').isFilter('deleted_at', null).eq('tenant_id', tenantId);
         for (var e in emData) {
           final rate = double.tryParse(e['daily_rate']?.toString() ?? '500') ?? 500;
           final days = double.tryParse(e['days_worked']?.toString() ?? '0') ?? 0;
@@ -118,7 +118,7 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
 
       try {
         final pData = await supabase.from('products')
-            .select('stock').eq('tenant_id', tenantId);
+            .select('stock').isFilter('deleted_at', null).eq('tenant_id', tenantId);
         productsCount = pData.length;
         for (var p in pData) {
           final st = int.tryParse(p['stock']?.toString() ?? '0') ?? 0;
@@ -143,7 +143,7 @@ final telemetryProvider = FutureProvider<DashboardMetrics>((ref) async {
         }
         final sevenAgo = today.subtract(const Duration(days: 6));
         final fromStr = '${sevenAgo.year}-${sevenAgo.month.toString().padLeft(2, '0')}-${sevenAgo.day.toString().padLeft(2, '0')}';
-        final rawRows = await supabase.from('sales').select('date, totalAmount')
+        final rawRows = await supabase.from('sales').select('date, totalAmount').isFilter('deleted_at', null)
             .eq('tenant_id', tenantId).gte('date', fromStr).lte('date', todayStr);
         for (final row in rawRows) {
           final key = row['date']?.toString() ?? '';

@@ -12,7 +12,7 @@ final salesReturnsProvider = FutureProvider.family<List<SalesReturn>, String>(
   (ref, tenantId) async {
     final data = await supabase
         .from('sales_returns')
-        .select()
+        .select().isFilter('deleted_at', null)
         .eq('tenant_id', tenantId)
         .order('created_at', ascending: false)
         .limit(200);

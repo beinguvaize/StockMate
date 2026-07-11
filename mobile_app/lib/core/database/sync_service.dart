@@ -386,7 +386,7 @@ class SyncService {
     try {
       final response = await supabase
           .from('invoices')
-          .select('id, tenant_id, invoice_number, client_id, client_name, sale_id, invoice_date, due_date, taxable_amount, grand_total, paid_amount, payment_status, irn, irn_status, ack_no, signed_qr, items')
+          .select('id, tenant_id, invoice_number, client_id, client_name, sale_id, invoice_date, due_date, taxable_amount, grand_total, paid_amount, payment_status, irn, irn_status, ack_no, signed_qr, items').isFilter('deleted_at', null)
           .order('invoice_date', ascending: false)
           .limit(500);
       final List<dynamic> data = response as List<dynamic>;
@@ -524,7 +524,7 @@ class SyncService {
     try {
       final response = await supabase
           .from('expenses')
-          .select('id, tenant_id, category, amount, note, date')
+          .select('id, tenant_id, category, amount, note, date').isFilter('deleted_at', null)
           .order('date', ascending: false)
           .limit(500);
       final List<dynamic> data = response as List<dynamic>;
@@ -557,7 +557,7 @@ class SyncService {
     try {
       final response = await supabase
           .from('purchases')
-          .select('id, tenant_id, supplier_id, product_id, quantity, total_amount, date')
+          .select('id, tenant_id, supplier_id, product_id, quantity, total_amount, date').isFilter('deleted_at', null)
           .order('date', ascending: false)
           .limit(500);
       final List<dynamic> data = response as List<dynamic>;

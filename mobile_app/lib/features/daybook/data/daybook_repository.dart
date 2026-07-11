@@ -32,12 +32,12 @@ class DaybookRepository {
     // Fetch all transactions for this date in parallel
     final results = await Future.wait([
       _client.from('sales').select('id, totalAmount, paymentMethod, customerInfo, items, created_at')
-          .eq('tenant_id', tenantId).eq('date', date),
+          .eq('tenant_id', tenantId).eq('date', date).isFilter('deleted_at', null),
       _client.from('expenses').select('id, amount, category, note, created_at')
-          .eq('tenant_id', tenantId).eq('date', date),
+          .eq('tenant_id', tenantId).eq('date', date).isFilter('deleted_at', null),
       _client.from('client_payments').select('id, amount, payment_method, notes, client_id, created_at')
           .eq('tenant_id', tenantId).eq('date', date).isFilter('deleted_at', null),
-      _client.from('purchases').select('id, total_amount, payment_type, supplier_id, created_at')
+      _client.from('purchases').select('id, total_amount, payment_type, supplier_id, created_at').isFilter('deleted_at', null)
           .eq('tenant_id', tenantId).eq('date', date),
     ]);
 

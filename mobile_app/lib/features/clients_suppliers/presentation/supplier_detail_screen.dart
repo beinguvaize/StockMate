@@ -25,7 +25,7 @@ final supplierTransactionsProvider =
     try {
       final result = await supabase
           .from('purchases')
-          .select('id, total_amount, date, payment_type')
+          .select('id, total_amount, date, payment_type').isFilter('deleted_at', null)
           .eq('supplier_id', supplierId)
           .order('date', ascending: false)
           .limit(50);
@@ -36,7 +36,7 @@ final supplierTransactionsProvider =
   if (data.isEmpty && supplierName.isNotEmpty) {
     final result = await supabase
         .from('purchases')
-        .select('id, total_amount, date, payment_type')
+        .select('id, total_amount, date, payment_type').isFilter('deleted_at', null)
         .eq('supplier_name', supplierName)
         .order('date', ascending: false)
         .limit(50);

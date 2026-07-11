@@ -19,7 +19,7 @@ final clientsProvider = FutureProvider<List<Client>>((ref) async {
   try {
     final response = await supabase
         .from('clients')
-        .select()
+        .select().isFilter('deleted_at', null)
         .eq('tenant_id', ctx.tenantId)
         .order('name', ascending: true);
     return (response as List).map((data) => Client.fromJson(data)).toList();
@@ -52,7 +52,7 @@ final suppliersProvider = FutureProvider<List<Supplier>>((ref) async {
   try {
     final response = await supabase
         .from('suppliers')
-        .select()
+        .select().isFilter('deleted_at', null)
         .eq('tenant_id', ctx.tenantId)
         .order('name', ascending: true);
     return (response as List).map((data) => Supplier.fromJson(data)).toList();
