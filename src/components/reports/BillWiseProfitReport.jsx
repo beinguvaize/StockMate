@@ -86,7 +86,7 @@ const BillWiseProfitReport = () => {
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
   const { data: sales, loading } = useReportData({
-    table: 'sales', select: 'id, date, totalAmount, customerInfo, shopId, items',
+    table: 'sales', select: 'id, date, totalAmount, totalCogs, customerInfo, shopId, items',
     dateColumn: 'date', filters,
   });
   const { data: products } = useReportData({ table: 'products', select: 'id, costPrice' });
@@ -120,9 +120,15 @@ const BillWiseProfitReport = () => {
       const revenue = items.length > 0
         ? items.reduce((acc, it) => acc + calcItemRevenue(it), 0)
         : Number(s.totalAmount || 0);
-      const cost = fifoBySale[s.id] != null
-        ? fifoBySale[s.id]
-        : items.reduce((acc, it) => acc + calcItemCost(it, costById), 0);
+      // sales.totalCogs is the source of truth (process_sale computes it,
+      // including the cost-price fallback for unbatched stock). The batch
+      // rows alone undercount when only part of a sale had batch coverage.
+      const stored = Number(s.totalCogs);
+      const cost = Number.isFinite(stored) && stored > 0
+        ? stored
+        : fifoBySale[s.id] != null
+          ? fifoBySale[s.id]
+          : items.reduce((acc, it) => acc + calcItemCost(it, costById), 0);
       const profit  = revenue - cost;
       const margin  = revenue > 0 ? (profit / revenue) * 100 : 0;
       const customer = s.customerInfo?.name || 'Walk-in';

@@ -112,9 +112,11 @@ const CategoryProfitReport = () => {
     // (legacy data or no FIFO setup yet) — same fallback BillWiseProfit
     // uses, so the two reports now match.
     const fifoByKey = {};
+    const takenByKey = {};
     (consumption || []).forEach(c => {
       const k = `${c.sale_id}::${c.product_id}`;
-      fifoByKey[k] = (fifoByKey[k] || 0) + Number(c.qty_taken || 0) * Number(c.unit_cost || 0);
+      fifoByKey[k]  = (fifoByKey[k]  || 0) + Number(c.qty_taken || 0) * Number(c.unit_cost || 0);
+      takenByKey[k] = (takenByKey[k] || 0) + Number(c.qty_taken || 0);
     });
 
     const catMap = {};
@@ -128,10 +130,15 @@ const CategoryProfitReport = () => {
         if (!catMap[category]) catMap[category] = { category, units: 0, revenue: 0, cost: 0 };
         const qty  = Number(item.quantity || 0);
         const rate = Number(item.rate || item.sellingPrice || 0);
-        const fifoCost = pid ? fifoByKey[`${s.id}::${pid}`] : undefined;
-        const cost = fifoCost != null
-          ? fifoCost
-          : qty * Number(item.costPrice ?? prod?.cost ?? 0);
+        // Batch cost for the covered part + cost-price fallback for the
+        // uncovered remainder. Using batch rows alone undercounted whenever
+        // only part of the quantity had batch coverage (manual stock top-ups
+        // have no batch), inflating profit on those units to 100%.
+        const key = pid ? `${s.id}::${pid}` : null;
+        const fifoCost = key ? (fifoByKey[key] || 0) : 0;
+        const taken    = key ? (takenByKey[key] || 0) : 0;
+        const unitCost = Number(item.costPrice ?? prod?.cost ?? 0);
+        const cost = fifoCost + Math.max(0, qty - taken) * unitCost;
         catMap[category].units   += qty;
         catMap[category].revenue += qty * rate;
         catMap[category].cost    += cost;

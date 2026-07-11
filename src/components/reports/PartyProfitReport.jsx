@@ -133,9 +133,13 @@ const PartyProfitReport = () => {
       const revenue = items.length > 0
         ? items.reduce((acc, it) => acc + calcItemRevenue(it), 0)
         : Number(s.totalAmount || 0);
-      const cost = fifoBySale[s.id] != null
-        ? fifoBySale[s.id]
-        : items.reduce((acc, it) => acc + calcItemCost(it, costById), 0);
+      // sales.totalCogs is the source of truth — see BillWiseProfitReport.
+      const storedCogs = Number(s.totalCogs);
+      const cost = Number.isFinite(storedCogs) && storedCogs > 0
+        ? storedCogs
+        : fifoBySale[s.id] != null
+          ? fifoBySale[s.id]
+          : items.reduce((acc, it) => acc + calcItemCost(it, costById), 0);
 
       partyMap[key].revenue += revenue;
       partyMap[key].cost    += cost;
