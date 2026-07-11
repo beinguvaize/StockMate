@@ -7,6 +7,7 @@ import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/providers/crm_provider.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/widgets/client_utils.dart';
 import 'package:mobile_app/features/invoices/presentation/invoices_screen.dart';
+import 'package:mobile_app/features/sales/presentation/providers/sales_provider.dart';
 
 // ─── Data model ───────────────────────────────────────────────────────────────
 class _StatementRow {
@@ -88,22 +89,34 @@ class ClientStatementSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final invoicesAsync = ref.watch(invoicesProvider);
     final paymentsAsync = ref.watch(clientPaymentsForClientProvider(client.id));
+    final salesAsync    = ref.watch(recentSalesProvider);
 
-    // Determine loading / error states.
-    final isLoading = invoicesAsync.isLoading || paymentsAsync.isLoading;
+    // Determine loading / error states. Sales load is needed to resolve each
+    // invoice's original payment method (invoices table doesn't store it).
+    final isLoading =
+        invoicesAsync.isLoading || paymentsAsync.isLoading || salesAsync.isLoading;
 
-    final error = invoicesAsync.error ?? paymentsAsync.error;
+    final error = invoicesAsync.error ?? paymentsAsync.error ?? salesAsync.error;
 
-    // ── Build statement rows ──────────────────────────────────────────────────
+    // ── Build statement rows (mirrors web ClientSettlement.jsx exactly) ──────
     final rows = <_StatementRow>[];
 
     if (!isLoading && error == null) {
+      final sales = salesAsync.valueOrNull ?? const [];
+      // sale id → payment method, to distinguish upfront-paid sales from
+      // CREDIT sales settled later (those payments live in client_payments).
+      final saleMethodById = <String, String>{
+        for (final s in sales) s.id: (s.paymentMethod ?? '').toUpperCase(),
+      };
+      final invoicedSaleIds = <String>{};
+
       // 1. Invoice rows (single source of truth for DR).
       //    Credit sales that also appear as invoices must NOT be added as
       //    a separate "Credit Sale" row — that causes double-counting.
       final invoices = invoicesAsync.valueOrNull ?? const [];
       for (final inv in invoices) {
         if (inv.clientId != client.id) continue;
+        if (inv.saleId != null) invoicedSaleIds.add(inv.saleId!);
         final dateStr = inv.invoiceDate ??
             inv.createdAt?.toIso8601String().substring(0, 10) ??
             '';
@@ -115,18 +128,47 @@ class ClientStatementSheet extends ConsumerWidget {
           type: 'INVOICE',
         ));
 
-        // Inline payment CR: CASH/BANK/UPI sales paid at POS time have
-        // paidAmount > 0 but are NOT tracked in client_payments. Show the
-        // upfront payment as a credit on the same date so the statement
-        // balance matches the actual outstanding.
-        final method = (inv.paymentMethod ?? '').toUpperCase();
-        if (method != 'CREDIT' && inv.paidAmount > 0) {
-          final label = _methodLabel(method);
+        // Inline payment CR — ONLY for upfront-paid (non-CREDIT) sales, whose
+        // payment never reaches client_payments. For CREDIT sales the later
+        // collection IS in client_payments; synthesizing here double-counted
+        // the same payment (same bug web fixed — see ClientSettlement.jsx).
+        final saleMethod = saleMethodById[inv.saleId] ?? '';
+        if (inv.paidAmount > 0 && saleMethod != 'CREDIT' && saleMethod.isNotEmpty) {
           rows.add(_StatementRow(
             date: dateStr,
-            description: label.isEmpty ? 'Payment received' : 'Payment received ($label)',
+            description: 'Payment received (${_methodLabel(saleMethod)})',
             debit: 0,
             credit: inv.paidAmount,
+            type: 'PAYMENT',
+          ));
+        }
+      }
+
+      // 1b. CASH/UPI partial sales with no invoice — they still contribute to
+      //     outstanding. Debit full amount + credit the paid part, same as web.
+      for (final s in sales) {
+        if (s.shopId != client.id) continue;
+        final method = (s.paymentMethod ?? '').toUpperCase();
+        if (method == 'CREDIT') continue;
+        final st = (s.paymentStatus ?? s.status ?? '').toUpperCase();
+        if (!['PARTIAL', 'UNPAID', 'PENDING'].contains(st)) continue;
+        if (invoicedSaleIds.contains(s.id)) continue;
+        final saleDate = s.date ?? s.createdAt?.toIso8601String().substring(0, 10) ?? '';
+        final total = s.totalAmount ?? 0;
+        final paid  = s.paidAmount ?? 0;
+        rows.add(_StatementRow(
+          date: saleDate,
+          description: 'Bill #${s.id.split('-').last}',
+          debit: total,
+          credit: 0,
+          type: 'SALE',
+        ));
+        if (paid > 0) {
+          rows.add(_StatementRow(
+            date: saleDate,
+            description: 'Payment received (${_methodLabel(method)})',
+            debit: 0,
+            credit: paid,
             type: 'PAYMENT',
           ));
         }
