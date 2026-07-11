@@ -801,7 +801,7 @@ class _ClientSummaryCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                '₹${outstanding.toStringAsFixed(2)}',
+                '₹${outstanding.abs().toStringAsFixed(2)}',
                 style: GoogleFonts.manrope(
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
@@ -809,7 +809,7 @@ class _ClientSummaryCard extends StatelessWidget {
                 ),
               ),
               Text(
-                'outstanding',
+                outstanding < 0 ? 'advance' : 'outstanding',
                 style: GoogleFonts.manrope(
                   fontSize: 10,
                   color: AppColors.inkTertiary,

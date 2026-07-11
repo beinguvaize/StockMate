@@ -879,14 +879,14 @@ class _ClientDetailSheet extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Outstanding balance',
+                                balance < 0 ? 'Advance (paid extra)' : 'Outstanding balance',
                                 style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
                               ),
                               Row(
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    _fmtAmount(balance),
+                                    _fmtAmount(balance.abs()),
                                     style: GoogleFonts.manrope(
                                       fontSize: 20,
                                       fontWeight: FontWeight.w700,

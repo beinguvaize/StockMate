@@ -247,9 +247,19 @@ const ClientDirectory = ({
                   )}
                 </div>
 
-                {/* Outstanding — dot + word */}
+                {/* Outstanding — dot + word (negative = advance credit) */}
                 <div className="text-right">
-                  {cleared ? (
+                  {outstanding < 0 ? (
+                    <>
+                      <div className="font-mono text-[15px] font-bold tabular-nums text-emerald-600 leading-none">
+                        {sym}{Math.round(Math.abs(outstanding)).toLocaleString('en-IN')}
+                      </div>
+                      <div className="flex items-center justify-end gap-1.5 mt-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                        <span className="text-[11px] font-semibold text-emerald-600">Advance</span>
+                      </div>
+                    </>
+                  ) : cleared ? (
                     <div className="flex items-center justify-end gap-2">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
                       <span className="text-[12px] font-semibold text-gray-400">Cleared</span>

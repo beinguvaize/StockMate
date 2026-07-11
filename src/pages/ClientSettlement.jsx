@@ -369,9 +369,9 @@ const ClientSettlement = () => {
         </div>
         {/* Outstanding — headline metric in header */}
         <div className="shrink-0 text-right">
-          <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Outstanding</div>
+          <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">{outstanding < 0 ? 'Advance' : 'Outstanding'}</div>
           <div className={`text-lg font-black font-mono tabular-nums leading-none ${outstanding > 0 ? 'text-red-500' : 'text-emerald-600'}`}>
-            {formatCurrency(outstanding)}
+            {formatCurrency(Math.abs(outstanding))}
           </div>
         </div>
       </div>
@@ -395,8 +395,8 @@ const ClientSettlement = () => {
             </div>
             <div className="grid grid-cols-2 gap-2 mb-3">
               <div className={`rounded-xl p-2.5 border ${outstanding > 0 ? 'bg-red-50 border-red-100' : 'bg-emerald-50/60 border-emerald-100'}`}>
-                <div className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${outstanding > 0 ? 'text-red-400' : 'text-emerald-500'}`}>Outstanding</div>
-                <div className={`text-base font-black font-mono tabular-nums ${outstanding > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatCurrency(outstanding)}</div>
+                <div className={`text-[9px] font-bold uppercase tracking-widest mb-0.5 ${outstanding > 0 ? 'text-red-400' : 'text-emerald-500'}`}>{outstanding < 0 ? 'Advance' : 'Outstanding'}</div>
+                <div className={`text-base font-black font-mono tabular-nums ${outstanding > 0 ? 'text-red-600' : 'text-emerald-600'}`}>{formatCurrency(Math.abs(outstanding))}</div>
               </div>
               <div className="bg-canvas rounded-xl p-2.5 border border-black/5">
                 <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">Unpaid</div>

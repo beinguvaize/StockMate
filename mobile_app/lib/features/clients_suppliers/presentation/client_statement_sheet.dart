@@ -273,8 +273,8 @@ class _StatementBody extends StatelessWidget {
         Row(
           children: [
             _KpiTile(
-              label: 'TOTAL OUTSTANDING',
-              value: compactAmount(balance),
+              label: balance < 0 ? 'ADVANCE (PAID EXTRA)' : 'TOTAL OUTSTANDING',
+              value: compactAmount(balance.abs()),
               valueColor: balance > 0 ? AppColors.danger : AppColors.success,
               icon: balance > 0 ? LucideIcons.alertCircle : LucideIcons.checkCircle2,
               iconColor: balance > 0 ? AppColors.danger : AppColors.success,
@@ -531,7 +531,7 @@ class _LedgerCard extends StatelessWidget {
     final balLabel   = row.balance > 0.005
         ? 'Still owes ${_fmtRupee(row.balance)}'
         : row.balance < -0.005
-            ? 'You owe them ${_fmtRupee(row.balance.abs())}'
+            ? 'Advance ${_fmtRupee(row.balance.abs())}'
             : 'Fully paid';
 
     return Container(
