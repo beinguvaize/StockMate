@@ -347,7 +347,14 @@ export const usePeople = (tenantId) => {
           }
 
           // Selected cash sales (no invoice) — allocate the rest directly on
-          // the sale rows; the outstanding trigger recomputes from these.
+          // the sale rows; the outstanding trigger recomputes from these and
+          // the sale-ledger trigger reposts Cash & Bank for the new paid
+          // amount. This portion must stay OUT of the client_payments audit
+          // row below: the FIFO replay trigger re-allocates the whole
+          // client_payments pool across CREDIT sales, so including it would
+          // hand the same money to credit sales again (double-count), and
+          // the payment-ledger trigger would double-post Cash & Bank.
+          let saleAllocated = 0;
           if (saleOnlyIds.length > 0 && remaining > 0) {
             const { data: saleRows } = await supabase
               .from('sales')
@@ -365,10 +372,30 @@ export const usePeople = (tenantId) => {
               await restUpdate('sales',
                 { paymentStatus: newStatus, paidAmount: newPaid, lastPaymentDate: date },
                 { id: sale.id, tenant_id: tenantId });
+              saleAllocated += allocating;
               remaining -= allocating;
               if (remaining <= 0) break;
             }
           }
+
+          // 2. Audit record — credit/invoice portion only (see note above).
+          const auditAmount = Math.max(0, Number(amount) - saleAllocated);
+          if (auditAmount > 0) {
+            const { error: payErr } = await restInsert('client_payments', {
+              id:             generateUUID(),
+              tenant_id:      tenantId,
+              client_id:      clientId,
+              amount:         auditAmount,
+              date,
+              payment_method: paymentMethod,
+              notes:          notes || null,
+              recorded_by:    currentUser?.id || null,
+            });
+            if (payErr) console.warn('Payment audit insert failed:', payErr);
+          }
+
+          await fetchPeopleData();
+          return { success: true };
         } else {
           // No invoices selected — allocation now lives server-side in the
           // settle_client_payment RPC (FIFO across ALL unpaid/partial sales,
@@ -390,25 +417,8 @@ export const usePeople = (tenantId) => {
           return { success: true };
         }
 
-        // clients.outstanding_balance is recomputed by the DB trigger off the
-        // sales updates above — never write it directly here (that races the
-        // trigger and drifts the balance).
-
-        // 2. Insert audit record into client_payments
-        const { error: payErr } = await restInsert('client_payments', {
-          id:             generateUUID(),
-          tenant_id:      tenantId,
-          client_id:      clientId,
-          amount,
-          date,
-          payment_method: paymentMethod,
-          notes:          notes || null,
-          recorded_by:    currentUser?.id || null,
-        });
-        if (payErr) console.warn('Payment audit insert failed:', payErr);
-
-        await fetchPeopleData();
-        return { success: true };
+        // (Both branches above return; clients.outstanding_balance is always
+        // recomputed by DB triggers — never written directly here.)
       } catch (err) {
         console.error('recordClientPayment Error:', err);
         return { success: false, error: err.message };

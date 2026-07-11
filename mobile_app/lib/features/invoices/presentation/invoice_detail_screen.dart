@@ -735,16 +735,70 @@ class InvoiceDetailScreen extends ConsumerWidget {
                   final amt = double.tryParse(amountCtrl.text.trim()) ?? 0;
                   if (amt <= 0) return;
                   try {
-                    final newPaid = invoice.paidAmount + amt;
-                    final newStatus = newPaid >= invoice.grandTotal ? 'PAID' : 'PARTIAL';
                     final supabase = Supabase.instance.client;
-                    await supabase.from('invoices').update({
-                      'paid_amount': newPaid.clamp(0, invoice.grandTotal),
-                      'payment_status': newStatus,
-                    }).eq('id', invoice.id);
+                    // Resolve the underlying SALE — that's what the
+                    // outstanding + Cash & Bank triggers read. Updating only
+                    // the invoice row (old behaviour) never adjusted the
+                    // client's outstanding, and did nothing at all for raw
+                    // sales without an invoice.
+                    final saleId = invoice.saleId ??
+                        (invoice.id.startsWith('INV-') ? null : invoice.id);
+                    final saleRow = saleId == null
+                        ? null
+                        : await supabase
+                            .from('sales')
+                            .select('id, tenant_id, "shopId", "paymentMethod", "totalAmount", "paidAmount"')
+                            .eq('id', saleId)
+                            .maybeSingle();
+
+                    final method = ((saleRow?['paymentMethod'] as String?) ?? '').toUpperCase();
+                    final clientId = saleRow?['shopId'] as String?;
+
+                    if (saleRow != null && method == 'CREDIT' && clientId != null) {
+                      // Credit sale with a registered client: record a
+                      // client payment — the DB replay allocates it FIFO,
+                      // posts Cash & Bank and recomputes outstanding.
+                      await supabase.from('client_payments').insert({
+                        'id': 'CP-${DateTime.now().millisecondsSinceEpoch}',
+                        'tenant_id': saleRow['tenant_id'],
+                        'client_id': clientId,
+                        'amount': amt,
+                        'date': DateTime.now().toIso8601String().substring(0, 10),
+                        'payment_method': 'CASH',
+                        'recorded_by': supabase.auth.currentUser?.id,
+                      });
+                    } else if (saleRow != null) {
+                      // Cash/UPI sale (or walk-in credit): bump the sale's
+                      // paid amount directly — the sale-ledger trigger
+                      // reposts Cash & Bank and outstanding recalcs. No
+                      // client_payments row (the replay would double-count).
+                      final total = ((saleRow['totalAmount'] as num?)?.toDouble() ?? 0);
+                      final paid  = ((saleRow['paidAmount'] as num?)?.toDouble() ?? 0);
+                      final newPaid = (paid + amt).clamp(0, total);
+                      final newStatus = newPaid >= total ? 'PAID' : 'PARTIAL';
+                      await supabase.from('sales').update({
+                        'paidAmount': newPaid,
+                        'paymentStatus': newStatus,
+                      }).eq('id', saleId as Object);
+                      await supabase.from('invoices').update({
+                        'paid_amount': newPaid,
+                        'payment_status': newStatus,
+                      }).eq('id', 'INV-$saleId');
+                    } else {
+                      // Legacy invoice with no linked sale — old behaviour.
+                      final newPaid = invoice.paidAmount + amt;
+                      final newStatus = newPaid >= invoice.grandTotal ? 'PAID' : 'PARTIAL';
+                      await supabase.from('invoices').update({
+                        'paid_amount': newPaid.clamp(0, invoice.grandTotal),
+                        'payment_status': newStatus,
+                      }).eq('id', invoice.id);
+                    }
+                    final newStatus = (invoice.paidAmount + amt) >= invoice.grandTotal ? 'PAID' : 'PARTIAL';
                     if (ctx.mounted) {
                       Navigator.pop(ctx);
                       ref.invalidate(invoicesProvider);
+                      ref.invalidate(recentSalesProvider);
+                      try { ref.invalidate(clientsProvider); } catch (_) {}
                       if (context.mounted) {
                         Navigator.pop(context); // go back to list
                         ScaffoldMessenger.of(context).showSnackBar(

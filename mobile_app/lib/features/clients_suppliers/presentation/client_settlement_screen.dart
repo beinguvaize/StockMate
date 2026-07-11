@@ -191,7 +191,12 @@ class _ClientSettlementScreenState
         }
 
         // Selected cash sales (no invoice) — allocate directly on the sale
-        // rows; the outstanding trigger recomputes from these.
+        // rows; the outstanding trigger recomputes from these and the
+        // sale-ledger trigger reposts Cash & Bank. This portion must stay
+        // OUT of the client_payments audit row (the FIFO replay trigger
+        // re-allocates the whole pool across CREDIT sales — including it
+        // would double-count, and double-post Cash & Bank).
+        double saleAllocated = 0;
         if (saleOnlyIds.isNotEmpty && remaining > 0) {
           final saleRows = await supabase
               .from('sales')
@@ -213,27 +218,29 @@ class _ClientSettlementScreenState
               'paymentStatus': status,
               'lastPaymentDate': _date,
             }).eq('id', sale['id'] as String).eq('tenant_id', ctx.tenantId);
+            saleAllocated += allocating;
             remaining -= allocating;
           }
         }
 
-        // 2. Audit record for the invoice-selected path. (The no-selection
-        //    path below uses the settle_client_payment RPC, which inserts
-        //    its own audit row — inserting here too would double-count.)
-        //    outstanding_balance is recalculated by the DB trigger
-        //    trg_payments_outstanding on client_payments INSERT.
-        final paymentId = 'CP-${DateTime.now().millisecondsSinceEpoch}';
-        await supabase.from('client_payments').insert({
-          'id': paymentId,
-          'client_id': widget.client.id,
-          'tenant_id': ctx.tenantId,
-          'date': _date,
-          'amount': amt,
-          'payment_method': _method,
-          'notes': _notesController.text.trim().isEmpty
-              ? null
-              : _notesController.text.trim(),
-        });
+        // 2. Audit record — credit/invoice portion only (cash-sale portion
+        //    excluded, see note above). The no-selection path below uses the
+        //    settle_client_payment RPC which inserts its own audit row.
+        final auditAmount = amt - saleAllocated;
+        if (auditAmount > 0.005) {
+          final paymentId = 'CP-${DateTime.now().millisecondsSinceEpoch}';
+          await supabase.from('client_payments').insert({
+            'id': paymentId,
+            'client_id': widget.client.id,
+            'tenant_id': ctx.tenantId,
+            'date': _date,
+            'amount': auditAmount,
+            'payment_method': _method,
+            'notes': _notesController.text.trim().isEmpty
+                ? null
+                : _notesController.text.trim(),
+          });
+        }
       } else {
         // No invoices selected — allocation lives server-side in the
         // settle_client_payment RPC (FIFO across ALL unpaid/partial sales,
