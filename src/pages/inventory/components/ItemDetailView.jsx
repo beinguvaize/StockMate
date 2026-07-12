@@ -252,32 +252,25 @@ const ItemDetailView = ({
               )}
             </Card>
 
-            {/* Stock movements — every in/out incl. manual adjustments, so
-                the user can track exactly what changed the stock and why. */}
-            <Card title="Stock Movements (incl. manual adjustments)">
-              {loading ? <Empty text="Loading…" /> : movements.length === 0 ? <Empty text="No stock movements yet" /> : (
-                <Tbl head={['Date', 'Type', 'Source', 'Reason', 'Qty']}
-                  rows={movements.map(m => {
-                    const isIn = String(m.type).toUpperCase() === 'IN';
-                    const reason = m.reason || '';
-                    const isManual = /manual|adjust/i.test(reason);
-                    const source = isManual ? 'Manual adjust'
-                      : /purchase/i.test(reason) ? 'Purchase'
-                      : /sale/i.test(reason) ? 'Sale'
-                      : /production/i.test(reason) ? 'Production'
-                      : /return/i.test(reason) ? 'Return'
-                      : /damage/i.test(reason) ? 'Damage'
-                      : 'Other';
-                    return [
-                      m.date ? String(m.date).slice(0, 10) : '—',
-                      <span key="t" className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${isIn ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>{isIn ? 'IN' : 'OUT'}</span>,
-                      <span key="s" className={isManual ? 'font-bold text-amber-600' : ''}>{source}</span>,
-                      reason || '—',
-                      <span key="q" className={isIn ? 'text-emerald-600' : 'text-red-500'}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</span>,
-                    ];
-                  })} />
-              )}
-            </Card>
+            {/* Manual adjustments only — hand corrections to stock. */}
+            {(() => {
+              const manual = movements.filter(m => /manual|adjust/i.test(m.reason || ''));
+              return (
+                <Card title="Manual Adjustments">
+                  {loading ? <Empty text="Loading…" /> : manual.length === 0 ? <Empty text="No manual adjustments" /> : (
+                    <Tbl head={['Date', 'Reason', 'Qty']}
+                      rows={manual.map(m => {
+                        const isIn = String(m.type).toUpperCase() === 'IN';
+                        return [
+                          m.date ? String(m.date).slice(0, 10) : '—',
+                          m.reason || '—',
+                          <span key="q" className={`font-bold ${isIn ? 'text-emerald-600' : 'text-red-500'}`}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</span>,
+                        ];
+                      })} />
+                  )}
+                </Card>
+              );
+            })()}
           </div>
         )}
 
