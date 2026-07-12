@@ -529,6 +529,8 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
     int adjustment = 0;
     // Typeable new-stock value; +/- keep it in sync.
     final stockCtrl = TextEditingController(text: '$currentStock');
+    // Optional purchase price for a manual stock-add (creates a cost batch).
+    final costCtrl = TextEditingController();
 
     await showDialog(
       context: context,
@@ -625,6 +627,29 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
+                // Purchase price — only when adding stock. Blank = use saved cost.
+                if (adjustment > 0) ...[
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: costCtrl,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
+                    decoration: InputDecoration(
+                      prefixText: '₹ ',
+                      labelText: 'Purchase price / unit (optional)',
+                      labelStyle: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkSecondary),
+                      hintText: 'Cost each — blank uses saved ₹${widget.product.costPrice.toStringAsFixed(2)}',
+                      hintStyle: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
+                      isDense: true,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Enter what you paid so profit on these units is exact.',
+                    style: GoogleFonts.manrope(fontSize: 10.5, color: AppColors.inkTertiary),
+                  ),
+                ],
               ],
             ),
             actions: [
@@ -640,7 +665,11 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                         Navigator.pop(ctx);
                         try {
                           final repo = ref.read(productRepositoryProvider);
-                          await repo.updateStock(widget.product.id, newStockVal);
+                          final cost = double.tryParse(costCtrl.text.trim());
+                          await repo.updateStock(
+                            widget.product.id, newStockVal,
+                            unitCost: (adjustment > 0 && cost != null && cost > 0) ? cost : null,
+                          );
                           ref.invalidate(productsProvider);
                           if (mounted) {
                             Navigator.pop(context); // close sheet

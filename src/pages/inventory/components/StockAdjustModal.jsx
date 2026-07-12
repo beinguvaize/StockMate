@@ -25,9 +25,10 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
   const [qty, setQty]             = useState('');
   const [reason, setReason]       = useState('');
   const [customReason, setCR]     = useState('');
+  const [unitCost, setUnitCost]   = useState('');
   const [done, setDone]           = useState(false);
 
-  useEffect(() => { setQty(''); setDone(false); }, [type]);
+  useEffect(() => { setQty(''); setUnitCost(''); setDone(false); }, [type]);
 
   const activeType  = TYPES.find(t => t.key === type);
   const qtyNum      = parseFloat(qty) || 0;
@@ -44,10 +45,14 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
   const overStock  = type === 'subtract' && qtyNum > currentStock;
   const canSubmit  = qtyNum > 0 && finalReason && !overStock;
 
+  const isAddition = (type === 'add') || (type === 'set' && qtyNum > currentStock);
+
   const handleSubmit = async () => {
     if (!canSubmit || saving) return;
     const delta = type === 'set' ? qtyNum - currentStock : type === 'add' ? qtyNum : -qtyNum;
-    const { error } = await onConfirm(product.id, delta, finalReason);
+    const cost = parseFloat(unitCost);
+    const priceArg = isAddition && Number.isFinite(cost) && cost > 0 ? cost : undefined;
+    const { error } = await onConfirm(product.id, delta, finalReason, undefined, priceArg);
     if (!error) setDone(true);
   };
 
@@ -222,6 +227,28 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
               />
             )}
           </div>
+
+          {/* ── Purchase price (only when adding stock) ── */}
+          {isAddition && qtyNum > 0 && (
+            <div>
+              <label className="text-[10px] font-black uppercase tracking-widest text-gray-400 block mb-2">
+                Purchase price / unit <span className="text-gray-300 normal-case font-semibold tracking-normal">(optional)</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                inputMode="decimal"
+                placeholder={`Cost each — blank uses saved ₹${Number(product.costPrice ?? product.cost ?? 0)}`}
+                value={unitCost}
+                onChange={e => setUnitCost(e.target.value)}
+                className="w-full bg-white border border-gray-300 shadow-sm rounded-2xl px-4 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent-signature/25 transition-all"
+              />
+              <p className="text-[10px] text-gray-400 font-medium mt-1.5 px-1">
+                Enter what you paid so profit on these units is exact — creates a cost batch. Leave blank to use the saved cost.
+              </p>
+            </div>
+          )}
 
         </div>
 

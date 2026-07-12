@@ -119,7 +119,7 @@ class ProductRepository {
   /// apart (the list showed one number, the detail another). The atomic RPC
   /// also records the movement so Stock History reflects the adjustment.
   Future<void> updateStock(String productId, double newStock,
-      {String reason = 'Manual adjustment'}) async {
+      {String reason = 'Manual adjustment', double? unitCost}) async {
     final row = await (db.select(db.products)
           ..where((t) => t.id.equals(productId)))
         .getSingleOrNull();
@@ -143,6 +143,10 @@ class ProductRepository {
       // Manual stock-down consumes FIFO cost batches so qty_remaining stays
       // in step with physical stock (no-op on positive adjustments).
       'p_consume_batches': true,
+      // Manual stock-add with a known price → creates a real cost batch
+      // (ignored on reductions / when null).
+      'p_unit_cost':
+          (delta > 0 && unitCost != null && unitCost > 0) ? unitCost : null,
     });
   }
 

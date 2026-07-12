@@ -175,8 +175,9 @@ export const useInventory = (tenantId) => {
     return { error };
   };
 
-  const adjustStock = async (productId, delta, reason, locationId) => {
+  const adjustStock = async (productId, delta, reason, locationId, unitCost) => {
     // Legacy support for AppContext RPC call logic
+    const cost = Number(unitCost);
     const rpcPayload = {
       p_product_id: productId,
       p_location_id: locationId ?? null,
@@ -187,6 +188,9 @@ export const useInventory = (tenantId) => {
       // Manual stock-down must consume FIFO cost batches so qty_remaining
       // stays in step with physical stock (no-op on positive adjustments).
       p_consume_batches: true,
+      // Manual stock-add with a known price → creates a real cost batch
+      // (ignored on reductions / when left blank).
+      p_unit_cost:   delta > 0 && Number.isFinite(cost) && cost > 0 ? cost : null,
     };
     // Desktop offline-first: queue the RPC + optimistic stock bump.
     if (isElectron()) {

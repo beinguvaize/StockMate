@@ -107,9 +107,9 @@ const Inventory = () => {
     return fromBalances || Number(product.stock) || 0;
   };
 
-  const handleAdjust = async (productId, delta, reason) => {
+  const handleAdjust = async (productId, delta, reason, locationId, unitCost) => {
     setAdjustSaving(true);
-    const result = await adjustStock(productId, delta, reason, null);
+    const result = await adjustStock(productId, delta, reason, locationId ?? null, unitCost);
     setAdjustSaving(false);
     return result;
   };
