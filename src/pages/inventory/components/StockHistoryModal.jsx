@@ -10,7 +10,15 @@ const TYPE_CONFIG = {
   TRANSFER: { label: 'Transfer',   color: 'text-blue-600',    bg: 'bg-blue-50',    border: 'border-blue-200',    Icon: RotateCcw },
 };
 
-const typeFor = (type = '') => TYPE_CONFIG[type.toUpperCase()] || TYPE_CONFIG.ADJUST;
+// movement_log.type is only ever IN or OUT. "Adjustment" and "Transfer" are
+// distinguished by the reason text, so classify on that first.
+const classify = (row) => {
+  const reason = (row.reason || '').toLowerCase();
+  if (/manual|adjust/.test(reason)) return 'ADJUST';
+  if (/transfer|godown|to location|relocat/.test(reason)) return 'TRANSFER';
+  return (row.type || '').toUpperCase() === 'OUT' ? 'OUT' : 'IN';
+};
+const typeFor = (kind = '') => TYPE_CONFIG[kind.toUpperCase()] || TYPE_CONFIG.ADJUST;
 
 const fmt = (iso) => {
   if (!iso) return '—';
@@ -50,7 +58,7 @@ export default function StockHistoryModal({ tenantId, products, onClose }) {
       const name = (r.product_name || productName(r.product_id, '')).toLowerCase();
       const reason = (r.reason || '').toLowerCase();
       const matchSearch = !q || name.includes(q) || reason.includes(q);
-      const matchType = typeFilter === 'ALL' || (r.type || '').toUpperCase() === typeFilter;
+      const matchType = typeFilter === 'ALL' || classify(r) === typeFilter;
       return matchSearch && matchType;
     });
   }, [log, search, typeFilter]);
@@ -118,7 +126,7 @@ export default function StockHistoryModal({ tenantId, products, onClose }) {
           ) : (
             <div className="space-y-2">
               {filtered.map(row => {
-                const cfg = typeFor(row.type);
+                const cfg = typeFor(classify(row));
                 const Icon = cfg.Icon;
                 const name = productName(row.product_id, row.product_name);
                 const qty = Number(row.quantity) || 0;
