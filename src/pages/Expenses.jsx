@@ -6,7 +6,7 @@ import { useInventory } from '../hooks/useInventory';
 import { useAccounts, accountForMethod } from '../hooks/useAccounts';
 import {
   Plus, Search, Calendar, FileText, X, Save, TrendingDown,
-  DollarSign, Briefcase, Layers, Receipt, Download
+  DollarSign, Briefcase, Layers, Receipt, Download, Wallet
 } from 'lucide-react';
 import { todayISOInAppTZ, formatCurrency } from '../lib/utils';
 import { EmptyState } from '../components/ui/States';
@@ -108,6 +108,9 @@ const Expenses = () => {
    gst_rate: '18',
    vendor_gstin: '',
    location_id: '',
+   // Owner drawing / loan repayment / capital — real cash out, but NOT an
+   // operating expense, so excluded from profit (still hits Cash & Bank).
+   exclude_from_pl: false,
  });
  // Expense is paid from the account matching its payment method.
  const payAcc = accountForMethod(accounts, formData.payment_method);
@@ -315,7 +318,7 @@ const Expenses = () => {
 
  setIsAdding(false);
  setEditingExpense(null);
- setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false, gst_claimable: false, gst_rate: '18', vendor_gstin: '', location_id: '' });
+ setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false, gst_claimable: false, gst_rate: '18', vendor_gstin: '', location_id: '', exclude_from_pl: false });
 };
 
  const handleEdit = (expense) => {
@@ -332,6 +335,7 @@ const Expenses = () => {
      gst_rate: expense.gst_rate ? String(expense.gst_rate) : '18',
      vendor_gstin: expense.vendor_gstin || '',
      location_id: expense.location_id || '',
+     exclude_from_pl: !!expense.exclude_from_pl,
    });
    setIsAdding(true);
  };
@@ -341,7 +345,7 @@ const Expenses = () => {
    setEditingExpense(null);
    setFormError('');
    setSaving(false);
-   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false, gst_claimable: false, gst_rate: '18', vendor_gstin: '', location_id: '' });
+   setFormData({ note: '', amount: '', category: 'Other', date: todayISOInAppTZ(), payment_method: 'CASH', repeat_monthly: false, gst_claimable: false, gst_rate: '18', vendor_gstin: '', location_id: '', exclude_from_pl: false });
  };
 
  useEffect(() => {
@@ -906,6 +910,28 @@ const Expenses = () => {
      </div>
    )}
  </div>
+
+ {/* ── Exclude from profit (drawings / loan / capital) ── */}
+ <label className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl border border-black/8 bg-white cursor-pointer hover:border-black/15 transition-colors">
+   <div className="flex items-center gap-3">
+     <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.exclude_from_pl ? 'bg-violet-500/10 text-violet-500' : 'bg-canvas text-gray-400'}`}>
+       <Wallet size={16} />
+     </div>
+     <div>
+       <div className="text-sm font-bold text-ink-primary">Not a business expense</div>
+       <div className="text-[11px] text-gray-500">Owner drawing, loan repayment or capital — kept out of profit</div>
+     </div>
+   </div>
+   <button
+     type="button"
+     role="switch"
+     aria-checked={formData.exclude_from_pl}
+     onClick={() => setFormData({ ...formData, exclude_from_pl: !formData.exclude_from_pl })}
+     className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-violet-500/20 shrink-0 ${formData.exclude_from_pl ? 'bg-violet-500' : 'bg-black/15'}`}
+   >
+     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.exclude_from_pl ? 'translate-x-5' : 'translate-x-0'}`} />
+   </button>
+ </label>
 
  {/* ── Repeat monthly (new expense only) ──────────────── */}
  {!editingExpense && (

@@ -106,6 +106,9 @@ export const useFinance = (tenantId) => {
     vendor_gstin: (expense.vendor_gstin ?? null) || null,
     // Store/till this expense was paid from. null = business-wide.
     location_id:  expense.location_id ?? null,
+    // Owner drawing / loan repayment / capital — cash out but not a P&L
+    // operating expense (excluded from net profit; still hits Cash & Bank).
+    exclude_from_pl: expense.exclude_from_pl ?? false,
   });
 
   const addExpense = async (expense) => {

@@ -11,6 +11,8 @@ class Expense {
   // Only counts as claimable ITC when vendorGstin is present (matches web).
   final double? gstAmount;
   final String? vendorGstin;
+  // Owner drawing / loan repayment / capital — excluded from P&L profit.
+  final bool excludeFromPl;
 
   Expense({
     required this.id,
@@ -23,6 +25,7 @@ class Expense {
     this.createdAt,
     this.gstAmount,
     this.vendorGstin,
+    this.excludeFromPl = false,
   });
 
   /// Claimable input tax credit for this row (0 unless a vendor GSTIN is set).
@@ -41,6 +44,7 @@ class Expense {
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : null,
       gstAmount: (json['gst_amount'] as num?)?.toDouble(),
       vendorGstin: json['vendor_gstin'] as String?,
+      excludeFromPl: json['exclude_from_pl'] == true,
     );
   }
 }
