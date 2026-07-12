@@ -140,6 +140,9 @@ class ProductRepository {
       'p_amount': delta,
       'p_reason': reason,
       'p_tenant_id': row!.tenantId,
+      // Manual stock-down consumes FIFO cost batches so qty_remaining stays
+      // in step with physical stock (no-op on positive adjustments).
+      'p_consume_batches': true,
     });
   }
 

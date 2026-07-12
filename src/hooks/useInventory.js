@@ -184,6 +184,9 @@ export const useInventory = (tenantId) => {
       p_reason:      reason,
       p_user_id:     null,
       p_tenant_id:   tenantId,
+      // Manual stock-down must consume FIFO cost batches so qty_remaining
+      // stays in step with physical stock (no-op on positive adjustments).
+      p_consume_batches: true,
     };
     // Desktop offline-first: queue the RPC + optimistic stock bump.
     if (isElectron()) {
