@@ -30,6 +30,7 @@ const ItemDetailView = ({
   const [listSearch, setListSearch] = useState('');
   const detailRef = React.useRef(null);
   const [batches, setBatches] = useState([]);
+  const [movements, setMovements] = useState([]);
   const [sales, setSales] = useState([]);
   const [clients, setClients] = useState({});
   const [suppliers, setSuppliers] = useState({});
@@ -50,7 +51,7 @@ const ItemDetailView = ({
     let cancelled = false;
     setLoading(true);
     (async () => {
-      const [b, s, c, pl, sup] = await Promise.all([
+      const [b, s, c, pl, sup, mv] = await Promise.all([
         supabase.from('product_batches').select('id, unit_cost, qty_remaining, qty_received, received_date, expiry_date, supplier_id, purchase_id')
           .eq('product_id', pid).eq('tenant_id', tenantId).is('deleted_at', null)
           .order('received_date', { ascending: false }),
@@ -59,9 +60,15 @@ const ItemDetailView = ({
         supabase.from('clients').select('id, name').eq('tenant_id', tenantId).is('deleted_at', null),
         supabase.from('price_lists').select('*').eq('product_id', pid).eq('tenant_id', tenantId),
         supabase.from('suppliers').select('id, name').eq('tenant_id', tenantId).is('deleted_at', null),
+        // Every stock in/out for this item — purchases, sales, and manual
+        // adjustments — so the user can track exactly what moved and why.
+        supabase.from('movement_log').select('id, date, type, quantity, reason')
+          .eq('product_id', pid).eq('tenant_id', tenantId)
+          .order('date', { ascending: false }).limit(200),
       ]);
       if (cancelled) return;
       setBatches(b.data || []);
+      setMovements(mv.data || []);
       // Keep only sales that contain this product.
       setSales((s.data || []).filter(row =>
         Array.isArray(row.items) && row.items.some(it => (it.id || it.productId) === pid)));
@@ -242,6 +249,33 @@ const ItemDetailView = ({
                     b.received_date || '—', suppliers[b.supplier_id] || '—', b.expiry_date || '—',
                     b.qty_received ?? '—', b.qty_remaining ?? 0, formatCurrency(b.unit_cost, currencySymbol),
                   ])} />
+              )}
+            </Card>
+
+            {/* Stock movements — every in/out incl. manual adjustments, so
+                the user can track exactly what changed the stock and why. */}
+            <Card title="Stock Movements (incl. manual adjustments)">
+              {loading ? <Empty text="Loading…" /> : movements.length === 0 ? <Empty text="No stock movements yet" /> : (
+                <Tbl head={['Date', 'Type', 'Source', 'Reason', 'Qty']}
+                  rows={movements.map(m => {
+                    const isIn = String(m.type).toUpperCase() === 'IN';
+                    const reason = m.reason || '';
+                    const isManual = /manual|adjust/i.test(reason);
+                    const source = isManual ? 'Manual adjust'
+                      : /purchase/i.test(reason) ? 'Purchase'
+                      : /sale/i.test(reason) ? 'Sale'
+                      : /production/i.test(reason) ? 'Production'
+                      : /return/i.test(reason) ? 'Return'
+                      : /damage/i.test(reason) ? 'Damage'
+                      : 'Other';
+                    return [
+                      m.date ? String(m.date).slice(0, 10) : '—',
+                      <span key="t" className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${isIn ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-500'}`}>{isIn ? 'IN' : 'OUT'}</span>,
+                      <span key="s" className={isManual ? 'font-bold text-amber-600' : ''}>{source}</span>,
+                      reason || '—',
+                      <span key="q" className={isIn ? 'text-emerald-600' : 'text-red-500'}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</span>,
+                    ];
+                  })} />
               )}
             </Card>
           </div>
