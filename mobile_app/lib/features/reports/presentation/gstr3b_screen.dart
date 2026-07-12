@@ -9,6 +9,14 @@ import 'package:mobile_app/features/reports/data/report_providers.dart';
 import 'package:mobile_app/features/reports/presentation/widgets/report_kpi_tile.dart';
 import 'package:mobile_app/features/reports/utils/financial_calcs.dart';
 
+// A GSTIN is 15 chars: 2 state digits + 10-char PAN + 3 more. Good enough to
+// tell "registered supplier" from a blank/placeholder, matching web's check.
+bool _hasValidGstin(String? gstin) {
+  if (gstin == null) return false;
+  final v = gstin.trim().toUpperCase().replaceAll(' ', '');
+  return RegExp(r'^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[0-9A-Z]{1}Z[0-9A-Z]{1}$').hasMatch(v);
+}
+
 const _kMonthNames = [
   '',
   'January',
@@ -106,6 +114,7 @@ class _Gstr3bView extends ConsumerWidget {
     final invoicesAsync = ref.watch(reportInvoicesProvider(params));
     final purchasesAsync = ref.watch(reportPurchasesProvider(params));
     final expensesAsync = ref.watch(reportExpensesProvider(params));
+    final suppliersAsync = ref.watch(reportSuppliersProvider(params));
 
     final now = DateTime.now();
     final yearRange = List.generate(3, (i) => now.year - 2 + i);
@@ -113,7 +122,8 @@ class _Gstr3bView extends ConsumerWidget {
     // Show loading if any provider is loading
     if (invoicesAsync.isLoading ||
         purchasesAsync.isLoading ||
-        expensesAsync.isLoading) {
+        expensesAsync.isLoading ||
+        suppliersAsync.isLoading) {
       return Scaffold(
         backgroundColor: AppColors.canvas,
         appBar: _buildAppBar(context, yearRange, now),
@@ -141,6 +151,13 @@ class _Gstr3bView extends ConsumerWidget {
 
     final invoices = invoicesAsync.value ?? [];
     final purchases = purchasesAsync.value ?? [];
+    // ITC is only claimable from GST-registered suppliers — build the set of
+    // registered supplier ids so unregistered-supplier purchases are excluded.
+    final registeredSupplierIds = <String>{
+      for (final s in (suppliersAsync.value ?? []))
+        if (_hasValidGstin(s['gstin'] as String? ?? s['gst_no'] as String?))
+          s['id'] as String,
+    };
 
     return Scaffold(
       backgroundColor: AppColors.canvas,
@@ -160,6 +177,7 @@ class _Gstr3bView extends ConsumerWidget {
       body: _Gstr3bBody(
         invoices: invoices,
         purchases: purchases,
+        registeredSupplierIds: registeredSupplierIds,
         year: year,
         month: month,
       ),
@@ -226,12 +244,14 @@ class _Gstr3bView extends ConsumerWidget {
 class _Gstr3bBody extends StatelessWidget {
   final List<Map<String, dynamic>> invoices;
   final List<Map<String, dynamic>> purchases;
+  final Set<String> registeredSupplierIds;
   final int year;
   final int month;
 
   const _Gstr3bBody({
     required this.invoices,
     required this.purchases,
+    required this.registeredSupplierIds,
     required this.year,
     required this.month,
   });
@@ -265,12 +285,22 @@ class _Gstr3bBody extends StatelessWidget {
             s + ((inv['igst_amount'] as num?)?.toDouble() ?? 0));
 
     // ── Section 4 — ITC ─────────────────────────────────────────────────────────
+    // Claimable only from GST-REGISTERED suppliers (Sec 16). Purchases from
+    // unregistered suppliers carry no creditable input tax — counting them
+    // over-claimed ITC and understated tax payable.
     double itcEstimate = 0;
+    double ineligibleItc = 0;
     for (final p in purchases) {
       final method = ((p['payment_type']) as String?)?.toUpperCase() ?? '';
       if (method == 'CREDIT') continue; // unpaid — no ITC yet
       final amt = (p['total_amount'] as num?)?.toDouble() ?? 0;
-      itcEstimate += amt * (18 / 118); // back-calculate 18% GST from total
+      final tax = amt * (18 / 118); // back-calculate 18% GST from total
+      final registered = registeredSupplierIds.contains(p['supplier_id']);
+      if (registered) {
+        itcEstimate += tax;
+      } else {
+        ineligibleItc += tax;
+      }
     }
     final totalITC = itcEstimate;
 
@@ -416,14 +446,22 @@ class _Gstr3bBody extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _GstRow(
-                label: 'ITC on purchases (estimated)',
+                label: 'ITC (GST-registered suppliers)',
                 value: formatINR(totalITC),
                 bold: true,
                 valueColor: const Color(0xFF059669),
               ),
+              if (ineligibleItc > 0) ...[
+                const SizedBox(height: 8),
+                _GstRow(
+                  label: 'Not claimable (unregistered suppliers)',
+                  value: formatINR(ineligibleItc),
+                  valueColor: AppColors.danger,
+                ),
+              ],
               const SizedBox(height: 10),
               Text(
-                'Estimated at 18% GST on paid purchases. Verify with actual invoices.',
+                'ITC counts only purchases from GST-registered suppliers, estimated at 18% on paid bills. Verify against actual invoices.',
                 style: GoogleFonts.manrope(
                   fontSize: 11,
                   fontStyle: FontStyle.italic,

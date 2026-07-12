@@ -44,12 +44,16 @@ const GSTR3BReport = () => {
     dateColumn: 'date',
     filters: { dateRange },
   });
+  // Suppliers — needed so ITC only counts GST-registered suppliers.
+  const { data: suppliers, loading: l6 } = useReportData({
+    table: 'suppliers', select: 'id, name, gstin', nullFilters: { deleted_at: null },
+  });
 
-  const loading = l1 || l2 || l3 || l4 || l5;
+  const loading = l1 || l2 || l3 || l4 || l5 || l6;
 
   const gstr3b = useMemo(
-    () => buildGSTR3B(sales, purchases, expenses, { businessState, clients, invoices }),
-    [sales, purchases, expenses, clients, invoices, businessState]
+    () => buildGSTR3B(sales, purchases, expenses, { businessState, clients, invoices, suppliers }),
+    [sales, purchases, expenses, clients, invoices, suppliers, businessState]
   );
 
   // Statutory credit set-off (Sec 49/49A/49B) → exact cash payable per head.
