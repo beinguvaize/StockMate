@@ -269,7 +269,10 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [AppColors.cardShadow],
                         ),
-                        child: Row(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                          Row(
                           children: [
                             // Avatar
                             Container(
@@ -362,50 +365,59 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                     ),
                                   ),
                                 ),
-                                if (isPartial) ...[
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Paid ₹${paidAmt.toStringAsFixed(0)} · Due ₹${dueAmt.toStringAsFixed(0)}',
-                                    style: GoogleFonts.manrope(
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.inkTertiary,
-                                    ),
-                                  ),
-                                ],
-                                // Quick collect for any sale that still owes
-                                // money (partial / credit / pending) — jumps
-                                // straight to Record Payment, no digging.
-                                if (!isPaid && !isFailed && dueAmt > 0) ...[
-                                  const SizedBox(height: 6),
-                                  GestureDetector(
-                                    onTap: () => Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (_) => InvoiceDetailScreen(invoice: Invoice.fromSale(sale))),
-                                    ),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primary,
-                                        borderRadius: BorderRadius.circular(99),
-                                      ),
-                                      child: Row(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          const Icon(LucideIcons.indianRupee, size: 12, color: Colors.white),
-                                          const SizedBox(width: 4),
-                                          Text(
-                                            'Collect ₹${dueAmt.toStringAsFixed(0)}',
-                                            style: GoogleFonts.manrope(
-                                              fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
                               ],
                             ),
+                          ],
+                        ),
+                        // Full-width strip for sales that still owe money —
+                        // clear paid/due figures + one-tap Collect, instead of
+                        // cramming them into the narrow right column.
+                        if (!isPaid && !isFailed && dueAmt > 0) ...[
+                          const SizedBox(height: 12),
+                          const Divider(height: 1),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  isPartial
+                                      ? 'Paid ₹${paidAmt.toStringAsFixed(0)}  ·  Due ₹${dueAmt.toStringAsFixed(0)}'
+                                      : 'Due ₹${dueAmt.toStringAsFixed(0)}',
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: const Color(0xFFB91C1C),
+                                  ),
+                                ),
+                              ),
+                              GestureDetector(
+                                onTap: () => Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => InvoiceDetailScreen(invoice: Invoice.fromSale(sale))),
+                                ),
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary,
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(LucideIcons.indianRupee, size: 13, color: Colors.white),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        'Collect ₹${dueAmt.toStringAsFixed(0)}',
+                                        style: GoogleFonts.manrope(
+                                          fontSize: 12, fontWeight: FontWeight.w700, color: Colors.white),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                           ],
                         ),
                       ),
