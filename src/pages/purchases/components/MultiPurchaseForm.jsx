@@ -8,7 +8,7 @@ import QuickCreateProductModal from './QuickCreateProductModal';
 // grows past a few dozen items (no way to filter by typing). The results list
 // is rendered in a portal (fixed position) so the surrounding form's
 // overflow-hidden never clips it.
-const ProductPicker = ({ products, value, onSelect }) => {
+const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [rect, setRect] = useState(null);
@@ -84,6 +84,16 @@ const ProductPicker = ({ products, value, onSelect }) => {
               <span className="block text-[9px] font-medium text-gray-400 mt-0.5">Stock: {p.stock ?? 0}{p.sku ? ` · ${p.sku}` : ''}</span>
             </button>
           ))}
+          {/* Add a brand-new product without leaving the purchase form. */}
+          {onCreateNew && (
+            <button
+              type="button"
+              onMouseDown={e => { e.preventDefault(); const q = query.trim(); setOpen(false); setQuery(''); onCreateNew(q); }}
+              className="w-full text-left px-3 py-2.5 text-xs font-bold text-accent-signature hover:bg-accent-signature/5 transition-colors border-t border-black/5 flex items-center gap-1.5 sticky bottom-0 bg-white"
+            >
+              <Plus size={13} /> Create new product{query.trim() ? ` “${query.trim()}”` : ''}
+            </button>
+          )}
         </div>,
         document.body
       )}
@@ -323,6 +333,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                           barcodeStatus:     id ? 'found' : null,
                         });
                       }}
+                      onCreateNew={(name) => setQuickCreate({ lineKey: line._key, barcode: '', name })}
                     />
                     {product && (
                       <p className="text-[8px] font-bold text-gray-400 mt-1 ml-1">
@@ -406,6 +417,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
       {quickCreate && (
         <QuickCreateProductModal
           barcode={quickCreate.barcode}
+          initialName={quickCreate.name}
           loading={createLoading}
           onSave={handleQuickCreate}
           onCancel={() => setQuickCreate(null)}

@@ -6,9 +6,9 @@ import { UNITS } from '../../../lib/constants';
  * Lightweight product-creation sheet — triggered when a scanned barcode
  * doesn't match any existing product.
  */
-const QuickCreateProductModal = ({ barcode, onSave, onCancel, loading }) => {
+const QuickCreateProductModal = ({ barcode, initialName, onSave, onCancel, loading }) => {
   const [form, setForm] = useState({
-    name:         '',
+    name:         initialName || '',
     sku:          '',
     unit:         UNITS[0],
     costPrice:    '',
