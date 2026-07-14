@@ -112,7 +112,10 @@ class Invoice {
       invoiceDate:   s.date,
       dueDate:       s.date,
       grandTotal:    total,
-      paidAmount:    (s.paymentStatus?.toUpperCase() == 'PAID') ? total : 0.0,
+      // Use the sale's real paidAmount so a PARTIAL sale shows the correct
+      // balance due (was zeroed for anything not fully PAID — the Record
+      // Payment sheet then showed the full total, not the remaining due).
+      paidAmount:    s.paidAmount ?? ((s.paymentStatus?.toUpperCase() == 'PAID') ? total : 0.0),
       paymentStatus: s.paymentStatus?.toUpperCase() ?? 'UNPAID',
       taxableAmount: taxable,
       igstAmount:    taxAmt > 0 ? taxAmt : null,
