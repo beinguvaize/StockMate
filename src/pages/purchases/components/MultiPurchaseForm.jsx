@@ -1,14 +1,18 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Plus, Trash2, CheckCircle2, Barcode, AlertCircle, Search, X } from 'lucide-react';
 import { todayISOInAppTZ } from '../../../lib/utils';
 import QuickCreateProductModal from './QuickCreateProductModal';
 
 // Searchable product combobox — plain <select> is unusable once the catalog
-// grows past a few dozen items (no way to filter by typing).
+// grows past a few dozen items (no way to filter by typing). The results list
+// is rendered in a portal (fixed position) so the surrounding form's
+// overflow-hidden never clips it.
 const ProductPicker = ({ products, value, onSelect }) => {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
-  const wrapRef = useRef(null);
+  const [rect, setRect] = useState(null);
+  const inputWrapRef = useRef(null);
   const selected = products.find(p => p.id === value);
 
   const filtered = useMemo(() => {
@@ -21,9 +25,25 @@ const ProductPicker = ({ products, value, onSelect }) => {
     ).slice(0, 50);
   }, [products, query]);
 
+  // Keep the portal dropdown glued to the input on open / scroll / resize.
+  useLayoutEffect(() => {
+    if (!open) return;
+    const measure = () => {
+      const el = inputWrapRef.current;
+      if (el) setRect(el.getBoundingClientRect());
+    };
+    measure();
+    window.addEventListener('scroll', measure, true);
+    window.addEventListener('resize', measure);
+    return () => {
+      window.removeEventListener('scroll', measure, true);
+      window.removeEventListener('resize', measure);
+    };
+  }, [open]);
+
   return (
-    <div ref={wrapRef} className="relative">
-      <div className="relative">
+    <div className="relative">
+      <div ref={inputWrapRef} className="relative">
         <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" />
         <input
           type="text"
@@ -45,8 +65,11 @@ const ProductPicker = ({ products, value, onSelect }) => {
           </button>
         )}
       </div>
-      {open && (
-        <div className="absolute z-50 top-full mt-1 left-0 right-0 bg-white border border-black/10 rounded-xl shadow-xl max-h-56 overflow-y-auto">
+      {open && rect && createPortal(
+        <div
+          className="fixed z-[100] bg-white border border-black/10 rounded-xl shadow-xl max-h-64 overflow-y-auto"
+          style={{ left: rect.left, top: rect.bottom + 4, width: rect.width }}
+        >
           {filtered.length === 0 && (
             <div className="px-3 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">No matches</div>
           )}
@@ -61,7 +84,8 @@ const ProductPicker = ({ products, value, onSelect }) => {
               <span className="block text-[9px] font-medium text-gray-400 mt-0.5">Stock: {p.stock ?? 0}{p.sku ? ` · ${p.sku}` : ''}</span>
             </button>
           ))}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
