@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/invoices/presentation/invoice_detail_screen.dart';
@@ -369,6 +370,37 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                       fontSize: 10,
                                       fontWeight: FontWeight.w600,
                                       color: AppColors.inkTertiary,
+                                    ),
+                                  ),
+                                ],
+                                // Quick collect for any sale that still owes
+                                // money (partial / credit / pending) — jumps
+                                // straight to Record Payment, no digging.
+                                if (!isPaid && !isFailed && dueAmt > 0) ...[
+                                  const SizedBox(height: 6),
+                                  GestureDetector(
+                                    onTap: () => Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (_) => InvoiceDetailScreen(invoice: Invoice.fromSale(sale))),
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primary,
+                                        borderRadius: BorderRadius.circular(99),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Icon(LucideIcons.indianRupee, size: 12, color: Colors.white),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            'Collect ₹${dueAmt.toStringAsFixed(0)}',
+                                            style: GoogleFonts.manrope(
+                                              fontSize: 11, fontWeight: FontWeight.w700, color: Colors.white),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
                                 ],
