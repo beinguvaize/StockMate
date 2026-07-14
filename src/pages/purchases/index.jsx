@@ -79,10 +79,17 @@ const PurchasesPage = () => {
   }, [purchases]);
 
 
+  const productNameById = useMemo(() => {
+    const m = {};
+    (products || []).forEach(x => { m[x.id] = x.name || ''; });
+    return m;
+  }, [products]);
+
   const filteredPurchases = useMemo(() => {
     const q = search.trim().toLowerCase();
     let rows = (purchases || []).filter(p => {
-      if (q && !(`${p.id} ${p.supplier_name || ''} ${p.notes || ''}`.toLowerCase().includes(q))) return false;
+      const prodName = productNameById[p.linked_product_id] || '';
+      if (q && !(`${p.id} ${p.supplier_name || ''} ${p.notes || ''} ${prodName}`.toLowerCase().includes(q))) return false;
       if (fSupplier !== 'ALL' && p.supplier_id !== fSupplier) return false;
       if (fPay === 'CASH' && _credit(p.payment_type)) return false;
       if (fPay === 'CREDIT' && !_credit(p.payment_type)) return false;
@@ -97,7 +104,7 @@ const PurchasesPage = () => {
       return String(b.date).localeCompare(String(a.date)); // DATE_DESC
     });
     return rows;
-  }, [purchases, search, fSupplier, fPay, fStatus, sortBy]);
+  }, [purchases, search, fSupplier, fPay, fStatus, sortBy, productNameById]);
 
   // Professional, self-contained printable purchase voucher (own CSS — the
   // print window has none of the app's styles).
@@ -562,7 +569,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
         <div className="flex flex-wrap items-center gap-2 bg-white border border-black/5 rounded-xl p-2">
           <div className="relative flex-1 min-w-[180px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search ref / supplier / notes…"
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search product / ref / supplier / notes…"
               className="w-full h-9 pl-9 pr-3 bg-white border border-black/10 rounded-lg text-[12px] font-semibold outline-none focus:border-amber-400" />
           </div>
           <select value={fSupplier} onChange={e => setFSup(e.target.value)} className="h-9 px-2 border border-black/10 rounded-lg text-[12px] font-semibold">
