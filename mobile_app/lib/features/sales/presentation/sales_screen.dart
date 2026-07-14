@@ -379,14 +379,26 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                           Row(
                             children: [
                               Expanded(
-                                child: Text(
-                                  isPartial
-                                      ? 'Paid ₹${paidAmt.toStringAsFixed(0)}  ·  Due ₹${dueAmt.toStringAsFixed(0)}'
-                                      : 'Due ₹${dueAmt.toStringAsFixed(0)}',
-                                  style: GoogleFonts.manrope(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFFB91C1C),
+                                child: Text.rich(
+                                  TextSpan(
+                                    style: GoogleFonts.manrope(
+                                      fontSize: 12, fontWeight: FontWeight.w700),
+                                    children: [
+                                      if (isPartial) ...[
+                                        TextSpan(
+                                          text: 'Paid ₹${paidAmt.toStringAsFixed(0)}',
+                                          style: const TextStyle(color: AppColors.success),
+                                        ),
+                                        const TextSpan(
+                                          text: '  ·  ',
+                                          style: TextStyle(color: AppColors.inkTertiary),
+                                        ),
+                                      ],
+                                      TextSpan(
+                                        text: 'Due ₹${dueAmt.toStringAsFixed(0)}',
+                                        style: const TextStyle(color: Color(0xFFB91C1C)),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
