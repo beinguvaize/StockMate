@@ -50,7 +50,11 @@ const ProductPicker = ({ products, value, onSelect, onCreateNew }) => {
           className={`w-full bg-white border border-gray-300 shadow-sm rounded-lg pl-6 pr-6 py-2 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20 ${selected ? '' : 'text-gray-400'}`}
           placeholder="Search product…"
           value={open ? query : (selected?.name || '')}
-          onFocus={() => { setQuery(''); setOpen(true); }}
+          // Seed the query with the current product and select it, instead of
+          // blanking the box. Clearing on focus made tabbing through a row look
+          // like the product had been wiped, so it got re-entered every time.
+          // Text is selected, so typing still replaces it in one keystroke.
+          onFocus={e => { setQuery(selected?.name || ''); setOpen(true); e.target.select(); }}
           onChange={e => { setQuery(e.target.value); setOpen(true); }}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
         />
