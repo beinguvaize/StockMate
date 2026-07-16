@@ -117,7 +117,7 @@ const AllTransactionsReport = () => {
         party:  name,
         dir:    'in',
         amount: Number(s.totalAmount || 0),
-        ref:    `SALE-${(s.id || '').slice(0,8).toUpperCase()}`,
+        ref:    (s.id || '').toUpperCase(), // id already carries the SAL- prefix — no double wrap / truncation
       });
     });
 

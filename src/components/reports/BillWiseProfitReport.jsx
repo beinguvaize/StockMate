@@ -132,7 +132,7 @@ const BillWiseProfitReport = () => {
       const profit  = revenue - cost;
       const margin  = revenue > 0 ? (profit / revenue) * 100 : 0;
       const customer = s.customerInfo?.name || 'Walk-in';
-      const ref      = `SALE-${(s.id || '').slice(0,8).toUpperCase()}`;
+      const ref      = (s.id || '').toUpperCase(); // id already SAL-prefixed — no double wrap / truncation
       return { date: s.date || '', ref, customer, revenue, cost, profit, margin };
     }).sort((a, b) => b.date.localeCompare(a.date));
 
