@@ -492,6 +492,7 @@ const Settings = ({ embedded = false, section = null }) => {
      {[
        { value: 'EXCLUSIVE', label: 'Tax Exclusive', desc: 'Price shown before GST · tax added on top' },
        { value: 'INCLUSIVE', label: 'Tax Inclusive', desc: 'Price already includes GST · tax extracted from total' },
+       { value: 'NONE',      label: 'No GST / Gross', desc: 'Not filing GST · profit counts full amounts, no tax split' },
      ].map(opt => (
        <button
          key={opt.value}

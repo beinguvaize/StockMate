@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
@@ -303,23 +304,50 @@ class _SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       backgroundColor: AppColors.canvas,
       body: SafeArea(
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Logo — horizontally centered
-              Image(
-                image: AssetImage('assets/images/logo.png'),
-                width: 180,
-                fit: BoxFit.contain,
+        child: Stack(
+          children: [
+            const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Logo — horizontally centered
+                  Image(
+                    image: AssetImage('assets/images/logo.png'),
+                    width: 180,
+                    fit: BoxFit.contain,
+                  ),
+                  SizedBox(height: 32),
+                  CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                ],
               ),
-              SizedBox(height: 32),
-              CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
-            ],
-          ),
+            ),
+            // App version — pinned bottom-center, read from the build's pubspec.
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: FutureBuilder<PackageInfo>(
+                  future: PackageInfo.fromPlatform(),
+                  builder: (context, snap) {
+                    final v = snap.hasData
+                        ? 'v${snap.data!.version} (${snap.data!.buildNumber})'
+                        : '';
+                    return Text(
+                      v,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: AppColors.inkTertiary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

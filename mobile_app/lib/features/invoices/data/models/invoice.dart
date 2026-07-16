@@ -84,8 +84,10 @@ class Invoice {
   ///   so it's never mistaken for a tax-invoice number.
   String get displayNumber {
     if (invoiceNumber != null && invoiceNumber!.isNotEmpty) return invoiceNumber!;
-    final tail = id.substring(id.length - 6).toUpperCase();
-    return isSaleSource ? 'SAL-$tail' : '#$tail';
+    // Show the COMPLETE reference. Truncating to a 6-char tail dropped digits
+    // and could make two different sales print the same number on a receipt.
+    final full = id.toUpperCase();
+    return isSaleSource ? full : '#$full';
   }
 
   /// Human-friendly document type label for headers / cards.

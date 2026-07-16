@@ -85,20 +85,28 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       key: _scaffoldKey,
       backgroundColor: AppColors.canvas,
       drawer: const _AppDrawer(),
+      // Lift the FAB clear of the custom bottom nav bar so the "+" sits
+      // ABOVE the "More" tab instead of covering it. The nav bar is a
+      // Positioned container (not Scaffold.bottomNavigationBar), so Scaffold
+      // never auto-offsets the FAB — we pad it up by the nav height + SafeArea.
       floatingActionButton: currentFeature == 'sales'
-          ? FloatingActionButton(
-              heroTag: null,
-              onPressed: () {
-                final roles = ProviderScope.containerOf(context, listen: false)
-                    .read(tenantContextProvider)
-                    .value?.roles ?? [];
-                navigateToNewSale(context, roles);
-              },
-              backgroundColor: AppColors.secondary,
-              foregroundColor: AppColors.primaryContainer,
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-              child: const Icon(LucideIcons.plus, size: 26),
+          ? Padding(
+              padding: EdgeInsets.only(
+                  bottom: 76 + MediaQuery.of(context).viewPadding.bottom),
+              child: FloatingActionButton(
+                heroTag: null,
+                onPressed: () {
+                  final roles = ProviderScope.containerOf(context, listen: false)
+                      .read(tenantContextProvider)
+                      .value?.roles ?? [];
+                  navigateToNewSale(context, roles);
+                },
+                backgroundColor: AppColors.secondary,
+                foregroundColor: AppColors.primaryContainer,
+                elevation: 4,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                child: const Icon(LucideIcons.plus, size: 26),
+              ),
             )
           : null,
       body: Column(
