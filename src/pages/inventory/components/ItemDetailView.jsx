@@ -21,6 +21,15 @@ const TABS = [
   { id: 'PRICES',  label: 'Client Wise Prices', icon: Tags },
 ];
 
+// Where a batch came from when no supplier is linked (hand-added stock, or a
+// cost-layer reconciliation). Keeps the note readable instead of showing "—".
+const batchSource = (b) => {
+  const note = (b.note || '').trim();
+  if (!note) return b.purchase_id ? 'Purchase' : 'Added by hand';
+  if (/^reconcile/i.test(note)) return 'Stock reconciliation';
+  return note;
+};
+
 const ItemDetailView = ({
   product, locations = [], balances = [], tenantId,
   onClose, onEdit, onAdjust, onPrintBarcode, onDelete, currencySymbol = '₹',
@@ -52,7 +61,7 @@ const ItemDetailView = ({
     setLoading(true);
     (async () => {
       const [b, s, c, pl, sup, mv] = await Promise.all([
-        supabase.from('product_batches').select('id, unit_cost, qty_remaining, qty_received, received_date, expiry_date, supplier_id, purchase_id')
+        supabase.from('product_batches').select('id, unit_cost, qty_remaining, qty_received, received_date, expiry_date, supplier_id, purchase_id, note')
           .eq('product_id', pid).eq('tenant_id', tenantId).is('deleted_at', null)
           .order('received_date', { ascending: false }),
         supabase.from('sales').select('"shopId", items, date, "totalAmount"')
@@ -244,9 +253,14 @@ const ItemDetailView = ({
             </div>
             <Card title="Batches">
               {loading ? <Empty text="Loading…" /> : batches.length === 0 ? <Empty text="No batch records" /> : (
-                <Tbl head={['Received', 'Supplier', 'Expiry', 'Received Qty', 'Remaining', 'Unit Cost']}
+                <Tbl head={['Received', 'Source', 'Expiry', 'Received Qty', 'Remaining', 'Unit Cost']}
                   rows={batches.map(b => [
-                    b.received_date || '—', suppliers[b.supplier_id] || '—', b.expiry_date || '—',
+                    b.received_date || '—',
+                    // Not every batch comes from a supplier — stock added by
+                    // hand, or by a cost reconciliation, has no supplier_id and
+                    // rendered a bare "—" with no way to tell where it came
+                    // from. Fall back to the batch note.
+                    suppliers[b.supplier_id] || batchSource(b), b.expiry_date || '—',
                     b.qty_received ?? '—', b.qty_remaining ?? 0, formatCurrency(b.unit_cost, currencySymbol),
                   ])} />
               )}
