@@ -254,7 +254,18 @@ const ItemDetailView = ({
 
             {/* Manual adjustments only — hand corrections to stock. */}
             {(() => {
-              const manual = movements.filter(m => /manual|adjust/i.test(m.reason || ''));
+              // Anything NOT written by an automated flow is a hand correction.
+              // Matching /manual|adjust/ on the reason hid almost everything:
+              // none of the Adjust Stock presets ("Data correction", "Physical
+              // stock count", "Internal use", …) contain those words, so real
+              // adjustments looked like "No manual adjustments". Exclude the
+              // system-generated reasons instead — that also covers free text
+              // and any preset added later.
+              const SYSTEM_REASON = /^(sale|purchase|van |loaded on vehicle|dispatch to vehicle|void sale|unvoid sale)/i;
+              const manual = movements.filter(m => {
+                const reason = (m.reason || '').trim();
+                return reason !== '' && !SYSTEM_REASON.test(reason);
+              });
               return (
                 <Card title="Manual Adjustments">
                   {loading ? <Empty text="Loading…" /> : manual.length === 0 ? <Empty text="No manual adjustments" /> : (
