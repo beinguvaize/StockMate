@@ -196,7 +196,7 @@ const FinancialReport = () => {
             </thead>
             <tbody>
               <tr className="border-t border-black/[0.05]">
-                <Cell align="left" cls="font-bold text-ink-primary">Sales revenue (net of GST)</Cell>
+                <Cell align="left" cls="font-bold text-ink-primary">{m.gst > 0 ? 'Sales revenue (net of GST)' : 'Sales revenue (gross)'}</Cell>
                 <Cell cls="font-bold tabular-nums">{formatCurrency(m.revenue, cur)}</Cell>
                 <Cell cls="text-gray-400">100.0%</Cell>
                 <Cell cls="text-gray-400">{formatCurrency(p.revenue, cur)}</Cell>
