@@ -211,6 +211,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
     setAddLoading(true);
     const supplierName = suppliers.find(s => s.id === header.supplier_id)?.name || '';
     let failed = 0;
+    let firstError = '';
     for (const item of items) {
       const payload = {
         id:                generateRef('PUR'),
@@ -228,7 +229,14 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
         locationId:        header.location_id || null,
       };
       const { error } = await addPurchase(payload);
-      if (error) { failed++; continue; }
+      if (error) {
+        // Surface the real reason — swallowing it turned a hard DB error
+        // ("function is not unique") into a bare "N item(s) failed to save".
+        console.error('[purchase] save failed for', item.linked_product_id, error);
+        if (!firstError) firstError = error.message || String(error);
+        failed++;
+        continue;
+      }
       await updateWAC(item.linked_product_id, item.quantity, item.unit_price);
       // Expiry tracking: a dated batch per line when expiry was provided.
       if (item.expiry_date) {
@@ -259,7 +267,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
       }
     }
     setAddLoading(false);
-    if (failed > 0) alert(`${failed} item(s) failed to save.`);
+    if (failed > 0) alert(`${failed} item(s) failed to save.${firstError ? `\n\nReason: ${firstError}` : ''}`);
     else setShowAddModal(false);
   };
 
