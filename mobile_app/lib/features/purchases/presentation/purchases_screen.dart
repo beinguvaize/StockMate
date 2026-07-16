@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -1132,11 +1133,16 @@ class _AddPurchaseSheetState extends ConsumerState<_AddPurchaseSheet> {
       }
     } catch (e) {
       if (mounted) {
+        // Show the real reason — a server rejection is not an internet problem,
+        // and blaming the connection hides genuine DB errors.
         debugPrint('[purchases] save failed: $e');
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Could not save. Check your internet and try again.'),
+        final msg = e is PostgrestException
+            ? 'Could not save: ${e.message}'
+            : 'Could not save. Check your internet and try again.';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(msg),
           backgroundColor: AppColors.danger,
-          duration: Duration(seconds: 6),
+          duration: const Duration(seconds: 6),
         ));
       }
     } finally {

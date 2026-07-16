@@ -15,6 +15,7 @@ import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException, AuthException;
 
 enum SyncAction { upsert, delete, rpc }
 
@@ -86,6 +87,20 @@ class SyncService {
   // default (60s+).
   static const _netTimeout = Duration(seconds: 6);
 
+  /// True when a failure looks like a connectivity problem (worth queueing),
+  /// false when the server answered and rejected the call.
+  ///
+  /// Queueing a server rejection is harmful: the mutation can never succeed on
+  /// replay, it burns retries until FAILED, and the caller is told "saved
+  /// offline" for something that will never land. A real DB error must surface
+  /// instead — that's how a broken RPC (adjust_inventory_atomic overload
+  /// ambiguity) stayed invisible. Mirrors the desktop isOfflineError split.
+  bool _isNetworkError(Object e) {
+    if (e is PostgrestException) return false; // server responded → logic/data error
+    if (e is AuthException) return false;      // auth rejection → not connectivity
+    return true;                               // socket / timeout / DNS → offline
+  }
+
   Future<bool> upsertOnlineOrQueue(String table, Map<String, dynamic> row) async {
     try {
       await supabase.from(table).upsert(row).timeout(_netTimeout);
@@ -118,6 +133,12 @@ class SyncService {
       await supabase.rpc(name, params: params).timeout(_netTimeout);
       return false;
     } catch (e) {
+      if (!_isNetworkError(e)) {
+        // Server rejected it — replaying would never help. Surface the real
+        // reason to the caller instead of a false "saved offline".
+        debugPrint('[sync] rpc($name) REJECTED by server — not queueing: $e');
+        rethrow;
+      }
       debugPrint('[sync] rpc($name) failed online — queueing: $e');
       await queueMutation(
         targetTable: 'rpc:$name',
