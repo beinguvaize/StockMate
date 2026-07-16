@@ -11,6 +11,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:ota_update/ota_update.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -76,6 +77,39 @@ class AutoUpdater {
     return _ReleaseInfo.noAsset();
   }
 
+  // ── "Later" snooze ─────────────────────────────────────────────────────────
+  // Tapping Later used to be forgotten instantly, so the launch check
+  // re-prompted on every single app open — the dialog felt like it "always"
+  // showed. Remember the declined version for a day. A NEWER version still
+  // prompts immediately, and the manual Settings check (verbose) always shows.
+  static const _snoozeVerKey   = 'update_snooze_version';
+  static const _snoozeUntilKey = 'update_snooze_until';
+  static const _snoozeFor      = Duration(hours: 24);
+  static const _store = FlutterSecureStorage();
+
+  Future<void> _snooze(String version) async {
+    try {
+      await _store.write(key: _snoozeVerKey, value: version);
+      await _store.write(
+          key: _snoozeUntilKey,
+          value: DateTime.now().add(_snoozeFor).toIso8601String());
+    } catch (e) {
+      debugPrint('[autoUpdater] snooze write failed: $e');
+    }
+  }
+
+  Future<bool> _isSnoozed(String version) async {
+    try {
+      if (await _store.read(key: _snoozeVerKey) != version) return false;
+      final until = DateTime.tryParse(
+          await _store.read(key: _snoozeUntilKey) ?? '');
+      return until != null && DateTime.now().isBefore(until);
+    } catch (e) {
+      debugPrint('[autoUpdater] snooze read failed: $e');
+      return false; // never block the prompt on a storage error
+    }
+  }
+
   /// True iff `latest` is strictly greater than `current` (semver, naive).
   bool _isNewer(String current, String latest) {
     int parse(String s) {
@@ -122,6 +156,12 @@ class AutoUpdater {
         }
         return;
       }
+      // Respect a recent "Later" on this same version for the silent launch
+      // check. A manual check (verbose) always shows the dialog.
+      if (!verbose && await _isSnoozed(release.version)) {
+        debugPrint('[autoUpdater] v${release.version} snoozed — not prompting');
+        return;
+      }
       if (!context.mounted) return;
       await _showDialog(context, current: info.version, release: release);
     } catch (e) {
@@ -144,12 +184,20 @@ class AutoUpdater {
   // Strip github-flavored markdown (#, **, _, `) so the AlertDialog Text
   // widget shows readable copy instead of literal symbols. Cheap
   // alternative to pulling in flutter_markdown.
+  // NOTE: replaceAll does NOT expand `$1` — it inserts the literal text, so
+  // every **bold** heading rendered as "$1" in the update dialog. Group
+  // backreferences need replaceAllMapped.
   String _plain(String s) => s
       .replaceAll(RegExp(r'^#+\s*', multiLine: true), '')
-      .replaceAll(RegExp(r'\*\*([^*]+)\*\*'), r'$1')
-      .replaceAll(RegExp(r'\*([^*]+)\*'), r'$1')
-      .replaceAll(RegExp(r'`([^`]+)`'), r'$1')
-      .replaceAll(RegExp(r'_([^_]+)_'), r'$1');
+      .replaceAllMapped(RegExp(r'\*\*([^*]+)\*\*'), (m) => m[1]!)
+      .replaceAllMapped(RegExp(r'\*([^*]+)\*'), (m) => m[1]!)
+      .replaceAllMapped(RegExp(r'`([^`]+)`'), (m) => m[1]!)
+      .replaceAllMapped(RegExp(r'_([^_]+)_'), (m) => m[1]!)
+      // Drop the trailing "🤖 Generated with [Claude Code](url)" footer and
+      // collapse any leftover markdown links to their label.
+      .replaceAll(RegExp(r'\n*🤖 Generated with .*$', dotAll: true), '')
+      .replaceAllMapped(RegExp(r'\[([^\]]+)\]\([^)]*\)'), (m) => m[1]!)
+      .trim();
 
   // GitHub tag may include a product prefix (e.g. "mobile-v1.3.3").
   // Display the bare semver to the user.
@@ -197,7 +245,13 @@ class AutoUpdater {
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Later')),
+          TextButton(
+            onPressed: () {
+              _snooze(release.version); // don't re-nag on every launch
+              Navigator.pop(ctx);
+            },
+            child: const Text('Later'),
+          ),
           TextButton(
             onPressed: () async {
               Navigator.pop(ctx);
