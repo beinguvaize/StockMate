@@ -93,6 +93,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
   // EXCLUSIVE mode the rate is net and tax is added on top.
   const taxMode = (biz.tax_mode || 'EXCLUSIVE').toUpperCase();
   const inclusive = taxMode === 'INCLUSIVE';
+  const noGst     = taxMode === 'NONE'; // not filing GST — no tax split
 
   const items = (invoice.items || []).map(i => ({
     name:    i.name || 'Item',
@@ -106,13 +107,13 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
     const gross = i.qty * i.rate;
     return s + (inclusive ? gross / (1 + i.taxRate / 100) : gross);
   }, 0);
-  const totalTax = items.reduce((s, i) => {
+  const totalTax = noGst ? 0 : items.reduce((s, i) => {
     const gross = i.qty * i.rate;
     return s + (inclusive
       ? gross - gross / (1 + i.taxRate / 100)
       : gross * i.taxRate / 100);
   }, 0);
-  const grandTotal = parseFloat(invoice.grand_total ?? (inclusive
+  const grandTotal = parseFloat(invoice.grand_total ?? ((inclusive || noGst)
     ? items.reduce((s, i) => s + i.qty * i.rate, 0)
     : taxable + totalTax));
   const paidAmount = parseFloat(invoice.paid_amount ?? 0);

@@ -1632,7 +1632,9 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   }
 
   double get _subtotal {
-    // For INCLUSIVE: backed-out taxable. For EXCLUSIVE: lineTotal as-is.
+    // NONE: no tax split — line as-is. INCLUSIVE: backed-out taxable.
+    // EXCLUSIVE: lineTotal as-is.
+    if (_taxMode == 'NONE') return _localCart.fold(0.0, (s, c) => s + c.lineTotal);
     final inclusive = _taxMode == 'INCLUSIVE';
     return _localCart.fold(0.0, (s, c) {
       final r = (c.product.taxRate).toDouble();
@@ -1642,6 +1644,8 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   }
 
   double get _tax {
+    // NONE (not filing GST) = no tax computed at all.
+    if (_taxMode == 'NONE') return 0;
     final inclusive = _taxMode == 'INCLUSIVE';
     return _localCart.fold(0.0, (s, c) {
       final r = (c.product.taxRate).toDouble();
@@ -1651,10 +1655,11 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
   }
 
   double get _total {
-    // INCLUSIVE: grand total = sum of line totals (rate already has tax).
+    // NONE / INCLUSIVE: grand total = sum of line totals (no tax added on top).
     // EXCLUSIVE: grand total = subtotal + tax.
-    final inclusive = _taxMode == 'INCLUSIVE';
-    if (inclusive) return _localCart.fold(0.0, (s, c) => s + c.lineTotal);
+    if (_taxMode == 'NONE' || _taxMode == 'INCLUSIVE') {
+      return _localCart.fold(0.0, (s, c) => s + c.lineTotal);
+    }
     return _subtotal + _tax;
   }
 

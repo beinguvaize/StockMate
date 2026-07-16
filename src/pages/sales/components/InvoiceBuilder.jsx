@@ -78,6 +78,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   initialCart = null, onCartChange = null, tableLabel = null, onSendKOT = null, businessType = null,
   editId = null, editMeta = null, onEditDone = null, onRecordPayment = null }) => {
   const taxInclusive = taxMode === 'INCLUSIVE';
+  const noGst        = taxMode === 'NONE'; // not filing GST — no tax split, price is final
   // Restaurant dishes aren't unit-stocked at the POS (recipe deduction is R5),
   // so don't gate adding a dish on warehouse stock.
   const isRestoPOS = businessType === 'RESTAURANT';
@@ -533,7 +534,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const subtotal = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
   // Tax inclusive: price already contains GST → extract tax from subtotal
   // Tax exclusive: price is pre-tax → add tax on top
-  const tax = cart.reduce((acc, item) => {
+  const tax = noGst ? 0 : cart.reduce((acc, item) => {
     const lineTotal = item.price * item.quantity;
     const rate = item.taxRate / 100;
     return acc + (taxInclusive
@@ -545,7 +546,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const deliveryFeeAmt = fulfillmentType === 'DELIVERY' ? (parseFloat(deliveryDetails.fee) || 0) : 0;
   // Restaurant service charge — % of subtotal (before discount).
   const serviceChargeAmt = isRestoPOS ? subtotal * ((Number(serviceChargePct) || 0) / 100) : 0;
-  const grossTotal = (taxInclusive ? subtotal + deliveryFeeAmt : subtotal + tax + deliveryFeeAmt) + serviceChargeAmt;
+  // NONE / INCLUSIVE: price is final, tax not added on top. EXCLUSIVE: add tax.
+  const grossTotal = ((taxInclusive || noGst) ? subtotal + deliveryFeeAmt : subtotal + tax + deliveryFeeAmt) + serviceChargeAmt;
   // Flat order discount, clamped to [0, grossTotal].
   const discountAmt = Math.min(Math.max(parseFloat(discount) || 0, 0), grossTotal);
   const total = grossTotal - discountAmt;

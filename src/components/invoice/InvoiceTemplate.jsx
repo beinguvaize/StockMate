@@ -110,6 +110,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
   // EXCLUSIVE = GST added on top of rate. Default EXCLUSIVE for legacy.
   const taxMode = String(safeBusiness.tax_mode || invoice.tax_mode || 'EXCLUSIVE').toUpperCase();
   const isInclusive = taxMode === 'INCLUSIVE';
+  const noGst       = taxMode === 'NONE'; // not filing GST — no tax split
 
   // Map items to a consistent structure first (needed for fallback tax calc).
   // For INCLUSIVE mode the rate already contains tax; back it out.
@@ -118,10 +119,10 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
     const rate = parseFloat(item.rate || item.price || item.sellingPrice || 0);
     const taxRate = parseFloat(item.taxRate ?? 0);
     const lineTotal = qty * rate;
-    const taxAmount = isInclusive
+    const taxAmount = noGst ? 0 : (isInclusive
       ? lineTotal - (lineTotal / (1 + taxRate / 100))
-      : lineTotal * taxRate / 100;
-    const taxable   = isInclusive
+      : lineTotal * taxRate / 100);
+    const taxable   = (isInclusive && !noGst)
       ? lineTotal - taxAmount
       : lineTotal;
     return {
@@ -130,7 +131,7 @@ const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, o
       hsn_code: item.hsn_code || item.hsn || '---',
       qty, unit: item.unit || 'PCS', rate, taxRate,
       taxAmount, taxable,
-      total: isInclusive ? lineTotal : lineTotal + taxAmount,
+      total: (isInclusive || noGst) ? lineTotal : lineTotal + taxAmount,
     };
   });
 
