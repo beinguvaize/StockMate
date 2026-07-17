@@ -207,9 +207,9 @@ const GeneralLedgerReport = () => {
   const renderTypeBadge = (val) => {
     const colors = {
       SALE: 'bg-emerald-50 text-emerald-600',
-      COGS: 'bg-amber-50 text-amber-600',
+      COGS: 'bg-accent-signature/10 text-accent-signature',
       EXPENSE: 'bg-rose-50 text-rose-600',
-      PAYROLL: 'bg-amber-50 text-amber-600',
+      PAYROLL: 'bg-accent-signature/10 text-accent-signature',
       PURCHASE: 'bg-sky-50 text-sky-600',
     };
     return (
@@ -234,7 +234,7 @@ const GeneralLedgerReport = () => {
       { key: 'accountCode', label: 'GL', width: 80, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 font-bold">{val}</span> },
       { key: 'account', label: 'Account', sortable: true, width: 200, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
       { key: 'description', label: 'Description', width: 220, render: (val) => <span className="text-[11px] text-gray-600">{val}</span> },
-      { key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-black text-amber-600">{formatINR(val)}</span> : <span className="text-gray-300">—</span> },
+      { key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-black text-accent-signature">{formatINR(val)}</span> : <span className="text-gray-300">—</span> },
       { key: 'credit', label: 'Credit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-black text-emerald-600">{formatINR(val)}</span> : <span className="text-gray-300">—</span> },
     ],
     kpis: kpis,
@@ -295,7 +295,7 @@ const GeneralLedgerReport = () => {
       { key: 'accountCode', label: 'Code', sortable: true, width: 100, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 font-bold">{val}</span> },
       { key: 'account', label: 'Account Name', sortable: true, width: 280, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
       { key: 'entries', label: 'Entries', align: 'right', sortable: true, width: 110, render: (val) => <span className="font-mono font-bold text-gray-500">{val}</span> },
-      { key: 'debit', label: 'Total Debits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-black text-amber-600">{formatINR(val)}</span> },
+      { key: 'debit', label: 'Total Debits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-black text-accent-signature">{formatINR(val)}</span> },
       { key: 'credit', label: 'Total Credits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-black text-emerald-600">{formatINR(val)}</span> },
       { key: 'balance', label: 'Net Balance', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => (
         <span className={`font-black ${val >= 0 ? 'text-ink-primary' : 'text-rose-500'}`}>{formatINR(val)}</span>

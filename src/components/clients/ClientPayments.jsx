@@ -9,7 +9,7 @@ const METHOD_COLOR = {
   CARD:   'bg-blue-50   text-blue-700   border-blue-100',
   UPI:    'bg-purple-50 text-purple-700 border-purple-100',
   BANK:   'bg-sky-50    text-sky-700    border-sky-100',
-  CHEQUE: 'bg-amber-50  text-amber-700  border-amber-100',
+  CHEQUE: 'bg-accent-signature/10  text-accent-signature-hover  border-accent-signature/15',
 };
 
 const ClientPayments = ({ clientPayments, clients, businessProfile }) => {

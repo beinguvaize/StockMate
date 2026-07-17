@@ -266,7 +266,7 @@ const PartyProfitReport = () => {
             {rows.map((row, i) => (
               <div key={row.name}
                 className={`grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors`}>
-                <span className={`text-sm font-black tabular-nums ${i===0?'text-amber-500':i===1?'text-gray-400':i===2?'text-amber-700':'text-ink-tertiary'}`}>
+                <span className={`text-sm font-black tabular-nums ${i===0?'text-accent-signature':i===1?'text-gray-400':i===2?'text-accent-signature-hover':'text-ink-tertiary'}`}>
                   {i + 1}
                 </span>
                 <div className="flex items-center gap-2 min-w-0">
@@ -280,7 +280,7 @@ const PartyProfitReport = () => {
                 <span className={`text-sm font-black tabular-nums ${row.profit < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
                   {formatCurrency(row.profit)}
                 </span>
-                <span className={`text-sm font-black tabular-nums ${row.margin < 0 ? 'text-red-500' : row.margin < 10 ? 'text-amber-500' : 'text-emerald-600'}`}>
+                <span className={`text-sm font-black tabular-nums ${row.margin < 0 ? 'text-red-500' : row.margin < 10 ? 'text-accent-signature' : 'text-emerald-600'}`}>
                   {row.margin.toFixed(1)}%
                 </span>
                 <span className="text-sm font-bold text-ink-secondary tabular-nums">{row.orders}</span>

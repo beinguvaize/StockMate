@@ -264,7 +264,7 @@ const SuperAdminPortal = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5 mb-12">
         <StatCard label="Active Tenants" value={globalStats.totalTenants} icon={Building} color="bg-blue-600" detail="LIFETIME" />
         <StatCard label="Platform Users" value={globalStats.activeUsers} icon={Users} color="bg-emerald-600" detail="REAL-TIME" />
-        <StatCard label="System Integrity" value={globalStats.systemHealth} icon={Activity} color="bg-amber-600" detail="STABLE" />
+        <StatCard label="System Integrity" value={globalStats.systemHealth} icon={Activity} color="bg-accent-signature" detail="STABLE" />
         <StatCard label="Database Volume" value={globalStats.dbSize} icon={Database} color="bg-purple-600" detail="94% FREE" />
       </div>
 
@@ -344,7 +344,7 @@ const SuperAdminPortal = () => {
                             const sub = subs[tenant.id];
                             const st = sub?.status || 'TRIAL';
                             const cls = st === 'ACTIVE' ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                              : st === 'PAST_DUE' ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : st === 'PAST_DUE' ? 'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25'
                               : st === 'EXPIRED' || st === 'CANCELLED' ? 'bg-red-50 text-red-600 border-red-200'
                               : 'bg-gray-100 text-gray-600 border-gray-200';
                             return (
@@ -357,7 +357,7 @@ const SuperAdminPortal = () => {
                                   {['TRIAL','ACTIVE','PAST_DUE','EXPIRED','CANCELLED'].map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
                                 <button onClick={() => extendTrial(tenant.id, 14)} title="Extend trial 14 days"
-                                  className="text-[10px] font-bold text-gray-400 hover:text-amber-600">+14d</button>
+                                  className="text-[10px] font-bold text-gray-400 hover:text-accent-signature">+14d</button>
                               </div>
                             );
                           })()}
@@ -368,7 +368,7 @@ const SuperAdminPortal = () => {
                               setSelectedTenant(tenant);
                               setIsDrawerOpen(true);
                             }}
-                            className="p-2 hover:bg-black/5 rounded-lg text-gray-400 hover:text-amber-600 transition-all"
+                            className="p-2 hover:bg-black/5 rounded-lg text-gray-400 hover:text-accent-signature transition-all"
                             title="Manage Tenant"
                           >
                             <Settings size={14} />
@@ -420,13 +420,13 @@ const SuperAdminPortal = () => {
                   }}
                   className="w-full flex items-center justify-between p-4 rounded-xl bg-canvas hover:bg-gray-100 border border-black/5 transition-all group">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-amber-50 text-amber-600"><RefreshCcw size={16} /></div>
+                    <div className="p-2 rounded-lg bg-accent-signature/10 text-accent-signature"><RefreshCcw size={16} /></div>
                     <div className="text-left">
                       <p className="text-xs font-bold text-ink-primary uppercase">Global Cache Reset</p>
                       <p className="text-[8px] text-gray-500 font-bold uppercase tracking-wide">Flush Cloud Instance Data</p>
                     </div>
                   </div>
-                  <ChevronRight size={16} className="text-gray-400 group-hover:text-amber-600 transition-colors" />
+                  <ChevronRight size={16} className="text-gray-400 group-hover:text-accent-signature transition-colors" />
                 </button>
 
                 <button 
@@ -550,19 +550,19 @@ const SuperAdminPortal = () => {
                 </div>
               </section>
 
-              <section className="bg-amber-50 rounded-2xl p-5 border border-amber-100 shadow-sm">
+              <section className="bg-accent-signature/10 rounded-2xl p-5 border border-accent-signature/15 shadow-sm">
                 <div className="flex items-start mb-4">
-                  <div className="p-2.5 bg-amber-100 rounded-xl text-amber-700 mr-3 shadow-inner">
+                  <div className="p-2.5 bg-accent-signature/15 rounded-xl text-accent-signature-hover mr-3 shadow-inner">
                     <ShieldAlert size={20} />
                   </div>
                   <div>
-                    <h4 className="text-xs font-black text-amber-900 uppercase tracking-tight">Operations Bridge</h4>
-                    <p className="text-[10px] font-bold text-amber-700/80 mt-1 uppercase">Enter this workspace for support.</p>
+                    <h4 className="text-xs font-black text-accent-signature-hover uppercase tracking-tight">Operations Bridge</h4>
+                    <p className="text-[10px] font-bold text-accent-signature-hover/80 mt-1 uppercase">Enter this workspace for support.</p>
                   </div>
                 </div>
                 <button 
                   onClick={() => impersonateTenant(selectedTenant)}
-                  className="w-full py-3.5 bg-white border border-amber-200 text-amber-900 rounded-xl text-[10px] font-black uppercase flex items-center justify-center hover:bg-amber-100 transition-all shadow-sm active:scale-[0.98]"
+                  className="w-full py-3.5 bg-white border border-accent-signature/25 text-accent-signature-hover rounded-xl text-[10px] font-black uppercase flex items-center justify-center hover:bg-accent-signature/15 transition-all shadow-sm active:scale-[0.98]"
                 >
                   <LogIn size={14} className="mr-2" />
                   Request Access Bridge

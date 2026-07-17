@@ -117,7 +117,7 @@ const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
                     <div className="text-[11px] text-gray-500">
                       {(t.items || []).length} item{(t.items || []).length === 1 ? '' : 's'} · {money(tmplTotal(t))} ·{' '}
                       {t.frequency === 'WEEKLY' ? 'Every week' : 'Every month'} · next {t.next_run}
-                      {!t.active && <span className="ml-2 text-amber-600 font-bold">PAUSED</span>}
+                      {!t.active && <span className="ml-2 text-accent-signature font-bold">PAUSED</span>}
                     </div>
                   </div>
                   <button onClick={() => toggleActive(t)} title={t.active ? 'Pause' : 'Resume'}

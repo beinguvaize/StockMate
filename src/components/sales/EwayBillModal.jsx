@@ -72,7 +72,7 @@ const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
 
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {total < EWAY_THRESHOLD && (
-            <div className="px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-[11.5px] text-amber-700 font-medium">
+            <div className="px-3 py-2 rounded-lg bg-accent-signature/10 border border-accent-signature/25 text-[11.5px] text-accent-signature-hover font-medium">
               Below ₹50,000 — e-Way bill usually not mandatory, generate only if needed.
             </div>
           )}

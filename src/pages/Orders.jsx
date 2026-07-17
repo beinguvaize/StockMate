@@ -313,11 +313,11 @@ const Orders = () => {
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="flex justify-between items-center gap-3 pb-3 border-b border-black/5 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
-          <h1 className="text-xl font-extrabold text-ink-primary leading-none">Orders<span className="text-amber-500">.</span></h1>
+          <h1 className="text-xl font-extrabold text-ink-primary leading-none">Orders<span className="text-accent-signature">.</span></h1>
           <span className="text-[11px] font-semibold text-gray-400 hidden sm:block">Track orders you fulfil later — confirm → dispatch → deliver → invoice</span>
         </div>
         <button onClick={openNew}
-          className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all shrink-0">
+          className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all shrink-0">
           <Plus size={15} strokeWidth={2.6} /> New order
         </button>
       </div>
@@ -333,7 +333,7 @@ const Orders = () => {
           <div key={m.label} className="bg-white px-4 py-3.5">
             <div className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{m.label}</div>
             <div className="font-mono text-xl font-bold text-ink-primary tabular-nums leading-none mt-1">
-              {m.money && <span className="text-sm text-amber-400 mr-0.5">{sym || '₹'}</span>}{m.value}
+              {m.money && <span className="text-sm text-accent-signature/70 mr-0.5">{sym || '₹'}</span>}{m.value}
             </div>
           </div>
         ))}
@@ -393,7 +393,7 @@ const Orders = () => {
       <div className="space-y-2">
         {filtered.length === 0 && (
           <div className="py-16 px-6 text-center bg-white rounded-[2rem] border border-black/5 max-w-xl mx-auto">
-            <Package size={44} className="mx-auto mb-4 text-amber-500 opacity-30" strokeWidth={1.5} />
+            <Package size={44} className="mx-auto mb-4 text-accent-signature opacity-30" strokeWidth={1.5} />
             <p className="text-base font-bold text-ink-primary">No open orders</p>
             <p className="text-[13px] text-gray-500 mt-2 leading-relaxed">
               Use <b>Orders</b> when a customer orders today but you deliver &amp; bill later
@@ -401,7 +401,7 @@ const Orders = () => {
               Delivered → Invoiced</b>, then convert to a sale.
             </p>
             <p className="text-[12px] text-gray-400 mt-3">For instant counter sales, use <b>Sales</b> instead.</p>
-            <button onClick={openNew} className="mt-5 h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold hover:bg-amber-700 inline-flex items-center gap-2">
+            <button onClick={openNew} className="mt-5 h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold hover:bg-accent-signature-hover inline-flex items-center gap-2">
               <Plus size={15} strokeWidth={2.6} /> Create first order
             </button>
           </div>
@@ -437,7 +437,7 @@ const Orders = () => {
                     <span className="text-sm font-black text-ink-primary">{order.order_number}</span>
                     <StageBadge status={order.status} />
                     {isInvoice ? (
-                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200 flex items-center gap-1">
+                      <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25 flex items-center gap-1">
                         <FileText size={8} /> INVOICE
                       </span>
                     ) : (
@@ -484,7 +484,7 @@ const Orders = () => {
                     <button
                       onClick={() => handleAdvance(order)}
                       disabled={isSaving}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black hover:opacity-90 transition-all disabled:opacity-50 ${stage.next === 'INVOICED' ? 'bg-amber-600 text-white' : 'bg-ink-primary text-surface'}`}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[9px] font-black hover:opacity-90 transition-all disabled:opacity-50 ${stage.next === 'INVOICED' ? 'bg-accent-signature text-white' : 'bg-ink-primary text-surface'}`}
                     >
                       {isSaving ? '...' : (stage.next === 'INVOICED' ? '₹ Convert to sale' : `→ ${stageOf(stage.next).label}`)}
                     </button>
@@ -510,7 +510,7 @@ const Orders = () => {
                   {isInvoice && (
                     <a
                       href="/invoices"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-[9px] font-black hover:bg-amber-100 transition-all"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-signature/10 border border-accent-signature/25 text-accent-signature-hover text-[9px] font-black hover:bg-accent-signature/15 transition-all"
                       title="Manage on Invoices page"
                     >
                       <FileText size={9} /> View Invoice

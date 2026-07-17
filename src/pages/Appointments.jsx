@@ -10,7 +10,7 @@ import { formatCurrency } from '../lib/utils';
 import { CalendarClock, Plus, X, Clock, User2, Check, Ban } from 'lucide-react';
 
 const STATUS_CHIP = {
-  BOOKED:    'bg-amber-50 text-amber-700 border-amber-200',
+  BOOKED:    'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25',
   COMPLETED: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   CANCELLED: 'bg-gray-100 text-gray-500 border-gray-200',
   NOSHOW:    'bg-red-50 text-red-600 border-red-200',
@@ -38,16 +38,16 @@ const Appointments = () => {
     <div className="flex flex-col gap-5 pb-16">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 grid place-items-center">
-            <CalendarClock size={18} className="text-amber-600" />
+          <div className="w-9 h-9 rounded-xl bg-accent-signature/10 border border-accent-signature/25 grid place-items-center">
+            <CalendarClock size={18} className="text-accent-signature" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-ink-primary leading-none">Appointments<span className="text-amber-500">.</span></h1>
+            <h1 className="text-xl font-extrabold text-ink-primary leading-none">Appointments<span className="text-accent-signature">.</span></h1>
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{appointments.length} total</p>
           </div>
         </div>
         <button onClick={() => setBooking(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 transition-all">
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-accent-signature text-white text-xs font-bold hover:bg-accent-signature-hover transition-all">
           <Plus size={14} /> Book appointment
         </button>
       </div>
@@ -112,7 +112,7 @@ const Appointments = () => {
   );
 };
 
-const inputCls = 'w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10';
+const inputCls = 'w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10';
 const lblCls = 'block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5';
 
 const BookModal = ({ clients, staff, services, onClose, onSave }) => {
@@ -181,7 +181,7 @@ const BookModal = ({ clients, staff, services, onClose, onSave }) => {
               });
               setSaving(false);
             }}
-            className="w-full h-11 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700 disabled:opacity-50 transition-all">
+            className="w-full h-11 rounded-xl bg-accent-signature text-white text-sm font-bold hover:bg-accent-signature-hover disabled:opacity-50 transition-all">
             {saving ? 'Booking…' : 'Book'}
           </button>
         </div>

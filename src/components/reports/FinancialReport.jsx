@@ -252,7 +252,7 @@ const FinancialReport = () => {
         </div>
         <div className="px-4 py-2.5 border-t border-black/[0.05] flex items-center justify-between text-[11px]">
           <span className="font-bold text-gray-400 uppercase tracking-wider">GST Payable (memo)</span>
-          <span className="font-black text-amber-600 tabular-nums">{formatCurrency(m.gst, cur)}</span>
+          <span className="font-black text-accent-signature tabular-nums">{formatCurrency(m.gst, cur)}</span>
         </div>
       </div>
 

@@ -185,7 +185,7 @@ const Accounts = () => {
             <>
               <div className="grid grid-cols-3 gap-px bg-black/[0.06] border-b border-black/[0.06] text-center">
                 <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-gray-400">EMI</div><div className="font-mono font-bold text-[13px]">{inr(activeLoan.emi)}</div></div>
-                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-gray-400">Interest paid</div><div className="font-mono font-bold text-[13px] text-amber-700">{inr(activeLoan.interestPaid)}</div></div>
+                <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-gray-400">Interest paid</div><div className="font-mono font-bold text-[13px] text-accent-signature-hover">{inr(activeLoan.interestPaid)}</div></div>
                 <div className="bg-white px-3 py-2"><div className="text-[9px] uppercase tracking-widest text-gray-400">Paid</div><div className="font-mono font-bold text-[13px]">{activeLoan.paid}/{activeLoan.total}</div></div>
               </div>
               <div className="grid grid-cols-[80px_1fr_90px_90px_100px] gap-2 px-4 py-2 text-[10px] uppercase tracking-wider text-gray-400 border-b border-black/5">
@@ -197,7 +197,7 @@ const Accounts = () => {
                   <div key={p.id} className="grid grid-cols-[80px_1fr_90px_90px_100px] gap-2 px-4 py-2.5 items-center text-[12px]">
                     <div className="font-mono text-gray-500">{p.date}</div>
                     <div className="font-mono font-bold">{inr(p.amount)} <span className="text-[10px] text-gray-400">#{i + 1}</span></div>
-                    <div className="text-right font-mono text-amber-700">{inr(p.interest)}</div>
+                    <div className="text-right font-mono text-accent-signature-hover">{inr(p.interest)}</div>
                     <div className="text-right font-mono text-emerald-700">{inr(p.principal)}</div>
                     <div className="text-right font-mono text-gray-500">{inr(p.balanceAfter)}</div>
                   </div>
@@ -460,7 +460,7 @@ const EditAccountModal = ({ account, accounts, onClose, onSave, onDelete }) => {
             <option value="">— Auto (first bank) —</option>
             {bankAccounts.map((a) => <option key={a.id} value={a.id}>{a.name}{a.bank_name ? ` · ${a.bank_name}` : ''}</option>)}
           </select>
-          {bankAccounts.length === 0 && <p className="text-[10px] text-amber-600 mt-1">No bank accounts yet — add one first to link this UPI ID.</p>}
+          {bankAccounts.length === 0 && <p className="text-[10px] text-accent-signature mt-1">No bank accounts yet — add one first to link this UPI ID.</p>}
         </div>
       )}
       <div className="mt-3 flex items-center justify-between text-[11px] text-gray-400 bg-canvas rounded-lg px-3 py-2">

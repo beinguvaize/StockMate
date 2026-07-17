@@ -67,7 +67,7 @@ const IMEISerialReport = () => {
       { key: 'status', label: 'Status', width: 110, render: (v) => {
         const s = (v || '').toUpperCase();
         const sold = s === 'SOLD';
-        return <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase ${sold ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{v || '—'}</span>;
+        return <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-black uppercase ${sold ? 'bg-emerald-50 text-emerald-600' : 'bg-accent-signature/10 text-accent-signature'}`}>{v || '—'}</span>;
       } },
       { key: '_saleRef', label: 'Sale', width: 100, render: (v) => <span className="font-mono text-[11px] text-gray-500">{v}</span> },
       { key: '_date', label: 'Date', width: 110, render: (v) => <span className="text-xs font-semibold text-gray-500">{v}</span> },

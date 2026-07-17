@@ -264,7 +264,7 @@ const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => 
                   <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black grid place-items-center">{i + 1}</span>
                 )}
                 {tone === 'slow' && (
-                  <span className={`w-2 h-2 rounded-full shrink-0 ${dead ? 'bg-red-500' : 'bg-amber-400'}`} />
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${dead ? 'bg-red-500' : 'bg-accent-signature/70'}`} />
                 )}
                 <div className="min-w-0">
                   <div className="text-sm font-bold text-ink-primary truncate">{p.name || '—'}</div>
@@ -281,7 +281,7 @@ const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => 
               <span className="text-sm font-bold tabular-nums">
                 {p.daysCover == null
                   ? <span className="text-gray-300">∞</span>
-                  : <span className={p.daysCover > 90 ? 'text-red-500' : p.daysCover > 45 ? 'text-amber-600' : 'text-emerald-600'}>{Math.round(p.daysCover)}d</span>
+                  : <span className={p.daysCover > 90 ? 'text-red-500' : p.daysCover > 45 ? 'text-accent-signature' : 'text-emerald-600'}>{Math.round(p.daysCover)}d</span>
                 }
               </span>
               <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(p.stockValue)}</span>

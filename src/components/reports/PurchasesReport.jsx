@@ -24,7 +24,7 @@ const payBadge = (method) => {
   const m = (method || 'CASH').toUpperCase();
   const colors = {
     CASH:   'bg-emerald-50 text-emerald-700 border-emerald-100',
-    CREDIT: 'bg-amber-50   text-amber-700   border-amber-100',
+    CREDIT: 'bg-accent-signature/10   text-accent-signature-hover   border-accent-signature/15',
     BANK:   'bg-blue-50    text-blue-700    border-blue-100',
   };
   const cls = colors[m] || 'bg-gray-50 text-gray-500 border-gray-100';
@@ -40,7 +40,7 @@ const statusBadge = (status) => {
   const cls = s === 'RECEIVED' || s === 'COMPLETED'
     ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
     : s === 'PENDING'
-    ? 'bg-amber-50 text-amber-700 border-amber-100'
+    ? 'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/15'
     : 'bg-gray-50 text-gray-500 border-gray-100';
   return (
     <span className={`inline-block text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
@@ -269,7 +269,7 @@ const PurchasesReport = () => {
       {
         key: '_rank', label: '#', width: 50, align: 'center',
         render: (val) => (
-          <span className={`font-black text-sm ${val === 1 ? 'text-amber-500' : 'text-ink-tertiary'}`}>
+          <span className={`font-black text-sm ${val === 1 ? 'text-accent-signature' : 'text-ink-tertiary'}`}>
             {val}
           </span>
         ),
@@ -279,7 +279,7 @@ const PurchasesReport = () => {
         render: (val, row) => (
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-[11px] shrink-0 ${
-              row._rank === 1 ? 'bg-amber-100 text-amber-700' : 'bg-blue-50 text-blue-600'
+              row._rank === 1 ? 'bg-accent-signature/15 text-accent-signature-hover' : 'bg-blue-50 text-blue-600'
             }`}>
               {(val || 'D')[0].toUpperCase()}
             </div>
@@ -304,11 +304,11 @@ const PurchasesReport = () => {
             <div className="flex items-center gap-2 justify-end">
               <div className="w-16 h-1.5 rounded-full bg-canvas overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-amber-500"
+                  className="h-full rounded-full bg-accent-signature"
                   style={{ width: `${Math.min(100, pct)}%` }}
                 />
               </div>
-              <span className="text-[10px] font-black text-amber-500 tabular-nums w-10 text-right">
+              <span className="text-[10px] font-black text-accent-signature tabular-nums w-10 text-right">
                 {pct.toFixed(1)}%
               </span>
             </div>
@@ -348,7 +348,7 @@ const PurchasesReport = () => {
       {
         key: '_rank', label: '#', width: 50, align: 'center',
         render: (val) => (
-          <span className={`font-black text-sm ${val === 1 ? 'text-amber-500' : 'text-ink-tertiary'}`}>
+          <span className={`font-black text-sm ${val === 1 ? 'text-accent-signature' : 'text-ink-tertiary'}`}>
             {val}
           </span>
         ),
@@ -406,7 +406,7 @@ const PurchasesReport = () => {
           {PERIODS.map(([id, label]) => (
             <button key={id} onClick={() => applyPreset(id)}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                preset === id ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/20' : 'text-gray-500 hover:text-ink-primary'
+                preset === id ? 'bg-accent-signature text-white shadow-sm shadow-accent-signature/20' : 'text-gray-500 hover:text-ink-primary'
               }`}>
               {id === 'CUSTOM' && <Calendar size={12} />}{label}
             </button>
@@ -416,11 +416,11 @@ const PurchasesReport = () => {
         {showCustom && (
           <div className="flex items-center gap-2">
             <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-              className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-mono outline-none focus:border-amber-400" />
+              className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-mono outline-none focus:border-accent-signature/70" />
             <span className="text-gray-400">–</span>
             <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-              className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-mono outline-none focus:border-amber-400" />
-            <button onClick={applyCustom} className="px-3 py-1.5 rounded-lg bg-amber-600 text-white text-[11px] font-bold">Apply</button>
+              className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-mono outline-none focus:border-accent-signature/70" />
+            <button onClick={applyCustom} className="px-3 py-1.5 rounded-lg bg-accent-signature text-white text-[11px] font-bold">Apply</button>
           </div>
         )}
       </div>

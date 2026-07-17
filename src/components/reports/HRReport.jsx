@@ -71,7 +71,7 @@ const HRReport = () => {
     columns: [
       { key: 'name', label: 'Personnel Entity', sortable: true, width: 220, render: (val, row) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-amber-50 flex items-center justify-center text-amber-600 font-black text-[10px] uppercase">{val.slice(0, 1)}</div>
+          <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center text-accent-signature font-black text-[10px] uppercase">{val.slice(0, 1)}</div>
           <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>
         </div>
       )},

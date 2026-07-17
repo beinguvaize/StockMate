@@ -365,9 +365,9 @@ const ImportPanel = ({ type, cols, tenantId, onDone }) => {
           <PreviewTable validated={validated} cols={cols} />
 
           {invalidCount > 0 && (
-            <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-100 rounded-lg">
-              <AlertCircle size={15} className="text-amber-600 mt-0.5 shrink-0" />
-              <p className="text-xs text-amber-700">
+            <div className="flex items-start gap-2 p-3 bg-accent-signature/10 border border-accent-signature/15 rounded-lg">
+              <AlertCircle size={15} className="text-accent-signature mt-0.5 shrink-0" />
+              <p className="text-xs text-accent-signature-hover">
                 {invalidCount} rows have errors and will be skipped. Fix your file and re-upload, or proceed to import only the {validRows.length} valid rows.
               </p>
             </div>

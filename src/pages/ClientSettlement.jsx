@@ -354,7 +354,7 @@ const ClientSettlement = () => {
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className="hidden sm:inline text-[10px] font-bold text-gray-400 uppercase tracking-wider shrink-0">Clients /</span>
           <h1 className="text-base font-extrabold text-ink-primary truncate">
-            {client.name}<span className="text-amber-500">.</span>
+            {client.name}<span className="text-accent-signature">.</span>
           </h1>
           {(client.gstin || client.gst_no) && (
             <span className="hidden md:inline shrink-0 text-[10px] font-bold text-gray-400 bg-canvas border border-black/5 rounded-full px-2 py-0.5">
@@ -385,7 +385,7 @@ const ClientSettlement = () => {
           {/* Client card */}
           <div className="bg-white rounded-2xl border border-black/5 p-4">
             <div className="flex items-center gap-3 mb-3 pb-3 border-b border-black/5">
-              <div className="w-10 h-10 shrink-0 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 font-mono text-sm font-bold">
+              <div className="w-10 h-10 shrink-0 rounded-xl bg-accent-signature/10 border border-accent-signature/25 flex items-center justify-center text-accent-signature font-mono text-sm font-bold">
                 {client.name.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">

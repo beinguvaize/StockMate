@@ -358,7 +358,7 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                       value={line.unit_price}
                       onChange={e => updateLine(line._key, { unit_price: e.target.value })} />
                     {unitCost !== null && product?.costPrice > 0 && (
-                      <p className={`text-[8px] font-bold mt-1 ml-1 ${unitCost > product.costPrice ? 'text-amber-500' : 'text-emerald-500'}`}>
+                      <p className={`text-[8px] font-bold mt-1 ml-1 ${unitCost > product.costPrice ? 'text-accent-signature' : 'text-emerald-500'}`}>
                         {unitCost > product.costPrice ? '▲' : '▼'} ₹{product.costPrice}
                       </p>
                     )}

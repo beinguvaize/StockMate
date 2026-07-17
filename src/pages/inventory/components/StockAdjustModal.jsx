@@ -4,7 +4,7 @@ import { useDialogClose } from '../../../hooks/useDialogClose';
 import { X, TrendingUp, TrendingDown, Target, AlertCircle, Loader2, CheckCircle2, ArrowRight, Minus, Plus, ChevronLeft } from 'lucide-react';
 
 const TYPES = [
-  { key: 'set',      label: 'Set to',   icon: Target,       desc: 'Override to exact count after physical count', color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', accent: 'bg-amber-600' },
+  { key: 'set',      label: 'Set to',   icon: Target,       desc: 'Override to exact count after physical count', color: 'text-accent-signature', bg: 'bg-accent-signature/10', border: 'border-accent-signature/25', accent: 'bg-accent-signature' },
   { key: 'add',      label: 'Add',      icon: TrendingUp,   desc: 'Add units — new stock or customer return',      color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', accent: 'bg-emerald-600' },
   { key: 'subtract', label: 'Remove',   icon: TrendingDown, desc: 'Remove units — damage, loss or correction',     color: 'text-rose-600',    bg: 'bg-rose-50',    border: 'border-rose-200',    accent: 'bg-rose-600'    },
 ];

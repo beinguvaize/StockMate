@@ -92,7 +92,7 @@ const ErrorDiagnosticsPanel = () => {
     switch (sev) {
       case 'Critical': return 'text-red-500 bg-red-50 border-red-200';
       case 'High': return 'text-orange-500 bg-orange-50 border-orange-200';
-      case 'Medium': return 'text-amber-500 bg-amber-50 border-amber-200';
+      case 'Medium': return 'text-accent-signature bg-accent-signature/10 border-accent-signature/25';
       default: return 'text-blue-500 bg-blue-50 border-blue-200';
     }
   };
@@ -113,7 +113,7 @@ const ErrorDiagnosticsPanel = () => {
     <div className="space-y-6 animate-in fade-in duration-700">
       {/* 1. Summary Bento */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard label="Total Logged Issues" value={stats.total} icon={Activity} color="bg-amber-600" />
+        <StatCard label="Total Logged Issues" value={stats.total} icon={Activity} color="bg-accent-signature" />
         <StatCard label="Critical & Unresolved" value={stats.critical} icon={ShieldAlert} color="bg-red-600" />
         <StatCard label="Most Viral Tenant" value="LEDGR PRIMARY" icon={Zap} color="bg-emerald-600" />
       </div>
@@ -190,7 +190,7 @@ const ErrorDiagnosticsPanel = () => {
                       <span className="text-[10px] font-black text-ink-primary uppercase tracking-tight truncate max-w-[150px]">
                         {log.tenant_id ? 'IDENTIFIED TENANT' : 'SYSTEM OVERRIDE'}
                       </span>
-                      <span className="text-[9px] font-black text-amber-500 uppercase tracking-widest mt-0.5">{log.module}</span>
+                      <span className="text-[9px] font-black text-accent-signature uppercase tracking-widest mt-0.5">{log.module}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -208,7 +208,7 @@ const ErrorDiagnosticsPanel = () => {
                       onChange={(e) => updateStatus(log.id, e.target.value)}
                       className={`text-[9px] font-black px-2 py-1 rounded-lg border outline-none
                         ${log.status === 'Resolved' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 
-                          log.status === 'Acknowledged' ? 'bg-amber-50 text-amber-600 border-amber-100' : 
+                          log.status === 'Acknowledged' ? 'bg-accent-signature/10 text-accent-signature border-accent-signature/15' : 
                           'bg-red-50 text-red-600 border-red-100 animate-pulse'}
                       `}
                     >
@@ -246,7 +246,7 @@ const ErrorDiagnosticsPanel = () => {
                               </div>
                               <div className="glass-panel border-white/5 bg-white/50 p-3 rounded-xl">
                                 <p className="text-[8px] font-black text-gray-400 uppercase">Plan Tier</p>
-                                <p className="text-[9px] font-black text-amber-600">{log.plan_tier}</p>
+                                <p className="text-[9px] font-black text-accent-signature">{log.plan_tier}</p>
                               </div>
                               <div className="glass-panel border-white/5 bg-white/50 p-3 rounded-xl">
                                 <p className="text-[8px] font-black text-gray-400 uppercase">Actor Role</p>

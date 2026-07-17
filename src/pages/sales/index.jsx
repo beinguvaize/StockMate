@@ -366,19 +366,19 @@ const SalesPage = () => {
         ) : activeTab === 'pos' ? (
           <>
             {isResto && activeTable && (
-              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
+              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-accent-signature/10 border border-accent-signature/25">
                 <span className="text-sm font-bold text-ink-primary">Table {activeTable.table.label}</span>
                 <button onClick={() => { setActiveTable(null); setActiveTab('tables'); }}
-                  className="text-[12px] font-bold text-amber-700 hover:underline">← Back to floor</button>
+                  className="text-[12px] font-bold text-accent-signature-hover hover:underline">← Back to floor</button>
               </div>
             )}
             {editingSale && (
-              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-amber-50 border border-amber-200">
+              <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-accent-signature/10 border border-accent-signature/25">
                 <span className="text-sm font-bold text-ink-primary">
                   Editing sale #{String(editingSale.id).split('-').pop()} — stock & balance re-sync on save
                 </span>
                 <button onClick={() => { setEditingSale(null); setActiveTab('history'); }}
-                  className="text-[12px] font-bold text-amber-700 hover:underline">Cancel edit</button>
+                  className="text-[12px] font-bold text-accent-signature-hover hover:underline">Cancel edit</button>
               </div>
             )}
             <InvoiceBuilder

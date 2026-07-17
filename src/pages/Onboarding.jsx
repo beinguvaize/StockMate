@@ -135,9 +135,9 @@ const Onboarding = () => {
               <div className="text-sm font-black text-ink-primary">{currentTenant?.name || 'Your Business'}</div>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full">
-            <Calendar size={11} className="text-amber-600" />
-            <span className="text-[10px] font-black text-amber-700 uppercase tracking-widest">60-day trial active</span>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-accent-signature/10 border border-accent-signature/25 rounded-full">
+            <Calendar size={11} className="text-accent-signature" />
+            <span className="text-[10px] font-black text-accent-signature-hover uppercase tracking-widest">60-day trial active</span>
           </div>
         </div>
       </div>

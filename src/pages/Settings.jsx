@@ -26,10 +26,10 @@ const PlanUsageBanner = ({ plan = 'STARTER', invoiceCount = 0, userCount = 0, ma
   const isWarn  = (invPct ?? 0) >= 80 || (usrPct ?? 0) >= 80;
 
   return (
-    <div className={`rounded-2xl border p-4 space-y-3 ${isWarn ? 'bg-amber-50 border-amber-200' : 'bg-canvas border-black/5'}`}>
+    <div className={`rounded-2xl border p-4 space-y-3 ${isWarn ? 'bg-accent-signature/10 border-accent-signature/25' : 'bg-canvas border-black/5'}`}>
       <div className="flex items-center justify-between">
         <p className="text-[10px] font-black uppercase tracking-widest text-gray-400">Plan Usage — {plan}</p>
-        {isWarn && <button onClick={onUpgrade} className="text-[10px] font-black text-amber-600 underline">Upgrade</button>}
+        {isWarn && <button onClick={onUpgrade} className="text-[10px] font-black text-accent-signature underline">Upgrade</button>}
       </div>
       {invPct !== null && (
         <div>
@@ -38,7 +38,7 @@ const PlanUsageBanner = ({ plan = 'STARTER', invoiceCount = 0, userCount = 0, ma
             <span>{invoiceCount} / {maxInvoices}</span>
           </div>
           <div className="h-1.5 bg-black/5 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${invPct >= 90 ? 'bg-rose-500' : invPct >= 70 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${invPct}%` }} />
+            <div className={`h-full rounded-full transition-all ${invPct >= 90 ? 'bg-rose-500' : invPct >= 70 ? 'bg-accent-signature/70' : 'bg-emerald-500'}`} style={{ width: `${invPct}%` }} />
           </div>
         </div>
       )}
@@ -49,7 +49,7 @@ const PlanUsageBanner = ({ plan = 'STARTER', invoiceCount = 0, userCount = 0, ma
             <span>{userCount} / {maxUsers}</span>
           </div>
           <div className="h-1.5 bg-black/5 rounded-full overflow-hidden">
-            <div className={`h-full rounded-full transition-all ${usrPct >= 90 ? 'bg-rose-500' : usrPct >= 70 ? 'bg-amber-400' : 'bg-emerald-500'}`} style={{ width: `${usrPct}%` }} />
+            <div className={`h-full rounded-full transition-all ${usrPct >= 90 ? 'bg-rose-500' : usrPct >= 70 ? 'bg-accent-signature/70' : 'bg-emerald-500'}`} style={{ width: `${usrPct}%` }} />
           </div>
         </div>
       )}
@@ -631,7 +631,7 @@ const Settings = ({ embedded = false, section = null }) => {
    className={`inline-flex items-center gap-2 h-10 px-6 rounded-xl text-xs font-black uppercase tracking-wide text-white shadow-md transition-all duration-300 ${
      savedStatus
        ? 'bg-emerald-500 shadow-emerald-500/30'
-       : 'bg-amber-600 hover:bg-amber-700 shadow-amber-600/25'
+       : 'bg-accent-signature hover:bg-accent-signature-hover shadow-accent-signature/25'
    }`}
  >
    <span>{savedStatus ? 'Saved' : 'Save Settings'}</span>
@@ -835,15 +835,15 @@ const Settings = ({ embedded = false, section = null }) => {
  </div>
  {/* Categories used by products but not yet managed — import to edit/delete. */}
  {unmanagedCategories.length > 0 && (
- <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+ <div className="rounded-xl border border-accent-signature/25 bg-accent-signature/10 p-4">
    <div className="flex items-center justify-between mb-2">
-     <p className="text-xs font-bold text-amber-700">{unmanagedCategories.length} categor{unmanagedCategories.length === 1 ? 'y' : 'ies'} in use but not managed</p>
-     <button onClick={importUnmanagedCategories} className="text-[11px] font-black uppercase tracking-wide text-amber-700 underline">Import all</button>
+     <p className="text-xs font-bold text-accent-signature-hover">{unmanagedCategories.length} categor{unmanagedCategories.length === 1 ? 'y' : 'ies'} in use but not managed</p>
+     <button onClick={importUnmanagedCategories} className="text-[11px] font-black uppercase tracking-wide text-accent-signature-hover underline">Import all</button>
    </div>
    <div className="flex flex-wrap gap-1.5">
      {unmanagedCategories.map(c => (
        <button key={c} onClick={() => addProductCategory(c)}
-         className="px-2.5 py-1 rounded-pill bg-white border border-amber-200 text-amber-700 text-[11px] font-bold hover:bg-amber-100"
+         className="px-2.5 py-1 rounded-pill bg-white border border-accent-signature/25 text-accent-signature-hover text-[11px] font-bold hover:bg-accent-signature/15"
          title="Add to managed list">+ {c}</button>
      ))}
    </div>
@@ -1099,11 +1099,11 @@ const Settings = ({ embedded = false, section = null }) => {
 
  <div className="rounded-[2rem] p-6 bg-white border border-black/5 flex flex-col gap-10 shadow-sm">
  <div>
- <div className="flex items-center gap-4 text-amber-500 mb-6">
+ <div className="flex items-center gap-4 text-accent-signature mb-6">
  <ShieldCheck size={28} />
  <h3 className="text-base font-semibold leading-none">Security Locks</h3>
  </div>
- <p className="text-[11px] font-semibold text-amber-900/60 leading-relaxed">
+ <p className="text-[11px] font-semibold text-accent-signature-hover/60 leading-relaxed">
  Critical system partitions are locked for integrity. Administrative overrides require multi-factor verification.
  </p>
  </div>
@@ -1128,10 +1128,10 @@ const Settings = ({ embedded = false, section = null }) => {
    </div>
    <div className="p-5 space-y-4">
      {!isPro ? (
-       <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
-         <AlertTriangle size={16} className="text-amber-500 shrink-0" />
-         <p className="text-xs font-semibold text-amber-700">Multi-branch inventory requires Professional plan or higher.</p>
-         <button onClick={() => setShowUpgradeModal(true)} className="ml-auto text-[10px] font-black text-amber-600 underline underline-offset-2 whitespace-nowrap">Upgrade</button>
+       <div className="flex items-center gap-3 p-4 rounded-2xl bg-accent-signature/10 border border-accent-signature/25">
+         <AlertTriangle size={16} className="text-accent-signature shrink-0" />
+         <p className="text-xs font-semibold text-accent-signature-hover">Multi-branch inventory requires Professional plan or higher.</p>
+         <button onClick={() => setShowUpgradeModal(true)} className="ml-auto text-[10px] font-black text-accent-signature underline underline-offset-2 whitespace-nowrap">Upgrade</button>
        </div>
      ) : (
        <>
@@ -1221,10 +1221,10 @@ const Settings = ({ embedded = false, section = null }) => {
    </div>
    <div className="p-5 space-y-4">
      {!isEnterprise ? (
-       <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 border border-amber-200">
-         <AlertTriangle size={16} className="text-amber-500 shrink-0" />
-         <p className="text-xs font-semibold text-amber-700">API access requires Enterprise plan.</p>
-         <button onClick={() => setShowUpgradeModal(true)} className="ml-auto text-[10px] font-black text-amber-600 underline underline-offset-2 whitespace-nowrap">Upgrade</button>
+       <div className="flex items-center gap-3 p-4 rounded-2xl bg-accent-signature/10 border border-accent-signature/25">
+         <AlertTriangle size={16} className="text-accent-signature shrink-0" />
+         <p className="text-xs font-semibold text-accent-signature-hover">API access requires Enterprise plan.</p>
+         <button onClick={() => setShowUpgradeModal(true)} className="ml-auto text-[10px] font-black text-accent-signature underline underline-offset-2 whitespace-nowrap">Upgrade</button>
        </div>
      ) : (
        <div className="space-y-4">

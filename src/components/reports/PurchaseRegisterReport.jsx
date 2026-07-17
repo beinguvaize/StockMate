@@ -122,7 +122,7 @@ const PurchaseRegisterReport = () => {
       <div className="no-print flex flex-wrap items-center gap-2 mb-3">
         <ReportPeriodBar {...period} />
         <button onClick={exportExcel}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-black transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-black transition-colors">
           <Download size={13} /> Excel for CA
         </button>
       </div>

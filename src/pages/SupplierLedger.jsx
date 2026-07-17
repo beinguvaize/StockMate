@@ -214,9 +214,9 @@ const SupplierLedger = () => {
             <div className="flex items-center gap-1.5 text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">
               Suppliers
               <ChevronRight size={10} className="opacity-40" />
-              <span className="text-amber-600">Ledger</span>
+              <span className="text-accent-signature">Ledger</span>
             </div>
-            <h1 className="text-xl font-extrabold text-ink-primary leading-none truncate">{supplier.name}<span className="text-amber-500">.</span></h1>
+            <h1 className="text-xl font-extrabold text-ink-primary leading-none truncate">{supplier.name}<span className="text-accent-signature">.</span></h1>
           </div>
         </div>
 
@@ -228,7 +228,7 @@ const SupplierLedger = () => {
             onClick={() => window.print()}
             className="h-10 px-4 rounded-xl bg-ink-primary text-white text-[11px] font-bold hover:bg-ink-primary/90 transition-all flex items-center gap-2"
           >
-            Export PDF <ArrowUpRight size={14} className="text-amber-400" />
+            Export PDF <ArrowUpRight size={14} className="text-accent-signature/70" />
           </button>
         </div>
       </div>
@@ -239,13 +239,13 @@ const SupplierLedger = () => {
           {/* Profile Card */}
           <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
             <div className="flex items-center gap-4 mb-5 pb-5 border-b border-black/5">
-              <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 font-mono font-bold text-lg shrink-0">
+              <div className="w-14 h-14 rounded-2xl bg-accent-signature/10 border border-accent-signature/25 flex items-center justify-center text-accent-signature font-mono font-bold text-lg shrink-0">
                 {(supplier.name || '–').trim().split(/\s+/).filter(Boolean).slice(0,2).map(w => w[0]).join('').toUpperCase()}
               </div>
               <div className="min-w-0">
                 <h3 className="text-base font-extrabold text-ink-primary leading-tight truncate">{supplier.name}</h3>
                 <div className="flex items-center gap-1.5 mt-1">
-                  <ShieldCheck size={12} className="text-amber-600" />
+                  <ShieldCheck size={12} className="text-accent-signature" />
                   <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Active supplier</span>
                 </div>
               </div>
@@ -289,19 +289,19 @@ const SupplierLedger = () => {
                 onClick={() => openPay()}
                 className="w-full mt-4 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-ink-primary text-white text-[12px] font-bold hover:bg-ink-primary/90 transition-all"
               >
-                <CreditCard size={14} className="text-amber-400" /> Record payment
+                <CreditCard size={14} className="text-accent-signature/70" /> Record payment
               </button>
             )}
           </div>
 
           {/* Total purchased — dark hero */}
           <div className="rounded-2xl bg-ink-primary p-5 relative overflow-hidden">
-            <div className="absolute top-4 right-4 opacity-15 text-amber-400"><Box size={36} strokeWidth={1.5} /></div>
+            <div className="absolute top-4 right-4 opacity-15 text-accent-signature/70"><Box size={36} strokeWidth={1.5} /></div>
             <span className="text-[10px] font-bold text-white/40 uppercase tracking-wider">Total purchased</span>
             <div className="font-mono tabular-nums text-3xl font-bold text-white leading-none mt-1.5">
-              <span className="text-lg text-amber-400/70 mr-1">{businessProfile?.currencySymbol || '₹'}</span>{metrics.total.toLocaleString()}
+              <span className="text-lg text-accent-signature/70 mr-1">{businessProfile?.currencySymbol || '₹'}</span>{metrics.total.toLocaleString()}
             </div>
-            <span className="inline-block mt-3 text-[10px] font-bold text-amber-400 uppercase tracking-wider">{metrics.count} {metrics.count === 1 ? 'purchase' : 'purchases'}</span>
+            <span className="inline-block mt-3 text-[10px] font-bold text-accent-signature/70 uppercase tracking-wider">{metrics.count} {metrics.count === 1 ? 'purchase' : 'purchases'}</span>
           </div>
 
           {/* Stat breakdown */}
@@ -310,7 +310,7 @@ const SupplierLedger = () => {
               ['Average purchase', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.avg).toLocaleString()}`, 'text-ink-primary'],
               ['Last purchase', metrics.last ? formatDate(metrics.last) : 'N/A', 'text-ink-primary'],
               ['Cash paid', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.cashPaid).toLocaleString()}`, 'text-emerald-600'],
-              ['Credit purchases', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.creditTotal).toLocaleString()}`, 'text-amber-600'],
+              ['Credit purchases', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.creditTotal).toLocaleString()}`, 'text-accent-signature'],
               ['Payments made', `${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.totalPaid).toLocaleString()}`, 'text-emerald-600'],
               ...(metrics.totalReturns > 0 ? [
                 ['Returns (debit notes)', `−${businessProfile?.currencySymbol || '₹'}${Math.round(metrics.totalReturns).toLocaleString()}`, 'text-rose-500'],
@@ -329,7 +329,7 @@ const SupplierLedger = () => {
             <button onClick={() => setShowPayHist(v => !v)}
               className="w-full flex items-center justify-between px-4 py-3 hover:bg-black/[0.015] transition-colors">
               <span className="flex items-center gap-2">
-                <History size={14} className="text-amber-600" />
+                <History size={14} className="text-accent-signature" />
                 <span className="text-[12px] font-bold text-ink-primary">Payment history</span>
                 <span className="text-[11px] font-semibold text-gray-400">{paymentHistory.length}</span>
               </span>
@@ -354,9 +354,9 @@ const SupplierLedger = () => {
                         <div className="flex items-center gap-1.5 mt-0.5">
                           <span className="text-[9px] font-bold uppercase tracking-wide text-gray-500 bg-black/[0.05] px-1.5 py-0.5 rounded">{p.method || 'CASH'}</span>
                           {p.source === 'purchase'
-                            ? <span className="font-mono text-[9px] font-bold text-amber-700">{ord} · cash buy</span>
+                            ? <span className="font-mono text-[9px] font-bold text-accent-signature-hover">{ord} · cash buy</span>
                             : ord
-                              ? <span className="font-mono text-[9px] font-bold text-amber-700">{ord}</span>
+                              ? <span className="font-mono text-[9px] font-bold text-accent-signature-hover">{ord}</span>
                               : <span className="text-[9px] font-semibold text-gray-400 uppercase">On account</span>}
                         </div>
                       </div>
@@ -375,11 +375,11 @@ const SupplierLedger = () => {
             {/* Table Header Utility Bar */}
             <div className="p-4 border-b border-black/5 flex flex-col md:flex-row justify-between items-center gap-3">
               <div className="relative group flex-1 w-full md:max-w-xs">
-                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-amber-600 transition-colors" />
+                <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-accent-signature transition-colors" />
                 <input
                   type="text"
                   placeholder="Search reference or notes…"
-                  className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border border-gray-300 text-[12px] font-semibold text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal"
+                  className="w-full h-10 pl-10 pr-4 rounded-xl bg-white border border-gray-300 text-[12px] font-semibold text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:font-normal"
                   value={searchTerm}
                   onChange={e => setSearchTerm(e.target.value)}
                 />
@@ -393,7 +393,7 @@ const SupplierLedger = () => {
                       onClick={() => setPaymentFilter(opt)}
                       className={`px-3 h-7 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
                         paymentFilter === opt
-                          ? 'bg-amber-600 text-white shadow-sm'
+                          ? 'bg-accent-signature text-white shadow-sm'
                           : 'text-gray-500 hover:text-ink-primary'
                       }`}
                     >
@@ -469,7 +469,7 @@ const SupplierLedger = () => {
                                 return (
                                   <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                                     <span className="inline-flex flex-col leading-tight">
-                                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">{paid > 0 ? 'Partial' : 'Credit'}</span>
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-accent-signature-hover">{paid > 0 ? 'Partial' : 'Credit'}</span>
                                       <span className="font-mono text-[10px] text-red-500">due {businessProfile?.currencySymbol || '₹'}{Math.round(orderDue).toLocaleString()}</span>
                                     </span>
                                     {hasPermission('purchases', 'edit') !== false && (
@@ -504,7 +504,7 @@ const SupplierLedger = () => {
                                   </div>
                                   <div>
                                     <div className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">Status</div>
-                                    <div className={`font-semibold ${credit ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                    <div className={`font-semibold ${credit ? 'text-accent-signature' : 'text-emerald-600'}`}>
                                       {credit ? 'Payable (Credit)' : 'Settled (Cash Paid)'}
                                     </div>
                                   </div>
@@ -621,7 +621,7 @@ const SupplierLedger = () => {
             {/* Slim summary footer */}
             <div className="border-t border-black/5 bg-canvas/60 px-5 py-3 flex items-center justify-between gap-4">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                <TrendingUp size={13} className="text-amber-600" /> Total purchased
+                <TrendingUp size={13} className="text-accent-signature" /> Total purchased
               </span>
               <div className="flex items-center gap-6">
                 <div className="text-right">
@@ -629,7 +629,7 @@ const SupplierLedger = () => {
                   <span className="font-mono tabular-nums text-[13px] font-bold text-ink-primary">{businessProfile?.currencySymbol || '₹'}{Math.round(metrics.avg).toLocaleString()}</span>
                 </div>
                 <div className="font-mono tabular-nums text-xl font-bold text-ink-primary">
-                  <span className="text-sm text-amber-500 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{metrics.total.toLocaleString()}
+                  <span className="text-sm text-accent-signature mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{metrics.total.toLocaleString()}
                 </div>
               </div>
             </div>

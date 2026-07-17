@@ -19,7 +19,7 @@ const catStyleOf = (category) => {
   if (c === 'food') return { dot: 'bg-red-400', pill: 'bg-red-50 text-red-600' };
   if (c === 'salary') return { dot: 'bg-emerald-400', pill: 'bg-emerald-50 text-emerald-600' };
   if (c === 'rent') return { dot: 'bg-blue-400', pill: 'bg-blue-50 text-blue-600' };
-  if (c === 'utility') return { dot: 'bg-amber-400', pill: 'bg-amber-50 text-amber-700' };
+  if (c === 'utility') return { dot: 'bg-accent-signature/70', pill: 'bg-accent-signature/10 text-accent-signature-hover' };
   if (c === 'purchase') return { dot: 'bg-purple-400', pill: 'bg-purple-50 text-purple-600' };
   if (c === 'maintenance') return { dot: 'bg-teal-400', pill: 'bg-teal-50 text-teal-600' };
   if (c.includes('credit')) return { dot: 'bg-fuchsia-400', pill: 'bg-fuchsia-50 text-fuchsia-600' };
@@ -363,15 +363,15 @@ const Expenses = () => {
  {/* Header Section */}
  <div className="flex justify-between items-center py-2 border-b border-black/5">
  <div className="flex items-center gap-3">
- <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Expenses<span className="text-amber-500">.</span></h1>
+ <h1 className="text-xl font-black font-sora text-ink-primary leading-none">Expenses<span className="text-accent-signature">.</span></h1>
  <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Operating costs & expenditure</span>
- <span className="hidden md:flex items-center gap-1.5 text-[10px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-lg font-mono">
-   {getFilterLabel()}: <span className="text-amber-800 font-bold ml-0.5">{businessProfile?.currencySymbol || '₹'}{Math.round(totalExpenses).toLocaleString('en-IN')}</span>
+ <span className="hidden md:flex items-center gap-1.5 text-[10px] font-bold text-accent-signature-hover bg-accent-signature/10 border border-accent-signature/25 px-2.5 py-1 rounded-lg font-mono">
+   {getFilterLabel()}: <span className="text-accent-signature-hover font-bold ml-0.5">{businessProfile?.currencySymbol || '₹'}{Math.round(totalExpenses).toLocaleString('en-IN')}</span>
  </span>
  </div>
  <div className="flex items-center gap-2">
  {hasPermission('ADD_EXPENSE') && (
- <button className="flex items-center gap-2 text-xs font-black px-4 py-2.5 rounded-pill bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/25 transition-colors" onClick={() => setIsAdding(true)}>
+ <button className="flex items-center gap-2 text-xs font-black px-4 py-2.5 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white shadow-md shadow-accent-signature/25 transition-colors" onClick={() => setIsAdding(true)}>
  <Plus size={14} strokeWidth={2.5} /> Add Expense
  </button>
  )}
@@ -382,8 +382,8 @@ const Expenses = () => {
  <div className="rounded-2xl border border-black/8 bg-white shadow-sm p-3.5 mb-5">
  <div className="flex items-center justify-between gap-3 flex-wrap">
    {/* Search */}
-   <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/[0.03] border border-black/8 flex-1 min-w-[200px] max-w-xs focus-within:border-amber-400 focus-within:ring-2 focus-within:ring-amber-500/15 transition-all">
-     <Search size={14} className="text-amber-500 shrink-0" />
+   <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-black/[0.03] border border-black/8 flex-1 min-w-[200px] max-w-xs focus-within:border-accent-signature/70 focus-within:ring-2 focus-within:ring-accent-signature/15 transition-all">
+     <Search size={14} className="text-accent-signature shrink-0" />
      <input
        type="text"
        placeholder="Search…"
@@ -399,12 +399,12 @@ const Expenses = () => {
        { k: 'week', label: 'Week' }, { k: 'month', label: 'Month' }, { k: 'lastmonth', label: 'Last Mo' },
      ].map(({ k, label }) => (
        <button key={k} onClick={() => setFilterType(k)}
-         className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors ${filterType === k ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/20' : 'text-gray-500 hover:text-ink-primary'}`}>
+         className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors ${filterType === k ? 'bg-accent-signature text-white shadow-sm shadow-accent-signature/20' : 'text-gray-500 hover:text-ink-primary'}`}>
          {label}
        </button>
      ))}
      <button onClick={() => setFilterType('range')}
-       className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors ${filterType === 'range' ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/20' : 'text-gray-500 hover:text-ink-primary'}`}>
+       className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap flex items-center gap-1.5 transition-colors ${filterType === 'range' ? 'bg-accent-signature text-white shadow-sm shadow-accent-signature/20' : 'text-gray-500 hover:text-ink-primary'}`}>
        <Calendar size={12} /> Range
      </button>
    </div>
@@ -434,16 +434,16 @@ const Expenses = () => {
  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-black/[0.06] flex-wrap">
    <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mr-1">Category</span>
    <button onClick={() => setCategoryFilter('ALL')}
-     className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors ${categoryFilter === 'ALL' ? 'bg-amber-600 text-white border-amber-600' : 'bg-white border-black/10 text-gray-500 hover:border-black/25'}`}>
+     className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors ${categoryFilter === 'ALL' ? 'bg-accent-signature text-white border-accent-signature' : 'bg-white border-black/10 text-gray-500 hover:border-black/25'}`}>
      All
    </button>
    {Object.entries(categoryBreakdown)
      .sort((a, b) => b[1].total - a[1].total)
      .map(([cat, info]) => (
      <button key={cat} onClick={() => setCategoryFilter(cat === categoryFilter ? 'ALL' : cat)}
-       className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-amber-600 text-white border-amber-600' : 'bg-white border-black/10 text-gray-500 hover:border-black/25'}`}>
+       className={`px-3 py-1 rounded-full text-[11px] font-semibold border transition-colors flex items-center gap-1.5 ${categoryFilter === cat ? 'bg-accent-signature text-white border-accent-signature' : 'bg-white border-black/10 text-gray-500 hover:border-black/25'}`}>
        {cat}
-       <span className={`font-mono tabular-nums ${categoryFilter === cat ? 'text-white/70' : 'text-amber-600/70'}`}>
+       <span className={`font-mono tabular-nums ${categoryFilter === cat ? 'text-white/70' : 'text-accent-signature/70'}`}>
          {businessProfile?.currencySymbol || '₹'}{Math.round(info.total).toLocaleString('en-IN')}
        </span>
      </button>
@@ -458,7 +458,7 @@ const Expenses = () => {
  <div className="flex flex-col lg:flex-row items-start gap-5">
  <div className="glass-panel !p-0 !rounded-bento border border-black/5 shadow-premium overflow-hidden flex-1 min-w-0 w-full">
  <div className="bg-white border-b border-black/5 px-5 py-3 flex items-center justify-between">
- <span className="font-mono text-[11px] font-bold text-amber-600 truncate">
+ <span className="font-mono text-[11px] font-bold text-accent-signature truncate">
    $ expenses --{filterType}{categoryFilter !== 'ALL' ? ` --cat="${categoryFilter}"` : ''}
  </span>
  <div className="flex items-center gap-3 shrink-0">
@@ -468,7 +468,7 @@ const Expenses = () => {
    <button
      onClick={exportCSV}
      disabled={filteredExpenses.length === 0}
-     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/10 hover:bg-amber-50 hover:border-amber-200 text-gray-500 hover:text-amber-700 text-[10px] font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-black/10 hover:bg-accent-signature/10 hover:border-accent-signature/25 text-gray-500 hover:text-accent-signature-hover text-[10px] font-bold uppercase tracking-wide transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
    >
      <Download size={13} /> Export
    </button>
@@ -484,15 +484,15 @@ const Expenses = () => {
      </div>
      <div className="flex flex-wrap gap-2">
        {recurringTemplates.map(t => (
-         <div key={t.id} className={`flex items-center gap-2 rounded-pill border px-3 py-1.5 text-xs ${t.active ? 'border-amber-300 bg-amber-50' : 'border-black/10 bg-gray-50 opacity-60'}`}>
+         <div key={t.id} className={`flex items-center gap-2 rounded-pill border px-3 py-1.5 text-xs ${t.active ? 'border-accent-signature/40 bg-accent-signature/10' : 'border-black/10 bg-gray-50 opacity-60'}`}>
            <span className="font-bold text-ink-primary">{t.note || t.category}</span>
-           <span className="font-mono tabular-nums text-amber-700">{formatCurrency(t.amount)}</span>
+           <span className="font-mono tabular-nums text-accent-signature-hover">{formatCurrency(t.amount)}</span>
            <span className="text-[9px] text-gray-400">day {Math.min(t.day_of_month, 28)} · {t.payment_method}</span>
            <button
              type="button"
              title={t.active ? 'Pause' : 'Resume'}
              onClick={() => setRecurringActive(t.id, !t.active)}
-             className="text-[9px] font-bold uppercase text-amber-600 hover:underline"
+             className="text-[9px] font-bold uppercase text-accent-signature hover:underline"
            >{t.active ? 'Pause' : 'Resume'}</button>
            <button
              type="button"
@@ -514,12 +514,12 @@ const Expenses = () => {
  <th className="px-6 py-3 w-full font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400">Description</th>
  <th className="px-4 py-3 text-left whitespace-nowrap">
    <button onClick={() => toggleSort('date')} className="inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors">
-     Date <span className={`transition-opacity ${sortKey === 'date' ? 'opacity-100 text-amber-600' : 'opacity-30'}`}>{sortKey === 'date' && sortDir === 'asc' ? '↑' : '↓'}</span>
+     Date <span className={`transition-opacity ${sortKey === 'date' ? 'opacity-100 text-accent-signature' : 'opacity-30'}`}>{sortKey === 'date' && sortDir === 'asc' ? '↑' : '↓'}</span>
    </button>
  </th>
  <th className="px-4 py-3 text-right whitespace-nowrap">
    <button onClick={() => toggleSort('amount')} className="inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-ink-primary transition-colors ml-auto">
-     Amount <span className={`transition-opacity ${sortKey === 'amount' ? 'opacity-100 text-amber-600' : 'opacity-30'}`}>{sortKey === 'amount' && sortDir === 'asc' ? '↑' : '↓'}</span>
+     Amount <span className={`transition-opacity ${sortKey === 'amount' ? 'opacity-100 text-accent-signature' : 'opacity-30'}`}>{sortKey === 'amount' && sortDir === 'asc' ? '↑' : '↓'}</span>
    </button>
  </th>
  <th className="px-6 py-3 w-px"></th>
@@ -528,13 +528,13 @@ const Expenses = () => {
  <tbody className="divide-y divide-black/[0.04] bg-white font-inter">
  {pagedExpenses.map(expense => {
  return (
- <tr key={expense.id} className="group hover:bg-amber-500/[0.04] transition-colors">
+ <tr key={expense.id} className="group hover:bg-accent-signature/[0.04] transition-colors">
  <td className="px-6 py-3 max-w-0 w-full">
    <div className="min-w-0">
      <div className="flex items-center gap-1.5">
        <span className="text-[14px] font-bold text-ink-primary truncate">{expense.note || '—'}</span>
        {expense.recurring_template_id && (
-         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-pill bg-amber-100 text-amber-700 text-[8px] font-black uppercase tracking-wide shrink-0" title="Auto-generated from a recurring template">
+         <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-pill bg-accent-signature/15 text-accent-signature-hover text-[8px] font-black uppercase tracking-wide shrink-0" title="Auto-generated from a recurring template">
            ↻ Recurring
          </span>
        )}
@@ -552,10 +552,10 @@ const Expenses = () => {
  </td>
  <td className="px-4 py-3 text-right whitespace-nowrap">
  <div className="font-mono text-[15px] font-bold text-ink-primary tabular-nums tracking-tight leading-none">
- <span className="text-amber-400 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{parseFloat(expense.amount).toLocaleString('en-IN')}
+ <span className="text-accent-signature/70 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{parseFloat(expense.amount).toLocaleString('en-IN')}
  </div>
  <div className="mt-1.5 h-[3px] w-16 ml-auto rounded-full bg-black/[0.06] overflow-hidden">
-   <div className="h-full rounded-full bg-amber-500" style={{ width: `${totalExpenses ? Math.max(Math.round((parseFloat(expense.amount)||0) / totalExpenses * 100), 3) : 0}%` }} />
+   <div className="h-full rounded-full bg-accent-signature" style={{ width: `${totalExpenses ? Math.max(Math.round((parseFloat(expense.amount)||0) / totalExpenses * 100), 3) : 0}%` }} />
  </div>
  </td>
  <td className="px-4 py-3 text-right whitespace-nowrap">
@@ -563,7 +563,7 @@ const Expenses = () => {
  {hasPermission('EDIT_EXPENSE') && (
  <button
  aria-label="Edit expense"
- className="w-8 h-8 rounded-lg bg-canvas text-gray-500 flex items-center justify-center hover:bg-amber-100 hover:text-amber-700 transition-colors"
+ className="w-8 h-8 rounded-lg bg-canvas text-gray-500 flex items-center justify-center hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"
  onClick={() => handleEdit(expense)}
  >
  <FileText size={14} />
@@ -596,16 +596,16 @@ const Expenses = () => {
        <div className="flex items-center justify-between gap-2">
          <span className="text-sm font-bold text-ink-primary truncate">{expense.note || '—'}</span>
          <span className="font-mono text-base font-bold text-ink-primary tabular-nums shrink-0">
-           <span className="text-amber-400 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{parseFloat(expense.amount).toLocaleString('en-IN')}
+           <span className="text-accent-signature/70 mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{parseFloat(expense.amount).toLocaleString('en-IN')}
          </span>
        </div>
        <div className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mt-1 font-mono">
          {expense.category || 'Other'} · via {expense.payment_method || 'CASH'} · {fmtDate(expense.date)}
-         {expense.recurring_template_id && <span className="text-amber-600 ml-1">· ↻ Recurring</span>}
+         {expense.recurring_template_id && <span className="text-accent-signature ml-1">· ↻ Recurring</span>}
        </div>
        <div className="flex items-center gap-2 mt-2">
          {hasPermission('EDIT_EXPENSE') && (
-           <button onClick={() => handleEdit(expense)} className="text-[11px] font-bold text-amber-600">Edit</button>
+           <button onClick={() => handleEdit(expense)} className="text-[11px] font-bold text-accent-signature">Edit</button>
          )}
          {hasPermission('DELETE_EXPENSE') && (
            <button onClick={() => { if(window.confirm('Delete record?')) deleteExpense(expense.id); }} className="text-[11px] font-bold text-red-500">Delete</button>
@@ -643,11 +643,11 @@ const Expenses = () => {
  <aside className="w-full lg:w-[300px] shrink-0 space-y-4">
    {/* Total card */}
    <div className="rounded-bento border border-black/5 bg-white shadow-sm p-5">
-     <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-amber-600">
+     <div className="font-mono text-[10px] font-bold uppercase tracking-widest text-accent-signature">
        total · {filterType === 'all' ? 'all time' : filterType}
      </div>
      <div className="font-mono text-[30px] font-bold text-ink-primary tabular-nums leading-none mt-2">
-       <span className="text-amber-500 text-[20px] mr-1">{businessProfile?.currencySymbol || '₹'}</span>
+       <span className="text-accent-signature text-[20px] mr-1">{businessProfile?.currencySymbol || '₹'}</span>
        {Math.round(totalExpenses).toLocaleString('en-IN')}
      </div>
      <div className="grid grid-cols-2 gap-3 mt-5 pt-5 border-t border-black/5">
@@ -683,13 +683,13 @@ const Expenses = () => {
            className={`block w-full text-left mb-3 last:mb-0 group ${categoryFilter === cat ? 'opacity-100' : 'opacity-90 hover:opacity-100'}`}
          >
            <div className="flex items-center justify-between mb-1.5">
-             <span className={`text-[11px] font-semibold uppercase tracking-wide ${categoryFilter === cat ? 'text-amber-700' : 'text-gray-500 group-hover:text-ink-primary'}`}>{cat}</span>
+             <span className={`text-[11px] font-semibold uppercase tracking-wide ${categoryFilter === cat ? 'text-accent-signature-hover' : 'text-gray-500 group-hover:text-ink-primary'}`}>{cat}</span>
              <span className="font-mono text-[12px] font-bold text-ink-primary tabular-nums">
                {businessProfile?.currencySymbol || '₹'}{Math.round(val).toLocaleString('en-IN')}
              </span>
            </div>
            <div className="h-[5px] rounded-full bg-black/[0.06] overflow-hidden">
-             <div className="h-full rounded-full bg-amber-500 transition-all" style={{ width: `${railMax ? Math.max(Math.round(val / railMax * 100), 3) : 0}%` }} />
+             <div className="h-full rounded-full bg-accent-signature transition-all" style={{ width: `${railMax ? Math.max(Math.round(val / railMax * 100), 3) : 0}%` }} />
            </div>
            <div className="text-[10px] text-gray-400 font-medium mt-1 tabular-nums">
              {totalExpenses ? Math.round(val / totalExpenses * 100) : 0}% of outflow
@@ -709,7 +709,7 @@ const Expenses = () => {
  {/* ── Header ───────────────────────────────────────── */}
  <div className="flex items-center justify-between mb-6">
    <div className="flex items-center gap-3.5">
-     <div className="w-11 h-11 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500 shrink-0">
+     <div className="w-11 h-11 rounded-2xl bg-accent-signature/10 flex items-center justify-center text-accent-signature shrink-0">
        <Receipt size={20} strokeWidth={2.2} />
      </div>
      <div>
@@ -733,10 +733,10 @@ const Expenses = () => {
  <form onSubmit={handleSubmit} className="space-y-5">
 
  {/* ── Amount — hero focal point ──────────────────────── */}
- <div className="rounded-2xl bg-amber-500/5 border border-amber-500/15 px-5 py-4 focus-within:border-amber-500/40 focus-within:ring-4 focus-within:ring-amber-500/10 transition-all">
-   <label htmlFor="exp-amount" className="block text-[11px] font-bold uppercase tracking-widest text-amber-500/80 mb-1">Amount</label>
+ <div className="rounded-2xl bg-accent-signature/5 border border-accent-signature/15 px-5 py-4 focus-within:border-accent-signature/40 focus-within:ring-4 focus-within:ring-accent-signature/10 transition-all">
+   <label htmlFor="exp-amount" className="block text-[11px] font-bold uppercase tracking-widest text-accent-signature/80 mb-1">Amount</label>
    <div className="flex items-center">
-     <span className="font-mono text-3xl font-bold text-amber-400 mr-2 leading-none">{businessProfile?.currencySymbol || '₹'}</span>
+     <span className="font-mono text-3xl font-bold text-accent-signature/70 mr-2 leading-none">{businessProfile?.currencySymbol || '₹'}</span>
      <input
        id="exp-amount"
        required
@@ -758,7 +758,7 @@ const Expenses = () => {
    <div>
      <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Category</label>
      <select
-       className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all appearance-none cursor-pointer"
+       className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
        value={formData.category}
        onChange={e => {
          if (e.target.value === '__ADD__') { setNewCategory(''); return; }
@@ -774,7 +774,7 @@ const Expenses = () => {
          value={newCategory}
          onChange={e => setNewCategory(e.target.value)}
          placeholder="+ New category"
-         className="flex-1 bg-canvas border border-black/8 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary outline-none focus:border-amber-500/40 placeholder:text-gray-400"
+         className="flex-1 bg-canvas border border-black/8 rounded-lg px-3 py-1.5 text-xs font-semibold text-ink-primary outline-none focus:border-accent-signature/40 placeholder:text-gray-400"
        />
        <button
          type="button"
@@ -786,14 +786,14 @@ const Expenses = () => {
            setFormData(f => ({ ...f, category: name }));
            setNewCategory('');
          }}
-         className="px-3 py-1.5 rounded-lg bg-amber-500/10 text-amber-500 text-xs font-bold disabled:opacity-40"
+         className="px-3 py-1.5 rounded-lg bg-accent-signature/10 text-accent-signature text-xs font-bold disabled:opacity-40"
        >Add</button>
      </div>
    </div>
    <div>
      <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Paid Via</label>
      <select
-       className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all appearance-none cursor-pointer"
+       className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
        value={formData.payment_method}
        onChange={e => setFormData({...formData, payment_method: e.target.value})}
      >
@@ -810,7 +810,7 @@ const Expenses = () => {
    <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Date</label>
    <input
      type="date"
-     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all"
+     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all"
      value={formData.date}
      onChange={e => setFormData({...formData, date: e.target.value})}
    />
@@ -821,7 +821,7 @@ const Expenses = () => {
  <div>
    <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Paid From Store</label>
    <select
-     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all appearance-none cursor-pointer"
+     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
      value={formData.location_id}
      onChange={e => setFormData({...formData, location_id: e.target.value})}
    >
@@ -839,7 +839,7 @@ const Expenses = () => {
    <textarea
      rows={2}
      placeholder="E.g. Fuel for delivery van, office supplies…"
-     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-medium text-sm text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all resize-none placeholder:text-gray-400"
+     className="w-full bg-white border border-black/10 rounded-xl px-4 py-3 font-medium text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all resize-none placeholder:text-gray-400"
      value={formData.note}
      onChange={e => setFormData({...formData, note: e.target.value})}
    />
@@ -849,7 +849,7 @@ const Expenses = () => {
  <div className="rounded-xl border border-black/8 bg-white overflow-hidden">
    <label className="flex items-center justify-between gap-3 px-4 py-3.5 cursor-pointer">
      <div className="flex items-center gap-3">
-       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.gst_claimable ? 'bg-amber-500/10 text-amber-500' : 'bg-canvas text-gray-400'}`}>
+       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.gst_claimable ? 'bg-accent-signature/10 text-accent-signature' : 'bg-canvas text-gray-400'}`}>
          <Receipt size={16} />
        </div>
        <div>
@@ -862,7 +862,7 @@ const Expenses = () => {
        role="switch"
        aria-checked={formData.gst_claimable}
        onClick={() => setFormData({ ...formData, gst_claimable: !formData.gst_claimable })}
-       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-amber-500/20 shrink-0 ${formData.gst_claimable ? 'bg-amber-500' : 'bg-black/15'}`}
+       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.gst_claimable ? 'bg-accent-signature' : 'bg-black/15'}`}
      >
        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.gst_claimable ? 'translate-x-5' : 'translate-x-0'}`} />
      </button>
@@ -873,7 +873,7 @@ const Expenses = () => {
          <div>
            <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">GST Rate</label>
            <select
-             className="w-full bg-canvas border border-black/10 rounded-xl px-3 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all appearance-none cursor-pointer"
+             className="w-full bg-canvas border border-black/10 rounded-xl px-3 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all appearance-none cursor-pointer"
              value={formData.gst_rate}
              onChange={e => setFormData({ ...formData, gst_rate: e.target.value })}
            >
@@ -886,7 +886,7 @@ const Expenses = () => {
          </div>
          <div>
            <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">ITC (incl.)</label>
-           <div className="px-3 py-2.5 rounded-xl bg-amber-500/5 border border-amber-500/15 text-sm font-bold text-amber-600 tabular-nums font-mono">
+           <div className="px-3 py-2.5 rounded-xl bg-accent-signature/5 border border-accent-signature/15 text-sm font-bold text-accent-signature tabular-nums font-mono">
              {(() => {
                const amt = parseFloat(formData.amount) || 0;
                const r = parseFloat(formData.gst_rate) || 0;
@@ -902,7 +902,7 @@ const Expenses = () => {
            type="text"
            maxLength={15}
            placeholder="29ABCDE1234F1Z5"
-           className="w-full bg-canvas border border-black/10 rounded-xl px-3 py-2.5 font-semibold text-sm uppercase tracking-wide text-ink-primary outline-none focus:border-amber-500/40 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:normal-case"
+           className="w-full bg-canvas border border-black/10 rounded-xl px-3 py-2.5 font-semibold text-sm uppercase tracking-wide text-ink-primary outline-none focus:border-accent-signature/40 focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:normal-case"
            value={formData.vendor_gstin}
            onChange={e => setFormData({ ...formData, vendor_gstin: e.target.value.toUpperCase() })}
          />
@@ -937,7 +937,7 @@ const Expenses = () => {
  {!editingExpense && (
    <label className="flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl border border-black/8 bg-white cursor-pointer hover:border-black/15 transition-colors">
      <div className="flex items-center gap-3">
-       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.repeat_monthly ? 'bg-amber-500/10 text-amber-500' : 'bg-canvas text-gray-400'}`}>
+       <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 transition-colors ${formData.repeat_monthly ? 'bg-accent-signature/10 text-accent-signature' : 'bg-canvas text-gray-400'}`}>
          <Calendar size={16} />
        </div>
        <div>
@@ -952,7 +952,7 @@ const Expenses = () => {
        role="switch"
        aria-checked={formData.repeat_monthly}
        onClick={() => setFormData({ ...formData, repeat_monthly: !formData.repeat_monthly })}
-       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-amber-500/20 shrink-0 ${formData.repeat_monthly ? 'bg-amber-500' : 'bg-black/15'}`}
+       className={`relative w-11 h-6 rounded-full transition-colors duration-200 focus:outline-none focus:ring-4 focus:ring-accent-signature/20 shrink-0 ${formData.repeat_monthly ? 'bg-accent-signature' : 'bg-black/15'}`}
      >
        <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${formData.repeat_monthly ? 'translate-x-5' : 'translate-x-0'}`} />
      </button>
@@ -970,7 +970,7 @@ const Expenses = () => {
    <button type="button" className="px-6 py-3.5 rounded-pill border border-black/10 font-bold text-ink-primary text-xs uppercase tracking-wide hover:bg-black/5 transition-colors cursor-pointer disabled:opacity-50" onClick={handleCloseModal} disabled={saving}>
      Cancel
    </button>
-   <button type="submit" disabled={saving} className="flex-1 h-[52px] text-xs uppercase tracking-widest font-black flex items-center justify-center gap-2.5 px-6 rounded-pill bg-amber-600 hover:bg-amber-700 text-white shadow-md shadow-amber-600/25 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
+   <button type="submit" disabled={saving} className="flex-1 h-[52px] text-xs uppercase tracking-widest font-black flex items-center justify-center gap-2.5 px-6 rounded-pill bg-accent-signature hover:bg-accent-signature-hover text-white shadow-md shadow-accent-signature/25 transition-colors disabled:opacity-60 disabled:cursor-not-allowed">
      {saving ? 'Saving…' : (editingExpense ? 'Save Changes' : 'Log Expense')}
      {!saving && <Save size={16} />}
    </button>

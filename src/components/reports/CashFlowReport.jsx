@@ -157,8 +157,8 @@ const CashFlowReport = () => {
   const renderSectionBadge = (val) => {
     const colors = {
       OPERATING: 'bg-emerald-50 text-emerald-600',
-      INVESTING: 'bg-amber-50 text-amber-600',
-      FINANCING: 'bg-amber-50 text-amber-600',
+      INVESTING: 'bg-accent-signature/10 text-accent-signature',
+      FINANCING: 'bg-accent-signature/10 text-accent-signature',
       SUMMARY: 'bg-ink-primary text-white',
     };
     return (

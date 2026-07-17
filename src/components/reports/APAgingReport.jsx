@@ -348,7 +348,7 @@ const APAgingReport = () => {
             return <span className="text-[10px] font-black text-emerald-500">WITHIN TERMS</span>;
           }
           return (
-            <span className={`text-[10px] font-black ${val > 90 ? 'text-red-600' : val > 60 ? 'text-orange-500' : 'text-amber-500'}`}>
+            <span className={`text-[10px] font-black ${val > 90 ? 'text-red-600' : val > 60 ? 'text-orange-500' : 'text-accent-signature'}`}>
               {val} DAYS
             </span>
           );
@@ -398,9 +398,9 @@ const APAgingReport = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Payment-terms banner */}
-      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-50/50 border border-black/5 shadow-sm">
-        <Clock size={12} className="text-amber-600" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-accent-signature/5 border border-black/5 shadow-sm">
+        <Clock size={12} className="text-accent-signature" />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-accent-signature-hover">
           Aging computed from bill date + net-{DEFAULT_PAYMENT_TERMS_DAYS} terms.
           Add per-supplier <code className="font-mono">payment_terms_days</code> column later to override.
         </span>

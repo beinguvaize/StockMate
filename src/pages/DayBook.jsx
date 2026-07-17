@@ -40,7 +40,7 @@ const MethodBadge = ({ method = '' }) => {
   if (m === 'CREDIT')
     return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-100 text-[8px] font-bold uppercase tracking-wider"><CreditCard size={9} />Credit</span>;
   if (['BANK','UPI','TRANSFER','NEFT','RTGS'].includes(m))
-    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 border border-amber-100 text-[8px] font-bold uppercase tracking-wider"><Building2 size={9} />{m === 'UPI' ? 'UPI' : 'Bank'}</span>;
+    return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-accent-signature/10 text-accent-signature border border-accent-signature/15 text-[8px] font-bold uppercase tracking-wider"><Building2 size={9} />{m === 'UPI' ? 'UPI' : 'Bank'}</span>;
   return <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-canvas text-gray-500 border border-black/5 text-[8px] font-bold uppercase tracking-wider"><Banknote size={9} />Cash</span>;
 };
 
@@ -509,7 +509,7 @@ const DayBook = () => {
                                 <Lock size={8} /> Closed
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[8px] font-bold uppercase tracking-wider">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-accent-signature/10 text-accent-signature border border-accent-signature/15 rounded-full text-[8px] font-bold uppercase tracking-wider">
                                 <Unlock size={8} /> Open
                               </span>
                             )}
@@ -601,7 +601,7 @@ const DayBook = () => {
           </span>
         )}
         {!ledger.hasOpening && !isFuture && (
-          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-600 border border-amber-100 rounded-full text-[9px] font-black uppercase tracking-widest">
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-accent-signature/10 text-accent-signature border border-accent-signature/15 rounded-full text-[9px] font-black uppercase tracking-widest">
             <AlertTriangle size={10} /> Opening not set
           </span>
         )}
@@ -840,10 +840,10 @@ const DayBook = () => {
             <div className="space-y-2.5">
               {[
                 { label: 'Cash Sales',        val: ledger.cashSales,   icon: <Banknote size={10} />,  color: 'text-emerald-600' },
-                { label: 'Bank / UPI Sales',  val: ledger.bankSales,   icon: <Building2 size={10} />, color: 'text-amber-600'  },
+                { label: 'Bank / UPI Sales',  val: ledger.bankSales,   icon: <Building2 size={10} />, color: 'text-accent-signature'  },
                 { label: 'Credit Sales',      val: ledger.creditSales, icon: <CreditCard size={10} />,color: 'text-blue-400', muted: true },
                 { label: 'Cash Collections',  val: ledger.cashCollect, icon: <Users size={10} />,     color: 'text-emerald-600' },
-                { label: 'Bank Collections',  val: ledger.bankCollect, icon: <Users size={10} />,     color: 'text-amber-600'  },
+                { label: 'Bank Collections',  val: ledger.bankCollect, icon: <Users size={10} />,     color: 'text-accent-signature'  },
               ].map(({ label, val, icon, color, muted }) => (
                 <div key={label} className={`flex items-center justify-between ${muted ? 'opacity-50' : ''}`}>
                   <div className={`flex items-center gap-1.5 text-[9px] font-bold text-gray-500 ${color}`}>
@@ -862,7 +862,7 @@ const DayBook = () => {
               {ledger.bankIn > 0 && (
                 <div className="flex justify-between text-[9px] font-bold text-gray-400">
                   <span>+ Bank / UPI In</span>
-                  <span className="tabular-nums text-amber-500">{cy}{fmt(ledger.bankIn)}</span>
+                  <span className="tabular-nums text-accent-signature">{cy}{fmt(ledger.bankIn)}</span>
                 </div>
               )}
             </div>
@@ -894,7 +894,7 @@ const DayBook = () => {
               {ledger.bankPurchPaid > 0 && (
                 <div className="flex justify-between text-[9px] font-bold text-gray-400">
                   <span>+ Bank / UPI Purchases</span>
-                  <span className="tabular-nums text-amber-500">{cy}{fmt(ledger.bankPurchPaid)}</span>
+                  <span className="tabular-nums text-accent-signature">{cy}{fmt(ledger.bankPurchPaid)}</span>
                 </div>
               )}
             </div>
@@ -903,7 +903,7 @@ const DayBook = () => {
           {/* ── Physical cash reconciliation ─────────────────────────────── */}
           <div className="bg-white border border-black/5 rounded-2xl shadow-sm p-5">
             <h3 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Banknote size={11} className="text-amber-500" /> Cash Reconciliation
+              <Banknote size={11} className="text-accent-signature" /> Cash Reconciliation
               {ledger.savedVariance != null && (
                 <span className={`ml-auto inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[8px] font-bold ${
                   Math.abs(ledger.savedVariance) < 0.01

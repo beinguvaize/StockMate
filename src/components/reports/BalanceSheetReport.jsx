@@ -155,7 +155,7 @@ const BalanceSheetReport = () => {
             <div key={i} className="bg-white px-4 py-3.5 flex flex-col gap-1.5">
               <div className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{m.label}</div>
               <div className="font-mono text-xl font-bold tabular-nums leading-none text-ink-primary">
-                {m.money ? <><span className="text-amber-400 text-sm mr-0.5">{sym}</span>{Math.round(m.value).toLocaleString('en-IN')}</> : m.value}
+                {m.money ? <><span className="text-accent-signature/70 text-sm mr-0.5">{sym}</span>{Math.round(m.value).toLocaleString('en-IN')}</> : m.value}
               </div>
             </div>
           ))}

@@ -421,7 +421,7 @@ const Payroll = () => {
     const statusStyle = (s) => {
       if (s === 'PRESENT')  return 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200';
       if (s === 'ABSENT')   return 'bg-red-50 text-red-500 hover:bg-red-100';
-      if (s === 'HALF_DAY') return 'bg-amber-50 text-amber-600 hover:bg-amber-100';
+      if (s === 'HALF_DAY') return 'bg-accent-signature/10 text-accent-signature hover:bg-accent-signature/15';
       return 'bg-canvas text-gray-300 hover:bg-gray-100 hover:text-gray-500';
     };
     const statusLabel = (s) => s === 'PRESENT' ? '✓' : s === 'ABSENT' ? '✗' : s === 'HALF_DAY' ? '½' : '·';
@@ -443,7 +443,7 @@ const Payroll = () => {
         <div className="flex items-center gap-4 text-[10px] font-semibold">
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-emerald-100 text-emerald-700 flex items-center justify-center text-[9px] font-bold">✓</span> Present</span>
           <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-red-50 text-red-500 flex items-center justify-center text-[9px] font-bold">✗</span> Absent</span>
-          <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-amber-50 text-amber-600 flex items-center justify-center text-[9px] font-bold">½</span> Half Day</span>
+          <span className="flex items-center gap-1.5"><span className="w-5 h-5 rounded bg-accent-signature/10 text-accent-signature flex items-center justify-center text-[9px] font-bold">½</span> Half Day</span>
           <span className="text-gray-400 italic">Click cell to cycle status · Hover to set custom rate</span>
           {attLoading && <span className="text-gray-400 animate-pulse">Loading…</span>}
         </div>
@@ -453,7 +453,7 @@ const Payroll = () => {
           <div className="bg-white rounded-2xl border border-black/5 overflow-hidden shadow-sm">
             <div className="px-4 py-3 border-b border-black/5 flex items-center gap-2">
               <span className="text-[10px] font-semibold text-gray-600 uppercase tracking-wide">Daily Wage / Hourly Employees</span>
-              <span className="text-[9px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-pill font-bold uppercase">Attendance tracked</span>
+              <span className="text-[9px] bg-accent-signature/15 text-accent-signature-hover px-2 py-0.5 rounded-pill font-bold uppercase">Attendance tracked</span>
             </div>
             <div className="overflow-x-auto">
               <table className="border-collapse" style={{ minWidth: `${140 + attDays.length * 34 + 120}px` }}>

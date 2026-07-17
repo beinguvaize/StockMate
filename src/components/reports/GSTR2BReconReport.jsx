@@ -79,7 +79,7 @@ const GSTR2BReconReport = () => {
   const statusColor = (s) =>
     s === 'MATCHED' ? 'text-emerald-700'
     : s === 'MISMATCH' ? 'text-rose-600'
-    : s === 'MISSING IN 2B' ? 'text-amber-700'
+    : s === 'MISSING IN 2B' ? 'text-accent-signature-hover'
     : 'text-sky-700';
 
   const tab = recon ? {
@@ -144,7 +144,7 @@ const GSTR2BReconReport = () => {
             {[
               { label: 'Matched', val: recon.summary.matched, sub: 'invoices', cls: 'text-emerald-600' },
               { label: 'Mismatch', val: recon.summary.mismatch, sub: 'review', cls: 'text-rose-600' },
-              { label: 'Missing in 2B', val: recon.summary.missingIn2B, sub: 'ITC at risk', cls: 'text-amber-600' },
+              { label: 'Missing in 2B', val: recon.summary.missingIn2B, sub: 'ITC at risk', cls: 'text-accent-signature' },
               { label: 'Missing in Books', val: recon.summary.missingInBooks, sub: 'unclaimed', cls: 'text-sky-600' },
               { label: 'ITC at Risk', val: formatINR(recon.summary.atRiskItc), sub: 'follow up', cls: 'text-rose-600', money: true },
             ].map((c, i) => (
@@ -157,7 +157,7 @@ const GSTR2BReconReport = () => {
           </div>
 
           {recon.summary.missingIn2B + recon.summary.mismatch > 0 && (
-            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-amber-50 border border-amber-100 text-amber-800 text-[12px] font-semibold">
+            <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-accent-signature/10 border border-accent-signature/15 text-accent-signature-hover text-[12px] font-semibold">
               <AlertTriangle size={16} /> {formatINR(recon.summary.atRiskItc)} of ITC may not be claimable yet — these invoices aren't in 2B or their values differ. Follow up before claiming.
             </div>
           )}

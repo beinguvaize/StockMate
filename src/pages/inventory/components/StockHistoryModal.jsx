@@ -7,7 +7,7 @@ import { supabase } from '../../../lib/supabase';
 const TYPE_CONFIG = {
   IN:       { label: 'Stock In',    color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', Icon: TrendingUp },
   OUT:      { label: 'Stock Out',   color: 'text-rose-600',    bg: 'bg-rose-50',    border: 'border-rose-200',    Icon: TrendingDown },
-  ADJUST:   { label: 'Adjustment', color: 'text-amber-600',  bg: 'bg-amber-50',  border: 'border-amber-200',  Icon: RotateCcw },
+  ADJUST:   { label: 'Adjustment', color: 'text-accent-signature',  bg: 'bg-accent-signature/10',  border: 'border-accent-signature/25',  Icon: RotateCcw },
   TRANSFER: { label: 'Transfer',   color: 'text-blue-600',    bg: 'bg-blue-50',    border: 'border-blue-200',    Icon: RotateCcw },
 };
 

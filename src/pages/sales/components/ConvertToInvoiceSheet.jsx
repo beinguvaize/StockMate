@@ -143,7 +143,7 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
           </div>
         )}
         {!form.client_id && form.name.trim() && suggestions.length === 0 && (
-          <div className="text-[10px] text-amber-600 mt-0.5">
+          <div className="text-[10px] text-accent-signature mt-0.5">
             New customer — will be added to Clients on save
           </div>
         )}

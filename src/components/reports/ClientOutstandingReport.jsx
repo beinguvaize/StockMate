@@ -117,7 +117,7 @@ const ClientOutstandingReport = () => {
     { key: 'name', label: 'Client / Entity', sortable: true, width: 250, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
     { key: 'phone', label: 'Contact Node', width: 150, render: (val) => <div className="flex items-center gap-2 text-[10px] font-bold text-gray-400"><Phone size={10} /> {val || 'NO PHONE'}</div> },
     { key: 'balance', label: 'Current Balance', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => (
-      <span className={`font-black ${val > 50000 ? 'text-red-500' : val > 0 ? 'text-amber-500' : 'text-emerald-500'}`}>
+      <span className={`font-black ${val > 50000 ? 'text-red-500' : val > 0 ? 'text-accent-signature' : 'text-emerald-500'}`}>
         {formatCurrency(val)}
       </span>
     )},
@@ -135,7 +135,7 @@ const ClientOutstandingReport = () => {
     }},
     { key: 'days_overdue', label: 'Days Overdue', align: 'right', sortable: true, width: 120, render: (val) => {
       if (!val || val <= 0) return <span className="text-[10px] font-black text-emerald-500">CURRENT</span>;
-      return <span className={`text-[10px] font-black ${val > 60 ? 'text-red-600' : val > 30 ? 'text-orange-500' : 'text-amber-500'}`}>{val} DAYS</span>;
+      return <span className={`text-[10px] font-black ${val > 60 ? 'text-red-600' : val > 30 ? 'text-orange-500' : 'text-accent-signature'}`}>{val} DAYS</span>;
     }},
     { key: 'status', label: 'Risk Status', width: 140, render: (_, row) => {
       const u = row.utilization || 0;
@@ -143,9 +143,9 @@ const ClientOutstandingReport = () => {
       const risk = isOverdue || u > 90 ? 'CRITICAL' : u > 60 ? 'WARNING' : 'STABLE';
       return (
         <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase w-fit ${
-          risk === 'CRITICAL' ? 'bg-red-50 text-red-600' : risk === 'WARNING' ? 'bg-amber-50 text-amber-600' : 'bg-emerald-50 text-emerald-600'
+          risk === 'CRITICAL' ? 'bg-red-50 text-red-600' : risk === 'WARNING' ? 'bg-accent-signature/10 text-accent-signature' : 'bg-emerald-50 text-emerald-600'
         }`}>
-          <div className={`w-1 h-1 rounded-full ${risk === 'CRITICAL' ? 'bg-red-600' : risk === 'WARNING' ? 'bg-amber-600' : 'bg-emerald-600'}`} />
+          <div className={`w-1 h-1 rounded-full ${risk === 'CRITICAL' ? 'bg-red-600' : risk === 'WARNING' ? 'bg-accent-signature' : 'bg-emerald-600'}`} />
           {risk}
         </div>
       );

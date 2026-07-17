@@ -26,7 +26,7 @@ const PAYMENT_METHODS = [
 function Avatar({ name }) {
   const letter = (name?.trim()?.[0] || '?').toUpperCase();
   return (
-    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm font-black uppercase text-amber-700">
+    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent-signature/15 text-sm font-black uppercase text-accent-signature-hover">
       {letter}
     </div>
   );
@@ -78,7 +78,7 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
   }, [validAmount, submitting, onSubmit, client.id, parsedAmount, method, notes]);
 
   return (
-    <div className="rounded-2xl border-2 border-amber-300 bg-white p-4 shadow-sm">
+    <div className="rounded-2xl border-2 border-accent-signature/40 bg-white p-4 shadow-sm">
       {/* Card header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -111,7 +111,7 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
             value={amount}
             onChange={e => setAmount(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') handleReview(); }}
-            className="w-full rounded-xl border border-black/10 bg-canvas py-2.5 pl-9 pr-3 font-mono tabular-nums text-lg font-bold text-ink-primary outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200"
+            className="w-full rounded-xl border border-black/10 bg-canvas py-2.5 pl-9 pr-3 font-mono tabular-nums text-lg font-bold text-ink-primary outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/25"
             placeholder="0"
           />
         </div>
@@ -134,7 +134,7 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
               <button key={m.id} type="button" onClick={() => setMethod(m.id)} aria-pressed={active}
                 className={`flex items-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-semibold transition ${
                   active
-                    ? 'border-amber-400 bg-amber-50 text-amber-700'
+                    ? 'border-accent-signature/70 bg-accent-signature/10 text-accent-signature-hover'
                     : 'border-black/10 bg-white text-ink-primary/60 hover:border-black/20'
                 }`}
               >
@@ -155,7 +155,7 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
         <input id={`notes-${client.id}`} type="text" value={notes}
           onChange={e => setNotes(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') handleReview(); }}
-          className="w-full rounded-xl border border-black/10 bg-canvas px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200"
+          className="w-full rounded-xl border border-black/10 bg-canvas px-3 py-2.5 text-sm text-ink-primary outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/25"
           placeholder="optional reference…"
         />
       </div>
@@ -168,8 +168,8 @@ function CollectForm({ client, currencySymbol, onCancel, onSubmit }) {
 
       {confirming ? (
         /* ── Confirmation step ── */
-        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-amber-700/60">Confirm payment</p>
+        <div className="mt-4 rounded-xl border border-accent-signature/25 bg-accent-signature/10 p-4">
+          <p className="mb-1 text-[10px] font-black uppercase tracking-widest text-accent-signature-hover/60">Confirm payment</p>
           <p className="text-base font-bold text-ink-primary">
             {currencySymbol}{parsedAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             <span className="ml-2 text-sm font-semibold text-ink-primary/50">via {method}</span>
@@ -221,7 +221,7 @@ function DueRow({ client, onExpand }) {
         {formatCurrency(client.outstanding_balance)}
       </p>
       <button type="button" onClick={() => onExpand(client.id)}
-        className="flex shrink-0 items-center gap-1 rounded-xl bg-amber-50 px-3 py-2 text-sm font-bold text-amber-700 transition hover:bg-amber-100"
+        className="flex shrink-0 items-center gap-1 rounded-xl bg-accent-signature/10 px-3 py-2 text-sm font-bold text-accent-signature-hover transition hover:bg-accent-signature/15"
       >
         Collect <ChevronRight className="h-4 w-4" />
       </button>
@@ -353,7 +353,7 @@ export default function CashCollection() {
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-primary/40" />
           <input type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search clients by name…"
-            className="w-full rounded-xl border border-black/5 bg-white py-2.5 pl-9 pr-9 text-sm text-ink-primary outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-200"
+            className="w-full rounded-xl border border-black/5 bg-white py-2.5 pl-9 pr-9 text-sm text-ink-primary outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/25"
           />
           {search && (
             <button type="button" onClick={() => setSearch('')} aria-label="Clear search"

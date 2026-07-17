@@ -67,7 +67,7 @@ const TYPE_FILTERS = ['ALL', 'Sale', 'Payment', 'Purchase', 'Expense'];
 
 const TYPE_STYLE = {
   Sale:     { bg: 'bg-emerald-50', text: 'text-emerald-700' },
-  Payment:  { bg: 'bg-amber-50',  text: 'text-amber-700' },
+  Payment:  { bg: 'bg-accent-signature/10',  text: 'text-accent-signature-hover' },
   Purchase: { bg: 'bg-blue-50',    text: 'text-blue-700' },
   Expense:  { bg: 'bg-red-50',     text: 'text-red-600' },
 };

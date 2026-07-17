@@ -14,8 +14,8 @@ import { formatINR } from '../../utils/financialCalculations';
  *
  * Two-column ledger layout: Particulars (left) · Amount (right, monospace).
  */
-const accentText = { amber: 'text-amber-700', rose: 'text-rose-600', emerald: 'text-emerald-700', ink: 'text-ink-primary' };
-const accentBar  = { amber: 'bg-amber-500', rose: 'bg-rose-500', emerald: 'bg-emerald-500', ink: 'bg-ink-primary' };
+const accentText = { amber: 'text-accent-signature-hover', rose: 'text-rose-600', emerald: 'text-emerald-700', ink: 'text-ink-primary' };
+const accentBar  = { amber: 'bg-accent-signature', rose: 'bg-rose-500', emerald: 'bg-emerald-500', ink: 'bg-ink-primary' };
 
 const Amount = ({ v, className = '' }) => (
   <span className={`font-mono tabular-nums ${className}`}>{formatINR(v)}</span>
@@ -54,7 +54,7 @@ const StatementTable = ({ sections = [], grandTotal, note }) => (
                       </tr>
                     )}
                     {g.lines.map((l, li) => (
-                      <tr key={li} className="hover:bg-amber-500/[0.03] transition-colors">
+                      <tr key={li} className="hover:bg-accent-signature/[0.03] transition-colors">
                         <td className="pl-10 pr-6 py-1.5 text-[13px] font-medium text-ink-primary">{l.label}</td>
                         <td className="px-6 py-1.5 text-right text-[13px] font-semibold text-ink-primary"><Amount v={l.value} /></td>
                       </tr>

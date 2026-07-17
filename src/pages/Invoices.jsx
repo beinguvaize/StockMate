@@ -40,7 +40,7 @@ const downloadCSV = (rows, filename) => {
 
 // ── sub-components ────────────────────────────────────────────────────
 const SummaryCard = ({ label, value, sub, tone }) => {
-  const cls = tone === 'emerald' ? 'text-emerald-600' : tone === 'amber' ? 'text-amber-600' : tone === 'rose' ? 'text-rose-500' : 'text-ink-primary';
+  const cls = tone === 'emerald' ? 'text-emerald-600' : tone === 'amber' ? 'text-accent-signature' : tone === 'rose' ? 'text-rose-500' : 'text-ink-primary';
   return (
     <div className="bg-white rounded-2xl border border-black/5 px-4 py-3">
       <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</div>
@@ -53,12 +53,12 @@ const SummaryCard = ({ label, value, sub, tone }) => {
 const StatusBadge = ({ status }) => {
   const map = {
     PAID:    'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60',
-    UNPAID:  'bg-amber-50 text-amber-700 ring-1 ring-amber-200/60',
+    UNPAID:  'bg-accent-signature/10 text-accent-signature-hover ring-1 ring-accent-signature/20',
     PARTIAL: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200/60',
     OVERDUE: 'bg-rose-50 text-rose-600 ring-1 ring-rose-200/60',
   };
   const dot = {
-    PAID: 'bg-emerald-500', UNPAID: 'bg-amber-500', PARTIAL: 'bg-blue-500', OVERDUE: 'bg-rose-500'
+    PAID: 'bg-emerald-500', UNPAID: 'bg-accent-signature', PARTIAL: 'bg-blue-500', OVERDUE: 'bg-rose-500'
   };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold ${map[status] || map.UNPAID}`}>
@@ -79,7 +79,7 @@ const StatusTab = ({ k, label, count, active, onClick }) => (
 );
 
 const MetaRow = ({ icon: Icon, label, value, tone }) => {
-  const cls = tone === 'emerald' ? 'text-emerald-600' : tone === 'amber' ? 'text-amber-600' : 'text-ink-primary';
+  const cls = tone === 'emerald' ? 'text-emerald-600' : tone === 'amber' ? 'text-accent-signature' : 'text-ink-primary';
   return (
     <div className="flex items-start gap-2.5 p-3 bg-canvas rounded-xl">
       <Icon size={14} className="text-gray-400 mt-0.5" />
@@ -90,7 +90,7 @@ const MetaRow = ({ icon: Icon, label, value, tone }) => {
 };
 
 const TotalRow = ({ label, value, bold, tone }) => {
-  const cls = tone === 'emerald' ? 'text-emerald-600' : tone === 'amber' ? 'text-amber-600' : 'text-ink-primary';
+  const cls = tone === 'emerald' ? 'text-emerald-600' : tone === 'amber' ? 'text-accent-signature' : 'text-ink-primary';
   return (
     <div className="flex items-center justify-between">
       <span className={`text-xs font-semibold ${bold ? 'text-ink-primary' : 'text-gray-600'}`}>{label}</span>
@@ -278,7 +278,7 @@ const Invoices = () => {
         <td className="px-4 py-4 text-right">
           <div className="font-mono text-sm font-bold text-ink-primary tabular-nums">{formatCurrency(inv.grand_total)}</div>
           {out > 0 && status !== 'PAID' && (
-            <div className="text-[11px] font-semibold text-amber-600 tabular-nums mt-0.5">Due: {formatCurrency(out)}</div>
+            <div className="text-[11px] font-semibold text-accent-signature tabular-nums mt-0.5">Due: {formatCurrency(out)}</div>
           )}
         </td>
         <td className="px-4 py-4">
@@ -302,7 +302,7 @@ const Invoices = () => {
             <button
               onClick={() => setEwayInv(inv)}
               title={inv.eway_no ? `e-Way ${inv.eway_no}` : 'Generate e-Way bill'}
-              className={`p-2 rounded-lg transition-colors ${inv.eway_no ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'hover:bg-amber-50 text-gray-400 hover:text-amber-600'}`}
+              className={`p-2 rounded-lg transition-colors ${inv.eway_no ? 'bg-emerald-50 text-emerald-600 hover:bg-emerald-100' : 'hover:bg-accent-signature/10 text-gray-400 hover:text-accent-signature'}`}
             >
               <FileText size={15} />
             </button>
@@ -348,7 +348,7 @@ const Invoices = () => {
               <button
                 onClick={() => handleRemind(inv, client)}
                 title="Send payment reminder (SMS/WhatsApp)"
-                className="p-2 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+                className="p-2 rounded-lg hover:bg-accent-signature/10 text-gray-400 hover:text-accent-signature transition-colors"
               >
                 <BellRing size={15} />
               </button>
@@ -523,7 +523,7 @@ const Invoices = () => {
                 <div className={`rounded-xl p-4 border ${
                   inv.irn_status === 'SUCCESS' ? 'bg-emerald-50 border-emerald-200' :
                   inv.irn_status === 'FAILED'  ? 'bg-red-50 border-red-200' :
-                  inv.irn_status === 'PENDING' || inv.irn_status === 'PROCESSING' ? 'bg-amber-50 border-amber-200' :
+                  inv.irn_status === 'PENDING' || inv.irn_status === 'PROCESSING' ? 'bg-accent-signature/10 border-accent-signature/25' :
                   'bg-gray-50 border-gray-200'
                 }`}>
                   <div className="flex items-center justify-between">
@@ -532,7 +532,7 @@ const Invoices = () => {
                       <p className={`text-sm font-bold mt-0.5 ${
                         inv.irn_status === 'SUCCESS' ? 'text-emerald-700' :
                         inv.irn_status === 'FAILED'  ? 'text-red-700' :
-                        inv.irn_status === 'PENDING' || inv.irn_status === 'PROCESSING' ? 'text-amber-700' :
+                        inv.irn_status === 'PENDING' || inv.irn_status === 'PROCESSING' ? 'text-accent-signature-hover' :
                         'text-gray-700'
                       }`}>
                         {inv.irn_status === 'SUCCESS' ? `Generated · ${inv.irn?.slice(0, 16)}…` :

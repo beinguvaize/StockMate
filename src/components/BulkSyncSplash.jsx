@@ -90,7 +90,7 @@ const BulkSyncSplash = ({ tenantId, onDone }) => {
           </div>
 
           {errors.length > 0 && (
-            <div className="mt-4 w-full px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 text-left">
+            <div className="mt-4 w-full px-3 py-2 rounded-lg bg-accent-signature/10 border border-accent-signature/25 text-[11px] text-accent-signature-hover text-left">
               {errors.length} table{errors.length === 1 ? '' : 's'} couldn't be cached. They'll retry next time you sync.
             </div>
           )}

@@ -42,7 +42,7 @@ export const PartyPicker = ({ label, party, clients = [], onChange, manual = fal
       )}
       {!manual && (party ? (
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-800 grid place-items-center font-black text-[12px]">{party.name?.slice(0, 2).toUpperCase()}</div>
+          <div className="w-9 h-9 rounded-full bg-accent-signature/15 text-accent-signature-hover grid place-items-center font-black text-[12px]">{party.name?.slice(0, 2).toUpperCase()}</div>
           <div className="leading-tight">
             <div className="font-black text-sm text-ink-primary">{party.name}</div>
             <div className="text-[11px] text-gray-500">{party.gstin ? `GSTIN ${party.gstin} · ` : ''}{party.state || '—'}</div>
@@ -176,7 +176,7 @@ export const TotalsPanel = ({
       )}
       <div className="flex justify-between items-baseline pt-3 mt-2 border-t border-black/10">
         <span className="font-black text-ink-primary">Total</span>
-        <span className="font-black text-xl font-mono text-amber-800">{inr(total)}</span>
+        <span className="font-black text-xl font-mono text-accent-signature-hover">{inr(total)}</span>
       </div>
       {showPayment && (
         <>

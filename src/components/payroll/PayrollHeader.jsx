@@ -53,7 +53,7 @@ const PayrollHeader = ({
             </div>
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Monthly Payroll</span>
             <div className="font-mono text-2xl font-bold text-ink-primary tabular-nums leading-none">
-              <span className="text-amber-400 text-base mr-0.5">{currencySymbol}</span>
+              <span className="text-accent-signature/70 text-base mr-0.5">{currencySymbol}</span>
               {totalMonthlyPayroll.toLocaleString('en-IN')}
             </div>
           </div>

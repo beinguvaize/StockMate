@@ -219,7 +219,7 @@ const Login = () => {
    <div className={`mb-5 px-4 py-3 rounded-xl border text-[12px] leading-snug ${
      desktopOfflineFirstSignIn || desktopOfflineGraceExpired || desktopOfflineSubscriptionBlocked
        ? 'bg-red-500/10 border-red-500/30 text-red-300'
-       : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+       : 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature/40'
    }`}>
      {desktopOfflineFirstSignIn && (
        <span><strong>Offline.</strong> First sign-in requires internet. Connect, then sign in.</span>

@@ -384,10 +384,10 @@ const Dashboard = () => {
  const COLORS = [
  '#3b82f6', // blue-500
  '#ec4899', // pink-500
- '#8b5cf6', // amber-500
+ '#8b5cf6', // accent-signature
  '#10b981', // emerald-500
- '#f59e0b', // amber-500
- 'var(--color-accent-signature)', // amber-500
+ '#f59e0b', // accent-signature
+ 'var(--color-accent-signature)', // accent-signature
  '#ef4444', // red-500
  '#06b6d4', // cyan-500
  '#84cc16', // lime-500
@@ -632,7 +632,7 @@ const Dashboard = () => {
    { label: `${datePreset} Purchases`, value: Math.round(datePreset === 'Today' && kpiData ? (kpiData.today_purchases ?? rangePurchases) : rangePurchases), icon: <ShoppingBag size={16} />, tone: 'slate', to: '/purchases' },
    { label: 'Salary Pending',          value: Math.round(salariesPending),                                                                                   icon: <Users size={16} />,       tone: 'slate', to: '/payroll' },
  ].map((m, i) => {
-   const chip = { emerald: 'bg-emerald-50 text-emerald-600', rose: 'bg-rose-50 text-rose-500', amber: 'bg-amber-50 text-amber-600', slate: 'bg-slate-100 text-slate-500' }[m.tone];
+   const chip = { emerald: 'bg-emerald-50 text-emerald-600', rose: 'bg-rose-50 text-rose-500', amber: 'bg-accent-signature/10 text-accent-signature', slate: 'bg-slate-100 text-slate-500' }[m.tone];
    const d = typeof m.delta === 'number' ? m.delta : null;
    return (
    <div key={i} role="button" tabIndex={0}
@@ -648,7 +648,7 @@ const Dashboard = () => {
        )}
      </div>
      <div className="font-mono text-[22px] font-bold tabular-nums leading-none text-ink-primary mt-1">
-       <span className="text-amber-400 text-sm mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{m.value.toLocaleString('en-IN')}
+       <span className="text-accent-signature/70 text-sm mr-0.5">{businessProfile?.currencySymbol || '₹'}</span>{m.value.toLocaleString('en-IN')}
      </div>
      <div className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{m.label}</div>
    </div>
@@ -1061,10 +1061,10 @@ const Dashboard = () => {
  <div className="bg-white rounded-[1.5rem] border border-black/5 shadow-sm flex flex-col h-[400px] overflow-hidden">
    <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
      <div className="flex items-center gap-2">
-       <Users size={13} className="text-amber-500" />
+       <Users size={13} className="text-accent-signature" />
        <span className="text-xs font-black text-ink-primary uppercase tracking-wide">Salary Dues</span>
      </div>
-     <span className="text-[10px] font-black text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-lg">{pendingSalaryAlerts.length}</span>
+     <span className="text-[10px] font-black text-accent-signature bg-accent-signature/10 border border-accent-signature/15 px-2 py-0.5 rounded-lg">{pendingSalaryAlerts.length}</span>
    </div>
    <div className="flex-1 overflow-y-auto divide-y divide-black/5">
      {pendingSalaryAlerts.length === 0 ? (
@@ -1083,8 +1083,8 @@ const Dashboard = () => {
                <p className="text-[10px] text-gray-400 mt-0.5">{days}d × ₹{rate} · paid ₹{paid.toLocaleString()}</p>
              </div>
              <div className="flex items-center gap-2 shrink-0 ml-3">
-               <span className="text-xs font-black text-amber-600 tabular-nums">₹{pending.toLocaleString()}</span>
-               <button onClick={() => navigate('/payroll')} className="text-[9px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+               <span className="text-xs font-black text-accent-signature tabular-nums">₹{pending.toLocaleString()}</span>
+               <button onClick={() => navigate('/payroll')} className="text-[9px] font-black uppercase tracking-widest text-accent-signature-hover bg-accent-signature/10 border border-accent-signature/15 hover:bg-accent-signature hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
                  Pay
                </button>
              </div>
@@ -1099,7 +1099,7 @@ const Dashboard = () => {
  <div className="bg-white rounded-[1.5rem] border border-black/5 shadow-sm flex flex-col h-[400px] overflow-hidden">
    <div className="flex items-center justify-between px-5 py-4 border-b border-black/5 shrink-0">
      <div className="flex items-center gap-2">
-       <Activity size={13} className="text-amber-500" />
+       <Activity size={13} className="text-accent-signature" />
        <span className="text-xs font-black text-ink-primary uppercase tracking-wide">Top Debtors</span>
      </div>
    </div>
@@ -1124,7 +1124,7 @@ const Dashboard = () => {
                </div>
                <div className="flex items-center gap-2 shrink-0 ml-3">
                  <span className={`text-xs font-black tabular-nums ${amtColor}`}>₹{Math.round(out).toLocaleString()}</span>
-                 <button onClick={(e) => { e.stopPropagation(); navigate(`/clients?client=${client.id}`); }} className="text-[9px] font-black uppercase tracking-widest text-amber-600 bg-amber-50 border border-amber-100 hover:bg-amber-600 hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
+                 <button onClick={(e) => { e.stopPropagation(); navigate(`/clients?client=${client.id}`); }} className="text-[9px] font-black uppercase tracking-widest text-accent-signature bg-accent-signature/10 border border-accent-signature/15 hover:bg-accent-signature hover:text-white transition-colors px-2.5 py-1.5 rounded-lg">
                    Collect
                  </button>
                </div>

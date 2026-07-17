@@ -35,16 +35,16 @@ const CloudStatus = ({ status, lastSyncedAt, isOnline}) => {
  config.circle = 'bg-gray-400';
 } else if (status === 'SYNCING') {
  config.label = 'Syncing...';
- config.bg = 'bg-amber-50';
- config.border = 'border-amber-100';
- config.text = 'text-amber-600';
- config.circle = 'bg-amber-500';
+ config.bg = 'bg-accent-signature/10';
+ config.border = 'border-accent-signature/15';
+ config.text = 'text-accent-signature';
+ config.circle = 'bg-accent-signature';
 } else if (status === 'ERROR') {
  config.label = 'Sync Delayed';
- config.bg = 'bg-amber-50';
- config.border = 'border-amber-100';
- config.text = 'text-amber-600';
- config.circle = 'bg-amber-500';
+ config.bg = 'bg-accent-signature/10';
+ config.border = 'border-accent-signature/15';
+ config.text = 'text-accent-signature';
+ config.circle = 'bg-accent-signature';
 }
 
  return (
@@ -164,7 +164,7 @@ const Navbar = () => {
        >
          <span className="opacity-40">{item.icon}</span>
          {item.label}
-         <Sparkles size={12} className="text-amber-400 ml-0.5" />
+         <Sparkles size={12} className="text-accent-signature/70 ml-0.5" />
        </div>
      );
    }
@@ -247,7 +247,7 @@ const Navbar = () => {
        <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-lg text-[13px] font-medium text-gray-400 cursor-not-allowed">
          <span className="opacity-40">{item.icon}</span>
          {item.label}
-         <Sparkles size={12} className="text-amber-400 ml-auto" />
+         <Sparkles size={12} className="text-accent-signature/70 ml-auto" />
        </div>
      );
    }
@@ -402,7 +402,7 @@ const Navbar = () => {
        <div key={item.path} className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-400 cursor-not-allowed mb-0.5">
          <span className="opacity-40">{item.icon}</span>
          {item.label}
-         <Sparkles size={12} className="text-amber-400 ml-auto" />
+         <Sparkles size={12} className="text-accent-signature/70 ml-auto" />
        </div>
      );
    }
@@ -526,7 +526,7 @@ const MainContent = ({ kioskMode = false }) => {
   const billingMsg = billing.expired
     ? { txt: 'Your subscription has expired. Renew to keep full access.', cls: 'bg-red-600' }
     : billing.pastDue
-    ? { txt: 'Payment failed — update your billing to avoid interruption.', cls: 'bg-amber-600' }
+    ? { txt: 'Payment failed — update your billing to avoid interruption.', cls: 'bg-accent-signature' }
     : { txt: `Trial ends in ${billing.trialDaysLeft} day${billing.trialDaysLeft === 1 ? '' : 's'}. Add a plan to continue.`, cls: 'bg-ink-primary' };
   return (
     <main
@@ -597,16 +597,16 @@ const AppLayout = () => {
         <div className="group fixed top-0 left-0 right-0 z-[200] h-2.5 print:hidden">
           {/* 10px hover trigger (wrapper height = 10px so nothing below gets blocked) */}
           {/* Always-visible pill, no pointer events */}
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-amber-500 text-white text-[9px] font-bold uppercase tracking-widest px-3 py-0.5 rounded-b-md shadow-md opacity-80 group-hover:opacity-0 transition-opacity duration-200 pointer-events-none flex items-center gap-1">
+          <div className="absolute top-0 left-1/2 -translate-x-1/2 bg-accent-signature text-white text-[9px] font-bold uppercase tracking-widest px-3 py-0.5 rounded-b-md shadow-md opacity-80 group-hover:opacity-0 transition-opacity duration-200 pointer-events-none flex items-center gap-1">
             <Shield size={10} /> Impersonating
           </div>
           {/* Banner absolute — out of flow, slides down on hover */}
-          <div className="absolute top-0 left-0 right-0 bg-amber-500 text-white px-4 py-2 text-center text-xs font-semibold flex items-center justify-center gap-4 shadow-xl -translate-y-full group-hover:translate-y-0 transition-transform duration-200 ease-out pointer-events-auto">
+          <div className="absolute top-0 left-0 right-0 bg-accent-signature text-white px-4 py-2 text-center text-xs font-semibold flex items-center justify-center gap-4 shadow-xl -translate-y-full group-hover:translate-y-0 transition-transform duration-200 ease-out pointer-events-auto">
             <Shield size={14} className="animate-pulse" />
             <span>Viewing as: {currentTenant?.name}</span>
             <button
               onClick={stopImpersonating}
-              className="bg-white text-amber-600 px-3 py-1 rounded-lg hover:bg-amber-50 transition-all shadow-sm active:scale-[0.98] font-semibold border border-amber-600/20"
+              className="bg-white text-accent-signature px-3 py-1 rounded-lg hover:bg-accent-signature/10 transition-all shadow-sm active:scale-[0.98] font-semibold border border-accent-signature/20"
             >
               Exit View
             </button>

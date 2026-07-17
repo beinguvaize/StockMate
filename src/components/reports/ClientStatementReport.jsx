@@ -65,7 +65,7 @@ const KPI = ({ label, value, icon: Icon, color = 'var(--color-accent-signature)'
 const TYPE_STYLE = {
   SALE:    { bg: 'bg-emerald-50', text: 'text-emerald-700', label: 'Sale' },
   INVOICE: { bg: 'bg-blue-50',    text: 'text-blue-700',    label: 'Invoice' },
-  PAYMENT: { bg: 'bg-amber-50',  text: 'text-amber-700',  label: 'Payment' },
+  PAYMENT: { bg: 'bg-accent-signature/10',  text: 'text-accent-signature-hover',  label: 'Payment' },
 };
 
 const ClientStatementReport = () => {

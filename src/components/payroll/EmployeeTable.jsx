@@ -140,10 +140,10 @@ const EmployeeTable = ({
  </td>
  <td className="p-2 text-right">
  <div className="flex items-center justify-end gap-2 pr-2">
- <div className={`text-sm font-semibold font-mono tabular-nums ${pending > 0 ? 'text-red-500' : pending < 0 ? 'text-amber-500' : 'text-green-500'}`}>
+ <div className={`text-sm font-semibold font-mono tabular-nums ${pending > 0 ? 'text-red-500' : pending < 0 ? 'text-accent-signature' : 'text-green-500'}`}>
  {currencySymbol}{pending.toLocaleString()}
  </div>
- <div className={`w-1.5 h-1.5 rounded-full ${pending > 0 ? 'bg-red-500 animate-pulse' : pending < 0 ? 'bg-amber-500' : 'bg-green-500 shadow-lg shadow-green-500/50'}`}></div>
+ <div className={`w-1.5 h-1.5 rounded-full ${pending > 0 ? 'bg-red-500 animate-pulse' : pending < 0 ? 'bg-accent-signature' : 'bg-green-500 shadow-lg shadow-green-500/50'}`}></div>
  </div>
  </td>
  <td className="p-2 text-center">

@@ -53,7 +53,7 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
                   return (
                     <button key={o.name} type="button" onClick={() => toggle(g, o.name)}
                       className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
-                        on ? 'border-amber-500 bg-amber-50' : 'border-black/10 hover:border-black/20'
+                        on ? 'border-accent-signature bg-accent-signature/10' : 'border-black/10 hover:border-black/20'
                       }`}>
                       <span className="font-semibold text-ink-primary">{o.name}</span>
                       <span className="font-mono text-xs text-gray-500">{o.price > 0 ? `+${currencySymbol}${o.price}` : '—'}</span>
@@ -66,7 +66,7 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
         </div>
         <div className="p-4 border-t border-black/5">
           <button onClick={() => onConfirm(chosen)}
-            className="w-full h-11 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700 transition-all flex items-center justify-center gap-2">
+            className="w-full h-11 rounded-xl bg-accent-signature text-white text-sm font-bold hover:bg-accent-signature-hover transition-all flex items-center justify-center gap-2">
             Add · <span className="font-mono">{currencySymbol}{total}</span>
           </button>
         </div>
@@ -842,13 +842,13 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mb-1 flex-1">
               <button
                 onClick={() => setCategoryFilter('ALL')}
-                className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === 'ALL' ? 'bg-amber-600 text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+                className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === 'ALL' ? 'bg-accent-signature text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
               >All</button>
               {productCategories.map(c => (
                 <button
                   key={c}
                   onClick={() => setCategoryFilter(c === categoryFilter ? 'ALL' : c)}
-                  className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === c ? 'bg-amber-600 text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+                  className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === c ? 'bg-accent-signature text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
                 >{c}</button>
               ))}
             </div>
@@ -896,13 +896,13 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 <span className={`font-mono text-sm font-bold tabular-nums ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>{formatCurrency(product.sellingPrice)}</span>
                 {product.taxRate > 0 && <span className="text-[9px] font-black px-1 rounded bg-blue-50 text-blue-500">{product.taxRate}%</span>}
               </div>
-              <div className={`text-[11px] font-semibold mb-2 ${isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : 'text-gray-400'}`}>
+              <div className={`text-[11px] font-semibold mb-2 ${isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-accent-signature' : 'text-gray-400'}`}>
                 {isSvc ? 'SERVICE' : outOfStock ? 'OUT OF STOCK' : lowStock ? `${stock} stk · low` : `${stock} stk`}
               </div>
               {isExpired(product.id) ? (
                 <div className="text-[9px] font-black px-1.5 py-0.5 rounded bg-red-50 text-red-600 mb-1 inline-block">EXPIRED {batchExpiry[product.id]}</div>
               ) : isNearExpiry(product.id) ? (
-                <div className="text-[9px] font-black px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 mb-1 inline-block">EXP {batchExpiry[product.id]}</div>
+                <div className="text-[9px] font-black px-1.5 py-0.5 rounded bg-accent-signature/10 text-accent-signature mb-1 inline-block">EXP {batchExpiry[product.id]}</div>
               ) : null}
               {!outOfStock && (
                 cartQty > 0 ? (
@@ -990,7 +990,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   )}
                 </div>
                 <div className={`text-xs font-semibold mt-0.5 ${
-                  isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-amber-500' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-gray-400'
+                  isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-accent-signature' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-gray-400'
                 }`}>
                   {isSvc ? 'SERVICE' : outOfStock ? 'OUT' : lowStock ? `${stock} stk · low` : `${stock} stk`}
                 </div>
@@ -1065,13 +1065,13 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             )}
             {tableLabel && cart.length > 0 && (
               <button onClick={handleSendKOT} disabled={unsentKOTCount === 0} title="Send to kitchen"
-                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-pill bg-ink-primary text-amber-400 hover:bg-black disabled:opacity-40 transition-colors">
+                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-pill bg-ink-primary text-accent-signature/70 hover:bg-black disabled:opacity-40 transition-colors">
                 🍳 Send KOT{unsentKOTCount > 0 ? ` (${unsentKOTCount})` : ''}
               </button>
             )}
             {cart.length > 0 && (
               <button onClick={holdSale} title="Hold sale"
-                className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-pill border border-black/10 text-gray-500 hover:border-amber-400 hover:text-amber-700 transition-colors">
+                className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-pill border border-black/10 text-gray-500 hover:border-accent-signature/70 hover:text-accent-signature-hover transition-colors">
                 ⏸ Hold
               </button>
             )}
@@ -1083,11 +1083,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
         {/* Parked / held sales — tap to resume. */}
         {parked.length > 0 && (
-          <div className="flex items-center gap-2 px-4 py-2 bg-amber-50/60 border-b border-amber-200/50 overflow-x-auto">
-            <span className="text-[9px] font-black uppercase tracking-widest text-amber-700 shrink-0">Held · {parked.length}</span>
+          <div className="flex items-center gap-2 px-4 py-2 bg-accent-signature/5 border-b border-accent-signature/20 overflow-x-auto">
+            <span className="text-[9px] font-black uppercase tracking-widest text-accent-signature-hover shrink-0">Held · {parked.length}</span>
             {parked.map(p => (
               <button key={p.id} onClick={() => resumeSale(p)}
-                className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-pill bg-white border border-amber-200 text-[11px] font-bold text-ink-primary hover:border-amber-400 transition-colors">
+                className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-pill bg-white border border-accent-signature/25 text-[11px] font-bold text-ink-primary hover:border-accent-signature/70 transition-colors">
                 {p.label}
                 <span onClick={(e) => { e.stopPropagation(); persistParked(parked.filter(x => x.id !== p.id)); }} className="text-gray-300 hover:text-red-500">✕</span>
               </button>
@@ -1123,7 +1123,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 <div className="min-w-0">
                   <div className="text-sm font-bold text-ink-primary truncate uppercase">{item.name}</div>
                   {item.modLabel && (
-                    <div className="text-[11px] font-semibold text-amber-700 truncate">+ {item.modLabel}</div>
+                    <div className="text-[11px] font-semibold text-accent-signature-hover truncate">+ {item.modLabel}</div>
                   )}
                   {belowCost && (
                     <div className="text-xs font-bold text-red-500 mt-0.5">
@@ -1384,7 +1384,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 {[0, 5, 10].map(pct => (
                   <button key={pct} type="button" onClick={() => setServiceChargePct(pct)}
                     className={`flex-1 h-8 rounded-lg text-[12px] font-bold transition-all ${
-                      Number(serviceChargePct) === pct ? 'bg-amber-600 text-white' : 'bg-black/[0.04] text-gray-500 hover:text-ink-primary'
+                      Number(serviceChargePct) === pct ? 'bg-accent-signature text-white' : 'bg-black/[0.04] text-gray-500 hover:text-ink-primary'
                     }`}>
                     {pct === 0 ? 'None' : `${pct}%`}
                   </button>
@@ -1402,15 +1402,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 <button type="button" onClick={() => setSplitN(n => n + 1)} className="w-7 h-7 rounded grid place-items-center hover:bg-white"><Plus size={12} /></button>
               </div>
               {splitN > 1 && (
-                <span className="text-[12px] font-bold text-amber-700 ml-auto">
+                <span className="text-[12px] font-bold text-accent-signature-hover ml-auto">
                   {formatCurrency(total / splitN)} <span className="text-gray-400 font-normal">/ guest</span>
                 </span>
               )}
             </div>
           )}
           {/* Order discount (flat amount) */}
-          <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-black/[0.03] border border-black/8 focus-within:border-amber-400">
-            <span className="text-amber-500 text-sm font-bold">%</span>
+          <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-black/[0.03] border border-black/8 focus-within:border-accent-signature/70">
+            <span className="text-accent-signature text-sm font-bold">%</span>
             <input
               type="number" min="0" inputMode="decimal" placeholder="Discount (flat ₹)"
               className="flex-1 bg-transparent outline-none text-[13px] font-semibold font-mono text-ink-primary placeholder:text-gray-400 placeholder:font-sans"
@@ -1529,7 +1529,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold text-ink-primary truncate">{item.name}</div>
-                      {item.modLabel && <div className="text-[10px] text-amber-700 font-semibold truncate">+ {item.modLabel}</div>}
+                      {item.modLabel && <div className="text-[10px] text-accent-signature-hover font-semibold truncate">+ {item.modLabel}</div>}
                       <div className="text-[10px] text-gray-400 font-medium">{formatCurrency(item.price)} × {item.quantity}</div>
                     </div>
                     <div className="text-sm font-black text-ink-primary tabular-nums shrink-0">
@@ -1705,8 +1705,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* IMEI / serial capture for serialized products */}
               {serialLines.length > 0 && (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3">
-                  <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-2">IMEI / Serial Number</p>
+                <div className="rounded-2xl border border-accent-signature/25 bg-accent-signature/5 p-3">
+                  <p className="text-[10px] font-black text-accent-signature-hover uppercase tracking-widest mb-2">IMEI / Serial Number</p>
                   <div className="space-y-3">
                     {serialLines.map(l => (
                       <div key={l.uid}>
@@ -1719,7 +1719,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                               onChange={e => setImei(l.uid, idx, e.target.value)}
                               inputMode="numeric"
                               placeholder={`Unit ${idx + 1} — scan or type IMEI/serial`}
-                              className="w-full bg-white border border-amber-200 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-amber-400"
+                              className="w-full bg-white border border-accent-signature/25 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/70"
                             />
                           ))}
                         </div>
@@ -1832,7 +1832,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 const upiId = selectedUpiAcc?.upi_id || businessProfile?.upi_id;
                 if (!upiId) {
                   return (
-                    <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 text-xs font-semibold text-amber-700">
+                    <div className="rounded-2xl border-2 border-accent-signature/25 bg-accent-signature/10 p-4 text-xs font-semibold text-accent-signature-hover">
                       Add a UPI ID to this account (Settings → Cash & Bank) to show a payment QR.
                     </div>
                   );
@@ -1951,7 +1951,7 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-black/5">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-50 flex items-center justify-center text-lg font-black text-amber-600">
+            <div className="w-10 h-10 rounded-2xl bg-accent-signature/10 flex items-center justify-center text-lg font-black text-accent-signature">
               {clientName.charAt(0).toUpperCase()}
             </div>
             <div>

@@ -132,7 +132,7 @@ const Inventory = () => {
       <div className="flex justify-between items-center py-2 border-b border-black/5">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
-            Inventory<span className="text-amber-500">.</span>
+            Inventory<span className="text-accent-signature">.</span>
           </h1>
           <span className="text-[10px] font-semibold text-gray-400 hidden sm:block">Manage products and stock</span>
         </div>
@@ -150,7 +150,7 @@ const Inventory = () => {
             Bulk Import
           </button>
           <button onClick={openAddModal}
-            className="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-amber-600 text-white text-xs font-bold hover:bg-amber-700 shadow-md shadow-amber-600/25 transition-colors">
+            className="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-accent-signature text-white text-xs font-bold hover:bg-accent-signature-hover shadow-md shadow-accent-signature/25 transition-colors">
             <Plus size={16} strokeWidth={2.5} /> Add Product
           </button>
         </div>
@@ -166,13 +166,13 @@ const Inventory = () => {
           { label: 'Low Stock',      value: kpis.lowStock,   suffix: 'SKUs', icon: <AlertCircle size={14} />, warn: kpis.lowStock > 0 ? 'low' : null },
           { label: 'Out of Stock',   value: kpis.outOfStock, suffix: 'SKUs', icon: <BarChart3 size={14} />,   warn: kpis.outOfStock > 0 ? 'out' : null },
         ].map((m, i) => (
-          <div key={i} className="bg-white px-4 py-3.5 flex flex-col gap-1.5 hover:bg-amber-500/[0.03] transition-colors">
+          <div key={i} className="bg-white px-4 py-3.5 flex flex-col gap-1.5 hover:bg-accent-signature/[0.03] transition-colors">
             <div className="flex items-center gap-1.5 text-[10px] uppercase font-bold text-gray-400 tracking-widest">
-              <span className={m.warn === 'out' ? 'text-red-400' : m.warn === 'low' ? 'text-amber-500' : 'text-stone-300'}>{m.icon}</span>
+              <span className={m.warn === 'out' ? 'text-red-400' : m.warn === 'low' ? 'text-accent-signature' : 'text-stone-300'}>{m.icon}</span>
               {m.label}
             </div>
-            <div className={`font-mono text-xl font-bold tabular-nums leading-none ${m.warn === 'low' ? 'text-amber-600' : m.warn === 'out' ? 'text-red-600' : 'text-ink-primary'}`}>
-              {m.money && <span className="text-amber-400 text-sm mr-0.5">₹</span>}{m.value}
+            <div className={`font-mono text-xl font-bold tabular-nums leading-none ${m.warn === 'low' ? 'text-accent-signature' : m.warn === 'out' ? 'text-red-600' : 'text-ink-primary'}`}>
+              {m.money && <span className="text-accent-signature/70 text-sm mr-0.5">₹</span>}{m.value}
               {m.suffix && <span className="text-[10px] font-bold text-gray-300 ml-1 lowercase">{m.suffix}</span>}
             </div>
           </div>
@@ -186,7 +186,7 @@ const Inventory = () => {
           <input type="text" value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             placeholder="Search by name, SKU, category, barcode…"
-            className="w-full pl-10 pr-9 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-medium text-ink-primary placeholder:text-gray-400 placeholder:font-normal outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all" />
+            className="w-full pl-10 pr-9 py-2.5 bg-white border border-gray-300 rounded-xl text-sm font-medium text-ink-primary placeholder:text-gray-400 placeholder:font-normal outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all" />
           {searchTerm && (
             <button onClick={() => setSearchTerm('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-ink-primary">
@@ -206,7 +206,7 @@ const Inventory = () => {
           ].map(t => (
             <button key={t.id} onClick={() => setTypeFilter(t.id)}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all whitespace-nowrap ${
-                typeFilter === t.id ? 'bg-amber-600 text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
+                typeFilter === t.id ? 'bg-accent-signature text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
               }`}>{t.label}</button>
           ))}
         </div>
@@ -221,14 +221,14 @@ const Inventory = () => {
           ].map(s => (
             <button key={s.id} onClick={() => setStockFilter(s.id)}
               className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all whitespace-nowrap ${
-                stockFilter === s.id ? 'bg-amber-600 text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
+                stockFilter === s.id ? 'bg-accent-signature text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary'
               }`}>{s.label}</button>
           ))}
         </div>
 
         {/* Category select */}
         <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)}
-          className="bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-xs font-bold text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all min-w-[140px]">
+          className="bg-white border border-gray-300 rounded-xl px-3 py-2.5 text-xs font-bold text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all min-w-[140px]">
           <option value="">All Categories</option>
           {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
@@ -359,7 +359,7 @@ const BulkEditModal = ({ count, categories, onClose, onApply }) => {
   const [f, setF] = useState({ category: '', pricePct: '', sellPrice: '', reorder: '', gstRate: '' });
   const [saving, setSaving] = useState(false);
   const dirty = f.category || f.pricePct !== '' || f.sellPrice !== '' || f.reorder !== '' || f.gstRate !== '';
-  const inp = 'w-full text-[13px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-amber-500/40 bg-white';
+  const inp = 'w-full text-[13px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40 bg-white';
   const lbl = 'text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1 block';
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>

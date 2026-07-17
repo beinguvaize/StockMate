@@ -43,12 +43,12 @@ const ClientDirectory = ({
       <div className="grid grid-cols-2 lg:grid-cols-[1.3fr_1fr_1fr_1fr] gap-3">
         {/* Hero: total receivables */}
         <div className="rounded-2xl bg-ink-primary px-4 py-3.5 relative overflow-hidden">
-          <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-amber-500/20 blur-2xl pointer-events-none" />
-          <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-amber-400">
+          <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-accent-signature/20 blur-2xl pointer-events-none" />
+          <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-accent-signature/70">
             <TrendingUp size={11} /> Total Receivables
           </div>
           <div className="font-mono tabular-nums text-[26px] font-bold text-white mt-1 leading-none">
-            <span className="text-base text-amber-400/70 mr-0.5">{sym}</span>{Math.round(topMetrics.totalReceivables || 0).toLocaleString('en-IN')}
+            <span className="text-base text-accent-signature/70 mr-0.5">{sym}</span>{Math.round(topMetrics.totalReceivables || 0).toLocaleString('en-IN')}
           </div>
           <div className="text-[10px] text-white/40 font-mono mt-1.5">
             {topMetrics.pendingCollections || 0} accounts pending
@@ -66,7 +66,7 @@ const ClientDirectory = ({
 
         {/* Top debtor */}
         <div className="rounded-2xl bg-white border border-black/5 px-4 py-3.5 flex items-center gap-3">
-          <div className="w-8 h-8 shrink-0 rounded-lg bg-amber-50 grid place-items-center text-amber-600"><CreditCard size={14} /></div>
+          <div className="w-8 h-8 shrink-0 rounded-lg bg-accent-signature/10 grid place-items-center text-accent-signature"><CreditCard size={14} /></div>
           <div className="min-w-0">
             <div className="text-[9px] font-bold uppercase tracking-widest text-gray-400">Top Debtor</div>
             <div className="font-mono tabular-nums text-lg font-bold leading-none text-red-600 mt-0.5">
@@ -128,7 +128,7 @@ const ClientDirectory = ({
             <input
               type="text"
               placeholder="Search clients"
-              className="h-10 w-56 pl-9 pr-3 rounded-xl bg-white border border-gray-200 text-[13px] text-ink-primary placeholder:text-gray-400 outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-500/10 transition-all"
+              className="h-10 w-56 pl-9 pr-3 rounded-xl bg-white border border-gray-200 text-[13px] text-ink-primary placeholder:text-gray-400 outline-none focus:border-accent-signature/70 focus:ring-4 focus:ring-accent-signature/10 transition-all"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
             />
@@ -152,7 +152,7 @@ const ClientDirectory = ({
           {hasPermission('clients', 'edit') && (
             <button
               onClick={openAdd}
-              className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all"
+              className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all"
             >
               <Plus size={15} strokeWidth={2.6} /> New client
             </button>
@@ -196,7 +196,7 @@ const ClientDirectory = ({
               >
                 {/* Client + meta */}
                 <div className="flex items-center gap-3.5 min-w-0">
-                  <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200/70 flex items-center justify-center text-[13px] font-mono font-bold text-amber-700">
+                  <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-br from-accent-signature/10 to-accent-signature/15 border border-accent-signature/20 flex items-center justify-center text-[13px] font-mono font-bold text-accent-signature-hover">
                     {client.name.charAt(0).toUpperCase()}
                   </div>
                   <div className="min-w-0">
@@ -212,7 +212,7 @@ const ClientDirectory = ({
                         </span>
                       )}
                       {pendingDelivCount > 0 && (
-                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded-full">
+                        <span className="flex items-center gap-0.5 text-[9px] font-bold text-accent-signature bg-accent-signature/10 border border-accent-signature/15 px-1.5 py-0.5 rounded-full">
                           <Truck size={8} /> {pendingDelivCount}
                         </span>
                       )}

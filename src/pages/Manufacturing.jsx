@@ -32,8 +32,8 @@ const Manufacturing = () => {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 flex items-center justify-center">
-            <Factory size={18} className="text-amber-600" />
+          <div className="w-9 h-9 rounded-xl bg-accent-signature/10 border border-accent-signature/25 flex items-center justify-center">
+            <Factory size={18} className="text-accent-signature" />
           </div>
           <div>
             <h1 className="text-xl font-black text-ink-primary leading-none">
@@ -94,7 +94,7 @@ const Manufacturing = () => {
                     </div>
                   </div>
                   <span className={`text-[9px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
-                    done ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                    done ? 'bg-emerald-50 text-emerald-700' : 'bg-accent-signature/10 text-accent-signature-hover'
                   }`}>{o.status}</span>
                   {done ? (
                     <div className="text-right">
@@ -155,7 +155,7 @@ const Manufacturing = () => {
                   {costs.map(c => (
                     <div key={c.id} className="flex justify-between text-[11px]">
                       <span className="text-ink-secondary truncate">{c.label || c.cost_type}</span>
-                      <span className="font-bold text-amber-600 font-mono tabular-nums">{formatCurrency(c.amount)}</span>
+                      <span className="font-bold text-accent-signature font-mono tabular-nums">{formatCurrency(c.amount)}</span>
                     </div>
                   ))}
                 </div>
@@ -388,7 +388,7 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave, recipeWord
       </Field>
       {bom && (
         <div className="flex items-center gap-2 -mt-2 mb-3 text-xs text-gray-500">
-          <Package size={13} className="text-amber-600" />
+          <Package size={13} className="text-accent-signature" />
           Produces <span className="font-bold text-ink-primary">{Number(qty) > 0 ? Number(qty) : bom.output_qty} × {productName(bom.finished_product_id)}</span>
           <span className="text-gray-400">· yields {bom.output_qty}/batch</span>
         </div>
@@ -420,7 +420,7 @@ const BuildModal = ({ products, boms, bomComponents, onClose, onSave, recipeWord
                   <div className="flex justify-between text-[11px] text-gray-400"><span>Material cost</span><span className="font-mono tabular-nums">{formatCurrency(materialCost)}</span></div>
                   {otherCostSum > 0 && <div className="flex justify-between text-[11px] text-gray-400"><span>Other costs</span><span className="font-mono tabular-nums">{formatCurrency(otherCostSum)}</span></div>}
                   <div className="flex justify-between text-xs font-black text-ink-primary"><span>Est. total</span><span className="font-mono tabular-nums">{formatCurrency(estTotal)}</span></div>
-                  {Number(qty) > 0 && <div className="flex justify-between text-[11px] text-amber-700 font-bold"><span>Unit cost</span><span className="font-mono tabular-nums">{formatCurrency(estUnit)}</span></div>}
+                  {Number(qty) > 0 && <div className="flex justify-between text-[11px] text-accent-signature-hover font-bold"><span>Unit cost</span><span className="font-mono tabular-nums">{formatCurrency(estUnit)}</span></div>}
                 </div>
               </div>}
           {anyShort && (

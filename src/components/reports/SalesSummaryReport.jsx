@@ -87,14 +87,14 @@ const SalesSummaryReport = () => {
     { key: 'margin', label: 'Margin %', align: 'right', width: 100, render: (_, row) => {
       const p = row.totalAmount - (row.totalCogs || 0);
       const m = (p / row.totalAmount) * 100;
-      return <span className={`font-black ${m > 20 ? 'text-emerald-600' : 'text-amber-600'}`}>{m.toFixed(1)}%</span>;
+      return <span className={`font-black ${m > 20 ? 'text-emerald-600' : 'text-accent-signature'}`}>{m.toFixed(1)}%</span>;
     }},
     { key: 'paymentMethod', label: 'Method', width: 120, render: (val) => <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{val || 'CASH'}</span> },
     { key: 'status', label: 'Status', width: 120, render: (val) => (
       <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase w-fit ${
-        val === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+        val === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600' : 'bg-accent-signature/10 text-accent-signature'
       }`}>
-        <div className={`w-1 h-1 rounded-full ${val === 'COMPLETED' ? 'bg-emerald-600' : 'bg-amber-600'}`} />
+        <div className={`w-1 h-1 rounded-full ${val === 'COMPLETED' ? 'bg-emerald-600' : 'bg-accent-signature'}`} />
         {val || 'PENDING'}
       </div>
     )}

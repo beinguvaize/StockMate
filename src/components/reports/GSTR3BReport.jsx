@@ -166,7 +166,7 @@ const GSTR3BReport = () => {
         render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">{val}</span> },
       { key: 'taxable', label: 'Total Taxable Value', type: 'currency', align: 'right', width: 170, render: (val) => formatINR(val) },
       { key: 'integratedTax', label: 'IGST', type: 'currency', align: 'right', width: 140, render: (val) => val > 0 ? <span className="font-black text-rose-500">{formatINR(val)}</span> : '—' },
-      { key: 'centralTax', label: 'CGST', type: 'currency', align: 'right', width: 140, render: (val) => val > 0 ? <span className="font-black text-amber-600">{formatINR(val)}</span> : '—' },
+      { key: 'centralTax', label: 'CGST', type: 'currency', align: 'right', width: 140, render: (val) => val > 0 ? <span className="font-black text-accent-signature">{formatINR(val)}</span> : '—' },
       { key: 'stateTax', label: 'SGST/UTGST', type: 'currency', align: 'right', width: 140, render: (val) => val > 0 ? <span className="font-black text-sky-600">{formatINR(val)}</span> : '—' },
       { key: 'cess', label: 'Cess', type: 'currency', align: 'right', width: 100, render: (val) => val > 0 ? formatINR(val) : '—' },
     ],
@@ -186,7 +186,7 @@ const GSTR3BReport = () => {
     },
     columns: [
       { key: 'recipientType', label: 'Recipient Type', width: 180,
-        render: (val) => <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase bg-amber-50 text-amber-600">{val}</span> },
+        render: (val) => <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase bg-accent-signature/10 text-accent-signature">{val}</span> },
       { key: 'placeOfSupply', label: 'Place of Supply', width: 220,
         render: (val) => <span className="font-bold text-ink-primary">{val}</span> },
       { key: 'taxable', label: 'Taxable Value', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => formatINR(val) },
@@ -217,7 +217,7 @@ const GSTR3BReport = () => {
       { key: 'row', label: 'ITC Detail', width: 380,
         render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">{val}</span> },
       { key: 'integratedTax', label: 'IGST', type: 'currency', align: 'right', width: 150, render: (val) => val > 0 ? <span className="font-black text-rose-500">{formatINR(val)}</span> : '—' },
-      { key: 'centralTax', label: 'CGST', type: 'currency', align: 'right', width: 150, render: (val) => val > 0 ? <span className="font-black text-amber-600">{formatINR(val)}</span> : '—' },
+      { key: 'centralTax', label: 'CGST', type: 'currency', align: 'right', width: 150, render: (val) => val > 0 ? <span className="font-black text-accent-signature">{formatINR(val)}</span> : '—' },
       { key: 'stateTax', label: 'SGST/UTGST', type: 'currency', align: 'right', width: 150, render: (val) => val > 0 ? <span className="font-black text-sky-600">{formatINR(val)}</span> : '—' },
       { key: 'cess', label: 'Cess', type: 'currency', align: 'right', width: 100, render: (val) => val > 0 ? formatINR(val) : '—' },
     ],
@@ -241,7 +241,7 @@ const GSTR3BReport = () => {
         render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">{val}</span> },
       { key: 'taxPayable', label: 'Tax Payable', type: 'currency', align: 'right', width: 170, render: (val) => <span className="font-black">{formatINR(val)}</span> },
       { key: 'paidThroughITC', label: 'Paid via ITC', type: 'currency', align: 'right', width: 170, render: (val) => val > 0 ? <span className="font-black text-emerald-600">{formatINR(val)}</span> : '—' },
-      { key: 'paidInCash', label: 'Paid in Cash', type: 'currency', align: 'right', width: 170, render: (val) => val > 0 ? <span className="font-black text-amber-600">{formatINR(val)}</span> : '—' },
+      { key: 'paidInCash', label: 'Paid in Cash', type: 'currency', align: 'right', width: 170, render: (val) => val > 0 ? <span className="font-black text-accent-signature">{formatINR(val)}</span> : '—' },
     ],
     kpis,
   };
@@ -266,7 +266,7 @@ const GSTR3BReport = () => {
       { key: 'viaItc', label: 'Set-off via ITC', type: 'currency', align: 'right', width: 180,
         render: (val) => val > 0 ? <span className="font-bold tabular-nums text-emerald-700">({formatINR(val)})</span> : '—' },
       { key: 'cash', label: 'Payable in Cash', type: 'currency', align: 'right', width: 180,
-        render: (val) => <span className={`font-black tabular-nums ${val > 0 ? 'text-amber-700' : 'text-emerald-700'}`}>{formatINR(val)}</span> },
+        render: (val) => <span className={`font-black tabular-nums ${val > 0 ? 'text-accent-signature-hover' : 'text-emerald-700'}`}>{formatINR(val)}</span> },
     ],
     kpis,
   };
@@ -332,7 +332,7 @@ const GSTR3BReport = () => {
   const exportBar = (
     <div className="no-print flex justify-end gap-2 mb-3">
       <button onClick={() => downloadGSTR3BExcel(gstr3b, { gstin, fp: fpNow() })}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-black transition-colors">
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-black transition-colors">
         <Download size={13} /> Excel Summary
       </button>
       <button onClick={() => downloadGSTR3BJSON(gstr3b, { gstin, fp: fpNow() })}
@@ -370,7 +370,7 @@ const GSTR3BReport = () => {
           </div>
           <div>
             <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">Net Payable</div>
-            <div className="text-sm font-black text-amber-600 mt-0.5">{formatINR(gstr3b.summary.netTaxDue)}</div>
+            <div className="text-sm font-black text-accent-signature mt-0.5">{formatINR(gstr3b.summary.netTaxDue)}</div>
           </div>
         </div>
       </div>

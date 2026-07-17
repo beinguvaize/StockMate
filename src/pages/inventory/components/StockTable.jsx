@@ -7,7 +7,7 @@ const FoodMark = ({ type }) => {
   if (!type) return null;
   const c = type === 'VEG' ? 'border-green-600 text-green-600'
     : type === 'NONVEG' ? 'border-red-600 text-red-600'
-    : 'border-amber-500 text-amber-500';
+    : 'border-accent-signature text-accent-signature';
   return (
     <span className={`shrink-0 w-3.5 h-3.5 border rounded-sm flex items-center justify-center ${c}`} title={type}>
       <span className="w-1.5 h-1.5 rounded-full bg-current" />
@@ -30,8 +30,8 @@ const statusOf = (qty, reorder) => {
   const thr = reorder > 0 ? reorder : 5;
   return qty <= thr ? 'low' : 'ok';
 };
-const dotCls = (s) => s === 'crit' ? 'bg-red-500' : s === 'low' ? 'bg-amber-500' : 'bg-emerald-500';
-const qtyCls = (s) => s === 'crit' ? 'text-red-600' : s === 'low' ? 'text-amber-600' : 'text-ink-primary';
+const dotCls = (s) => s === 'crit' ? 'bg-red-500' : s === 'low' ? 'bg-accent-signature' : 'bg-emerald-500';
+const qtyCls = (s) => s === 'crit' ? 'text-red-600' : s === 'low' ? 'text-accent-signature' : 'text-ink-primary';
 
 const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onAdjust, onBatches, onBulkEdit, onBulkDelete, currencySymbol = '₹' }) => {
   const { businessType } = useTenant();
@@ -104,7 +104,7 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
       {sortKey ? (
         <button onClick={() => toggleSort(sortKey)} className="inline-flex items-center gap-1 hover:text-ink-primary transition-colors cursor-pointer uppercase tracking-widest">
           {children}
-          <span className={`text-[8px] ${sort.key === sortKey ? 'text-amber-500' : 'text-gray-300'}`}>
+          <span className={`text-[8px] ${sort.key === sortKey ? 'text-accent-signature' : 'text-gray-300'}`}>
             {sort.key === sortKey ? (sort.dir === 'asc' ? '▲' : '▼') : '▲▼'}
           </span>
         </button>
@@ -115,7 +115,7 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
   return (
     <div className="rounded-2xl bg-white border border-black/[0.08] overflow-hidden shadow-sm">
       <div className="px-5 py-3 border-b border-black/[0.06] flex items-center justify-between">
-        <span className="font-mono text-[11px] font-bold text-amber-600">$ inventory --group=category</span>
+        <span className="font-mono text-[11px] font-bold text-accent-signature">$ inventory --group=category</span>
         <span className="font-mono text-[10px] text-gray-400">{products.length} rows · {groups.length} groups</span>
       </div>
       <div className="overflow-x-auto">
@@ -125,7 +125,7 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
               {(onBulkEdit || onBulkDelete) && (
                 <th className="pl-5 pr-1 py-2.5 w-px">
                   <input type="checkbox" checked={allSelected} onChange={toggleAll}
-                    className="w-3.5 h-3.5 rounded border-gray-300 accent-amber-500 cursor-pointer" />
+                    className="w-3.5 h-3.5 rounded border-gray-300 accent-accent-signature cursor-pointer" />
                 </th>
               )}
               <TH extra="pl-5 w-full" sortKey="name">{isService ? 'Service' : 'Product'}</TH>
@@ -160,11 +160,11 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
                   return (
                     <tr key={product.id}
                       onClick={onView ? () => onView(product) : undefined}
-                      className={`group border-t border-black/[0.04] hover:bg-amber-500/[0.04] transition-colors ${onView ? 'cursor-pointer' : ''} ${selected.has(product.id) ? 'bg-amber-500/[0.06]' : ''}`}>
+                      className={`group border-t border-black/[0.04] hover:bg-accent-signature/[0.04] transition-colors ${onView ? 'cursor-pointer' : ''} ${selected.has(product.id) ? 'bg-accent-signature/[0.06]' : ''}`}>
                       {(onBulkEdit || onBulkDelete) && (
                         <td className="pl-5 pr-1 py-2.5 w-px" onClick={(e) => e.stopPropagation()}>
                           <input type="checkbox" checked={selected.has(product.id)} onChange={() => toggleOne(product.id)}
-                            className="w-3.5 h-3.5 rounded border-gray-300 accent-amber-500 cursor-pointer" />
+                            className="w-3.5 h-3.5 rounded border-gray-300 accent-accent-signature cursor-pointer" />
                         </td>
                       )}
                       <td className="px-5 py-2.5 pl-9 max-w-0 w-full">
@@ -197,13 +197,13 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
                       </td>
                       <td className="px-3 py-2.5 text-right font-mono text-[12px] text-gray-400 whitespace-nowrap">{isService ? '' : (reorder > 0 ? reorder : '—')}</td>
                       <td className="px-3 py-2.5 text-right font-mono text-[12px] text-gray-500 whitespace-nowrap">{isService ? '' : `${currencySymbol}${toNum(product.costPrice).toFixed(2)}`}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-[12px] font-semibold whitespace-nowrap"><span className="text-amber-400">{currencySymbol}</span>{sell.toFixed(2)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-[13px] font-bold whitespace-nowrap">{isService ? '' : <><span className="text-amber-400">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-[12px] font-semibold whitespace-nowrap"><span className="text-accent-signature/70">{currencySymbol}</span>{sell.toFixed(2)}</td>
+                      <td className="px-3 py-2.5 text-right font-mono text-[13px] font-bold whitespace-nowrap">{isService ? '' : <><span className="text-accent-signature/70">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
                       <td className="px-3 py-2.5 text-center">{isService ? null : <span className={`inline-block w-2 h-2 rounded-full ${dotCls(st)}`} />}</td>
                       <td className="px-4 py-2.5 w-px" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {onAdjust && (
-                            <button onClick={() => onAdjust(product)} title="Adjust stock" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:bg-amber-100 hover:text-amber-700 transition-colors"><SlidersHorizontal size={14} /></button>
+                            <button onClick={() => onAdjust(product)} title="Adjust stock" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"><SlidersHorizontal size={14} /></button>
                           )}
                           <button onClick={() => onEdit(product)} title="View / edit" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:bg-black/[0.05] hover:text-ink-primary transition-colors"><Eye size={14} /></button>
                           <button onClick={() => onDelete(product.id)} title="Delete" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>

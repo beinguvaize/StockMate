@@ -70,7 +70,7 @@ const downloadCSV = (rows, filename) => {
 // Component
 // ------------------------------------------------------------------
 const DELIVERY_BADGE = {
-  PENDING:    { bg: 'bg-amber-50',   text: 'text-amber-700',   ring: 'ring-amber-200/60',   dot: 'bg-amber-400',   label: 'Awaiting Dispatch' },
+  PENDING:    { bg: 'bg-accent-signature/10',   text: 'text-accent-signature-hover',   ring: 'ring-accent-signature/20',   dot: 'bg-accent-signature/70',   label: 'Awaiting Dispatch' },
   IN_TRANSIT: { bg: 'bg-blue-50',    text: 'text-blue-700',    ring: 'ring-blue-200/60',    dot: 'bg-blue-500',    label: 'In Transit'        },
   DELIVERED:  { bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200/60', dot: 'bg-emerald-500', label: 'Delivered'         },
   FAILED:     { bg: 'bg-red-50',     text: 'text-red-700',     ring: 'ring-red-200/60',     dot: 'bg-red-400',     label: 'Failed'            },
@@ -338,7 +338,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
         <td className="px-4 py-4 text-right">
           <div className={`text-sm font-bold tabular-nums ${voided ? 'text-gray-400 line-through' : 'text-ink-primary'}`}>{formatCurrency(sale.totalAmount)}</div>
           {!paid && !voided && outstanding > 0 && (
-            <div className="text-[11px] font-semibold text-amber-600 tabular-nums mt-0.5">
+            <div className="text-[11px] font-semibold text-accent-signature tabular-nums mt-0.5">
               Due: {formatCurrency(outstanding)}
             </div>
           )}
@@ -350,9 +350,9 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
                 ? 'bg-red-50 text-red-700 ring-1 ring-red-200/60'
                 : paid
                 ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60'
-                : 'bg-amber-50 text-amber-700 ring-1 ring-amber-200/60'
+                : 'bg-accent-signature/10 text-accent-signature-hover ring-1 ring-accent-signature/20'
             }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${voided ? 'bg-red-500' : paid ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              <span className={`w-1.5 h-1.5 rounded-full ${voided ? 'bg-red-500' : paid ? 'bg-emerald-500' : 'bg-accent-signature'}`} />
               {voided ? 'Failed' : paid ? 'Paid' : 'Pending'}
             </span>
             {deliveryBadge && (
@@ -405,7 +405,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
               <button
                 onClick={() => onEdit(sale)}
                 title="Edit sale — stock & balance re-sync"
-                className="p-2 rounded-lg hover:bg-amber-50 text-gray-400 hover:text-amber-600 transition-colors"
+                className="p-2 rounded-lg hover:bg-accent-signature/10 text-gray-400 hover:text-accent-signature transition-colors"
               >
                 <Pencil size={15} />
               </button>
@@ -608,7 +608,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
 const SummaryCard = ({ label, value, sub, tone }) => {
   const toneCls =
     tone === 'emerald' ? 'text-emerald-600'
-    : tone === 'amber' ? 'text-amber-600'
+    : tone === 'amber' ? 'text-accent-signature'
     : 'text-ink-primary';
   return (
     <div className="bg-white rounded-2xl border border-black/5 px-4 py-3">
@@ -722,7 +722,7 @@ const SaleDetail = ({
 const MetaRow = ({ icon: Icon, label, value, tone }) => {
   const toneCls =
     tone === 'emerald' ? 'text-emerald-600'
-    : tone === 'amber' ? 'text-amber-600'
+    : tone === 'amber' ? 'text-accent-signature'
     : tone === 'red' ? 'text-red-600'
     : 'text-ink-primary';
   return (
@@ -739,7 +739,7 @@ const MetaRow = ({ icon: Icon, label, value, tone }) => {
 const TotalRow = ({ label, value, bold, tone }) => {
   const toneCls =
     tone === 'emerald' ? 'text-emerald-600'
-    : tone === 'amber' ? 'text-amber-600'
+    : tone === 'amber' ? 'text-accent-signature'
     : tone === 'red' ? 'text-red-600'
     : 'text-ink-primary';
   return (

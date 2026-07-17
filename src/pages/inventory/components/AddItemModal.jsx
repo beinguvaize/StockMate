@@ -222,7 +222,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
         const s = parseFloat(formData.sellingPrice);
         const showMargin = c > 0 && !isNaN(s);
         const margin = showMargin ? ((s - c) / c) * 100 : 0;
-        const marginColor = margin < 0 ? 'text-red-600' : margin < 10 ? 'text-amber-600' : 'text-emerald-600';
+        const marginColor = margin < 0 ? 'text-red-600' : margin < 10 ? 'text-accent-signature' : 'text-emerald-600';
 
         return (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -330,7 +330,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       {[
                         { v: 'VEG', label: 'Veg', dot: 'bg-green-600' },
                         { v: 'NONVEG', label: 'Non-veg', dot: 'bg-red-600' },
-                        { v: 'EGG', label: 'Egg', dot: 'bg-amber-500' },
+                        { v: 'EGG', label: 'Egg', dot: 'bg-accent-signature' },
                       ].map(o => (
                         <button
                           key={o.v}
@@ -338,7 +338,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                           onClick={() => setFormData({ ...formData, food_type: formData.food_type === o.v ? '' : o.v })}
                           className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border text-xs font-bold transition-all ${
                             formData.food_type === o.v
-                              ? 'border-amber-500 bg-amber-50 text-ink-primary'
+                              ? 'border-accent-signature bg-accent-signature/10 text-ink-primary'
                               : 'border-black/10 text-gray-500 hover:border-black/20'
                           }`}
                         >
@@ -354,7 +354,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   </div>
                 </div>
                 <label className="flex items-center gap-3 cursor-pointer select-none">
-                  <input type="checkbox" className="w-4 h-4 rounded accent-amber-600"
+                  <input type="checkbox" className="w-4 h-4 rounded accent-accent-signature"
                     checked={formData.is_available !== false}
                     onChange={e => setFormData({ ...formData, is_available: e.target.checked })} />
                   <span className="text-sm font-semibold text-ink-primary">Available on menu</span>
@@ -366,7 +366,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <div className="flex items-center justify-between mb-2">
                     <label className={labelCls}>Modifiers <span className="text-gray-400 font-normal normal-case">— add-ons / variations</span></label>
                     <button type="button" onClick={addGroup}
-                      className="text-[11px] font-bold text-amber-600 hover:underline">+ Add group</button>
+                      className="text-[11px] font-bold text-accent-signature hover:underline">+ Add group</button>
                   </div>
                   <div className="space-y-3">
                     {mgroups.map((g, i) => (
@@ -374,9 +374,9 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                         <div className="flex items-center gap-2 mb-2">
                           <input value={g.name} onChange={e => updateGroup(i, { name: e.target.value })}
                             placeholder="Group name (Size, Add-ons…)"
-                            className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold outline-none focus:border-amber-500" />
+                            className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature" />
                           <label className="flex items-center gap-1 text-[11px] font-bold text-gray-500 whitespace-nowrap">
-                            <input type="checkbox" checked={!!g.multi} onChange={e => updateGroup(i, { multi: e.target.checked })} className="accent-amber-600" />
+                            <input type="checkbox" checked={!!g.multi} onChange={e => updateGroup(i, { multi: e.target.checked })} className="accent-accent-signature" />
                             multi
                           </label>
                           <button type="button" onClick={() => removeGroup(i)} className="text-gray-300 hover:text-red-500"><X size={14} /></button>
@@ -386,18 +386,18 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                             <div key={oi} className="flex items-center gap-2">
                               <input value={o.name} onChange={e => updateOption(i, oi, { name: e.target.value })}
                                 placeholder="Option (Large, Extra cheese…)"
-                                className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-amber-500" />
+                                className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-accent-signature" />
                               <div className="flex items-center gap-1">
                                 <span className="text-[11px] text-gray-400">₹</span>
                                 <input type="number" step="1" value={o.price}
                                   onChange={e => updateOption(i, oi, { price: parseFloat(e.target.value) || 0 })}
-                                  className="w-16 bg-white border border-black/10 rounded-lg px-2 py-1.5 text-xs font-mono outline-none focus:border-amber-500" />
+                                  className="w-16 bg-white border border-black/10 rounded-lg px-2 py-1.5 text-xs font-mono outline-none focus:border-accent-signature" />
                               </div>
                               <button type="button" onClick={() => removeOption(i, oi)} className="text-gray-300 hover:text-red-500"><X size={13} /></button>
                             </div>
                           ))}
                           <button type="button" onClick={() => addOption(i)}
-                            className="text-[11px] font-bold text-gray-400 hover:text-amber-600">+ Option</button>
+                            className="text-[11px] font-bold text-gray-400 hover:text-accent-signature">+ Option</button>
                         </div>
                       </div>
                     ))}

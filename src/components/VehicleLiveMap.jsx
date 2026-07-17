@@ -145,7 +145,7 @@ export default function VehicleLiveMap({ vehicles, tenantId }) {
                     {timeAgo(loc.updated_at)}
                   </div>
                   {stale && (
-                    <div className="text-xs text-amber-600 font-semibold mt-1">⚠ Signal lost</div>
+                    <div className="text-xs text-accent-signature font-semibold mt-1">⚠ Signal lost</div>
                   )}
                 </Popup>
               </Marker>

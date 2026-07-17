@@ -6,7 +6,7 @@ import { ChefHat, Clock } from 'lucide-react';
 
 // Kitchen Display System — live KOT tickets. NEW → PREPARING → READY → SERVED.
 const STATUS = {
-  NEW:       { label: 'New',       ring: 'border-amber-300',   chip: 'bg-amber-100 text-amber-700',   next: 'PREPARING', action: 'Start' },
+  NEW:       { label: 'New',       ring: 'border-accent-signature/40',   chip: 'bg-accent-signature/15 text-accent-signature-hover',   next: 'PREPARING', action: 'Start' },
   PREPARING: { label: 'Preparing', ring: 'border-blue-300',    chip: 'bg-blue-100 text-blue-700',     next: 'READY',     action: 'Ready' },
   READY:     { label: 'Ready',     ring: 'border-emerald-300', chip: 'bg-emerald-100 text-emerald-700', next: 'SERVED',  action: 'Served' },
 };
@@ -22,11 +22,11 @@ const KDS = () => {
   return (
     <div className="flex flex-col gap-4 pb-12">
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 grid place-items-center">
-          <ChefHat size={18} className="text-amber-600" />
+        <div className="w-9 h-9 rounded-xl bg-accent-signature/10 border border-accent-signature/25 grid place-items-center">
+          <ChefHat size={18} className="text-accent-signature" />
         </div>
         <div>
-          <h1 className="text-xl font-extrabold text-ink-primary leading-none">Kitchen<span className="text-amber-500">.</span></h1>
+          <h1 className="text-xl font-extrabold text-ink-primary leading-none">Kitchen<span className="text-accent-signature">.</span></h1>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">{tickets.length} active tickets · auto-refresh</p>
         </div>
       </div>
@@ -62,7 +62,7 @@ const KDS = () => {
                       <div className="text-[9px] font-bold uppercase tracking-widest text-gray-400">{station}</div>
                       {items.map((it, i) => (
                         <div key={i} className="text-[13px] font-semibold text-ink-primary">
-                          <span className="font-mono text-amber-600">{it.quantity}×</span> {foodMark(it.food_type)} {it.name}
+                          <span className="font-mono text-accent-signature">{it.quantity}×</span> {foodMark(it.food_type)} {it.name}
                           {it.notes && <span className="block text-[11px] text-gray-400 italic pl-5">↳ {it.notes}</span>}
                         </div>
                       ))}

@@ -116,7 +116,7 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
   </div>
 );
 
-const RANK_COLORS = ['text-amber-500', 'text-gray-400', 'text-amber-700'];
+const RANK_COLORS = ['text-accent-signature', 'text-gray-400', 'text-accent-signature-hover'];
 
 const SalePurchaseByPartyReport = () => {
   const [preset, setPreset]       = useState('TODAY');

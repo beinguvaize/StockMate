@@ -127,12 +127,12 @@ const LowStockReport = () => {
                 <div key={p.id || i}
                   className={`grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors ${isOut ? 'bg-red-50/40' : ''}`}>
                   <div className="flex items-center gap-2 min-w-0">
-                    <div className={`w-2 h-2 rounded-full shrink-0 ${isOut ? 'bg-red-500' : 'bg-amber-400'}`} />
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${isOut ? 'bg-red-500' : 'bg-accent-signature/70'}`} />
                     <span className="text-sm font-bold text-ink-primary truncate">{p.name || '—'}</span>
                   </div>
                   <span className="text-xs font-mono text-ink-secondary truncate">{p.sku || '—'}</span>
                   <span className="text-xs font-bold text-ink-secondary truncate">{p.category || '—'}</span>
-                  <span className={`text-sm font-black tabular-nums ${isOut ? 'text-red-500' : 'text-amber-600'}`}>
+                  <span className={`text-sm font-black tabular-nums ${isOut ? 'text-red-500' : 'text-accent-signature'}`}>
                     {p.totalStock}
                   </span>
                   <span className="text-sm font-bold text-ink-secondary tabular-nums">{p.threshold}</span>

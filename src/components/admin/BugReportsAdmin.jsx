@@ -9,12 +9,12 @@ import { useBugReports } from '../../hooks/useBugReports';
 const SEVERITY_COLOR = {
   LOW:      'bg-gray-100 text-gray-600 border-gray-200',
   NORMAL:   'bg-sky-50 text-sky-600 border-sky-200',
-  HIGH:     'bg-amber-50 text-amber-700 border-amber-200',
+  HIGH:     'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25',
   CRITICAL: 'bg-rose-50 text-rose-600 border-rose-200',
 };
 const STATUS_COLOR = {
   OPEN:        'bg-rose-50 text-rose-600 border-rose-200',
-  TRIAGED:     'bg-amber-50 text-amber-700 border-amber-200',
+  TRIAGED:     'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25',
   IN_PROGRESS: 'bg-sky-50 text-sky-700 border-sky-200',
   RESOLVED:    'bg-emerald-50 text-emerald-700 border-emerald-200',
   WONTFIX:     'bg-gray-100 text-gray-500 border-gray-200',

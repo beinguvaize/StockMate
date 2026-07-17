@@ -107,18 +107,18 @@ const TrialBalanceReport = () => {
         key: 'type', label: 'Type', width: 120,
         render: (val) => (
           <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase ${
-            val === 'ASSET' ? 'bg-amber-50 text-amber-600' :
+            val === 'ASSET' ? 'bg-accent-signature/10 text-accent-signature' :
             val === 'LIABILITY' ? 'bg-rose-50 text-rose-600' :
             val === 'EQUITY' ? 'bg-emerald-50 text-emerald-600' :
             val === 'REVENUE' ? 'bg-sky-50 text-sky-600' :
-            'bg-amber-50 text-amber-600'
+            'bg-accent-signature/10 text-accent-signature'
           }`}>{val}</span>
         ),
       },
       { key: 'category', label: 'Classification', width: 180, render: (val) => <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{val}</span> },
       {
         key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 160,
-        render: (val) => val > 0 ? <span className="font-black text-amber-600">{formatINR(val)}</span> : <span className="text-gray-300">—</span>,
+        render: (val) => val > 0 ? <span className="font-black text-accent-signature">{formatINR(val)}</span> : <span className="text-gray-300">—</span>,
       },
       {
         key: 'credit', label: 'Credit', type: 'currency', align: 'right', sortable: true, width: 160,

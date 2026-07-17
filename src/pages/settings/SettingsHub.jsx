@@ -666,7 +666,7 @@ const PricingPanel = () => {
           <div className="flex items-center gap-2 py-1">
             <span className="text-[13px] font-semibold text-gray-900">{PLANS[plan]?.label || plan}</span>
             {currentTenant?.status === 'TRIAL' && daysLeft != null && (
-              <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+              <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-accent-signature/10 text-accent-signature-hover border border-accent-signature/25">
                 Trial · {daysLeft} day{daysLeft === 1 ? '' : 's'} left
               </span>
             )}

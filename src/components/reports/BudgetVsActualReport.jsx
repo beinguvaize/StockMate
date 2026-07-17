@@ -64,8 +64,8 @@ const STATUS_LABELS = {
 const BADGE_CLS = {
   emerald: 'bg-emerald-50 text-emerald-600 border-emerald-200',
   rose:    'bg-rose-50 text-rose-600 border-rose-200',
-  amber:   'bg-amber-50 text-amber-600 border-amber-200',
-  indigo:  'bg-amber-50 text-amber-600 border-amber-200',
+  amber:   'bg-accent-signature/10 text-accent-signature border-accent-signature/25',
+  indigo:  'bg-accent-signature/10 text-accent-signature border-accent-signature/25',
   gray:    'bg-gray-50 text-gray-500 border-gray-200',
 };
 
@@ -464,7 +464,7 @@ const BudgetVsActualReport = () => {
         </button>
         <button
           onClick={handleSuggestAvg}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-amber-600 hover:text-white hover:bg-amber-600 bg-amber-50 border border-amber-200 rounded-md transition-all"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-accent-signature hover:text-white hover:bg-accent-signature bg-accent-signature/10 border border-accent-signature/25 rounded-md transition-all"
         >
           <Sparkles size={12} /> Suggest from 3-mo Avg
         </button>
@@ -481,7 +481,7 @@ const BudgetVsActualReport = () => {
         <div className="flex items-center gap-5">
           <div className="text-right">
             <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">Planned Profit</div>
-            <div className="text-sm font-black text-amber-600">{formatINR(totals.plannedProfit)}</div>
+            <div className="text-sm font-black text-accent-signature">{formatINR(totals.plannedProfit)}</div>
           </div>
           <div className="text-right">
             <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">Actual Profit</div>
@@ -498,9 +498,9 @@ const BudgetVsActualReport = () => {
         </div>
       </div>
 
-      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-amber-50/50 border border-black/5 shadow-sm">
-        <Edit3 size={12} className="text-amber-600" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-amber-700">
+      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-accent-signature/5 border border-black/5 shadow-sm">
+        <Edit3 size={12} className="text-accent-signature" />
+        <span className="text-[10px] font-bold uppercase tracking-wider text-accent-signature-hover">
           Tip: Click any Budget cell to edit. Changes sync across all devices in real-time.
         </span>
       </div>

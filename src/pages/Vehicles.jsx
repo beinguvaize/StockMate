@@ -366,7 +366,7 @@ const Vehicles = () => {
             {/* KPI chips */}
             <div className="hidden sm:flex items-center gap-1.5">
               {pendingDeliveries.length > 0 && (
-                <div className="flex items-center gap-1 bg-amber-50 border border-amber-100 text-amber-700 px-2 py-1 rounded-lg">
+                <div className="flex items-center gap-1 bg-accent-signature/10 border border-accent-signature/15 text-accent-signature-hover px-2 py-1 rounded-lg">
                   <Package size={10} />
                   <span className="text-[10px] font-black">{pendingDeliveries.length}</span>
                   <span className="text-[9px] font-medium opacity-60">pending</span>
@@ -520,14 +520,14 @@ const Vehicles = () => {
                         <div
                           key={inv.id}
                           className={`bg-white border rounded-2xl overflow-hidden transition-all ${
-                            hasFailed ? 'border-amber-300 shadow-sm shadow-amber-100' : 'border-black/8 hover:border-black/15 hover:shadow-sm'
+                            hasFailed ? 'border-accent-signature/40 shadow-sm shadow-accent-signature/15' : 'border-black/8 hover:border-black/15 hover:shadow-sm'
                           }`}
                         >
                           {/* Re-queue banner */}
                           {hasFailed && (
-                            <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200">
-                              <RotateCcw size={10} className="text-amber-600 shrink-0" />
-                              <span className="text-[9px] font-bold text-amber-700 uppercase tracking-wide">
+                            <div className="flex items-center gap-2 px-4 py-2 bg-accent-signature/10 border-b border-accent-signature/25">
+                              <RotateCcw size={10} className="text-accent-signature shrink-0" />
+                              <span className="text-[9px] font-bold text-accent-signature-hover uppercase tracking-wide">
                                 Re-queued — Prior failure: {inv.failed_delivery_reason}
                               </span>
                             </div>
@@ -541,9 +541,9 @@ const Vehicles = () => {
                           >
                             {/* Icon */}
                             <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                              hasFailed ? 'bg-amber-50 border border-amber-200' : 'bg-blue-50 border border-blue-100'
+                              hasFailed ? 'bg-accent-signature/10 border border-accent-signature/25' : 'bg-blue-50 border border-blue-100'
                             }`}>
-                              <Package size={16} className={hasFailed ? 'text-amber-600' : 'text-blue-600'} />
+                              <Package size={16} className={hasFailed ? 'text-accent-signature' : 'text-blue-600'} />
                             </div>
 
                             {/* Main info */}
@@ -683,7 +683,7 @@ const Vehicles = () => {
                                 <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg border ${
                                   inv.payment_status === 'PAID'
                                     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : 'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25'
                                 }`}>
                                   {inv.payment_status === 'PAID' ? '✓ Paid' : 'Unpaid — Collect on Delivery'}
                                 </span>
@@ -1600,7 +1600,7 @@ const Vehicles = () => {
                 { label: 'Fleet Stock',    value: `${totalFleetUnits.toLocaleString()} units`, sub: 'total on board',   color: 'bg-blue-50 border-blue-100 text-blue-700',   icon: Layers       },
                 { label: 'Fleet Value',    value: `${sym}${totalFleetValue.toLocaleString(undefined,{maximumFractionDigits:0})}`, sub: 'at selling price', color: 'bg-green-50 border-green-100 text-green-700', icon: BarChart2 },
                 { label: 'Vans w/ Stock',  value: `${vansWithStock} / ${vehicles.length}`,     sub: 'loaded',           color: 'bg-canvas border-black/8 text-gray-600',     icon: Truck        },
-                { label: 'Low Stock SKUs', value: `${totalLowItems}`,                           sub: '<5 units per van', color: totalLowItems > 0 ? 'bg-amber-50 border-amber-100 text-amber-700' : 'bg-canvas border-black/8 text-gray-500', icon: AlertCircle },
+                { label: 'Low Stock SKUs', value: `${totalLowItems}`,                           sub: '<5 units per van', color: totalLowItems > 0 ? 'bg-accent-signature/10 border-accent-signature/15 text-accent-signature-hover' : 'bg-canvas border-black/8 text-gray-500', icon: AlertCircle },
               ].map(kpi => (
                 <div key={kpi.label} className={`flex items-center gap-3 p-3 rounded-2xl border ${kpi.color}`}>
                   <kpi.icon size={18} className="shrink-0 opacity-70" />
@@ -1628,7 +1628,7 @@ const Vehicles = () => {
                             <span className="text-[8px] font-bold text-ink-primary bg-accent-signature px-2 py-0.5 rounded-pill">ON TRIP</span>
                           )}
                           {lowItems > 0 && (
-                            <span className="flex items-center gap-1 text-[8px] font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-pill">
+                            <span className="flex items-center gap-1 text-[8px] font-bold text-accent-signature-hover bg-accent-signature/15 px-2 py-0.5 rounded-pill">
                               <AlertCircle size={8} />{lowItems} low
                             </span>
                           )}
@@ -1654,7 +1654,7 @@ const Vehicles = () => {
                       {totalUnits > 0 && !inTrip && (
                         <button
                           onClick={() => openUnloadVan(v)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-200 text-[10px] font-bold text-amber-700 hover:bg-amber-100 transition-all shrink-0"
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-accent-signature/10 border border-accent-signature/25 text-[10px] font-bold text-accent-signature-hover hover:bg-accent-signature/15 transition-all shrink-0"
                         >
                           <MinusCircle size={10} /> Unload
                         </button>
@@ -1676,7 +1676,7 @@ const Vehicles = () => {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <span className="text-xs font-semibold text-ink-primary truncate">{b.productName}</span>
-                                {b.isLow && <TrendingDown size={10} className="text-amber-500 shrink-0" />}
+                                {b.isLow && <TrendingDown size={10} className="text-accent-signature shrink-0" />}
                               </div>
                               {b.category && (
                                 <span className="text-[9px] text-gray-400">{b.category}</span>
@@ -1686,13 +1686,13 @@ const Vehicles = () => {
                             <div className="w-24 hidden sm:block">
                               <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden">
                                 <div
-                                  className={`h-full rounded-full transition-all ${b.isLow ? 'bg-amber-400' : 'bg-accent-signature'}`}
+                                  className={`h-full rounded-full transition-all ${b.isLow ? 'bg-accent-signature/70' : 'bg-accent-signature'}`}
                                   style={{ width: `${pct}%` }}
                                 />
                               </div>
                             </div>
                             <div className="text-right shrink-0 w-16">
-                              <div className={`text-sm font-black ${b.isLow ? 'text-amber-600' : 'text-ink-primary'}`}>{b.qty}</div>
+                              <div className={`text-sm font-black ${b.isLow ? 'text-accent-signature' : 'text-ink-primary'}`}>{b.qty}</div>
                               <div className="text-[9px] text-gray-400">units</div>
                             </div>
                             <div className="text-right shrink-0 w-20 hidden sm:block">

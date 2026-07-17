@@ -14,7 +14,7 @@ const Button = ({
   
   const variants = {
     signature: 'btn-signature',
-    amber: 'bg-amber-600 text-white hover:bg-amber-700 shadow-lg shadow-amber-600/25',
+    amber: 'bg-accent-signature text-white hover:bg-accent-signature-hover shadow-lg shadow-accent-signature/25',
     secondary: 'border border-black/10 text-ink-primary hover:bg-black/5',
     danger: 'bg-red-500 text-white hover:bg-red-600 shadow-lg shadow-red-500/20',
     ghost: 'text-gray-500 hover:text-ink-primary hover:bg-black/5'

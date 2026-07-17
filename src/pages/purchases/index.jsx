@@ -391,7 +391,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
   ];
 
   const _STATUS_STYLES = {
-    PENDING:   { bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   label: 'Pending'   },
+    PENDING:   { bg: 'bg-accent-signature/10',   text: 'text-accent-signature-hover',   border: 'border-accent-signature/25',   label: 'Pending'   },
     ORDERED:   { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    label: 'Ordered'   },
     RECEIVED:  { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Received'  },
     CANCELLED: { bg: 'bg-gray-100',   text: 'text-gray-500',    border: 'border-gray-200',    label: 'Cancelled' },
@@ -467,7 +467,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
             const partial = Number(pur.paid_amount || 0) > 0;
             return (
               <div className="flex flex-col items-center gap-0.5">
-                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${partial ? 'bg-orange-50 text-orange-600' : 'bg-amber-50 text-amber-700'}`}>{partial ? 'Partial' : 'Credit'}</span>
+                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${partial ? 'bg-orange-50 text-orange-600' : 'bg-accent-signature/10 text-accent-signature-hover'}`}>{partial ? 'Partial' : 'Credit'}</span>
                 <span className="font-mono text-[10px] text-red-500">due {formatCurrency(due)}</span>
               </div>
             );
@@ -580,7 +580,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
           <div className="relative flex-1 min-w-[180px]">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search product / ref / supplier / notes…"
-              className="w-full h-9 pl-9 pr-3 bg-white border border-black/10 rounded-lg text-[12px] font-semibold outline-none focus:border-amber-400" />
+              className="w-full h-9 pl-9 pr-3 bg-white border border-black/10 rounded-lg text-[12px] font-semibold outline-none focus:border-accent-signature/70" />
           </div>
           <select value={fSupplier} onChange={e => setFSup(e.target.value)} className="h-9 px-2 border border-black/10 rounded-lg text-[12px] font-semibold">
             <option value="ALL">All suppliers</option>
@@ -678,7 +678,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
             <div className="flex justify-between text-[13px]"><span className="font-semibold text-gray-500">Already paid</span><span className="font-mono font-bold">{formatCurrency(payTarget.paid_amount || 0)}</span></div>
             <div className="flex justify-between text-[13px] pt-2 border-t border-black/5"><span className="font-bold">Due</span><span className="font-mono font-bold text-red-600">{formatCurrency(dueOf(payTarget))}</span></div>
             <label className="block"><span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Amount</span>
-              <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[14px] font-mono font-bold outline-none focus:border-amber-400" autoFocus />
+              <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[14px] font-mono font-bold outline-none focus:border-accent-signature/70" autoFocus />
             </label>
             <div className="grid grid-cols-2 gap-3">
               <label className="block"><span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Method</span>
@@ -690,7 +690,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
                 <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[13px] font-semibold" />
               </label>
             </div>
-            <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-xl bg-amber-600 text-white text-[13px] font-bold disabled:opacity-40 hover:bg-amber-700 flex items-center justify-center gap-2">
+            <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-xl bg-accent-signature text-white text-[13px] font-bold disabled:opacity-40 hover:bg-accent-signature-hover flex items-center justify-center gap-2">
               <Banknote size={15} /> {paySubmitting ? 'Recording…' : 'Record payment'}
             </button>
           </div>

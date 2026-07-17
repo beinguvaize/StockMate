@@ -313,18 +313,18 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
 
         <div className="relative no-print" ref={exportMenuRef}>
           <button onClick={() => setExportOpen(o => !o)}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-600 text-white text-xs font-black hover:bg-amber-700 shadow-md shadow-amber-600/25 transition-all">
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-accent-signature text-white text-xs font-black hover:bg-accent-signature-hover shadow-md shadow-accent-signature/25 transition-all">
             <Download size={13} /> Export <ChevronDown size={12} className={`transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
           </button>
           {exportOpen && (
             <div className="absolute right-0 mt-2 w-44 rounded-xl bg-white border border-black/10 shadow-xl overflow-hidden z-40 py-1">
-              <button onClick={doExcel} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
+              <button onClick={doExcel} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-accent-signature/10 transition-colors">
                 <FileSpreadsheet size={15} className="text-emerald-600" /> Excel (.xlsx)
               </button>
-              <button onClick={doPDF} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
-                <Printer size={15} className="text-amber-600" /> PDF / Print
+              <button onClick={doPDF} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-accent-signature/10 transition-colors">
+                <Printer size={15} className="text-accent-signature" /> PDF / Print
               </button>
-              <button onClick={doCSV} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-amber-50 transition-colors">
+              <button onClick={doCSV} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-accent-signature/10 transition-colors">
                 <FileText size={15} className="text-gray-400" /> CSV
               </button>
             </div>

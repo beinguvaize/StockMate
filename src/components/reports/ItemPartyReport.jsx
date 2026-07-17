@@ -350,7 +350,7 @@ const ItemPartyReport = () => {
               {tableRows.map((row, i) => (
                 <div key={row.name}
                   className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
-                  <span className={`text-sm font-black tabular-nums ${i===0?'text-amber-500':i===1?'text-gray-400':i===2?'text-amber-700':'text-ink-tertiary'}`}>
+                  <span className={`text-sm font-black tabular-nums ${i===0?'text-accent-signature':i===1?'text-gray-400':i===2?'text-accent-signature-hover':'text-ink-tertiary'}`}>
                     {i + 1}
                   </span>
                   <div className="flex items-center gap-2 min-w-0">

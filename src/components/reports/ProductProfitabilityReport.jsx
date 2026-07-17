@@ -239,7 +239,7 @@ const ProductProfitabilityReport = () => {
     const tierConfig = {
       HIGH:       { bg: 'bg-emerald-50', text: 'text-emerald-600', dot: '#10b981' },
       HEALTHY:    { bg: 'bg-sky-50',     text: 'text-sky-600',     dot: '#0ea5e9' },
-      THIN:       { bg: 'bg-amber-50',   text: 'text-amber-600',   dot: '#f59e0b' },
+      THIN:       { bg: 'bg-accent-signature/10',   text: 'text-accent-signature',   dot: '#f59e0b' },
       'BREAK-EVEN': { bg: 'bg-orange-50', text: 'text-orange-600', dot: '#f97316' },
       LOSS:       { bg: 'bg-rose-50',    text: 'text-rose-600',    dot: '#ef4444' },
     };
@@ -347,7 +347,7 @@ const ProductProfitabilityReport = () => {
         sortable: true,
         width: 100,
         render: (val) => (
-          <span className={`font-black tabular-nums ${val >= 20 ? 'text-emerald-600' : val >= 5 ? 'text-amber-600' : 'text-rose-600'}`}>
+          <span className={`font-black tabular-nums ${val >= 20 ? 'text-emerald-600' : val >= 5 ? 'text-accent-signature' : 'text-rose-600'}`}>
             {PCT(val)}
           </span>
         ),

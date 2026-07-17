@@ -291,7 +291,7 @@ const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = 
         </div>
         <div>
           <div className="text-[10px] font-bold text-slate-500 uppercase">Unmatched</div>
-          <div className={`text-sm font-bold ${unmatchedCount === 0 ? 'text-emerald-600' : 'text-amber-600'}`}>
+          <div className={`text-sm font-bold ${unmatchedCount === 0 ? 'text-emerald-600' : 'text-accent-signature'}`}>
             {unmatchedCount}
           </div>
         </div>

@@ -11,7 +11,7 @@ const daysTo = (d) => Math.ceil((new Date(d) - Date.now()) / 86400000);
 
 const BUCKETS = [
   { id: 'EXPIRED', label: 'Expired',   test: (n) => n < 0,            color: 'text-red-600 bg-red-50 border-red-200' },
-  { id: 'D30',     label: '≤ 30 days', test: (n) => n >= 0 && n <= 30, color: 'text-amber-600 bg-amber-50 border-amber-200' },
+  { id: 'D30',     label: '≤ 30 days', test: (n) => n >= 0 && n <= 30, color: 'text-accent-signature bg-accent-signature/10 border-accent-signature/25' },
   { id: 'D60',     label: '31–60 days', test: (n) => n > 30 && n <= 60, color: 'text-yellow-600 bg-yellow-50 border-yellow-200' },
   { id: 'D90',     label: '61–90 days', test: (n) => n > 60 && n <= 90, color: 'text-blue-600 bg-blue-50 border-blue-200' },
 ];
@@ -107,7 +107,7 @@ const ExpiryReport = () => {
     <>
       <div className="no-print flex items-center justify-end gap-2 mb-3">
         <button onClick={exportExcel}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-[11px] font-black transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-black transition-colors">
           <Download size={13} /> Excel
         </button>
       </div>

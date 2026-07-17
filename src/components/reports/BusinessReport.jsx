@@ -461,7 +461,7 @@ const BusinessReport = () => {
                   }`}>
                   {/* Rank */}
                   <span className={`text-sm font-black tabular-nums ${
-                    i===0?'text-amber-500':i===1?'text-gray-400':i===2?'text-amber-700':'text-ink-tertiary'
+                    i===0?'text-accent-signature':i===1?'text-gray-400':i===2?'text-accent-signature-hover':'text-ink-tertiary'
                   }`}>{p.rank}</span>
 
                   {/* Name + share bar */}
@@ -503,7 +503,7 @@ const BusinessReport = () => {
             : salesMetrics.topClients.map((c, i) => (
               <div key={c.name} className="flex items-center gap-4 px-6 py-3.5 border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-black shrink-0 ${
-                  i===0?'bg-amber-100 text-amber-700':i===1?'bg-gray-100 text-gray-600':'bg-accent-signature/10 text-accent-signature'
+                  i===0?'bg-accent-signature/15 text-accent-signature-hover':i===1?'bg-gray-100 text-gray-600':'bg-accent-signature/10 text-accent-signature'
                 }`}>
                   {(c.name[0]||'?').toUpperCase()}
                 </div>
@@ -571,7 +571,7 @@ const BusinessReport = () => {
                 </thead>
                 <tbody>
                   {transactions.map((t, i) => (
-                    <tr key={i} className="border-b border-black/[0.04] hover:bg-amber-500/[0.04] transition-colors">
+                    <tr key={i} className="border-b border-black/[0.04] hover:bg-accent-signature/[0.04] transition-colors">
                       <td className="px-4 py-2.5 font-mono text-[12px] text-gray-500 whitespace-nowrap">{t.date}</td>
                       <td className="px-4 py-2.5 font-mono text-[11px] text-gray-400 uppercase whitespace-nowrap">{t.ref}</td>
                       <td className="px-4 py-2.5 text-[13px] font-bold text-ink-primary truncate max-w-[200px]">{t.client}</td>
@@ -580,12 +580,12 @@ const BusinessReport = () => {
                       <td className="px-4 py-2.5 text-center">
                         <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
                           t.status==='PAID'||t.status==='COMPLETED' ? 'bg-emerald-50 text-emerald-600' :
-                          t.status==='PARTIAL' ? 'bg-amber-50 text-amber-700' :
+                          t.status==='PARTIAL' ? 'bg-accent-signature/10 text-accent-signature-hover' :
                           t.status==='PENDING'||t.status==='UNPAID' ? 'bg-rose-50 text-rose-600' : 'bg-gray-100 text-gray-500'
                         }`}>{t.status==='UNPAID'?'Pending':t.status.charAt(0)+t.status.slice(1).toLowerCase()}</span>
                       </td>
                       <td className="px-4 py-2.5 text-right font-mono text-[13px] font-bold text-ink-primary whitespace-nowrap">
-                        <span className="text-amber-400 mr-0.5">{'₹'}</span>{Math.round(t.amount).toLocaleString('en-IN')}
+                        <span className="text-accent-signature/70 mr-0.5">{'₹'}</span>{Math.round(t.amount).toLocaleString('en-IN')}
                       </td>
                     </tr>
                   ))}
@@ -594,7 +594,7 @@ const BusinessReport = () => {
                   <tr className="border-t-2 border-black/15 bg-canvas/40 sticky bottom-0">
                     <td className="px-4 py-3 font-mono text-[11px] font-black uppercase tracking-widest text-gray-500" colSpan={6}>Total · {transactions.length} sales</td>
                     <td className="px-4 py-3 text-right font-mono text-[14px] font-black text-ink-primary whitespace-nowrap">
-                      <span className="text-amber-400 mr-0.5">{'₹'}</span>{Math.round(salesMetrics.totalRevenue).toLocaleString('en-IN')}
+                      <span className="text-accent-signature/70 mr-0.5">{'₹'}</span>{Math.round(salesMetrics.totalRevenue).toLocaleString('en-IN')}
                     </td>
                   </tr>
                 </tfoot>
@@ -631,7 +631,7 @@ const BusinessReport = () => {
               </div>
               {purchMetrics.topSuppliers.map((s, i) => (
                 <div key={s.name} className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
-                  <span className={`text-sm font-black ${i===0?'text-amber-500':'text-ink-tertiary'}`}>{s.rank}</span>
+                  <span className={`text-sm font-black ${i===0?'text-accent-signature':'text-ink-tertiary'}`}>{s.rank}</span>
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
                       <span className="text-[10px] font-black text-blue-600">{s.name[0]?.toUpperCase()}</span>
@@ -641,9 +641,9 @@ const BusinessReport = () => {
                   <span className="font-mono text-ink-secondary text-sm">{s.orders}</span>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-1.5 rounded-full bg-canvas overflow-hidden">
-                      <div className="h-full rounded-full bg-amber-500" style={{ width: `${Math.min(100, s.share)}%` }} />
+                      <div className="h-full rounded-full bg-accent-signature" style={{ width: `${Math.min(100, s.share)}%` }} />
                     </div>
-                    <span className="text-[9px] font-black text-amber-600 w-8 text-right">{s.share.toFixed(0)}%</span>
+                    <span className="text-[9px] font-black text-accent-signature w-8 text-right">{s.share.toFixed(0)}%</span>
                   </div>
                   <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(s.amount)}</span>
                 </div>
@@ -660,13 +660,13 @@ const BusinessReport = () => {
 };
 
 /* ─── Detailed daily breakdown ────────────────────────────────────────────── */
-const PAY_BADGE = { CASH: 'bg-emerald-50 text-emerald-700', UPI: 'bg-amber-50 text-amber-700', CREDIT: 'bg-amber-50 text-amber-700', BANK: 'bg-slate-100 text-slate-600' };
+const PAY_BADGE = { CASH: 'bg-emerald-50 text-emerald-700', UPI: 'bg-accent-signature/10 text-accent-signature-hover', CREDIT: 'bg-accent-signature/10 text-accent-signature-hover', BANK: 'bg-slate-100 text-slate-600' };
 
 const APP_BADGE = {
   WEB:     'bg-slate-100 text-slate-600 border-slate-200',
   DESKTOP: 'bg-slate-100 text-slate-600 border-slate-200',
   MOBILE:  'bg-emerald-50 text-emerald-700 border-emerald-200',
-  VAN:     'bg-amber-50 text-amber-700 border-amber-200',
+  VAN:     'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/25',
 };
 
 const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }) => {
@@ -711,8 +711,8 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
               className="w-full flex items-center gap-4 px-6 py-4 hover:bg-canvas/40 transition-colors text-left"
               onClick={() => toggle(day.date)}
             >
-              <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                <Calendar size={14} className="text-amber-500" />
+              <div className="w-9 h-9 rounded-xl bg-accent-signature/10 flex items-center justify-center shrink-0">
+                <Calendar size={14} className="text-accent-signature" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="font-mono text-sm font-bold text-ink-primary">{day.date}</div>
@@ -787,7 +787,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                       {/* Source badge */}
                       {isVan
                         ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-amber-50 text-amber-700 border border-amber-200 justify-self-center">
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black w-fit bg-accent-signature/10 text-accent-signature-hover border border-accent-signature/25 justify-self-center">
                             <Truck size={9} /> {vanLabel}
                           </span>
                         )

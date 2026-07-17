@@ -68,7 +68,7 @@ const PaymentsView = ({ payments, suppliers, purchases, cur }) => {
     <div className="bg-white border border-black/5 rounded-2xl shadow-sm overflow-hidden">
       <div className="flex items-center justify-between gap-3 px-5 py-3 border-b border-black/5 flex-wrap">
         <div className="flex items-center gap-2">
-          <Wallet size={15} className="text-amber-600" />
+          <Wallet size={15} className="text-accent-signature" />
           <span className="text-[12px] font-bold text-ink-primary">Payment history</span>
           <span className="text-[11px] font-semibold text-gray-400">{sorted.length}</span>
         </div>
@@ -77,10 +77,10 @@ const PaymentsView = ({ payments, suppliers, purchases, cur }) => {
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
             <input value={q} onChange={e => { setQ(e.target.value); setVisible(PAGE); }}
               placeholder="Filter supplier…"
-              className="h-8 pl-8 pr-3 bg-white border border-black/10 rounded-lg text-[12px] font-semibold outline-none focus:border-amber-400 w-44" />
+              className="h-8 pl-8 pr-3 bg-white border border-black/10 rounded-lg text-[12px] font-semibold outline-none focus:border-accent-signature/70 w-44" />
           </div>
           <div className="font-mono tabular-nums text-[13px] font-bold text-ink-primary">
-            <span className="text-amber-400 mr-0.5">{cur}</span>{Math.round(total).toLocaleString('en-IN')}
+            <span className="text-accent-signature/70 mr-0.5">{cur}</span>{Math.round(total).toLocaleString('en-IN')}
           </div>
         </div>
       </div>
@@ -97,11 +97,11 @@ const PaymentsView = ({ payments, suppliers, purchases, cur }) => {
           </div>
           <div className="divide-y divide-black/5">
             {g.rows.map(p => (
-              <div key={p.id} className="grid grid-cols-[1fr_8rem_6rem_7rem] gap-4 px-5 py-2.5 items-center hover:bg-amber-50/40 transition-colors">
+              <div key={p.id} className="grid grid-cols-[1fr_8rem_6rem_7rem] gap-4 px-5 py-2.5 items-center hover:bg-accent-signature/5 transition-colors">
                 <div className="font-bold text-[13px] text-ink-primary truncate">{supMap.get(p.supplier_id) || p.supplier_name || '—'}</div>
                 <div>
                   {p.purchase_id
-                    ? <span className="font-mono text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">{orderMap.get(p.purchase_id) || `#${String(p.purchase_id).slice(-6).toUpperCase()}`}</span>
+                    ? <span className="font-mono text-[11px] font-bold text-accent-signature-hover bg-accent-signature/10 border border-accent-signature/25 px-1.5 py-0.5 rounded">{orderMap.get(p.purchase_id) || `#${String(p.purchase_id).slice(-6).toUpperCase()}`}</span>
                     : <span className="text-[11px] text-gray-400">On account</span>}
                 </div>
                 <div>
@@ -118,7 +118,7 @@ const PaymentsView = ({ payments, suppliers, purchases, cur }) => {
 
       {visible < sorted.length && (
         <button onClick={() => setVisible(v => v + PAGE)}
-          className="w-full py-3 text-[12px] font-bold text-amber-700 hover:bg-amber-50 border-t border-black/5 transition-colors">
+          className="w-full py-3 text-[12px] font-bold text-accent-signature-hover hover:bg-accent-signature/10 border-t border-black/5 transition-colors">
           Load more ({sorted.length - visible} left)
         </button>
       )}
@@ -261,7 +261,7 @@ const Suppliers = () => {
  {/* Header */}
  <div className="flex justify-between items-center gap-3 pb-3 border-b border-black/5 flex-wrap">
    <div className="flex items-center gap-3 min-w-0">
-     <h1 className="text-xl font-extrabold text-ink-primary leading-none">Suppliers<span className="text-amber-500">.</span></h1>
+     <h1 className="text-xl font-extrabold text-ink-primary leading-none">Suppliers<span className="text-accent-signature">.</span></h1>
      <span className="text-[11px] font-semibold text-gray-400 hidden sm:block">Suppliers & purchase payments</span>
    </div>
    <div className="flex items-center gap-2">
@@ -280,7 +280,7 @@ const Suppliers = () => {
      )}
      {!isViewOnly() && tab === 'SUPPLIERS' && (
        <button data-testid="onboard-partner-btn"
-         className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all"
+         className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all"
          onClick={() => setIsAdding(true)}>
          <Plus size={15} strokeWidth={2.6} /> Add supplier
        </button>
@@ -299,7 +299,7 @@ const Suppliers = () => {
       <div key={i} className="bg-white px-4 py-3.5">
         <div className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">{m.label}</div>
         <div className={`font-mono text-xl font-bold tabular-nums leading-none mt-1 ${m.danger ? 'text-red-600' : 'text-ink-primary'}`}>
-          {m.money && <span className={`text-sm mr-0.5 ${m.danger ? 'text-red-400' : 'text-amber-400'}`}>{businessProfile?.currencySymbol || '₹'}</span>}{m.value}
+          {m.money && <span className={`text-sm mr-0.5 ${m.danger ? 'text-red-400' : 'text-accent-signature/70'}`}>{businessProfile?.currencySymbol || '₹'}</span>}{m.value}
           {m.suffix && <span className="text-[10px] font-bold text-gray-300 ml-1 lowercase">{m.suffix}</span>}
         </div>
       </div>
@@ -314,7 +314,7 @@ const Suppliers = () => {
   <input
   data-testid="search-suppliers-input"
   type="text"
-  className="w-full h-10 pl-10 pr-4 bg-white border border-black/10 rounded-xl text-[13px] font-semibold text-ink-primary outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/20 transition-all placeholder:text-gray-400"
+  className="w-full h-10 pl-10 pr-4 bg-white border border-black/10 rounded-xl text-[13px] font-semibold text-ink-primary outline-none focus:border-accent-signature/70 focus:ring-2 focus:ring-accent-signature/20 transition-all placeholder:text-gray-400"
   placeholder="Search suppliers or contacts…"
   value={searchTerm}
   onChange={e => setSearchTerm(e.target.value)}
@@ -352,11 +352,11 @@ const Suppliers = () => {
  key={s.id}
  data-testid="supplier-row"
  onClick={goLedger}
- className="grid grid-cols-2 md:grid-cols-[1fr_7rem_7rem_6rem_5rem] gap-x-4 gap-y-2 px-5 py-3 items-center hover:bg-amber-50/40 transition-colors cursor-pointer group"
+ className="grid grid-cols-2 md:grid-cols-[1fr_7rem_7rem_6rem_5rem] gap-x-4 gap-y-2 px-5 py-3 items-center hover:bg-accent-signature/5 transition-colors cursor-pointer group"
  >
  {/* Supplier identity */}
  <div className="flex items-center gap-3 min-w-0 col-span-2 md:col-span-1">
- <div className="w-9 h-9 shrink-0 rounded-lg bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center font-mono font-bold text-[12px]">
+ <div className="w-9 h-9 shrink-0 rounded-lg bg-accent-signature/10 border border-accent-signature/25 text-accent-signature flex items-center justify-center font-mono font-bold text-[12px]">
  {initialsOf(s.name)}
  </div>
  <div className="min-w-0">
@@ -405,7 +405,7 @@ const Suppliers = () => {
  <Trash2 size={14} />
  </button>
  )}
- <button onClick={goLedger} title="View transactions" className="p-1.5 rounded-lg hover:bg-amber-50 text-amber-600 transition-colors">
+ <button onClick={goLedger} title="View transactions" className="p-1.5 rounded-lg hover:bg-accent-signature/10 text-accent-signature transition-colors">
  <ArrowUpRight size={15} />
  </button>
  </div>
@@ -436,27 +436,27 @@ const Suppliers = () => {
  <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
  <div className="md:col-span-2">
  <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Supplier Name</label>
- <input required type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
+ <input required type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
  </div>
 
  <div>
  <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Contact (Optional)</label>
- <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="NAME..." value={formData.contact_person} onChange={e => setFormData({ ...formData, contact_person: e.target.value})} />
+ <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="NAME..." value={formData.contact_person} onChange={e => setFormData({ ...formData, contact_person: e.target.value})} />
  </div>
 
  <div>
  <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Phone (Optional)</label>
- <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="+91..." value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value})} />
+ <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="+91..." value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value})} />
  </div>
 
  <div className="md:col-span-2">
  <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Email (Optional)</label>
- <input type="email" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="orders@partner.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value})} />
+ <input type="email" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="orders@partner.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value})} />
  </div>
 
  <div className="md:col-span-2">
  <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Address</label>
- <textarea rows={2} className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all resize-none placeholder:text-gray-400 placeholder:font-normal" placeholder="123 MAIN ST..." value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value})} />
+ <textarea rows={2} className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all resize-none placeholder:text-gray-400 placeholder:font-normal" placeholder="123 MAIN ST..." value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value})} />
  </div>
  </div>
 
@@ -493,27 +493,27 @@ const Suppliers = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
             <div className="md:col-span-2">
               <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Supplier Name</label>
-              <input required type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
+              <input required type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="ACME..." value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value})} />
             </div>
 
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Contact (Optional)</label>
-              <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="NAME..." value={formData.contact_person} onChange={e => setFormData({ ...formData, contact_person: e.target.value})} />
+              <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="NAME..." value={formData.contact_person} onChange={e => setFormData({ ...formData, contact_person: e.target.value})} />
             </div>
 
             <div>
               <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Phone (Optional)</label>
-              <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="+91..." value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value})} />
+              <input type="text" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="+91..." value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value})} />
             </div>
 
             <div className="md:col-span-2">
               <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Email (Optional)</label>
-              <input type="email" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="orders@partner.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value})} />
+              <input type="email" className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all placeholder:text-gray-400 placeholder:font-normal" placeholder="orders@partner.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value})} />
             </div>
 
             <div className="md:col-span-2">
               <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Address</label>
-              <textarea rows={2} className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 transition-all resize-none placeholder:text-gray-400 placeholder:font-normal" placeholder="123 MAIN ST..." value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value})} />
+              <textarea rows={2} className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 font-semibold text-sm text-ink-primary outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 transition-all resize-none placeholder:text-gray-400 placeholder:font-normal" placeholder="123 MAIN ST..." value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value})} />
             </div>
           </div>
 

@@ -1,3 +1,10 @@
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+// shadcn/ui convention — merge conditional class names, with tailwind-merge
+// resolving conflicts (cn('px-4','px-2') -> 'px-2') so overrides always win.
+export const cn = (...inputs) => twMerge(clsx(inputs));
+
 // Generate a short human-readable reference id, e.g. "SAL-K7F2M".
 // Combines timestamp base36 + 2 random chars -> unique per ms per tab, short.
 export const generateRef = (prefix = 'REF') => {

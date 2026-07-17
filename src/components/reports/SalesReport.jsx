@@ -15,9 +15,9 @@ const payBadge = (method) => {
   const m = (method || 'CASH').toUpperCase();
   const colors = {
     CASH:   'bg-emerald-50 text-emerald-700 border-emerald-100',
-    CREDIT: 'bg-amber-50   text-amber-700   border-amber-100',
+    CREDIT: 'bg-accent-signature/10   text-accent-signature-hover   border-accent-signature/15',
     BANK:   'bg-blue-50    text-blue-700    border-blue-100',
-    UPI:    'bg-amber-50  text-amber-700  border-amber-100',
+    UPI:    'bg-accent-signature/10  text-accent-signature-hover  border-accent-signature/15',
   };
   const cls = colors[m] || 'bg-gray-50 text-gray-600 border-gray-100';
   return (
@@ -31,7 +31,7 @@ const statusBadge = (status) => {
   const s = (status || 'PAID').toUpperCase();
   const cls = s === 'PAID'
     ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
-    : 'bg-amber-50 text-amber-700 border-amber-100';
+    : 'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/15';
   return (
     <span className={`inline-block text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
       {s}
@@ -391,7 +391,7 @@ const SalesReport = () => {
         key: '_rank', label: '#', width: 50, align: 'center',
         render: (val) => (
           <span className={`font-black tabular-nums text-sm ${
-            val === 1 ? 'text-amber-500' : val === 2 ? 'text-gray-400' : val === 3 ? 'text-amber-700' : 'text-ink-tertiary'
+            val === 1 ? 'text-accent-signature' : val === 2 ? 'text-gray-400' : val === 3 ? 'text-accent-signature-hover' : 'text-ink-tertiary'
           }`}>
             {val}
           </span>
@@ -474,7 +474,7 @@ const SalesReport = () => {
         render: (val, row) => (
           <div className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-[11px] shrink-0 ${
-              row._rank === 1 ? 'bg-amber-100 text-amber-700'
+              row._rank === 1 ? 'bg-accent-signature/15 text-accent-signature-hover'
               : row._rank === 2 ? 'bg-gray-100 text-gray-600'
               : 'bg-accent-signature/15 text-accent-signature'
             }`}>

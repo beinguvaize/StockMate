@@ -44,7 +44,7 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-extrabold text-ink-primary">Tables<span className="text-amber-500">.</span></h2>
+          <h2 className="text-lg font-extrabold text-ink-primary">Tables<span className="text-accent-signature">.</span></h2>
           <p className="text-[12px] text-gray-400">{tables.length} tables · {Object.keys(openTabs).length} running</p>
         </div>
         <div className="flex items-center gap-2">
@@ -60,7 +60,7 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
           </div>
           {view === 'grid' && (
             <button onClick={() => setAdding(true)}
-              className="h-10 px-4 rounded-xl bg-amber-600 text-white text-[13px] font-bold flex items-center gap-2 hover:bg-amber-700 transition-all">
+              className="h-10 px-4 rounded-xl bg-accent-signature text-white text-[13px] font-bold flex items-center gap-2 hover:bg-accent-signature-hover transition-all">
               <Plus size={15} strokeWidth={2.6} /> Add table
             </button>
           )}
@@ -100,23 +100,23 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
                     onClick={() => onOpenTable(t, tab)}
                     className={`group relative text-left rounded-2xl border p-4 transition-all ${
                       occupied
-                        ? 'bg-amber-50 border-amber-300 hover:border-amber-400'
+                        ? 'bg-accent-signature/10 border-accent-signature/40 hover:border-accent-signature/70'
                         : 'bg-white border-black/10 hover:border-black/20'
                     }`}
                   >
                     <div className="flex items-start justify-between">
                       <div className="text-[15px] font-extrabold text-ink-primary">{t.label}</div>
-                      <span className={`w-2 h-2 rounded-full ${occupied ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                      <span className={`w-2 h-2 rounded-full ${occupied ? 'bg-accent-signature' : 'bg-emerald-500'}`} />
                     </div>
                     <div className="flex items-center gap-1 text-[11px] text-gray-400 mt-0.5">
                       <Users size={11} /> {t.seats}
                     </div>
                     {occupied ? (
                       <div className="mt-3">
-                        <div className="font-mono tabular-nums text-[15px] font-bold text-amber-700">
+                        <div className="font-mono tabular-nums text-[15px] font-bold text-accent-signature-hover">
                           {currencySymbol}{Math.round(total).toLocaleString('en-IN')}
                         </div>
-                        <div className="text-[10px] font-bold text-amber-600 flex items-center gap-1">
+                        <div className="text-[10px] font-bold text-accent-signature flex items-center gap-1">
                           <Receipt size={10} /> {items} item{items === 1 ? '' : 's'}
                         </div>
                       </div>
@@ -135,7 +135,7 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
                     {occupied && tables.length > 1 && (
                       <span
                         onClick={(e) => { e.stopPropagation(); setTransferFrom({ table: t, tab }); }}
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 rounded-lg grid place-items-center text-amber-500 hover:text-amber-700 hover:bg-amber-100 transition"
+                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 w-6 h-6 rounded-lg grid place-items-center text-accent-signature hover:text-accent-signature-hover hover:bg-accent-signature/15 transition"
                         title="Move / merge table"
                       >
                         <ArrowLeftRight size={12} />
@@ -165,9 +165,9 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
                 const occ = !!openTabs[ft.id];
                 return (
                   <button key={ft.id} onClick={() => doMove(ft)}
-                    className={`rounded-xl border p-3 text-center transition-all ${occ ? 'border-amber-300 bg-amber-50 hover:border-amber-400' : 'border-black/10 hover:border-amber-400 hover:bg-amber-50'}`}>
+                    className={`rounded-xl border p-3 text-center transition-all ${occ ? 'border-accent-signature/40 bg-accent-signature/10 hover:border-accent-signature/70' : 'border-black/10 hover:border-accent-signature/70 hover:bg-accent-signature/10'}`}>
                     <div className="font-extrabold text-[14px] text-ink-primary">{ft.label}</div>
-                    <div className={`text-[10px] font-bold ${occ ? 'text-amber-600' : 'text-gray-400'}`}>{occ ? 'merge' : (ft.section || 'free')}</div>
+                    <div className={`text-[10px] font-bold ${occ ? 'text-accent-signature' : 'text-gray-400'}`}>{occ ? 'merge' : (ft.section || 'free')}</div>
                   </button>
                 );
               })}
@@ -189,23 +189,23 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
                 <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Label</label>
                 <input autoFocus value={form.label} onChange={e => setForm({ ...form, label: e.target.value })}
                   placeholder="T1, Patio 3…"
-                  className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10" />
+                  className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Section</label>
                   <input value={form.section} onChange={e => setForm({ ...form, section: e.target.value })}
                     placeholder="AC / Patio…"
-                    className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10" />
+                    className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Seats</label>
                   <input type="number" min="1" value={form.seats} onChange={e => setForm({ ...form, seats: e.target.value })}
-                    className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold font-mono outline-none focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10" />
+                    className="w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.5 text-sm font-semibold font-mono outline-none focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10" />
                 </div>
               </div>
               <button type="submit" disabled={busy || !form.label.trim()}
-                className="w-full h-11 rounded-xl bg-amber-600 text-white text-sm font-bold hover:bg-amber-700 disabled:opacity-50 transition-all">
+                className="w-full h-11 rounded-xl bg-accent-signature text-white text-sm font-bold hover:bg-accent-signature-hover disabled:opacity-50 transition-all">
                 {busy ? 'Adding…' : 'Add table'}
               </button>
             </form>

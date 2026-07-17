@@ -161,7 +161,7 @@ const PurchaseForm = ({ products, suppliers, onSave, loading, initialData }) => 
           />
           {baseUnitCost !== null && selectedProduct?.costPrice > 0 && (
             <div className="mt-1.5 text-[10px] font-bold">
-              <span className={baseUnitCost > selectedProduct.costPrice ? 'text-amber-600' : 'text-emerald-600'}>
+              <span className={baseUnitCost > selectedProduct.costPrice ? 'text-accent-signature' : 'text-emerald-600'}>
                 {baseUnitCost > selectedProduct.costPrice ? '▲' : '▼'} vs last {formatCurrency(selectedProduct.costPrice)}/{selectedProduct.unit}
               </span>
             </div>

@@ -145,7 +145,7 @@ export default function AvatarPicker({ onClose }) {
               }, 500);
             }}
             disabled={rpmLoading}
-            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-amber-600 to-amber-600 text-white hover:opacity-90 active:scale-[0.98] transition-all shadow-lg disabled:opacity-70"
+            className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-accent-signature to-accent-signature text-white hover:opacity-90 active:scale-[0.98] transition-all shadow-lg disabled:opacity-70"
           >
             <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
               {rpmLoading

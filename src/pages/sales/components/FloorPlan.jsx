@@ -99,9 +99,9 @@ const FloorPlan = ({ tables, openTabs, tabTotal, onOpenTable, updateTable, addTa
           </select>
           {designing && (
             <>
-              <button onClick={() => addShape('sq')} className="h-9 px-3 rounded-lg bg-white border border-black/10 text-[12px] font-bold hover:border-amber-400 flex items-center gap-1.5"><Square size={13} /> Square</button>
-              <button onClick={() => addShape('rect')} className="h-9 px-3 rounded-lg bg-white border border-black/10 text-[12px] font-bold hover:border-amber-400 flex items-center gap-1.5"><RectangleHorizontal size={13} /> Rectangle</button>
-              <button onClick={() => addShape('rd')} className="h-9 px-3 rounded-lg bg-white border border-black/10 text-[12px] font-bold hover:border-amber-400 flex items-center gap-1.5"><Circle size={13} /> Round</button>
+              <button onClick={() => addShape('sq')} className="h-9 px-3 rounded-lg bg-white border border-black/10 text-[12px] font-bold hover:border-accent-signature/70 flex items-center gap-1.5"><Square size={13} /> Square</button>
+              <button onClick={() => addShape('rect')} className="h-9 px-3 rounded-lg bg-white border border-black/10 text-[12px] font-bold hover:border-accent-signature/70 flex items-center gap-1.5"><RectangleHorizontal size={13} /> Rectangle</button>
+              <button onClick={() => addShape('rd')} className="h-9 px-3 rounded-lg bg-white border border-black/10 text-[12px] font-bold hover:border-accent-signature/70 flex items-center gap-1.5"><Circle size={13} /> Round</button>
               <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600"><Save size={12} /> auto-saved</span>
             </>
           )}
@@ -140,7 +140,7 @@ const FloorPlan = ({ tables, openTabs, tabTotal, onOpenTable, updateTable, addTa
               <div className="font-extrabold text-[14px] text-ink-primary">{t.label}</div>
               <div className="text-[10px] text-gray-400">{t.seats || 0} seats</div>
               {!designing && occupied && (
-                <div className="font-mono text-[11px] font-bold text-amber-700">{currencySymbol}{Math.round(tabTotal(tab)).toLocaleString('en-IN')}</div>
+                <div className="font-mono text-[11px] font-bold text-accent-signature-hover">{currencySymbol}{Math.round(tabTotal(tab)).toLocaleString('en-IN')}</div>
               )}
               {designing && (
                 <button onClick={(e) => { e.stopPropagation(); if (window.confirm(`Remove "${t.label}"?`)) deleteTable(t.id); }}
@@ -158,7 +158,7 @@ const FloorPlan = ({ tables, openTabs, tabTotal, onOpenTable, updateTable, addTa
 
       <div className="flex items-center gap-5 text-[12px] text-gray-500">
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm border-2 border-emerald-500 bg-emerald-50" /> Free</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm border-2 border-amber-500 bg-amber-50" /> Occupied</span>
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-sm border-2 border-accent-signature bg-accent-signature/10" /> Occupied</span>
         {designing && <span className="text-gray-400">drag to move · double-click to edit · auto-saves</span>}
       </div>
     </div>

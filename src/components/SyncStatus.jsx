@@ -62,7 +62,7 @@ export default function SyncStatus() {
 
         {/* Pending badge */}
         {pendingCount > 0 && (
-          <span className="ml-0.5 bg-amber-400 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+          <span className="ml-0.5 bg-accent-signature/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full leading-none">
             {pendingCount > 99 ? '99+' : pendingCount}
           </span>
         )}
@@ -78,7 +78,7 @@ export default function SyncStatus() {
             </p>
           </div>
           {pendingCount > 0 && (
-            <p className="text-[10px] text-amber-600 font-semibold mb-1">
+            <p className="text-[10px] text-accent-signature font-semibold mb-1">
               {pendingCount} pending write{pendingCount !== 1 ? 's' : ''}
             </p>
           )}

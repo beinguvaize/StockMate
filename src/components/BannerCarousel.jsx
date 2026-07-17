@@ -8,7 +8,7 @@ import { goHref } from '../lib/nav';
 // per-banner dismiss (localStorage). Content managed in the `banners` table.
 
 const GRADIENTS = {
-  amber:   'from-amber-500 via-orange-500 to-amber-600',
+  amber:   'from-accent-signature via-orange-500 to-accent-signature',
   indigo:  'from-indigo-500 via-violet-500 to-indigo-600',
   emerald: 'from-emerald-500 via-teal-500 to-emerald-600',
   slate:   'from-slate-700 via-slate-800 to-slate-900',

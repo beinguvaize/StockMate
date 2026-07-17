@@ -264,7 +264,7 @@ const ARAgingReport = () => {
         key: 'days_overdue', label: 'Days Overdue', align: 'right', sortable: true, width: 120,
         render: (val) => {
           if (!val || val <= 0) return <span className="text-[10px] font-black text-emerald-500">CURRENT</span>;
-          return <span className={`text-[10px] font-black ${val > 90 ? 'text-red-600' : val > 60 ? 'text-orange-500' : 'text-amber-500'}`}>{val} DAYS</span>;
+          return <span className={`text-[10px] font-black ${val > 90 ? 'text-red-600' : val > 60 ? 'text-orange-500' : 'text-accent-signature'}`}>{val} DAYS</span>;
         },
       },
       {

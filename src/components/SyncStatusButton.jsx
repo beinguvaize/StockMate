@@ -52,13 +52,13 @@ const SyncStatusButton = () => {
     label = 'Offline';
   } else if (pendingCount > 0) {
     StatusIcon = AlertCircle;
-    statusColor = 'text-amber-600';
-    statusBg = 'bg-amber-50 border-amber-200';
+    statusColor = 'text-accent-signature';
+    statusBg = 'bg-accent-signature/10 border-accent-signature/25';
     label = `${pendingCount} pending`;
   } else if (syncing) {
     StatusIcon = RefreshCw;
-    statusColor = 'text-amber-500';
-    statusBg = 'bg-amber-50 border-amber-200';
+    statusColor = 'text-accent-signature';
+    statusBg = 'bg-accent-signature/10 border-accent-signature/25';
     label = 'Syncing';
   }
 
