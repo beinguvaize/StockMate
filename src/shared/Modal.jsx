@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { createPortal } from 'react-dom';
 import { X, ChevronLeft } from 'lucide-react';
+import { useDialogClose } from '../hooks/useDialogClose';
 
 const Modal = ({
   isOpen,
@@ -11,19 +12,20 @@ const Modal = ({
   // maxWidth kept for API compat but ignored — all modals are full-page now
   maxWidth,
 }) => {
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => { document.body.style.overflow = 'unset'; };
-  }, [isOpen]);
+  // Escape to close + scroll lock + focus restore. Replaces a hand-rolled
+  // lock that forced body overflow back to 'unset' whenever ANY modal closed,
+  // so shutting a nested modal unlocked the page under the one still open.
+  useDialogClose(onClose, { enabled: isOpen });
 
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in">
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label={title || 'Dialog'}
+      className="fixed inset-0 z-50 flex flex-col bg-canvas animate-fade-in"
+    >
 
       {/* ── Top bar ─────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-4 px-6 py-4 border-b border-black/5 bg-white shrink-0">

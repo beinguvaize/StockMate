@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useDialogClose } from '../../../hooks/useDialogClose';
 import { PackagePlus, CheckCircle2, X } from 'lucide-react';
 import { UNITS } from '../../../lib/constants';
 
@@ -7,6 +8,7 @@ import { UNITS } from '../../../lib/constants';
  * doesn't match any existing product.
  */
 const QuickCreateProductModal = ({ barcode, initialName, onSave, onCancel, loading }) => {
+  useDialogClose(onCancel);
   const [form, setForm] = useState({
     name:         initialName || '',
     sku:          '',

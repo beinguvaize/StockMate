@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useDialogClose } from '../../../hooks/useDialogClose';
 import { ChevronLeft, X, TrendingUp, TrendingDown, RotateCcw, Search, Filter, History } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 
@@ -27,6 +28,7 @@ const fmt = (iso) => {
 };
 
 export default function StockHistoryModal({ tenantId, products, onClose }) {
+  useDialogClose(onClose);
   const [log,     setLog]     = useState([]);
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState('');

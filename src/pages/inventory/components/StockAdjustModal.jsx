@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useDialogClose } from '../../../hooks/useDialogClose';
 import { X, TrendingUp, TrendingDown, Target, AlertCircle, Loader2, CheckCircle2, ArrowRight, Minus, Plus, ChevronLeft } from 'lucide-react';
 
 const TYPES = [
@@ -21,6 +22,7 @@ const REASONS = [
 ];
 
 export default function StockAdjustModal({ product, currentStock, onConfirm, onClose, saving }) {
+  useDialogClose(onClose);
   const [type, setType]           = useState('set');
   const [qty, setQty]             = useState('');
   const [reason, setReason]       = useState('');

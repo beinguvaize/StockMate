@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { useDialogClose } from '../../../hooks/useDialogClose';
 import { X, Plus, Trash2, Tag, ChevronDown, ChevronUp, AlertCircle, ChevronLeft } from 'lucide-react';
 
 const TIERS = [
@@ -28,6 +29,7 @@ const EMPTY_FORM = { productId: '', minQty: 1, price: '' };
  *   currencySymbol string
  */
 const PriceListsModal = ({ isOpen, onClose, products, priceLists, onUpsert, onDelete, currencySymbol = '' }) => {
+  useDialogClose(onClose, { enabled: isOpen });
   const [activeTier, setActiveTier]   = useState('WHOLESALE');
   const [form,       setForm]         = useState(EMPTY_FORM);
   const [saving,     setSaving]       = useState(false);
