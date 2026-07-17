@@ -120,7 +120,7 @@ const FloorPlan = ({ tables, openTabs, tabTotal, onOpenTable, updateTable, addTa
         {placed.map(t => {
           const tab = openTabs[t.id];
           const occupied = !!tab;
-          const border = occupied ? '#D97706' : '#10B981';
+          const border = occupied ? 'var(--color-accent-signature)' : '#10B981';
           const bg = occupied ? '#FFF7ED' : '#ECFDF5';
           return (
             <div

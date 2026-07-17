@@ -47,9 +47,9 @@ const SectionHead = ({ title, sub }) => (
   </div>
 );
 
-const KPI = ({ label, value, icon: Icon, color = '#D97706', loading }) => (
+const KPI = ({ label, value, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
   <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
-    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
+    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
       <Icon size={16} style={{ color }} />
     </div>
     {loading
@@ -98,7 +98,7 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-                  style={{ background: colorAccent + '18' }}>
+                  style={{ background: `color-mix(in srgb, ${colorAccent} 10%, transparent)` }}>
                   <span className="text-[10px] font-black" style={{ color: colorAccent }}>
                     {(row.name?.[0] || '?').toUpperCase()}
                   </span>
@@ -236,7 +236,7 @@ const SalePurchaseByPartyReport = () => {
 
       {/* Summary KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPI label="Total Sales"          loading={loading} value={formatCurrency(totalSales)}      icon={TrendingUp}  color="#D97706" />
+        <KPI label="Total Sales"          loading={loading} value={formatCurrency(totalSales)}      icon={TrendingUp}  color="var(--color-accent-signature)" />
         <KPI label="Customers"            loading={loading} value={salesByCustomer.length}          icon={Users}       color="#10b981" />
         <KPI label="Total Purchases"      loading={loading} value={formatCurrency(totalPurchases)}  icon={ShoppingBag} color="#f59e0b" />
         <KPI label="Suppliers"            loading={loading} value={purchBySupplier.length}          icon={Truck}       color="#8b5cf6" />
@@ -251,7 +251,7 @@ const SalePurchaseByPartyReport = () => {
           totalAmount={totalSales}
           totalLabel="customers"
           amountLabel="Total Sales"
-          colorAccent="#D97706"
+          colorAccent="var(--color-accent-signature)"
           amountLabel2="Sales"
           loading={sLoading}
           emptyMsg="No sales for selected period"

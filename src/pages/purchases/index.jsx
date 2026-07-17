@@ -116,6 +116,8 @@ const PurchasesPage = () => {
     const fmt = (n) => `${cur}${Number(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
     const ref = `#${p.id.split('-').pop()}`;
     const credit = _credit(p.payment_type);
+    // Hex on purpose: this feeds a standalone print window (document.write),
+    // where the app's CSS variables don't exist.
     const statusColor = credit ? (due <= 0.5 ? '#059669' : '#D97706') : '#059669';
     const html = `<!doctype html><html><head><meta charset="utf-8"><title>Purchase ${ref}</title>
 <style>

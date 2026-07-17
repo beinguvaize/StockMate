@@ -25,10 +25,10 @@ import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 
 /* ─── Colour tokens ───────────────────────────────────────────────────────── */
 const COLOR_HEX = {
-  indigo: '#D97706', emerald: '#10b981', amber: '#f59e0b', rose: '#ef4444',
+  indigo: 'var(--color-accent-signature)', emerald: '#10b981', amber: '#f59e0b', rose: '#ef4444',
   orange: '#f97316', sky: '#0ea5e9', violet: '#8b5cf6', blue: '#3b82f6',
 };
-const PIE_COLORS = ['#D97706', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
+const PIE_COLORS = ['var(--color-accent-signature)', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#f97316'];
 
 /* ─── Value formatting ────────────────────────────────────────────────────── */
 const MONEY_RE = /value|revenue|profit|capital|payroll|disburs|outstanding|magnitude|burn|salary|\brev\b|balance|amount|spend|yield|cost/i;
@@ -45,7 +45,7 @@ const kpiDisplay = (label, value) => {
 };
 
 /* ─── Mini sparkline ──────────────────────────────────────────────────────── */
-const Spark = ({ data = [], color = '#D97706' }) => {
+const Spark = ({ data = [], color = 'var(--color-accent-signature)' }) => {
   if (!data || data.length < 2) return <div className="h-9" />;
   const id = `prk_${color.replace('#', '')}`;
   return (
@@ -73,7 +73,7 @@ const KPI = ({ card, loading }) => {
   return (
     <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
           <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
         </div>
         {dir && (
@@ -126,7 +126,7 @@ const ChartTip = ({ active, payload, label }) => {
 const ChartPanel = ({ config, loading }) => {
   if (!config) return null;
   const { title, type = 'bar', data = [], series } = config;
-  const ser = series && series.length ? series : [{ key: 'value', name: 'Value', color: '#D97706' }];
+  const ser = series && series.length ? series : [{ key: 'value', name: 'Value', color: 'var(--color-accent-signature)' }];
 
   const axisTick = { fontSize: 10, fill: '#9ca3af', fontWeight: 600 };
   const yFmt = v => (v >= 100000 ? `₹${(v/100000).toFixed(1)}L` : v >= 1000 ? `₹${(v/1000).toFixed(0)}k` : v);

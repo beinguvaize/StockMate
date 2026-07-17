@@ -86,7 +86,7 @@ const HRReport = () => {
     kpis: workforceMetrics.kpis,
     chartConfig: { 
       title: "Cost distribution by department", type: 'pie', data: workforceMetrics.deptStats.map(d => ({ name: d.name, value: d.cost })),
-      series: [{ key: 'value', name: 'Authorized Salary', color: '#D97706' }] 
+      series: [{ key: 'value', name: 'Authorized Salary', color: 'var(--color-accent-signature)' }] 
     }
   };
 

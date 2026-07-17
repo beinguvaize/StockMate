@@ -36,7 +36,7 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
  return Object.values(stats).sort((a, b) => b.revenue - a.revenue).slice(0, 5);
 }, [sales, routes]);
 
- const COLORS = ['#D97706', '#22c55e', '#f59e0b', '#ef4444', '#a855f7'];
+ const COLORS = ['var(--color-accent-signature)', '#22c55e', '#f59e0b', '#ef4444', '#a855f7'];
 
  return (
  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -116,7 +116,7 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
  labelStyle={{ color: 'rgba(255,255,255,0.4)', fontSize: '10px', fontWeight: 900, marginBottom: '5px', textTransform: ''}}
  formatter={(val) => [`${businessProfile.currencySymbol}${Math.round(val).toLocaleString()}`, 'Revenue']}
  />
- <Bar dataKey="revenue" fill="#D97706" radius={[10, 10, 0, 0]} barSize={40} />
+ <Bar dataKey="revenue" fill="var(--color-accent-signature)" radius={[10, 10, 0, 0]} barSize={40} />
  </BarChart>
  </ResponsiveContainer>
  </div>

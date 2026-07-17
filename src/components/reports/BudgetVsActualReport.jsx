@@ -389,7 +389,7 @@ const BudgetVsActualReport = () => {
       type: 'bar',
       data: expenseRowsData.map((r) => ({ name: r.category, Budget: r.budget, Actual: r.actual })),
       series: [
-        { key: 'Budget', name: 'Budget', color: '#D97706' },
+        { key: 'Budget', name: 'Budget', color: 'var(--color-accent-signature)' },
         { key: 'Actual', name: 'Actual', color: '#ef4444' },
       ],
     },
@@ -422,7 +422,7 @@ const BudgetVsActualReport = () => {
       type: 'bar',
       data: revenueRowsData.map((r) => ({ name: r.category, Budget: r.budget, Actual: r.actual })),
       series: [
-        { key: 'Budget', name: 'Budget', color: '#D97706' },
+        { key: 'Budget', name: 'Budget', color: 'var(--color-accent-signature)' },
         { key: 'Actual', name: 'Actual', color: '#10b981' },
       ],
     },

@@ -43,7 +43,7 @@ const WeeklySalesBarChart = React.memo(({ data, currencySymbol }) => (
       <RechartsTooltip cursor={{ fill: 'rgba(0,0,0,0.02)'}} contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} formatter={(val, name) => [`${currencySymbol}${Number(val).toLocaleString('en-IN')}`, name]} />
       <Legend wrapperStyle={{ fontSize: 11, fontWeight: 700 }} iconType="circle" iconSize={8} />
       <Bar dataKey="prev"  name="Last week" fill="#D1D5DB" radius={[4, 4, 0, 0]} barSize={18} />
-      <Bar dataKey="value" name="This week" fill="#D97706" radius={[4, 4, 0, 0]} barSize={18} />
+      <Bar dataKey="value" name="This week" fill="var(--color-accent-signature)" radius={[4, 4, 0, 0]} barSize={18} />
     </BarChart>
   </ResponsiveContainer>
 ));
@@ -53,15 +53,15 @@ const MonthlyComparisonAreaChart = React.memo(({ data, currencySymbol }) => (
     <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0}}>
       <defs>
         <linearGradient id="fillThisMonth" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="5%" stopColor="#D97706" stopOpacity={0.2}/>
-          <stop offset="95%" stopColor="#D97706" stopOpacity={0}/>
+          <stop offset="5%" stopColor="var(--color-accent-signature)" stopOpacity={0.2}/>
+          <stop offset="95%" stopColor="var(--color-accent-signature)" stopOpacity={0}/>
         </linearGradient>
       </defs>
       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.05)" />
       <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} />
       <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6B7280', fontSize: 10, fontWeight: 700}} tickFormatter={(val) => `${currencySymbol}${val > 999 ? (val/1000).toFixed(1) + 'k' : val}`} />
       <RechartsTooltip contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 20px rgba(0,0,0,0.05)'}} />
-      <Area type="monotone" dataKey="thisMonth" name="This Month" stroke="#D97706" strokeWidth={2} fillOpacity={1} fill="url(#fillThisMonth)" />
+      <Area type="monotone" dataKey="thisMonth" name="This Month" stroke="var(--color-accent-signature)" strokeWidth={2} fillOpacity={1} fill="url(#fillThisMonth)" />
       <Area type="monotone" dataKey="lastMonth" name="Last Month" stroke="#94A3B8" strokeWidth={2} strokeDasharray="5 5" fill="none" />
     </AreaChart>
   </ResponsiveContainer>
@@ -387,7 +387,7 @@ const Dashboard = () => {
  '#8b5cf6', // amber-500
  '#10b981', // emerald-500
  '#f59e0b', // amber-500
- '#D97706', // amber-500
+ 'var(--color-accent-signature)', // amber-500
  '#ef4444', // red-500
  '#06b6d4', // cyan-500
  '#84cc16', // lime-500
@@ -970,7 +970,7 @@ const Dashboard = () => {
  <Bar 
  dataKey="value" 
  name="Revenue" 
- fill="#D97706" 
+ fill="var(--color-accent-signature)" 
  radius={[6, 6, 0, 0]}
  barSize={32}
  animationDuration={2000}

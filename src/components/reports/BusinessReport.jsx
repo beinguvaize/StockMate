@@ -59,7 +59,7 @@ function presetRange(id) {
 }
 
 /* ─── Mini sparkline ──────────────────────────────────────────────────────── */
-const Spark = ({ data = [], color = '#D97706' }) => (
+const Spark = ({ data = [], color = 'var(--color-accent-signature)' }) => (
   <ResponsiveContainer width="100%" height={36}>
     <AreaChart data={data} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
       <defs>
@@ -75,11 +75,11 @@ const Spark = ({ data = [], color = '#D97706' }) => (
 );
 
 /* ─── KPI card ────────────────────────────────────────────────────────────── */
-const KPI = ({ label, value, sub, spark, color = '#D97706', icon: Icon, loading }) => (
+const KPI = ({ label, value, sub, spark, color = 'var(--color-accent-signature)', icon: Icon, loading }) => (
   <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
     <div className="flex items-center justify-between">
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center`}
-        style={{ background: color + '18' }}>
+        style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
         <Icon size={16} style={{ color }} />
       </div>
       {sub !== undefined && (
@@ -282,7 +282,7 @@ const BusinessReport = () => {
   }, [sales, range]);
 
   /* ── Bar colours ────────────────────────────────────────────────────── */
-  const PAY_COLORS = { CASH: '#10b981', UPI: '#D97706', CREDIT: '#f59e0b', BANK: '#3b82f6', CARD: '#8b5cf6' };
+  const PAY_COLORS = { CASH: '#10b981', UPI: 'var(--color-accent-signature)', CREDIT: '#f59e0b', BANK: '#3b82f6', CARD: '#8b5cf6' };
 
   /* ════════════════════════════════════════════════════════════════════════
      RENDER
@@ -350,7 +350,7 @@ const BusinessReport = () => {
         <KPI label="Total Revenue"   loading={salesLoading}
           value={formatCurrency(salesMetrics.totalRevenue)}
           spark={salesMetrics.dailyTrend.map(d => ({ v: d.revenue }))}
-          icon={TrendingUp} color="#D97706" />
+          icon={TrendingUp} color="var(--color-accent-signature)" />
         <KPI label="Total Orders"    loading={salesLoading}
           value={salesMetrics.totalOrders}
           spark={salesMetrics.dailyTrend.map(d => ({ v: d.orders }))}
@@ -381,8 +381,8 @@ const BusinessReport = () => {
                 <AreaChart data={salesMetrics.dailyTrend} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
                   <defs>
                     <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%"   stopColor="#D97706" stopOpacity={0.2} />
-                      <stop offset="100%" stopColor="#D97706" stopOpacity={0}   />
+                      <stop offset="0%"   stopColor="var(--color-accent-signature)" stopOpacity={0.2} />
+                      <stop offset="100%" stopColor="var(--color-accent-signature)" stopOpacity={0}   />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
@@ -390,8 +390,8 @@ const BusinessReport = () => {
                   <YAxis tick={{ fontSize: 10, fill: '#9ca3af', fontWeight: 600 }} axisLine={false} tickLine={false}
                     tickFormatter={v => `₹${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
                   <Tooltip content={<ChartTip />} />
-                  <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#D97706" strokeWidth={2}
-                    fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: '#D97706', strokeWidth: 0 }} />
+                  <Area type="monotone" dataKey="revenue" name="Revenue" stroke="var(--color-accent-signature)" strokeWidth={2}
+                    fill="url(#revGrad)" dot={false} activeDot={{ r: 4, fill: 'var(--color-accent-signature)', strokeWidth: 0 }} />
                 </AreaChart>
               </ResponsiveContainer>
             )}

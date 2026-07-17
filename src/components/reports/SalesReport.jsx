@@ -212,7 +212,7 @@ const SalesReport = () => {
       type: 'area',
       data: overviewMetrics.chartData,
       series: [
-        { key: 'revenue', name: 'Revenue',  color: '#D97706' },
+        { key: 'revenue', name: 'Revenue',  color: 'var(--color-accent-signature)' },
         { key: 'cogs',    name: 'COGS',     color: '#f59e0b' },
       ],
     },
@@ -384,7 +384,7 @@ const SalesReport = () => {
       title: 'Top 10 Products by Revenue',
       type: 'bar',
       data: productPerformance.slice(0, 10).map(p => ({ name: p.productName, value: p.totalRev })),
-      series: [{ key: 'value', name: 'Revenue', color: '#D97706' }],
+      series: [{ key: 'value', name: 'Revenue', color: 'var(--color-accent-signature)' }],
     },
     columns: [
       {
@@ -466,7 +466,7 @@ const SalesReport = () => {
       title: 'Revenue by Account',
       type: 'bar',
       data: clientLeaderboard.slice(0, 10).map(c => ({ name: c.name, value: c.revenue })),
-      series: [{ key: 'value', name: 'Revenue', color: '#D97706' }],
+      series: [{ key: 'value', name: 'Revenue', color: 'var(--color-accent-signature)' }],
     },
     columns: [
       {

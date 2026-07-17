@@ -185,7 +185,7 @@ const PurchasesReport = () => {
       title: 'Procurement Value Over Time',
       type: 'area',
       data: metrics.chartData,
-      series: [{ key: 'amount', name: 'Amount', color: '#D97706' }],
+      series: [{ key: 'amount', name: 'Amount', color: 'var(--color-accent-signature)' }],
     },
     columns: [
       { key: 'date', label: 'Date', type: 'date', sortable: true, width: 130 },
@@ -263,7 +263,7 @@ const PurchasesReport = () => {
       title: 'Spend by Supplier',
       type: 'bar',
       data: supplierData.slice(0, 8).map(s => ({ name: s.supplierName, value: s.totalAmount })),
-      series: [{ key: 'value', name: 'Spend', color: '#D97706' }],
+      series: [{ key: 'value', name: 'Spend', color: 'var(--color-accent-signature)' }],
     },
     columns: [
       {

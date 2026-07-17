@@ -48,7 +48,7 @@ const PayrollReport = () => {
       { key: 'processed_by', label: 'Validator ID', width: 140, render: (val) => <span className="text-[10px] font-bold text-gray-400 font-mono uppercase">{val || 'SYSTEM'}</span> }
     ],
     kpis: metrics.kpis,
-    chartConfig: { title: "Fiscal Period Expenditure Trend", type: 'line', data: metrics.chartData, series: [{ key: 'value', name: 'Disbursements', color: '#D97706' }] },
+    chartConfig: { title: "Fiscal Period Expenditure Trend", type: 'line', data: metrics.chartData, series: [{ key: 'value', name: 'Disbursements', color: 'var(--color-accent-signature)' }] },
     detailFields: [
       { key: 'amount', label: 'Disbursement value', type: 'currency', isHero: true },
       { key: 'employeeId', label: 'Personnel Identifier', icon: <Hash size={12} /> },

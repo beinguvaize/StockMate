@@ -76,7 +76,7 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
     return { totalNetSales, activeAccounts, avgTicketSize, topDebtor };
   }, [sales, clients]);
 
- const COLORS = ['#D97706', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b'];
+ const COLORS = ['var(--color-accent-signature)', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b'];
 
  return (
  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -178,7 +178,7 @@ const SalesReports = ({ sales, clients, products, businessProfile}) => {
  <Line 
  type="monotone" 
  dataKey="amount" 
- stroke="#D97706" 
+ stroke="var(--color-accent-signature)" 
  strokeWidth={4} 
  dot={false} 
  activeDot={{ r: 8, strokeWidth: 0}} 

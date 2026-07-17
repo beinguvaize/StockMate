@@ -49,9 +49,9 @@ const SectionHead = ({ title, sub }) => (
   </div>
 );
 
-const KPI = ({ label, value, icon: Icon, color = '#D97706', loading }) => (
+const KPI = ({ label, value, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
   <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
-    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
+    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
       <Icon size={16} style={{ color }} />
     </div>
     {loading
@@ -309,7 +309,7 @@ const ClientStatementReport = () => {
       {selectedClient && (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <KPI label="Total Billed"    loading={loading} value={formatCurrency(kpis.billed)}      icon={TrendingUp}   color="#D97706" />
+            <KPI label="Total Billed"    loading={loading} value={formatCurrency(kpis.billed)}      icon={TrendingUp}   color="var(--color-accent-signature)" />
             <KPI label="Total Paid"      loading={loading} value={formatCurrency(kpis.paid)}        icon={DollarSign}   color="#10b981" />
             <KPI label="Outstanding"     loading={loading} value={formatCurrency(kpis.outstanding)}  icon={Clock}        color="#ef4444" />
           </div>

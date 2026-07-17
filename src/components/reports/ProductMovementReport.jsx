@@ -27,9 +27,9 @@ const WINDOWS = [
 // AND still has stock on hand. Dead = zero units sold with stock on hand.
 const SLOW_UNITS_THRESHOLD = 5;
 
-const KPI = ({ label, value, sub, icon: Icon, color = '#D97706', loading }) => (
+const KPI = ({ label, value, sub, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
   <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
-    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: color + '18' }}>
+    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
       <Icon size={16} style={{ color }} />
     </div>
     {loading
@@ -193,7 +193,7 @@ const ProductMovementReport = () => {
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KPI label="Fast Movers"  loading={loading} value={kpis.fastCount} sub="products with sales" icon={Zap}          color="#10b981" />
-        <KPI label="Fast-Mover Revenue" loading={loading} value={formatCurrency(kpis.fastRevenue)}   icon={TrendingUp}   color="#D97706" />
+        <KPI label="Fast-Mover Revenue" loading={loading} value={formatCurrency(kpis.fastRevenue)}   icon={TrendingUp}   color="var(--color-accent-signature)" />
         <KPI label="Slow Movers"  loading={loading} value={kpis.slowCount} sub={`≤${SLOW_UNITS_THRESHOLD} units sold, stock on shelf`} icon={Turtle} color="#f59e0b" />
         <KPI label="Money Stuck in Slow Stock" loading={loading} value={formatCurrency(kpis.stuckValue)} sub={`${kpis.deadCount} never sold`} icon={DollarSign} color="#ef4444" />
       </div>

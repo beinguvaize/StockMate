@@ -69,7 +69,7 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  <button 
  onClick={() => setIsEditMode(!isEditMode)}
  className={`flex items-center gap-3 px-6 py-3 rounded-pill font-bold text-sm transition-all ${
- isEditMode ? 'bg-[#D97706] text-white shadow-lg' : 'bg-surface text-ink-primary border border-black/5 hover:bg-black/5'
+ isEditMode ? 'bg-accent-signature text-white shadow-lg' : 'bg-surface text-ink-primary border border-black/5 hover:bg-black/5'
 }`}
  >
  {isEditMode ? <Check size={16} /> : <Edit3 size={16} />}
@@ -94,8 +94,8 @@ const PremiumInvoice = ({ order, business, onClose}) => {
  <div id="premium-invoice-content" className="bg-white w-full max-w-[850px] min-h-[1100px] shadow-2xl relative overflow-hidden print:shadow-none print:max-w-none print:w-full">
  
  {/* Header Decoration */}
- <div className="absolute top-0 right-0 w-32 h-32 bg-[#D97706] opacity-10 rounded-bl-[100px] print:hidden"></div>
- <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-accent-signature via-[#D97706] to-accent-signature"></div>
+ <div className="absolute top-0 right-0 w-32 h-32 bg-accent-signature opacity-10 rounded-bl-[100px] print:hidden"></div>
+ <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-accent-signature via-accent-signature to-accent-signature"></div>
 
  {/* Main Body */}
  <div className="p-6 md:p-16 flex flex-col h-full space-y-12">

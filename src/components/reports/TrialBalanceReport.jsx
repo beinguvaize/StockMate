@@ -131,7 +131,7 @@ const TrialBalanceReport = () => {
       type: 'bar',
       data: chartData,
       series: [
-        { key: 'Debit', name: 'Debit', color: '#D97706' },
+        { key: 'Debit', name: 'Debit', color: 'var(--color-accent-signature)' },
         { key: 'Credit', name: 'Credit', color: '#10b981' },
       ],
     },

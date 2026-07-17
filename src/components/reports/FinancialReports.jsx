@@ -79,7 +79,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
   const totalExpenditure = totalExpenses + totalPayroll;
   const netLiquidity = totalRevenue - totalExpenditure;
 
- const COLORS = ['#D97706', '#22c55e', '#f59e0b', '#ef4444'];
+ const COLORS = ['var(--color-accent-signature)', '#22c55e', '#f59e0b', '#ef4444'];
 
  if (sales.length === 0 && expenses.length === 0) {
  return (
@@ -174,7 +174,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
  labelStyle={{ color: 'rgba(255,255,255,0.4)', marginBottom: '5px'}}
  />
  <Legend />
- <Bar name="Revenue" dataKey="revenue" fill="#D97706" radius={[6, 6, 0, 0]} />
+ <Bar name="Revenue" dataKey="revenue" fill="var(--color-accent-signature)" radius={[6, 6, 0, 0]} />
  <Bar name="Expenses" dataKey="expenses" fill="#ef4444" radius={[6, 6, 0, 0]} />
  </BarChart>
  </ResponsiveContainer>

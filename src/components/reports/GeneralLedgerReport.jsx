@@ -252,7 +252,7 @@ const GeneralLedgerReport = () => {
         return Object.values(byDay).sort((a, b) => a.name.localeCompare(b.name));
       })(),
       series: [
-        { key: 'Debits', name: 'Debits', color: '#D97706' },
+        { key: 'Debits', name: 'Debits', color: 'var(--color-accent-signature)' },
         { key: 'Credits', name: 'Credits', color: '#10b981' },
       ],
     },
@@ -306,7 +306,7 @@ const GeneralLedgerReport = () => {
       title: 'Net Balance by Account',
       type: 'bar',
       data: accountSummary.map((a) => ({ name: `${a.accountCode}`, value: a.balance })),
-      series: [{ key: 'value', name: 'Balance', color: '#D97706' }],
+      series: [{ key: 'value', name: 'Balance', color: 'var(--color-accent-signature)' }],
     },
     detailFields: [
       { key: 'balance', label: 'Net Balance', type: 'currency', isHero: true },

@@ -40,7 +40,7 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
  return Object.values(stats).sort((a, b) => b.cost - a.cost);
 }, [employees]);
 
- const COLORS = ['#D97706', '#10b981', '#f59e0b', '#3b82f6', '#ec4899'];
+ const COLORS = ['var(--color-accent-signature)', '#10b981', '#f59e0b', '#3b82f6', '#ec4899'];
 
  return (
  <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -106,8 +106,8 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
  <AreaChart data={payrollTrends}>
  <defs>
  <linearGradient id="colorPayroll" x1="0" y1="0" x2="0" y2="1">
- <stop offset="5%" stopColor="#D97706" stopOpacity={0.1}/>
- <stop offset="95%" stopColor="#D97706" stopOpacity={0}/>
+ <stop offset="5%" stopColor="var(--color-accent-signature)" stopOpacity={0.1}/>
+ <stop offset="95%" stopColor="var(--color-accent-signature)" stopOpacity={0}/>
  </linearGradient>
  </defs>
  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(0,0,0,0.03)" />
@@ -120,7 +120,7 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
  <Area 
  type="monotone" 
  dataKey="amount" 
- stroke="#D97706" 
+ stroke="var(--color-accent-signature)" 
  strokeWidth={3}
  fillOpacity={1} 
  fill="url(#colorPayroll)" 

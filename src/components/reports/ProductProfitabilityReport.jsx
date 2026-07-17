@@ -366,7 +366,7 @@ const ProductProfitabilityReport = () => {
       data: categoryRollup,
       series: [
         { key: 'gross_profit', name: 'Gross Profit', color: '#10b981' },
-        { key: 'revenue', name: 'Revenue', color: '#D97706' },
+        { key: 'revenue', name: 'Revenue', color: 'var(--color-accent-signature)' },
       ],
     },
     detailFields: [

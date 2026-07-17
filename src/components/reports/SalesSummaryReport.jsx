@@ -135,7 +135,7 @@ const SalesSummaryReport = () => {
       type: 'area', // Area for nice filling
       data: metrics.chartData,
       series: [
-        { key: 'revenue', name: 'Revenue', color: '#D97706' },
+        { key: 'revenue', name: 'Revenue', color: 'var(--color-accent-signature)' },
         { key: 'cogs', name: 'COGS', color: '#f59e0b' }
       ]
     },
