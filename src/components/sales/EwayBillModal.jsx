@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useDialogClose } from '../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import { X, Truck, Download, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -11,6 +12,7 @@ import {
 // number back here. Vehicle/transport persist on the invoice for the print.
 
 const EwayBillModal = ({ invoice, business, client, onClose, onSaved }) => {
+  useDialogClose(onClose);
   const [t, setT] = useState({
     mode: '1',
     distanceKm: invoice.transport?.distanceKm || '',

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useDialogClose } from '../../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import { Printer, X } from 'lucide-react';
 import { formatDate } from '../../../lib/utils';
@@ -10,6 +11,7 @@ import { useTenant } from '../../../context/TenantContext';
 const money = (n, sym = '₹') => `${sym}${Number(n || 0).toFixed(2)}`;
 
 const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹', previewMode = false, paperOverride = null, receiptOverride = null, editable = false, onEditText = null, textsOverride = null }) => {
+  useDialogClose(onClose, { enabled: !previewMode }); // previewMode renders inline
   const { currentTenantId } = useTenant();
   // Paper width from Settings → Print Settings (58/80mm; A4 falls back to 80).
   // Tenant-level prefs first (business.print_settings); localStorage fallback.

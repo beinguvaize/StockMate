@@ -10,6 +10,7 @@
  *  onClose        — fn() to close
  */
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import {
   Search, Plus, Minus, X, Package, Truck, Check,
   CheckCircle2, ArrowRight, Warehouse,
@@ -17,6 +18,7 @@ import {
 import { useNotifications } from '../context/NotificationContext';
 
 const VanLoadBuilder = ({ vehicle, warehouseItems = [], onSubmit, onClose, mode = 'load' }) => {
+  useDialogClose(onClose);
   const unload = mode === 'unload';
   const L = {
     title:   unload ? 'Unload Van'  : 'Load Van',

@@ -12,6 +12,7 @@
  *  sym         — currency symbol, default '₹'
  */
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import {
   ShoppingCart as CartIcon,
   Search, Plus, Minus, Check, ArrowRight,
@@ -32,6 +33,7 @@ const VanSaleBuilder = ({
   sym = '₹',
   pageMode = false,   // true → render as full page (no fixed overlay backdrop)
 }) => {
+  useDialogClose(onClose, { enabled: !pageMode });
   const { addNotification } = useNotifications();
 
   /* ── Cart state ──────────────────────────────────────────────────────── */

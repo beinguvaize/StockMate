@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useDialogClose } from '../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import { X, Printer } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
@@ -47,6 +48,7 @@ const lbl = (labels, key, def) => {
 // receipt renders "Tendered / Change" rows. Lost after print since cash
 // tendered isn't stored on the sale row.
 const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null, bare = false }) => {
+  useDialogClose(onClose, { enabled: !bare }); // bare renders inline, not as an overlay
   const biz = businessProfile || {};
   const cli = client || { name: invoice?.client_name || 'Walk-in' };
   const s   = resolveSettings(biz.bill_settings);

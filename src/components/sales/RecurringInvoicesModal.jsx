@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useDialogClose } from '../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, Repeat, Play, Pause } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
@@ -12,6 +13,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const emptyLine = () => ({ name: '', qty: 1, rate: 0, taxRate: 18 });
 
 const RecurringInvoicesModal = ({ tenantId, clients = [], onClose }) => {
+  useDialogClose(onClose);
   const [templates, setTemplates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);

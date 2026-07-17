@@ -1,4 +1,5 @@
 import React, { useState, useEffect} from 'react';
+import { useDialogClose } from '../../hooks/useDialogClose';
 import {
  Printer, X, Edit3, Check, Calendar,
  CreditCard, Building2, MapPin, Phone,
@@ -8,6 +9,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { formatDate } from '../../lib/utils';
 
 const PremiumInvoice = ({ order, business, onClose}) => {
+  useDialogClose(onClose);
  const [isEditMode, setIsEditMode] = useState(false);
 
  useEffect(() => {

@@ -23,8 +23,10 @@ export function useDialogClose(onClose, options = {}) {
   const { enabled = true, closeOnEscape = true, lockScroll = true } = options;
 
   // Keep the latest callback without re-binding the listener every render.
+  // Assigned in an effect, not during render — mutating a ref while rendering
+  // is unsafe under concurrent rendering (and React's lint rules reject it).
   const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
+  useEffect(() => { onCloseRef.current = onClose; });
 
   useEffect(() => {
     if (!enabled) return undefined;

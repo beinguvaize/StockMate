@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useDialogClose } from '../../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import { Printer, X } from 'lucide-react';
 import { calculateGST, formatINR, amountToWords } from '../../../lib/gstEngine';
@@ -7,6 +8,7 @@ import { formatDate } from '../../../lib/utils';
 // A4 GST tax invoice for registered clients.
 // CGST/SGST on intra-state, IGST on inter-state (business state vs client state).
 const GSTInvoicePrint = ({ sale, client = {}, business = {}, onClose }) => {
+  useDialogClose(onClose);
   const items = Array.isArray(sale?.items) ? sale.items : [];
 
   const gst = useMemo(

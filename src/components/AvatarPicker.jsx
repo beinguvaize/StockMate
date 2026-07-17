@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import { X, Upload, Check, Loader2, Camera, Sparkles } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { uploadAvatar } from '../lib/supabase';
@@ -12,6 +13,7 @@ const rpmPortrait = (avatarUrl) =>
   `${avatarUrl}.png?scene=fullbody-portrait-v1&w=256&h=256`;
 
 export default function AvatarPicker({ onClose }) {
+  useDialogClose(onClose);
   const { currentUser, updateAvatar } = useAuth();
 
   const isCurrentCustom = !!(

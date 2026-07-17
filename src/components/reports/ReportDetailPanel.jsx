@@ -1,4 +1,5 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { useDialogClose } from '../../hooks/useDialogClose';
 import { X, Copy, Share2, Info, Calendar, User, Tag, CreditCard, Hash, FileText } from 'lucide-react';
 
 /**
@@ -19,24 +20,10 @@ const ReportDetailPanel = ({
   title = "Record Details",
   fields = []
 }) => {
-  // Handle Escape key to close (Rule 9)
-  useEffect(() => {
-    const handleEsc = (e) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handleEsc);
-    return () => window.removeEventListener('keydown', handleEsc);
-  }, [onClose]);
-
-  // Prevent body scroll when open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => { document.body.style.overflow = 'unset'; };
-  }, [isOpen]);
+  // Escape + scroll lock + focus restore. The old hand-rolled pair bound the
+  // Escape listener even while closed (so Escape anywhere on a report fired
+  // onClose), and forced body overflow to 'unset' whenever ANY dialog closed.
+  useDialogClose(onClose, { enabled: isOpen });
 
   const formatCurrency = (val) => {
     return new Intl.NumberFormat('en-IN', {
