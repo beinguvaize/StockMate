@@ -1,4 +1,5 @@
 import React, { useState, useMemo, lazy, Suspense } from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import VanLoadBuilder from '../components/VanLoadBuilder';
@@ -68,6 +69,7 @@ const Vehicles = () => {
   const [deliverySubTab,     setDeliverySubTab]     = useState('PENDING');   // PENDING | ACTIVE | HISTORY
   const [showVehicleModal,   setShowVehicleModal]   = useState(false);
   const [showDispatchModal,  setShowDispatchModal]  = useState(false);
+  useDialogClose(() => setShowDispatchModal(false), { enabled: showDispatchModal });
   const [reconcileRoute_,    setReconcileRoute]     = useState(null);  // route obj
   const [reconcileCash,      setReconcileCash]      = useState('');
   const [reconcileError,     setReconcileError]     = useState(null);

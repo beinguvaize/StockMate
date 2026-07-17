@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -38,6 +39,7 @@ const SupplierLedger = () => {
 
   // Pay-supplier modal state
   const [payOpen, setPayOpen]       = useState(false);
+  useDialogClose(() => { setPayOpen(false); setPayTarget(null); }, { enabled: payOpen });
   const [payAmount, setPayAmount]   = useState('');
   const [payMethod, setPayMethod]   = useState('CASH');
   const [payDate, setPayDate]       = useState(() => new Date().toISOString().slice(0,10));

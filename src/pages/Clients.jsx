@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect} from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -85,15 +86,13 @@ const Clients = () => {
  const [formError, setFormError] = useState('');
  
 
- // Statement State
- useEffect(() => {
- if (isAdding) {
- document.body.style.overflow = 'hidden';
-} else {
- document.body.style.overflow = 'unset';
-}
- return () => { document.body.style.overflow = 'unset';};
-}, [isAdding]);
+ // Escape + scroll lock + focus restore for the full-page client form.
+ // Replaces a hand-rolled lock that forced body overflow to 'unset' whenever
+ // any dialog closed, and had no Escape handling at all.
+ useDialogClose(
+   () => { setIsAdding(false); setEditingClient(null); setFormError(''); },
+   { enabled: isAdding },
+ );
 
  const clientStats = useMemo(() => {
  const stats = {};

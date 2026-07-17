@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useDialogClose } from '../../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft, ScanLine, SlidersHorizontal, Pencil, Trash2,
@@ -35,6 +36,7 @@ const ItemDetailView = ({
   onClose, onEdit, onAdjust, onPrintBarcode, onDelete, currencySymbol = '₹',
   items = [], onSelect, onCreate,
 }) => {
+  useDialogClose(onClose); // only mounted while a product is being viewed
   const [tab, setTab] = useState('DETAILS');
   const [listSearch, setListSearch] = useState('');
   const detailRef = React.useRef(null);

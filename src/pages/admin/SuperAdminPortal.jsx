@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useDialogClose } from '../../hooks/useDialogClose';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -40,6 +41,7 @@ const SuperAdminPortal = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTenant, setSelectedTenant] = useState(null);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  useDialogClose(() => setIsDrawerOpen(false), { enabled: isDrawerOpen });
   const [isProvisioning, setIsProvisioning] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isProvisioningLoading, setIsProvisioningLoading] = useState(false);

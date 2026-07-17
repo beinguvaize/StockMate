@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTenant } from '../context/TenantContext';
@@ -85,6 +86,7 @@ const Estimates = () => {
   const delLine = (i) => setLines(prev => prev.filter((_, idx) => idx !== i));
 
   const reset = () => { setEditingId(null); setClientId(''); setLines([]); setValidUntil(''); setNotes(''); setProdSearch(''); setSaveErr(''); setPriceTier('RETAIL'); };
+  useDialogClose(() => { setAdding(false); reset(); }, { enabled: adding });
 
   const openEdit = (est) => {
     setEditingId(est.id);
