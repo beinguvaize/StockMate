@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useDialogClose } from '../../../hooks/useDialogClose';
 import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
 import Button from '../../../shared/Button';
 import { formatCurrency, generateRef } from '../../../lib/utils';
@@ -11,6 +12,7 @@ import CashBillPrint from './CashBillPrint';
 
 // Restaurant modifier picker — choose options for a dish before it hits the cart.
 const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' }) => {
+  useDialogClose(onCancel);
   const groups = Array.isArray(product.modifier_groups) ? product.modifier_groups : [];
   const [sel, setSel] = useState({}); // groupId -> { optName: true }
 

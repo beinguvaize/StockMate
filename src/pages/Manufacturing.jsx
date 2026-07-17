@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import { useTenant } from '../context/TenantContext';
 import { useInventory } from '../hooks/useInventory';
 import { useManufacturing } from '../hooks/useManufacturing';
@@ -501,10 +502,12 @@ const RowX = ({ onClick }) => (
 );
 
 const Modal = ({ title, subtitle, onClose, children, size = 'lg' }) => {
+  // Wraps this page's New Recipe / New Build modals.
+  useDialogClose(onClose);
   const widthCls = size === 'xl' ? 'max-w-4xl' : size === 'md' ? 'max-w-xl' : 'max-w-2xl';
   return (
     <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center p-4 sm:p-6 animate-in fade-in duration-200">
-      <div className={`w-full ${widthCls} bg-white rounded-[2rem] shadow-2xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200`}>
+      <div role="dialog" aria-modal="true" aria-label={title} className={`w-full ${widthCls} bg-white rounded-[2rem] shadow-2xl max-h-[92vh] overflow-y-auto animate-in zoom-in-95 duration-200`}>
         <div className="flex items-center gap-4 px-8 py-6 border-b border-black/5 sticky top-0 bg-white/95 backdrop-blur z-10">
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-accent-signature/15 to-accent-signature/5 border border-accent-signature/10 flex items-center justify-center shrink-0 shadow-sm">
             <Factory size={20} className="text-accent-signature" />

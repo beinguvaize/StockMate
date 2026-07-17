@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useDialogClose } from '../../hooks/useDialogClose';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
@@ -354,6 +355,7 @@ const Inventory = () => {
 
 // Bulk edit — blank fields are left unchanged on every selected product.
 const BulkEditModal = ({ count, categories, onClose, onApply }) => {
+  useDialogClose(onClose);
   const [f, setF] = useState({ category: '', pricePct: '', sellPrice: '', reorder: '', gstRate: '' });
   const [saving, setSaving] = useState(false);
   const dirty = f.category || f.pricePct !== '' || f.sellPrice !== '' || f.reorder !== '' || f.gstRate !== '';

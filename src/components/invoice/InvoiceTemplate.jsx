@@ -6,6 +6,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
+import { useDialogClose } from '../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
 import {
   Printer, Share2, ZoomIn, ZoomOut, Maximize2, X,
@@ -24,6 +25,7 @@ const Totals = ({ k, v, bold }) => (
 );
 
 const InvoiceTemplate = ({ invoice, businessProfile, client, onPrint, onShare, onClose, onToggleMode, previewMode = false, themeOverride = null, editable = false, onEditText = null, textsOverride = null, optsOverride = null, accentOverride = null, customFieldsOverride = null }) => {
+  useDialogClose(onClose, { enabled: !previewMode }); // previewMode renders inline
   const [zoom, setZoom] = useState(100);
 
   // Inject print isolation CSS into <head> so it's guaranteed to apply

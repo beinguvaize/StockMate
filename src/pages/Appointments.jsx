@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import { useTenant } from '../context/TenantContext';
 import { useAppointments } from '../hooks/useAppointments';
 import { usePeople } from '../hooks/usePeople';
@@ -115,6 +116,7 @@ const inputCls = 'w-full bg-white border border-black/10 rounded-xl px-3.5 py-2.
 const lblCls = 'block text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5';
 
 const BookModal = ({ clients, staff, services, onClose, onSave }) => {
+  useDialogClose(onClose);
   const [serviceId, setServiceId] = useState('');
   const [clientId, setClientId] = useState('');
   const [staffId, setStaffId] = useState('');

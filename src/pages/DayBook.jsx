@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { useDayBookData } from '../hooks/useDayBookData';
@@ -1015,6 +1016,7 @@ const DayBook = () => {
 
 // ── Close Day Reconciliation Modal ───────────────────────────────────────────
 const CloseDayModal = ({ date, closingBal, cy, initialPhysical, isClosing, onCancel, onConfirm }) => {
+  useDialogClose(onCancel);
   const [pc,   setPc]   = React.useState(initialPhysical || '');
   const [note, setNote] = React.useState('');
   const pcNum   = parseFloat(pc);

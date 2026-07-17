@@ -1,4 +1,5 @@
 import React from 'react';
+import { useDialogClose } from '../../hooks/useDialogClose';
 import {
   X, Printer, ArrowUpRight, ArrowDownRight,
   Calendar, Clock, FileText, TrendingUp, TrendingDown,
@@ -17,6 +18,7 @@ const DailyLedgerDetail = ({
   businessProfile = {},
   onClose
 }) => {
+  useDialogClose(onClose);
   const currency = businessProfile?.currencySymbol || '₹';
   const isDeficit = closingBalance < 0;
 

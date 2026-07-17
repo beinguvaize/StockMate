@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useDialogClose } from '../hooks/useDialogClose';
 import {
   Wallet, Landmark, CreditCard, Banknote, Plus, ArrowRightLeft,
   ArrowUpRight, ArrowDownLeft, X, Trash2, Pencil,
@@ -310,14 +311,19 @@ const PayEMIModal = ({ loan, accounts, stats, onClose, onSave }) => {
   );
 };
 
-const Shell = ({ title, onClose, children }) => (
+// Wrapper for every modal on this page — Loan payment, Add account, Entry,
+// Transfer, Edit account. Escape / scroll lock / focus restore land here once.
+const Shell = ({ title, onClose, children }) => {
+  useDialogClose(onClose);
+  return (
   <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onClose}>
-    <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div role="dialog" aria-modal="true" aria-label={title} className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
       <div className="flex items-center mb-4"><div className="font-black text-[15px] text-ink-primary">{title}</div><button onClick={onClose} className="ml-auto"><X size={18} className="text-gray-400" /></button></div>
       {children}
     </div>
   </div>
-);
+  );
+};
 const lbl = 'text-[10px] uppercase tracking-widest text-gray-400 mb-1 block';
 const inp = 'w-full text-[14px] border border-black/10 rounded-lg px-3 py-2 outline-none focus:border-accent-signature/40';
 const primary = 'w-full mt-4 py-2.5 rounded-xl text-[13px] font-black bg-accent-signature text-white hover:opacity-90 disabled:opacity-40';

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useDialogClose } from '../../../hooks/useDialogClose';
 import { Plus, Trash2, Users, Receipt, X, ArrowLeftRight, LayoutGrid, Map } from 'lucide-react';
 import FloorPlan from './FloorPlan';
 
@@ -10,6 +11,7 @@ const TablesFloor = ({ tables, openTabs, tabTotal, onOpenTable, addTable, delete
   const [form, setForm] = useState({ label: '', section: '', seats: 4 });
   const [busy, setBusy] = useState(false);
   const [transferFrom, setTransferFrom] = useState(null); // { table, tab }
+  useDialogClose(() => setTransferFrom(null), { enabled: !!transferFrom }); // transfer-target picker
   const [view, setView] = useState('grid'); // 'grid' | 'plan'
 
   const freeTables = tables.filter(t => !openTabs[t.id]);
