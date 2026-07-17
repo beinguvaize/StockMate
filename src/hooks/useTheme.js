@@ -13,6 +13,9 @@ export const THEMES = [
   { key: 'signature', label: 'Linen',     accent: '#D97706', canvas: '#F8F9FC', dark: false },
   { key: 'amber',     label: 'Sand',      accent: '#D97706', canvas: '#FFFBF0', dark: false },
   { key: 'slate',     label: 'Graphite',  accent: '#D97706', canvas: '#F1F5F9', dark: false },
+  // shadcn/ui look — zinc neutrals with a near-black primary (only
+  // non-amber accent; safe now that accent usage is tokenized).
+  { key: 'shadcn',    label: 'Zinc',      accent: '#18181B', canvas: '#FAFAFA', dark: false },
   { key: 'ocean',     label: 'Mist',      accent: '#D97706', canvas: '#F0F4FF', dark: false },
   { key: 'rose',      label: 'Blush',     accent: '#D97706', canvas: '#FFF5F7', dark: false },
   { key: 'dark',      label: 'Midnight',  accent: '#F59E0B', canvas: '#0F0F0F', dark: true  },

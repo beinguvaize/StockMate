@@ -309,6 +309,34 @@ table.report-table tbody td.numeric {
   --accent-lime-hover: #4F46E5;
 }
 
+/* Zinc — shadcn/ui design language: zinc neutrals, near-black primary,
+   hairline borders, quiet shadows, tamer type weights. The only theme with
+   a non-amber accent; safe because accent usage is fully tokenized (the one
+   black-text-on-accent page, TenantSetup, renders pre-theme). */
+[data-theme="shadcn"] {
+  --color-canvas: #FAFAFA;
+  --color-surface: #FFFFFF;
+  --color-ink-primary: #09090B;
+  --color-ink-secondary: #3F3F46;
+  --color-ink-tertiary: #71717A;
+  --color-accent-signature: #18181B;
+  --color-accent-signature-hover: #27272A;
+  --color-button-text: #FFFFFF;
+  --bg-color: #FAFAFA;
+  --accent-lime: #18181B;
+  --accent-lime-hover: #27272A;
+  --border-color: #E4E4E7;
+  --shadow-premium: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --shadow-hover: 0 1px 3px rgba(16, 24, 40, 0.08);
+  --shadow-glass: 0 1px 2px rgba(16, 24, 40, 0.04);
+}
+/* btn-signature hardcodes black text — unreadable on the zinc-900 accent. */
+[data-theme="shadcn"] .btn-signature { color: #FFFFFF; }
+[data-theme="shadcn"] .btn-signature * { color: #FFFFFF; }
+/* shadcn tops out around 600–700; the app's 800/900 reads consumer-loud. */
+[data-theme="shadcn"] .font-black { font-weight: 700 !important; }
+[data-theme="shadcn"] .font-extrabold { font-weight: 600 !important; }
+
 [data-theme="dark"] {
   --color-canvas: #0F0F0F;
   --color-surface: #1A1A1A;
