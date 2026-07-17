@@ -15,12 +15,18 @@ const buildPresets = () => {
   const now = new Date();
   const y = now.getFullYear(), m = now.getMonth();
   const fy = m >= 3 ? y : y - 1;
+  // Open periods end TODAY, not at the period's calendar end. Padding "This
+  // Month" out to the 31st made the current side a part-month while
+  // priorRange (equal day-count) swelled to a full month — the Prior column
+  // compared 17 real days against 31 and every Δ looked like a collapse.
+  // Clamped, Jul 1–17 compares against the 17 days ending Jun 30.
+  const today = iso(now);
   return [
-    { id: 'THIS_MONTH', label: 'This Month', from: iso(new Date(y, m, 1)), to: iso(new Date(y, m + 1, 0)) },
+    { id: 'THIS_MONTH', label: 'This Month', from: iso(new Date(y, m, 1)), to: today },
     { id: 'LAST_MONTH', label: 'Last Month', from: iso(new Date(y, m - 1, 1)), to: iso(new Date(y, m, 0)) },
-    { id: 'THIS_FY', label: 'This FY', from: `${fy}-04-01`, to: `${fy + 1}-03-31` },
-    { id: 'THIS_YEAR', label: 'This Year', from: `${y}-01-01`, to: `${y}-12-31` },
-    { id: 'ALL', label: 'All Time', from: '2000-01-01', to: '2100-01-01' },
+    { id: 'THIS_FY', label: 'This FY', from: `${fy}-04-01`, to: today },
+    { id: 'THIS_YEAR', label: 'This Year', from: `${y}-01-01`, to: today },
+    { id: 'ALL', label: 'All Time', from: '2000-01-01', to: today },
   ];
 };
 
