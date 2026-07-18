@@ -843,8 +843,37 @@ class InvoiceDetailScreen extends ConsumerWidget {
   // ─── POS Receipt PDF (80mm thermal — standard receipt style) ────────────────
   // Delegates to the shared builder in core/print/pos_receipt_pdf.dart so
   // checkout (add_sale_screen.dart) produces an identical fallback slip.
-  Future<Uint8List> _buildPosReceiptPdf(BusinessProfile? biz) =>
-      pos_pdf.buildPosReceiptPdf(invoice, biz);
+  Future<Uint8List> _buildPosReceiptPdf(BusinessProfile? biz) async {
+    // Pull the account context so the offline slip carries the same
+    // "YOU OWE NOW" / advance summary as the web-rendered receipt.
+    double? clientOutstanding;
+    double? amountReceived;
+    bool noGst = false;
+    try {
+      final supabase = Supabase.instance.client;
+      final cid = invoice.clientId;
+      if (cid != null && cid.isNotEmpty) {
+        final cRow = await supabase
+            .from('clients').select('outstanding_balance').eq('id', cid).maybeSingle();
+        clientOutstanding = (cRow?['outstanding_balance'] as num?)?.toDouble() ?? 0;
+      }
+      final saleId = invoice.saleId ?? (invoice.id.startsWith('SAL-') ? invoice.id : null);
+      if (saleId != null) {
+        final sRow = await supabase
+            .from('sales').select('amount_received').eq('id', saleId).maybeSingle();
+        amountReceived = (sRow?['amount_received'] as num?)?.toDouble();
+      }
+      noGst = (biz?.taxMode ?? '').toUpperCase() == 'NONE';
+    } catch (e) {
+      debugPrint('[print] account context lookup failed: $e'); // slip still prints
+    }
+    return pos_pdf.buildPosReceiptPdf(
+      invoice, biz,
+      clientOutstanding: clientOutstanding,
+      amountReceived: amountReceived,
+      noGst: noGst,
+    );
+  }
 
   Future<Uint8List> _buildPdf(BusinessProfile? biz) async {
     // NotoSans for ₹ rupee glyph + general Unicode coverage

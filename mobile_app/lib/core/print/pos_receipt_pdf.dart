@@ -69,20 +69,36 @@ String fmtReceiptAmount(double v) => v.toStringAsFixed(2);
 
 /// Builds an 80mm thermal-style receipt PDF straight from an [Invoice] +
 /// [BusinessProfile] — no network, no WebView, always succeeds.
-Future<Uint8List> buildPosReceiptPdf(Invoice invoice, BusinessProfile? biz) async {
+/// [clientOutstanding] is the client's balance AFTER this sale (negative = an
+/// advance). Pass null for walk-ins — the account lines are then skipped.
+/// [amountReceived] is the cash actually handed over (may exceed the bill).
+/// [noGst] mirrors tax mode NONE so this slip matches the web receipt.
+Future<Uint8List> buildPosReceiptPdf(
+  Invoice invoice,
+  BusinessProfile? biz, {
+  double? clientOutstanding,
+  double? amountReceived,
+  bool noGst = false,
+}) async {
   final pdf   = pw.Document();
   final items = parsePdfItems(invoice);
-  final isPaid    = invoice.paymentStatus == 'PAID';
-  final isPartial = invoice.paymentStatus == 'PARTIAL';
   final invoiceNo = invoice.displayNumber;
   final custName  = invoice.displayClientName;
   final dateStr   = fmtReceiptDate(invoice.invoiceDate);
 
   final double subtotal   = items.fold(0.0, (s, i) => s + i.lineTotal);
-  final double totalTax   = items.fold(0.0, (s, i) => s + i.taxAmount);
+  final double totalTax   = noGst ? 0.0 : items.fold(0.0, (s, i) => s + i.taxAmount);
   final double grandTotal = invoice.grandTotal > 0 ? invoice.grandTotal : subtotal + totalTax;
   final double paidAmount = invoice.paidAmount;
-  final double balance    = (grandTotal - paidAmount).clamp(0, double.infinity);
+  final double balance    = (grandTotal - paidAmount).clamp(0, double.infinity).toDouble();
+
+  // ── Money summary (mirrors web POSReceipt) ──────────────────────────────
+  final bool   showAccount = clientOutstanding != null;
+  final double totalOut    = clientOutstanding ?? 0;
+  final double olderDue    = totalOut - balance;          // unpaid earlier bills
+  final double received    = amountReceived ?? 0;
+  final bool   showReceived = amountReceived != null && received > paidAmount + 0.01;
+  final double excess      = showReceived ? received - grandTotal : 0;
 
   const ink    = PdfColors.black;
   const subtle = PdfColor.fromInt(0xFF555555);
@@ -231,11 +247,32 @@ Future<Uint8List> buildPosReceiptPdf(Invoice invoice, BusinessProfile? biz) asyn
 
           solidLine(),
 
-          if (isPartial || (paidAmount > 0 && !isPaid)) ...[
-            amtRow('Paid', 'Rs.${fmtReceiptAmount(paidAmount)}', isBold: true),
-            amtRow('Balance Due', 'Rs.${fmtReceiptAmount(balance)}', isBold: true, fs: 9),
+          // Money summary — same wording and order as the web slip, so the
+          // offline fallback tells the customer the same story.
+          amtRow('Bill amount', 'Rs.${fmtReceiptAmount(grandTotal)}'),
+          amtRow('Paid on this bill', 'Rs.${fmtReceiptAmount(paidAmount)}'),
+          if (balance > 0.001)
+            amtRow('Still due on this bill', 'Rs.${fmtReceiptAmount(balance)}', isBold: true),
+
+          if (showReceived) ...[
             dashedLine(),
+            amtRow('Cash received', 'Rs.${fmtReceiptAmount(received)}'),
+            if (excess > 0.01)
+              amtRow(showAccount ? 'Extra paid to account' : 'Change returned',
+                  'Rs.${fmtReceiptAmount(excess)}'),
           ],
+
+          if (showAccount) ...[
+            dashedLine(),
+            if (olderDue > 0.001)
+              amtRow('Older bills still due', 'Rs.${fmtReceiptAmount(olderDue)}'),
+            amtRow(totalOut < -0.001 ? 'ADVANCE WITH US' : 'YOU OWE NOW',
+                'Rs.${fmtReceiptAmount(totalOut.abs())}', isBold: true, fs: 10),
+            if (totalOut < -0.001)
+              pw.Center(child: pw.Text('(we will use it on your next bill)',
+                  style: pw.TextStyle(fontSize: 7, color: subtle))),
+          ],
+          dashedLine(),
 
           if (invoice.paymentMethod?.isNotEmpty == true) ...[
             pw.Text('Payment Method:',

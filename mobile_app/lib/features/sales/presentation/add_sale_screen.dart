@@ -2755,15 +2755,33 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
       final invoice = Invoice.fromSale(sale);
       final tenantId = row['tenant_id'] as String?;
       BusinessProfile? biz;
+      bool noGst = false;
       if (tenantId != null) {
         final bizRow = await supabase
             .from('business_profile')
             .select('*')
             .eq('tenant_id', tenantId)
             .maybeSingle();
-        if (bizRow != null) biz = BusinessProfile.fromJson(bizRow);
+        if (bizRow != null) {
+          biz = BusinessProfile.fromJson(bizRow);
+          noGst = (bizRow['tax_mode'] as String?)?.toUpperCase() == 'NONE';
+        }
       }
-      return pos_pdf.buildPosReceiptPdf(invoice, biz);
+      // Account context so the offline slip shows the same "YOU OWE NOW" /
+      // advance summary as the web-rendered one. Null client = walk-in.
+      double? clientOutstanding;
+      final shopId = row['shopId'] as String?;
+      if (shopId != null && shopId.isNotEmpty) {
+        final cRow = await supabase
+            .from('clients').select('outstanding_balance').eq('id', shopId).maybeSingle();
+        clientOutstanding = (cRow?['outstanding_balance'] as num?)?.toDouble() ?? 0;
+      }
+      return pos_pdf.buildPosReceiptPdf(
+        invoice, biz,
+        clientOutstanding: clientOutstanding,
+        amountReceived: (row['amount_received'] as num?)?.toDouble(),
+        noGst: noGst,
+      );
     }
   }
 
