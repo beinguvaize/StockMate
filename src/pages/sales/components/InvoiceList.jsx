@@ -669,9 +669,17 @@ const SaleDetail = ({
         })}
       </div>
 
-      {/* Totals */}
+      {/* Totals — reconstruct Subtotal from Total so the column always ties
+          out (Subtotal − Discount + Tax = Total). The stored subtotal is often
+          null; falling back to totalAmount printed the already-net total as the
+          "Subtotal" and then subtracted the discount again, so it didn't add up. */}
+      {(() => {
+        const disc = Number(sale.discount) || 0;
+        const tax  = Number(sale.tax) || 0;
+        const shownSubtotal = (Number(sale.totalAmount) || 0) + disc - tax;
+        return (
       <div className="bg-canvas rounded-xl p-4 space-y-1.5">
-        <TotalRow label="Subtotal" value={formatCurrency(sale.subtotal ?? sale.totalAmount)} />
+        <TotalRow label="Subtotal" value={formatCurrency(shownSubtotal)} />
         {sale.discount > 0 && <TotalRow label="Discount" value={`− ${formatCurrency(sale.discount)}`} />}
         {sale.tax > 0 && <TotalRow label="Tax" value={formatCurrency(sale.tax)} />}
         <div className="h-px bg-black/10 my-2" />
@@ -686,6 +694,8 @@ const SaleDetail = ({
           <TotalRow label="Status" value="Voided — no payment due" tone="red" bold />
         )}
       </div>
+        );
+      })()}
 
       {/* Settle + print */}
       <div className="flex items-center gap-2">
