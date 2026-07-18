@@ -418,7 +418,11 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         saleId:        saleId,
         total:         netTotal,
         client:        _selectedClient,
-        excess:        (excessAmt > 0 && outstanding > 0) ? excessAmt.clamp(0.0, outstanding) : 0,
+        // Not capped at the outstanding any more: anything beyond the dues is
+        // a valid ADVANCE (the DB records it as a negative balance and the
+        // next credit sale consumes it automatically). Clamping here silently
+        // refused the extra cash at the counter.
+        excess:        excessAmt > 0 ? excessAmt : 0,
         outstanding:   outstanding,
         paymentMethod: paymentMethod,
       );
@@ -2798,49 +2802,82 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
     }
   }
 
+  /// Confirm before any money is applied. Shows exactly how the amount splits
+  /// between clearing dues and being kept as advance, so the cashier can't
+  /// bank an overpayment by a stray tap.
+  Future<bool> _confirmApply(double amount, double toDues, double advance) async {
+    final name = widget.client?.name ?? 'this client';
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text('Receive ₹${amount.toStringAsFixed(2)}?',
+            style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w800)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('From $name', style: GoogleFonts.manrope(fontSize: 13, color: AppColors.inkSecondary)),
+            const SizedBox(height: 12),
+            if (toDues > 0)
+              Text('• ₹${toDues.toStringAsFixed(2)} clears outstanding dues',
+                  style: GoogleFonts.manrope(fontSize: 13)),
+            if (advance > 0) ...[
+              const SizedBox(height: 4),
+              Text('• ₹${advance.toStringAsFixed(2)} kept as ADVANCE',
+                  style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text('  Used automatically on their next credit bill.',
+                  style: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary)),
+            ],
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: GoogleFonts.manrope(color: AppColors.inkSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Confirm', style: GoogleFonts.manrope(fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+    return ok ?? false;
+  }
+
   Future<void> _recordPayment(double amount) async {
     if (widget.client == null || amount <= 0) return;
     setState(() => _collecting = true);
     try {
-      final ctx = await ProviderScope.containerOf(context).read(tenantContextProvider.future);
+      final container = ProviderScope.containerOf(context);
+      final ctx = await container.read(tenantContextProvider.future);
       if (ctx == null) return;
       final today = DateTime.now().toIso8601String().substring(0, 10);
       final paymentId = 'CP-${DateTime.now().millisecondsSinceEpoch}';
-      // FIFO across unpaid CREDIT sales first.
-      final unpaidSales = await supabase
-          .from('sales')
-          .select('id, "totalAmount", "paidAmount", "paymentStatus"')
-          .eq('tenant_id', ctx.tenantId)
-          .eq('shopId', widget.client!.id)
-          .inFilter('"paymentStatus"', ['UNPAID', 'PARTIAL'])
-          .eq('"paymentMethod"', 'CREDIT')
-          .isFilter('deleted_at', null)
-          .order('date', ascending: true);
-      double remaining = amount;
-      for (final sale in (unpaidSales as List)) {
-        if (remaining <= 0) break;
-        final alreadyPaid = ((sale['paidAmount'] as num?)?.toDouble() ?? 0);
-        final total       = (sale['totalAmount'] as num).toDouble();
-        final owed        = total - alreadyPaid;
-        if (owed <= 0) continue;
-        final allocating  = remaining < owed ? remaining : owed;
-        final newPaid     = alreadyPaid + allocating;
-        final status      = newPaid >= total ? 'PAID' : 'PARTIAL';
-        await supabase.from('sales').update({'paidAmount': newPaid, 'paymentStatus': status})
-            .eq('id', sale['id'] as String).eq('tenant_id', ctx.tenantId);
-        await supabase.from('invoices').update({'paid_amount': newPaid, 'payment_status': status})
-            .eq('id', 'INV-${sale['id']}');
-        remaining -= allocating;
+      // One settled path: settle_client_payment does FIFO allocation across
+      // unpaid credit sales, posts Cash & Bank, and recalcs outstanding —
+      // server-side. Routed through the offline queue so a flaky connection
+      // QUEUES the collection instead of dropping it. The old code did direct
+      // Supabase writes with no queue (lost offline) AND hand-rolled the
+      // allocation, racing the DB replay trigger.
+      final queued = await container.read(syncServiceProvider).rpcOnlineOrQueue(
+        'settle_client_payment',
+        {
+          'p_id':          paymentId,
+          'p_tenant_id':   ctx.tenantId,
+          'p_client_id':   widget.client!.id,
+          'p_amount':      amount,
+          'p_date':        today,
+          'p_method':      _collectMethod,
+          'p_recorded_by': supabase.auth.currentUser?.id,
+        },
+      );
+      if (mounted && queued) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Payment saved offline — will sync when online')),
+        );
       }
-      await supabase.from('client_payments').insert({
-        'id':             paymentId,
-        'client_id':      widget.client!.id,
-        'tenant_id':      ctx.tenantId,
-        'date':           today,
-        'amount':         amount,
-        'payment_method': _collectMethod,
-        'notes':          null,
-      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -2856,6 +2893,9 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
   Widget build(BuildContext context) {
     final hasOutstanding = widget.outstanding > 0 && widget.client != null;
     final hasExcess      = widget.excess > 0;
+    // How the tendered excess splits: dues first, remainder becomes advance.
+    final excessToDues  = widget.excess <= widget.outstanding ? widget.excess : widget.outstanding;
+    final excessAdvance = widget.excess - excessToDues;
 
     return Container(
       decoration: const BoxDecoration(
@@ -2925,14 +2965,18 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                   const Divider(height: 1, thickness: 1, color: Color(0x0F000000)),
 
                   if (hasExcess) ...[
-                    // Excess path — two action tiles
+                    // Excess path — two action tiles. Anything beyond the dues
+                    // is kept as an advance rather than being refused.
                     _OutstandingTile(
                       icon: LucideIcons.checkCircle,
                       iconColor: AppColors.secondary,
-                      title: 'Apply ₹${widget.excess.toStringAsFixed(2)} to outstanding',
-                      subtitle: 'Balance: ₹${widget.outstanding.toStringAsFixed(2)} → ₹${(widget.outstanding - widget.excess).toStringAsFixed(2)} · Change: ₹0',
+                      title: 'Apply ₹${widget.excess.toStringAsFixed(2)} to account',
+                      subtitle: excessAdvance > 0
+                          ? 'Clears ₹${excessToDues.toStringAsFixed(2)} dues · ₹${excessAdvance.toStringAsFixed(2)} kept as advance'
+                          : 'Balance: ₹${widget.outstanding.toStringAsFixed(2)} → ₹${(widget.outstanding - widget.excess).toStringAsFixed(2)} · Change: ₹0',
                       loading: _collecting,
                       onTap: () async {
+                        if (!await _confirmApply(widget.excess, excessToDues, excessAdvance)) return;
                         await _recordPayment(widget.excess);
                         if (mounted) Navigator.of(context).pop();
                       },
@@ -3012,7 +3056,13 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
                             flex: 2,
                             child: ElevatedButton(
                               onPressed: _collecting ? null : () async {
-                                final amt = (double.tryParse(_collectCtrl.text) ?? 0).clamp(0.0, widget.outstanding);
+                                // Not capped at the outstanding — the surplus
+                                // is recorded as an advance.
+                                final amt = (double.tryParse(_collectCtrl.text) ?? 0);
+                                if (amt <= 0) return;
+                                final toDues  = amt <= widget.outstanding ? amt : widget.outstanding;
+                                final advance = amt - toDues;
+                                if (!await _confirmApply(amt, toDues, advance)) return;
                                 await _recordPayment(amt);
                                 if (mounted) Navigator.of(context).pop();
                               },
