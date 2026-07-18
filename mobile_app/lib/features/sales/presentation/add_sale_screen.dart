@@ -308,6 +308,18 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
           .rpcOnlineOrQueue('process_sale', rpcParams);
       debugPrint(queued ? '[SALE] queued for offline sync' : '[SALE] RPC success');
 
+      // Persist the real amount the customer handed over (may exceed the bill
+      // → change, or applied to previous dues). p_paid_amount is capped at the
+      // bill by the RPC, so this preserves the true tender for the receipt.
+      // Online-only + best-effort — offline sales just omit it (receipt falls
+      // back to the paid amount). Kept off the RPC to avoid an overload change.
+      if (!queued && paidAmountOverride != null) {
+        try {
+          await supabase.from('sales')
+              .update({'amount_received': paidAmountOverride}).eq('id', saleId);
+        } catch (e) { debugPrint('[SALE] amount_received save failed: $e'); }
+      }
+
       // NOTE: do NOT touch clients.outstanding_balance here. A DB trigger
       // (_trg_sales_recalc_outstanding) recomputes it from the client's
       // unpaid sales whenever process_sale inserts the sale. A manual write

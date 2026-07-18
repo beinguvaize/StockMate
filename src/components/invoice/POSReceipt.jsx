@@ -120,6 +120,12 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
     : taxable + totalTax));
   const paidAmount = parseFloat(invoice.paid_amount ?? 0);
   const balance    = grandTotal - paidAmount;
+  // Actual amount the customer handed over. Prefer the stored value (works on
+  // reprint); fall back to the transient `tendered` prop right after a sale.
+  const receivedRaw = invoice.amount_received != null
+    ? parseFloat(invoice.amount_received)
+    : (tendered != null ? parseFloat(tendered) : null);
+  const received = Number.isFinite(receivedRaw) && receivedRaw > 0 ? receivedRaw : null;
   // A voided / failed / cancelled sale owes nothing — its receipt must
   // not show "PAYMENT DUE", a balance, or a scan-to-pay QR.
   const status  = String(invoice.payment_status ?? '').toUpperCase();
@@ -289,23 +295,38 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
           </>
         )}
 
-        {/* Cash walk-in: cashier handed customer change. Render only when
-            caller passed the tendered amount and it overpays the total. */}
-        {tendered != null && tendered > grandTotal && (
+        {/* Amount received this transaction. When it exceeds the bill, the
+            excess either cleared previous dues (registered client) or was
+            returned as change (walk-in). Works on reprint via stored value. */}
+        {!isVoid && received != null && received > paidAmount + 0.01 && (() => {
+          const excess    = received - grandTotal;
+          const prevDue   = Math.max(0, Number(cli?.outstanding_balance ?? cli?.outstanding ?? 0) - balance);
+          const toDues    = excess > 0.01 ? Math.min(excess, prevDue) : 0;
+          const change    = excess > 0.01 ? excess - toDues : 0;
+          return (
           <>
             <div className="text-[10px] my-0.5">{LINE}</div>
             <div className="text-[10px] space-y-0.5">
               <div className="flex justify-between">
-                <span>Tendered</span>
-                <span>{fmt(tendered)}</span>
+                <span>Amount Received</span>
+                <span>{fmt(received)}</span>
               </div>
-              <div className="flex justify-between font-bold">
-                <span>Change</span>
-                <span>{fmt(tendered - grandTotal)}</span>
-              </div>
+              {toDues > 0.01 && (
+                <div className="flex justify-between">
+                  <span>Adjusted to Previous Dues</span>
+                  <span>{fmt(toDues)}</span>
+                </div>
+              )}
+              {change > 0.01 && (
+                <div className="flex justify-between font-bold">
+                  <span>Change</span>
+                  <span>{fmt(change)}</span>
+                </div>
+              )}
             </div>
           </>
-        )}
+          );
+        })()}
 
         <div className="text-[10px] my-1">{DLINE}</div>
 

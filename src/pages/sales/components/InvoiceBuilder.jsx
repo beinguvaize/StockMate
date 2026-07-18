@@ -698,6 +698,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         addNotification(`Checkout failed: ${msg}`, 'error');
         return; // keep cart + modal so user can retry
       }
+      // Persist the actual amount the customer handed over (may exceed the
+      // bill → change, or applied to previous dues). paidAmount is capped at
+      // the bill, so without this the real tender is lost on reprint. Non-fatal.
+      if (explicitPaid !== null) {
+        try {
+          const { supabase } = await import('../../../lib/supabase');
+          await supabase.from('sales').update({ amount_received: explicitPaid }).eq('id', saleId);
+        } catch (e) { console.warn('amount_received save failed:', e); }
+      }
       // Money received → the DB trigger trg_sales_post_ledger posts the
       // account_transactions IN entry server-side now (idempotent on sale id),
       // so web, desktop AND mobile sales all hit Cash & Bank identically.
