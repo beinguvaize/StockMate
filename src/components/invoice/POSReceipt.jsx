@@ -126,6 +126,10 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
     ? parseFloat(invoice.amount_received)
     : (tendered != null ? parseFloat(tendered) : null);
   const received = Number.isFinite(receivedRaw) && receivedRaw > 0 ? receivedRaw : null;
+  // Client's balance after this sale (negative = advance). Drives both the
+  // money summary and whether the "payment due" terms line is worth printing.
+  const totalOutstanding = Number(cli?.outstanding_balance ?? cli?.outstanding ?? 0);
+  const owesNothing = balance <= 0.001 && totalOutstanding <= 0.001;
   // A voided / failed / cancelled sale owes nothing — its receipt must
   // not show "PAYMENT DUE", a balance, or a scan-to-pay QR.
   const status  = String(invoice.payment_status ?? '').toUpperCase();
@@ -195,8 +199,11 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
             <div key={idx} className="text-[10px]">
               <div className="font-semibold truncate">{item.name}</div>
               <div className="flex">
+                {/* No per-line GST label when the business isn't charging or
+                    filing GST (tax mode NONE) — the totals already show no
+                    CGST/SGST, so printing "GST 18%" per item was misleading. */}
                 <span className="flex-1 text-[9px] text-gray-500">
-                  {item.taxRate > 0 ? `GST ${item.taxRate}%` : ''}
+                  {!noGst && item.taxRate > 0 ? `GST ${item.taxRate}%` : ''}
                 </span>
                 <span className="w-6 text-right">{item.qty}</span>
                 <span className="w-14 text-right">{fmt(item.rate)}</span>
@@ -263,7 +270,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
             figure. Printed even when nothing was paid (credit sale) —
             that's exactly when they need to see what they owe. */}
         {!isVoid && (() => {
-          const totalOut  = Number(cli?.outstanding_balance ?? cli?.outstanding ?? 0);
+          const totalOut  = totalOutstanding;     // balance after this sale
           const olderDue  = totalOut - balance;   // unpaid from earlier bills
           const excess    = received != null ? received - grandTotal : 0;
           // Account lines apply to any registered client — including one who
@@ -375,11 +382,25 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
               </>
             );
           })()}
-          {s.show_terms && biz.invoice_terms && (
-            <div className="text-[9px] text-gray-500 mt-1 whitespace-pre-wrap">
-              {biz.invoice_terms.split('\n').slice(0, 2).join('\n')}
-            </div>
-          )}
+          {s.show_terms && biz.invoice_terms && (() => {
+            // Drop the "payment due within N days" sentence when there is
+            // nothing left to pay — it read oddly under *** PAID ***. The
+            // rest of the terms (return policy, jurisdiction) still print.
+            const raw = biz.invoice_terms.split('\n').slice(0, 2).join('\n');
+            if (!owesNothing) {
+              return (
+                <div className="text-[9px] text-gray-500 mt-1 whitespace-pre-wrap">{raw}</div>
+              );
+            }
+            const kept = raw.split('.').map(x => x.trim()).filter(Boolean)
+              .filter(sn => !/payment\s+due/i.test(sn));
+            if (!kept.length) return null;
+            return (
+              <div className="text-[9px] text-gray-500 mt-1 whitespace-pre-wrap">
+                {kept.join('. ') + '.'}
+              </div>
+            );
+          })()}
         </div>
         <div className="text-[10px] mt-1">{DLINE}</div>
       </div>
