@@ -256,75 +256,76 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
           <span>&#8377;{fmt(grandTotal)}</span>
         </div>
 
-        {paidAmount > 0 && (
-          <>
-            <div className="text-[10px] my-0.5">{LINE}</div>
-            <div className="text-[10px] space-y-0.5">
-              <div className="flex justify-between">
-                <span>Paid</span>
-                <span>{fmt(paidAmount)}</span>
-              </div>
-              {!isVoid && balance > 0.001 && (
-                <div className="flex justify-between font-bold">
-                  <span>Balance Due</span>
-                  <span>{fmt(balance)}</span>
+        {/* ── Money summary ────────────────────────────────────
+            One plain-language block so the customer can read, in order:
+            what this bill was, what they handed over, what's left on this
+            bill, what older bills still owe, and the single bottom-line
+            figure. Printed even when nothing was paid (credit sale) —
+            that's exactly when they need to see what they owe. */}
+        {!isVoid && (() => {
+          const totalOut  = Number(cli?.outstanding_balance ?? cli?.outstanding ?? 0);
+          const olderDue  = totalOut - balance;   // unpaid from earlier bills
+          const excess    = received != null ? received - grandTotal : 0;
+          // Account lines apply to any registered client — including one who
+          // just cleared everything, who should still see "YOU OWE NOW 0.00"
+          // as proof. Keying this off a non-zero balance hid the summary at
+          // exactly that moment and mislabelled the extra as change.
+          const isRegistered = !!(cli?.id || invoice?.client_id);
+          const showAccount  = s.show_party_balance && isRegistered;
+          return (
+            <>
+              <div className="text-[10px] my-0.5">{LINE}</div>
+              <div className="text-[10px] space-y-0.5">
+                <div className="flex justify-between">
+                  <span>Bill amount</span>
+                  <span>{fmt(grandTotal)}</span>
                 </div>
-              )}
-              {/* Running ledger for registered clients: previous balance from
-                  earlier credit sales + total after this bill. outstanding_
-                  balance is already updated by the sale, so previous = total −
-                  this bill's due. Hidden for walk-ins / zero history. */}
-              {!isVoid && s.show_party_balance && (() => {
-                const totalOut = Number(cli?.outstanding_balance ?? cli?.outstanding ?? 0);
-                const prev = totalOut - balance;
-                if (!(prev > 0.001)) return null;
-                return (
+                <div className="flex justify-between">
+                  <span>Paid on this bill</span>
+                  <span>{fmt(paidAmount)}</span>
+                </div>
+                {balance > 0.001 && (
+                  <div className="flex justify-between font-bold">
+                    <span>Still due on this bill</span>
+                    <span>{fmt(balance)}</span>
+                  </div>
+                )}
+
+                {/* What the customer actually handed over, when it differs. */}
+                {received != null && received > paidAmount + 0.01 && (
                   <>
                     <div className="flex justify-between border-t border-dashed border-black/30 mt-1 pt-1">
-                      <span>Previous Balance</span>
-                      <span>{fmt(prev)}</span>
+                      <span>Cash received</span>
+                      <span>{fmt(received)}</span>
                     </div>
-                    <div className="flex justify-between font-bold">
-                      <span>TOTAL BALANCE</span>
-                      <span>{fmt(totalOut)}</span>
-                    </div>
+                    {excess > 0.01 && (
+                      <div className="flex justify-between">
+                        <span>{showAccount ? 'Extra paid to account' : 'Change returned'}</span>
+                        <span>{fmt(excess)}</span>
+                      </div>
+                    )}
                   </>
-                );
-              })()}
-            </div>
-          </>
-        )}
+                )}
 
-        {/* Amount received this transaction. When it exceeds the bill, the
-            excess either cleared previous dues (registered client) or was
-            returned as change (walk-in). Works on reprint via stored value. */}
-        {!isVoid && received != null && received > paidAmount + 0.01 && (() => {
-          const excess    = received - grandTotal;
-          const prevDue   = Math.max(0, Number(cli?.outstanding_balance ?? cli?.outstanding ?? 0) - balance);
-          const toDues    = excess > 0.01 ? Math.min(excess, prevDue) : 0;
-          const change    = excess > 0.01 ? excess - toDues : 0;
-          return (
-          <>
-            <div className="text-[10px] my-0.5">{LINE}</div>
-            <div className="text-[10px] space-y-0.5">
-              <div className="flex justify-between">
-                <span>Amount Received</span>
-                <span>{fmt(received)}</span>
+                {showAccount && (
+                  <>
+                    {olderDue > 0.001 && (
+                      <div className="flex justify-between border-t border-dashed border-black/30 mt-1 pt-1">
+                        <span>Older bills still due</span>
+                        <span>{fmt(olderDue)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-black text-[11px] border-t border-black/40 mt-1 pt-1">
+                      <span>{totalOut < -0.001 ? 'ADVANCE WITH US' : 'YOU OWE NOW'}</span>
+                      <span>{fmt(Math.abs(totalOut))}</span>
+                    </div>
+                    {totalOut < -0.001 && (
+                      <div className="text-[9px] text-center">(we will use it on your next bill)</div>
+                    )}
+                  </>
+                )}
               </div>
-              {toDues > 0.01 && (
-                <div className="flex justify-between">
-                  <span>Adjusted to Previous Dues</span>
-                  <span>{fmt(toDues)}</span>
-                </div>
-              )}
-              {change > 0.01 && (
-                <div className="flex justify-between font-bold">
-                  <span>Change</span>
-                  <span>{fmt(change)}</span>
-                </div>
-              )}
-            </div>
-          </>
+            </>
           );
         })()}
 
