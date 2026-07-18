@@ -258,7 +258,7 @@ Future<Uint8List> buildPosReceiptPdf(
             dashedLine(),
             amtRow('Cash received', 'Rs.${fmtReceiptAmount(received)}'),
             if (excess > 0.01)
-              amtRow(showAccount ? 'Extra paid to account' : 'Change returned',
+              amtRow(showAccount ? 'Extra received' : 'Change returned',
                   'Rs.${fmtReceiptAmount(excess)}'),
           ],
 

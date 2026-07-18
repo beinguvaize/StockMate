@@ -38,6 +38,10 @@ const saleToInvoice = (sale) => {
     is_interstate:  false,
     grand_total:    grandTotal,
     paid_amount:    parseFloat(sale.paidAmount || 0),
+    // Real cash tendered — needed for the "Cash received / Extra paid to
+    // account" lines; the mapper used to drop it.
+    amount_received: sale.amount_received != null ? parseFloat(sale.amount_received) : null,
+    client_id:       sale.shopId || sale.clientId || null,
     // Preserve the real status (esp. VOIDED/FAILED) so POSReceipt can
     // suppress the payment-due line + scan-to-pay QR on cancelled sales.
     payment_status: (sale.status === 'COMPLETED')

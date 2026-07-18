@@ -307,7 +307,12 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
                     </div>
                     {excess > 0.01 && (
                       <div className="flex justify-between">
-                        <span>{showAccount ? 'Extra paid to account' : 'Change returned'}</span>
+                        {/* For a registered client the surplus may have gone to
+                            dues, been returned as change, or split between the
+                            two — the receipt only sees the final balance, so
+                            don't claim it all went "to account". The YOU OWE NOW
+                            line below is the authoritative figure. */}
+                        <span>{showAccount ? 'Extra received' : 'Change returned'}</span>
                         <span>{fmt(excess)}</span>
                       </div>
                     )}

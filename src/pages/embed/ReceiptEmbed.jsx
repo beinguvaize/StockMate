@@ -45,6 +45,11 @@ const saleToInvoice = (sale) => {
     sgst_amount:    totalTax / 2,
     grand_total:    grandTotal,
     paid_amount:    parseFloat(sale.paidAmount || 0),
+    // Actual cash handed over (may exceed the bill). Without this the receipt
+    // couldn't print the "Cash received / Extra paid to account" lines even
+    // though the value was stored on the sale.
+    amount_received: sale.amount_received != null ? parseFloat(sale.amount_received) : null,
+    client_id:       sale.shopId || null,
     // Pass the real status through. Collapsing everything non-PAID to
     // UNPAID hid VOIDED, so a voided sale's receipt still printed
     // "PAYMENT DUE" + a scan-to-pay QR for money that's been cancelled.
