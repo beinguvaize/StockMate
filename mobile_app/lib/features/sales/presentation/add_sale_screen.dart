@@ -23,7 +23,6 @@ import 'package:mobile_app/core/print/pos_receipt_pdf.dart' as pos_pdf;
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/sales/data/models/sale.dart';
 import 'package:mobile_app/features/settings/data/models/business_profile.dart';
-import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 
 // POS stores (non-vehicle inventory locations) for the multi-store
@@ -2790,14 +2789,13 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
     setState(() => _printing = true);
     try {
       final bytes = await _receiptBytes();
-      // Without an explicit format the plugin falls back to the device's
-      // default paper (Letter/A4), which padded the 80mm slip with a wide
-      // blank margin in the print dialog. roll80 matches the thermal roll —
-      // same format the invoice screen's receipt print already uses.
-      await Printing.layoutPdf(
-        onLayout: (_) async => bytes,
-        format: PdfPageFormat.roll80,
-      );
+      // NOTE: do NOT pass `format: PdfPageFormat.roll80` here. roll80 is
+      // defined with double.infinity height, and the printing plugin hands
+      // width/height straight to Android's PrintManager, which needs finite
+      // dimensions — the result was a blank page. The PDF already carries its
+      // own correct page size; the paper picker in the print dialog is the
+      // place to choose the roll.
+      await Printing.layoutPdf(onLayout: (_) async => bytes);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

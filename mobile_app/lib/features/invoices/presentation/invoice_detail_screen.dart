@@ -606,10 +606,11 @@ class InvoiceDetailScreen extends ConsumerWidget {
         }
       }
       bytes ??= await _buildPosReceiptPdf(profile);
-      await Printing.layoutPdf(
-        onLayout: (_) async => bytes!,
-        format: PdfPageFormat.roll80, // 80mm thermal
-      );
+      // roll80 has an infinite height and the plugin passes dimensions
+      // straight to Android's PrintManager, which needs finite values —
+      // that produced a blank page. The PDF already carries its own page
+      // size, so let the print dialog's paper picker choose the roll.
+      await Printing.layoutPdf(onLayout: (_) async => bytes!);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
