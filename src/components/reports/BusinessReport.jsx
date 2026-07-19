@@ -4,11 +4,17 @@
  *
  * Sections:
  *  1. Date range filter + export
- *  2. KPI row  (revenue, orders, outstanding, purchases, top product)
- *  3. Daily revenue trend (area chart) + payment split (bar)
- *  4. Top products table
- *  5. Client leaderboard + daily summary side-by-side
- *  6. Purchases overview (by supplier + by product)
+ *  2. P&L strip — revenue net of returns → COGS → gross → expenses → net
+ *  3. Trading activity (billed revenue, orders, AOV)
+ *  4. Daily revenue trend (area chart) + payment split (bar)
+ *  5. Top products table
+ *  6. Client leaderboard + daily summary side-by-side
+ *  7. Cash & Stock (purchases, COGS, outstanding) + purchases by supplier
+ *  8. Daily sales log + P&L tie-out
+ *
+ * Profit figures come from get_pl_ranged, never from client-side arithmetic.
+ * The report previously showed revenue beside total purchases with no cost or
+ * expense line, so a period with ~14% gross margin read as a ~₹2L loss.
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import {
@@ -22,7 +28,9 @@ import {
   ChevronRight, ChevronDown,
 } from 'lucide-react';
 import useReportData from './useReportData';
-import { SectionHead } from './ReportBits';
+import usePLRanged from './usePLRanged';
+import PLTieOut from './PLTieOut';
+import { SectionHead, StatStrip } from './ReportBits';
 import { isCountableSale, PRESETS, presetRange } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
 
@@ -111,6 +119,23 @@ const BusinessReport = () => {
   const { data: users }                                = useReportData({ table: 'users',     select: 'id, name, email' });
 
   const loading = salesLoading || purchLoading;
+
+  /* Authoritative period P&L (returns netted, GST split per tax_mode,
+     exclude_from_pl honoured). Never recomputed client-side. */
+  const { pl, loading: plLoading } = usePLRanged(range.start, range.end);
+  const pnl = useMemo(() => {
+    const revenueNet  = Number(pl?.revenue_net   || 0);
+    const cogs        = Number(pl?.cogs          || 0);
+    const expenses    = Number(pl?.expenses      || 0);
+    const grossProfit = Number(pl?.gross_profit  || 0);
+    const netProfit   = Number(pl?.net_profit    || 0);
+    return {
+      revenueNet, cogs, expenses, grossProfit, netProfit,
+      returnsTotal: Number(pl?.returns_total || 0),
+      grossMargin: revenueNet > 0 ? (grossProfit / revenueNet) * 100 : 0,
+      netMargin:   revenueNet > 0 ? (netProfit   / revenueNet) * 100 : 0,
+    };
+  }, [pl]);
 
   const applyPreset = (id) => {
     setPreset(id);
@@ -208,8 +233,9 @@ const BusinessReport = () => {
 
   /* ── Purchases aggregations ─────────────────────────────────────────── */
   const purchMetrics = useMemo(() => {
-    const total      = purchases.reduce((s, p) => s + Number(p.total_amount || 0), 0);
-    const totalUnits = purchases.reduce((s, p) => s + Number(p.quantity     || 0), 0);
+    const total = purchases.reduce((s, p) => s + Number(p.total_amount || 0), 0);
+    // No unit total: purchase lines mix kg, pieces and covers, so summing
+    // quantity produced a number that meant nothing.
 
     const bySupplier = {};
     purchases.forEach(p => {
@@ -223,7 +249,7 @@ const BusinessReport = () => {
       .slice(0, 6)
       .map((s, i) => ({ ...s, rank: i + 1, share: total > 0 ? s.amount / total * 100 : 0 }));
 
-    return { total, totalUnits, topSuppliers };
+    return { total, topSuppliers };
   }, [purchases]);
 
   /* ── Export CSV ─────────────────────────────────────────────────────── */
@@ -308,9 +334,38 @@ const BusinessReport = () => {
         </div>
       )}
 
-      {/* ── KPI ROW ─────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-4">
-        <KPI label="Total Revenue"   loading={salesLoading}
+      {/* ── DID WE MAKE MONEY? ──────────────────────────────────────────────
+          The headline the report previously never answered. Figures come
+          straight from get_pl_ranged so they cannot drift from the books:
+          revenue is net of returns, COGS is the real cost of what sold (NOT
+          purchases), and expenses honour exclude_from_pl. */}
+      <div className="space-y-2">
+        <StatStrip loading={plLoading} items={[
+          { label: 'Revenue (net of returns)', value: formatCurrency(pnl.revenueNet) },
+          { label: 'Cost of goods sold',       value: formatCurrency(pnl.cogs) },
+          { label: 'Gross profit',             value: formatCurrency(pnl.grossProfit),
+            tone: pnl.grossProfit >= 0 ? 'pos' : 'neg' },
+          { label: 'Expenses',                 value: formatCurrency(pnl.expenses) },
+          { label: 'Net profit',               value: formatCurrency(pnl.netProfit),
+            tone: pnl.netProfit >= 0 ? 'pos' : 'neg' },
+        ]} />
+        {!plLoading && (
+          <p className="text-[11px] text-muted-foreground">
+            {pnl.returnsTotal > 0 && <>{formatCurrency(pnl.returnsTotal)} of returns deducted · </>}
+            Gross margin {pnl.grossMargin.toFixed(1)}% ·{' '}
+            {pnl.netProfit >= 0
+              ? `Net margin ${pnl.netMargin.toFixed(1)}%`
+              : `Loss of ${formatCurrency(Math.abs(pnl.netProfit))} — expenses exceed gross profit`}
+          </p>
+        )}
+      </div>
+
+      {/* ── TRADING ACTIVITY ────────────────────────────────────────────────
+          Volume metrics only. Purchases and Outstanding deliberately live in
+          "Cash & Stock" below: purchases are money out for stock that may not
+          have sold yet, and showing them beside revenue read as a huge loss. */}
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <KPI label="Revenue billed (before returns)" loading={salesLoading}
           value={formatCurrency(salesMetrics.totalRevenue)}
           spark={salesMetrics.dailyTrend.map(d => ({ v: d.revenue }))}
           icon={TrendingUp} color="var(--color-accent-signature)" />
@@ -321,12 +376,6 @@ const BusinessReport = () => {
         <KPI label="Avg. Order Value" loading={salesLoading}
           value={formatCurrency(salesMetrics.aov)}
           icon={ChevronRight} color="#f59e0b" />
-        <KPI label="Outstanding"     loading={false}
-          value={formatCurrency(salesMetrics.outstanding)}
-          icon={Clock} color="#ef4444" />
-        <KPI label="Total Purchases" loading={purchLoading}
-          value={formatCurrency(purchMetrics.total)}
-          icon={Truck} color="#8b5cf6" />
       </div>
 
       {/* ── CHARTS ROW ──────────────────────────────────────────────────── */}
@@ -566,19 +615,38 @@ const BusinessReport = () => {
           )}
       </div>
 
-      {/* ── PURCHASES ───────────────────────────────────────────────────── */}
+      {/* ── CASH & STOCK ────────────────────────────────────────────────────
+          Deliberately separate from the P&L above. Purchases are money paid
+          for stock, not the cost of what sold — putting the two side by side
+          made a profitable period read as a heavy loss. Outstanding is a
+          running balance as of today, so it ignores the date filter. */}
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Cash &amp; Stock</h2>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Money out for stock this period, and what customers still owe. Not part of the profit
+            calculation above — stock bought but unsold stays on the shelf, not in cost of goods.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <KPI label="Stock purchased (money out)" loading={purchLoading}
+            value={formatCurrency(purchMetrics.total)}
+            icon={Truck} color="#8b5cf6" />
+          <KPI label="Cost of goods sold (in P&L)" loading={plLoading}
+            value={formatCurrency(pnl.cogs)}
+            icon={Package} color="#0ea5e9" />
+          <KPI label="Outstanding · all time, as of today" loading={false}
+            value={formatCurrency(salesMetrics.outstanding)}
+            icon={Clock} color="#ef4444" />
+        </div>
+      </div>
+
       <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
         <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
           <SectionHead title="Purchases" sub="by supplier" />
-          <div className="flex gap-6 text-right">
-            <div>
-              <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Total Spend</div>
-              <div className="text-base font-semibold text-foreground tabular-nums">{formatCurrency(purchMetrics.total)}</div>
-            </div>
-            <div>
-              <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Units</div>
-              <div className="text-base font-semibold text-foreground tabular-nums">{purchMetrics.totalUnits}</div>
-            </div>
+          <div className="text-right">
+            <div className="text-[11px] font-medium text-muted-foreground">Total Spend</div>
+            <div className="text-base font-semibold text-foreground tabular-nums">{formatCurrency(purchMetrics.total)}</div>
           </div>
         </div>
         {purchLoading
@@ -617,6 +685,12 @@ const BusinessReport = () => {
 
       {/* ── DETAILED DAILY SALES LOG ────────────────────────────────────── */}
       <DailySalesDetail sales={sales} clients={clients} vehicles={vehicles} users={users} loading={salesLoading} />
+
+      {/* Self-check: the report's own billed total vs the books. Compares the
+          pre-returns figure, so a returns-only gap is expected and named. */}
+      <PLTieOut from={range.start} to={range.end}
+        revenue={salesMetrics.totalRevenue - pnl.returnsTotal}
+        note="Differences usually mean sales returns or a voided bill in the period." />
 
     </div>
   );
@@ -797,4 +871,5 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
 };
 
 export { DailySalesDetail };
+
 export default BusinessReport;
