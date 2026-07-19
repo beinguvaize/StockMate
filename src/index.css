@@ -341,8 +341,13 @@ table.report-table tbody td.numeric {
   --color-canvas: #0F0F0F;
   --color-surface: #1A1A1A;
   --color-ink-primary: #F5F5F0;
-  --color-ink-secondary: #A3A3A3;
-  --color-ink-tertiary: #737373;
+  /* Muted text must clear WCAG AA (4.5:1) on the #1A1A1A surface — the old
+     tertiary #737373 measured 3.67:1, so every muted label in dark mode was
+     under-legible. Secondary lifted alongside it to keep the hierarchy. */
+  --color-ink-secondary: #C4C4C4;
+  --color-ink-tertiary: #949494;
+  --color-pos: #34D399;
+  --color-neg: #FB7185;
   --color-accent-signature: #F59E0B;
   --color-accent-signature-hover: #D97706;
   --color-button-text: #111111;
@@ -408,6 +413,11 @@ table.report-table tbody td.numeric {
   --color-secondary-foreground: var(--color-ink-primary);
   --color-muted: var(--color-canvas);
   --color-muted-foreground: var(--color-ink-tertiary);
+  /* Signed money. Fixed emerald-700/rose-600 fail AA on dark surfaces, so the
+     dark theme overrides these to the lighter 400 steps. Reports read them via
+     var() since this Tailwind v4 setup has no `dark:` variant wired. */
+  --color-pos: #047857;
+  --color-neg: #E11D48;
   --color-accent: var(--color-canvas);
   --color-accent-foreground: var(--color-ink-primary);
   --color-destructive: #DC2626;

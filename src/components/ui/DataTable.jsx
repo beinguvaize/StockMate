@@ -19,7 +19,7 @@
  *       { key: 'revenue', label: 'Revenue',  align: 'right', numeric: true, fmt: inr },
  *       { key: 'margin',  label: 'Margin',   align: 'right', numeric: true,
  *         fmt: (v) => `${v > 0 ? '+' : ''}${v.toFixed(1)}%`,
- *         className: (v) => v >= 0 ? 'text-emerald-700' : 'text-rose-600' },
+ *         className: (v) => v >= 0 ? 'text-[color:var(--color-pos)]' : 'text-[color:var(--color-neg)]' },
  *     ]}
  *     rows={machines}
  *     totalsRow={{ name: 'Totals', revenue: 171554, margin: 14.5 }}
@@ -200,6 +200,6 @@ export const pct = (n) => {
   return `${v > 0 ? '+' : ''}${v.toFixed(1)}%`;
 };
 
-export const signedColour = (v) => (Number(v) >= 0 ? 'text-emerald-700' : 'text-rose-600');
+export const signedColour = (v) => (Number(v) >= 0 ? 'text-[color:var(--color-pos)]' : 'text-[color:var(--color-neg)]');
 
 export default DataTable;

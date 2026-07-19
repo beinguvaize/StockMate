@@ -28,7 +28,7 @@ export const StatStrip = ({ items = [], loading = false }) => (
         {loading
           ? <div className="h-6 w-20 bg-muted animate-pulse rounded mt-1" />
           : <div className={`text-[19px] font-semibold tabular-nums tracking-tight mt-0.5 ${
-              it.tone === 'pos' ? 'text-emerald-700' : it.tone === 'neg' ? 'text-rose-600' : 'text-foreground'}`}>
+              it.tone === 'pos' ? 'text-[color:var(--color-pos)]' : it.tone === 'neg' ? 'text-[color:var(--color-neg)]' : 'text-foreground'}`}>
               {it.value}
             </div>}
       </div>
