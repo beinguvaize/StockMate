@@ -31,7 +31,7 @@ import useReportData from './useReportData';
 import usePLRanged from './usePLRanged';
 import PLTieOut from './PLTieOut';
 import { SectionHead, StatStrip } from './ReportBits';
-import { isCountableSale, PRESETS, presetRange } from './reportUtils';
+import { isCountableSale, PRESETS, presetRange, priorRange, pctChange } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
 
 /* ─── Date preset helpers ─────────────────────────────────────────────────── */
@@ -115,6 +115,13 @@ const BusinessReport = () => {
   const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
   const { data: purchases, loading: purchLoading }     = useReportData({ table: 'purchases', select: '*', dateColumn: 'date', filters });
   const { data: clients }                              = useReportData({ table: 'clients',   select: 'id, name, outstanding_balance' });
+  // Collections banked in the period. These settle credit bills that may have
+  // been raised earlier, so they are reported separately from sale-time cash
+  // rather than added to it — adding them would double-count.
+  const { data: collections } = useReportData({
+    table: 'client_payments', select: 'id, amount, date, payment_method',
+    dateColumn: 'date', filters,
+  });
   const { data: vehicles }                             = useReportData({ table: 'vehicles',  select: 'id, plateNumber, name' });
   const { data: users }                                = useReportData({ table: 'users',     select: 'id, name, email' });
 
@@ -136,6 +143,23 @@ const BusinessReport = () => {
       netMargin:   revenueNet > 0 ? (netProfit   / revenueNet) * 100 : 0,
     };
   }, [pl]);
+
+  /* Prior equal-length window — drives the period-over-period arrows, which
+     until now rendered from a `sub` prop no caller ever passed. */
+  const prior = useMemo(() => priorRange(range), [range]);
+  const { pl: priorPl } = usePLRanged(prior?.start, prior?.end);
+
+  const collectionsTotal = useMemo(
+    () => collections.reduce((s, c) => s + Number(c.amount || 0), 0),
+    [collections],
+  );
+
+  // null when there is no comparable prior period — the arrow then stays hidden
+  // rather than implying a change we cannot substantiate.
+  const revenueChange = useMemo(
+    () => (priorPl ? pctChange(pl?.revenue_net, priorPl.revenue_net) : null),
+    [pl, priorPl],
+  );
 
   const applyPreset = (id) => {
     setPreset(id);
@@ -165,15 +189,36 @@ const BusinessReport = () => {
       .sort((a, b) => a.date.localeCompare(b.date))
       .map(d => ({ ...d, name: d.date.slice(5) })); // "MM-DD"
 
-    /* payment split */
+    /* Payment split — billed vs actually collected, per method.
+       Previously this bucketed full bill value by method and called it a
+       payment split, so credit sales counted as money in hand.
+
+       Collected is derived from paymentStatus, not amount_received (populated
+       on 1 of 437 sales here) and not paidAmount alone (understated on many
+       PAID rows — ₹3.58L of PAID cash carried only ₹2.98L of paidAmount).
+       PAID means the money was taken; PARTIAL is the only case where
+       paidAmount carries real signal. */
+    const collectedOf = (s) => {
+      const total  = Number(s.totalAmount || 0);
+      const status = String(s.paymentStatus || s.status || '').toUpperCase();
+      if (status === 'PAID' || status === 'COMPLETED') return total;
+      if (status === 'PARTIAL') return Math.min(Number(s.paidAmount || 0), total);
+      return 0; // UNPAID / credit outstanding
+    };
+
     const byMethod = {};
     sales.forEach(s => {
       const m = (s.paymentMethod || 'CASH').toUpperCase();
-      byMethod[m] = (byMethod[m] || 0) + Number(s.totalAmount || 0);
+      if (!byMethod[m]) byMethod[m] = { name: m, billed: 0, collected: 0 };
+      byMethod[m].billed    += Number(s.totalAmount || 0);
+      byMethod[m].collected += collectedOf(s);
     });
-    const paymentSplit = Object.entries(byMethod)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
+    const paymentSplit = Object.values(byMethod)
+      .map(m => ({ ...m, value: m.billed }))
+      .sort((a, b) => b.billed - a.billed);
+
+    const billedTotal    = sales.reduce((sum, s) => sum + Number(s.totalAmount || 0), 0);
+    const collectedTotal = sales.reduce((sum, s) => sum + collectedOf(s), 0);
 
     /* product performance */
     const prodMap = {};
@@ -209,7 +254,8 @@ const BusinessReport = () => {
     /* outstanding */
     const outstanding = clients.reduce((s, c) => s + Number(c.outstanding_balance || 0), 0);
 
-    return { totalRevenue, totalOrders, aov, dailyTrend, paymentSplit, topProducts, topClients, outstanding };
+    return { totalRevenue, totalOrders, aov, dailyTrend, paymentSplit, topProducts, topClients,
+             outstanding, billedTotal, collectedTotal, uncollected: billedTotal - collectedTotal };
   }, [sales, clients]);
 
   /* ── Full transaction ledger (every sale in the period) ───────────────── */
@@ -367,6 +413,7 @@ const BusinessReport = () => {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <KPI label="Revenue billed (before returns)" loading={salesLoading}
           value={formatCurrency(salesMetrics.totalRevenue)}
+          sub={revenueChange ?? undefined}
           spark={salesMetrics.dailyTrend.map(d => ({ v: d.revenue }))}
           icon={TrendingUp} color="var(--color-accent-signature)" />
         <KPI label="Total Orders"    loading={salesLoading}
@@ -376,6 +423,35 @@ const BusinessReport = () => {
         <KPI label="Avg. Order Value" loading={salesLoading}
           value={formatCurrency(salesMetrics.aov)}
           icon={ChevronRight} color="#f59e0b" />
+      </div>
+      {prior && revenueChange !== null && (
+        <p className="text-[11px] text-muted-foreground -mt-2">
+          Compared with {prior.start === prior.end ? prior.start : `${prior.start} → ${prior.end}`}
+          {' '}(same length): revenue {formatCurrency(Number(priorPl?.revenue_net || 0))},
+          {' '}net profit {formatCurrency(Number(priorPl?.net_profit || 0))}.
+        </p>
+      )}
+
+      {/* ── CASH POSITION ───────────────────────────────────────────────────
+          What was billed vs what actually came in. Collections are shown on
+          their own line because they settle bills that may pre-date this
+          period — folding them into sale-time cash would double-count. */}
+      <div className="space-y-2">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">Cash position</h2>
+          <p className="text-[11px] text-muted-foreground mt-0.5">
+            Collected is taken from each bill&apos;s payment status. Credit sales count as money in
+            only once they are settled.
+          </p>
+        </div>
+        <StatStrip loading={salesLoading} items={[
+          { label: 'Billed this period',      value: formatCurrency(salesMetrics.billedTotal) },
+          { label: 'Collected at sale',       value: formatCurrency(salesMetrics.collectedTotal),
+            tone: 'pos' },
+          { label: 'Still unpaid from these', value: formatCurrency(salesMetrics.uncollected),
+            tone: salesMetrics.uncollected > 0 ? 'neg' : undefined },
+          { label: 'Collections banked (incl. older bills)', value: formatCurrency(collectionsTotal) },
+        ]} />
       </div>
 
       {/* ── CHARTS ROW ──────────────────────────────────────────────────── */}
@@ -411,7 +487,7 @@ const BusinessReport = () => {
 
         {/* Payment method split */}
         <div className="bg-card rounded-[10px] border border-border/60 p-6 shadow-sm">
-          <SectionHead title="Payment Split" />
+          <SectionHead title="Billed vs Collected" sub="by payment method" />
           {salesLoading
             ? <div className="h-48 bg-canvas animate-pulse rounded-xl" />
             : salesMetrics.paymentSplit.length === 0
@@ -419,23 +495,30 @@ const BusinessReport = () => {
             : (
               <div className="space-y-3 mt-2">
                 {salesMetrics.paymentSplit.map(p => {
-                  const total = salesMetrics.paymentSplit.reduce((s, x) => s + x.value, 0);
-                  const pct   = total > 0 ? p.value / total * 100 : 0;
-                  const color = PAY_COLORS[p.name] || '#6b7280';
+                  const maxBilled = Math.max(...salesMetrics.paymentSplit.map(x => x.billed), 1);
+                  const billedPct = (p.billed / maxBilled) * 100;
+                  // Collected drawn as a filled portion of the same bar, so an
+                  // unsettled credit bar reads as visibly hollow.
+                  const collPct   = p.billed > 0 ? (p.collected / p.billed) * 100 : 0;
+                  const color     = PAY_COLORS[p.name] || '#6b7280';
+                  const unpaid    = p.billed - p.collected;
                   return (
                     <div key={p.name}>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="font-semibold text-foreground flex items-center gap-1.5">
+                        <span className="font-medium text-foreground flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full" style={{ background: color }} />
                           {p.name}
                         </span>
-                        <span className="font-semibold text-foreground tabular-nums">{formatCurrency(p.value)}</span>
+                        <span className="font-semibold text-foreground tabular-nums">{formatCurrency(p.billed)}</span>
                       </div>
-                      <div className="h-2 rounded-full bg-canvas overflow-hidden">
+                      <div className="h-2 rounded-full bg-canvas overflow-hidden" style={{ width: `${billedPct}%`, minWidth: '8%' }}>
                         <div className="h-full rounded-full transition-all duration-700"
-                          style={{ width: `${pct}%`, background: color }} />
+                          style={{ width: `${collPct}%`, background: color }} />
                       </div>
-                      <div className="text-[9px] text-muted-foreground font-semibold mt-0.5 text-right">{pct.toFixed(1)}%</div>
+                      <div className="text-[10px] text-muted-foreground mt-0.5 flex justify-between">
+                        <span>{formatCurrency(p.collected)} collected</span>
+                        {unpaid > 0.5 && <span className="text-[color:var(--color-neg)]">{formatCurrency(unpaid)} unpaid</span>}
+                      </div>
                     </div>
                   );
                 })}

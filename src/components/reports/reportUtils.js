@@ -32,6 +32,32 @@ export const PRESETS = [
   { id: 'YEAR',    label: 'This Year' },
 ];
 
+/**
+ * The equal-length window immediately before `range`, for period-over-period
+ * comparison. A 7-day range compares against the 7 days before it; a
+ * month-to-date range compares against the same number of days before it, not
+ * the whole prior month — comparing 19 days against 31 would invent a decline.
+ */
+export function priorRange({ start, end }) {
+  if (!start || !end) return null;
+  const DAY = 86400000;
+  const s = new Date(`${start}T00:00:00`);
+  const e = new Date(`${end}T00:00:00`);
+  if (Number.isNaN(s.getTime()) || Number.isNaN(e.getTime())) return null;
+  const days = Math.round((e - s) / DAY) + 1;       // inclusive
+  const prevEnd   = new Date(s.getTime() - DAY);
+  const prevStart = new Date(prevEnd.getTime() - (days - 1) * DAY);
+  const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return { start: fmt(prevStart), end: fmt(prevEnd) };
+}
+
+/** Percent change vs a prior figure. null when there's no comparable base. */
+export function pctChange(current, prior) {
+  const c = Number(current || 0), p = Number(prior || 0);
+  if (!Number.isFinite(c) || !Number.isFinite(p) || p === 0) return null;
+  return ((c - p) / Math.abs(p)) * 100;
+}
+
 export function presetRange(id) {
   const now = new Date();
   const pad = (n) => String(n).padStart(2, '0');
