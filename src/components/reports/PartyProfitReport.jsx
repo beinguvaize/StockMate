@@ -8,6 +8,7 @@ import {
   TrendingUp, DollarSign, Users, BarChart3, Calendar, Download,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import PLTieOut from './PLTieOut';
 import { isCountableSale } from './reportUtils';
 import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 
@@ -133,9 +134,10 @@ const PartyProfitReport = () => {
       if (!partyMap[key]) partyMap[key] = { name, revenue: 0, cost: 0, orders: 0 };
 
       const items = Array.isArray(s.items) ? s.items : [];
-      const revenue = items.length > 0
-        ? items.reduce((acc, it) => acc + calcItemRevenue(it), 0)
-        : Number(s.totalAmount || 0);
+      // totalAmount is the post-discount amount actually billed — summing
+      // qty×rate overstated revenue (and profit) by every bill discount.
+      const revenue = Number(s.totalAmount)
+        || items.reduce((acc, it) => acc + calcItemRevenue(it), 0);
       // sales.totalCogs is the source of truth — see BillWiseProfitReport.
       const storedCogs = Number(s.totalCogs);
       const cost = Number.isFinite(storedCogs) && storedCogs > 0
@@ -292,6 +294,8 @@ const PartyProfitReport = () => {
           </div>
         )}
       </div>
+      <PLTieOut from={range.start} to={range.end} revenue={kpis.totalRevenue} cogs={kpis.totalRevenue - kpis.totalProfit}
+        note="Differences are usually sales returns in the period." />
     </div>
   );
 };

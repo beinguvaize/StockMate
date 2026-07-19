@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import PLTieOut from './PLTieOut';
 import PremiumReportView from './PremiumReportView';
 import {
   Tag, Package, TrendingUp, TrendingDown, DollarSign,
@@ -496,7 +497,14 @@ const ProductProfitabilityReport = () => {
   // Only show dead stock tab if there is any
   const tabs = deadStockRows.length > 0 ? [profitabilityTab, deadStockTab] : [profitabilityTab];
 
-  return <PremiumReportView title="Product Profitability" tabs={tabs} />;
+  return (
+    <div>
+      <PremiumReportView title="Product Profitability" tabs={tabs} />
+      {/* all-time report — reconcile against the P&L over all time */}
+      <PLTieOut from="2000-01-01" to="2100-01-01" revenue={totals.revenue} cogs={totals.cogs}
+        note="SKU rows are pre-discount — small differences are bill discounts and returns." />
+    </div>
+  );
 };
 
 export default ProductProfitabilityReport;

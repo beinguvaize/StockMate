@@ -7,6 +7,7 @@ import {
   TrendingUp, DollarSign, Tag, BarChart3, Calendar, Download,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import PLTieOut from './PLTieOut';
 import { isCountableSale } from './reportUtils';
 import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 
@@ -298,6 +299,8 @@ const CategoryProfitReport = () => {
           </div>
         )}
       </div>
+      <PLTieOut from={range.start} to={range.end} revenue={kpis.totalRevenue} cogs={kpis.totalRevenue - kpis.totalProfit}
+        note="SKU rows are pre-discount — small differences are bill discounts and returns." />
     </div>
   );
 };

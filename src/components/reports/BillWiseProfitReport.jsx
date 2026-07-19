@@ -7,6 +7,7 @@ import {
   TrendingUp, DollarSign, BarChart3, Calendar, Download,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import PLTieOut from './PLTieOut';
 import { isCountableSale } from './reportUtils';
 import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 import DataTable, { inr, pct, signedColour } from '../ui/DataTable';
@@ -121,9 +122,10 @@ const BillWiseProfitReport = () => {
     });
     const rows = sales.map(s => {
       const items   = Array.isArray(s.items) ? s.items : [];
-      const revenue = items.length > 0
-        ? items.reduce((acc, it) => acc + calcItemRevenue(it), 0)
-        : Number(s.totalAmount || 0);
+      // totalAmount is the post-discount amount actually billed — summing
+      // qty×rate overstated revenue (and profit) by every bill discount.
+      const revenue = Number(s.totalAmount)
+        || items.reduce((acc, it) => acc + calcItemRevenue(it), 0);
       // sales.totalCogs is the source of truth (process_sale computes it,
       // including the cost-price fallback for unbatched stock). The batch
       // rows alone undercount when only part of a sale had batch coverage.
@@ -265,6 +267,8 @@ const BillWiseProfitReport = () => {
           </div>
         </div>
       )}
+      <PLTieOut from={range.start} to={range.end} revenue={totals.totalRevenue} cogs={totals.totalCost}
+        note="Differences are usually sales returns in the period." />
     </div>
   );
 };
