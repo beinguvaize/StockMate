@@ -3,13 +3,11 @@
  * Item revenue = qty * rate (fallback sellingPrice). Item cost = qty * costPrice.
  */
 import React, { useState, useMemo } from 'react';
-import {
-  TrendingUp, DollarSign, BarChart3, Calendar, Download,
-} from 'lucide-react';
 import useReportData from './useReportData';
-import { KPI, SectionHead } from './ReportBits';
+import { StatStrip } from './ReportBits';
+import ReportHeader from './ReportHeader';
 import PLTieOut from './PLTieOut';
-import { isCountableSale, PRESETS, presetRange } from './reportUtils';
+import { isCountableSale, presetRange } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
 import DataTable, { inr, pct, signedColour } from '../ui/DataTable';
 
@@ -112,66 +110,30 @@ const BillWiseProfitReport = () => {
   };
 
   return (
-    <div className="space-y-8 pb-16">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black text-ink-primary leading-none">
-            Bill-wise Profit<span className="text-accent-signature">.</span>
-          </h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">
-            {range.start === range.end ? range.start : `${range.start} → ${range.end}`}
-          </p>
-        </div>
-        <div className="flex-1" />
-        <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1 flex-wrap">
-          {PRESETS.map(p => (
-            <button key={p.id} onClick={() => applyPreset(p.id)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-                preset === p.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
-              }`}>{p.label}</button>
-          ))}
-          <button onClick={() => applyPreset('CUSTOM')}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-              preset === 'CUSTOM' ? 'bg-ink-primary text-white' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
-            }`}>
-            <Calendar size={11} /> Custom
-          </button>
-        </div>
-        <button onClick={exportCSV}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-black/8 bg-white text-xs font-black text-ink-primary hover:border-black/20 hover:shadow-sm transition-all">
-          <Download size={13} /> Export CSV
-        </button>
-      </div>
+    <div className="space-y-4 pb-16">
+      <ReportHeader
+        title="Bill-wise Profit"
+        subtitle={`${range.start === range.end ? range.start : `${range.start} → ${range.end}`}${loading ? '' : ` · ${rows.length} bill${rows.length === 1 ? '' : 's'}`}`}
+        preset={preset}
+        onPreset={applyPreset}
+        showCustom={showCustom}
+        customStart={customStart}
+        customEnd={customEnd}
+        setCustomStart={setCustomStart}
+        setCustomEnd={setCustomEnd}
+        onApplyCustom={applyCustom}
+        onExport={exportCSV}
+        exportLabel="Export CSV"
+      />
 
-      {/* Custom date inputs */}
-      {showCustom && (
-        <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-black/5 shadow-sm">
-          <Calendar size={14} className="text-gray-400 shrink-0" />
-          <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
-          <span className="text-gray-400 text-xs font-bold">to</span>
-          <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
-          <button onClick={applyCustom}
-            className="px-4 py-2 rounded-xl bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all">
-            Apply
-          </button>
-        </div>
-      )}
+      <StatStrip loading={loading} items={[
+        { label: 'Revenue',       value: formatCurrency(totals.totalRevenue) },
+        { label: 'Cost of goods', value: formatCurrency(totals.totalCost) },
+        { label: 'Gross profit',  value: formatCurrency(totals.totalProfit), tone: totals.totalProfit >= 0 ? 'pos' : 'neg' },
+        { label: 'Margin',        value: `${totals.blendedMargin.toFixed(1)}%` },
+      ]} />
 
-      {/* KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <KPI label="Total Revenue" loading={loading} value={formatCurrency(totals.totalRevenue)}      icon={TrendingUp}  color="var(--color-accent-signature)" />
-        <KPI label="Total Cost"    loading={loading} value={formatCurrency(totals.totalCost)}         icon={DollarSign}  color="#f59e0b" />
-        <KPI label="Total Profit"  loading={loading} value={formatCurrency(totals.totalProfit)}       icon={BarChart3}   color="#10b981" />
-        <KPI label="Blended Margin" loading={loading} value={`${totals.blendedMargin.toFixed(1)}%`}  icon={TrendingUp}  color="#8b5cf6" />
-      </div>
-
-      {/* Table — vendflow-style DataTable */}
       <DataTable
-        title="Bill-wise Breakdown"
-        subtitle={loading ? 'Loading…' : `${rows.length} bill${rows.length === 1 ? '' : 's'} for selected period`}
         emptyMessage={loading ? 'Loading bills…' : 'No bills in this period.'}
         columns={[
           { key: 'date',     label: 'Date',      align: 'left'  },
@@ -186,35 +148,8 @@ const BillWiseProfitReport = () => {
         ]}
         rows={rows}
         getRowKey={(r) => r.ref}
+        totalsRow={{ date: 'Totals', revenue: totals.totalRevenue, cost: totals.totalCost, profit: totals.totalProfit, margin: totals.blendedMargin }}
       />
-
-      {/* Totals footer — single matching strip below the table */}
-      {!loading && rows.length > 0 && (
-        <div className="bg-slate-50 rounded-2xl border border-slate-200 px-5 py-4 flex flex-wrap items-center gap-x-8 gap-y-2"
-             style={{ fontFamily: '"Sora", Inter, sans-serif' }}>
-          <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-slate-500">Totals</span>
-          <div className="flex items-baseline gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Revenue</span>
-            <span className="text-sm font-bold text-slate-900 font-mono tabular-nums">{inr(totals.totalRevenue)}</span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">COGS</span>
-            <span className="text-sm font-bold text-slate-900 font-mono tabular-nums">{inr(totals.totalCost)}</span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Gross Profit</span>
-            <span className={`text-sm font-bold font-mono tabular-nums ${signedColour(totals.totalProfit)}`}>
-              {inr(totals.totalProfit)}
-            </span>
-          </div>
-          <div className="flex items-baseline gap-2 ml-auto">
-            <span className="text-[10px] uppercase tracking-wider text-slate-400 font-semibold">Blended Margin</span>
-            <span className={`text-base font-bold font-mono tabular-nums ${signedColour(totals.blendedMargin)}`}>
-              {pct(totals.blendedMargin)}
-            </span>
-          </div>
-        </div>
-      )}
       <PLTieOut from={range.start} to={range.end} revenue={totals.totalRevenue} cogs={totals.totalCost}
         note="Differences are usually sales returns in the period." />
     </div>

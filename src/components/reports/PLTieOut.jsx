@@ -31,18 +31,18 @@ const PLTieOut = ({ from, to, revenue, cogs = null, note }) => {
   const dCogs = cogs != null ? Number(cogs) - Number(pl.cogs || 0) : 0;
   const ok = Math.abs(dRev) < 1 && Math.abs(dCogs) < 1;
 
+  // Slim text line, not a banner — the check should be present, not loud.
   return (
-    <div className={`mt-4 rounded-xl border px-4 py-2.5 text-[11px] font-bold flex flex-wrap items-center gap-x-4 gap-y-1 ${
-      ok ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-         : 'border-accent-signature/25 bg-accent-signature/5 text-accent-signature-hover'}`}>
-      <span>{ok ? '✓ Ties to P&L for this period' : '△ Differs from P&L'}</span>
+    <div className={`mt-3 text-[11px] flex flex-wrap items-center gap-x-3 gap-y-0.5 ${
+      ok ? 'text-emerald-700' : 'text-accent-signature-hover'}`}>
+      <span className="font-medium">{ok ? '✓ Ties to P&L for this period' : '△ Differs from P&L'}</span>
       {!ok && Math.abs(dRev) >= 1 && (
         <span>revenue {dRev > 0 ? '+' : '−'}{formatCurrency(Math.abs(dRev))}</span>
       )}
       {!ok && cogs != null && Math.abs(dCogs) >= 1 && (
         <span>COGS {dCogs > 0 ? '+' : '−'}{formatCurrency(Math.abs(dCogs))}</span>
       )}
-      {!ok && note && <span className="font-medium opacity-80">{note}</span>}
+      {!ok && note && <span className="text-muted-foreground">{note}</span>}
     </div>
   );
 };
