@@ -7,6 +7,7 @@ import {
   TrendingUp, DollarSign, Tag, BarChart3, Calendar, Download,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { isCountableSale } from './reportUtils';
 import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 
 const today = todayISOInAppTZ();
@@ -71,7 +72,8 @@ const CategoryProfitReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: sales,    loading: sLoading } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters });
+  const { data: salesRaw,    loading: sLoading } = useReportData({ table: 'sales',    select: '*', dateColumn: 'date', filters });
+  const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
   const { data: products, loading: pLoading } = useReportData({ table: 'products', select: 'id, name, category, costPrice' });
   // FIFO truth — when a sale's batches were consumed, use the actual
   // unit_cost at that moment instead of the current products.costPrice.

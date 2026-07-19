@@ -15,15 +15,14 @@ import { formatINR, round2 } from '../../utils/financialCalculations';
  *
  *   units_sold     = Σ quantity across all sales.items matching productId
  *   revenue        = Σ (quantity × price)            ← realized sale price
- *   cogs           = Σ (quantity × product.costPrice) ← using current cost as proxy
+ *   cogs           = FIFO batch cost actually consumed + costPrice fallback
  *   gross_profit   = revenue − cogs
  *   margin_pct     = gross_profit / revenue × 100
  *   avg_sell_price = revenue / units_sold
  *
  * Caveats:
- *  - `costPrice` is the CURRENT product cost, not the historical cost at time
- *    of sale. For a more accurate COGS we'd need a purchase ledger / moving
- *    average. Sufficient for an operational profitability view.
+ *  - COGS uses the sale's actual FIFO batch consumption where a trail exists;
+ *    only the uncovered remainder falls back to the CURRENT costPrice.
  *  - Products never sold in the date range appear with zero revenue but still
  *    show in the "Unsold Inventory" tab so you can spot dead stock.
  */
@@ -52,11 +51,29 @@ const ProductProfitabilityReport = () => {
     dateColumn: 'date',
   });
 
+  // FIFO truth: what each sale actually consumed, at the batch cost of that
+  // moment. Using today's costPrice as COGS misstated every margin whenever
+  // a product's cost moved (and costs did move — the July batch reconciles).
+  const { data: consumption } = useReportData({
+    table: 'sale_batch_consumption',
+    select: 'sale_id, product_id, qty_taken, unit_cost',
+  });
+
   const loading = productsLoading || salesLoading;
 
   // --- Aggregate sales per product ---
   const perProduct = useMemo(() => {
     if (!products?.length) return [];
+
+    // (sale, product) → actual FIFO qty + cost consumed. The covered part of
+    // a line uses this; any remainder falls back to current costPrice —
+    // mirroring how process_sale computes sales.totalCogs server-side.
+    const fifoQty = {}; const fifoVal = {};
+    (consumption || []).forEach((c) => {
+      const k = `${c.sale_id}|${c.product_id}`;
+      fifoQty[k] = (fifoQty[k] || 0) + Number(c.qty_taken || 0);
+      fifoVal[k] = (fifoVal[k] || 0) + Number(c.qty_taken || 0) * Number(c.unit_cost || 0);
+    });
 
     // Build product lookup
     const productById = new Map();
@@ -115,7 +132,12 @@ const ProductProfitabilityReport = () => {
 
         bucket.units_sold += qty;
         bucket.revenue += qty * unitPrice;
-        bucket.cogs += qty * Number(prod.costPrice || 0);
+        // Real cost: FIFO-consumed portion at its batch cost, remainder at
+        // current costPrice (fallback, same as the server-side COGS rule).
+        const fk = `${s.id}|${prod.id}`;
+        const covered = Math.min(qty, fifoQty[fk] || 0);
+        const fifoShare = (fifoQty[fk] || 0) > 0 ? (fifoVal[fk] || 0) * (covered / fifoQty[fk]) : 0;
+        bucket.cogs += fifoShare + Math.max(0, qty - covered) * Number(prod.costPrice || 0);
         bucket.num_orders += 1;
       });
     });
@@ -138,7 +160,7 @@ const ProductProfitabilityReport = () => {
         tier_color: tier.color,
       };
     });
-  }, [products, sales]);
+  }, [products, sales, consumption]);
 
   // --- Split: active sellers vs dead stock ---
   const activeRows = useMemo(
