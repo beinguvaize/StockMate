@@ -124,7 +124,7 @@ const ProductSalesReport = () => {
     const out = [];
     sales.forEach(s => {
       const status = String(s.status || '').toUpperCase();
-      if (status === 'CANCELLED' || status === 'VOID' || status === 'REFUNDED') return;
+      if (status === 'CANCELLED' || status === 'VOIDED' || status === 'FAILED' || status === 'REFUNDED') return;
       const items = Array.isArray(s.items) ? s.items : [];
       items.forEach(it => {
         const pid = it.productId || it.id;

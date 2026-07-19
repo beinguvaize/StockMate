@@ -94,7 +94,7 @@ const ProductProfitabilityReport = () => {
     // Walk sales.items
     (sales || []).forEach((s) => {
       const status = String(s.status || '').toUpperCase();
-      if (status === 'CANCELLED' || status === 'VOID' || status === 'REFUNDED') return;
+      if (status === 'CANCELLED' || status === 'VOIDED' || status === 'FAILED' || status === 'REFUNDED') return;
       const items = Array.isArray(s.items) ? s.items : [];
       items.forEach((it) => {
         const qty = Number(it?.quantity ?? it?.qty ?? 0);

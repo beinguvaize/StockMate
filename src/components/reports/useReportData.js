@@ -11,6 +11,18 @@ import { useTenant } from '../../context/TenantContext';
  * @param {Object} options.filters - Current filter state { dateRange, client, status, etc. }
  * @param {string} options.dateColumn - The column name for date filtering
  */
+// Every table reports read from soft-deletes via deleted_at. The hook applies
+// the filter automatically for these; without it, 19 of 21 operations reports
+// were counting deleted rows (audited live: 5 deleted sales worth ₹6,240 and
+// 7 deleted client payments were inflating revenue and client statements).
+// Callers can still pass their own nullFilters; this is the safety net.
+const SOFT_DELETE_TABLES = new Set([
+  'sales', 'expenses', 'purchases', 'products', 'clients', 'suppliers',
+  'client_payments', 'invoices', 'product_batches', 'sale_batch_consumption',
+  'users', 'vehicles', 'routes', 'employees', 'payroll', 'serial_numbers',
+  'inventory_balances', 'movement_log', 'sales_returns', 'day_book',
+]);
+
 const useReportData = ({
   table,
   select = '*',
@@ -70,6 +82,12 @@ const useReportData = ({
       Object.keys(nullFilters).forEach((key) => {
         query = query.is(key, null);
       });
+
+      // 5. Automatic soft-delete exclusion for known tables (see
+      // SOFT_DELETE_TABLES above). Skipped when the caller already filtered.
+      if (SOFT_DELETE_TABLES.has(table) && !('deleted_at' in nullFilters)) {
+        query = query.is('deleted_at', null);
+      }
 
       const { data: result, error: fetchError } = await query;
 
