@@ -47,7 +47,7 @@ const LogisticsReport = () => {
     }).sort((a, b) => b.revenue - a.revenue);
 
     const kpis = [
-      { id: 'util', label: 'Fleet Utilization', value: `${utilization.toFixed(1)}%`, trend: 2, trendDir: 'up', color: 'indigo', chartData: [{ value: 60 }, { value: 70 }, { value: utilization }] },
+      { id: 'util', label: 'Fleet Utilization', value: `${utilization.toFixed(1)}%`, trend: 0, trendDir: 'none', color: 'indigo', chartData: [{ value: 60 }, { value: 70 }, { value: utilization }] },
       { id: 'active', label: 'Active Units', value: activeCount, trend: 0, trendDir: 'none', color: 'emerald', chartData: [] }
     ];
 

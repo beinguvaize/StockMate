@@ -6,61 +6,9 @@ import {
   Users, Truck, TrendingUp, ShoppingBag, Calendar, Download,
 } from 'lucide-react';
 import useReportData from './useReportData';
-import { isCountableSale } from './reportUtils';
-import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
-
-const today = todayISOInAppTZ();
-
-const PRESETS = [
-  { id: 'TODAY',   label: 'Today' },
-  { id: 'WEEK',    label: 'This Week' },
-  { id: 'MONTH',   label: 'This Month' },
-  { id: 'QUARTER', label: 'Quarter' },
-  { id: 'YEAR',    label: 'This Year' },
-];
-
-function presetRange(id) {
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  switch (id) {
-    case 'TODAY': return { start: today, end: today };
-    case 'WEEK': {
-      const dow = now.getDay() || 7; // Sunday must count as end of the week, not its start
-      const mon = new Date(now); mon.setDate(now.getDate() - dow + 1);
-      return { start: fmt(mon), end: today };
-    }
-    case 'MONTH':
-      return { start: `${now.getFullYear()}-${pad(now.getMonth()+1)}-01`, end: today };
-    case 'QUARTER': {
-      const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth()/3)*3, 1);
-      return { start: fmt(qStart), end: today };
-    }
-    case 'YEAR':
-      return { start: `${now.getFullYear()}-01-01`, end: today };
-    default: return { start: today, end: today };
-  }
-}
-
-const SectionHead = ({ title, sub }) => (
-  <div className="flex items-baseline gap-3 mb-4">
-    <h2 className="text-base font-black text-ink-primary">{title}</h2>
-    {sub && <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{sub}</span>}
-  </div>
-);
-
-const KPI = ({ label, value, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
-  <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
-    <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
-      <Icon size={16} style={{ color }} />
-    </div>
-    {loading
-      ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="text-2xl font-black text-ink-primary tabular-nums leading-none">{value}</div>
-    }
-    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</div>
-  </div>
-);
+import { KPI, SectionHead } from './ReportBits';
+import { isCountableSale, PRESETS, presetRange } from './reportUtils';
+import { formatCurrency } from '../../lib/utils';
 
 const ShareBar = ({ share, color }) => (
   <div className="flex items-center gap-2 mt-1">

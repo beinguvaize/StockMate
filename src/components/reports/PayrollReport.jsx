@@ -25,7 +25,7 @@ const PayrollReport = () => {
     const chartData = Object.entries(monthMap).map(([name, value]) => ({ name, value }));
 
     const kpis = [
-      { id: 'disb', label: 'Disbursements', value: total, trend: 1.5, trendDir: 'up', color: 'indigo', chartData: chartData.map(d => ({ value: d.value })) },
+      { id: 'disb', label: 'Disbursements', value: total, trend: 0, trendDir: 'none', color: 'indigo', chartData: chartData.map(d => ({ value: d.value })) },
       { id: 'staff', label: 'Active Personnel', value: uniqueStaff, trend: 0, trendDir: 'none', color: 'emerald', chartData: [{ value: 50 }, { value: 50 }] },
       { id: 'avg', label: 'Average Payload', value: total / (uniqueStaff || 1), trend: 0.5, trendDir: 'up', color: 'amber', chartData: chartData.map(d => ({ value: d.value / uniqueStaff })) }
     ];

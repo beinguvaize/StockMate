@@ -131,13 +131,13 @@ const CashFlowReport = () => {
   const kpis = [
     {
       id: 'opening', label: 'Operating Cash Flow', value: cashFlow.operatingNet,
-      trend: 8, trendDir: cashFlow.operatingNet >= 0 ? 'up' : 'down',
+      trend: 0, trendDir: 'none',
       color: cashFlow.operatingNet >= 0 ? 'emerald' : 'rose',
       chartData: cashFlow.monthly.map((m) => ({ value: m.Net })),
     },
     {
       id: 'investing', label: 'Investing Cash Flow', value: cashFlow.investingNet,
-      trend: 2, trendDir: 'down', color: 'amber',
+      trend: 0, trendDir: 'none', color: 'amber',
       chartData: cashFlow.monthly.map((m) => ({ value: m.Outflow * 0.1 })),
     },
     {

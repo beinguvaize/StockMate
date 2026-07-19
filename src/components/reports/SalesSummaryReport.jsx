@@ -38,8 +38,8 @@ const SalesSummaryReport = () => {
         id: 'rev', 
         label: 'Total Revenue', 
         value: totalRevenue, 
-        trend: 12.5, 
-        trendDir: 'up', 
+        trend: 0, 
+        trendDir: 'none', 
         chartData: chartData.map(d => ({ value: d.revenue })),
         color: 'indigo'
       },
@@ -47,8 +47,8 @@ const SalesSummaryReport = () => {
         id: 'ord', 
         label: 'Total Orders', 
         value: totalOrders, 
-        trend: 8.2, 
-        trendDir: 'up', 
+        trend: 0, 
+        trendDir: 'none', 
         chartData: chartData.map(d => ({ value: 1 })), // Simplified for example
         color: 'emerald'
       },
@@ -56,8 +56,8 @@ const SalesSummaryReport = () => {
         id: 'aov', 
         label: 'Avg. Order Value', 
         value: aov, 
-        trend: 3.1, 
-        trendDir: 'down', 
+        trend: 0, 
+        trendDir: 'none', 
         chartData: chartData.map(d => ({ value: d.revenue / (chartData.length || 1) })),
         color: 'amber'
       },

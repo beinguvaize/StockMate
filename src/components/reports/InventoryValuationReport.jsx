@@ -38,8 +38,8 @@ const InventoryValuationReport = () => {
         id: 'val', 
         label: 'Total Stock Value', 
         value: totalCost, 
-        trend: 5.4, 
-        trendDir: 'up', 
+        trend: 0, 
+        trendDir: 'none', 
         chartData: chartData.map(d => ({ value: d.value })),
         color: 'indigo'
       },
@@ -47,8 +47,8 @@ const InventoryValuationReport = () => {
         id: 'rev', 
         label: 'Potential Revenue', 
         value: totalPotential, 
-        trend: 3.2, 
-        trendDir: 'up', 
+        trend: 0, 
+        trendDir: 'none', 
         chartData: chartData.map(d => ({ value: d.value * 1.2 })),
         color: 'emerald'
       },
@@ -56,8 +56,8 @@ const InventoryValuationReport = () => {
         id: 'prof', 
         label: 'Projected Profit', 
         value: totalProfit, 
-        trend: 1.8, 
-        trendDir: 'down', 
+        trend: 0, 
+        trendDir: 'none', 
         chartData: chartData.map(d => ({ value: d.value * 0.2 })),
         color: 'amber'
       },

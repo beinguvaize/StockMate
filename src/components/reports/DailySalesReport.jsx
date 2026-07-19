@@ -6,40 +6,8 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar } from 'lucide-react';
 import useReportData from './useReportData';
-import { isCountableSale } from './reportUtils';
-import { todayISOInAppTZ } from '../../lib/utils';
+import { isCountableSale, PRESETS, presetRange } from './reportUtils';
 import { DailySalesDetail } from './BusinessReport';
-
-const today = todayISOInAppTZ();
-
-const PRESETS = [
-  { id: 'TODAY',   label: 'Today' },
-  { id: 'WEEK',    label: 'This Week' },
-  { id: 'MONTH',   label: 'This Month' },
-  { id: 'QUARTER', label: 'Quarter' },
-  { id: 'YEAR',    label: 'This Year' },
-];
-
-function presetRange(id) {
-  const now = new Date();
-  const pad = n => String(n).padStart(2, '0');
-  const fmt = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-  switch (id) {
-    case 'TODAY': return { start: today, end: today };
-    case 'WEEK': {
-      const dow = now.getDay() || 7; // Sunday must count as end of the week, not its start
-      const mon = new Date(now); mon.setDate(now.getDate() - dow + 1);
-      return { start: fmt(mon), end: today };
-    }
-    case 'MONTH': return { start: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, end: today };
-    case 'QUARTER': {
-      const qStart = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1);
-      return { start: fmt(qStart), end: today };
-    }
-    case 'YEAR': return { start: `${now.getFullYear()}-01-01`, end: today };
-    default: return { start: today, end: today };
-  }
-}
 
 const DailySalesReport = () => {
   const [preset, setPreset] = useState('TODAY');

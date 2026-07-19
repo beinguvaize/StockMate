@@ -1,22 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import useReportData from './useReportData';
+import { presetRange } from './reportUtils';
 import PremiumReportView from './PremiumReportView';
 import { Truck, Package, User, Calendar, Info, BarChart2 } from 'lucide-react';
 
 /* ─── Period presets ──────────────────────────────────────────────────────── */
 const pad = n => String(n).padStart(2, '0');
 const fmtD = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const presetRange = (id) => {
-  const now = new Date(); const today = fmtD(now);
-  switch (id) {
-    case 'TODAY':   return { start: today, end: today };
-    case 'WEEK':    { const dw = now.getDay() || 7; const m = new Date(now); m.setDate(now.getDate() - dw + 1); return { start: fmtD(m), end: today }; }
-    case 'MONTH':   return { start: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, end: today };
-    case 'QUARTER': { const q = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1); return { start: fmtD(q), end: today }; }
-    case 'YEAR':    return { start: `${now.getFullYear()}-01-01`, end: today };
-    default:        return { start: today, end: today };
-  }
-};
 const PERIODS = [['TODAY', 'Today'], ['WEEK', 'This Week'], ['MONTH', 'This Month'], ['QUARTER', 'Quarter'], ['YEAR', 'This Year'], ['CUSTOM', 'Custom']];
 
 /* ─── Helpers ─────────────────────────────────────────────────────────────── */

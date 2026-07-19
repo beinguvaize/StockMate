@@ -45,9 +45,9 @@ const InventoryReport = () => {
       .sort((a, b) => b.value - a.value);
 
     const kpis = [
-      { id: 'val', label: 'Stock Value', value: totalCost, trend: 5.4, trendDir: 'up', color: 'indigo', chartData: chartData.map(d => ({ value: d.value })) },
-      { id: 'rev', label: 'Potential Revenue', value: totalPotential, trend: 3.2, trendDir: 'up', color: 'emerald', chartData: chartData.map(d => ({ value: d.value * 1.2 })) },
-      { id: 'prof', label: 'Projected Profit', value: totalProfit, trend: 1.8, trendDir: 'down', color: 'amber', chartData: chartData.map(d => ({ value: d.value * 0.2 })) },
+      { id: 'val', label: 'Stock Value', value: totalCost, trend: 0, trendDir: 'none', color: 'indigo', chartData: chartData.map(d => ({ value: d.value })) },
+      { id: 'rev', label: 'Potential Revenue', value: totalPotential, trend: 0, trendDir: 'none', color: 'emerald', chartData: chartData.map(d => ({ value: d.value * 1.2 })) },
+      { id: 'prof', label: 'Projected Profit', value: totalProfit, trend: 0, trendDir: 'none', color: 'amber', chartData: chartData.map(d => ({ value: d.value * 0.2 })) },
       { id: 'low', label: 'Stock Alerts', value: lowStockCount, trend: lowStockCount > 10 ? 15 : 0, trendDir: lowStockCount > 10 ? 'up' : 'none', color: 'rose', chartData: [{ value: 10 }, { value: 15 }, { value: 8 }, { value: lowStockCount }] }
     ];
 
@@ -75,7 +75,7 @@ const InventoryReport = () => {
     const affectedSkus = deadItems.length;
 
     const kpis = [
-      { id: 'dead_val', label: 'Frozen Capital', value: totalDeadValue, trend: 10, trendDir: 'up', color: 'rose', chartData: [{ value: 100 }, { value: 150 }, { value: 130 }, { value: totalDeadValue }] },
+      { id: 'dead_val', label: 'Frozen Capital', value: totalDeadValue, trend: 0, trendDir: 'none', color: 'rose', chartData: [{ value: 100 }, { value: 150 }, { value: 130 }, { value: totalDeadValue }] },
       { id: 'skus', label: 'Idle SKUs', value: affectedSkus, trend: 0, trendDir: 'none', color: 'orange', chartData: [{ value: 20 }, { value: 25 }, { value: 22 }, { value: affectedSkus }] },
     ];
 

@@ -60,12 +60,12 @@ const TrialBalanceReport = () => {
   const kpis = [
     {
       id: 'dr', label: 'Total Debits', value: totals.debit,
-      trend: 100, trendDir: 'up', color: 'indigo',
+      trend: 0, trendDir: 'none', color: 'indigo',
       chartData: rows.filter((r) => r.debit > 0).map((r) => ({ value: r.debit })),
     },
     {
       id: 'cr', label: 'Total Credits', value: totals.credit,
-      trend: 100, trendDir: 'up', color: 'emerald',
+      trend: 0, trendDir: 'none', color: 'emerald',
       chartData: rows.filter((r) => r.credit > 0).map((r) => ({ value: r.credit })),
     },
     {

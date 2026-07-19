@@ -40,8 +40,8 @@ const HRReport = () => {
     const deptStats = Object.values(deptMap).sort((a, b) => b.cost - a.cost);
 
     const kpis = [
-      { id: 'hc', label: 'Active Personnel', value: headCount, trend: 2.5, trendDir: 'up', color: 'indigo', chartData: deptStats.map(d => ({ value: d.count })) },
-      { id: 'load', label: 'Monthly Payroll', value: totalSalary, trend: 1.2, trendDir: 'up', color: 'emerald', chartData: deptStats.map(d => ({ value: d.cost })) }
+      { id: 'hc', label: 'Active Personnel', value: headCount, trend: 0, trendDir: 'none', color: 'indigo', chartData: deptStats.map(d => ({ value: d.count })) },
+      { id: 'load', label: 'Monthly Payroll', value: totalSalary, trend: 0, trendDir: 'none', color: 'emerald', chartData: deptStats.map(d => ({ value: d.cost })) }
     ];
 
     return { totalSalary, headCount, deptStats, kpis };
