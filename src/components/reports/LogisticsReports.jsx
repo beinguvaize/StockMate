@@ -43,46 +43,46 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
   {/* Logistics Premium Ribbon */}
   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
     {/* Fleet Utilization Card */}
-    <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
-      <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-ink-primary">
+    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+      <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-foreground">
         <Truck size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Fleet Utilization</span>
-        <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-          {new Set(sales.filter(s => s.vehicleId).map(s => s.vehicleId)).size} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">/ {vehicles.length}</span>
+        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Fleet Utilization</span>
+        <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
+          {new Set(sales.filter(s => s.vehicleId).map(s => s.vehicleId)).size} <span className="text-sm font-bold opacity-30 text-foreground tracking-wider ml-1">/ {vehicles.length}</span>
         </div>
-        <div className="flex items-center gap-1.5 text-gray-400 mt-3">
+        <div className="flex items-center gap-1.5 text-muted-foreground mt-3">
           <span className="text-[9px] font-bold uppercase tracking-wider">Active vs Total Fleet</span>
         </div>
       </div>
     </div>
 
     {/* Delivery Volume Card */}
-    <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-accent-signature-hover">
         <Navigation size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Delivery Volume</span>
-        <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-          {sales.filter(s => s.vehicleId).length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">UNITS</span>
+        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Delivery Volume</span>
+        <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
+          {sales.filter(s => s.vehicleId).length} <span className="text-sm font-bold opacity-30 text-foreground tracking-wider ml-1">UNITS</span>
         </div>
-        <div className="flex items-center gap-1.5 text-gray-400 mt-3">
+        <div className="flex items-center gap-1.5 text-muted-foreground mt-3">
           <span className="text-[9px] font-bold uppercase tracking-wider">Logistics Events Optimized</span>
         </div>
       </div>
     </div>
 
     {/* Top Route Card */}
-    <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-purple-500">
         <MapPin size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Top Route Revenue</span>
-        <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-          <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile.currencySymbol}</span>
+        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Top Route Revenue</span>
+        <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
+          <span className="text-[16px] text-foreground/30 mr-1">{businessProfile.currencySymbol}</span>
           {Math.round(routeStats[0]?.revenue || 0).toLocaleString()}
         </div>
         <div className="flex items-center gap-1.5 text-purple-500/70 mt-3">
@@ -94,8 +94,8 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
 
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
  {/* Vehicle Performance Chart */}
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
- <h3 className="text-xl font-semibold text-ink-primary mb-2">Fleet Productivity.</h3>
+ <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <h3 className="text-xl font-semibold text-foreground mb-2">Fleet Productivity.</h3>
  <p className="text-[10px] font-semibold text-gray-700 mb-8">Revenue generation per vehicle unit</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
@@ -123,8 +123,8 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
  </div>
 
  {/* Route Dominance */}
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
- <h3 className="text-xl font-semibold text-ink-primary mb-2">Route Dominance.</h3>
+ <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <h3 className="text-xl font-semibold text-foreground mb-2">Route Dominance.</h3>
  <p className="text-[10px] font-semibold text-gray-700 mb-8">Delivery volume distribution by region</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
@@ -160,10 +160,10 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
  </div>
 
  {/* Comprehensive Fleet Ledger */}
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
  <div className="flex justify-between items-center mb-10">
  <div>
- <h3 className="text-2xl font-semibold text-ink-primary mb-2">Logistics Intelligence Board.</h3>
+ <h3 className="text-2xl font-semibold text-foreground mb-2">Logistics Intelligence Board.</h3>
  <p className="text-[10px] font-semibold text-gray-700">Historical fleet efficiency metrics</p>
  </div>
  <button 
@@ -179,20 +179,20 @@ const LogisticsReports = ({ sales, vehicles, routes, businessProfile}) => {
  {vehicles.map(v => {
  const stats = vehiclePerformance.find(stat => stat.name === (v.plateNumber || v.model)) || { revenue: 0, deliveries: 0};
  return (
- <div key={v.id} className="p-6 bg-canvas/30 rounded-xl border border-black/5 hover:bg-white hover:shadow-xl transition-all group">
+ <div key={v.id} className="p-6 bg-canvas/30 rounded-xl border border-border/60 hover:bg-white hover:shadow-xl transition-all group">
  <div className="flex items-center gap-4 mb-6">
  <div className="w-12 h-12 rounded-lg bg-white group-hover:bg-ink-primary transition-all shadow-sm overflow-hidden flex items-center justify-center">
  <img src={`${import.meta.env.BASE_URL}assets/van.png`} className="w-full h-full object-cover" alt="Vehicle" />
  </div>
  <div>
- <div className="text-[11px] font-semibold text-ink-primary truncate">{v.plateNumber}</div>
+ <div className="text-[11px] font-semibold text-foreground truncate">{v.plateNumber}</div>
  <div className="text-[8px] font-semibold text-ink-tertiary">{v.model}</div>
  </div>
  </div>
  <div className="space-y-4">
  <div className="flex justify-between items-end">
  <span className="text-[8px] font-semibold text-ink-tertiary">Revenue generated</span>
- <span className="text-sm font-semibold text-ink-primary">
+ <span className="text-sm font-semibold text-foreground">
  {businessProfile.currencySymbol}{Math.round(stats.revenue).toLocaleString()}
  </span>
  </div>

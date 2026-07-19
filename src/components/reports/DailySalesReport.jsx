@@ -38,24 +38,24 @@ const DailySalesReport = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-ink-primary leading-none">
-            Daily Sales<span className="text-accent-signature">.</span>
+          <h1 className="text-base font-semibold text-foreground tracking-tight">
+            Daily Sales
           </h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {range.start === range.end ? range.start : `${range.start} → ${range.end}`}
           </p>
         </div>
         <div className="flex-1" />
-        <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1 flex-wrap">
+        <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
           {PRESETS.map(p => (
             <button key={p.id} onClick={() => applyPreset(p.id)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-                preset === p.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
+              className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                preset === p.id ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
               }`}>{p.label}</button>
           ))}
           <button onClick={() => applyPreset('CUSTOM')}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-              preset === 'CUSTOM' ? 'bg-ink-primary text-white' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+              preset === 'CUSTOM' ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
             }`}>
             <Calendar size={11} /> Custom
           </button>
@@ -63,15 +63,15 @@ const DailySalesReport = () => {
       </div>
 
       {showCustom && (
-        <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-black/5 shadow-sm">
-          <Calendar size={14} className="text-gray-400 shrink-0" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <Calendar size={14} className="text-muted-foreground shrink-0" />
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
-          <span className="text-gray-400 text-xs font-bold">to</span>
+            className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
+          <span className="text-muted-foreground text-xs font-bold">to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
+            className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
           <button onClick={applyCustom}
-            className="px-4 py-2 rounded-xl bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all">Apply</button>
+            className="px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">Apply</button>
         </div>
       )}
 

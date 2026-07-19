@@ -163,11 +163,11 @@ const GSTR3BReport = () => {
     },
     columns: [
       { key: 'row', label: 'Nature of Supply', width: 380,
-        render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">{val}</span> },
+        render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight text-[11px]">{val}</span> },
       { key: 'taxable', label: 'Total Taxable Value', type: 'currency', align: 'right', width: 170, render: (val) => formatINR(val) },
-      { key: 'integratedTax', label: 'IGST', type: 'currency', align: 'right', width: 140, render: (val) => val > 0 ? <span className="font-black text-rose-500">{formatINR(val)}</span> : '—' },
-      { key: 'centralTax', label: 'CGST', type: 'currency', align: 'right', width: 140, render: (val) => val > 0 ? <span className="font-black text-accent-signature">{formatINR(val)}</span> : '—' },
-      { key: 'stateTax', label: 'SGST/UTGST', type: 'currency', align: 'right', width: 140, render: (val) => val > 0 ? <span className="font-black text-sky-600">{formatINR(val)}</span> : '—' },
+      { key: 'integratedTax', label: 'IGST', type: 'currency', align: 'right', width: 140, render: (val) => val > 0 ? <span className="font-semibold text-rose-500">{formatINR(val)}</span> : '—' },
+      { key: 'centralTax', label: 'CGST', type: 'currency', align: 'right', width: 140, render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : '—' },
+      { key: 'stateTax', label: 'SGST/UTGST', type: 'currency', align: 'right', width: 140, render: (val) => val > 0 ? <span className="font-semibold text-sky-600">{formatINR(val)}</span> : '—' },
       { key: 'cess', label: 'Cess', type: 'currency', align: 'right', width: 100, render: (val) => val > 0 ? formatINR(val) : '—' },
     ],
     kpis,
@@ -186,11 +186,11 @@ const GSTR3BReport = () => {
     },
     columns: [
       { key: 'recipientType', label: 'Recipient Type', width: 180,
-        render: (val) => <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase bg-accent-signature/10 text-accent-signature">{val}</span> },
+        render: (val) => <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase bg-accent-signature/10 text-accent-signature">{val}</span> },
       { key: 'placeOfSupply', label: 'Place of Supply', width: 220,
-        render: (val) => <span className="font-bold text-ink-primary">{val}</span> },
+        render: (val) => <span className="font-bold text-foreground">{val}</span> },
       { key: 'taxable', label: 'Taxable Value', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => formatINR(val) },
-      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-black text-rose-500">{formatINR(val)}</span> },
+      { key: 'igst', label: 'IGST', type: 'currency', align: 'right', sortable: true, width: 140, render: (val) => <span className="font-semibold text-rose-500">{formatINR(val)}</span> },
     ],
     kpis,
     detailFields: [
@@ -215,10 +215,10 @@ const GSTR3BReport = () => {
     },
     columns: [
       { key: 'row', label: 'ITC Detail', width: 380,
-        render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">{val}</span> },
-      { key: 'integratedTax', label: 'IGST', type: 'currency', align: 'right', width: 150, render: (val) => val > 0 ? <span className="font-black text-rose-500">{formatINR(val)}</span> : '—' },
-      { key: 'centralTax', label: 'CGST', type: 'currency', align: 'right', width: 150, render: (val) => val > 0 ? <span className="font-black text-accent-signature">{formatINR(val)}</span> : '—' },
-      { key: 'stateTax', label: 'SGST/UTGST', type: 'currency', align: 'right', width: 150, render: (val) => val > 0 ? <span className="font-black text-sky-600">{formatINR(val)}</span> : '—' },
+        render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight text-[11px]">{val}</span> },
+      { key: 'integratedTax', label: 'IGST', type: 'currency', align: 'right', width: 150, render: (val) => val > 0 ? <span className="font-semibold text-rose-500">{formatINR(val)}</span> : '—' },
+      { key: 'centralTax', label: 'CGST', type: 'currency', align: 'right', width: 150, render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : '—' },
+      { key: 'stateTax', label: 'SGST/UTGST', type: 'currency', align: 'right', width: 150, render: (val) => val > 0 ? <span className="font-semibold text-sky-600">{formatINR(val)}</span> : '—' },
       { key: 'cess', label: 'Cess', type: 'currency', align: 'right', width: 100, render: (val) => val > 0 ? formatINR(val) : '—' },
     ],
     kpis,
@@ -238,10 +238,10 @@ const GSTR3BReport = () => {
     },
     columns: [
       { key: 'row', label: 'Description', width: 260,
-        render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">{val}</span> },
-      { key: 'taxPayable', label: 'Tax Payable', type: 'currency', align: 'right', width: 170, render: (val) => <span className="font-black">{formatINR(val)}</span> },
-      { key: 'paidThroughITC', label: 'Paid via ITC', type: 'currency', align: 'right', width: 170, render: (val) => val > 0 ? <span className="font-black text-emerald-600">{formatINR(val)}</span> : '—' },
-      { key: 'paidInCash', label: 'Paid in Cash', type: 'currency', align: 'right', width: 170, render: (val) => val > 0 ? <span className="font-black text-accent-signature">{formatINR(val)}</span> : '—' },
+        render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight text-[11px]">{val}</span> },
+      { key: 'taxPayable', label: 'Tax Payable', type: 'currency', align: 'right', width: 170, render: (val) => <span className="font-semibold">{formatINR(val)}</span> },
+      { key: 'paidThroughITC', label: 'Paid via ITC', type: 'currency', align: 'right', width: 170, render: (val) => val > 0 ? <span className="font-semibold text-emerald-600">{formatINR(val)}</span> : '—' },
+      { key: 'paidInCash', label: 'Paid in Cash', type: 'currency', align: 'right', width: 170, render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : '—' },
     ],
     kpis,
   };
@@ -260,13 +260,13 @@ const GSTR3BReport = () => {
     },
     columns: [
       { key: 'head', label: 'Tax Head', width: 320,
-        render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">{val}</span> },
+        render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight text-[11px]">{val}</span> },
       { key: 'liability', label: 'Output Liability', type: 'currency', align: 'right', width: 180,
         render: (val) => val > 0 ? <span className="font-bold tabular-nums">{formatINR(val)}</span> : '—' },
       { key: 'viaItc', label: 'Set-off via ITC', type: 'currency', align: 'right', width: 180,
         render: (val) => val > 0 ? <span className="font-bold tabular-nums text-emerald-700">({formatINR(val)})</span> : '—' },
       { key: 'cash', label: 'Payable in Cash', type: 'currency', align: 'right', width: 180,
-        render: (val) => <span className={`font-black tabular-nums ${val > 0 ? 'text-accent-signature-hover' : 'text-emerald-700'}`}>{formatINR(val)}</span> },
+        render: (val) => <span className={`font-semibold tabular-nums ${val > 0 ? 'text-accent-signature-hover' : 'text-emerald-700'}`}>{formatINR(val)}</span> },
     ],
     kpis,
   };
@@ -284,15 +284,15 @@ const GSTR3BReport = () => {
     },
     columns: [
       { key: 'metric', label: 'Particular', width: 240,
-        render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">{val}</span> },
+        render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight text-[11px]">{val}</span> },
       { key: 'gstr1', label: 'GSTR-1', type: 'currency', align: 'right', width: 170,
         render: (val) => <span className="font-bold tabular-nums">{formatINR(val)}</span> },
       { key: 'gstr3b', label: 'GSTR-3B (3.1)', type: 'currency', align: 'right', width: 170,
         render: (val) => <span className="font-bold tabular-nums">{formatINR(val)}</span> },
       { key: 'variance', label: 'Variance', type: 'currency', align: 'right', width: 150,
-        render: (val) => <span className={`font-black tabular-nums ${Math.abs(val) < 1 ? 'text-emerald-700' : 'text-rose-600'}`}>{val < 0 ? `(${formatINR(Math.abs(val))})` : formatINR(val)}</span> },
+        render: (val) => <span className={`font-semibold tabular-nums ${Math.abs(val) < 1 ? 'text-emerald-700' : 'text-rose-600'}`}>{val < 0 ? `(${formatINR(Math.abs(val))})` : formatINR(val)}</span> },
       { key: 'status', label: 'Status', align: 'center', width: 120,
-        render: (val) => <span className={`font-black text-[10px] uppercase tracking-widest ${val === 'MATCHED' ? 'text-emerald-700' : 'text-rose-600'}`}>{val}</span> },
+        render: (val) => <span className={`font-semibold text-[10px] uppercase tracking-widest ${val === 'MATCHED' ? 'text-emerald-700' : 'text-rose-600'}`}>{val}</span> },
     ],
     kpis,
   };
@@ -313,9 +313,9 @@ const GSTR3BReport = () => {
     },
     columns: [
       { key: 'head', label: 'Tax Head', width: 240,
-        render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">{val}</span> },
+        render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight text-[11px]">{val}</span> },
       { key: 'opening',  label: 'Opening',  type: 'currency', align: 'right', width: 130,
-        render: (val) => <span className="tabular-nums text-gray-500">{formatINR(val)}</span> },
+        render: (val) => <span className="tabular-nums text-muted-foreground">{formatINR(val)}</span> },
       { key: 'availed',  label: 'Availed',  type: 'currency', align: 'right', width: 140,
         render: (val) => val > 0 ? <span className="font-bold tabular-nums text-emerald-700">{formatINR(val)}</span> : '—' },
       { key: 'reversed', label: 'Reversed', type: 'currency', align: 'right', width: 140,
@@ -323,7 +323,7 @@ const GSTR3BReport = () => {
       { key: 'utilised', label: 'Utilised', type: 'currency', align: 'right', width: 140,
         render: (val) => val > 0 ? <span className="font-bold tabular-nums">({formatINR(val)})</span> : '—' },
       { key: 'closing',  label: 'Closing Balance', type: 'currency', align: 'right', width: 160,
-        render: (val) => <span className="font-black tabular-nums text-ink-primary">{formatINR(val)}</span> },
+        render: (val) => <span className="font-semibold tabular-nums text-foreground">{formatINR(val)}</span> },
     ],
     kpis,
   };
@@ -332,15 +332,15 @@ const GSTR3BReport = () => {
   const exportBar = (
     <div className="no-print flex justify-end gap-2 mb-3">
       <button onClick={() => downloadGSTR3BExcel(gstr3b, { gstin, fp: fpNow() })}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-black transition-colors">
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors">
         <Download size={13} /> Excel Summary
       </button>
       <button onClick={() => downloadGSTR3BJSON(gstr3b, { gstin, fp: fpNow() })}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-ink-primary text-white text-[11px] font-black hover:opacity-90 transition-colors">
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-ink-primary text-white text-[11px] font-semibold hover:opacity-90 transition-colors">
         <Download size={13} /> Portal JSON
       </button>
       <button onClick={() => shareGSTWithCA({ kind: 'GSTR-3B', gstin, fp: fpNow(), totals: { taxable: gstr3b.summary.totalTurnover, cgst: gstr3b.section3_1?.[0]?.centralTax, sgst: gstr3b.section3_1?.[0]?.stateTax, igst: gstr3b.section3_1?.[0]?.integratedTax } })}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#25D366] text-white text-[11px] font-black hover:opacity-90 transition-colors">
+        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#25D366] text-white text-[11px] font-semibold hover:opacity-90 transition-colors">
         <Download size={13} /> Share with CA
       </button>
     </div>
@@ -353,24 +353,24 @@ const GSTR3BReport = () => {
       <ReportPeriodBar {...period} />
 
       {/* Compliance summary banner */}
-      <div className="no-print flex items-center gap-3 px-4 py-3 rounded-2xl border border-black/5 shadow-sm bg-emerald-50">
+      <div className="no-print flex items-center gap-3 px-4 py-3 rounded-2xl border border-border/60 shadow-sm bg-emerald-50">
         <CheckCircle2 className="text-emerald-600" size={20} />
         <div className="flex-1 grid grid-cols-2 md:grid-cols-4 gap-4">
           <div>
-            <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">Taxable Turnover</div>
-            <div className="text-sm font-black text-ink-primary mt-0.5">{formatINR(gstr3b.summary.totalTurnover)}</div>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Taxable Turnover</div>
+            <div className="text-sm font-semibold text-foreground mt-0.5">{formatINR(gstr3b.summary.totalTurnover)}</div>
           </div>
           <div>
-            <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">Gross Tax</div>
-            <div className="text-sm font-black text-rose-600 mt-0.5">{formatINR(gstr3b.summary.grossTax)}</div>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Gross Tax</div>
+            <div className="text-sm font-semibold text-rose-600 mt-0.5">{formatINR(gstr3b.summary.grossTax)}</div>
           </div>
           <div>
-            <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">ITC Available</div>
-            <div className="text-sm font-black text-emerald-600 mt-0.5">{formatINR(gstr3b.summary.totalITC)}</div>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">ITC Available</div>
+            <div className="text-sm font-semibold text-emerald-600 mt-0.5">{formatINR(gstr3b.summary.totalITC)}</div>
           </div>
           <div>
-            <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">Net Payable</div>
-            <div className="text-sm font-black text-accent-signature mt-0.5">{formatINR(gstr3b.summary.netTaxDue)}</div>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Net Payable</div>
+            <div className="text-sm font-semibold text-accent-signature mt-0.5">{formatINR(gstr3b.summary.netTaxDue)}</div>
           </div>
         </div>
       </div>

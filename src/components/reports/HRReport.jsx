@@ -71,14 +71,14 @@ const HRReport = () => {
     columns: [
       { key: 'name', label: 'Personnel Entity', sortable: true, width: 220, render: (val, row) => (
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center text-accent-signature font-black text-[10px] uppercase">{val.slice(0, 1)}</div>
-          <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>
+          <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center text-accent-signature font-semibold text-[10px] uppercase">{val.slice(0, 1)}</div>
+          <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
         </div>
       )},
-      { key: 'department', label: 'Operational Node', sortable: true, width: 150, render: (val) => <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{val || 'OPERATIONS'}</span> },
+      { key: 'department', label: 'Operational Node', sortable: true, width: 150, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'OPERATIONS'}</span> },
       { key: 'salary', label: 'Monthly Delta (Salary)', type: 'currency', align: 'right', sortable: true, width: 180 },
       { key: 'status', label: 'Integrity', width: 120, render: (val) => (
-        <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-black uppercase w-fit border border-emerald-100">
+        <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 text-emerald-600 rounded-full text-[9px] font-semibold uppercase w-fit border border-emerald-100">
           <div className="w-1 h-1 rounded-full bg-emerald-600" /> ACTIVE
         </div>
       )}
@@ -99,10 +99,10 @@ const HRReport = () => {
     totals: { amount: payrollMetrics.totalDisbursed },
     columns: [
       { key: 'processed_at', label: 'Sync Date', type: 'date', sortable: true, width: 150 },
-      { key: 'employeeId', label: 'Personnel Reference', width: 200, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 uppercase font-bold">{(val || '').slice(0, 10)}</span> },
-      { key: 'month', label: 'Fiscal Period', width: 120, render: (val) => <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">{val || 'CURRENT'}</span> },
+      { key: 'employeeId', label: 'Personnel Reference', width: 200, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-bold">{(val || '').slice(0, 10)}</span> },
+      { key: 'month', label: 'Fiscal Period', width: 120, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'CURRENT'}</span> },
       { key: 'amount', label: 'Magnitude', type: 'currency', align: 'right', sortable: true, width: 160 },
-      { key: 'processed_by', label: 'Validator', width: 140, render: (val) => <span className="text-[10px] font-bold text-gray-400 font-mono uppercase">{val || 'SYSTEM'}</span> }
+      { key: 'processed_by', label: 'Validator', width: 140, render: (val) => <span className="text-[10px] font-bold text-muted-foreground font-mono uppercase">{val || 'SYSTEM'}</span> }
     ],
     kpis: payrollMetrics.kpis,
     chartConfig: { 

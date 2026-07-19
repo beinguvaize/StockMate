@@ -95,11 +95,11 @@ const InventoryReport = () => {
       profit: valuationMetrics.totalPotential - valuationMetrics.totalCost
     },
     columns: [
-      { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 uppercase font-bold">{val || 'N/A'}</span> },
+      { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-bold">{val || 'N/A'}</span> },
       { key: 'name', label: 'Product Name', sortable: true, width: 250 },
-      { key: 'category', label: 'Category', sortable: true, width: 140, render: (val) => <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{val || 'GENERAL'}</span> },
+      { key: 'category', label: 'Category', sortable: true, width: 140, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'GENERAL'}</span> },
       { key: 'stock', label: 'Quantity', align: 'right', sortable: true, width: 100, render: (val, row) => (
-        <span className={`font-black ${val <= (row.lowStockThreshold || 5) ? 'text-red-500' : 'text-emerald-600'}`}>
+        <span className={`font-semibold ${val <= (row.lowStockThreshold || 5) ? 'text-red-500' : 'text-emerald-600'}`}>
           {val} {row.unit || 'pcs'}
         </span>
       )},
@@ -139,17 +139,17 @@ const InventoryReport = () => {
     columns: [
       { key: 'name', label: 'Unproductive Asset', sortable: true, width: 250, render: (val, row) => (
         <div className="flex flex-col">
-          <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>
+          <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
           <span className="text-[10px] font-bold text-red-400 font-mono">{row.sku}</span>
         </div>
       )},
       { key: 'category', label: 'Category', width: 140 },
-      { key: 'stock', label: 'Dormant Units', align: 'right', width: 120, render: (val) => <span className="font-mono text-red-500 font-black">{val} Units</span> },
+      { key: 'stock', label: 'Dormant Units', align: 'right', width: 120, render: (val) => <span className="font-mono text-red-500 font-semibold">{val} Units</span> },
       { key: 'costPrice', label: 'Frozen Value', align: 'right', width: 150,
         render: (val, row) => '₹' + ((val || 0) * (row.stock || 0))
           .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },
       { key: 'action', label: 'Action', width: 150, render: () => (
-        <button className="flex items-center gap-2 px-4 py-1.5 bg-red-50 text-red-600 rounded-full text-[9px] font-black hover:bg-red-600 hover:text-white transition-all uppercase tracking-widest border border-red-100">
+        <button className="flex items-center gap-2 px-4 py-1.5 bg-red-50 text-red-600 rounded-full text-[9px] font-semibold hover:bg-red-600 hover:text-white transition-all uppercase tracking-widest border border-red-100">
           Liquidate <ArrowRight size={12} />
         </button>
       )}

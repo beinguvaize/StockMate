@@ -70,7 +70,7 @@ const ReportShell = ({
     return (
       <div className="flex flex-col items-center justify-center py-32 opacity-20">
         <Shield size={64} strokeWidth={1} />
-        <p className="text-sm font-black uppercase mt-6 tracking-widest text-center">
+        <p className="text-sm font-semibold uppercase mt-6 tracking-widest text-center">
           Access Denied <br /> Secure Sector Protocol Engaged
         </p>
       </div>
@@ -83,28 +83,28 @@ const ReportShell = ({
       {/* 1. Header & Tab Navigation (Rule 1) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center no-print gap-6">
         <div>
-          <h1 className="text-4xl md:text-7xl font-black font-sora text-ink-primary leading-[0.85] tracking-tight mb-2 uppercase">
+          <h1 className="text-4xl md:text-7xl font-semibold font-sora text-foreground leading-[0.85] tracking-tight mb-2 uppercase">
             REPORTS<span className="text-accent-signature">.</span>
           </h1>
           <div className="flex items-center gap-3">
             <div className="w-1.5 h-4 bg-accent-signature rounded-full animate-pulse" />
-            <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
               Business Intelligence Node — {activeTab.label} Perspective
             </p>
           </div>
         </div>
 
         {/* Tab Scroller (Rule 1) */}
-        <div className="no-print flex items-center gap-1.5 p-1.5 bg-white/60 backdrop-blur-3xl border border-black/5 rounded-[2.5rem] shadow-glass overflow-x-auto no-scrollbar max-w-full sticky top-4 z-[40]">
+        <div className="no-print flex items-center gap-1.5 p-1.5 bg-white/60 backdrop-blur-3xl border border-border/60 rounded-[2.5rem] shadow-glass overflow-x-auto no-scrollbar max-w-full sticky top-4 z-[40]">
           {allowedTabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
               className={`
-                flex items-center gap-3 px-6 py-3 rounded-full text-[10px] font-black transition-all whitespace-nowrap uppercase tracking-widest
+                flex items-center gap-3 px-6 py-3 rounded-full text-[10px] font-semibold transition-all whitespace-nowrap uppercase tracking-widest
                 ${activeTabId === tab.id 
-                  ? 'bg-ink-primary text-white shadow-2xl scale-[1.05] z-10' 
-                  : 'text-gray-500 hover:text-ink-primary hover:bg-white/40'}
+                  ? 'bg-card text-foreground font-semibold shadow-sm' 
+                  : 'text-muted-foreground font-medium hover:text-foreground'}
               `}
             >
               {tab.icon}

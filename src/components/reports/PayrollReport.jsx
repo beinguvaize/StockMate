@@ -42,10 +42,10 @@ const PayrollReport = () => {
     totals: { amount: metrics.total },
     columns: [
       { key: 'processed_at', label: 'Disbursement Date', type: 'date', sortable: true, width: 180 },
-      { key: 'employeeId', label: 'Authorized Node (Staff)', width: 220, render: (val) => <div className="flex items-center gap-2 text-ink-primary font-black uppercase"><User size={12} className="text-accent-signature" /> {(val || '').slice(0, 10).toUpperCase()}...</div> },
-      { key: 'month', label: 'Fiscal Period', sortable: true, width: 150, render: (val) => <span className="text-[10px] font-black uppercase text-gray-500 tracking-widest">{val || 'CURRENT'}</span> },
+      { key: 'employeeId', label: 'Authorized Node (Staff)', width: 220, render: (val) => <div className="flex items-center gap-2 text-foreground font-semibold uppercase"><User size={12} className="text-accent-signature" /> {(val || '').slice(0, 10).toUpperCase()}...</div> },
+      { key: 'month', label: 'Fiscal Period', sortable: true, width: 150, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'CURRENT'}</span> },
       { key: 'amount', label: 'Magnitude (Salary)', type: 'currency', align: 'right', sortable: true, width: 160 },
-      { key: 'processed_by', label: 'Validator ID', width: 140, render: (val) => <span className="text-[10px] font-bold text-gray-400 font-mono uppercase">{val || 'SYSTEM'}</span> }
+      { key: 'processed_by', label: 'Validator ID', width: 140, render: (val) => <span className="text-[10px] font-bold text-muted-foreground font-mono uppercase">{val || 'SYSTEM'}</span> }
     ],
     kpis: metrics.kpis,
     chartConfig: { title: "Fiscal Period Expenditure Trend", type: 'line', data: metrics.chartData, series: [{ key: 'value', name: 'Disbursements', color: 'var(--color-accent-signature)' }] },

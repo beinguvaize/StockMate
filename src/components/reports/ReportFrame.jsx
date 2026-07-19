@@ -56,10 +56,10 @@ const ReportFrame = ({ title, subtitle, filename, exportData, actions, children 
     <div>
       <div className="flex items-start justify-between gap-4 mb-5 flex-wrap no-print">
         <div>
-          <h1 className="text-2xl font-black font-sora text-ink-primary leading-none tracking-tight">
+          <h1 className="text-2xl font-semibold font-sora text-foreground leading-none tracking-tight">
             {title}<span className="text-accent-signature">.</span>
           </h1>
-          {subtitle && <p className="text-[12px] font-medium text-gray-400 mt-1.5 font-mono">{subtitle}</p>}
+          {subtitle && <p className="text-[12px] font-medium text-muted-foreground mt-1.5 font-mono">{subtitle}</p>}
         </div>
         <div className="flex items-center gap-2">
           {actions}
@@ -73,14 +73,14 @@ const ReportFrame = ({ title, subtitle, filename, exportData, actions, children 
               </button>
               {open && (
                 <div className="absolute right-0 mt-2 w-44 rounded-xl bg-white border border-black/10 shadow-xl overflow-hidden z-30 py-1">
-                  <button onClick={doExcel} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-accent-signature/10 transition-colors">
+                  <button onClick={doExcel} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
                     <FileSpreadsheet size={15} className="text-emerald-600" /> Excel (.xlsx)
                   </button>
-                  <button onClick={doPDF} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-accent-signature/10 transition-colors">
+                  <button onClick={doPDF} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
                     <Printer size={15} className="text-accent-signature" /> PDF / Print
                   </button>
-                  <button onClick={doCSV} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-ink-primary hover:bg-accent-signature/10 transition-colors">
-                    <FileText size={15} className="text-gray-400" /> CSV
+                  <button onClick={doCSV} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
+                    <FileText size={15} className="text-muted-foreground" /> CSV
                   </button>
                 </div>
               )}

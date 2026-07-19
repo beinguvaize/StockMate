@@ -36,7 +36,7 @@ const deltaBadge = (delta, inverted = false) => {
   // inverted=true → lower is better (expenses). Green = decrease, red = increase.
   const positive = delta > 0;
   const good = inverted ? !positive : positive;
-  if (delta === 0) return { cls: 'text-gray-400', icon: <Minus size={10} /> };
+  if (delta === 0) return { cls: 'text-muted-foreground', icon: <Minus size={10} /> };
   return good
     ? { cls: 'text-emerald-600', icon: <ArrowUpRight size={10} /> }
     : { cls: 'text-rose-500', icon: <ArrowDownRight size={10} /> };
@@ -240,18 +240,18 @@ const YoYComparisonReport = () => {
     {
       key: 'month', label: 'Month', width: 110, sortable: true,
       render: (val) => (
-        <span className="font-black text-ink-primary uppercase tracking-widest text-[11px]">
+        <span className="font-semibold text-foreground uppercase tracking-widest text-[11px]">
           {val}
         </span>
       ),
     },
     {
       key: 'lastYear', label: `${lyYear}`, type: 'currency', align: 'right', sortable: true, width: 160,
-      render: (val) => <span className="font-bold text-gray-500">{formatINR(val)}</span>,
+      render: (val) => <span className="font-bold text-muted-foreground">{formatINR(val)}</span>,
     },
     {
       key: 'thisYear', label: `${cyYear}`, type: 'currency', align: 'right', sortable: true, width: 160,
-      render: (val) => <span className="font-black text-ink-primary">{formatINR(val)}</span>,
+      render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span>,
     },
     {
       key: 'delta', label: 'Δ Amount', type: 'currency', align: 'right', sortable: true, width: 160,
@@ -259,7 +259,7 @@ const YoYComparisonReport = () => {
         const { cls, icon } = deltaBadge(val, inverted);
         const prefix = val > 0 ? '+' : '';
         return (
-          <span className={`inline-flex items-center gap-1 font-black ${cls}`}>
+          <span className={`inline-flex items-center gap-1 font-semibold ${cls}`}>
             {icon} {prefix}{formatINR(val)}
           </span>
         );
@@ -271,7 +271,7 @@ const YoYComparisonReport = () => {
         if (!row.lastYear && !row.thisYear) return <span className="text-gray-300">—</span>;
         const { cls } = deltaBadge(row.delta, inverted);
         const prefix = val > 0 ? '+' : '';
-        return <span className={`font-black ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
+        return <span className={`font-semibold ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
       },
     },
   ]);
@@ -308,18 +308,18 @@ const YoYComparisonReport = () => {
       {
         key: 'metric', label: 'Metric', width: 220,
         render: (val) => (
-          <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">
+          <span className="font-semibold text-foreground uppercase tracking-tight text-[11px]">
             {val}
           </span>
         ),
       },
       {
         key: 'lastYear', label: `${lyYear} FY`, type: 'currency', align: 'right', sortable: true, width: 180,
-        render: (val) => <span className="font-bold text-gray-500">{formatINR(val)}</span>,
+        render: (val) => <span className="font-bold text-muted-foreground">{formatINR(val)}</span>,
       },
       {
         key: 'thisYear', label: `${cyYear} FY`, type: 'currency', align: 'right', sortable: true, width: 180,
-        render: (val) => <span className="font-black text-ink-primary">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span>,
       },
       {
         key: 'delta', label: 'Δ Amount', type: 'currency', align: 'right', width: 180,
@@ -327,7 +327,7 @@ const YoYComparisonReport = () => {
           const { cls, icon } = deltaBadge(val, row.inverted);
           const prefix = val > 0 ? '+' : '';
           return (
-            <span className={`inline-flex items-center gap-1 font-black ${cls}`}>
+            <span className={`inline-flex items-center gap-1 font-semibold ${cls}`}>
               {icon} {prefix}{formatINR(val)}
             </span>
           );
@@ -339,7 +339,7 @@ const YoYComparisonReport = () => {
           const { cls } = deltaBadge(row.delta, row.inverted);
           const prefix = val > 0 ? '+' : '';
           if (val == null) return <span className="text-gray-300">—</span>;
-          return <span className={`font-black text-[13px] ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
+          return <span className={`font-semibold text-[13px] ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
         },
       },
     ],
@@ -448,18 +448,18 @@ const YoYComparisonReport = () => {
       {
         key: 'category', label: 'Category', width: 240, sortable: true,
         render: (val) => (
-          <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">
+          <span className="font-semibold text-foreground uppercase tracking-tight text-[11px]">
             {val}
           </span>
         ),
       },
       {
         key: 'lastYear', label: `${lyYear}`, type: 'currency', align: 'right', sortable: true, width: 170,
-        render: (val) => <span className="font-bold text-gray-500">{formatINR(val)}</span>,
+        render: (val) => <span className="font-bold text-muted-foreground">{formatINR(val)}</span>,
       },
       {
         key: 'thisYear', label: `${cyYear}`, type: 'currency', align: 'right', sortable: true, width: 170,
-        render: (val) => <span className="font-black text-ink-primary">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span>,
       },
       {
         key: 'delta', label: 'Δ Amount', type: 'currency', align: 'right', sortable: true, width: 170,
@@ -467,7 +467,7 @@ const YoYComparisonReport = () => {
           const { cls, icon } = deltaBadge(val, true); // expenses: down is good
           const prefix = val > 0 ? '+' : '';
           return (
-            <span className={`inline-flex items-center gap-1 font-black ${cls}`}>
+            <span className={`inline-flex items-center gap-1 font-semibold ${cls}`}>
               {icon} {prefix}{formatINR(val)}
             </span>
           );
@@ -480,7 +480,7 @@ const YoYComparisonReport = () => {
           if (val == null) return <span className="text-gray-300">—</span>;
           const { cls } = deltaBadge(row.delta, true);
           const prefix = val > 0 ? '+' : '';
-          return <span className={`font-black ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
+          return <span className={`font-semibold ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
         },
       },
     ],
@@ -513,15 +513,15 @@ const YoYComparisonReport = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Year switcher + headline strip */}
-      <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-white/60 backdrop-blur-md border border-black/5">
+      <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-white/60 backdrop-blur-md border border-border/60">
         <div className="flex items-center gap-2">
           <Calendar size={14} className="text-accent-signature" />
-          <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Compare</span>
+          <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Compare</span>
         </div>
         <select
           value={cyYear}
           onChange={(e) => setCyYear(Number(e.target.value))}
-          className="px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-ink-primary bg-white border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
+          className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-foreground bg-white border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
         >
           {yearOptions.map((y) => (
             <option key={y} value={y}>{y} vs {y - 1}</option>
@@ -533,22 +533,22 @@ const YoYComparisonReport = () => {
         {/* Headline deltas */}
         <div className="flex items-center gap-5">
           <div className="text-right">
-            <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">Revenue</div>
-            <div className={`inline-flex items-center gap-1 text-sm font-black ${derived.revDelta >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Revenue</div>
+            <div className={`inline-flex items-center gap-1 text-sm font-semibold ${derived.revDelta >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
               {derived.revDelta >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
               {derived.revPct >= 0 ? '+' : ''}{derived.revPct.toFixed(1)}%
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">Expense</div>
-            <div className={`inline-flex items-center gap-1 text-sm font-black ${derived.expDelta <= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Expense</div>
+            <div className={`inline-flex items-center gap-1 text-sm font-semibold ${derived.expDelta <= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
               {derived.expDelta >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
               {derived.expPct >= 0 ? '+' : ''}{derived.expPct.toFixed(1)}%
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">Net Profit</div>
-            <div className={`inline-flex items-center gap-1 text-sm font-black ${derived.netDelta >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Net Profit</div>
+            <div className={`inline-flex items-center gap-1 text-sm font-semibold ${derived.netDelta >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
               {derived.netDelta >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
               {derived.netPct >= 0 ? '+' : ''}{derived.netPct.toFixed(1)}%
             </div>

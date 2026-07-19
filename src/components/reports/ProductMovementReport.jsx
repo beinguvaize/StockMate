@@ -28,16 +28,16 @@ const WINDOWS = [
 const SLOW_UNITS_THRESHOLD = 5;
 
 const KPI = ({ label, value, sub, icon: Icon, color = 'var(--color-accent-signature)', loading }) => (
-  <div className="bg-white rounded-2xl border border-black/5 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
+  <div className="bg-card rounded-[10px] border border-border/60 p-5 flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow">
     <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `color-mix(in srgb, ${color} 10%, transparent)` }}>
       <Icon size={16} style={{ color }} />
     </div>
     {loading
       ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="text-2xl font-black text-ink-primary tabular-nums leading-none">{value}</div>
+      : <div className="text-2xl font-semibold text-foreground tabular-nums leading-none">{value}</div>
     }
-    <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-      {label}{sub && <span className="block normal-case tracking-normal font-semibold text-gray-400 mt-0.5">{sub}</span>}
+    <div className="text-[11px] font-medium text-muted-foreground">
+      {label}{sub && <span className="block normal-case tracking-normal font-semibold text-muted-foreground mt-0.5">{sub}</span>}
     </div>
   </div>
 );
@@ -163,14 +163,14 @@ const ProductMovementReport = () => {
   });
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-4 pb-16">
       {/* Header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-ink-primary leading-none">
-            Product Movement<span className="text-accent-signature">.</span>
+          <h1 className="text-base font-semibold text-foreground tracking-tight">
+            Product Movement
           </h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">Fast &amp; slow moving analysis · last {windowDays} days</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Fast &amp; slow moving analysis · last {windowDays} days</p>
         </div>
         <div className="flex items-center gap-2">
           {WINDOWS.map(w => (
@@ -178,13 +178,13 @@ const ProductMovementReport = () => {
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
                 windowDays === w.key
                   ? 'bg-accent-signature text-button-text'
-                  : 'bg-white text-gray-600 hover:text-ink-primary border border-black/5'
+                  : 'bg-white text-gray-600 hover:text-foreground border border-border/60'
               }`}>
               {w.label}
             </button>
           ))}
           <button onClick={exportCSV} disabled={loading || (!fast.length && !slow.length)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-black/5 text-gray-700 hover:text-ink-primary hover:border-black/20 disabled:opacity-40 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-border/60 text-gray-700 hover:text-foreground hover:border-black/20 disabled:opacity-40 transition-colors">
             <Download size={13} /> Export
           </button>
         </div>
@@ -226,15 +226,15 @@ const ProductMovementReport = () => {
 const GRID = 'grid grid-cols-[1fr_90px_100px_70px_90px_90px_90px_110px] gap-3 px-6';
 
 const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => (
-  <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+  <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
     <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
       <div className="flex items-center gap-2">
         {icon}
-        <h2 className="text-base font-black text-ink-primary">{title}</h2>
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{sub}</span>
+        <h2 className="text-base font-semibold text-foreground">{title}</h2>
+        <span className="text-[11px] font-medium text-muted-foreground">{sub}</span>
       </div>
       {!loading && (
-        <span className="text-[10px] font-black text-gray-400 bg-canvas px-2 py-1 rounded-full">{rows.length} products</span>
+        <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">{rows.length} products</span>
       )}
     </div>
 
@@ -245,13 +245,13 @@ const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => 
     ) : rows.length === 0 ? (
       <div className="py-14 text-center">
         <Package size={30} className="mx-auto mb-3 text-gray-200" />
-        <p className="text-sm font-bold text-gray-500">{emptyText}</p>
+        <p className="text-sm font-bold text-muted-foreground">{emptyText}</p>
       </div>
     ) : (
       <div>
         <div className={`${GRID} py-2 bg-canvas/50 border-b border-black/5`}>
           {['Product', 'Category', 'Units Sold', 'Sales', 'Revenue', 'Stock', 'Days Cover', 'Stock Value'].map(h => (
-            <span key={h} className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{h}</span>
+            <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
           ))}
         </div>
         {rows.map((p, i) => {
@@ -261,22 +261,22 @@ const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => 
               className={`${GRID} py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors ${dead ? 'bg-red-50/40' : ''}`}>
               <div className="flex items-center gap-2 min-w-0">
                 {tone === 'fast' && i < 3 && (
-                  <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-black grid place-items-center">{i + 1}</span>
+                  <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-semibold grid place-items-center">{i + 1}</span>
                 )}
                 {tone === 'slow' && (
                   <span className={`w-2 h-2 rounded-full shrink-0 ${dead ? 'bg-red-500' : 'bg-accent-signature/70'}`} />
                 )}
                 <div className="min-w-0">
-                  <div className="text-sm font-bold text-ink-primary truncate">{p.name || '—'}</div>
-                  {p.sku && <div className="text-[10px] font-mono text-gray-400 truncate">{p.sku}</div>}
+                  <div className="text-sm font-bold text-foreground truncate">{p.name || '—'}</div>
+                  {p.sku && <div className="text-[10px] font-mono text-muted-foreground truncate">{p.sku}</div>}
                 </div>
               </div>
               <span className="text-xs font-bold text-ink-secondary truncate">{p.category || '—'}</span>
-              <span className={`text-sm font-black tabular-nums ${dead ? 'text-red-500' : 'text-ink-primary'}`}>
+              <span className={`text-sm font-semibold tabular-nums ${dead ? 'text-red-500' : 'text-foreground'}`}>
                 {p.units}{dead && <span className="block text-[9px] font-bold text-red-400 uppercase">never sold</span>}
               </span>
               <span className="text-sm font-bold text-ink-secondary tabular-nums">{p.txns}</span>
-              <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(p.revenue)}</span>
+              <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(p.revenue)}</span>
               <span className="text-sm font-bold text-ink-secondary tabular-nums">{p.stock}</span>
               <span className="text-sm font-bold tabular-nums">
                 {p.daysCover == null
@@ -284,7 +284,7 @@ const MovementTable = ({ title, sub, icon, rows, loading, tone, emptyText }) => 
                   : <span className={p.daysCover > 90 ? 'text-red-500' : p.daysCover > 45 ? 'text-accent-signature' : 'text-emerald-600'}>{Math.round(p.daysCover)}d</span>
                 }
               </span>
-              <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(p.stockValue)}</span>
+              <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(p.stockValue)}</span>
             </div>
           );
         })}

@@ -85,15 +85,15 @@ const LogisticsReport = () => {
     columns: [
       { key: 'name', label: 'Authorized Unit', sortable: true, width: 220, render: (val, row) => (
         <div className="flex flex-col">
-          <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>
-          <span className="text-[10px] font-bold text-gray-400 font-mono">{row.model}</span>
+          <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
+          <span className="text-[10px] font-bold text-muted-foreground font-mono">{row.model}</span>
         </div>
       )},
-      { key: 'deliveries', label: 'Service Events', align: 'right', sortable: true, width: 150, render: (val) => <span className="font-mono font-bold text-gray-400">{val} Drops</span> },
+      { key: 'deliveries', label: 'Service Events', align: 'right', sortable: true, width: 150, render: (val) => <span className="font-mono font-bold text-muted-foreground">{val} Drops</span> },
       { key: 'revenue', label: 'Revenue Magnitude', type: 'currency', align: 'right', sortable: true, width: 180 },
       { key: 'efficiency', label: 'Load Factor', align: 'right', width: 120, render: (_, row) => (
         <div className="flex flex-col items-end">
-          <span className="text-[10px] font-black text-emerald-500">{(row.revenue / (row.deliveries || 1)).toFixed(0)} / DROP</span>
+          <span className="text-[10px] font-semibold text-emerald-500">{(row.revenue / (row.deliveries || 1)).toFixed(0)} / DROP</span>
         </div>
       )}
     ],
@@ -112,7 +112,7 @@ const LogisticsReport = () => {
     loading: loading,
     totals: { revenue: routeMetrics.routeStats.reduce((acc, r) => acc + r.revenue, 0) },
     columns: [
-      { key: 'name', label: 'Territory Domain', sortable: true, width: 250, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
+      { key: 'name', label: 'Territory Domain', sortable: true, width: 250, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
       { key: 'deliveries', label: 'Volume', align: 'right', sortable: true, width: 150 },
       { key: 'revenue', label: 'Account Yield', type: 'currency', align: 'right', sortable: true, width: 180 },
       { key: 'density', label: 'Territory Density', align: 'right', width: 120, render: (_, row) => (

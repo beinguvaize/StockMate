@@ -97,16 +97,16 @@ const TrialBalanceReport = () => {
     columns: [
       {
         key: 'code', label: 'Code', sortable: true, width: 100,
-        render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 font-bold">{val}</span>,
+        render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-bold">{val}</span>,
       },
       {
         key: 'name', label: 'Account', sortable: true, width: 260,
-        render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>,
+        render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>,
       },
       {
         key: 'type', label: 'Type', width: 120,
         render: (val) => (
-          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase ${
+          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${
             val === 'ASSET' ? 'bg-accent-signature/10 text-accent-signature' :
             val === 'LIABILITY' ? 'bg-rose-50 text-rose-600' :
             val === 'EQUITY' ? 'bg-emerald-50 text-emerald-600' :
@@ -115,14 +115,14 @@ const TrialBalanceReport = () => {
           }`}>{val}</span>
         ),
       },
-      { key: 'category', label: 'Classification', width: 180, render: (val) => <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{val}</span> },
+      { key: 'category', label: 'Classification', width: 180, render: (val) => <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{val}</span> },
       {
         key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 160,
-        render: (val) => val > 0 ? <span className="font-black text-accent-signature">{formatINR(val)}</span> : <span className="text-gray-300">—</span>,
+        render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : <span className="text-gray-300">—</span>,
       },
       {
         key: 'credit', label: 'Credit', type: 'currency', align: 'right', sortable: true, width: 160,
-        render: (val) => val > 0 ? <span className="font-black text-emerald-600">{formatINR(val)}</span> : <span className="text-gray-300">—</span>,
+        render: (val) => val > 0 ? <span className="font-semibold text-emerald-600">{formatINR(val)}</span> : <span className="text-gray-300">—</span>,
       },
     ],
     kpis: kpis,
@@ -153,12 +153,12 @@ const TrialBalanceReport = () => {
       }`}>
         {balanced ? <CheckCircle2 className="text-emerald-600" size={20} /> : <AlertTriangle className="text-rose-600" size={20} />}
         <div className="flex-1">
-          <div className={`text-[11px] font-black uppercase tracking-widest ${balanced ? 'text-emerald-700' : 'text-rose-700'}`}>
+          <div className={`text-[11px] font-semibold uppercase tracking-widest ${balanced ? 'text-emerald-700' : 'text-rose-700'}`}>
             {balanced ? 'Double-Entry Integrity: VERIFIED' : 'Double-Entry Integrity: FAILED'}
           </div>
-          <div className="text-[10px] font-bold text-gray-500 mt-0.5">
+          <div className="text-[10px] font-bold text-muted-foreground mt-0.5">
             Debits: {formatINR(totals.debit)} · Credits: {formatINR(totals.credit)}
-            {!balanced && <> · Difference: <span className="text-rose-700 font-black">{formatINR(Math.abs(totals.diff))}</span></>}
+            {!balanced && <> · Difference: <span className="text-rose-700 font-semibold">{formatINR(Math.abs(totals.diff))}</span></>}
           </div>
         </div>
       </div>

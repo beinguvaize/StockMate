@@ -41,7 +41,7 @@ const ReportChartSection = ({
     if (active && payload && payload.length) {
       return (
         <div className="bg-ink-primary border border-white/10 p-4 rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-          <p className="text-[10px] font-black uppercase text-white/50 mb-2 tracking-widest">{label || payload[0].payload.name}</p>
+          <p className="text-[10px] font-semibold uppercase text-white/50 mb-2 tracking-widest">{label || payload[0].payload.name}</p>
           <div className="space-y-1">
             {payload.map((entry, index) => (
               <div key={index} className="flex items-center justify-between gap-6">
@@ -49,7 +49,7 @@ const ReportChartSection = ({
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
                   <span className="text-xs font-bold text-white uppercase">{entry.name}:</span>
                 </div>
-                <span className="text-sm font-black text-accent-signature tabular-nums">
+                <span className="text-sm font-semibold text-accent-signature tabular-nums">
                   {typeof entry.value === 'number' ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(entry.value) : entry.value}
                 </span>
               </div>
@@ -75,7 +75,7 @@ const ReportChartSection = ({
       return (
         <div className="h-full w-full flex flex-col items-center justify-center gap-4 opacity-20">
           <BarChart3 size={48} />
-          <p className="text-[10px] font-black uppercase tracking-widest">Awaiting Numerical Input</p>
+          <p className="text-[10px] font-semibold uppercase tracking-widest">Awaiting Numerical Input</p>
         </div>
       );
     }
@@ -207,7 +207,7 @@ const ReportChartSection = ({
 
   return (
     <div className={`transition-all duration-500 ease-in-out no-print ${isCollapsed ? 'mb-2' : 'mb-6'}`}>
-      <div className="bg-white rounded-[2.5rem] border border-black/5 shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-white rounded-[2.5rem] border border-border/60 shadow-sm overflow-hidden flex flex-col">
         
         {/* Header Toggle */}
         <div 
@@ -219,13 +219,13 @@ const ReportChartSection = ({
               {type === 'pie' ? <PieIcon size={20} /> : type === 'line' ? <LineIcon size={20} /> : <BarChart3 size={20} />}
             </div>
             <div className="flex flex-col gap-0.5">
-              <h3 className="text-xl font-black font-sora text-ink-primary uppercase tracking-tighter leading-none">
+              <h3 className="text-xl font-semibold font-sora text-foreground uppercase tracking-tighter leading-none">
                 {title}<span className="text-accent-signature">.</span>
               </h3>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Statistical Visualization</p>
+              <p className="text-[11px] font-medium text-muted-foreground">Statistical Visualization</p>
             </div>
           </div>
-          <button className="w-10 h-10 rounded-full border border-black/5 flex items-center justify-center hover:bg-canvas transition-all text-ink-primary">
+          <button className="w-10 h-10 rounded-full border border-border/60 flex items-center justify-center hover:bg-canvas transition-all text-foreground">
             {isCollapsed ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
           </button>
         </div>

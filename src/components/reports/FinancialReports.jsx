@@ -95,31 +95,31 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
       {/* Financial Premium Ribbon */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {/* Gross Revenue Card */}
-        <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+        <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
           <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-accent-signature-hover">
             <TrendingUp size={40} strokeWidth={2} />
           </div>
           <div className="relative z-10 flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Gross Revenue</span>
-            <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-              <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile.currencySymbol}</span>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Gross Revenue</span>
+            <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
+              <span className="text-[16px] text-foreground/30 mr-1">{businessProfile.currencySymbol}</span>
               {Math.round(totalRevenue).toLocaleString()}
             </div>
-            <div className="flex items-center gap-1.5 text-gray-400 mt-3">
+            <div className="flex items-center gap-1.5 text-muted-foreground mt-3">
               <span className="text-[9px] font-bold uppercase tracking-wider">Historical Total Sales</span>
             </div>
           </div>
         </div>
 
         {/* Total Expenditure Card */}
-        <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+        <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
           <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-red-500">
             <CreditCard size={40} strokeWidth={2} />
           </div>
           <div className="relative z-10 flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Total Expenditure</span>
-            <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-              <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile.currencySymbol}</span>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Total Expenditure</span>
+            <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
+              <span className="text-[16px] text-foreground/30 mr-1">{businessProfile.currencySymbol}</span>
               {Math.round(totalExpenditure).toLocaleString()}
             </div>
             <div className="flex items-center gap-1.5 text-red-500/70 mt-3">
@@ -129,14 +129,14 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
         </div>
 
         {/* Net Liquidity Card */}
-        <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+        <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
           <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-green-500">
             <DollarSign size={40} strokeWidth={2} />
           </div>
           <div className="relative z-10 flex flex-col">
-            <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Net Liquidity</span>
-            <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-              <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile.currencySymbol}</span>
+            <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Net Liquidity</span>
+            <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
+              <span className="text-[16px] text-foreground/30 mr-1">{businessProfile.currencySymbol}</span>
               {Math.round(netLiquidity).toLocaleString()}
             </div>
             <div className="flex items-center gap-1.5 text-green-500/70 mt-3">
@@ -147,10 +147,10 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
       </div>
 
  {/* 1a. P&L Statement */}
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
  <div className="flex justify-between items-center mb-10">
  <div>
- <h3 className="text-3xl font-semibold text-ink-primary leading-none mb-2">P&L Statement.</h3>
+ <h3 className="text-3xl font-semibold text-foreground leading-none mb-2">P&L Statement.</h3>
  <p className="text-[10px] font-semibold text-gray-700">Revenue vs Expenditure Performance</p>
  </div>
  <button 
@@ -194,8 +194,8 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
  <tbody>
  {plData.map((row, i) => (
  <tr key={i} className="border-b border-black/5 hover:bg-canvas/30 transition-colors">
- <td className="py-2 px-2 font-semibold text-xs text-ink-primary">{row.month}</td>
- <td className="py-2 px-2 text-sm font-semibold text-ink-primary tabular-nums">
+ <td className="py-2 px-2 font-semibold text-xs text-foreground">{row.month}</td>
+ <td className="py-2 px-2 text-sm font-semibold text-foreground tabular-nums">
  {businessProfile.currencySymbol}{Math.round(row.revenue).toLocaleString()}
  </td>
  <td className="py-2 px-2 text-sm font-semibold text-red-500 tabular-nums">
@@ -218,8 +218,8 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
 
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
  {/* 1b. Payment Method Breakdown */}
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
- <h3 className="text-xl font-semibold text-ink-primary mb-8">Payment Mix.</h3>
+ <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <h3 className="text-xl font-semibold text-foreground mb-8">Payment Mix.</h3>
  <div className="h-[300px] w-full mb-8">
  <ResponsiveContainer width="100%" height="100%">
  <PieChart>
@@ -251,13 +251,13 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
  </div>
  <div className="space-y-4">
  {paymentData.map((item, i) => (
- <div key={i} className="flex justify-between items-center p-4 bg-canvas/30 rounded-lg border border-black/5">
+ <div key={i} className="flex justify-between items-center p-4 bg-canvas/30 rounded-lg border border-border/60">
  <div className="flex items-center gap-3">
  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length]}}></div>
- <span className="text-xs font-semibold text-ink-primary">{item.name}</span>
+ <span className="text-xs font-semibold text-foreground">{item.name}</span>
  </div>
  <div className="text-right">
- <div className="text-sm font-semibold text-ink-primary tabular-nums">{businessProfile.currencySymbol}{Math.round(item.value).toLocaleString()}</div>
+ <div className="text-sm font-semibold text-foreground tabular-nums">{businessProfile.currencySymbol}{Math.round(item.value).toLocaleString()}</div>
  <div className="text-[9px] font-semibold text-ink-tertiary">{item.count} Trans. | Avg: {businessProfile.currencySymbol}{Math.round(item.value / item.count).toLocaleString()}</div>
  </div>
  </div>
@@ -266,19 +266,19 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
  </div>
 
  {/* 1c. Revenue Metrics Hub */}
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem] flex flex-col justify-between">
+ <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem] flex flex-col justify-between">
  <div>
- <h3 className="text-xl font-semibold text-ink-primary mb-2">Revenue Insights.</h3>
+ <h3 className="text-xl font-semibold text-foreground mb-2">Revenue Insights.</h3>
  <p className="text-[10px] font-semibold text-gray-700 mb-8">Key performance milestones</p>
  </div>
 
  <div className="grid grid-cols-1 gap-4">
- <div className="p-5 bg-canvas/40 rounded-[2rem] border border-black/5 relative overflow-hidden group">
+ <div className="p-5 bg-canvas/40 rounded-[2rem] border border-border/60 relative overflow-hidden group">
  <div className="absolute -right-8 -bottom-8 opacity-5 group-hover:scale-110 transition-transform">
  <TrendingUp size={120} />
  </div>
  <span className="text-[10px] font-semibold text-ink-tertiary mb-2 block font-mono">Best Month Overall</span>
- <div className="text-4xl font-semibold text-ink-primary mb-2">
+ <div className="text-4xl font-semibold text-foreground mb-2">
  {plData.reduce((prev, current) => (prev.revenue > current.revenue) ? prev : current).month}
  </div>
  <div className="flex items-center gap-2 text-green-500 font-semibold text-[10px]">
@@ -287,7 +287,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
  </div>
  </div>
 
- <div className="p-5 bg-ink-primary rounded-[2rem] text-slate-200 relative overflow-hidden group">
+ <div className="p-5 bg-ink-primary rounded-[2rem] text-primary-foreground relative overflow-hidden group">
  <span className="text-[10px] font-semibold text-ink-tertiary mb-2 block">Current Net Worth</span>
  <div className="text-4xl font-semibold text-accent-signature mb-2">
  {businessProfile.currencySymbol}{plData.reduce((sum, d) => sum + d.netProfit, 0).toLocaleString()}
@@ -298,7 +298,7 @@ const FinancialReports = ({ sales, expenses, payroll, businessProfile}) => {
 
   <button 
     onClick={() => navigate(`/${tenantSlug}/daybook`)}
-    className="mt-8 w-full py-2 border border-black/10 rounded-pill text-[10px] font-semibold text-ink-primary hover:bg-black/5 transition-all text-center"
+    className="mt-8 w-full py-2 border border-black/10 rounded-pill text-[10px] font-semibold text-foreground hover:bg-black/5 transition-all text-center"
   >
   View Detailed Ledger
   </button>

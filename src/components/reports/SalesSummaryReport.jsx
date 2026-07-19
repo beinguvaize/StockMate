@@ -78,7 +78,7 @@ const SalesSummaryReport = () => {
   // 3. Define Table Columns (Rule 2)
   const columns = [
     { key: 'date', label: 'Date', type: 'date', sortable: true, width: 140 },
-    { key: 'id', label: 'Invoice #', sortable: true, width: 120, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5">{(val || '').slice(0, 8).toUpperCase() || 'REF-N/A'}</span> },
+    { key: 'id', label: 'Invoice #', sortable: true, width: 120, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60">{(val || '').slice(0, 8).toUpperCase() || 'REF-N/A'}</span> },
     { key: 'customerInfo', label: 'Client Name', sortable: true, width: 220, render: (val) => val?.name || 'Walk-in Client' },
     { key: 'items', label: 'Items', align: 'right', width: 80, render: (val) => val?.length || 0 },
     { key: 'totalAmount', label: 'Total Amount', type: 'currency', align: 'right', sortable: true, width: 150 },
@@ -87,11 +87,11 @@ const SalesSummaryReport = () => {
     { key: 'margin', label: 'Margin %', align: 'right', width: 100, render: (_, row) => {
       const p = row.totalAmount - (row.totalCogs || 0);
       const m = (p / row.totalAmount) * 100;
-      return <span className={`font-black ${m > 20 ? 'text-emerald-600' : 'text-accent-signature'}`}>{m.toFixed(1)}%</span>;
+      return <span className={`font-semibold ${m > 20 ? 'text-emerald-600' : 'text-accent-signature'}`}>{m.toFixed(1)}%</span>;
     }},
-    { key: 'paymentMethod', label: 'Method', width: 120, render: (val) => <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{val || 'CASH'}</span> },
+    { key: 'paymentMethod', label: 'Method', width: 120, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'CASH'}</span> },
     { key: 'status', label: 'Status', width: 120, render: (val) => (
-      <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase w-fit ${
+      <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-semibold uppercase w-fit ${
         val === 'COMPLETED' ? 'bg-emerald-50 text-emerald-600' : 'bg-accent-signature/10 text-accent-signature'
       }`}>
         <div className={`w-1 h-1 rounded-full ${val === 'COMPLETED' ? 'bg-emerald-600' : 'bg-accent-signature'}`} />

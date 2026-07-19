@@ -162,7 +162,7 @@ const CashFlowReport = () => {
       SUMMARY: 'bg-ink-primary text-white',
     };
     return (
-      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-black uppercase ${colors[val] || 'bg-gray-50 text-gray-600'}`}>
+      <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${colors[val] || 'bg-gray-50 text-gray-600'}`}>
         {val}
       </span>
     );
@@ -180,7 +180,7 @@ const CashFlowReport = () => {
       {
         key: 'label', label: 'Line Item', sortable: false, width: 420,
         render: (val, row) => (
-          <span className={`${row.isSubtotal ? 'font-black text-ink-primary uppercase tracking-tight' : 'font-bold text-gray-600'} ${row.isTotal ? 'text-[13px]' : 'text-[11px]'}`}>
+          <span className={`${row.isSubtotal ? 'font-semibold text-foreground uppercase tracking-tight' : 'font-bold text-gray-600'} ${row.isTotal ? 'text-[13px]' : 'text-[11px]'}`}>
             {val}
           </span>
         ),
@@ -188,9 +188,9 @@ const CashFlowReport = () => {
       {
         key: 'amount', label: 'Amount', type: 'currency', align: 'right', sortable: false, width: 200,
         render: (val, row) => {
-          const cls = val > 0 ? 'text-emerald-600' : val < 0 ? 'text-rose-500' : 'text-gray-400';
+          const cls = val > 0 ? 'text-emerald-600' : val < 0 ? 'text-rose-500' : 'text-muted-foreground';
           return (
-            <span className={`${row.isSubtotal ? 'font-black' : 'font-bold'} ${cls} ${row.isTotal ? 'text-[14px]' : ''}`}>
+            <span className={`${row.isSubtotal ? 'font-semibold' : 'font-bold'} ${cls} ${row.isTotal ? 'text-[14px]' : ''}`}>
               {formatINR(val)}
             </span>
           );

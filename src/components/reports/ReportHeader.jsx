@@ -5,7 +5,7 @@ import { PRESETS } from './reportUtils';
 /**
  * ReportHeader — minimal shared report header: quiet title + period
  * subtitle, segmented preset control, optional custom range row, Export.
- * Theme tokens only. Replaces the loud per-file header (font-black title
+ * Theme tokens only. Replaces the loud per-file header (font-semibold title
  * with accent dot, bordered pill rows) across the preset-based reports.
  */
 const seg = (active) =>

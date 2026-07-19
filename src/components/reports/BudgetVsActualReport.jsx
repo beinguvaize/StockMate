@@ -66,7 +66,7 @@ const BADGE_CLS = {
   rose:    'bg-rose-50 text-rose-600 border-rose-200',
   amber:   'bg-accent-signature/10 text-accent-signature border-accent-signature/25',
   indigo:  'bg-accent-signature/10 text-accent-signature border-accent-signature/25',
-  gray:    'bg-gray-50 text-gray-500 border-gray-200',
+  gray:    'bg-gray-50 text-muted-foreground border-gray-200',
 };
 
 const BudgetVsActualReport = () => {
@@ -297,7 +297,7 @@ const BudgetVsActualReport = () => {
 
     return (
       <div className="flex items-center justify-end gap-1">
-        <span className="text-[10px] text-gray-400">₹</span>
+        <span className="text-[10px] text-muted-foreground">₹</span>
         <input
           type="number"
           inputMode="decimal"
@@ -316,7 +316,7 @@ const BudgetVsActualReport = () => {
           }}
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
           placeholder="—"
-          className={`w-28 px-2 py-1 text-right text-[11px] font-black text-ink-primary bg-white/70 border border-black/10 rounded-md focus:outline-none focus:border-accent-signature focus:bg-white transition-all ${saving ? 'opacity-50' : ''}`}
+          className={`w-28 px-2 py-1 text-right text-[11px] font-semibold text-foreground bg-white/70 border border-black/10 rounded-md focus:outline-none focus:border-accent-signature focus:bg-white transition-all ${saving ? 'opacity-50' : ''}`}
         />
       </div>
     );
@@ -326,7 +326,7 @@ const BudgetVsActualReport = () => {
     {
       key: 'category', label: 'Category', width: 220, sortable: true,
       render: (val) => (
-        <span className="font-black text-ink-primary uppercase tracking-tight text-[11px]">
+        <span className="font-semibold text-foreground uppercase tracking-tight text-[11px]">
           {val}
         </span>
       ),
@@ -337,15 +337,15 @@ const BudgetVsActualReport = () => {
     },
     {
       key: 'actual', label: 'Actual', type: 'currency', align: 'right', sortable: true, width: 160,
-      render: (val) => <span className="font-black text-ink-primary">{formatINR(val)}</span>,
+      render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span>,
     },
     {
       key: 'variance', label: 'Variance', type: 'currency', align: 'right', sortable: true, width: 160,
       render: (val, row) => {
         const good = (row.type === 'EXPENSE' && val <= 0) || (row.type === 'REVENUE' && val >= 0);
-        const cls = row.budget === 0 ? 'text-gray-400' : good ? 'text-emerald-600' : 'text-rose-500';
+        const cls = row.budget === 0 ? 'text-muted-foreground' : good ? 'text-emerald-600' : 'text-rose-500';
         const prefix = val > 0 ? '+' : '';
-        return <span className={`font-black ${cls}`}>{prefix}{formatINR(val)}</span>;
+        return <span className={`font-semibold ${cls}`}>{prefix}{formatINR(val)}</span>;
       },
     },
     {
@@ -356,13 +356,13 @@ const BudgetVsActualReport = () => {
         const good = (row.type === 'EXPENSE' && val <= 0) || (row.type === 'REVENUE' && val >= 0);
         const cls = good ? 'text-emerald-600' : 'text-rose-500';
         const prefix = val > 0 ? '+' : '';
-        return <span className={`font-black ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
+        return <span className={`font-semibold ${cls}`}>{prefix}{(val ?? 0).toFixed(1)}%</span>;
       },
     },
     {
       key: 'status', label: 'Status', width: 150,
       render: (val, row) => (
-        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${BADGE_CLS[row.statusColor] || BADGE_CLS.gray}`}>
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[9px] font-semibold uppercase tracking-wider border ${BADGE_CLS[row.statusColor] || BADGE_CLS.gray}`}>
           {val === 'OVER' || val === 'BEHIND' ? <AlertTriangle size={10} /> :
            val === 'ON_TRACK' || val === 'UNDER' || val === 'AHEAD' ? <CheckCircle2 size={10} /> : null}
           {STATUS_LABELS[val] || val}
@@ -439,15 +439,15 @@ const BudgetVsActualReport = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Period + Quick Actions */}
-      <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-white/60 backdrop-blur-md border border-black/5">
+      <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-white/60 backdrop-blur-md border border-border/60">
         <div className="flex items-center gap-2">
           <Calendar size={14} className="text-accent-signature" />
-          <span className="text-[9px] font-black uppercase tracking-widest text-gray-500">Period</span>
+          <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Period</span>
         </div>
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-          className="px-3 py-1.5 text-[11px] font-black uppercase tracking-wider text-ink-primary bg-white border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
+          className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-foreground bg-white border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
         >
           {periods.map((p) => (
             <option key={p} value={p}>{periodLabel(p)}</option>
@@ -458,13 +458,13 @@ const BudgetVsActualReport = () => {
 
         <button
           onClick={handleCopyLastMonth}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-gray-600 hover:text-ink-primary bg-white border border-black/10 hover:border-accent-signature rounded-md transition-all"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600 hover:text-foreground bg-white border border-black/10 hover:border-accent-signature rounded-md transition-all"
         >
           <Copy size={12} /> Copy Last Month
         </button>
         <button
           onClick={handleSuggestAvg}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-accent-signature hover:text-white hover:bg-accent-signature bg-accent-signature/10 border border-accent-signature/25 rounded-md transition-all"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-accent-signature hover:text-white hover:bg-accent-signature bg-accent-signature/10 border border-accent-signature/25 rounded-md transition-all"
         >
           <Sparkles size={12} /> Suggest from 3-mo Avg
         </button>
@@ -474,31 +474,31 @@ const BudgetVsActualReport = () => {
         {/* Cloud indicator */}
         <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-100">
           <Cloud size={10} className="text-emerald-600" />
-          <span className="text-[9px] font-black uppercase tracking-widest text-emerald-700">Cloud-synced</span>
+          <span className="text-[9px] font-semibold uppercase tracking-widest text-emerald-700">Cloud-synced</span>
         </div>
 
         {/* Summary strip */}
         <div className="flex items-center gap-5">
           <div className="text-right">
-            <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">Planned Profit</div>
-            <div className="text-sm font-black text-accent-signature">{formatINR(totals.plannedProfit)}</div>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Planned Profit</div>
+            <div className="text-sm font-semibold text-accent-signature">{formatINR(totals.plannedProfit)}</div>
           </div>
           <div className="text-right">
-            <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">Actual Profit</div>
-            <div className={`text-sm font-black ${totals.actualProfit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Actual Profit</div>
+            <div className={`text-sm font-semibold ${totals.actualProfit >= 0 ? 'text-emerald-600' : 'text-rose-500'}`}>
               {formatINR(totals.actualProfit)}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-[9px] font-black uppercase tracking-widest text-gray-500">On-Track</div>
-            <div className="text-sm font-black text-ink-primary">
+            <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">On-Track</div>
+            <div className="text-sm font-semibold text-foreground">
               {totals.onTrack}/{totals.totalLines || 0}
             </div>
           </div>
         </div>
       </div>
 
-      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-accent-signature/5 border border-black/5 shadow-sm">
+      <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-accent-signature/5 border border-border/60 shadow-sm">
         <Edit3 size={12} className="text-accent-signature" />
         <span className="text-[10px] font-bold uppercase tracking-wider text-accent-signature-hover">
           Tip: Click any Budget cell to edit. Changes sync across all devices in real-time.

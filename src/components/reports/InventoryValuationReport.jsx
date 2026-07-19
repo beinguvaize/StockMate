@@ -77,11 +77,11 @@ const InventoryValuationReport = () => {
 
   // 3. Define Table Columns (Rule 2)
   const columns = [
-    { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 uppercase">{val || 'N/A'}</span> },
+    { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase">{val || 'N/A'}</span> },
     { key: 'name', label: 'Product Name', sortable: true, width: 250 },
-    { key: 'category', label: 'Category', sortable: true, width: 140, render: (val) => <span className="text-[10px] font-black uppercase text-gray-400 tracking-widest">{val || 'GENERAL'}</span> },
+    { key: 'category', label: 'Category', sortable: true, width: 140, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'GENERAL'}</span> },
     { key: 'stock', label: 'Quantity', align: 'right', sortable: true, width: 100, render: (val, row) => (
-      <span className={`font-black ${val <= (row.lowStockThreshold || 5) ? 'text-red-500' : 'text-emerald-600'}`}>
+      <span className={`font-semibold ${val <= (row.lowStockThreshold || 5) ? 'text-red-500' : 'text-emerald-600'}`}>
         {val} {row.unit || 'pcs'}
       </span>
     )},
@@ -93,7 +93,7 @@ const InventoryValuationReport = () => {
     { key: 'margin', label: 'Margin %', align: 'right', width: 100, render: (_, row) => {
       const p = row.sellingPrice - row.costPrice;
       const m = (p / row.sellingPrice) * 100;
-      return <span className={`font-black ${m > 25 ? 'text-emerald-600' : 'text-accent-signature'}`}>{m.toFixed(1)}%</span>;
+      return <span className={`font-semibold ${m > 25 ? 'text-emerald-600' : 'text-accent-signature'}`}>{m.toFixed(1)}%</span>;
     }}
   ];
 

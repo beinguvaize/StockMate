@@ -35,7 +35,7 @@ const ExpiryReport = () => {
         _sku: p.sku || '',
         _days: days,
         _bucket: bucket?.label || '> 90 days',
-        _bucketColor: bucket?.color || 'text-gray-500 bg-gray-50 border-gray-200',
+        _bucketColor: bucket?.color || 'text-muted-foreground bg-gray-50 border-gray-200',
         _value: round2(Number(b.qty_remaining) * Number(b.unit_cost || 0)),
       };
     })
@@ -80,8 +80,8 @@ const ExpiryReport = () => {
         key: '_product', label: 'Product', sortable: true, width: 220,
         render: (v, r) => (
           <div>
-            <div className="font-semibold text-ink-primary">{v}</div>
-            {r._sku && <div className="text-[10px] text-gray-400">{r._sku}</div>}
+            <div className="font-semibold text-foreground">{v}</div>
+            {r._sku && <div className="text-[10px] text-muted-foreground">{r._sku}</div>}
           </div>
         ),
       },
@@ -107,11 +107,11 @@ const ExpiryReport = () => {
     <>
       <div className="no-print flex items-center justify-end gap-2 mb-3">
         <button onClick={exportExcel}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-black transition-colors">
+          className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-accent-signature hover:bg-accent-signature-hover text-white text-[11px] font-semibold transition-colors">
           <Download size={13} /> Excel
         </button>
       </div>
-      <p className="no-print text-[11px] text-gray-400 mb-2 text-right">
+      <p className="no-print text-[11px] text-muted-foreground mb-2 text-right">
         Batches get expiry dates from the Add Purchase form — only dated batches with stock appear here.
       </p>
       <PremiumReportView title="Expiry Tracking" subtitle="Batches expiring within 90 days" tabs={[tab]} />

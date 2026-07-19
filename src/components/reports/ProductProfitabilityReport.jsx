@@ -268,7 +268,7 @@ const ProductProfitabilityReport = () => {
     };
     const c = tierConfig[label] || tierConfig.THIN;
     return (
-      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase ${c.bg} ${c.text}`}>
+      <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-semibold uppercase ${c.bg} ${c.text}`}>
         <div className="w-1 h-1 rounded-full" style={{ backgroundColor: c.dot }} />
         {label}
       </div>
@@ -296,8 +296,8 @@ const ProductProfitabilityReport = () => {
         width: 240,
         render: (val, row) => (
           <div className="flex flex-col gap-0.5">
-            <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>
-            <span className="text-[9px] text-gray-400 font-mono">{row.sku}</span>
+            <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
+            <span className="text-[9px] text-muted-foreground font-mono">{row.sku}</span>
           </div>
         ),
       },
@@ -306,7 +306,7 @@ const ProductProfitabilityReport = () => {
         label: 'Category',
         sortable: true,
         width: 140,
-        render: (val) => <span className="text-[10px] font-bold text-gray-500 uppercase">{val}</span>,
+        render: (val) => <span className="text-[10px] font-bold text-muted-foreground uppercase">{val}</span>,
       },
       {
         key: 'units_sold',
@@ -314,7 +314,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 110,
-        render: (val) => <span className="font-black tabular-nums">{val.toLocaleString('en-IN')}</span>,
+        render: (val) => <span className="font-semibold tabular-nums">{val.toLocaleString('en-IN')}</span>,
       },
       {
         key: 'avg_sell_price',
@@ -322,7 +322,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 120,
-        render: (val) => <span className="text-[10px] font-bold text-gray-500 tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="text-[10px] font-bold text-muted-foreground tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'cost_price',
@@ -330,7 +330,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 110,
-        render: (val) => <span className="text-[10px] text-gray-400 tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="text-[10px] text-muted-foreground tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'revenue',
@@ -339,7 +339,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 140,
-        render: (val) => <span className="font-black text-ink-primary tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-foreground tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'cogs',
@@ -348,7 +348,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 130,
-        render: (val) => <span className="text-gray-500 tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="text-muted-foreground tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'gross_profit',
@@ -358,7 +358,7 @@ const ProductProfitabilityReport = () => {
         sortable: true,
         width: 140,
         render: (val) => (
-          <span className={`font-black tabular-nums ${val >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+          <span className={`font-semibold tabular-nums ${val >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
             {formatINR(val)}
           </span>
         ),
@@ -370,7 +370,7 @@ const ProductProfitabilityReport = () => {
         sortable: true,
         width: 100,
         render: (val) => (
-          <span className={`font-black tabular-nums ${val >= 20 ? 'text-emerald-600' : val >= 5 ? 'text-accent-signature' : 'text-rose-600'}`}>
+          <span className={`font-semibold tabular-nums ${val >= 20 ? 'text-emerald-600' : val >= 5 ? 'text-accent-signature' : 'text-rose-600'}`}>
             {PCT(val)}
           </span>
         ),
@@ -428,13 +428,13 @@ const ProductProfitabilityReport = () => {
         width: 260,
         render: (val, row) => (
           <div className="flex flex-col gap-0.5">
-            <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>
-            <span className="text-[9px] text-gray-400 font-mono">{row.sku}</span>
+            <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
+            <span className="text-[9px] text-muted-foreground font-mono">{row.sku}</span>
           </div>
         ),
       },
       { key: 'category', label: 'Category', sortable: true, width: 140 },
-      { key: 'stock', label: 'On Hand', align: 'right', sortable: true, width: 100, render: (v) => <span className="font-black tabular-nums">{v}</span> },
+      { key: 'stock', label: 'On Hand', align: 'right', sortable: true, width: 100, render: (v) => <span className="font-semibold tabular-nums">{v}</span> },
       { key: 'cost_price', label: 'Unit Cost', type: 'currency', align: 'right', sortable: true, width: 120, render: (v) => formatINR(v) },
       {
         key: 'capital_locked',
@@ -443,7 +443,7 @@ const ProductProfitabilityReport = () => {
         sortable: true,
         width: 160,
         render: (_, row) => (
-          <span className="font-black text-rose-600 tabular-nums">
+          <span className="font-semibold text-rose-600 tabular-nums">
             {formatINR(row.stock * row.cost_price)}
           </span>
         ),
@@ -455,7 +455,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 120,
-        render: (v) => <span className="text-gray-500 tabular-nums">{formatINR(v)}</span>,
+        render: (v) => <span className="text-muted-foreground tabular-nums">{formatINR(v)}</span>,
       },
     ],
     kpis: [

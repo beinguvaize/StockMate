@@ -21,7 +21,7 @@ const payBadge = (method) => {
   };
   const cls = colors[m] || 'bg-gray-50 text-gray-600 border-gray-100';
   return (
-    <span className={`inline-block text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
+    <span className={`inline-block text-[9px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
       {m}
     </span>
   );
@@ -33,7 +33,7 @@ const statusBadge = (status) => {
     ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
     : 'bg-accent-signature/10 text-accent-signature-hover border-accent-signature/15';
   return (
-    <span className={`inline-block text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
+    <span className={`inline-block text-[9px] font-semibold uppercase tracking-widest px-2 py-0.5 rounded-full border ${cls}`}>
       {s}
     </span>
   );
@@ -223,7 +223,7 @@ const SalesReport = () => {
       {
         key: 'id', label: 'Invoice #', sortable: false, width: 130,
         render: (val) => (
-          <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 uppercase font-bold text-ink-secondary">
+          <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-bold text-ink-secondary">
             #{(val || '').slice(-6).toUpperCase()}
           </span>
         ),
@@ -236,10 +236,10 @@ const SalesReport = () => {
             || 'Walk-in';
           return (
             <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-full bg-accent-signature/15 flex items-center justify-center text-[9px] font-black text-accent-signature shrink-0">
+              <div className="w-6 h-6 rounded-full bg-accent-signature/15 flex items-center justify-center text-[9px] font-semibold text-accent-signature shrink-0">
                 {(name[0] || 'W').toUpperCase()}
               </div>
-              <span className="font-semibold text-ink-primary truncate">{name}</span>
+              <span className="font-semibold text-foreground truncate">{name}</span>
             </div>
           );
         },
@@ -335,12 +335,12 @@ const SalesReport = () => {
             <div className="w-5 h-5 rounded-md bg-accent-signature/10 flex items-center justify-center shrink-0">
               <Package size={9} className="text-accent-signature" />
             </div>
-            <span className="font-semibold text-ink-primary">{val}</span>
+            <span className="font-semibold text-foreground">{val}</span>
           </div>
         ),
       },
       { key: 'quantity',      label: 'Qty',     align: 'right', sortable: true, width: 80,
-        render: (val) => <span className="font-mono font-bold text-ink-primary">{val}</span> },
+        render: (val) => <span className="font-mono font-bold text-foreground">{val}</span> },
       { key: 'rate',          label: 'Rate',     type: 'currency', align: 'right', width: 110 },
       { key: 'lineTotal',     label: 'Amount',   type: 'currency', align: 'right', sortable: true, width: 130 },
       {
@@ -390,8 +390,8 @@ const SalesReport = () => {
       {
         key: '_rank', label: '#', width: 50, align: 'center',
         render: (val) => (
-          <span className={`font-black tabular-nums text-sm ${
-            val === 1 ? 'text-accent-signature' : val === 2 ? 'text-gray-400' : val === 3 ? 'text-accent-signature-hover' : 'text-ink-tertiary'
+          <span className={`font-semibold tabular-nums text-sm ${
+            val === 1 ? 'text-accent-signature' : val === 2 ? 'text-muted-foreground' : val === 3 ? 'text-accent-signature-hover' : 'text-ink-tertiary'
           }`}>
             {val}
           </span>
@@ -406,13 +406,13 @@ const SalesReport = () => {
             }`}>
               <ShoppingBag size={12} className={row._rank <= 3 ? 'text-accent-signature' : 'text-ink-tertiary'} />
             </div>
-            <span className="font-bold text-ink-primary">{val}</span>
+            <span className="font-bold text-foreground">{val}</span>
           </div>
         ),
       },
       {
         key: 'totalQty', label: 'Units Sold', align: 'right', sortable: true, width: 120,
-        render: (val) => <span className="font-mono font-bold text-ink-primary tabular-nums">{val}</span>,
+        render: (val) => <span className="font-mono font-bold text-foreground tabular-nums">{val}</span>,
       },
       {
         key: 'txCount', label: 'Transactions', align: 'right', sortable: true, width: 130,
@@ -432,7 +432,7 @@ const SalesReport = () => {
                   style={{ width: `${Math.min(100, pct)}%` }}
                 />
               </div>
-              <span className="text-[10px] font-black text-accent-signature tabular-nums w-10 text-right">
+              <span className="text-[10px] font-semibold text-accent-signature tabular-nums w-10 text-right">
                 {pct.toFixed(1)}%
               </span>
             </div>
@@ -473,14 +473,14 @@ const SalesReport = () => {
         key: 'name', label: 'Client', sortable: true, width: 240,
         render: (val, row) => (
           <div className="flex items-center gap-3">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-black text-[11px] shrink-0 ${
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-semibold text-[11px] shrink-0 ${
               row._rank === 1 ? 'bg-accent-signature/15 text-accent-signature-hover'
               : row._rank === 2 ? 'bg-gray-100 text-gray-600'
               : 'bg-accent-signature/15 text-accent-signature'
             }`}>
               {(val || 'W')[0].toUpperCase()}
             </div>
-            <span className="font-bold text-ink-primary">{val}</span>
+            <span className="font-bold text-foreground">{val}</span>
           </div>
         ),
       },
@@ -494,7 +494,7 @@ const SalesReport = () => {
         render: (_, row) => {
           const pct = totalRevForShare > 0 ? (row.revenue / totalRevForShare) * 100 : 0;
           return (
-            <span className="text-[10px] font-black text-accent-signature">{pct.toFixed(1)}%</span>
+            <span className="text-[10px] font-semibold text-accent-signature">{pct.toFixed(1)}%</span>
           );
         },
       },

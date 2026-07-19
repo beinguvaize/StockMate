@@ -59,13 +59,13 @@ const LowStockReport = () => {
   }, [products, stockByProduct]);
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-4 pb-16">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-black text-ink-primary leading-none">
-          Low Stock Alert<span className="text-accent-signature">.</span>
+        <h1 className="text-base font-semibold text-foreground tracking-tight">
+          Low Stock Alert
         </h1>
-        <p className="text-xs text-gray-400 font-medium mt-1">Current inventory snapshot</p>
+        <p className="text-xs text-muted-foreground mt-0.5">Current inventory snapshot</p>
       </div>
 
       {/* KPIs */}
@@ -76,11 +76,11 @@ const LowStockReport = () => {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden">
+      <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
         <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
           <SectionHead title="Low Stock Products" sub="sorted by lowest stock first" />
           {!loading && (
-            <span className="text-[10px] font-black text-gray-400 bg-canvas px-2 py-1 rounded-full">
+            <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">
               {lowItems.length} products
             </span>
           )}
@@ -99,7 +99,7 @@ const LowStockReport = () => {
           <div>
             <div className="grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-2 bg-canvas/50 border-b border-black/5">
               {['Product','SKU','Category','Stock','Threshold','Shortfall','Stock Value'].map(h => (
-                <span key={h} className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{h}</span>
+                <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
               ))}
             </div>
             {lowItems.map((p, i) => {
@@ -109,18 +109,18 @@ const LowStockReport = () => {
                   className={`grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors ${isOut ? 'bg-red-50/40' : ''}`}>
                   <div className="flex items-center gap-2 min-w-0">
                     <div className={`w-2 h-2 rounded-full shrink-0 ${isOut ? 'bg-red-500' : 'bg-accent-signature/70'}`} />
-                    <span className="text-sm font-bold text-ink-primary truncate">{p.name || '—'}</span>
+                    <span className="text-sm font-bold text-foreground truncate">{p.name || '—'}</span>
                   </div>
                   <span className="text-xs font-mono text-ink-secondary truncate">{p.sku || '—'}</span>
                   <span className="text-xs font-bold text-ink-secondary truncate">{p.category || '—'}</span>
-                  <span className={`text-sm font-black tabular-nums ${isOut ? 'text-red-500' : 'text-accent-signature'}`}>
+                  <span className={`text-sm font-semibold tabular-nums ${isOut ? 'text-red-500' : 'text-accent-signature'}`}>
                     {p.totalStock}
                   </span>
                   <span className="text-sm font-bold text-ink-secondary tabular-nums">{p.threshold}</span>
-                  <span className={`text-sm font-black tabular-nums ${p.shortfall > 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                  <span className={`text-sm font-semibold tabular-nums ${p.shortfall > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
                     {p.shortfall > 0 ? `-${p.shortfall}` : '0'}
                   </span>
-                  <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(p.stockValue)}</span>
+                  <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(p.stockValue)}</span>
                 </div>
               );
             })}

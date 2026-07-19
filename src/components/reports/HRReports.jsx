@@ -47,30 +47,30 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
   {/* HR Premium Ribbon */}
   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
     {/* Headcount Card */}
-    <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-accent-signature-hover">
         <Users size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Total Headcount</span>
-        <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-          {employees.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">UNITS</span>
+        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Total Headcount</span>
+        <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
+          {employees.length} <span className="text-sm font-bold opacity-30 text-foreground tracking-wider ml-1">UNITS</span>
         </div>
-        <div className="flex items-center gap-1.5 text-gray-400 mt-3">
+        <div className="flex items-center gap-1.5 text-muted-foreground mt-3">
           <span className="text-[9px] font-bold uppercase tracking-wider">Active Personnel</span>
         </div>
       </div>
     </div>
 
     {/* Payroll Load Card */}
-    <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-red-500">
         <Banknote size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Monthly Payroll Load</span>
-        <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-          <span className="text-[16px] text-ink-primary/30 mr-1">{businessProfile.currencySymbol}</span>
+        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Monthly Payroll Load</span>
+        <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
+          <span className="text-[16px] text-foreground/30 mr-1">{businessProfile.currencySymbol}</span>
           {Math.round(employees.reduce((sum, e) => sum + (e.salary || 0), 0)).toLocaleString()}
         </div>
         <div className="flex items-center gap-1.5 text-red-500/70 mt-3">
@@ -80,16 +80,16 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
     </div>
 
     {/* Departments Card */}
-    <div className="p-5 bg-white border border-black/5 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
-      <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-ink-primary">
+    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+      <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-foreground">
         <Briefcase size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-gray-400 mb-1 block tracking-widest">Departments</span>
-        <div className="text-3xl font-black text-ink-primary tabular-nums tracking-tight leading-none mt-0.5">
-          {departmentStats.length} <span className="text-sm font-bold opacity-30 text-ink-primary tracking-wider ml-1">BRANCHES</span>
+        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Departments</span>
+        <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
+          {departmentStats.length} <span className="text-sm font-bold opacity-30 text-foreground tracking-wider ml-1">BRANCHES</span>
         </div>
-        <div className="flex items-center gap-1.5 text-gray-400 mt-3">
+        <div className="flex items-center gap-1.5 text-muted-foreground mt-3">
           <span className="text-[9px] font-bold uppercase tracking-wider">Functional Units</span>
         </div>
       </div>
@@ -98,8 +98,8 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
 
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
  {/* Payroll Flow Area Chart */}
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
- <h3 className="text-xl font-semibold text-ink-primary mb-2">Expenditure Flow.</h3>
+ <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <h3 className="text-xl font-semibold text-foreground mb-2">Expenditure Flow.</h3>
  <p className="text-[10px] font-semibold text-gray-700 mb-8">6-Month historical payroll trends</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
@@ -131,8 +131,8 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
  </div>
 
  {/* Department Distribution Pie */}
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
- <h3 className="text-xl font-semibold text-ink-primary mb-2">Structural Density.</h3>
+ <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <h3 className="text-xl font-semibold text-foreground mb-2">Structural Density.</h3>
  <p className="text-[10px] font-semibold text-gray-700 mb-8">Salary allocation by functional unit</p>
  <div className="h-[300px] w-full">
  <ResponsiveContainer width="100%" height="100%">
@@ -159,10 +159,10 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
  </div>
 
  {/* Department Performance Board */}
- <div className="glass-panel !p-5 bg-white border border-black/5 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
  <div className="flex justify-between items-center mb-10">
  <div>
- <h3 className="text-2xl font-semibold text-ink-primary mb-2">Workforce Integrity.</h3>
+ <h3 className="text-2xl font-semibold text-foreground mb-2">Workforce Integrity.</h3>
  <p className="text-[10px] font-semibold text-gray-700">Departmental cost and population metrics</p>
  </div>
  <button 
@@ -176,20 +176,20 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
 
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
  {departmentStats.map((dept, index) => (
- <div key={dept.name} className="p-5 bg-canvas/30 rounded-[2rem] border border-black/5 hover:bg-white transition-all group overflow-hidden relative">
+ <div key={dept.name} className="p-5 bg-canvas/30 rounded-[2rem] border border-border/60 hover:bg-white transition-all group overflow-hidden relative">
  <div className="absolute -right-4 -top-4 text-8xl font-semibold opacity-[0.03] group-hover:opacity-10 group-hover:scale-110 transition-all pointer-events-none">
  {index + 1}
  </div>
  <div className="flex items-center gap-4 mb-8">
- <div className="p-4 bg-white rounded-lg shadow-sm group-hover:bg-ink-primary group-hover:text-slate-200 transition-all">
+ <div className="p-4 bg-white rounded-lg shadow-sm group-hover:bg-ink-primary group-hover:text-primary-foreground transition-all">
  <Briefcase size={20} />
  </div>
- <h4 className="text-sm font-semibold text-ink-primary">{dept.name}</h4>
+ <h4 className="text-sm font-semibold text-foreground">{dept.name}</h4>
  </div>
  <div className="grid grid-cols-2 gap-4">
  <div>
  <span className="text-[8px] font-semibold text-ink-tertiary block mb-1">Total Cost</span>
- <div className="text-lg font-semibold text-ink-primary">
+ <div className="text-lg font-semibold text-foreground">
  {businessProfile.currencySymbol}{Math.round(dept.cost).toLocaleString()}
  </div>
  </div>

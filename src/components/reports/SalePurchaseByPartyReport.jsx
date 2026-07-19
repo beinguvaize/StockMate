@@ -15,17 +15,17 @@ const ShareBar = ({ share, color }) => (
     <div className="w-20 h-1 rounded-full bg-canvas overflow-hidden">
       <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(100, share)}%`, background: color }} />
     </div>
-    <span className="text-[9px] font-black" style={{ color }}>{share.toFixed(1)}%</span>
+    <span className="text-[9px] font-semibold" style={{ color }}>{share.toFixed(1)}%</span>
   </div>
 );
 
 const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAccent, amountLabel, loading, emptyMsg, rankColors }) => (
-  <div className="bg-white rounded-2xl border border-black/5 shadow-sm overflow-hidden flex-1 min-w-0">
+  <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden flex-1 min-w-0">
     <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
       <SectionHead title={title} sub={`${rows.length} ${totalLabel}`} />
       <div className="text-right">
-        <div className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{amountLabel}</div>
-        <div className="text-base font-black text-ink-primary tabular-nums">{formatCurrency(totalAmount)}</div>
+        <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{amountLabel}</div>
+        <div className="text-base font-semibold text-foreground tabular-nums">{formatCurrency(totalAmount)}</div>
       </div>
     </div>
 
@@ -34,31 +34,31 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
         {[...Array(5)].map((_, i) => <div key={i} className="h-12 bg-canvas animate-pulse rounded-xl" />)}
       </div>
     ) : rows.length === 0 ? (
-      <div className="py-16 text-center text-sm text-gray-400">{emptyMsg}</div>
+      <div className="py-16 text-center text-sm text-muted-foreground">{emptyMsg}</div>
     ) : (
       <div>
         <div className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-2 bg-canvas/50 border-b border-black/5">
           {['#','Name','Orders','Amount'].map(h => (
-            <span key={h} className="text-[9px] font-black text-gray-400 uppercase tracking-widest">{h}</span>
+            <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
           ))}
         </div>
         {rows.map((row, i) => (
           <div key={row.name} className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
-            <span className={`text-sm font-black ${rankColors[i] || 'text-ink-tertiary'}`}>{i + 1}</span>
+            <span className={`text-sm font-semibold ${rankColors[i] || 'text-ink-tertiary'}`}>{i + 1}</span>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
                   style={{ background: `color-mix(in srgb, ${colorAccent} 10%, transparent)` }}>
-                  <span className="text-[10px] font-black" style={{ color: colorAccent }}>
+                  <span className="text-[10px] font-semibold" style={{ color: colorAccent }}>
                     {(row.name?.[0] || '?').toUpperCase()}
                   </span>
                 </div>
-                <span className="text-sm font-bold text-ink-primary truncate">{row.name}</span>
+                <span className="text-sm font-bold text-foreground truncate">{row.name}</span>
               </div>
               <ShareBar share={row.share} color={colorAccent} />
             </div>
             <span className="text-sm font-mono text-ink-secondary tabular-nums">{row.orders}</span>
-            <span className="text-sm font-black text-ink-primary tabular-nums">{formatCurrency(row.amount)}</span>
+            <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(row.amount)}</span>
           </div>
         ))}
       </div>
@@ -66,7 +66,7 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
   </div>
 );
 
-const RANK_COLORS = ['text-accent-signature', 'text-gray-400', 'text-accent-signature-hover'];
+const RANK_COLORS = ['text-accent-signature', 'text-muted-foreground', 'text-accent-signature-hover'];
 
 const SalePurchaseByPartyReport = () => {
   const [preset, setPreset]       = useState('TODAY');
@@ -137,49 +137,49 @@ const SalePurchaseByPartyReport = () => {
   };
 
   return (
-    <div className="space-y-8 pb-16">
+    <div className="space-y-4 pb-16">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-ink-primary leading-none">
-            Sales & Purchases by Party<span className="text-accent-signature">.</span>
+          <h1 className="text-base font-semibold text-foreground tracking-tight">
+            Sales & Purchases by Party
           </h1>
-          <p className="text-xs text-gray-400 font-medium mt-1">
+          <p className="text-xs text-muted-foreground mt-0.5">
             {range.start === range.end ? range.start : `${range.start} → ${range.end}`}
           </p>
         </div>
         <div className="flex-1" />
-        <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1 flex-wrap">
+        <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
           {PRESETS.map(p => (
             <button key={p.id} onClick={() => applyPreset(p.id)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-                preset === p.id ? 'bg-ink-primary text-white shadow-sm' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
+              className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                preset === p.id ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
               }`}>{p.label}</button>
           ))}
           <button onClick={() => applyPreset('CUSTOM')}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-[11px] font-black transition-all ${
-              preset === 'CUSTOM' ? 'bg-ink-primary text-white' : 'text-gray-500 hover:text-ink-primary hover:bg-white'
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+              preset === 'CUSTOM' ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
             }`}>
             <Calendar size={11} /> Custom
           </button>
         </div>
         <button onClick={exportCSV}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl border border-black/8 bg-white text-xs font-black text-ink-primary hover:border-black/20 hover:shadow-sm transition-all">
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-[11px] font-medium text-foreground hover:bg-muted/60 transition-colors">
           <Download size={13} /> Export CSV
         </button>
       </div>
 
       {/* Custom date inputs */}
       {showCustom && (
-        <div className="flex items-center gap-3 p-4 bg-white rounded-2xl border border-black/5 shadow-sm">
-          <Calendar size={14} className="text-gray-400 shrink-0" />
+        <div className="flex items-center gap-2 flex-wrap">
+          <Calendar size={14} className="text-muted-foreground shrink-0" />
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
-          <span className="text-gray-400 text-xs font-bold">to</span>
+            className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
+          <span className="text-muted-foreground text-xs font-bold">to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            className="bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20" />
+            className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
           <button onClick={applyCustom}
-            className="px-4 py-2 rounded-xl bg-ink-primary text-white text-xs font-black hover:bg-ink-primary/90 transition-all">
+            className="px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
             Apply
           </button>
         </div>

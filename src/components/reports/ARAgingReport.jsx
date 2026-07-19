@@ -193,7 +193,7 @@ const ARAgingReport = () => {
     render: (val) => {
       const c = AGING_BUCKET_COLORS[bucket];
       if (!val || val <= 0) return <span className="text-gray-300">—</span>;
-      return <span className={`font-black ${c.text}`}>{formatINR(val)}</span>;
+      return <span className={`font-semibold ${c.text}`}>{formatINR(val)}</span>;
     },
   });
 
@@ -210,9 +210,9 @@ const ARAgingReport = () => {
     columns: [
       {
         key: 'client_name', label: 'Client', sortable: true, width: 220,
-        render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span>,
+        render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>,
       },
-      { key: 'phone', label: 'Contact', width: 140, render: (val) => <span className="text-[10px] font-bold text-gray-400">{val || '—'}</span> },
+      { key: 'phone', label: 'Contact', width: 140, render: (val) => <span className="text-[10px] font-bold text-muted-foreground">{val || '—'}</span> },
       bucketColumn('CURRENT'),
       bucketColumn('1-30'),
       bucketColumn('31-60'),
@@ -221,7 +221,7 @@ const ARAgingReport = () => {
       bucketColumn('120+'),
       {
         key: 'total', label: 'Total Outstanding', type: 'currency', align: 'right', sortable: true, width: 160,
-        render: (val) => <span className="font-black text-ink-primary">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-foreground">{formatINR(val)}</span>,
       },
     ],
     kpis: kpis,
@@ -255,16 +255,16 @@ const ARAgingReport = () => {
     columns: [
       {
         key: 'invoice_no', label: 'Invoice #', sortable: true, width: 130,
-        render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-black/5 uppercase font-bold">{val}</span>,
+        render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-bold">{val}</span>,
       },
-      { key: 'client_name', label: 'Client', sortable: true, width: 220, render: (val) => <span className="font-black text-ink-primary uppercase tracking-tight">{val}</span> },
+      { key: 'client_name', label: 'Client', sortable: true, width: 220, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
       { key: 'date', label: 'Invoice Date', type: 'date', sortable: true, width: 130 },
       { key: 'due_date', label: 'Due Date', type: 'date', sortable: true, width: 130 },
       {
         key: 'days_overdue', label: 'Days Overdue', align: 'right', sortable: true, width: 120,
         render: (val) => {
-          if (!val || val <= 0) return <span className="text-[10px] font-black text-emerald-500">CURRENT</span>;
-          return <span className={`text-[10px] font-black ${val > 90 ? 'text-red-600' : val > 60 ? 'text-orange-500' : 'text-accent-signature'}`}>{val} DAYS</span>;
+          if (!val || val <= 0) return <span className="text-[10px] font-semibold text-emerald-500">CURRENT</span>;
+          return <span className={`text-[10px] font-semibold ${val > 90 ? 'text-red-600' : val > 60 ? 'text-orange-500' : 'text-accent-signature'}`}>{val} DAYS</span>;
         },
       },
       {
@@ -272,14 +272,14 @@ const ARAgingReport = () => {
         render: (val) => {
           const c = AGING_BUCKET_COLORS[val];
           return (
-            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-black uppercase ${c.bg} ${c.text}`}>
+            <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-[9px] font-semibold uppercase ${c.bg} ${c.text}`}>
               <div className="w-1 h-1 rounded-full" style={{ backgroundColor: c.chart }} />
               {val}
             </div>
           );
         },
       },
-      { key: 'amount', label: 'Amount Due', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => <span className="font-black">{formatINR(val)}</span> },
+      { key: 'amount', label: 'Amount Due', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => <span className="font-semibold">{formatINR(val)}</span> },
       { key: 'status', label: 'Status', width: 110 },
     ],
     kpis: kpis,

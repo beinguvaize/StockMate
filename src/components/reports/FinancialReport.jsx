@@ -160,14 +160,14 @@ const FinancialReport = () => {
           {presets.map(pr => (
             <button key={pr.id} onClick={() => applyPreset(pr.id)}
               className={`px-3 py-1.5 rounded-pill text-[11px] font-bold transition-colors ${
-                preset === pr.id ? 'bg-accent-signature text-button-text shadow-sm' : 'text-gray-500 hover:text-ink-primary'
+                preset === pr.id ? 'bg-accent-signature text-button-text shadow-sm' : 'text-muted-foreground hover:text-foreground'
               }`}>{pr.label}</button>
           ))}
         </div>
         <div className="flex items-center gap-1.5 ml-auto">
           <input type="date" value={range.from} onChange={e => { setPreset(''); setRange(r => ({ ...r, from: e.target.value })); }}
             className="bg-white border border-black/10 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40" />
-          <span className="text-xs text-gray-400">→</span>
+          <span className="text-xs text-muted-foreground">→</span>
           <input type="date" value={range.to} onChange={e => { setPreset(''); setRange(r => ({ ...r, to: e.target.value })); }}
             className="bg-white border border-black/10 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40" />
         </div>
@@ -176,23 +176,23 @@ const FinancialReport = () => {
       {/* Ratio strip */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {ratioCards.map(c => (
-          <div key={c.label} className="bg-white rounded-2xl border border-black/[0.07] p-4">
-            <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{c.label}</div>
-            <div className={`text-2xl font-black tabular-nums mt-1 ${c.good === false ? 'text-rose-600' : c.good ? 'text-emerald-600' : 'text-ink-primary'}`}>{c.value}</div>
+          <div key={c.label} className="bg-card rounded-[10px] border border-border/60 p-4">
+            <div className="text-[11px] font-medium text-muted-foreground">{c.label}</div>
+            <div className={`text-2xl font-semibold tabular-nums mt-1 ${c.good === false ? 'text-rose-600' : c.good ? 'text-emerald-600' : 'text-foreground'}`}>{c.value}</div>
           </div>
         ))}
       </div>
 
       {/* Statement */}
-      <div className="bg-white rounded-2xl border border-black/[0.07] overflow-hidden">
+      <div className="bg-card rounded-[10px] border border-border/60 overflow-hidden">
         <div className="px-4 py-3 border-b border-black/[0.05] flex items-center justify-between">
-          <span className="text-[11px] font-black text-gray-500 uppercase tracking-wider">Profit &amp; Loss</span>
-          {loading && <span className="text-[10px] font-bold text-gray-400">Loading…</span>}
+          <span className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Profit &amp; Loss</span>
+          {loading && <span className="text-[10px] font-bold text-muted-foreground">Loading…</span>}
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-[13px]" style={{ borderCollapse: 'collapse' }}>
             <thead>
-              <tr className="text-[10px] text-gray-400 uppercase tracking-wider">
+              <tr className="text-[10px] text-muted-foreground uppercase tracking-wider">
                 <th style={{ textAlign: 'left', padding: '10px 16px', fontWeight: 700 }}>Line item</th>
                 <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>Amount</th>
                 <th style={{ textAlign: 'right', padding: '10px 16px', fontWeight: 700 }}>% of rev</th>
@@ -202,38 +202,38 @@ const FinancialReport = () => {
             </thead>
             <tbody>
               <tr className="border-t border-black/[0.05]">
-                <Cell align="left" cls="font-bold text-ink-primary">{m.gst > 0 ? 'Sales revenue (net of GST)' : 'Sales revenue (gross)'}</Cell>
+                <Cell align="left" cls="font-bold text-foreground">{m.gst > 0 ? 'Sales revenue (net of GST)' : 'Sales revenue (gross)'}</Cell>
                 <Cell cls="font-bold tabular-nums">{formatCurrency(m.revenue, cur)}</Cell>
-                <Cell cls="text-gray-400">100.0%</Cell>
-                <Cell cls="text-gray-400">{formatCurrency(p.revenue, cur)}</Cell>
+                <Cell cls="text-muted-foreground">100.0%</Cell>
+                <Cell cls="text-muted-foreground">{formatCurrency(p.revenue, cur)}</Cell>
                 <Cell><Delta cur={m.revenue} prior={p.revenue} /></Cell>
               </tr>
               <tr className="border-t border-black/[0.05]">
                 <Cell align="left" cls="text-gray-600">Cost of goods sold</Cell>
                 <Cell cls="text-rose-600 tabular-nums">({formatCurrency(m.cogs, cur).replace(cur, '')})</Cell>
-                <Cell cls="text-gray-400">{pct(m.cogs)}</Cell>
-                <Cell cls="text-gray-400">({formatCurrency(p.cogs, cur).replace(cur, '')})</Cell>
+                <Cell cls="text-muted-foreground">{pct(m.cogs)}</Cell>
+                <Cell cls="text-muted-foreground">({formatCurrency(p.cogs, cur).replace(cur, '')})</Cell>
                 <Cell><Delta cur={m.cogs} prior={p.cogs} expense /></Cell>
               </tr>
               <tr className="border-t border-black/10 bg-canvas/50">
-                <Cell align="left" cls="font-black text-ink-primary">Gross profit</Cell>
-                <Cell cls="font-black text-emerald-600 tabular-nums">{formatCurrency(m.gross, cur)}</Cell>
+                <Cell align="left" cls="font-semibold text-foreground">Gross profit</Cell>
+                <Cell cls="font-semibold text-emerald-600 tabular-nums">{formatCurrency(m.gross, cur)}</Cell>
                 <Cell cls="font-bold">{pct(m.gross)}</Cell>
-                <Cell cls="text-gray-400">{formatCurrency(p.gross, cur)}</Cell>
+                <Cell cls="text-muted-foreground">{formatCurrency(p.gross, cur)}</Cell>
                 <Cell><Delta cur={m.gross} prior={p.gross} /></Cell>
               </tr>
 
               <tr className="border-t border-black/[0.05]">
-                <td colSpan={5} style={{ padding: '7px 16px 3px' }} className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Operating expenses</td>
+                <td colSpan={5} style={{ padding: '7px 16px 3px' }} className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Operating expenses</td>
               </tr>
               {expCats.length === 0 && !loading && (
-                <tr><td colSpan={5} style={{ padding: '6px 28px' }} className="text-xs text-gray-400">No expenses in this period</td></tr>
+                <tr><td colSpan={5} style={{ padding: '6px 28px' }} className="text-xs text-muted-foreground">No expenses in this period</td></tr>
               )}
               {expCats.map(c => (
                 <tr key={c.name}>
                   <td style={{ padding: '6px 16px 6px 28px' }} className="text-gray-600">{c.name}</td>
                   <Cell cls="tabular-nums">{formatCurrency(c.amount, cur).replace(cur, '')}</Cell>
-                  <Cell cls="text-gray-400">{pct(c.amount)}</Cell>
+                  <Cell cls="text-muted-foreground">{pct(c.amount)}</Cell>
                   <Cell cls="text-gray-300">—</Cell>
                   <Cell cls="text-gray-300">—</Cell>
                 </tr>
@@ -241,32 +241,32 @@ const FinancialReport = () => {
               <tr className="border-t border-black/[0.05]">
                 <Cell align="left" cls="text-gray-700">Total operating expenses</Cell>
                 <Cell cls="text-rose-600 tabular-nums">({formatCurrency(m.expenses, cur).replace(cur, '')})</Cell>
-                <Cell cls="text-gray-400">{pct(m.expenses)}</Cell>
-                <Cell cls="text-gray-400">({formatCurrency(p.expenses, cur).replace(cur, '')})</Cell>
+                <Cell cls="text-muted-foreground">{pct(m.expenses)}</Cell>
+                <Cell cls="text-muted-foreground">({formatCurrency(p.expenses, cur).replace(cur, '')})</Cell>
                 <Cell><Delta cur={m.expenses} prior={p.expenses} expense /></Cell>
               </tr>
 
               <tr className="border-t-2 border-black/20 bg-canvas/50">
-                <Cell align="left" cls="font-black text-ink-primary">Net profit</Cell>
-                <Cell cls={`font-black text-[15px] tabular-nums ${m.net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(m.net, cur)}</Cell>
+                <Cell align="left" cls="font-semibold text-foreground">Net profit</Cell>
+                <Cell cls={`font-semibold text-[15px] tabular-nums ${m.net >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>{formatCurrency(m.net, cur)}</Cell>
                 <Cell cls="font-bold">{pct(m.net)}</Cell>
-                <Cell cls="text-gray-400">{formatCurrency(p.net, cur)}</Cell>
+                <Cell cls="text-muted-foreground">{formatCurrency(p.net, cur)}</Cell>
                 <Cell><Delta cur={m.net} prior={p.net} /></Cell>
               </tr>
             </tbody>
           </table>
         </div>
         <div className="px-4 py-2.5 border-t border-black/[0.05] flex items-center justify-between text-[11px]">
-          <span className="font-bold text-gray-400 uppercase tracking-wider">GST Payable (memo)</span>
-          <span className="font-black text-accent-signature tabular-nums">{formatCurrency(m.gst, cur)}</span>
+          <span className="font-bold text-muted-foreground uppercase tracking-wider">GST Payable (memo)</span>
+          <span className="font-semibold text-accent-signature tabular-nums">{formatCurrency(m.gst, cur)}</span>
         </div>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        <div className="bg-white rounded-2xl border border-black/[0.07] p-4">
-          <div className="text-[11px] font-black text-gray-500 uppercase tracking-wider mb-1">Margin trend · 6 months</div>
-          <div className="flex gap-4 text-[11px] font-bold text-gray-400 mb-2">
+        <div className="bg-card rounded-[10px] border border-border/60 p-4">
+          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Margin trend · 6 months</div>
+          <div className="flex gap-4 text-[11px] font-bold text-muted-foreground mb-2">
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#1D9E75' }} />Gross %</span>
             <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#378ADD' }} />Net %</span>
           </div>
@@ -284,10 +284,10 @@ const FinancialReport = () => {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl border border-black/[0.07] p-4">
-          <div className="text-[11px] font-black text-gray-500 uppercase tracking-wider mb-2">Expense composition</div>
+        <div className="bg-card rounded-[10px] border border-border/60 p-4">
+          <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Expense composition</div>
           {expCats.length === 0 ? (
-            <div className="h-[220px] flex items-center justify-center text-xs font-semibold text-gray-400">No expenses in this period</div>
+            <div className="h-[220px] flex items-center justify-center text-xs font-semibold text-muted-foreground">No expenses in this period</div>
           ) : (
             <div className="flex items-center gap-3">
               <div style={{ width: 150, height: 200 }}>
@@ -305,7 +305,7 @@ const FinancialReport = () => {
                   <div key={c.name} className="flex items-center gap-2 text-[11px]">
                     <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: EXP_COLORS[i % EXP_COLORS.length] }} />
                     <span className="font-semibold text-gray-600 truncate flex-1">{c.name}</span>
-                    <span className="font-bold text-ink-primary tabular-nums">{pct(c.amount)}</span>
+                    <span className="font-bold text-foreground tabular-nums">{pct(c.amount)}</span>
                   </div>
                 ))}
               </div>
@@ -314,7 +314,7 @@ const FinancialReport = () => {
         </div>
       </div>
 
-      <p className="text-[10px] text-gray-400 px-1">Prior column = the equal-length period immediately before. Δ green = favourable, amber/red = watch. Ties to the ledger.</p>
+      <p className="text-[10px] text-muted-foreground px-1">Prior column = the equal-length period immediately before. Δ green = favourable, amber/red = watch. Ties to the ledger.</p>
     </div>
   );
 };
