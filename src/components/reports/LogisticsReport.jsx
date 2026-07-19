@@ -86,10 +86,10 @@ const LogisticsReport = () => {
       { key: 'name', label: 'Authorized Unit', sortable: true, width: 220, render: (val, row) => (
         <div className="flex flex-col">
           <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
-          <span className="text-[10px] font-bold text-muted-foreground font-mono">{row.model}</span>
+          <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">{row.model}</span>
         </div>
       )},
-      { key: 'deliveries', label: 'Service Events', align: 'right', sortable: true, width: 150, render: (val) => <span className="font-mono font-bold text-muted-foreground">{val} Drops</span> },
+      { key: 'deliveries', label: 'Service Events', align: 'right', sortable: true, width: 150, render: (val) => <span className="tabular-nums font-semibold text-muted-foreground">{val} Drops</span> },
       { key: 'revenue', label: 'Revenue Magnitude', type: 'currency', align: 'right', sortable: true, width: 180 },
       { key: 'efficiency', label: 'Load Factor', align: 'right', width: 120, render: (_, row) => (
         <div className="flex flex-col items-end">

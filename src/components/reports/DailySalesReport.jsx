@@ -67,7 +67,7 @@ const DailySalesReport = () => {
           <Calendar size={14} className="text-muted-foreground shrink-0" />
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-          <span className="text-muted-foreground text-xs font-bold">to</span>
+          <span className="text-muted-foreground text-xs font-semibold">to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
           <button onClick={applyCustom}

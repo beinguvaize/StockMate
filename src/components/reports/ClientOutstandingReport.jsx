@@ -115,7 +115,7 @@ const ClientOutstandingReport = () => {
   // 3. Define Table Columns (Rule 2)
   const columns = [
     { key: 'name', label: 'Client / Entity', sortable: true, width: 250, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
-    { key: 'phone', label: 'Contact Node', width: 150, render: (val) => <div className="flex items-center gap-2 text-[10px] font-bold text-muted-foreground"><Phone size={10} /> {val || 'NO PHONE'}</div> },
+    { key: 'phone', label: 'Contact Node', width: 150, render: (val) => <div className="flex items-center gap-2 text-[10px] font-semibold text-muted-foreground"><Phone size={10} /> {val || 'NO PHONE'}</div> },
     { key: 'balance', label: 'Current Balance', type: 'currency', align: 'right', sortable: true, width: 180, render: (val) => (
       <span className={`font-semibold ${val > 50000 ? 'text-red-500' : val > 0 ? 'text-accent-signature' : 'text-emerald-500'}`}>
         {formatCurrency(val)}

@@ -68,51 +68,51 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
   {/* Inventory Premium Ribbon */}
   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
     {/* Valuation Card */}
-    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-accent-signature-hover">
         <Package size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Inventory Valuation</span>
+        <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Inventory Valuation</span>
         <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
           <span className="text-[16px] text-foreground/30 mr-1">{businessProfile.currencySymbol}</span>
           {Math.round(valuationData.totalValue).toLocaleString()}
         </div>
         <div className="flex items-center gap-1.5 text-green-500/70 mt-3">
-          <span className="text-[9px] font-bold uppercase tracking-wider">System Asset Value</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider">System Asset Value</span>
         </div>
       </div>
     </div>
 
     {/* Potential Profit Card */}
-    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-foreground">
         <Layers size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Potential Profit</span>
+        <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Potential Profit</span>
         <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
           <span className="text-[16px] text-foreground/30 mr-1">{businessProfile.currencySymbol}</span>
           {Math.round(valuationData.potentialProfit).toLocaleString()}
         </div>
         <div className="flex items-center gap-1.5 text-muted-foreground mt-3">
-          <span className="text-[9px] font-bold uppercase tracking-wider">Expected Margin Allocation</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider">Expected Margin Allocation</span>
         </div>
       </div>
     </div>
 
     {/* Dead Stock Card */}
-    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-red-500">
         <AlertCircle size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Dead Stock Index</span>
+        <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Dead Stock Index</span>
         <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
-          {deadStock.length} <span className="text-sm font-bold opacity-30 text-foreground tracking-wider ml-1">SKUS</span>
+          {deadStock.length} <span className="text-sm font-semibold opacity-30 text-foreground tracking-wider ml-1">SKUS</span>
         </div>
         <div className="flex items-center gap-1.5 text-red-500/70 mt-3">
-          <span className="text-[9px] font-bold uppercase tracking-wider">{deadStockThreshold} Days Idle</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider">{deadStockThreshold} Days Idle</span>
         </div>
       </div>
     </div>
@@ -120,7 +120,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
 
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
  {/* Category Valuation Chart */}
- <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Valuation by Category.</h3>
  <p className="text-[10px] font-semibold text-gray-700 mb-8">Asset distribution across catalog</p>
  <div className="h-[300px] w-full">
@@ -156,7 +156,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
  </div>
 
  {/* Top Stock Movements */}
- <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">High Velocity SKUs.</h3>
  <p className="text-[10px] font-semibold text-gray-700 mb-8">Most active products in last 100 logs</p>
  <div className="h-[300px] w-full">
@@ -186,7 +186,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
  </div>
 
  {/* Dead Stock Analysis Table */}
- <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
  <div>
  <p className="text-[10px] font-semibold text-gray-700">Identify underperforming capital</p>
@@ -218,7 +218,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
  <div className="overflow-x-auto">
  <table className="w-full text-left border-collapse">
  <thead>
- <tr className="border-b border-black/5">
+ <tr className="border-b border-border/60">
  <th className="py-2 px-2 text-[10px] font-semibold text-[#4b5563]">Product</th>
  <th className="py-2 px-2 text-[10px] font-semibold text-[#4b5563]">Current Stock</th>
  <th className="py-2 px-2 text-[10px] font-semibold text-[#4b5563]">Valuation (Cost)</th>
@@ -228,7 +228,7 @@ const InventoryReports = ({ products, sales, movementLog, businessProfile}) => {
  </thead>
  <tbody>
  {deadStock.slice(0, 5).map((p, i) => (
- <tr key={i} className="border-b border-black/5 hover:bg-canvas/30 transition-colors">
+ <tr key={i} className="border-b border-border/60 hover:bg-canvas/30 transition-colors">
  <td className="py-2 px-2">
  <div className="text-xs font-semibold text-foreground">{p.name}</div>
  <div className="text-[9px] font-semibold text-accent-signature-hover opacity-70">{p.sku}</div>

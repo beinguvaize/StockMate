@@ -66,7 +66,7 @@ const BADGE_CLS = {
   rose:    'bg-rose-50 text-rose-600 border-rose-200',
   amber:   'bg-accent-signature/10 text-accent-signature border-accent-signature/25',
   indigo:  'bg-accent-signature/10 text-accent-signature border-accent-signature/25',
-  gray:    'bg-gray-50 text-muted-foreground border-gray-200',
+  gray:    'bg-gray-50 text-muted-foreground border-border',
 };
 
 const BudgetVsActualReport = () => {
@@ -316,7 +316,7 @@ const BudgetVsActualReport = () => {
           }}
           onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
           placeholder="—"
-          className={`w-28 px-2 py-1 text-right text-[11px] font-semibold text-foreground bg-white/70 border border-black/10 rounded-md focus:outline-none focus:border-accent-signature focus:bg-white transition-all ${saving ? 'opacity-50' : ''}`}
+          className={`w-28 px-2 py-1 text-right text-[11px] font-semibold text-foreground bg-card/70 border border-black/10 rounded-md focus:outline-none focus:border-accent-signature focus:bg-card transition-all ${saving ? 'opacity-50' : ''}`}
         />
       </div>
     );
@@ -439,7 +439,7 @@ const BudgetVsActualReport = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Period + Quick Actions */}
-      <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-white/60 backdrop-blur-md border border-border/60">
+      <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-card/60 backdrop-blur-md border border-border/60">
         <div className="flex items-center gap-2">
           <Calendar size={14} className="text-accent-signature" />
           <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Period</span>
@@ -447,7 +447,7 @@ const BudgetVsActualReport = () => {
         <select
           value={period}
           onChange={(e) => setPeriod(e.target.value)}
-          className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-foreground bg-white border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
+          className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-foreground bg-card border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
         >
           {periods.map((p) => (
             <option key={p} value={p}>{periodLabel(p)}</option>
@@ -458,7 +458,7 @@ const BudgetVsActualReport = () => {
 
         <button
           onClick={handleCopyLastMonth}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600 hover:text-foreground bg-white border border-black/10 hover:border-accent-signature rounded-md transition-all"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-gray-600 hover:text-foreground bg-card border border-black/10 hover:border-accent-signature rounded-md transition-all"
         >
           <Copy size={12} /> Copy Last Month
         </button>
@@ -500,7 +500,7 @@ const BudgetVsActualReport = () => {
 
       <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-accent-signature/5 border border-border/60 shadow-sm">
         <Edit3 size={12} className="text-accent-signature" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-accent-signature-hover">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-signature-hover">
           Tip: Click any Budget cell to edit. Changes sync across all devices in real-time.
         </span>
       </div>

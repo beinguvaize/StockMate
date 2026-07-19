@@ -273,7 +273,7 @@ const APAgingReport = () => {
       },
       {
         key: 'phone', label: 'Contact', width: 140,
-        render: (val) => <span className="text-[10px] font-bold text-muted-foreground">{val || '—'}</span>,
+        render: (val) => <span className="text-[10px] font-semibold text-muted-foreground">{val || '—'}</span>,
       },
       bucketColumn('CURRENT'),
       bucketColumn('1-30'),
@@ -321,7 +321,7 @@ const APAgingReport = () => {
       {
         key: 'bill_ref', label: 'Bill Ref', sortable: true, width: 130,
         render: (val) => (
-          <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-bold">
+          <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-semibold">
             {val}
           </span>
         ),
@@ -336,7 +336,7 @@ const APAgingReport = () => {
       {
         key: 'due_date', label: 'Due Date', type: 'date', sortable: true, width: 130,
         render: (val) => (
-          <span className="text-[10px] font-bold text-muted-foreground">
+          <span className="text-[10px] font-semibold text-muted-foreground">
             {val || '—'}
           </span>
         ),
@@ -400,9 +400,9 @@ const APAgingReport = () => {
       {/* Payment-terms banner */}
       <div className="no-print flex items-center gap-2 px-3 py-2 rounded-2xl bg-accent-signature/5 border border-border/60 shadow-sm">
         <Clock size={12} className="text-accent-signature" />
-        <span className="text-[10px] font-bold uppercase tracking-wider text-accent-signature-hover">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-accent-signature-hover">
           Aging computed from bill date + net-{DEFAULT_PAYMENT_TERMS_DAYS} terms.
-          Add per-supplier <code className="font-mono">payment_terms_days</code> column later to override.
+          Add per-supplier <code className="tabular-nums">payment_terms_days</code> column later to override.
         </span>
       </div>
 

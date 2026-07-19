@@ -182,7 +182,7 @@ const ProductSalesReport = () => {
           <Calendar size={14} className="text-muted-foreground shrink-0" />
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-          <span className="text-muted-foreground text-xs font-bold">to</span>
+          <span className="text-muted-foreground text-xs font-semibold">to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
           <button onClick={applyCustom}
@@ -202,11 +202,11 @@ const ProductSalesReport = () => {
             placeholder="Search products..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-300 shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
           />
         </div>
         {!selectedProduct && (
-          <div className="mt-2 bg-white border border-gray-300 shadow-sm rounded-xl max-h-64 overflow-y-auto">
+          <div className="mt-2 bg-card border border-border shadow-sm rounded-xl max-h-64 overflow-y-auto">
             {prodLoading
               ? <div className="p-4 text-xs text-muted-foreground">Loading...</div>
               : products.length === 0
@@ -215,13 +215,13 @@ const ProductSalesReport = () => {
               ? <div className="p-4 text-xs text-muted-foreground">No products match "{search}"</div>
               : filteredProducts.map(p => (
                 <button key={p.id} onClick={() => { setProductId(p.id); setSearch(''); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-black/5 last:border-0`}>
+                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-border/60 last:border-0`}>
                   <div className="w-8 h-8 rounded-lg bg-accent-signature/10 flex items-center justify-center shrink-0">
                     <Package size={14} className="text-accent-signature" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-bold text-foreground truncate">{p.name}</div>
-                    <div className="text-[10px] text-muted-foreground font-mono">{p.sku || '—'}</div>
+                    <div className="text-sm font-semibold text-foreground truncate">{p.name}</div>
+                    <div className="text-[10px] text-muted-foreground tabular-nums">{p.sku || '—'}</div>
                   </div>
                   <div className="text-xs font-semibold text-foreground tabular-nums">
                     {formatCurrency(p.sellingPrice || 0)}
@@ -238,7 +238,7 @@ const ProductSalesReport = () => {
             </div>
             <div className="flex-1">
               <div className="text-sm font-semibold text-foreground">{selectedProduct.name}</div>
-              <div className="text-[10px] text-muted-foreground font-mono">{selectedProduct.sku || '—'} · list {formatCurrency(selectedProduct.sellingPrice || 0)}</div>
+              <div className="text-[10px] text-muted-foreground tabular-nums">{selectedProduct.sku || '—'} · list {formatCurrency(selectedProduct.sellingPrice || 0)}</div>
             </div>
             <button onClick={() => setProductId('')}
               className="text-[10px] font-semibold text-muted-foreground hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50">
@@ -267,7 +267,7 @@ const ProductSalesReport = () => {
                   <div key={i} className="bg-canvas/40 rounded-xl border border-border/60 p-3">
                     <div className="text-[11px] font-medium text-muted-foreground mb-1 truncate">{b.name}</div>
                     <div className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(b.revenue)}</div>
-                    <div className="text-[10px] font-bold text-muted-foreground mt-0.5">{b.qty} {selectedProduct.unit || 'units'}</div>
+                    <div className="text-[10px] font-semibold text-muted-foreground mt-0.5">{b.qty} {selectedProduct.unit || 'units'}</div>
                   </div>
                 ))}
               </div>
@@ -276,7 +276,7 @@ const ProductSalesReport = () => {
 
           {/* Lines Table */}
           <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-            <div className="px-6 pt-6 pb-4 border-b border-black/5">
+            <div className="px-6 pt-6 pb-4 border-b border-border/60">
               <SectionHead title={`${selectedProduct.name} — Sale Lines`} sub={`${lines.length} entries`} />
             </div>
 
@@ -288,22 +288,22 @@ const ProductSalesReport = () => {
               <div className="py-16 text-center text-sm text-muted-foreground">No sales of this product in the selected period</div>
             ) : (
               <div>
-                <div className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-black/5">
+                <div className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
                   {['Date','Sale Ref','Client','Qty','Rate','Total'].map(h => (
                     <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
                   ))}
                 </div>
                 {lines.map((r, i) => (
-                  <div key={i} className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-6 py-3 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
-                    <span className="text-xs font-bold text-ink-secondary tabular-nums">{r.date}</span>
-                    <span className="text-xs font-mono text-muted-foreground truncate">{String(r.saleId).toUpperCase()}</span>
-                    <span className="text-xs font-bold text-foreground truncate">{r.client}</span>
+                  <div key={i} className="grid grid-cols-[100px_180px_1fr_90px_110px_120px] gap-4 px-6 py-3 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
+                    <span className="text-xs font-semibold text-ink-secondary tabular-nums">{r.date}</span>
+                    <span className="text-xs tabular-nums text-muted-foreground truncate">{String(r.saleId).toUpperCase()}</span>
+                    <span className="text-xs font-semibold text-foreground truncate">{r.client}</span>
                     <span className="text-xs font-semibold text-foreground tabular-nums">{r.qty}</span>
                     <span className="text-xs text-muted-foreground tabular-nums">{formatCurrency(r.rate)}</span>
                     <span className="text-xs font-semibold text-emerald-600 tabular-nums">{formatCurrency(r.total)}</span>
                   </div>
                 ))}
-                <div className="flex justify-end gap-8 px-6 py-3.5 border-t border-black/5 bg-canvas/30">
+                <div className="flex justify-end gap-8 px-6 py-3.5 border-t border-border/60 bg-canvas/30">
                   <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Total Revenue</span>
                   <span className="text-sm font-semibold text-emerald-600 tabular-nums">{formatCurrency(kpis.revenue)}</span>
                 </div>

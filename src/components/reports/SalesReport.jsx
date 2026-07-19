@@ -223,7 +223,7 @@ const SalesReport = () => {
       {
         key: 'id', label: 'Invoice #', sortable: false, width: 130,
         render: (val) => (
-          <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-bold text-ink-secondary">
+          <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-semibold text-ink-secondary">
             #{(val || '').slice(-6).toUpperCase()}
           </span>
         ),
@@ -247,7 +247,7 @@ const SalesReport = () => {
       {
         key: 'items', label: 'Items', width: 60, align: 'center',
         render: (val) => (
-          <span className="font-mono font-bold text-ink-secondary text-[11px]">
+          <span className="tabular-nums font-semibold text-ink-secondary text-[11px]">
             {Array.isArray(val) ? val.length : '—'}
           </span>
         ),
@@ -323,7 +323,7 @@ const SalesReport = () => {
       {
         key: 'saleRef', label: 'Sale #', width: 110,
         render: (val) => (
-          <span className="font-mono text-[10px] text-ink-tertiary uppercase">
+          <span className="tabular-nums text-[10px] text-ink-tertiary uppercase">
             #{(val || '').slice(-6).toUpperCase()}
           </span>
         ),
@@ -340,7 +340,7 @@ const SalesReport = () => {
         ),
       },
       { key: 'quantity',      label: 'Qty',     align: 'right', sortable: true, width: 80,
-        render: (val) => <span className="font-mono font-bold text-foreground">{val}</span> },
+        render: (val) => <span className="tabular-nums font-semibold text-foreground">{val}</span> },
       { key: 'rate',          label: 'Rate',     type: 'currency', align: 'right', width: 110 },
       { key: 'lineTotal',     label: 'Amount',   type: 'currency', align: 'right', sortable: true, width: 130 },
       {
@@ -406,17 +406,17 @@ const SalesReport = () => {
             }`}>
               <ShoppingBag size={12} className={row._rank <= 3 ? 'text-accent-signature' : 'text-ink-tertiary'} />
             </div>
-            <span className="font-bold text-foreground">{val}</span>
+            <span className="font-semibold text-foreground">{val}</span>
           </div>
         ),
       },
       {
         key: 'totalQty', label: 'Units Sold', align: 'right', sortable: true, width: 120,
-        render: (val) => <span className="font-mono font-bold text-foreground tabular-nums">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-foreground tabular-nums">{val}</span>,
       },
       {
         key: 'txCount', label: 'Transactions', align: 'right', sortable: true, width: 130,
-        render: (val) => <span className="font-mono text-ink-secondary">{val}</span>,
+        render: (val) => <span className="tabular-nums text-ink-secondary">{val}</span>,
       },
       { key: 'avgRate', label: 'Avg. Rate',    type: 'currency', align: 'right', sortable: true, width: 120 },
       { key: 'totalRev', label: 'Total Revenue', type: 'currency', align: 'right', sortable: true, width: 150 },
@@ -480,13 +480,13 @@ const SalesReport = () => {
             }`}>
               {(val || 'W')[0].toUpperCase()}
             </div>
-            <span className="font-bold text-foreground">{val}</span>
+            <span className="font-semibold text-foreground">{val}</span>
           </div>
         ),
       },
       {
         key: 'count', label: 'Orders', align: 'right', sortable: true, width: 110,
-        render: (val) => <span className="font-mono font-bold text-ink-secondary">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-ink-secondary">{val}</span>,
       },
       { key: 'revenue', label: 'Total Revenue', type: 'currency', align: 'right', sortable: true, width: 160 },
       {

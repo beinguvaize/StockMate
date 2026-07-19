@@ -95,7 +95,7 @@ const InventoryReport = () => {
       profit: valuationMetrics.totalPotential - valuationMetrics.totalCost
     },
     columns: [
-      { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-bold">{val || 'N/A'}</span> },
+      { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-semibold">{val || 'N/A'}</span> },
       { key: 'name', label: 'Product Name', sortable: true, width: 250 },
       { key: 'category', label: 'Category', sortable: true, width: 140, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'GENERAL'}</span> },
       { key: 'stock', label: 'Quantity', align: 'right', sortable: true, width: 100, render: (val, row) => (
@@ -140,11 +140,11 @@ const InventoryReport = () => {
       { key: 'name', label: 'Unproductive Asset', sortable: true, width: 250, render: (val, row) => (
         <div className="flex flex-col">
           <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
-          <span className="text-[10px] font-bold text-red-400 font-mono">{row.sku}</span>
+          <span className="text-[10px] font-semibold text-red-400 tabular-nums">{row.sku}</span>
         </div>
       )},
       { key: 'category', label: 'Category', width: 140 },
-      { key: 'stock', label: 'Dormant Units', align: 'right', width: 120, render: (val) => <span className="font-mono text-red-500 font-semibold">{val} Units</span> },
+      { key: 'stock', label: 'Dormant Units', align: 'right', width: 120, render: (val) => <span className="tabular-nums text-red-500 font-semibold">{val} Units</span> },
       { key: 'costPrice', label: 'Frozen Value', align: 'right', width: 150,
         render: (val, row) => '₹' + ((val || 0) * (row.stock || 0))
           .toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) },

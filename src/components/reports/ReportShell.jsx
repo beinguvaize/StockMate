@@ -83,7 +83,7 @@ const ReportShell = ({
       {/* 1. Header & Tab Navigation (Rule 1) */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center no-print gap-6">
         <div>
-          <h1 className="text-4xl md:text-7xl font-semibold font-sora text-foreground leading-[0.85] tracking-tight mb-2 uppercase">
+          <h1 className="text-4xl md:text-7xl font-semibold  text-foreground leading-[0.85] tracking-tight mb-2 uppercase">
             REPORTS<span className="text-accent-signature">.</span>
           </h1>
           <div className="flex items-center gap-3">
@@ -95,7 +95,7 @@ const ReportShell = ({
         </div>
 
         {/* Tab Scroller (Rule 1) */}
-        <div className="no-print flex items-center gap-1.5 p-1.5 bg-white/60 backdrop-blur-3xl border border-border/60 rounded-[2.5rem] shadow-glass overflow-x-auto no-scrollbar max-w-full sticky top-4 z-[40]">
+        <div className="no-print flex items-center gap-1.5 p-1.5 bg-card/60 backdrop-blur-3xl border border-border/60 rounded-[2.5rem] shadow-glass overflow-x-auto no-scrollbar max-w-full sticky top-4 z-[40]">
           {allowedTabs.map(tab => (
             <button
               key={tab.id}

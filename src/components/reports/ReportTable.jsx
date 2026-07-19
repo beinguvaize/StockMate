@@ -170,7 +170,7 @@ const ReportTable = ({
     const parts = String(text).split(new RegExp(`(${localSearch})`, 'gi'));
     return parts.map((part, i) => 
       part.toLowerCase() === localSearch.toLowerCase() 
-        ? <span key={i} className="bg-accent-signature/30 font-bold">{part}</span> 
+        ? <span key={i} className="bg-accent-signature/30 font-semibold">{part}</span> 
         : part
     );
   };
@@ -239,12 +239,12 @@ const ReportTable = ({
           <input 
             type="text" 
             placeholder={`Search across ${sortedData.length} records...`}
-            className="w-full bg-white border border-border rounded-xl py-3 pl-12 pr-4 text-xs font-bold focus:ring-4 focus:ring-accent-signature/10 transition-all outline-none"
+            className="w-full bg-card border border-border rounded-xl py-3 pl-12 pr-4 text-xs font-semibold focus:ring-4 focus:ring-accent-signature/10 transition-all outline-none"
             value={localSearch}
             onChange={(e) => setLocalSearch(e.target.value)}
           />
           {localSearch && (
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-bold text-muted-foreground pointer-events-none uppercase">
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[10px] font-semibold text-muted-foreground pointer-events-none uppercase">
               {sortedData.length} Results
             </div>
           )}
@@ -253,7 +253,7 @@ const ReportTable = ({
         <div className="flex items-center gap-3 relative column-toggle-container">
           <button 
             onClick={() => setShowColumnToggle(!showColumnToggle)}
-            className="flex items-center gap-2 px-6 py-3 bg-white border border-border rounded-lg text-xs font-semibold text-foreground hover:bg-muted/50 transition-all shadow-sm"
+            className="flex items-center gap-2 px-6 py-3 bg-card border border-border rounded-lg text-xs font-semibold text-foreground hover:bg-muted/50 transition-all shadow-sm"
           >
             <Columns size={14} className="text-accent-signature" />
             COLUMNS
@@ -267,7 +267,7 @@ const ReportTable = ({
                   <label key={col.key} className="flex items-center gap-3 cursor-pointer group">
                     <input 
                       type="checkbox" 
-                      className="w-4 h-4 rounded border-gray-300 text-foreground focus:ring-accent-signature"
+                      className="w-4 h-4 rounded border-border text-foreground focus:ring-accent-signature"
                       checked={visibleColumns.includes(col.key)}
                       onChange={() => {
                         if (visibleColumns.includes(col.key)) {
@@ -277,7 +277,7 @@ const ReportTable = ({
                         }
                       }}
                     />
-                    <span className="text-xs font-bold text-foreground group-hover:text-foreground transition-colors uppercase tracking-tight">
+                    <span className="text-xs font-semibold text-foreground group-hover:text-foreground transition-colors uppercase tracking-tight">
                       {col.label}
                     </span>
                   </label>
@@ -291,18 +291,18 @@ const ReportTable = ({
       {/* Main Table Container */}
       <div 
         ref={tableRef}
-        className="relative flex-1 bg-white rounded-[2rem] border border-border shadow-sm overflow-auto custom-scrollbar group/table"
+        className="relative flex-1 bg-card rounded-[2rem] border border-border shadow-sm overflow-auto custom-scrollbar group/table"
       >
         <table className="report-table w-full border-separate border-spacing-0 text-left min-w-full">
           {/* Sticky Header */}
-          <thead className="sticky top-0 z-30 bg-white/80 backdrop-blur-3xl shadow-sm border-b border-border">
+          <thead className="sticky top-0 z-30 bg-card/80 backdrop-blur-3xl shadow-sm border-b border-border">
             <tr>
               {columns.filter(c => visibleColumns.includes(c.key)).map((col, i) => (
                 <th 
                   key={col.key}
                   className={`
                     group px-6 py-5 text-[10px] font-semibold uppercase text-muted-foreground tracking-wider cursor-default relative select-none
-                    ${i === 0 ? 'sticky left-0 z-40 bg-white/95 border-r border-border/60' : ''}
+                    ${i === 0 ? 'sticky left-0 z-40 bg-card/95 border-r border-border/60' : ''}
                     ${col.sortable ? 'cursor-pointer hover:text-foreground' : ''}
                   `}
                   style={{ width: columnWidths[col.key], minWidth: columnWidths[col.key] }}
@@ -338,7 +338,7 @@ const ReportTable = ({
                 <td colSpan={visibleColumns.length} className="py-32 text-center">
                   <div className="flex flex-col items-center justify-center opacity-20 group-hover:opacity-40 transition-opacity">
                     <Info size={48} strokeWidth={1.5} className="mb-4" />
-                    <p className="text-sm font-bold uppercase tracking-widest">No matching records found</p>
+                    <p className="text-sm font-semibold uppercase tracking-widest">No matching records found</p>
                   </div>
                 </td>
               </tr>
@@ -358,8 +358,8 @@ const ReportTable = ({
                     <td 
                       key={col.key}
                       className={`
-                        px-6 py-4.5 text-[12px] font-bold text-foreground whitespace-nowrap border-x border-transparent
-                        ${colIndex === 0 ? 'sticky left-0 z-20 bg-white group-hover/row:bg-[#FAF9F5] transition-colors border-r border-border/60' : ''}
+                        px-6 py-4.5 text-[12px] font-semibold text-foreground whitespace-nowrap border-x border-transparent
+                        ${colIndex === 0 ? 'sticky left-0 z-20 bg-card group-hover/row:bg-[#FAF9F5] transition-colors border-r border-border/60' : ''}
                         ${col.align === 'right' ? 'text-right tabular-nums' : ''}
                       `}
                     >
@@ -430,21 +430,21 @@ const ReportTable = ({
       </div>
 
       {/* Pagination */}
-      <div className="flex flex-col md:flex-row justify-between items-center bg-white px-8 py-5 rounded-[2rem] border border-border shadow-sm no-print gap-4">
+      <div className="flex flex-col md:flex-row justify-between items-center bg-card px-8 py-5 rounded-[2rem] border border-border shadow-sm no-print gap-4">
         <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
           Showing <span className="text-foreground">{(page - 1) * pageSize + 1}</span>–<span className="text-foreground">{Math.min(page * pageSize, sortedData.length)}</span> of <span className="text-foreground">{sortedData.length}</span> records
         </div>
         
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold text-muted-foreground uppercase">Rows:</span>
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase">Rows:</span>
             <select 
               value={pageSize}
               onChange={(e) => {
                 setPageSize(Number(e.target.value));
                 setPage(1);
               }}
-              className="bg-white border border-gray-300 shadow-sm rounded-lg px-2 py-1 text-[10px] font-semibold text-foreground outline-none cursor-pointer"
+              className="bg-card border border-border shadow-sm rounded-lg px-2 py-1 text-[10px] font-semibold text-foreground outline-none cursor-pointer"
             >
               {[25, 50, 100].map(size => <option key={size} value={size}>{size}</option>)}
             </select>
@@ -474,9 +474,9 @@ const ReportTable = ({
                   const val = Number(e.target.value);
                   if (val >= 1 && val <= totalPages) setPage(val);
                 }}
-                className="w-10 text-center bg-white border border-gray-300 shadow-sm rounded-lg py-1.5 text-[10px] font-semibold text-foreground outline-none font-mono"
+                className="w-10 text-center bg-card border border-border shadow-sm rounded-lg py-1.5 text-[10px] font-semibold text-foreground outline-none tabular-nums"
               />
-              <span className="text-[10px] font-bold text-muted-foreground uppercase whitespace-nowrap">of {totalPages || 1}</span>
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase whitespace-nowrap">of {totalPages || 1}</span>
             </div>
 
             <button 

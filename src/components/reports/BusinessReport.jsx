@@ -62,7 +62,7 @@ const KPI = ({ label, value, sub, spark, color = 'var(--color-accent-signature)'
     </div>
     {loading
       ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-      : <div className="font-mono text-2xl font-bold text-foreground tabular-nums leading-none">{value}</div>
+      : <div className="tabular-nums text-2xl font-semibold text-foreground tabular-nums leading-none">{value}</div>
     }
     <div className="text-[11px] font-medium text-muted-foreground">{label}</div>
     {spark && spark.length > 1 && <Spark data={spark} color={color} />}
@@ -74,8 +74,8 @@ const KPI = ({ label, value, sub, spark, color = 'var(--color-accent-signature)'
 const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-black/8 rounded-xl px-3 py-2 shadow-lg text-xs">
-      <div className="font-bold text-ink-secondary mb-1">{label}</div>
+    <div className="bg-card border border-black/8 rounded-xl px-3 py-2 shadow-lg text-xs">
+      <div className="font-semibold text-ink-secondary mb-1">{label}</div>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
@@ -298,7 +298,7 @@ const BusinessReport = () => {
           <Calendar size={14} className="text-muted-foreground shrink-0" />
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-          <span className="text-muted-foreground text-xs font-bold">to</span>
+          <span className="text-muted-foreground text-xs font-semibold">to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
           <button onClick={applyCustom}
@@ -376,7 +376,7 @@ const BusinessReport = () => {
                   return (
                     <div key={p.name}>
                       <div className="flex justify-between text-xs mb-1">
-                        <span className="font-bold text-foreground flex items-center gap-1.5">
+                        <span className="font-semibold text-foreground flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full" style={{ background: color }} />
                           {p.name}
                         </span>
@@ -386,7 +386,7 @@ const BusinessReport = () => {
                         <div className="h-full rounded-full transition-all duration-700"
                           style={{ width: `${pct}%`, background: color }} />
                       </div>
-                      <div className="text-[9px] text-muted-foreground font-bold mt-0.5 text-right">{pct.toFixed(1)}%</div>
+                      <div className="text-[9px] text-muted-foreground font-semibold mt-0.5 text-right">{pct.toFixed(1)}%</div>
                     </div>
                   );
                 })}
@@ -397,7 +397,7 @@ const BusinessReport = () => {
 
       {/* ── TOP PRODUCTS ────────────────────────────────────────────────── */}
       <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
           <SectionHead title="Top Products" sub="by revenue" />
           {!loading && (
             <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">
@@ -412,14 +412,14 @@ const BusinessReport = () => {
           : (
             <div>
               {/* Table header */}
-              <div className="grid grid-cols-[36px_1fr_80px_100px_120px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-black/5">
+              <div className="grid grid-cols-[36px_1fr_80px_100px_120px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
                 {['#','Product','Qty','Orders','Avg Rate','Revenue'].map(h => (
                   <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
                 ))}
               </div>
               {salesMetrics.topProducts.map((p, i) => (
                 <div key={p.name}
-                  className={`grid grid-cols-[36px_1fr_80px_100px_120px_120px] gap-4 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors ${
+                  className={`grid grid-cols-[36px_1fr_80px_100px_120px_120px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors ${
                     i === 0 ? 'bg-accent-signature/3' : ''
                   }`}>
                   {/* Rank */}
@@ -429,7 +429,7 @@ const BusinessReport = () => {
 
                   {/* Name + share bar */}
                   <div>
-                    <div className="text-sm font-bold text-foreground truncate">{p.name}</div>
+                    <div className="text-sm font-semibold text-foreground truncate">{p.name}</div>
                     <div className="flex items-center gap-2 mt-1">
                       <div className="w-20 h-1 rounded-full bg-canvas overflow-hidden">
                         <div className="h-full rounded-full bg-accent-signature transition-all duration-700"
@@ -439,9 +439,9 @@ const BusinessReport = () => {
                     </div>
                   </div>
 
-                  <span className="font-mono font-bold text-foreground text-sm tabular-nums">{p.qty}</span>
-                  <span className="font-mono text-ink-secondary text-sm tabular-nums">{p.txCount}</span>
-                  <span className="text-sm font-bold text-foreground tabular-nums">
+                  <span className="tabular-nums font-semibold text-foreground text-sm tabular-nums">{p.qty}</span>
+                  <span className="tabular-nums text-ink-secondary text-sm tabular-nums">{p.txCount}</span>
+                  <span className="text-sm font-semibold text-foreground tabular-nums">
                     {formatCurrency(p.qty > 0 ? p.revenue / p.qty : 0)}
                   </span>
                   <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(p.revenue)}</span>
@@ -456,7 +456,7 @@ const BusinessReport = () => {
 
         {/* Client leaderboard */}
         <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-          <div className="px-6 pt-6 pb-4 border-b border-black/5">
+          <div className="px-6 pt-6 pb-4 border-b border-border/60">
             <SectionHead title="Top Clients" sub="by revenue" />
           </div>
           {salesLoading
@@ -464,14 +464,14 @@ const BusinessReport = () => {
             : salesMetrics.topClients.length === 0
             ? <div className="py-12 text-center text-sm text-muted-foreground">No client data</div>
             : salesMetrics.topClients.map((c, i) => (
-              <div key={c.name} className="flex items-center gap-4 px-6 py-3.5 border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
+              <div key={c.name} className="flex items-center gap-4 px-6 py-3.5 border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0 ${
                   i===0?'bg-accent-signature/15 text-accent-signature-hover':i===1?'bg-gray-100 text-gray-600':'bg-accent-signature/10 text-accent-signature'
                 }`}>
                   {(c.name[0]||'?').toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-foreground truncate">{c.name}</div>
+                  <div className="text-sm font-semibold text-foreground truncate">{c.name}</div>
                   <div className="text-[10px] text-muted-foreground font-medium">{c.orders} orders</div>
                 </div>
                 <div className="text-right shrink-0">
@@ -485,7 +485,7 @@ const BusinessReport = () => {
 
         {/* Daily sales breakdown */}
         <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-          <div className="px-6 pt-6 pb-4 border-b border-black/5">
+          <div className="px-6 pt-6 pb-4 border-b border-border/60">
             <SectionHead title="Daily Summary" />
           </div>
           {salesLoading
@@ -493,12 +493,12 @@ const BusinessReport = () => {
             : salesMetrics.dailyTrend.length === 0
             ? <div className="py-12 text-center text-sm text-muted-foreground">No data</div>
             : [...salesMetrics.dailyTrend].reverse().slice(0, 8).map(d => (
-              <div key={d.date} className="flex items-center gap-4 px-6 py-3 border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
+              <div key={d.date} className="flex items-center gap-4 px-6 py-3 border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
                 <div className="w-8 h-8 rounded-xl bg-canvas flex items-center justify-center shrink-0">
                   <Calendar size={13} className="text-muted-foreground" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-bold text-foreground">{d.date}</div>
+                  <div className="text-sm font-semibold text-foreground">{d.date}</div>
                   <div className="text-[10px] text-muted-foreground font-medium">{d.orders} transactions</div>
                 </div>
                 <div className="text-sm font-semibold text-foreground tabular-nums shrink-0">
@@ -512,7 +512,7 @@ const BusinessReport = () => {
 
       {/* ── ALL TRANSACTIONS (full period ledger) ───────────────────────── */}
       <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
           <SectionHead title="All Transactions" sub="every sale in period" />
           {!salesLoading && (
             <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">{transactions.length} sales</span>
@@ -528,26 +528,26 @@ const BusinessReport = () => {
                 <thead className="sticky top-0 z-10">
                   <tr className="bg-canvas/80 backdrop-blur-sm border-b border-black/10">
                     {[['Date','left'],['Ref','left'],['Client','left'],['Items','right'],['Payment','center'],['Status','center'],['Amount','right']].map(([h,a]) => (
-                      <th key={h} className={`px-4 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground ${a==='right'?'text-right':a==='center'?'text-center':''}`}>{h}</th>
+                      <th key={h} className={`px-4 py-2.5 tabular-nums text-[10px] font-semibold uppercase tracking-widest text-muted-foreground ${a==='right'?'text-right':a==='center'?'text-center':''}`}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {transactions.map((t, i) => (
                     <tr key={i} className="border-b border-black/[0.04] hover:bg-accent-signature/[0.04] transition-colors">
-                      <td className="px-4 py-2.5 font-mono text-[12px] text-muted-foreground whitespace-nowrap">{t.date}</td>
-                      <td className="px-4 py-2.5 font-mono text-[11px] text-muted-foreground uppercase whitespace-nowrap">{t.ref}</td>
-                      <td className="px-4 py-2.5 text-[13px] font-bold text-foreground truncate max-w-[200px]">{t.client}</td>
-                      <td className="px-4 py-2.5 text-right font-mono text-[12px] text-muted-foreground">{t.items}</td>
-                      <td className="px-4 py-2.5 text-center"><span className="text-[10px] font-bold uppercase text-muted-foreground">{t.payment}</span></td>
+                      <td className="px-4 py-2.5 tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">{t.date}</td>
+                      <td className="px-4 py-2.5 tabular-nums text-[11px] text-muted-foreground uppercase whitespace-nowrap">{t.ref}</td>
+                      <td className="px-4 py-2.5 text-[13px] font-semibold text-foreground truncate max-w-[200px]">{t.client}</td>
+                      <td className="px-4 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground">{t.items}</td>
+                      <td className="px-4 py-2.5 text-center"><span className="text-[10px] font-semibold uppercase text-muted-foreground">{t.payment}</span></td>
                       <td className="px-4 py-2.5 text-center">
-                        <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-bold uppercase ${
+                        <span className={`inline-block px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase ${
                           t.status==='PAID'||t.status==='COMPLETED' ? 'bg-emerald-50 text-emerald-600' :
                           t.status==='PARTIAL' ? 'bg-accent-signature/10 text-accent-signature-hover' :
                           t.status==='PENDING'||t.status==='UNPAID' ? 'bg-rose-50 text-rose-600' : 'bg-gray-100 text-muted-foreground'
                         }`}>{t.status==='UNPAID'?'Pending':t.status.charAt(0)+t.status.slice(1).toLowerCase()}</span>
                       </td>
-                      <td className="px-4 py-2.5 text-right font-mono text-[13px] font-bold text-foreground whitespace-nowrap">
+                      <td className="px-4 py-2.5 text-right tabular-nums text-[13px] font-semibold text-foreground whitespace-nowrap">
                         <span className="text-accent-signature/70 mr-0.5">{'₹'}</span>{Math.round(t.amount).toLocaleString('en-IN')}
                       </td>
                     </tr>
@@ -555,8 +555,8 @@ const BusinessReport = () => {
                 </tbody>
                 <tfoot>
                   <tr className="border-t-2 border-black/15 bg-canvas/40 sticky bottom-0">
-                    <td className="px-4 py-3 font-mono text-[11px] font-semibold uppercase tracking-widest text-muted-foreground" colSpan={6}>Total · {transactions.length} sales</td>
-                    <td className="px-4 py-3 text-right font-mono text-[14px] font-semibold text-foreground whitespace-nowrap">
+                    <td className="px-4 py-3 tabular-nums text-[11px] font-semibold uppercase tracking-widest text-muted-foreground" colSpan={6}>Total · {transactions.length} sales</td>
+                    <td className="px-4 py-3 text-right tabular-nums text-[14px] font-semibold text-foreground whitespace-nowrap">
                       <span className="text-accent-signature/70 mr-0.5">{'₹'}</span>{Math.round(salesMetrics.totalRevenue).toLocaleString('en-IN')}
                     </td>
                   </tr>
@@ -568,7 +568,7 @@ const BusinessReport = () => {
 
       {/* ── PURCHASES ───────────────────────────────────────────────────── */}
       <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
           <SectionHead title="Purchases" sub="by supplier" />
           <div className="flex gap-6 text-right">
             <div>
@@ -587,21 +587,21 @@ const BusinessReport = () => {
           ? <div className="py-16 text-center text-sm text-muted-foreground">No purchases for selected period</div>
           : (
             <div>
-              <div className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-black/5">
+              <div className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
                 {['#','Supplier','Orders','Share','Amount'].map(h => (
                   <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
                 ))}
               </div>
               {purchMetrics.topSuppliers.map((s, i) => (
-                <div key={s.name} className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
+                <div key={s.name} className="grid grid-cols-[36px_1fr_80px_140px_120px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
                   <span className={`text-sm font-semibold ${i===0?'text-accent-signature':'text-ink-tertiary'}`}>{s.rank}</span>
                   <div className="flex items-center gap-3 min-w-0">
                     <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
                       <span className="text-[10px] font-semibold text-blue-600">{s.name[0]?.toUpperCase()}</span>
                     </div>
-                    <span className="text-sm font-bold text-foreground truncate">{s.name}</span>
+                    <span className="text-sm font-semibold text-foreground truncate">{s.name}</span>
                   </div>
-                  <span className="font-mono text-ink-secondary text-sm">{s.orders}</span>
+                  <span className="tabular-nums text-ink-secondary text-sm">{s.orders}</span>
                   <div className="flex items-center gap-2">
                     <div className="flex-1 h-1.5 rounded-full bg-canvas overflow-hidden">
                       <div className="h-full rounded-full bg-accent-signature" style={{ width: `${Math.min(100, s.share)}%` }} />
@@ -658,7 +658,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
 
   return (
     <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-      <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+      <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
         <SectionHead title="Daily Sales Detail" sub="product & client breakdown" />
         <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">
           {byDate.length} days
@@ -668,7 +668,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
       {byDate.map(day => {
         const isOpen = openDates[day.date] ?? (byDate.length === 1);
         return (
-          <div key={day.date} className="border-b border-black/5 last:border-0">
+          <div key={day.date} className="border-b border-border/60 last:border-0">
             {/* Day header — click to expand */}
             <button
               className="w-full flex items-center gap-4 px-6 py-4 hover:bg-canvas/40 transition-colors text-left"
@@ -678,12 +678,12 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                 <Calendar size={14} className="text-accent-signature" />
               </div>
               <div className="flex-1 min-w-0">
-                <div className="font-mono text-sm font-bold text-foreground">{day.date}</div>
+                <div className="tabular-nums text-sm font-semibold text-foreground">{day.date}</div>
                 <div className="text-[10px] text-muted-foreground font-medium mt-0.5">
                   {day.orders} {day.orders === 1 ? 'sale' : 'sales'}
                 </div>
               </div>
-              <div className="font-mono text-base font-bold text-foreground tabular-nums shrink-0">
+              <div className="tabular-nums text-base font-semibold text-foreground tabular-nums shrink-0">
                 {formatCurrency(day.total)}
               </div>
               <ChevronDown
@@ -694,9 +694,9 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
 
             {/* Expanded sales for this day */}
             {isOpen && (
-              <div className="bg-canvas/30 border-t border-black/5">
+              <div className="bg-canvas/30 border-t border-border/60">
                 {/* Column labels */}
-                <div className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-2 border-b border-black/5 items-center">
+                <div className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-2 border-b border-border/60 items-center">
                   {[['Client','justify-self-start'],['Products','justify-self-start'],['Items','justify-self-center'],['Source','justify-self-center'],['App','justify-self-center'],['By','justify-self-start'],['Method','justify-self-center'],['Amount','justify-self-end']].map(([h,a]) => (
                     <span key={h} className={`text-[9px] font-semibold text-muted-foreground uppercase tracking-widest ${a}`}>{h}</span>
                   ))}
@@ -721,14 +721,14 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
 
                   return (
                     <div key={s.id || si}
-                      className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-3 border-b border-black/5 last:border-0 hover:bg-white/60 transition-colors items-center">
+                      className="grid grid-cols-[1fr_180px_56px_72px_72px_110px_84px_120px] gap-3 px-8 py-3 border-b border-border/60 last:border-0 hover:bg-card/60 transition-colors items-center">
 
                       {/* Client */}
                       <div className="flex items-center gap-2 min-w-0">
                         <div className="w-6 h-6 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
                           <span className="text-[9px] font-semibold text-accent-signature">{(cname[0]||'?').toUpperCase()}</span>
                         </div>
-                        <span className="text-xs font-bold text-foreground truncate">{cname}</span>
+                        <span className="text-xs font-semibold text-foreground truncate">{cname}</span>
                       </div>
 
                       {/* Products */}
@@ -745,7 +745,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                       </div>
 
                       {/* Total items */}
-                      <span className="font-mono text-xs font-bold text-foreground tabular-nums justify-self-center">{itemQty}</span>
+                      <span className="tabular-nums text-xs font-semibold text-foreground tabular-nums justify-self-center">{itemQty}</span>
 
                       {/* Source badge */}
                       {isVan
@@ -767,7 +767,7 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                       </span>
 
                       {/* Sold by */}
-                      <span className="text-[11px] font-bold text-ink-secondary truncate justify-self-start" title={user?.email || ''}>
+                      <span className="text-[11px] font-semibold text-ink-secondary truncate justify-self-start" title={user?.email || ''}>
                         {byLabel}
                       </span>
 
@@ -777,15 +777,15 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                       </span>
 
                       {/* Amount */}
-                      <span className="font-mono text-xs font-bold text-foreground tabular-nums justify-self-end">{formatCurrency(s.totalAmount)}</span>
+                      <span className="tabular-nums text-xs font-semibold text-foreground tabular-nums justify-self-end">{formatCurrency(s.totalAmount)}</span>
                     </div>
                   );
                 })}
 
                 {/* Day subtotal */}
-                <div className="flex justify-end items-center px-8 py-2.5 border-t border-black/5 bg-white/40">
+                <div className="flex justify-end items-center px-8 py-2.5 border-t border-border/60 bg-card/40">
                   <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mr-4">Day Total</span>
-                  <span className="font-mono text-sm font-bold text-foreground tabular-nums">{formatCurrency(day.total)}</span>
+                  <span className="tabular-nums text-sm font-semibold text-foreground tabular-nums">{formatCurrency(day.total)}</span>
                 </div>
               </div>
             )}

@@ -35,7 +35,7 @@ const ExpiryReport = () => {
         _sku: p.sku || '',
         _days: days,
         _bucket: bucket?.label || '> 90 days',
-        _bucketColor: bucket?.color || 'text-muted-foreground bg-gray-50 border-gray-200',
+        _bucketColor: bucket?.color || 'text-muted-foreground bg-gray-50 border-border',
         _value: round2(Number(b.qty_remaining) * Number(b.unit_cost || 0)),
       };
     })
@@ -89,7 +89,7 @@ const ExpiryReport = () => {
       {
         key: '_days', label: 'Days left', sortable: true, width: 110,
         render: (v, r) => (
-          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-bold ${r._bucketColor}`}>
+          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[10px] font-semibold ${r._bucketColor}`}>
             {v < 0 && <AlertTriangle size={10} />}
             {v < 0 ? `${Math.abs(v)}d ago` : `${v}d`}
           </span>

@@ -21,7 +21,7 @@ const ShareBar = ({ share, color }) => (
 
 const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAccent, amountLabel, loading, emptyMsg, rankColors }) => (
   <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden flex-1 min-w-0">
-    <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+    <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
       <SectionHead title={title} sub={`${rows.length} ${totalLabel}`} />
       <div className="text-right">
         <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{amountLabel}</div>
@@ -37,13 +37,13 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
       <div className="py-16 text-center text-sm text-muted-foreground">{emptyMsg}</div>
     ) : (
       <div>
-        <div className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-2 bg-canvas/50 border-b border-black/5">
+        <div className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-2 bg-canvas/50 border-b border-border/60">
           {['#','Name','Orders','Amount'].map(h => (
             <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
           ))}
         </div>
         {rows.map((row, i) => (
-          <div key={row.name} className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
+          <div key={row.name} className="grid grid-cols-[36px_1fr_80px_130px] gap-3 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
             <span className={`text-sm font-semibold ${rankColors[i] || 'text-ink-tertiary'}`}>{i + 1}</span>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -53,11 +53,11 @@ const PartyTable = ({ title, icon: Icon, rows, totalAmount, totalLabel, colorAcc
                     {(row.name?.[0] || '?').toUpperCase()}
                   </span>
                 </div>
-                <span className="text-sm font-bold text-foreground truncate">{row.name}</span>
+                <span className="text-sm font-semibold text-foreground truncate">{row.name}</span>
               </div>
               <ShareBar share={row.share} color={colorAccent} />
             </div>
-            <span className="text-sm font-mono text-ink-secondary tabular-nums">{row.orders}</span>
+            <span className="text-sm tabular-nums text-ink-secondary tabular-nums">{row.orders}</span>
             <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(row.amount)}</span>
           </div>
         ))}
@@ -175,7 +175,7 @@ const SalePurchaseByPartyReport = () => {
           <Calendar size={14} className="text-muted-foreground shrink-0" />
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-          <span className="text-muted-foreground text-xs font-bold">to</span>
+          <span className="text-muted-foreground text-xs font-semibold">to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
           <button onClick={applyCustom}

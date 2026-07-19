@@ -95,10 +95,10 @@ const ReportFilterBar = ({
 
   return (
     <div className="flex flex-col gap-4 no-print">
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white/60 backdrop-blur-xl p-3 border border-white/20 rounded-[2.5rem] shadow-glass">
+      <div className="flex flex-wrap items-center justify-between gap-4 bg-card/60 backdrop-blur-xl p-3 border border-white/20 rounded-[2.5rem] shadow-glass">
         
         {/* Left: Date Presets (Rule 5) */}
-        <div className="flex items-center gap-1.5 p-1 bg-white border border-gray-300 shadow-sm rounded-pill overflow-x-auto no-scrollbar max-w-full">
+        <div className="flex items-center gap-1.5 p-1 bg-card border border-border shadow-sm rounded-pill overflow-x-auto no-scrollbar max-w-full">
           {datePresets.map(preset => {
             const isActive = filters.datePreset === preset.id;
             return (
@@ -121,7 +121,7 @@ const ReportFilterBar = ({
           {lastUpdated && (
             <div className="hidden md:flex flex-col items-end opacity-40">
               <span className="text-[8px] font-semibold uppercase tracking-tighter">Last Synchronized</span>
-              <span className="text-[10px] font-bold text-foreground">
+              <span className="text-[10px] font-semibold text-foreground">
                 {new Date(lastUpdated).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </span>
             </div>
@@ -156,7 +156,7 @@ const ReportFilterBar = ({
                   </div>
                   <div className="flex flex-col items-start gap-0.5">
                     <span>Export CSV</span>
-                    <span className="text-[8px] font-bold normal-case tracking-normal text-muted-foreground">Spreadsheet (Excel / Numbers)</span>
+                    <span className="text-[8px] font-semibold normal-case tracking-normal text-muted-foreground">Spreadsheet (Excel / Numbers)</span>
                   </div>
                 </button>
                 <button
@@ -172,7 +172,7 @@ const ReportFilterBar = ({
                   </div>
                   <div className="flex flex-col items-start gap-0.5">
                     <span>Export PDF</span>
-                    <span className="text-[8px] font-bold normal-case tracking-normal text-muted-foreground">Via browser print dialog</span>
+                    <span className="text-[8px] font-semibold normal-case tracking-normal text-muted-foreground">Via browser print dialog</span>
                   </div>
                 </button>
               </div>
@@ -191,25 +191,25 @@ const ReportFilterBar = ({
 
       {/* Dynamic Filter Chips & Custom Date (Rule 5) */}
       {(showCustomDate || config.length > 0) && (
-        <div className="flex flex-wrap items-center gap-3 bg-white/40 backdrop-blur-md p-4 rounded-[2rem] border border-border/60 shadow-sm animate-in slide-in-from-top-4 duration-300">
+        <div className="flex flex-wrap items-center gap-3 bg-card/40 backdrop-blur-md p-4 rounded-[2rem] border border-border/60 shadow-sm animate-in slide-in-from-top-4 duration-300">
           
           {/* Custom Date Range Pickers (Rule 5) */}
           {showCustomDate && (
-            <div className="flex items-center gap-3 pr-4 border-r border-black/5">
-              <div className="flex items-center gap-2 bg-white border border-border/60 px-4 py-2.5 rounded-pill shadow-sm">
+            <div className="flex items-center gap-3 pr-4 border-r border-border/60">
+              <div className="flex items-center gap-2 bg-card border border-border/60 px-4 py-2.5 rounded-pill shadow-sm">
                 <Calendar size={14} className="text-accent-signature" />
                 <input 
                   type="date" 
                   value={filters.dateRange?.start || ''} 
                   onChange={e => setFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, start: e.target.value } }))}
-                  className="bg-transparent border-none text-[10px] font-semibold text-foreground outline-none uppercase font-mono"
+                  className="bg-transparent border-none text-[10px] font-semibold text-foreground outline-none uppercase tabular-nums"
                 />
                 <span className="text-gray-300 font-semibold px-2">/</span>
                 <input 
                   type="date" 
                   value={filters.dateRange?.end || ''} 
                   onChange={e => setFilters(prev => ({ ...prev, dateRange: { ...prev.dateRange, end: e.target.value } }))}
-                  className="bg-transparent border-none text-[10px] font-semibold text-foreground outline-none uppercase font-mono"
+                  className="bg-transparent border-none text-[10px] font-semibold text-foreground outline-none uppercase tabular-nums"
                 />
               </div>
             </div>
@@ -225,7 +225,7 @@ const ReportFilterBar = ({
                     flex items-center gap-3 px-6 py-2.5 rounded-pill border transition-all text-[10px] font-semibold tracking-widest uppercase
                     ${filters[item.key] && filters[item.key] !== 'ALL' 
                       ? 'bg-card text-foreground font-semibold shadow-sm' 
-                      : 'bg-white border-black/5 text-muted-foreground hover:border-black/10 hover:shadow-premium'}
+                      : 'bg-card border-border/60 text-muted-foreground hover:border-black/10 hover:shadow-premium'}
                   `}
                 >
                   {item.label}

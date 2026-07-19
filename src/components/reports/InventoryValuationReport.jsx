@@ -77,7 +77,7 @@ const InventoryValuationReport = () => {
 
   // 3. Define Table Columns (Rule 2)
   const columns = [
-    { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase">{val || 'N/A'}</span> },
+    { key: 'sku', label: 'SKU', sortable: true, width: 120, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase">{val || 'N/A'}</span> },
     { key: 'name', label: 'Product Name', sortable: true, width: 250 },
     { key: 'category', label: 'Category', sortable: true, width: 140, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'GENERAL'}</span> },
     { key: 'stock', label: 'Quantity', align: 'right', sortable: true, width: 100, render: (val, row) => (

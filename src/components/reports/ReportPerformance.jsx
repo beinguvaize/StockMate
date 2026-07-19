@@ -41,32 +41,32 @@ const ReportPerformance = ({ sales, products, businessProfile}) => {
  {/* High Level KPI Cards */}
  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
  {/* Sales Revenue Card */}
- <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+ <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
  <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-accent-signature">
  <Zap size={40} strokeWidth={2} />
  </div>
  <div className="relative z-10 flex flex-col">
- <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Last 30 Days Revenue</span>
+ <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Last 30 Days Revenue</span>
  <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
  <span className="text-[16px] text-foreground/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
  {Math.round(performanceData.totalRevenue).toLocaleString()}
  </div>
  <div className="flex items-center gap-1.5 text-accent-signature mt-3">
  <ArrowUpRight size={14} strokeWidth={2.5} />
- <span className="text-[9px] font-bold uppercase tracking-widest">Trending Up</span>
+ <span className="text-[9px] font-semibold uppercase tracking-widest">Trending Up</span>
  </div>
  </div>
  </div>
 
  {/* Sales Volume Card */}
- <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+ <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
  <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-foreground">
  <ShoppingBag size={40} strokeWidth={2} />
  </div>
  <div className="relative z-10 flex flex-col">
- <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Sales Volume</span>
+ <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Sales Volume</span>
  <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
- {performanceData.transactionCount} <span className="text-sm font-bold opacity-30 text-foreground tracking-wider ml-1">ORDERS</span>
+ {performanceData.transactionCount} <span className="text-sm font-semibold opacity-30 text-foreground tracking-wider ml-1">ORDERS</span>
  </div>
  <div className="w-full max-w-[150px] bg-black/5 h-1.5 rounded-full overflow-hidden mt-3.5">
  <div className="bg-accent-signature h-full w-[65%]" />
@@ -75,19 +75,19 @@ const ReportPerformance = ({ sales, products, businessProfile}) => {
  </div>
 
  {/* Ticket Size Card */}
- <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+ <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
  <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-foreground">
  <Target size={40} strokeWidth={2} />
  </div>
  <div className="relative z-10 flex flex-col">
- <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Ticket Size</span>
+ <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Ticket Size</span>
  <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
  <span className="text-[16px] text-foreground/30 mr-1">{businessProfile?.currencySymbol || '₹'}</span>
  {Math.round(performanceData.avgOrderValue).toLocaleString()}
  </div>
  <div className="flex items-center gap-1.5 text-muted-foreground mt-3">
  <Target size={12} />
- <span className="text-[9px] font-bold uppercase tracking-wider">Efficiency Goal: {businessProfile?.currencySymbol || '₹'}5,000</span>
+ <span className="text-[9px] font-semibold uppercase tracking-wider">Efficiency Goal: {businessProfile?.currencySymbol || '₹'}5,000</span>
  </div>
  </div>
  </div>
@@ -114,7 +114,7 @@ const ReportPerformance = ({ sales, products, businessProfile}) => {
  <span className="text-sm font-semibold text-foreground group-hover:text-accent-signature transition-colors">{p.name}</span>
  </div>
  <div className="text-right">
- <span className="text-xs font-semibold font-mono text-foreground">{businessProfile?.currencySymbol || '₹'}{Math.round(p.revenue).toLocaleString()}</span>
+ <span className="text-xs font-semibold tabular-nums text-foreground">{businessProfile?.currencySymbol || '₹'}{Math.round(p.revenue).toLocaleString()}</span>
  <span className="text-[10px] font-semibold text-ink-tertiary ml-2">{p.units} Units</span>
  </div>
  </div>
@@ -135,12 +135,12 @@ const ReportPerformance = ({ sales, products, businessProfile}) => {
 
  {/* Strategic Insight Block */}
  <div className="p-5 bg-accent-signature/10 rounded-[2.5rem] border border-accent-signature/20 flex flex-col md:flex-row items-center gap-5">
- <div className="w-16 h-16 rounded-lg bg-white border border-accent-signature/20 flex items-center justify-center text-accent-signature shadow-sm shrink-0">
+ <div className="w-16 h-16 rounded-lg bg-card border border-accent-signature/20 flex items-center justify-center text-accent-signature shadow-sm shrink-0">
  <BarChart3 size={32} />
  </div>
  <div className="flex-1">
  <h4 className="text-lg font-semibold mb-1">Organization Health Insight</h4>
- <p className="text-sm font-bold text-foreground leading-relaxed">
+ <p className="text-sm font-semibold text-foreground leading-relaxed">
  Your average order value has increased by 12% this month. Higher ticket sizes are driven by product bundles. Consider launching a loyalty program for your top 5 customers to maintain this momentum.
  </p>
  </div>

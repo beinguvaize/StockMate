@@ -99,10 +99,10 @@ const HRReport = () => {
     totals: { amount: payrollMetrics.totalDisbursed },
     columns: [
       { key: 'processed_at', label: 'Sync Date', type: 'date', sortable: true, width: 150 },
-      { key: 'employeeId', label: 'Personnel Reference', width: 200, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-bold">{(val || '').slice(0, 10)}</span> },
+      { key: 'employeeId', label: 'Personnel Reference', width: 200, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-semibold">{(val || '').slice(0, 10)}</span> },
       { key: 'month', label: 'Fiscal Period', width: 120, render: (val) => <span className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest">{val || 'CURRENT'}</span> },
       { key: 'amount', label: 'Magnitude', type: 'currency', align: 'right', sortable: true, width: 160 },
-      { key: 'processed_by', label: 'Validator', width: 140, render: (val) => <span className="text-[10px] font-bold text-muted-foreground font-mono uppercase">{val || 'SYSTEM'}</span> }
+      { key: 'processed_by', label: 'Validator', width: 140, render: (val) => <span className="text-[10px] font-semibold text-muted-foreground tabular-nums uppercase">{val || 'SYSTEM'}</span> }
     ],
     kpis: payrollMetrics.kpis,
     chartConfig: { 

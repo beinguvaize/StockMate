@@ -228,10 +228,10 @@ const GeneralLedgerReport = () => {
     totals: { debit: totals.debit, credit: totals.credit },
     columns: [
       { key: 'date', label: 'Date', type: 'date', sortable: true, width: 120 },
-      { key: 'id', label: 'Entry #', sortable: true, width: 130, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-bold">{val}</span> },
-      { key: 'reference', label: 'Reference', sortable: true, width: 150, render: (val) => <span className="font-mono text-[10px] font-bold text-muted-foreground">{val}</span> },
+      { key: 'id', label: 'Entry #', sortable: true, width: 130, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
+      { key: 'reference', label: 'Reference', sortable: true, width: 150, render: (val) => <span className="tabular-nums text-[10px] font-semibold text-muted-foreground">{val}</span> },
       { key: 'type', label: 'Type', width: 110, render: renderTypeBadge },
-      { key: 'accountCode', label: 'GL', width: 80, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-bold">{val}</span> },
+      { key: 'accountCode', label: 'GL', width: 80, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
       { key: 'account', label: 'Account', sortable: true, width: 200, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
       { key: 'description', label: 'Description', width: 220, render: (val) => <span className="text-[11px] text-gray-600">{val}</span> },
       { key: 'debit', label: 'Debit', type: 'currency', align: 'right', sortable: true, width: 150, render: (val) => val > 0 ? <span className="font-semibold text-accent-signature">{formatINR(val)}</span> : <span className="text-gray-300">—</span> },
@@ -292,9 +292,9 @@ const GeneralLedgerReport = () => {
       balance: round2(totals.debit - totals.credit),
     },
     columns: [
-      { key: 'accountCode', label: 'Code', sortable: true, width: 100, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-bold">{val}</span> },
+      { key: 'accountCode', label: 'Code', sortable: true, width: 100, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 font-semibold">{val}</span> },
       { key: 'account', label: 'Account Name', sortable: true, width: 280, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
-      { key: 'entries', label: 'Entries', align: 'right', sortable: true, width: 110, render: (val) => <span className="font-mono font-bold text-muted-foreground">{val}</span> },
+      { key: 'entries', label: 'Entries', align: 'right', sortable: true, width: 110, render: (val) => <span className="tabular-nums font-semibold text-muted-foreground">{val}</span> },
       { key: 'debit', label: 'Total Debits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-semibold text-accent-signature">{formatINR(val)}</span> },
       { key: 'credit', label: 'Total Credits', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => <span className="font-semibold text-emerald-600">{formatINR(val)}</span> },
       { key: 'balance', label: 'Net Balance', type: 'currency', align: 'right', sortable: true, width: 160, render: (val) => (

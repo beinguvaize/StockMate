@@ -177,7 +177,7 @@ const AllTransactionsReport = () => {
           <Calendar size={14} className="text-muted-foreground shrink-0" />
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-          <span className="text-muted-foreground text-xs font-bold">to</span>
+          <span className="text-muted-foreground text-xs font-semibold">to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
           <button onClick={applyCustom}
@@ -203,7 +203,7 @@ const AllTransactionsReport = () => {
             className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all border ${
               typeFilter === t
                 ? 'bg-card text-foreground font-semibold shadow-sm'
-                : 'bg-white text-muted-foreground border-black/8 hover:border-black/20 hover:text-foreground'
+                : 'bg-card text-muted-foreground border-black/8 hover:border-black/20 hover:text-foreground'
             }`}>
             {t}
           </button>
@@ -215,7 +215,7 @@ const AllTransactionsReport = () => {
 
       {/* Ledger Table */}
       <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-black/5">
+        <div className="px-6 pt-6 pb-4 border-b border-border/60">
           <SectionHead title="Transaction Ledger" sub="newest first" />
         </div>
 
@@ -227,7 +227,7 @@ const AllTransactionsReport = () => {
           <div className="py-16 text-center text-sm text-muted-foreground">No transactions for selected period</div>
         ) : (
           <div>
-            <div className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-2 bg-canvas/50 border-b border-black/5">
+            <div className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
               {['Date', 'Type', 'Party / Description', 'Flow', 'Amount'].map(h => (
                 <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
               ))}
@@ -236,12 +236,12 @@ const AllTransactionsReport = () => {
               const ts = TYPE_STYLE[row.type] || { bg: 'bg-gray-100', text: 'text-gray-600' };
               return (
                 <div key={`${row.ref}-${i}`}
-                  className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
-                  <span className="text-xs font-bold text-ink-secondary tabular-nums">{row.date}</span>
+                  className="grid grid-cols-[90px_90px_1fr_90px_130px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
+                  <span className="text-xs font-semibold text-ink-secondary tabular-nums">{row.date}</span>
                   <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-semibold w-fit ${ts.bg} ${ts.text}`}>
                     {row.type}
                   </span>
-                  <span className="text-xs font-bold text-foreground truncate">{row.party}</span>
+                  <span className="text-xs font-semibold text-foreground truncate">{row.party}</span>
                   <div className={`flex items-center gap-1 text-[10px] font-semibold ${row.dir === 'in' ? 'text-emerald-600' : 'text-red-500'}`}>
                     {row.dir === 'in'
                       ? <ArrowDownLeft size={12} />

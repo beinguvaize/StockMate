@@ -180,7 +180,7 @@ const CashFlowReport = () => {
       {
         key: 'label', label: 'Line Item', sortable: false, width: 420,
         render: (val, row) => (
-          <span className={`${row.isSubtotal ? 'font-semibold text-foreground uppercase tracking-tight' : 'font-bold text-gray-600'} ${row.isTotal ? 'text-[13px]' : 'text-[11px]'}`}>
+          <span className={`${row.isSubtotal ? 'font-semibold text-foreground uppercase tracking-tight' : 'font-semibold text-gray-600'} ${row.isTotal ? 'text-[13px]' : 'text-[11px]'}`}>
             {val}
           </span>
         ),
@@ -190,7 +190,7 @@ const CashFlowReport = () => {
         render: (val, row) => {
           const cls = val > 0 ? 'text-emerald-600' : val < 0 ? 'text-rose-500' : 'text-muted-foreground';
           return (
-            <span className={`${row.isSubtotal ? 'font-semibold' : 'font-bold'} ${cls} ${row.isTotal ? 'text-[14px]' : ''}`}>
+            <span className={`${row.isSubtotal ? 'font-semibold' : 'font-semibold'} ${cls} ${row.isTotal ? 'text-[14px]' : ''}`}>
               {formatINR(val)}
             </span>
           );

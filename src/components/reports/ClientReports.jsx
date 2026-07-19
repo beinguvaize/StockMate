@@ -67,51 +67,51 @@ const ClientReports = ({ clients, sales, businessProfile}) => {
   {/* Clients Premium Ribbon */}
   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
     {/* Total Receivables Card */}
-    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-red-500">
         <CreditCard size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Total Receivables</span>
+        <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Total Receivables</span>
         <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
           <span className="text-[16px] text-foreground/30 mr-1">{businessProfile.currencySymbol}</span>
           {Math.round(clients.reduce((sum, c) => sum + (c.balance || 0), 0)).toLocaleString()}
         </div>
         <div className="flex items-center gap-1.5 text-red-500/70 mt-3">
-          <span className="text-[9px] font-bold uppercase tracking-wider">Outstanding Client Credit</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider">Outstanding Client Credit</span>
         </div>
       </div>
     </div>
 
     {/* Exposure Risk Card */}
-    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-orange-500">
         <ShieldAlert size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Exposure Risk</span>
+        <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Exposure Risk</span>
         <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
           <span className="text-[16px] text-foreground/30 mr-1">{businessProfile.currencySymbol}</span>
           {Math.round(agingData[2].value + agingData[3].value).toLocaleString()}
         </div>
         <div className="flex items-center gap-1.5 text-orange-500/70 mt-3">
-          <span className="text-[9px] font-bold uppercase tracking-wider">Arrears (60 Days+)</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider">Arrears (60 Days+)</span>
         </div>
       </div>
     </div>
 
     {/* Debtor Base Card */}
-    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-foreground">
         <Users size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Debtor Base</span>
+        <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Debtor Base</span>
         <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
-          {clients.filter(c => c.balance > 0).length} <span className="text-sm font-bold opacity-30 text-foreground tracking-wider ml-1">ACCOUNTS</span>
+          {clients.filter(c => c.balance > 0).length} <span className="text-sm font-semibold opacity-30 text-foreground tracking-wider ml-1">ACCOUNTS</span>
         </div>
         <div className="flex items-center gap-1.5 text-muted-foreground mt-3">
-          <span className="text-[9px] font-bold uppercase tracking-wider">Active Credit Relationships</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider">Active Credit Relationships</span>
         </div>
       </div>
     </div>
@@ -119,7 +119,7 @@ const ClientReports = ({ clients, sales, businessProfile}) => {
 
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
  {/* Aging Chart */}
- <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Debt Aging Analysis.</h3>
  <p className="text-[10px] font-semibold text-gray-700 mb-8">Receivables age distribution</p>
  <div className="h-[300px] w-full">
@@ -144,7 +144,7 @@ const ClientReports = ({ clients, sales, businessProfile}) => {
  </div>
 
  {/* Top Debtors List */}
- <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Exposure Ranking.</h3>
  <p className="text-[10px] font-semibold text-gray-700 mb-8">Clients with highest outstanding balances</p>
  <div className="space-y-4 max-h-[300px] overflow-y-auto scrollbar-hide">
@@ -172,7 +172,7 @@ const ClientReports = ({ clients, sales, businessProfile}) => {
  </div>
 
  {/* Statement Search Section */}
- <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-10 gap-4">
  <div>
  <h3 className="text-2xl font-semibold text-foreground leading-none mb-2">Statement Terminal.</h3>
@@ -192,7 +192,7 @@ const ClientReports = ({ clients, sales, businessProfile}) => {
 
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
  {filteredClients.map(c => (
- <div key={c.id} className="p-5 bg-white border border-border/60 rounded-[2rem] shadow-premium hover:scale-[1.02] transition-all cursor-pointer group">
+ <div key={c.id} className="p-5 bg-card border border-border/60 rounded-[2rem] shadow-premium hover:scale-[1.02] transition-all cursor-pointer group">
  <div className="flex justify-between items-start mb-6">
  <div className="p-3 bg-canvas rounded-lg">
  <Users size={24} className="text-foreground" />

@@ -85,7 +85,7 @@ const KPI = ({ card, loading }) => {
       </div>
       {loading
         ? <div className="h-7 w-24 bg-canvas animate-pulse rounded-lg" />
-        : <div className="font-mono text-2xl font-bold text-foreground tabular-nums leading-none truncate">
+        : <div className="tabular-nums text-2xl font-semibold text-foreground tabular-nums leading-none truncate">
             {kpiDisplay(card.label, card.value)}
           </div>
       }
@@ -107,8 +107,8 @@ const SectionHead = ({ title, sub }) => (
 const ChartTip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="bg-white border border-black/8 rounded-xl px-3 py-2 shadow-lg text-xs">
-      <div className="font-bold text-ink-secondary mb-1">{label || payload[0]?.payload?.name}</div>
+    <div className="bg-card border border-black/8 rounded-xl px-3 py-2 shadow-lg text-xs">
+      <div className="font-semibold text-ink-secondary mb-1">{label || payload[0]?.payload?.name}</div>
       {payload.map((p, i) => (
         <div key={i} className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
@@ -317,7 +317,7 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
             <Download size={13} /> Export <ChevronDown size={12} className={`transition-transform ${exportOpen ? 'rotate-180' : ''}`} />
           </button>
           {exportOpen && (
-            <div className="absolute right-0 mt-2 w-44 rounded-xl bg-white border border-black/10 shadow-xl overflow-hidden z-40 py-1">
+            <div className="absolute right-0 mt-2 w-44 rounded-xl bg-card border border-black/10 shadow-xl overflow-hidden z-40 py-1">
               <button onClick={doExcel} className="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-[13px] font-semibold text-foreground hover:bg-accent-signature/10 transition-colors">
                 <FileSpreadsheet size={15} className="text-emerald-600" /> Excel (.xlsx)
               </button>
@@ -344,7 +344,7 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
 
       {/* ── DATA TABLE ─────────────────────────────────────────────────── */}
       <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-black/5">
+        <div className="px-6 pt-6 pb-4 border-b border-border/60">
           <SectionHead title={activeTab.label} sub={`${(activeTab.data || []).length} records`} />
         </div>
         <div className="p-4">

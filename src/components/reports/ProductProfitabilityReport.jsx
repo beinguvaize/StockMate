@@ -297,7 +297,7 @@ const ProductProfitabilityReport = () => {
         render: (val, row) => (
           <div className="flex flex-col gap-0.5">
             <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
-            <span className="text-[9px] text-muted-foreground font-mono">{row.sku}</span>
+            <span className="text-[9px] text-muted-foreground tabular-nums">{row.sku}</span>
           </div>
         ),
       },
@@ -306,7 +306,7 @@ const ProductProfitabilityReport = () => {
         label: 'Category',
         sortable: true,
         width: 140,
-        render: (val) => <span className="text-[10px] font-bold text-muted-foreground uppercase">{val}</span>,
+        render: (val) => <span className="text-[10px] font-semibold text-muted-foreground uppercase">{val}</span>,
       },
       {
         key: 'units_sold',
@@ -322,7 +322,7 @@ const ProductProfitabilityReport = () => {
         align: 'right',
         sortable: true,
         width: 120,
-        render: (val) => <span className="text-[10px] font-bold text-muted-foreground tabular-nums">{formatINR(val)}</span>,
+        render: (val) => <span className="text-[10px] font-semibold text-muted-foreground tabular-nums">{formatINR(val)}</span>,
       },
       {
         key: 'cost_price',
@@ -429,7 +429,7 @@ const ProductProfitabilityReport = () => {
         render: (val, row) => (
           <div className="flex flex-col gap-0.5">
             <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>
-            <span className="text-[9px] text-muted-foreground font-mono">{row.sku}</span>
+            <span className="text-[9px] text-muted-foreground tabular-nums">{row.sku}</span>
           </div>
         ),
       },

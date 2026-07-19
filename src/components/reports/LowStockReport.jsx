@@ -77,7 +77,7 @@ const LowStockReport = () => {
 
       {/* Table */}
       <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
           <SectionHead title="Low Stock Products" sub="sorted by lowest stock first" />
           {!loading && (
             <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">
@@ -93,11 +93,11 @@ const LowStockReport = () => {
         ) : lowItems.length === 0 ? (
           <div className="py-16 text-center">
             <Package size={32} className="mx-auto mb-3 text-emerald-300" />
-            <p className="text-sm font-bold text-emerald-600">All products are well-stocked</p>
+            <p className="text-sm font-semibold text-emerald-600">All products are well-stocked</p>
           </div>
         ) : (
           <div>
-            <div className="grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-2 bg-canvas/50 border-b border-black/5">
+            <div className="grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-2 bg-canvas/50 border-b border-border/60">
               {['Product','SKU','Category','Stock','Threshold','Shortfall','Stock Value'].map(h => (
                 <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
               ))}
@@ -106,17 +106,17 @@ const LowStockReport = () => {
               const isOut = p.totalStock === 0;
               return (
                 <div key={p.id || i}
-                  className={`grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors ${isOut ? 'bg-red-50/40' : ''}`}>
+                  className={`grid grid-cols-[1fr_100px_120px_80px_80px_80px_120px] gap-3 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors ${isOut ? 'bg-red-50/40' : ''}`}>
                   <div className="flex items-center gap-2 min-w-0">
                     <div className={`w-2 h-2 rounded-full shrink-0 ${isOut ? 'bg-red-500' : 'bg-accent-signature/70'}`} />
-                    <span className="text-sm font-bold text-foreground truncate">{p.name || '—'}</span>
+                    <span className="text-sm font-semibold text-foreground truncate">{p.name || '—'}</span>
                   </div>
-                  <span className="text-xs font-mono text-ink-secondary truncate">{p.sku || '—'}</span>
-                  <span className="text-xs font-bold text-ink-secondary truncate">{p.category || '—'}</span>
+                  <span className="text-xs tabular-nums text-ink-secondary truncate">{p.sku || '—'}</span>
+                  <span className="text-xs font-semibold text-ink-secondary truncate">{p.category || '—'}</span>
                   <span className={`text-sm font-semibold tabular-nums ${isOut ? 'text-red-500' : 'text-accent-signature'}`}>
                     {p.totalStock}
                   </span>
-                  <span className="text-sm font-bold text-ink-secondary tabular-nums">{p.threshold}</span>
+                  <span className="text-sm font-semibold text-ink-secondary tabular-nums">{p.threshold}</span>
                   <span className={`text-sm font-semibold tabular-nums ${p.shortfall > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
                     {p.shortfall > 0 ? `-${p.shortfall}` : '0'}
                   </span>

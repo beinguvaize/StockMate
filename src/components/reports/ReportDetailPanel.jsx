@@ -61,12 +61,12 @@ const ReportDetailPanel = ({
       />
       
       {/* Panel (Rule 9) */}
-      <div className="absolute top-0 right-0 h-full w-full max-w-[450px] bg-white shadow-2xl border-l border-black/5 flex flex-col animate-in slide-in-from-right duration-500 ease-in-out">
+      <div className="absolute top-0 right-0 h-full w-full max-w-[450px] bg-card shadow-2xl border-l border-border/60 flex flex-col animate-in slide-in-from-right duration-500 ease-in-out">
         
         {/* Header */}
-        <div className="p-6 border-b border-black/5 flex justify-between items-center bg-canvas/30 backdrop-blur-md sticky top-0 z-10">
+        <div className="p-6 border-b border-border/60 flex justify-between items-center bg-canvas/30 backdrop-blur-md sticky top-0 z-10">
           <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-semibold font-sora text-foreground uppercase tracking-tighter">
+            <h2 className="text-xl font-semibold  text-foreground uppercase tracking-tighter">
               {title}<span className="text-accent-signature">.</span>
             </h2>
             <p className="text-[11px] font-medium text-muted-foreground">In-Depth Perspective</p>
@@ -87,7 +87,7 @@ const ReportDetailPanel = ({
             <div className="p-6 bg-ink-primary rounded-[2rem] text-white shadow-xl relative overflow-hidden group">
               <div className="absolute top-0 right-0 w-32 h-32 bg-accent-signature/20 blur-3xl -mr-16 -mt-16" />
               <p className="text-[10px] font-semibold uppercase text-white/50 tracking-widest mb-2">Total Magnitude</p>
-              <h3 className="text-4xl font-semibold font-sora tracking-tighter">
+              <h3 className="text-4xl font-semibold  tracking-tighter">
                 {formatCurrency(data[fields.find(f => f.isHero || f.type === 'currency')?.key] || 0)}
               </h3>
             </div>
@@ -101,7 +101,7 @@ const ReportDetailPanel = ({
                   {field.icon || <Info size={12} className="text-accent-signature" />}
                   {field.label}
                 </div>
-                <div className="text-sm font-bold text-foreground bg-white border border-gray-300 shadow-sm p-4 rounded-2xl group-hover:bg-white group-hover:shadow-premium transition-all">
+                <div className="text-sm font-semibold text-foreground bg-card border border-border shadow-sm p-4 rounded-2xl group-hover:bg-card group-hover:shadow-premium transition-all">
                   {renderValue(field, data[field.key])}
                 </div>
               </div>
@@ -111,13 +111,13 @@ const ReportDetailPanel = ({
           {/* Items / Nested Data (if any) */}
           {data?.items && Array.isArray(data.items) && (
             <div className="space-y-4">
-              <h4 className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest border-b border-black/5 pb-2">Line Items</h4>
+              <h4 className="text-[10px] font-semibold uppercase text-muted-foreground tracking-widest border-b border-border/60 pb-2">Line Items</h4>
               <div className="space-y-3">
                 {data.items.map((item, i) => (
                   <div key={i} className="flex justify-between items-center p-4 bg-canvas rounded-xl border border-border/60">
                     <div>
                       <div className="text-xs font-semibold text-foreground uppercase tracking-tight">{item.name || item.productName}</div>
-                      <div className="text-[10px] font-bold text-muted-foreground uppercase">{item.quantity} {item.unit || 'units'} × {formatCurrency(item.price || item.unitCost)}</div>
+                      <div className="text-[10px] font-semibold text-muted-foreground uppercase">{item.quantity} {item.unit || 'units'} × {formatCurrency(item.price || item.unitCost)}</div>
                     </div>
                     <div className="text-sm font-semibold text-foreground tabular-nums">
                       {formatCurrency((item.quantity || 0) * (item.price || item.unitCost || 0))}
@@ -130,9 +130,9 @@ const ReportDetailPanel = ({
         </div>
 
         {/* Footer Actions */}
-        <div className="p-6 border-t border-black/5 bg-canvas/30 backdrop-blur-md flex gap-3">
+        <div className="p-6 border-t border-border/60 bg-canvas/30 backdrop-blur-md flex gap-3">
            <button 
-            className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-white border border-border/60 rounded-pill text-[10px] font-semibold uppercase text-foreground hover:bg-canvas transition-all shadow-sm active:scale-95"
+            className="flex-1 flex items-center justify-center gap-2 px-6 py-4 bg-card border border-border/60 rounded-pill text-[10px] font-semibold uppercase text-foreground hover:bg-canvas transition-all shadow-sm active:scale-95"
             onClick={() => {
               navigator.clipboard.writeText(JSON.stringify(data, null, 2));
             }}

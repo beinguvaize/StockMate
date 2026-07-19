@@ -96,15 +96,15 @@ const GSTR2BReconReport = () => {
     },
     columns: [
       { key: 'gstin', label: 'Supplier GSTIN', width: 160,
-        render: (val) => <span className="font-mono text-[10px] font-bold">{val}</span> },
+        render: (val) => <span className="tabular-nums text-[10px] font-semibold">{val}</span> },
       { key: 'supplier', label: 'Supplier', width: 170,
-        render: (val) => <span className="text-[11px] font-bold text-gray-600">{val}</span> },
+        render: (val) => <span className="text-[11px] font-semibold text-gray-600">{val}</span> },
       { key: 'inum', label: 'Bill / Inv No', width: 130,
-        render: (val) => <span className="font-mono text-[10px] font-bold text-gray-700">{val}</span> },
+        render: (val) => <span className="tabular-nums text-[10px] font-semibold text-gray-700">{val}</span> },
       { key: 'booksTaxable', label: 'Taxable (Books)', type: 'currency', align: 'right', width: 150, render: (v) => <span className="tabular-nums">{formatINR(v)}</span> },
       { key: 'b2bTaxable', label: 'Taxable (2B)', type: 'currency', align: 'right', width: 150, render: (v) => <span className="tabular-nums">{formatINR(v)}</span> },
-      { key: 'booksItc', label: 'ITC (Books)', type: 'currency', align: 'right', width: 140, render: (v) => <span className="tabular-nums font-bold">{formatINR(v)}</span> },
-      { key: 'b2bItc', label: 'ITC (2B)', type: 'currency', align: 'right', width: 140, render: (v) => <span className="tabular-nums font-bold text-emerald-700">{formatINR(v)}</span> },
+      { key: 'booksItc', label: 'ITC (Books)', type: 'currency', align: 'right', width: 140, render: (v) => <span className="tabular-nums font-semibold">{formatINR(v)}</span> },
+      { key: 'b2bItc', label: 'ITC (2B)', type: 'currency', align: 'right', width: 140, render: (v) => <span className="tabular-nums font-semibold text-emerald-700">{formatINR(v)}</span> },
       { key: 'diff', label: 'Diff', type: 'currency', align: 'right', width: 130, render: (v) => <span className={`tabular-nums font-semibold ${Math.abs(v) < 1 ? 'text-muted-foreground' : 'text-rose-600'}`}>{v < 0 ? `(${formatINR(Math.abs(v))})` : formatINR(v)}</span> },
       { key: 'status', label: 'Status', align: 'center', width: 150, render: (v) => <span className={`font-semibold text-[10px] uppercase tracking-widest ${statusColor(v)}`}>{v}</span> },
     ],
@@ -116,12 +116,12 @@ const GSTR2BReconReport = () => {
       <ReportPeriodBar {...period} />
 
       {/* Upload bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl border border-border/60 shadow-sm bg-white">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-2xl border border-border/60 shadow-sm bg-card">
         <div className="flex-1">
           <div className="text-sm font-semibold text-foreground">GSTR-2B Reconciliation</div>
           <div className="text-[11px] text-muted-foreground font-medium mt-0.5">
             Upload the GSTR-2B JSON downloaded from the GST portal (Returns → GSTR-2B → Download JSON).
-            {fileName && <span className="text-emerald-600 font-bold"> · {fileName}</span>}
+            {fileName && <span className="text-emerald-600 font-semibold"> · {fileName}</span>}
           </div>
         </div>
         <input ref={fileRef} type="file" accept=".json,application/json" onChange={onFile} className="hidden" />
@@ -148,10 +148,10 @@ const GSTR2BReconReport = () => {
               { label: 'Missing in Books', val: recon.summary.missingInBooks, sub: 'unclaimed', cls: 'text-sky-600' },
               { label: 'ITC at Risk', val: formatINR(recon.summary.atRiskItc), sub: 'follow up', cls: 'text-rose-600', money: true },
             ].map((c, i) => (
-              <div key={i} className="bg-white px-4 py-3">
+              <div key={i} className="bg-card px-4 py-3">
                 <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">{c.label}</div>
                 <div className={`text-lg font-semibold mt-0.5 ${c.cls}`}>{c.val}</div>
-                <div className="text-[9px] font-bold text-muted-foreground">{c.sub}</div>
+                <div className="text-[9px] font-semibold text-muted-foreground">{c.sub}</div>
               </div>
             ))}
           </div>
@@ -175,7 +175,7 @@ const GSTR2BReconReport = () => {
       {!recon && !error && (
         <div className="text-center py-16 text-muted-foreground">
           <ShieldCheck size={32} className="mx-auto mb-3 opacity-40" />
-          <p className="text-sm font-bold">Upload your GSTR-2B JSON to reconcile it against your purchase register.</p>
+          <p className="text-sm font-semibold">Upload your GSTR-2B JSON to reconcile it against your purchase register.</p>
           <p className="text-[11px] mt-1">Matched invoice-by-invoice on supplier GSTIN + bill number.</p>
         </div>
       )}

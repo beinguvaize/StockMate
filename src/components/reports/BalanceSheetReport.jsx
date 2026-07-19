@@ -142,7 +142,7 @@ const BalanceSheetReport = () => {
             <div className={`text-[11px] font-semibold uppercase tracking-widest ${balanced ? 'text-emerald-700' : 'text-rose-700'}`}>
               {balanced ? 'Balanced — Assets = Liabilities + Equity' : 'Out of Balance'}
             </div>
-            <div className="text-[10px] font-bold text-muted-foreground mt-0.5 font-mono">
+            <div className="text-[10px] font-semibold text-muted-foreground mt-0.5 tabular-nums">
               Assets {formatINR(gl.totalAssets)} · Liab + Equity {formatINR(liabPlusEquity)}
               {!balanced && <> · Diff <span className="text-rose-700 font-semibold">{formatINR(Math.abs(gl.totalAssets - liabPlusEquity))}</span></>}
             </div>
@@ -152,9 +152,9 @@ const BalanceSheetReport = () => {
         {/* KPI strip */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-px bg-black/[0.07] rounded-2xl overflow-hidden border border-border/60 shadow-sm">
           {kpis.map((m, i) => (
-            <div key={i} className="bg-white px-4 py-3.5 flex flex-col gap-1.5">
-              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{m.label}</div>
-              <div className="font-mono text-xl font-bold tabular-nums leading-none text-foreground">
+            <div key={i} className="bg-card px-4 py-3.5 flex flex-col gap-1.5">
+              <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{m.label}</div>
+              <div className="tabular-nums text-xl font-semibold tabular-nums leading-none text-foreground">
                 {m.money ? <><span className="text-accent-signature/70 text-sm mr-0.5">{sym}</span>{Math.round(m.value).toLocaleString('en-IN')}</> : m.value}
               </div>
             </div>
@@ -163,7 +163,7 @@ const BalanceSheetReport = () => {
 
         {/* Statement */}
         {loading
-          ? <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-16 text-center text-sm font-bold text-gray-300 animate-pulse">Loading balance sheet…</div>
+          ? <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-16 text-center text-sm font-semibold text-gray-300 animate-pulse">Loading balance sheet…</div>
           : <StatementTable
               sections={sections}
               grandTotal={{ label: 'Total Liabilities + Equity', value: liabPlusEquity }}

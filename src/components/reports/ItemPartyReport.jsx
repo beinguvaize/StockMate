@@ -1,8 +1,8 @@
 /**
  * ItemPartyReport — Item × Party cross report.
  * Two views:
- *   "By Customer" — pick a customer → table of items they bought
- *   "By Item"     — pick a product  → table of customers who bought it
+ * "By Customer" — pick a customer → table of items they bought
+ * "By Item"     — pick a product  → table of customers who bought it
  */
 import React, { useState, useMemo } from 'react';
 import {
@@ -32,11 +32,11 @@ const EntityPicker = ({ label, items, selectedId, onSelect, loading, displayKey 
           placeholder={`Search ${label.toLowerCase()}...`}
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-300 shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
+          className="w-full pl-9 pr-4 py-2.5 bg-card border border-border shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
         />
       </div>
       {search && (
-        <div className="mt-2 bg-white border border-black/8 rounded-xl shadow-lg max-h-56 overflow-y-auto">
+        <div className="mt-2 bg-card border border-black/8 rounded-xl shadow-lg max-h-56 overflow-y-auto">
           {loading
             ? <div className="p-4 text-xs text-muted-foreground">Loading...</div>
             : filtered.length === 0
@@ -44,12 +44,12 @@ const EntityPicker = ({ label, items, selectedId, onSelect, loading, displayKey 
             : filtered.map(item => (
               <button key={item.id}
                 onClick={() => { onSelect(item.id); setSearch(''); }}
-                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-black/5 last:border-0 ${selectedId === item.id ? 'bg-accent-signature/5' : ''}`}>
+                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-border/60 last:border-0 ${selectedId === item.id ? 'bg-accent-signature/5' : ''}`}>
                 <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
                   <span className="text-[10px] font-semibold text-accent-signature">{((item[displayKey]||'?')[0]).toUpperCase()}</span>
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-foreground">{item[displayKey]}</div>
+                  <div className="text-sm font-semibold text-foreground">{item[displayKey]}</div>
                   {subKey && item[subKey] && <div className="text-[10px] text-muted-foreground">{item[subKey]}</div>}
                 </div>
               </button>
@@ -197,7 +197,7 @@ const ItemPartyReport = () => {
           <Calendar size={14} className="text-muted-foreground shrink-0" />
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-          <span className="text-muted-foreground text-xs font-bold">to</span>
+          <span className="text-muted-foreground text-xs font-semibold">to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
           <button onClick={applyCustom}
@@ -210,7 +210,7 @@ const ItemPartyReport = () => {
       {/* View toggle */}
       <div className="flex items-center gap-3">
         <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">View:</span>
-        <div className="flex items-center gap-1 bg-white border border-gray-300 shadow-sm rounded-xl p-1">
+        <div className="flex items-center gap-1 bg-card border border-border shadow-sm rounded-xl p-1">
           <button onClick={() => { setView('customer'); setProductId(''); }}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[11px] font-semibold transition-all ${
               view === 'customer' ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
@@ -271,7 +271,7 @@ const ItemPartyReport = () => {
       {/* Table */}
       {entitySelected && (
         <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-          <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+          <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
             <SectionHead
               title={isCustomerView
                 ? `Items — ${selectedEntity?.name || ''}`
@@ -293,14 +293,14 @@ const ItemPartyReport = () => {
             </div>
           ) : (
             <div>
-              <div className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-6 py-2 bg-canvas/50 border-b border-black/5">
+              <div className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
                 {['#', isCustomerView ? 'Item' : 'Customer', 'Qty', 'Revenue'].map(h => (
                   <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
                 ))}
               </div>
               {tableRows.map((row, i) => (
                 <div key={row.name}
-                  className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
+                  className="grid grid-cols-[36px_1fr_100px_140px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
                   <span className={`text-sm font-semibold tabular-nums ${i===0?'text-accent-signature':i===1?'text-muted-foreground':i===2?'text-accent-signature-hover':'text-ink-tertiary'}`}>
                     {i + 1}
                   </span>
@@ -308,7 +308,7 @@ const ItemPartyReport = () => {
                     <div className="w-7 h-7 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
                       <span className="text-[9px] font-semibold text-accent-signature">{((row.name||'?')[0]).toUpperCase()}</span>
                     </div>
-                    <span className="text-sm font-bold text-foreground truncate">{row.name}</span>
+                    <span className="text-sm font-semibold text-foreground truncate">{row.name}</span>
                   </div>
                   <span className="text-sm font-semibold text-foreground tabular-nums">{row.qty}</span>
                   <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(row.revenue)}</span>

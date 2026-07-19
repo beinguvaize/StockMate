@@ -190,7 +190,7 @@ const ClientStatementReport = () => {
           <Calendar size={14} className="text-muted-foreground shrink-0" />
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-          <span className="text-muted-foreground text-xs font-bold">to</span>
+          <span className="text-muted-foreground text-xs font-semibold">to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
           <button onClick={applyCustom}
@@ -210,11 +210,11 @@ const ClientStatementReport = () => {
             placeholder="Search clients..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-white border border-gray-300 shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full pl-9 pr-4 py-2.5 bg-card border border-border shadow-sm rounded-xl text-sm font-medium outline-none focus:ring-2 focus:ring-accent-signature/20"
           />
         </div>
         {!selectedClient && (
-          <div className="mt-2 bg-white border border-gray-300 shadow-sm rounded-xl max-h-64 overflow-y-auto">
+          <div className="mt-2 bg-card border border-border shadow-sm rounded-xl max-h-64 overflow-y-auto">
             {cLoading
               ? <div className="p-4 text-xs text-muted-foreground">Loading...</div>
               : clients.length === 0
@@ -223,12 +223,12 @@ const ClientStatementReport = () => {
               ? <div className="p-4 text-xs text-muted-foreground">No clients match "{search}"</div>
               : filteredClients.map(c => (
                 <button key={c.id} onClick={() => { setClientId(c.id); setSearch(''); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-black/5 last:border-0 ${clientId === c.id ? 'bg-accent-signature/5' : ''}`}>
+                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-canvas/60 transition-colors text-left border-b border-border/60 last:border-0 ${clientId === c.id ? 'bg-accent-signature/5' : ''}`}>
                   <div className="w-8 h-8 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
                     <span className="text-[10px] font-semibold text-accent-signature">{(c.name?.[0] || '?').toUpperCase()}</span>
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-foreground">{c.name}</div>
+                    <div className="text-sm font-semibold text-foreground">{c.name}</div>
                     {c.phone && <div className="text-[10px] text-muted-foreground">{c.phone}</div>}
                   </div>
                   <div className="ml-auto text-xs font-semibold text-red-500 tabular-nums">
@@ -267,7 +267,7 @@ const ClientStatementReport = () => {
 
           {/* Ledger Table */}
           <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-            <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+            <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
               <SectionHead title={`${selectedClient.name} — Ledger`} sub={`${ledgerRows.length} entries`} />
             </div>
 
@@ -280,7 +280,7 @@ const ClientStatementReport = () => {
             ) : (
               <div>
                 {/* Table header */}
-                <div className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-black/5">
+                <div className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
                   {['Date','Type','Reference','Debit','Credit','Balance'].map(h => (
                     <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
                   ))}
@@ -288,10 +288,10 @@ const ClientStatementReport = () => {
                 {ledgerRows.map((row, i) => {
                   const ts = TYPE_STYLE[row.type] || TYPE_STYLE.SALE;
                   return (
-                    <div key={i} className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors">
-                      <span className="text-xs font-bold text-ink-secondary tabular-nums">{row.date}</span>
+                    <div key={i} className="grid grid-cols-[90px_80px_1fr_110px_110px_120px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors">
+                      <span className="text-xs font-semibold text-ink-secondary tabular-nums">{row.date}</span>
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[9px] font-semibold w-fit ${ts.bg} ${ts.text}`}>{ts.label}</span>
-                      <span className="text-xs font-bold text-foreground truncate font-mono">{row.ref}</span>
+                      <span className="text-xs font-semibold text-foreground truncate tabular-nums">{row.ref}</span>
                       <span className={`text-xs font-semibold tabular-nums ${row.debit > 0 ? 'text-red-500' : 'text-gray-300'}`}>
                         {row.debit > 0 ? formatCurrency(row.debit) : '—'}
                       </span>
@@ -305,7 +305,7 @@ const ClientStatementReport = () => {
                   );
                 })}
                 {/* Closing balance */}
-                <div className="flex justify-end gap-8 px-6 py-3.5 border-t border-black/5 bg-canvas/30">
+                <div className="flex justify-end gap-8 px-6 py-3.5 border-t border-border/60 bg-canvas/30">
                   <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Closing Balance</span>
                   {ledgerRows.length > 0 && (
                     <span className={`text-sm font-semibold tabular-nums ${ledgerRows[ledgerRows.length-1].balance > 0 ? 'text-red-500' : 'text-emerald-600'}`}>

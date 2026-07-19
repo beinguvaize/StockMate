@@ -62,14 +62,14 @@ const IMEISerialReport = () => {
     loading,
     onExport: exportExcel,
     columns: [
-      { key: 'serial', label: 'IMEI / Serial', sortable: true, width: 200, render: (v) => <span className="font-mono text-[11px] font-bold text-foreground">{v}</span> },
+      { key: 'serial', label: 'IMEI / Serial', sortable: true, width: 200, render: (v) => <span className="tabular-nums text-[11px] font-semibold text-foreground">{v}</span> },
       { key: '_product', label: 'Product', sortable: true, width: 200, render: (v) => <span className="font-semibold text-gray-700">{v}</span> },
       { key: 'status', label: 'Status', width: 110, render: (v) => {
         const s = (v || '').toUpperCase();
         const sold = s === 'SOLD';
         return <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-[9px] font-semibold uppercase ${sold ? 'bg-emerald-50 text-emerald-600' : 'bg-accent-signature/10 text-accent-signature'}`}>{v || '—'}</span>;
       } },
-      { key: '_saleRef', label: 'Sale', width: 100, render: (v) => <span className="font-mono text-[11px] text-muted-foreground">{v}</span> },
+      { key: '_saleRef', label: 'Sale', width: 100, render: (v) => <span className="tabular-nums text-[11px] text-muted-foreground">{v}</span> },
       { key: '_date', label: 'Date', width: 110, render: (v) => <span className="text-xs font-semibold text-muted-foreground">{v}</span> },
       { key: '_buyer', label: 'Buyer', width: 200, render: (v) => <span className="text-xs font-semibold text-gray-700">{v}</span> },
     ],

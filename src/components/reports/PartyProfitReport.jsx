@@ -174,7 +174,7 @@ const PartyProfitReport = () => {
           <Calendar size={14} className="text-muted-foreground shrink-0" />
           <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-          <span className="text-muted-foreground text-xs font-bold">to</span>
+          <span className="text-muted-foreground text-xs font-semibold">to</span>
           <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
             className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
           <button onClick={applyCustom}
@@ -194,7 +194,7 @@ const PartyProfitReport = () => {
 
       {/* Table */}
       <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-black/5 flex items-center justify-between">
+        <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
           <SectionHead title="Customer P&L" sub="ranked by profit" />
           {!loading && (
             <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">
@@ -211,14 +211,14 @@ const PartyProfitReport = () => {
           <div className="py-16 text-center text-sm text-muted-foreground">No sales data for selected period</div>
         ) : (
           <div>
-            <div className="grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-6 py-2 bg-canvas/50 border-b border-black/5">
+            <div className="grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
               {['#', 'Customer', 'Revenue', 'Cost', 'Profit', 'Margin', 'Orders'].map(h => (
                 <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
               ))}
             </div>
             {rows.map((row, i) => (
               <div key={row.name}
-                className={`grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-6 py-3.5 items-center border-b border-black/5 last:border-0 hover:bg-canvas/40 transition-colors`}>
+                className={`grid grid-cols-[36px_1fr_120px_120px_120px_90px_100px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors`}>
                 <span className={`text-sm font-semibold tabular-nums ${i===0?'text-accent-signature':i===1?'text-muted-foreground':i===2?'text-accent-signature-hover':'text-ink-tertiary'}`}>
                   {i + 1}
                 </span>
@@ -226,17 +226,17 @@ const PartyProfitReport = () => {
                   <div className="w-7 h-7 rounded-full bg-accent-signature/10 flex items-center justify-center shrink-0">
                     <span className="text-[9px] font-semibold text-accent-signature">{(row.name[0]||'?').toUpperCase()}</span>
                   </div>
-                  <span className="text-sm font-bold text-foreground truncate">{row.name}</span>
+                  <span className="text-sm font-semibold text-foreground truncate">{row.name}</span>
                 </div>
                 <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(row.revenue)}</span>
-                <span className="text-sm font-bold text-ink-secondary tabular-nums">{formatCurrency(row.cost)}</span>
+                <span className="text-sm font-semibold text-ink-secondary tabular-nums">{formatCurrency(row.cost)}</span>
                 <span className={`text-sm font-semibold tabular-nums ${row.profit < 0 ? 'text-red-500' : 'text-emerald-600'}`}>
                   {formatCurrency(row.profit)}
                 </span>
                 <span className={`text-sm font-semibold tabular-nums ${row.margin < 0 ? 'text-red-500' : row.margin < 10 ? 'text-accent-signature' : 'text-emerald-600'}`}>
                   {row.margin.toFixed(1)}%
                 </span>
-                <span className="text-sm font-bold text-ink-secondary tabular-nums">{row.orders}</span>
+                <span className="text-sm font-semibold text-ink-secondary tabular-nums">{row.orders}</span>
               </div>
             ))}
           </div>

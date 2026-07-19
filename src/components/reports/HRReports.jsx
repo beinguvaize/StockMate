@@ -47,50 +47,50 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
   {/* HR Premium Ribbon */}
   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
     {/* Headcount Card */}
-    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-accent-signature-hover">
         <Users size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Total Headcount</span>
+        <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Total Headcount</span>
         <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
-          {employees.length} <span className="text-sm font-bold opacity-30 text-foreground tracking-wider ml-1">UNITS</span>
+          {employees.length} <span className="text-sm font-semibold opacity-30 text-foreground tracking-wider ml-1">UNITS</span>
         </div>
         <div className="flex items-center gap-1.5 text-muted-foreground mt-3">
-          <span className="text-[9px] font-bold uppercase tracking-wider">Active Personnel</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider">Active Personnel</span>
         </div>
       </div>
     </div>
 
     {/* Payroll Load Card */}
-    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-red-500">
         <Banknote size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Monthly Payroll Load</span>
+        <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Monthly Payroll Load</span>
         <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
           <span className="text-[16px] text-foreground/30 mr-1">{businessProfile.currencySymbol}</span>
           {Math.round(employees.reduce((sum, e) => sum + (e.salary || 0), 0)).toLocaleString()}
         </div>
         <div className="flex items-center gap-1.5 text-red-500/70 mt-3">
-          <span className="text-[9px] font-bold uppercase tracking-wider">Est. Monthly Liability</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider">Est. Monthly Liability</span>
         </div>
       </div>
     </div>
 
     {/* Departments Card */}
-    <div className="p-5 bg-white border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
+    <div className="p-5 bg-card border border-border/60 rounded-[1.5rem] shadow-sm relative overflow-hidden group hover:border-black/10 transition-all flex flex-col justify-center">
       <div className="absolute top-4 right-4 opacity-[0.08] group-hover:opacity-[0.15] transition-opacity pointer-events-none text-foreground">
         <Briefcase size={40} strokeWidth={2} />
       </div>
       <div className="relative z-10 flex flex-col">
-        <span className="text-[10px] uppercase font-bold text-muted-foreground mb-1 block tracking-widest">Departments</span>
+        <span className="text-[10px] uppercase font-semibold text-muted-foreground mb-1 block tracking-widest">Departments</span>
         <div className="text-3xl font-semibold text-foreground tabular-nums tracking-tight leading-none mt-0.5">
-          {departmentStats.length} <span className="text-sm font-bold opacity-30 text-foreground tracking-wider ml-1">BRANCHES</span>
+          {departmentStats.length} <span className="text-sm font-semibold opacity-30 text-foreground tracking-wider ml-1">BRANCHES</span>
         </div>
         <div className="flex items-center gap-1.5 text-muted-foreground mt-3">
-          <span className="text-[9px] font-bold uppercase tracking-wider">Functional Units</span>
+          <span className="text-[9px] font-semibold uppercase tracking-wider">Functional Units</span>
         </div>
       </div>
     </div>
@@ -98,7 +98,7 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
 
  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
  {/* Payroll Flow Area Chart */}
- <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Expenditure Flow.</h3>
  <p className="text-[10px] font-semibold text-gray-700 mb-8">6-Month historical payroll trends</p>
  <div className="h-[300px] w-full">
@@ -131,7 +131,7 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
  </div>
 
  {/* Department Distribution Pie */}
- <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <h3 className="text-xl font-semibold text-foreground mb-2">Structural Density.</h3>
  <p className="text-[10px] font-semibold text-gray-700 mb-8">Salary allocation by functional unit</p>
  <div className="h-[300px] w-full">
@@ -159,7 +159,7 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
  </div>
 
  {/* Department Performance Board */}
- <div className="glass-panel !p-5 bg-white border border-border/60 shadow-premium !rounded-[2.5rem]">
+ <div className="glass-panel !p-5 bg-card border border-border/60 shadow-premium !rounded-[2.5rem]">
  <div className="flex justify-between items-center mb-10">
  <div>
  <h3 className="text-2xl font-semibold text-foreground mb-2">Workforce Integrity.</h3>
@@ -176,12 +176,12 @@ const HRReports = ({ employees, payroll, businessProfile}) => {
 
  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
  {departmentStats.map((dept, index) => (
- <div key={dept.name} className="p-5 bg-canvas/30 rounded-[2rem] border border-border/60 hover:bg-white transition-all group overflow-hidden relative">
+ <div key={dept.name} className="p-5 bg-canvas/30 rounded-[2rem] border border-border/60 hover:bg-card transition-all group overflow-hidden relative">
  <div className="absolute -right-4 -top-4 text-8xl font-semibold opacity-[0.03] group-hover:opacity-10 group-hover:scale-110 transition-all pointer-events-none">
  {index + 1}
  </div>
  <div className="flex items-center gap-4 mb-8">
- <div className="p-4 bg-white rounded-lg shadow-sm group-hover:bg-ink-primary group-hover:text-primary-foreground transition-all">
+ <div className="p-4 bg-card rounded-lg shadow-sm group-hover:bg-ink-primary group-hover:text-primary-foreground transition-all">
  <Briefcase size={20} />
  </div>
  <h4 className="text-sm font-semibold text-foreground">{dept.name}</h4>

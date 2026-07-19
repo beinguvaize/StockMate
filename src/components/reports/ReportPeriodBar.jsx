@@ -43,17 +43,17 @@ const ReportPeriodBar = ({ presets, preset, range, setRange, setPreset, applyPre
     <div className="flex gap-1 bg-canvas p-1 rounded-pill">
       {presets.map((pr) => (
         <button key={pr.id} onClick={() => applyPreset(pr.id)}
-          className={`px-3 py-1.5 rounded-pill text-[11px] font-bold transition-colors ${
+          className={`px-3 py-1.5 rounded-pill text-[11px] font-semibold transition-colors ${
             preset === pr.id ? 'bg-accent-signature text-button-text shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}>{pr.label}</button>
       ))}
     </div>
     <div className="flex items-center gap-1.5 ml-auto">
       <input type="date" value={range.from} onChange={(e) => { setPreset(''); setRange((r) => ({ ...r, from: e.target.value })); }}
-        className="bg-white border border-black/10 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40" />
+        className="bg-card border border-black/10 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40" />
       <span className="text-xs text-muted-foreground">→</span>
       <input type="date" value={range.to} onChange={(e) => { setPreset(''); setRange((r) => ({ ...r, to: e.target.value })); }}
-        className="bg-white border border-black/10 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40" />
+        className="bg-card border border-black/10 rounded-lg px-2.5 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature/40" />
     </div>
   </div>
 );

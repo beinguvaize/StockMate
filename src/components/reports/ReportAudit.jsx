@@ -48,7 +48,7 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  </div>
  
  <div className="flex flex-1 w-full md:w-auto items-center gap-3 justify-end">
- <div className="flex bg-white border border-gray-300 shadow-sm rounded-lg p-1 shrink-0">
+ <div className="flex bg-card border border-border shadow-sm rounded-lg p-1 shrink-0">
  {['ALL', 'IN', 'OUT', 'ADJUST'].map(t => (
  <button
  key={t}
@@ -64,7 +64,7 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  <input 
  type="text" 
  placeholder="Filter activities..." 
- className="input-field !pl-10 !h-12 !py-0 !rounded-lg bg-white border border-gray-300 shadow-sm shadow-inner text-[10px] font-bold"
+ className="input-field !pl-10 !h-12 !py-0 !rounded-lg bg-card border border-border shadow-sm shadow-inner text-[10px] font-semibold"
  value={searchTerm}
  onChange={e => setSearchTerm(e.target.value)}
  />
@@ -142,7 +142,7 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  </span>
  </td>
  <td className="py-2 px-6 text-right">
- <span className={`text-sm font-semibold font-mono tabular-nums ${
+ <span className={`text-sm font-semibold tabular-nums ${
  log.type === 'IN' ? 'text-green-600' :
  log.type === 'OUT' ? 'text-red-600' :
  'text-blue-600'
@@ -151,7 +151,7 @@ const ReportAudit = ({ movementLog, products, users, businessProfile}) => {
  </span>
  </td>
  <td className="py-2 px-6">
- <p className="text-[10px] font-bold text-ink-tertiary italic truncate max-w-[200px]">
+ <p className="text-[10px] font-semibold text-ink-tertiary italic truncate max-w-[200px]">
  {log.notes || '—'}
  </p>
  </td>

@@ -206,7 +206,7 @@ const PurchasesReport = () => {
       },
       {
         key: 'quantity', label: 'Units', align: 'right', sortable: true, width: 90,
-        render: (val) => <span className="font-mono font-bold text-foreground">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-foreground">{val}</span>,
       },
       { key: 'total_amount', label: 'Amount', type: 'currency', align: 'right', sortable: true, width: 140 },
       {
@@ -273,17 +273,17 @@ const PurchasesReport = () => {
             }`}>
               {(val || 'D')[0].toUpperCase()}
             </div>
-            <span className="font-bold text-foreground">{val}</span>
+            <span className="font-semibold text-foreground">{val}</span>
           </div>
         ),
       },
       {
         key: 'orderCount', label: 'Orders', align: 'right', sortable: true, width: 110,
-        render: (val) => <span className="font-mono font-bold text-ink-secondary">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-ink-secondary">{val}</span>,
       },
       {
         key: 'totalUnits', label: 'Units Received', align: 'right', sortable: true, width: 140,
-        render: (val) => <span className="font-mono font-bold text-foreground">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-foreground">{val}</span>,
       },
       { key: 'totalAmount', label: 'Total Spend', type: 'currency', align: 'right', sortable: true, width: 150 },
       {
@@ -352,17 +352,17 @@ const PurchasesReport = () => {
             }`}>
               <Package size={12} className={row._rank <= 3 ? 'text-emerald-600' : 'text-ink-tertiary'} />
             </div>
-            <span className="font-bold text-foreground">{val}</span>
+            <span className="font-semibold text-foreground">{val}</span>
           </div>
         ),
       },
       {
         key: 'orderCount', label: 'Orders', align: 'right', sortable: true, width: 110,
-        render: (val) => <span className="font-mono font-bold text-ink-secondary">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-ink-secondary">{val}</span>,
       },
       {
         key: 'totalUnits', label: 'Units Procured', align: 'right', sortable: true, width: 140,
-        render: (val) => <span className="font-mono font-bold text-foreground">{val}</span>,
+        render: (val) => <span className="tabular-nums font-semibold text-foreground">{val}</span>,
       },
       { key: 'avgUnit',    label: 'Avg. Unit Cost', type: 'currency', align: 'right', width: 140 },
       { key: 'totalAmount', label: 'Total Spend',   type: 'currency', align: 'right', sortable: true, width: 150 },
@@ -402,15 +402,15 @@ const PurchasesReport = () => {
             </button>
           ))}
         </div>
-        <span className="text-[11px] font-mono font-semibold text-muted-foreground">{range.start} → {range.end}</span>
+        <span className="text-[11px] tabular-nums font-semibold text-muted-foreground">{range.start} → {range.end}</span>
         {showCustom && (
           <div className="flex items-center gap-2">
             <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-              className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-mono outline-none focus:border-accent-signature/70" />
+              className="bg-card border border-black/10 rounded-lg px-3 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature/70" />
             <span className="text-muted-foreground">–</span>
             <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-              className="bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-mono outline-none focus:border-accent-signature/70" />
-            <button onClick={applyCustom} className="px-3 py-1.5 rounded-lg bg-accent-signature text-white text-[11px] font-bold">Apply</button>
+              className="bg-card border border-black/10 rounded-lg px-3 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature/70" />
+            <button onClick={applyCustom} className="px-3 py-1.5 rounded-lg bg-accent-signature text-white text-[11px] font-semibold">Apply</button>
           </div>
         )}
       </div>

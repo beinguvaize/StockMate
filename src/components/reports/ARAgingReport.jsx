@@ -212,7 +212,7 @@ const ARAgingReport = () => {
         key: 'client_name', label: 'Client', sortable: true, width: 220,
         render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span>,
       },
-      { key: 'phone', label: 'Contact', width: 140, render: (val) => <span className="text-[10px] font-bold text-muted-foreground">{val || '—'}</span> },
+      { key: 'phone', label: 'Contact', width: 140, render: (val) => <span className="text-[10px] font-semibold text-muted-foreground">{val || '—'}</span> },
       bucketColumn('CURRENT'),
       bucketColumn('1-30'),
       bucketColumn('31-60'),
@@ -255,7 +255,7 @@ const ARAgingReport = () => {
     columns: [
       {
         key: 'invoice_no', label: 'Invoice #', sortable: true, width: 130,
-        render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-bold">{val}</span>,
+        render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60 uppercase font-semibold">{val}</span>,
       },
       { key: 'client_name', label: 'Client', sortable: true, width: 220, render: (val) => <span className="font-semibold text-foreground uppercase tracking-tight">{val}</span> },
       { key: 'date', label: 'Invoice Date', type: 'date', sortable: true, width: 130 },

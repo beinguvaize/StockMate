@@ -47,7 +47,7 @@ const ReportChartSection = ({
               <div key={index} className="flex items-center justify-between gap-6">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full" style={{ backgroundColor: entry.color }} />
-                  <span className="text-xs font-bold text-white uppercase">{entry.name}:</span>
+                  <span className="text-xs font-semibold text-white uppercase">{entry.name}:</span>
                 </div>
                 <span className="text-sm font-semibold text-accent-signature tabular-nums">
                   {typeof entry.value === 'number' ? new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(entry.value) : entry.value}
@@ -207,19 +207,19 @@ const ReportChartSection = ({
 
   return (
     <div className={`transition-all duration-500 ease-in-out no-print ${isCollapsed ? 'mb-2' : 'mb-6'}`}>
-      <div className="bg-white rounded-[2.5rem] border border-border/60 shadow-sm overflow-hidden flex flex-col">
+      <div className="bg-card rounded-[2.5rem] border border-border/60 shadow-sm overflow-hidden flex flex-col">
         
         {/* Header Toggle */}
         <div 
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="p-6 flex justify-between items-center cursor-pointer hover:bg-canvas/40 transition-colors border-b border-black/5"
+          className="p-6 flex justify-between items-center cursor-pointer hover:bg-canvas/40 transition-colors border-b border-border/60"
         >
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 rounded-xl bg-ink-primary text-accent-signature flex items-center justify-center shadow-lg">
               {type === 'pie' ? <PieIcon size={20} /> : type === 'line' ? <LineIcon size={20} /> : <BarChart3 size={20} />}
             </div>
             <div className="flex flex-col gap-0.5">
-              <h3 className="text-xl font-semibold font-sora text-foreground uppercase tracking-tighter leading-none">
+              <h3 className="text-xl font-semibold  text-foreground uppercase tracking-tighter leading-none">
                 {title}<span className="text-accent-signature">.</span>
               </h3>
               <p className="text-[11px] font-medium text-muted-foreground">Statistical Visualization</p>

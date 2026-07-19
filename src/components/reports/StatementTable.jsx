@@ -18,7 +18,7 @@ const accentText = { amber: 'text-accent-signature-hover', rose: 'text-rose-600'
 const accentBar  = { amber: 'bg-accent-signature', rose: 'bg-rose-500', emerald: 'bg-emerald-500', ink: 'bg-ink-primary' };
 
 const Amount = ({ v, className = '' }) => (
-  <span className={`font-mono tabular-nums ${className}`}>{formatINR(v)}</span>
+  <span className={`tabular-nums ${className}`}>{formatINR(v)}</span>
 );
 
 const StatementTable = ({ sections = [], grandTotal, note }) => (
@@ -26,8 +26,8 @@ const StatementTable = ({ sections = [], grandTotal, note }) => (
     <table className="w-full">
       <thead>
         <tr className="border-b border-black/10 bg-canvas/40">
-          <th className="px-6 py-3 text-left font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Particulars</th>
-          <th className="px-6 py-3 text-right font-mono text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Amount</th>
+          <th className="px-6 py-3 text-left tabular-nums text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Particulars</th>
+          <th className="px-6 py-3 text-right tabular-nums text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Amount</th>
         </tr>
       </thead>
       <tbody>
@@ -50,7 +50,7 @@ const StatementTable = ({ sections = [], grandTotal, note }) => (
                   <React.Fragment key={gi}>
                     {g.title && (
                       <tr>
-                        <td className="px-6 pt-2.5 pb-1 text-[11px] font-bold uppercase tracking-wide text-muted-foreground" colSpan={2}>{g.title}</td>
+                        <td className="px-6 pt-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground" colSpan={2}>{g.title}</td>
                       </tr>
                     )}
                     {g.lines.map((l, li) => (
@@ -61,8 +61,8 @@ const StatementTable = ({ sections = [], grandTotal, note }) => (
                     ))}
                     {/* group subtotal */}
                     <tr className="border-t border-black/[0.06]">
-                      <td className="pl-10 pr-6 py-1.5 text-[12px] font-bold text-muted-foreground uppercase tracking-wide">{g.subtotalLabel || `Total ${g.title || ''}`.trim()}</td>
-                      <td className="px-6 py-1.5 text-right"><Amount v={subtotal} className="text-[13px] font-bold text-gray-600" /></td>
+                      <td className="pl-10 pr-6 py-1.5 text-[12px] font-semibold text-muted-foreground uppercase tracking-wide">{g.subtotalLabel || `Total ${g.title || ''}`.trim()}</td>
+                      <td className="px-6 py-1.5 text-right"><Amount v={subtotal} className="text-[13px] font-semibold text-gray-600" /></td>
                     </tr>
                   </React.Fragment>
                 );
@@ -83,7 +83,7 @@ const StatementTable = ({ sections = [], grandTotal, note }) => (
         )}
       </tbody>
     </table>
-    {note && <div className="px-6 py-3 border-t border-black/5 text-[10px] font-medium text-muted-foreground">{note}</div>}
+    {note && <div className="px-6 py-3 border-t border-border/60 text-[10px] font-medium text-muted-foreground">{note}</div>}
   </div>
 );
 

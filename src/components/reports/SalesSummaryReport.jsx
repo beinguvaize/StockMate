@@ -78,7 +78,7 @@ const SalesSummaryReport = () => {
   // 3. Define Table Columns (Rule 2)
   const columns = [
     { key: 'date', label: 'Date', type: 'date', sortable: true, width: 140 },
-    { key: 'id', label: 'Invoice #', sortable: true, width: 120, render: (val) => <span className="font-mono text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60">{(val || '').slice(0, 8).toUpperCase() || 'REF-N/A'}</span> },
+    { key: 'id', label: 'Invoice #', sortable: true, width: 120, render: (val) => <span className="tabular-nums text-[10px] bg-canvas px-2 py-0.5 rounded border border-border/60">{(val || '').slice(0, 8).toUpperCase() || 'REF-N/A'}</span> },
     { key: 'customerInfo', label: 'Client Name', sortable: true, width: 220, render: (val) => val?.name || 'Walk-in Client' },
     { key: 'items', label: 'Items', align: 'right', width: 80, render: (val) => val?.length || 0 },
     { key: 'totalAmount', label: 'Total Amount', type: 'currency', align: 'right', sortable: true, width: 150 },

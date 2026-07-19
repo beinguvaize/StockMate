@@ -247,7 +247,7 @@ const YoYComparisonReport = () => {
     },
     {
       key: 'lastYear', label: `${lyYear}`, type: 'currency', align: 'right', sortable: true, width: 160,
-      render: (val) => <span className="font-bold text-muted-foreground">{formatINR(val)}</span>,
+      render: (val) => <span className="font-semibold text-muted-foreground">{formatINR(val)}</span>,
     },
     {
       key: 'thisYear', label: `${cyYear}`, type: 'currency', align: 'right', sortable: true, width: 160,
@@ -315,7 +315,7 @@ const YoYComparisonReport = () => {
       },
       {
         key: 'lastYear', label: `${lyYear} FY`, type: 'currency', align: 'right', sortable: true, width: 180,
-        render: (val) => <span className="font-bold text-muted-foreground">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-muted-foreground">{formatINR(val)}</span>,
       },
       {
         key: 'thisYear', label: `${cyYear} FY`, type: 'currency', align: 'right', sortable: true, width: 180,
@@ -455,7 +455,7 @@ const YoYComparisonReport = () => {
       },
       {
         key: 'lastYear', label: `${lyYear}`, type: 'currency', align: 'right', sortable: true, width: 170,
-        render: (val) => <span className="font-bold text-muted-foreground">{formatINR(val)}</span>,
+        render: (val) => <span className="font-semibold text-muted-foreground">{formatINR(val)}</span>,
       },
       {
         key: 'thisYear', label: `${cyYear}`, type: 'currency', align: 'right', sortable: true, width: 170,
@@ -513,7 +513,7 @@ const YoYComparisonReport = () => {
   return (
     <div className="flex flex-col gap-4">
       {/* Year switcher + headline strip */}
-      <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-white/60 backdrop-blur-md border border-border/60">
+      <div className="no-print flex flex-wrap items-center gap-3 px-4 py-3 rounded-xl bg-card/60 backdrop-blur-md border border-border/60">
         <div className="flex items-center gap-2">
           <Calendar size={14} className="text-accent-signature" />
           <span className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Compare</span>
@@ -521,7 +521,7 @@ const YoYComparisonReport = () => {
         <select
           value={cyYear}
           onChange={(e) => setCyYear(Number(e.target.value))}
-          className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-foreground bg-white border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
+          className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-foreground bg-card border border-black/10 rounded-md focus:outline-none focus:border-accent-signature"
         >
           {yearOptions.map((y) => (
             <option key={y} value={y}>{y} vs {y - 1}</option>
