@@ -8,6 +8,7 @@ import {
   Download, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { isCountableSale } from './reportUtils';
 import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 
 const today = todayISOInAppTZ();
@@ -27,7 +28,8 @@ function presetRange(id) {
   switch (id) {
     case 'TODAY': return { start: today, end: today };
     case 'WEEK': {
-      const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
+      const dow = now.getDay() || 7; // Sunday must count as end of the week, not its start
+      const mon = new Date(now); mon.setDate(now.getDate() - dow + 1);
       return { start: fmt(mon), end: today };
     }
     case 'MONTH':
@@ -81,7 +83,8 @@ const ClientStatementReport = () => {
 
   // Data fetching
   const { data: clients,  loading: cLoading }  = useReportData({ table: 'clients',         select: 'id, name, phone, outstanding_balance' });
-  const { data: sales,    loading: sLoading }  = useReportData({ table: 'sales',            select: 'id, date, totalAmount, paidAmount, paymentMethod, customerInfo, shopId', dateColumn: 'date', filters: dateFilters });
+  const { data: salesRaw,    loading: sLoading }  = useReportData({ table: 'sales',            select: 'id, date, totalAmount, paidAmount, paymentMethod, customerInfo, shopId, status, paymentStatus, voided_at', dateColumn: 'date', filters: dateFilters });
+  const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
   const { data: invoices, loading: iLoading }  = useReportData({ table: 'invoices',         select: 'id, client_id, client_name, grand_total, paid_amount, payment_status, date, sale_id', dateColumn: 'date', filters: dateFilters });
   const { data: payments, loading: pLoading }  = useReportData({ table: 'client_payments',  select: 'id, client_id, amount, date, payment_method', dateColumn: 'date', filters: dateFilters });
 

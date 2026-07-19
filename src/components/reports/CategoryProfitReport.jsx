@@ -26,7 +26,8 @@ function presetRange(id) {
   switch (id) {
     case 'TODAY': return { start: today, end: today };
     case 'WEEK': {
-      const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
+      const dow = now.getDay() || 7; // Sunday must count as end of the week, not its start
+      const mon = new Date(now); mon.setDate(now.getDate() - dow + 1);
       return { start: fmt(mon), end: today };
     }
     case 'MONTH':

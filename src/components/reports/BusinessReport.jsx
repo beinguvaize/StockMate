@@ -22,6 +22,7 @@ import {
   ChevronRight, ChevronDown,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { isCountableSale } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
 import { todayISOInAppTZ } from '../../lib/utils';
 
@@ -43,7 +44,8 @@ function presetRange(id) {
   switch (id) {
     case 'TODAY':   return { start: today, end: today };
     case 'WEEK': {
-      const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
+      const dow = now.getDay() || 7; // Sunday must count as end of the week, not its start
+      const mon = new Date(now); mon.setDate(now.getDate() - dow + 1);
       return { start: fmt(mon), end: today };
     }
     case 'MONTH':
@@ -141,7 +143,8 @@ const BusinessReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: sales,     loading: salesLoading }     = useReportData({ table: 'sales',     select: '*', dateColumn: 'date', filters });
+  const { data: salesRaw,     loading: salesLoading }     = useReportData({ table: 'sales',     select: '*', dateColumn: 'date', filters });
+  const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
   const { data: purchases, loading: purchLoading }     = useReportData({ table: 'purchases', select: '*', dateColumn: 'date', filters });
   const { data: clients }                              = useReportData({ table: 'clients',   select: 'id, name, outstanding_balance' });
   const { data: vehicles }                             = useReportData({ table: 'vehicles',  select: 'id, plateNumber, name' });
@@ -234,7 +237,7 @@ const BusinessReport = () => {
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
       .map(s => ({
         date:    s.date || '',
-        ref:     (s.id || '').slice(0, 8).toUpperCase(),
+        ref:     (s.id || '').toUpperCase(), // full id — truncation dropped digits
         client:  resolveName(s),
         items:   Array.isArray(s.items) ? s.items.reduce((n, i) => n + Number(i.quantity || 0), 0) : 0,
         payment: (s.paymentMethod || 'CASH').toUpperCase(),
@@ -268,7 +271,7 @@ const BusinessReport = () => {
     const rows = [
       ['Date', 'Invoice', 'Customer', 'Amount', 'Payment', 'Status'],
       ...sales.map(s => [
-        s.date, s.id?.slice(0,8)?.toUpperCase(),
+        s.date, s.id?.toUpperCase(),
         s.customerInfo?.name || 'Walk-in',
         s.totalAmount, s.paymentMethod, s.paymentStatus,
       ]),

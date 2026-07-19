@@ -10,7 +10,7 @@ const presetRange = (id) => {
   const now = new Date(); const today = fmtD(now);
   switch (id) {
     case 'TODAY':   return { start: today, end: today };
-    case 'WEEK':    { const m = new Date(now); m.setDate(now.getDate() - now.getDay() + 1); return { start: fmtD(m), end: today }; }
+    case 'WEEK':    { const dw = now.getDay() || 7; const m = new Date(now); m.setDate(now.getDate() - dw + 1); return { start: fmtD(m), end: today }; }
     case 'MONTH':   return { start: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, end: today };
     case 'QUARTER': { const q = new Date(now.getFullYear(), Math.floor(now.getMonth() / 3) * 3, 1); return { start: fmtD(q), end: today }; }
     case 'YEAR':    return { start: `${now.getFullYear()}-01-01`, end: today };

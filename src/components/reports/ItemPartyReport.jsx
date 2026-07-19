@@ -9,6 +9,7 @@ import {
   Users, Package, Search, Calendar, TrendingUp, Hash, BarChart3,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import { isCountableSale } from './reportUtils';
 import { formatCurrency, todayISOInAppTZ } from '../../lib/utils';
 
 const today = todayISOInAppTZ();
@@ -28,7 +29,8 @@ function presetRange(id) {
   switch (id) {
     case 'TODAY': return { start: today, end: today };
     case 'WEEK': {
-      const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
+      const dow = now.getDay() || 7; // Sunday must count as end of the week, not its start
+      const mon = new Date(now); mon.setDate(now.getDate() - dow + 1);
       return { start: fmt(mon), end: today };
     }
     case 'MONTH':
@@ -138,7 +140,8 @@ const ItemPartyReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: sales,    loading: sLoading } = useReportData({ table: 'sales',    select: '*',            dateColumn: 'date', filters });
+  const { data: salesRaw,    loading: sLoading } = useReportData({ table: 'sales',    select: '*',            dateColumn: 'date', filters });
+  const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
   const { data: clients,  loading: cLoading } = useReportData({ table: 'clients',  select: 'id, name, phone' });
   const { data: products, loading: pLoading } = useReportData({ table: 'products', select: 'id, name, sku' });
 

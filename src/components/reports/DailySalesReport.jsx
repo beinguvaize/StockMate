@@ -6,6 +6,7 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar } from 'lucide-react';
 import useReportData from './useReportData';
+import { isCountableSale } from './reportUtils';
 import { todayISOInAppTZ } from '../../lib/utils';
 import { DailySalesDetail } from './BusinessReport';
 
@@ -26,7 +27,8 @@ function presetRange(id) {
   switch (id) {
     case 'TODAY': return { start: today, end: today };
     case 'WEEK': {
-      const mon = new Date(now); mon.setDate(now.getDate() - now.getDay() + 1);
+      const dow = now.getDay() || 7; // Sunday must count as end of the week, not its start
+      const mon = new Date(now); mon.setDate(now.getDate() - dow + 1);
       return { start: fmt(mon), end: today };
     }
     case 'MONTH': return { start: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-01`, end: today };
@@ -48,7 +50,8 @@ const DailySalesReport = () => {
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
-  const { data: sales, loading } = useReportData({ table: 'sales', select: '*', dateColumn: 'date', filters });
+  const { data: salesRaw, loading } = useReportData({ table: 'sales', select: '*', dateColumn: 'date', filters });
+  const sales = useMemo(() => salesRaw.filter(isCountableSale), [salesRaw]);
   const { data: clients } = useReportData({ table: 'clients', select: 'id, name' });
   const { data: vehicles } = useReportData({ table: 'vehicles', select: 'id, plateNumber, name' });
   const { data: users } = useReportData({ table: 'users', select: 'id, name, email' });
