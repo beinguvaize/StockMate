@@ -313,10 +313,17 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       // bill by the RPC, so this preserves the true tender for the receipt.
       // Online-only + best-effort — offline sales just omit it (receipt falls
       // back to the paid amount). Kept off the RPC to avoid an overload change.
-      if (!queued && paidAmountOverride != null) {
+      //
+      // Previously this required the cashier to have typed an explicit amount,
+      // so ordinary sales never wrote the column. The tender is known without
+      // it: credit tenders nothing at the till, UPI is unconfirmed until the
+      // QR sheet flips it, anything else is paid in full.
+      if (!queued) {
+        final tendered = paidAmountOverride ??
+            (paymentMethod == 'CREDIT_SALE' || paymentMethod == 'UPI' ? 0.0 : netTotal);
         try {
           await supabase.from('sales')
-              .update({'amount_received': paidAmountOverride}).eq('id', saleId);
+              .update({'amount_received': tendered}).eq('id', saleId);
         } catch (e) { debugPrint('[SALE] amount_received save failed: $e'); }
       }
 
@@ -391,6 +398,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
             await supabase.from('sales').update({
               'paymentStatus': 'PAID',
               'paidAmount': netTotal,
+              // Tender lands here, not at sale time — the sale wrote 0 while
+              // the QR was still unconfirmed. Without this a confirmed UPI
+              // sale reads as never collected.
+              'amount_received': netTotal,
             }).eq('id', saleId);
           } catch (e) {
             debugPrint('[SALE] mark PAID failed: $e');
