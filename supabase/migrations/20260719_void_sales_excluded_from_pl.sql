@@ -1,3 +1,10 @@
+-- APPLIED 2026-07-19 (Supabase migration `void_sales_excluded_from_pl`).
+-- Verified after apply: FUTURE DISPO FY-to-date net −₹22,069.36 → −₹22,087.38,
+-- June −₹15,699.29 → −₹15,717.31, Demo Kirana unchanged, report revenue and
+-- revenue_net both ₹5,51,446.04 (tie-out gap ₹0.00) — matching the pre-apply
+-- simulation exactly. Revert = re-apply the previous function bodies; no data
+-- was mutated by this migration.
+--
 -- Voided sales were still counted in the P&L.
 --
 -- void_sale marks a void in three places — voided_at, void_reason and
