@@ -394,7 +394,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
     PENDING:   { bg: 'bg-accent-signature/10',   text: 'text-accent-signature-hover',   border: 'border-accent-signature/25',   label: 'Pending'   },
     ORDERED:   { bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    label: 'Ordered'   },
     RECEIVED:  { bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', label: 'Received'  },
-    CANCELLED: { bg: 'bg-gray-100',   text: 'text-gray-500',    border: 'border-gray-200',    label: 'Cancelled' },
+    CANCELLED: { bg: 'bg-gray-100',   text: 'text-muted-foreground',    border: 'border-gray-200',    label: 'Cancelled' },
   };
 
   // ── Returns table ────────────────────────────────────────────────────────────
@@ -414,26 +414,26 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
     return (
       <tr key={ret.id} className="hover:bg-canvas transition-colors">
         <td className="px-4 py-3">
-          <div className="text-xs font-bold text-gray-500 uppercase">{formatDate(ret.date)}</div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase">{formatDate(ret.date)}</div>
         </td>
         <td className="px-4 py-3">
-          <div className="text-sm font-black text-rose-600">#{ret.id.split('-').pop()}</div>
-          <div className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Debit Note</div>
+          <div className="text-sm font-semibold text-rose-600">#{ret.id.split('-').pop()}</div>
+          <div className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">Debit Note</div>
         </td>
         <td className="px-4 py-3">
-          <div className="text-sm font-bold text-ink-primary">{product?.name || ret.product_name || 'Unknown'}</div>
+          <div className="text-sm font-semibold text-foreground">{product?.name || ret.product_name || 'Unknown'}</div>
         </td>
         <td className="px-4 py-3">
-          <div className="text-xs font-bold text-gray-500">{supplier?.name || ret.supplier_name || '—'}</div>
+          <div className="text-xs font-semibold text-muted-foreground">{supplier?.name || ret.supplier_name || '—'}</div>
         </td>
         <td className="px-4 py-3 text-center">
-          <div className="text-sm font-black text-rose-500">−{ret.quantity}</div>
+          <div className="text-sm font-semibold text-rose-500">−{ret.quantity}</div>
         </td>
         <td className="px-4 py-3 text-right">
-          <div className="font-mono text-sm font-bold text-rose-600 tabular-nums">{formatCurrency(ret.total_amount)}</div>
+          <div className="tabular-nums text-sm font-semibold text-rose-600 tabular-nums">{formatCurrency(ret.total_amount)}</div>
         </td>
         <td className="px-4 py-3">
-          <div className="text-xs text-gray-500">{ret.reason || '—'}</div>
+          <div className="text-xs text-muted-foreground">{ret.reason || '—'}</div>
         </td>
       </tr>
     );
@@ -446,35 +446,35 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
     return (
       <tr key={pur.id} className="hover:bg-canvas transition-colors">
         <td className="px-4 py-3">
-          <div className="text-xs font-bold text-gray-500 uppercase">{formatDate(pur.date)}</div>
+          <div className="text-xs font-semibold text-muted-foreground uppercase">{formatDate(pur.date)}</div>
         </td>
         <td className="px-4 py-3">
-          <div className="text-sm font-black text-ink-primary">#{pur.id.split('-').pop()}</div>
+          <div className="text-sm font-semibold text-foreground">#{pur.id.split('-').pop()}</div>
         </td>
         <td className="px-4 py-3">
-          <div className="text-sm font-bold text-ink-primary">{product?.name || 'Unknown Product'}</div>
-          <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{supplier?.name || pur.supplier_name || 'N/A'}</div>
+          <div className="text-sm font-semibold text-foreground">{product?.name || 'Unknown Product'}</div>
+          <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{supplier?.name || pur.supplier_name || 'N/A'}</div>
         </td>
         <td className="px-4 py-3 text-center">
-          <div className="text-sm font-black text-emerald-500">+{pur.quantity}</div>
+          <div className="text-sm font-semibold text-emerald-500">+{pur.quantity}</div>
         </td>
         <td className="px-4 py-3 text-center">
           {(() => {
             const credit = _credit(pur.payment_type);
             const due = dueOf(pur);
-            if (!credit) return <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700">{pur.payment_type || 'Cash'}</span>;
-            if (due <= 0.5) return <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest bg-emerald-100 text-emerald-700">Paid</span>;
+            if (!credit) return <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700">{pur.payment_type || 'Cash'}</span>;
+            if (due <= 0.5) return <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700">Paid</span>;
             const partial = Number(pur.paid_amount || 0) > 0;
             return (
               <div className="flex flex-col items-center gap-0.5">
-                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${partial ? 'bg-orange-50 text-orange-600' : 'bg-accent-signature/10 text-accent-signature-hover'}`}>{partial ? 'Partial' : 'Credit'}</span>
-                <span className="font-mono text-[10px] text-red-500">due {formatCurrency(due)}</span>
+                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-medium ${partial ? 'bg-orange-50 text-orange-800' : 'bg-accent-signature/10 text-accent-signature-hover'}`}>{partial ? 'Partial' : 'Credit'}</span>
+                <span className="tabular-nums text-[10px] text-red-500">due {formatCurrency(due)}</span>
               </div>
             );
           })()}
         </td>
         <td className="px-4 py-3 text-right">
-          <div className="font-mono text-sm font-bold text-ink-primary tabular-nums">{formatCurrency(pur.total_amount)}</div>
+          <div className="tabular-nums text-sm font-semibold text-foreground tabular-nums">{formatCurrency(pur.total_amount)}</div>
         </td>
         <td className="px-4 py-3 text-center">
           {(() => {
@@ -484,7 +484,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
               <select
                 value={st}
                 onChange={(e) => updatePurchaseStatus(pur.id, e.target.value)}
-                className={`text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-pill border outline-none cursor-pointer ${s.bg} ${s.text} ${s.border}`}
+                className={`text-[10px] font-medium px-2.5 py-1 rounded-pill border outline-none cursor-pointer ${s.bg} ${s.text} ${s.border}`}
               >
                 <option value="PENDING">Pending</option>
                 <option value="ORDERED">Ordered</option>
@@ -500,7 +500,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
               <button
                 onClick={() => { setPayTarget(pur); setPayAmount(String(dueOf(pur))); setPayMethod('CASH'); }}
                 title={`Due ${formatCurrency(dueOf(pur))}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-widest text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
               >
                 <Banknote size={11} /> Pay
               </button>
@@ -508,7 +508,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
             <button
               onClick={(e) => openMenu(e, pur)}
               title="More"
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:bg-black/5 hover:text-ink-primary transition-colors"
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-black/5 hover:text-foreground transition-colors"
             >
               <MoreVertical size={16} />
             </button>
@@ -522,53 +522,57 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">
-      <div className="flex justify-between items-center pb-3 border-b border-black/5">
+      <div className="flex justify-between items-center pb-3 border-b border-border/60">
         <div>
-          <h1 className="text-[19px] font-bold text-ink-primary leading-none tracking-tight">Purchases</h1>
-          <p className="text-[12px] text-gray-400 mt-1">Inward stock from suppliers</p>
+          <h1 className="text-base font-semibold text-foreground tracking-tight">Purchases</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">Inward stock from suppliers</p>
         </div>
         <button onClick={() => setShowAddModal(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-ink-primary text-white text-[12px] font-bold hover:opacity-90 transition-opacity">
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
           <Plus size={14} /> New purchase
         </button>
       </div>
 
       {/* ── Summary strip ── */}
       {activeTab === 'purchases' && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-black/[0.06] rounded-lg overflow-hidden border border-black/[0.06]">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border/60 rounded-lg overflow-hidden border border-border/60">
           {[
             { label: 'This month', value: formatCurrency(summary.month) },
             { label: 'Purchases', value: summary.count },
-            { label: 'Payable', value: formatCurrency(summary.payable), cls: summary.payable > 0 ? 'text-rose-700' : 'text-ink-primary' },
-            { label: 'ITC this month', value: formatCurrency(summary.itc), cls: 'text-emerald-700' },
+            { label: 'Payable', value: formatCurrency(summary.payable), cls: summary.payable > 0 ? 'text-[color:var(--color-neg)]' : 'text-foreground' },
+            { label: 'ITC this month', value: formatCurrency(summary.itc), cls: 'text-[color:var(--color-pos)]' },
           ].map((m, i) => (
-            <div key={i} className="bg-white px-4 py-3">
-              <div className="text-[10px] uppercase tracking-wider text-gray-400">{m.label}</div>
-              <div className={`text-lg font-bold font-mono mt-0.5 ${m.cls || 'text-ink-primary'}`}>{m.value}</div>
+            <div key={i} className="bg-card px-4 py-3">
+              <div className="text-[11px] font-medium text-muted-foreground">{m.label}</div>
+              <div className={`text-[19px] font-semibold tabular-nums tracking-tight mt-0.5 ${m.cls || 'text-foreground'}`}>{m.value}</div>
             </div>
           ))}
         </div>
       )}
 
       {/* ── Tab switcher ── */}
-      <div className="flex gap-1 p-1 bg-canvas rounded-xl border border-black/5 w-fit">
+      <div className="flex items-center bg-muted rounded-lg p-0.5 w-fit">
         <button
           onClick={() => setActiveTab('purchases')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-            activeTab === 'purchases' ? 'bg-white shadow text-ink-primary' : 'text-gray-400 hover:text-gray-600'
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+            activeTab === 'purchases'
+              ? 'bg-card text-foreground font-semibold shadow-sm'
+              : 'text-muted-foreground font-medium hover:text-foreground'
           }`}
         >
           <ShoppingCart size={11} /> Purchases
-          <span className="ml-1 text-[9px] font-bold bg-black/5 rounded px-1.5 py-0.5">{purchases.length}</span>
+          <span className="ml-1 text-[9px] font-semibold bg-black/5 rounded px-1.5 py-0.5">{purchases.length}</span>
         </button>
         <button
           onClick={() => setActiveTab('returns')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${
-            activeTab === 'returns' ? 'bg-white shadow text-rose-600' : 'text-gray-400 hover:text-gray-600'
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+            activeTab === 'returns'
+              ? 'bg-card text-rose-600 font-semibold shadow-sm'
+              : 'text-muted-foreground font-medium hover:text-foreground'
           }`}
         >
           <ArrowLeftRight size={11} /> Returns
-          <span className={`ml-1 text-[9px] font-bold rounded px-1.5 py-0.5 ${purchaseReturns.length > 0 ? 'bg-rose-100 text-rose-600' : 'bg-black/5'}`}>
+          <span className={`ml-1 text-[9px] font-semibold rounded px-1.5 py-0.5 ${purchaseReturns.length > 0 ? 'bg-rose-100 text-rose-600' : 'bg-black/5'}`}>
             {purchaseReturns.length}
           </span>
         </button>
@@ -576,26 +580,26 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
 
       {/* ── Filter / sort bar (purchases tab) ── */}
       {activeTab === 'purchases' && (
-        <div className="flex flex-wrap items-center gap-2 bg-white border border-black/5 rounded-xl p-2">
+        <div className="flex flex-wrap items-center gap-2 bg-card border border-border/60 rounded-xl p-2">
           <div className="relative flex-1 min-w-[180px]">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search product / ref / supplier / notes…"
-              className="w-full h-9 pl-9 pr-3 bg-white border border-black/10 rounded-lg text-[12px] font-semibold outline-none focus:border-accent-signature/70" />
+              className="w-full h-9 pl-9 pr-3 bg-card border border-border rounded-lg text-[12px] font-semibold outline-none focus:border-accent-signature/70" />
           </div>
-          <select value={fSupplier} onChange={e => setFSup(e.target.value)} className="h-9 px-2 border border-black/10 rounded-lg text-[12px] font-semibold">
+          <select value={fSupplier} onChange={e => setFSup(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
             <option value="ALL">All suppliers</option>
             {(suppliers || []).map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
-          <select value={fPay} onChange={e => setFPay(e.target.value)} className="h-9 px-2 border border-black/10 rounded-lg text-[12px] font-semibold">
+          <select value={fPay} onChange={e => setFPay(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
             <option value="ALL">All payment</option><option value="CASH">Cash</option><option value="CREDIT">Credit</option>
           </select>
-          <select value={fStatus} onChange={e => setFStatus(e.target.value)} className="h-9 px-2 border border-black/10 rounded-lg text-[12px] font-semibold">
+          <select value={fStatus} onChange={e => setFStatus(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
             <option value="ALL">All status</option><option value="PENDING">Pending</option><option value="ORDERED">Ordered</option><option value="RECEIVED">Received</option><option value="CANCELLED">Cancelled</option>
           </select>
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="h-9 px-2 border border-black/10 rounded-lg text-[12px] font-semibold">
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
             <option value="DATE_DESC">Newest</option><option value="DATE_ASC">Oldest</option><option value="AMT_DESC">Amount ↓</option><option value="AMT_ASC">Amount ↑</option>
           </select>
-          <span className="text-[11px] font-bold text-gray-400 ml-auto">{filteredPurchases.length} of {purchases.length}</span>
+          <span className="text-[11px] font-semibold text-muted-foreground ml-auto">{filteredPurchases.length} of {purchases.length}</span>
         </div>
       )}
 
@@ -620,9 +624,9 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
       {menuRow && createPortal(
         <>
           <div className="fixed inset-0 z-[9998]" onClick={() => setMenuRow(null)} />
-          <div className="fixed z-[9999] w-44 bg-white border border-black/10 rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left }}>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-ink-primary"><Printer size={13} /> Print</button>
-            <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-ink-primary"><Copy size={13} /> Duplicate</button>
+          <div className="fixed z-[9999] w-44 bg-card border border-border rounded-lg shadow-xl py-1 text-[12px] font-semibold" style={{ top: menuPos.top, left: menuPos.left }}>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setPrintTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-foreground"><Printer size={13} /> Print</button>
+            <button onClick={() => { const p = menuRow; setMenuRow(null); setDupTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-foreground"><Copy size={13} /> Duplicate</button>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setEditTarget(p); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-blue-600"><Pencil size={13} /> Edit</button>
             <button onClick={() => { const p = menuRow; setMenuRow(null); setReturnTarget({ purchase: p, product: products.find(x => x.id === p.linked_product_id), supplier: suppliers.find(s => s.id === p.supplier_id) }); }} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-50 text-rose-600"><RotateCcw size={13} /> Return</button>
             <div className="h-px bg-black/5 my-1" />
@@ -674,23 +678,23 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
       <Modal isOpen={!!payTarget} onClose={() => setPayTarget(null)} title="Record Payment" subtitle={payTarget ? `#${payTarget.id.split('-').pop()} · ${payTarget.supplier_name || ''}` : ''}>
         {payTarget && (
           <div className="flex flex-col gap-3">
-            <div className="flex justify-between text-[13px]"><span className="font-semibold text-gray-500">Order total</span><span className="font-mono font-bold">{formatCurrency(payTarget.total_amount)}</span></div>
-            <div className="flex justify-between text-[13px]"><span className="font-semibold text-gray-500">Already paid</span><span className="font-mono font-bold">{formatCurrency(payTarget.paid_amount || 0)}</span></div>
-            <div className="flex justify-between text-[13px] pt-2 border-t border-black/5"><span className="font-bold">Due</span><span className="font-mono font-bold text-red-600">{formatCurrency(dueOf(payTarget))}</span></div>
-            <label className="block"><span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Amount</span>
-              <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[14px] font-mono font-bold outline-none focus:border-accent-signature/70" autoFocus />
+            <div className="flex justify-between text-[13px]"><span className="font-semibold text-muted-foreground">Order total</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.total_amount)}</span></div>
+            <div className="flex justify-between text-[13px]"><span className="font-semibold text-muted-foreground">Already paid</span><span className="tabular-nums font-semibold">{formatCurrency(payTarget.paid_amount || 0)}</span></div>
+            <div className="flex justify-between text-[13px] pt-2 border-t border-border/60"><span className="font-semibold">Due</span><span className="tabular-nums font-semibold text-red-600">{formatCurrency(dueOf(payTarget))}</span></div>
+            <label className="block"><span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-widest">Amount</span>
+              <input type="number" min="0" step="0.01" value={payAmount} onChange={e => setPayAmount(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[14px] tabular-nums font-semibold outline-none focus:border-accent-signature/70" autoFocus />
             </label>
             <div className="grid grid-cols-2 gap-3">
-              <label className="block"><span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Method</span>
-                <select value={payMethod} onChange={e => setPayMethod(e.target.value)} className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[13px] font-semibold">
+              <label className="block"><span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-widest">Method</span>
+                <select value={payMethod} onChange={e => setPayMethod(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[13px] font-semibold">
                   <option value="CASH">Cash</option><option value="BANK">Bank</option><option value="UPI">UPI</option>
                 </select>
               </label>
-              <label className="block"><span className="text-[10px] uppercase font-bold text-gray-400 tracking-widest">Date</span>
-                <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-black/10 rounded-xl text-[13px] font-semibold" />
+              <label className="block"><span className="text-[10px] uppercase font-semibold text-muted-foreground tracking-widest">Date</span>
+                <input type="date" value={payDate} onChange={e => setPayDate(e.target.value)} className="mt-1 w-full h-11 px-3 border border-border rounded-xl text-[13px] font-semibold" />
               </label>
             </div>
-            <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-xl bg-accent-signature text-white text-[13px] font-bold disabled:opacity-40 hover:bg-accent-signature-hover flex items-center justify-center gap-2">
+            <button onClick={submitPay} disabled={paySubmitting || !(Number(payAmount) > 0)} className="h-11 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold disabled:opacity-40 hover:bg-primary/90 flex items-center justify-center gap-2">
               <Banknote size={15} /> {paySubmitting ? 'Recording…' : 'Record payment'}
             </button>
           </div>
@@ -703,24 +707,24 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
           const prod = products.find(p => p.id === printTarget.linked_product_id);
           return (
             <div>
-              <div id="purchase-voucher" className="bg-white p-4 text-[13px]">
-                <div className="text-lg font-extrabold text-ink-primary">{businessProfile?.name || 'Purchase Voucher'}</div>
-                <div className="text-[11px] text-gray-400 mb-3">Purchase Voucher · #{printTarget.id.split('-').pop()}</div>
+              <div id="purchase-voucher" className="bg-card p-4 text-[13px]">
+                <div className="text-lg font-extrabold text-foreground">{businessProfile?.name || 'Purchase Voucher'}</div>
+                <div className="text-[11px] text-muted-foreground mb-3">Purchase Voucher · #{printTarget.id.split('-').pop()}</div>
                 <div className="grid grid-cols-2 gap-1 mb-3">
-                  <div><span className="text-gray-400">Supplier:</span> <b>{printTarget.supplier_name || '—'}</b></div>
-                  <div><span className="text-gray-400">Date:</span> <b>{formatDate(printTarget.date)}</b></div>
-                  <div><span className="text-gray-400">Payment:</span> <b>{printTarget.payment_type || 'CASH'}</b></div>
-                  <div><span className="text-gray-400">Status:</span> <b>{printTarget.status || 'RECEIVED'}</b></div>
+                  <div><span className="text-muted-foreground">Supplier:</span> <b>{printTarget.supplier_name || '—'}</b></div>
+                  <div><span className="text-muted-foreground">Date:</span> <b>{formatDate(printTarget.date)}</b></div>
+                  <div><span className="text-muted-foreground">Payment:</span> <b>{printTarget.payment_type || 'CASH'}</b></div>
+                  <div><span className="text-muted-foreground">Status:</span> <b>{printTarget.status || 'RECEIVED'}</b></div>
                 </div>
-                <table className="w-full border-t border-b border-black/10 my-2">
-                  <thead><tr className="text-[10px] uppercase text-gray-400"><th className="text-left py-1">Item</th><th className="text-center">Qty</th><th className="text-right">Amount</th></tr></thead>
-                  <tbody><tr><td className="py-1">{prod?.name || 'Item'}</td><td className="text-center font-mono">{printTarget.quantity}</td><td className="text-right font-mono">{formatCurrency(printTarget.total_amount)}</td></tr></tbody>
+                <table className="w-full border-t border-b border-border my-2">
+                  <thead><tr className="text-[10px] uppercase text-muted-foreground"><th className="text-left py-1">Item</th><th className="text-center">Qty</th><th className="text-right">Amount</th></tr></thead>
+                  <tbody><tr><td className="py-1">{prod?.name || 'Item'}</td><td className="text-center tabular-nums">{printTarget.quantity}</td><td className="text-right tabular-nums">{formatCurrency(printTarget.total_amount)}</td></tr></tbody>
                 </table>
-                <div className="flex justify-between font-bold mt-2"><span>Total</span><span className="font-mono">{formatCurrency(printTarget.total_amount)}</span></div>
-                {Number(printTarget.paid_amount || 0) > 0 && <div className="flex justify-between text-[12px] text-emerald-600"><span>Paid</span><span className="font-mono">{formatCurrency(printTarget.paid_amount)}</span></div>}
+                <div className="flex justify-between font-semibold mt-2"><span>Total</span><span className="tabular-nums">{formatCurrency(printTarget.total_amount)}</span></div>
+                {Number(printTarget.paid_amount || 0) > 0 && <div className="flex justify-between text-[12px] text-emerald-600"><span>Paid</span><span className="tabular-nums">{formatCurrency(printTarget.paid_amount)}</span></div>}
               </div>
               <button onClick={() => printVoucher(printTarget)}
-                className="mt-3 w-full h-11 rounded-xl bg-ink-primary text-white text-[13px] font-bold flex items-center justify-center gap-2"><Printer size={15} /> Print</button>
+                className="mt-3 w-full h-11 rounded-xl bg-primary text-primary-foreground text-[13px] font-semibold flex items-center justify-center gap-2"><Printer size={15} /> Print</button>
             </div>
           );
         })()}
