@@ -255,6 +255,7 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
       discount: s.discount ?? '',
       total: s.totalAmount ?? 0,
       paid: s.paidAmount ?? 0,
+      amount_received: s.amount_received ?? '',
       outstanding: outstandingOf(s),
       status: getStatus(s),
       payment_method: s.paymentMethod || '',
@@ -685,8 +686,26 @@ const SaleDetail = ({
         <div className="h-px bg-black/10 my-2" />
         <TotalRow label="Total" value={formatCurrency(sale.totalAmount)} bold />
         {Number(sale.paidAmount) > 0 && (
-          <TotalRow label="Paid" value={formatCurrency(sale.paidAmount)} tone="emerald" />
+          <TotalRow label="Paid on this bill" value={formatCurrency(sale.paidAmount)} tone="emerald" />
         )}
+        {/* Actual tender. paidAmount is capped at the bill, so a customer who
+            handed over more (change given, or the excess put against older
+            dues) is invisible without this. Only shown when recorded —
+            historical sales and phones older than v1.5.73 leave it null, and
+            inventing a figure would be worse than omitting it. */}
+        {(() => {
+          const received = Number(sale.amount_received);
+          if (!Number.isFinite(received) || received <= 0) return null;
+          const extra = received - (Number(sale.totalAmount) || 0);
+          return (
+            <>
+              <TotalRow label="Amount received" value={formatCurrency(received)} tone="emerald" />
+              {extra > 0.5 && (
+                <TotalRow label="Change / to account" value={formatCurrency(extra)} />
+              )}
+            </>
+          );
+        })()}
         {!paid && !voided && outstanding > 0 && (
           <TotalRow label="Outstanding" value={formatCurrency(outstanding)} tone="amber" bold />
         )}
