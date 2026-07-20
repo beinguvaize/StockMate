@@ -8,7 +8,7 @@ import {} from 'lucide-react';
 import useReportData from './useReportData';
 import ReportHeader from './ReportHeader';
 import { isCountableSale, presetRange } from './reportUtils';
-import { DailySalesDetail } from './BusinessReport';
+import DailySalesDetail from './DailySalesDetail';
 
 const DailySalesReport = () => {
   const [preset, setPreset] = useState('TODAY');
