@@ -707,7 +707,7 @@ class _InvoiceCard extends StatelessWidget {
                 // Partial payment indicator
                 if (invoice.paidAmount > 0 && status != _InvoiceStatus.paid)
                   Text(
-                    'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Due ₹${invoice.outstanding.toStringAsFixed(0)}',
+                    'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Balance ₹${invoice.outstanding.toStringAsFixed(0)}',
                     style: GoogleFonts.manrope(
                       fontSize: 10,
                       color: AppColors.warning,

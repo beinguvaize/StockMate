@@ -457,7 +457,7 @@ class _SalesScreenState extends ConsumerState<SalesScreen> {
                                         ),
                                       ],
                                       TextSpan(
-                                        text: 'Due ₹${dueAmt.toStringAsFixed(0)}',
+                                        text: 'Balance ₹${dueAmt.toStringAsFixed(0)}',
                                         style: const TextStyle(color: Color(0xFFB91C1C)),
                                       ),
                                     ],

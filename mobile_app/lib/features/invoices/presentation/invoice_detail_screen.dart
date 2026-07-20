@@ -1573,9 +1573,13 @@ class _InvoiceCard extends StatelessWidget {
                             color: const Color(0xFF64748B),
                           ),
                         ),
-                        if (invoice.dueDate != null && !isPaid)
+                        // Only worth showing when it differs from the bill
+                        // date. On a same-day sale it repeats the line above
+                        // and reads as a second "Due" next to the balance.
+                        if (invoice.dueDate != null && !isPaid &&
+                            invoice.dueDate != invoice.invoiceDate)
                           Text(
-                            'Due: ${_fmtDate(invoice.dueDate)}',
+                            'Payment due ${_fmtDate(invoice.dueDate)}',
                             style: GoogleFonts.manrope(fontSize: 11, color: const Color(0xFF64748B)),
                           ),
                       ],
@@ -1606,7 +1610,7 @@ class _InvoiceCard extends StatelessWidget {
                 if (invoice.paidAmount > 0 && !isPaid) ...[
                   const SizedBox(height: 6),
                   Text(
-                    'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Due ₹${invoice.outstanding.toStringAsFixed(0)}',
+                    'Paid ₹${invoice.paidAmount.toStringAsFixed(0)} · Balance ₹${invoice.outstanding.toStringAsFixed(0)}',
                     style: GoogleFonts.manrope(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFFD97706)),
                   ),
                 ],
