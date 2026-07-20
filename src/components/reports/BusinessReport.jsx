@@ -108,6 +108,7 @@ const BusinessReport = () => {
   const [customStart, setCustomStart] = useState('');
   const [customEnd,   setCustomEnd]   = useState('');
   const [showCustom,  setShowCustom]  = useState(false);
+  const [prodSort,    setProdSort]    = useState('REVENUE');
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
@@ -122,10 +123,15 @@ const BusinessReport = () => {
     table: 'client_payments', select: 'id, amount, date, payment_method',
     dateColumn: 'date', filters,
   });
+  // Per-product cost. Batch consumption is the real FIFO cost but covers only
+  // part of the lines (356 of 436 sales here), so uncovered lines fall back to
+  // products.costPrice — the same chain process_sale uses. See prodProfit.
+  const { data: products }    = useReportData({ table: 'products', select: 'id, costPrice, unit' });
+  const { data: consumption } = useReportData({
+    table: 'sale_batch_consumption', select: 'sale_id, product_id, qty_taken, unit_cost',
+  });
   const { data: vehicles }                             = useReportData({ table: 'vehicles',  select: 'id, plateNumber, name' });
   const { data: users }                                = useReportData({ table: 'users',     select: 'id, name, email' });
-
-  const loading = salesLoading || purchLoading;
 
   /* Authoritative period P&L (returns netted, GST split per tax_mode,
      exclude_from_pl honoured). Never recomputed client-side. */
@@ -220,21 +226,60 @@ const BusinessReport = () => {
     const billedTotal    = sales.reduce((sum, s) => sum + Number(s.totalAmount || 0), 0);
     const collectedTotal = sales.reduce((sum, s) => sum + collectedOf(s), 0);
 
-    /* product performance */
+    /* Product performance, with cost so a line that sells at a loss is
+       visible. Revenue ranking alone hid those: at a 13.9% blended margin a
+       high-revenue product can still lose money on every unit.
+
+       Cost per line: FIFO batch consumption where it exists, else
+       products.costPrice × qty — the same fallback chain process_sale uses.
+       Per-product COGS is not stored anywhere, so this is an allocation, and
+       cogsVariance below reports how far it lands from sales.totalCogs. */
+    const costByKey = {};   // `${sale_id}|${product_id}` → actual FIFO cost
+    (consumption || []).forEach(c => {
+      const k = `${c.sale_id}|${c.product_id}`;
+      costByKey[k] = (costByKey[k] || 0) + Number(c.qty_taken || 0) * Number(c.unit_cost || 0);
+    });
+    const productById = {};
+    (products || []).forEach(p => { productById[p.id] = p; });
+
     const prodMap = {};
+    let allocatedCogs = 0;
     sales.forEach(s => {
       (Array.isArray(s.items) ? s.items : []).forEach(item => {
-        const key = item.id || item.name || 'unknown';
-        if (!prodMap[key]) prodMap[key] = { name: item.name || 'Unknown', qty: 0, revenue: 0, txCount: 0 };
-        prodMap[key].qty     += Number(item.quantity || 0);
-        prodMap[key].revenue += Number(item.quantity || 0) * Number(item.rate || 0);
+        const key  = item.id || item.name || 'unknown';
+        const prod = productById[item.id];
+        const qty  = Number(item.quantity || 0);
+        const batchCost = costByKey[`${s.id}|${item.id}`];
+        const cost = batchCost != null ? batchCost : qty * Number(prod?.costPrice || 0);
+        if (!prodMap[key]) {
+          prodMap[key] = { name: item.name || 'Unknown', unit: prod?.unit || '',
+                           qty: 0, revenue: 0, cost: 0, txCount: 0 };
+        }
+        prodMap[key].qty     += qty;
+        prodMap[key].revenue += qty * Number(item.rate || 0);
+        prodMap[key].cost    += cost;
         prodMap[key].txCount += 1;
+        allocatedCogs        += cost;
       });
     });
-    const topProducts = Object.values(prodMap)
+
+    const allProducts = Object.values(prodMap).map(p => ({
+      ...p,
+      profit: p.revenue - p.cost,
+      margin: p.revenue > 0 ? ((p.revenue - p.cost) / p.revenue) * 100 : 0,
+      share:  totalRevenue > 0 ? (p.revenue / totalRevenue) * 100 : 0,
+    }));
+    const topProducts = [...allProducts]
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10)
-      .map((p, i) => ({ ...p, rank: i + 1, share: totalRevenue > 0 ? p.revenue / totalRevenue * 100 : 0 }));
+      .map((p, i) => ({ ...p, rank: i + 1 }));
+    const byProfit = [...allProducts]
+      .sort((a, b) => b.profit - a.profit)
+      .slice(0, 10)
+      .map((p, i) => ({ ...p, rank: i + 1 }));
+    const lossMakers = allProducts
+      .filter(p => p.profit < 0)
+      .sort((a, b) => a.profit - b.profit);
 
     /* client leaderboard */
     const clientMap = {};
@@ -255,8 +300,11 @@ const BusinessReport = () => {
     const outstanding = clients.reduce((s, c) => s + Number(c.outstanding_balance || 0), 0);
 
     return { totalRevenue, totalOrders, aov, dailyTrend, paymentSplit, topProducts, topClients,
-             outstanding, billedTotal, collectedTotal, uncollected: billedTotal - collectedTotal };
-  }, [sales, clients]);
+             outstanding, billedTotal, collectedTotal, uncollected: billedTotal - collectedTotal,
+             byProfit, lossMakers, allocatedCogs };
+  }, [sales, clients, products, consumption]);
+
+  const prodRows = prodSort === 'PROFIT' ? salesMetrics.byProfit : salesMetrics.topProducts;
 
   /* ── Full transaction ledger (every sale in the period) ───────────────── */
   const transactions = useMemo(() => {
@@ -530,28 +578,35 @@ const BusinessReport = () => {
       {/* ── TOP PRODUCTS ────────────────────────────────────────────────── */}
       <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
         <div className="px-6 pt-6 pb-4 border-b border-border/60 flex items-center justify-between">
-          <SectionHead title="Top Products" sub="by revenue" />
-          {!loading && (
-            <span className="text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">
-              {salesMetrics.topProducts.length} products
-            </span>
-          )}
+          <SectionHead title="Top Products"
+            sub={prodSort === 'PROFIT' ? 'by gross profit' : 'by revenue'} />
+          <div className="flex items-center bg-muted rounded-lg p-0.5">
+            {[['REVENUE', 'Revenue'], ['PROFIT', 'Profit']].map(([id, label]) => (
+              <button key={id} onClick={() => setProdSort(id)}
+                className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                  prodSort === id
+                    ? 'bg-card text-foreground font-semibold shadow-sm'
+                    : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
         {salesLoading
           ? <div className="p-6 space-y-3">{[...Array(5)].map((_,i) => <div key={i} className="h-10 bg-canvas animate-pulse rounded-xl" />)}</div>
-          : salesMetrics.topProducts.length === 0
+          : prodRows.length === 0
           ? <div className="py-16 text-center text-sm text-muted-foreground">No sales data for selected period</div>
           : (
             <div>
               {/* Table header */}
-              <div className="grid grid-cols-[36px_1fr_80px_100px_120px_120px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
-                {['#','Product','Qty','Orders','Avg Rate','Revenue'].map(h => (
+              <div className="grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-6 py-2 bg-canvas/50 border-b border-border/60">
+                {['#','Product','Qty','Bills','Revenue','COGS','Gross profit','Margin'].map(h => (
                   <span key={h} className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest">{h}</span>
                 ))}
               </div>
-              {salesMetrics.topProducts.map((p, i) => (
+              {prodRows.map((p, i) => (
                 <div key={p.name}
-                  className={`grid grid-cols-[36px_1fr_80px_100px_120px_120px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors ${
+                  className={`grid grid-cols-[36px_1fr_90px_70px_110px_110px_110px_92px] gap-4 px-6 py-3.5 items-center border-b border-border/60 last:border-0 hover:bg-canvas/40 transition-colors ${
                     i === 0 ? 'bg-accent-signature/3' : ''
                   }`}>
                   {/* Rank */}
@@ -571,17 +626,61 @@ const BusinessReport = () => {
                     </div>
                   </div>
 
-                  <span className="tabular-nums font-semibold text-foreground text-sm tabular-nums">{p.qty}</span>
-                  <span className="tabular-nums text-ink-secondary text-sm tabular-nums">{p.txCount}</span>
-                  <span className="text-sm font-semibold text-foreground tabular-nums">
-                    {formatCurrency(p.qty > 0 ? p.revenue / p.qty : 0)}
+                  <span className="text-sm text-foreground tabular-nums">
+                    {p.qty}{p.unit ? <span className="text-muted-foreground text-[11px] ml-1">{p.unit}</span> : null}
                   </span>
-                  <span className="text-sm font-semibold text-foreground tabular-nums">{formatCurrency(p.revenue)}</span>
+                  <span className="text-sm text-ink-secondary tabular-nums">{p.txCount}</span>
+                  <span className="text-sm text-foreground tabular-nums">{formatCurrency(p.revenue)}</span>
+                  <span className="text-sm text-ink-secondary tabular-nums">{formatCurrency(p.cost)}</span>
+                  <span className={`text-sm font-semibold tabular-nums ${
+                    p.profit >= 0 ? 'text-[color:var(--color-pos)]' : 'text-[color:var(--color-neg)]'}`}>
+                    {formatCurrency(p.profit)}
+                  </span>
+                  <span className={`text-sm tabular-nums ${
+                    p.profit >= 0 ? 'text-ink-secondary' : 'text-[color:var(--color-neg)]'}`}>
+                    {p.margin.toFixed(1)}%
+                  </span>
                 </div>
               ))}
             </div>
           )}
+        {/* Per-product cost is an allocation, not a stored figure — say so
+            rather than implying these profits are exact to the paisa. */}
+        {!salesLoading && prodRows.length > 0 && (
+          <div className="px-6 py-3 border-t border-border/60 text-[11px] text-muted-foreground">
+            Cost per product uses FIFO batch cost where recorded, otherwise the product&apos;s cost
+            price. Allocated COGS {formatCurrency(salesMetrics.allocatedCogs)} vs {formatCurrency(pnl.cogs)} in the P&amp;L
+            {Math.abs(salesMetrics.allocatedCogs - pnl.cogs) > 1 && !plLoading && (
+              <> ({formatCurrency(Math.abs(salesMetrics.allocatedCogs - pnl.cogs))} difference — treat product profit as indicative)</>
+            )}.
+          </div>
+        )}
       </div>
+
+      {/* Loss-makers — the reason revenue ranking alone is not enough. */}
+      {!salesLoading && salesMetrics.lossMakers.length > 0 && (
+        <div className="bg-card rounded-[10px] border border-border/60 shadow-sm p-5">
+          <SectionHead title="Sold below cost"
+            sub={`${salesMetrics.lossMakers.length} product${salesMetrics.lossMakers.length === 1 ? '' : 's'} this period`} />
+          <div className="space-y-1.5 mt-1">
+            {salesMetrics.lossMakers.slice(0, 6).map(p => (
+              <div key={p.name} className="flex items-baseline justify-between gap-4 text-[13px]">
+                <span className="text-foreground truncate">{p.name}</span>
+                <span className="text-muted-foreground tabular-nums shrink-0">
+                  {p.qty}{p.unit ? ` ${p.unit}` : ''} · sold {formatCurrency(p.revenue)} · cost {formatCurrency(p.cost)}
+                </span>
+                <span className="text-[color:var(--color-neg)] font-semibold tabular-nums shrink-0 w-24 text-right">
+                  {formatCurrency(p.profit)}
+                </span>
+              </div>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-3">
+            Either the selling price is below what the stock cost, or the recorded cost price is
+            wrong. Both are worth checking before the next purchase.
+          </p>
+        </div>
+      )}
 
       {/* ── CLIENT LEADERBOARD + DAILY SUMMARY ──────────────────────────── */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
