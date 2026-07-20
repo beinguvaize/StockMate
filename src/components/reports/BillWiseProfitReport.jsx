@@ -6,6 +6,7 @@ import React, { useState, useMemo } from 'react';
 import useReportData from './useReportData';
 import { StatStrip } from './ReportBits';
 import ReportHeader from './ReportHeader';
+import ReportFilterRow from './ReportFilterRow';
 import PLTieOut from './PLTieOut';
 import { isCountableSale, presetRange } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
@@ -31,6 +32,9 @@ const BillWiseProfitReport = () => {
   const [customStart, setCustomStart] = useState('');
   const [customEnd,   setCustomEnd]   = useState('');
   const [showCustom,  setShowCustom]  = useState(false);
+  const [q,           setQ]           = useState('');
+  const [customer,    setCustomer]    = useState('ALL');
+  const [outcome,     setOutcome]     = useState('ALL');
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
@@ -57,7 +61,7 @@ const BillWiseProfitReport = () => {
     if (customStart && customEnd) { setRange({ start: customStart, end: customEnd }); setShowCustom(false); }
   };
 
-  const { rows, totals } = useMemo(() => {
+  const { allRows } = useMemo(() => {
     const costById = {};
     products.forEach(p => { costById[p.id] = Number(p.costPrice || 0); });
     // sale_id → actual FIFO COGS from batch consumption rows.
@@ -88,13 +92,39 @@ const BillWiseProfitReport = () => {
       return { date: s.date || '', ref, customer, revenue, cost, profit, margin };
     }).sort((a, b) => b.date.localeCompare(a.date));
 
+    return { allRows: rows };
+  }, [sales, products, consumption]);
+
+  const rows = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return allRows.filter(r => {
+      if (customer !== 'ALL' && r.customer !== customer) return false;
+      if (outcome === 'LOSS'   && r.profit >= 0) return false;
+      if (outcome === 'PROFIT' && r.profit < 0)  return false;
+      if (!needle) return true;
+      return r.ref.toLowerCase().includes(needle) || r.customer.toLowerCase().includes(needle);
+    });
+  }, [allRows, q, customer, outcome]);
+
+  // Totals reflect the filtered set: filtering to loss-making bills should
+  // total those bills, not the whole period.
+  const totals = useMemo(() => {
     const totalRevenue = rows.reduce((s, r) => s + r.revenue, 0);
     const totalCost    = rows.reduce((s, r) => s + r.cost, 0);
     const totalProfit  = totalRevenue - totalCost;
-    const blendedMargin = totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0;
+    return { totalRevenue, totalCost, totalProfit,
+             blendedMargin: totalRevenue > 0 ? (totalProfit / totalRevenue) * 100 : 0 };
+  }, [rows]);
 
-    return { rows, totals: { totalRevenue, totalCost, totalProfit, blendedMargin } };
-  }, [sales, products, consumption]);
+  const customerOptions = useMemo(() => {
+    const m = new Map();
+    allRows.forEach(r => m.set(r.customer, (m.get(r.customer) || 0) + 1));
+    return [...m.entries()].sort((a, b) => b[1] - a[1])
+      .map(([value, n]) => ({ value, label: `${value} (${n})` }));
+  }, [allRows]);
+
+  const lossCount = useMemo(() => allRows.filter(r => r.profit < 0).length, [allRows]);
+  const clearFilters = () => { setQ(''); setCustomer('ALL'); setOutcome('ALL'); };
 
   const exportCSV = () => {
     const r = [
@@ -124,6 +154,23 @@ const BillWiseProfitReport = () => {
         onApplyCustom={applyCustom}
         onExport={exportCSV}
         exportLabel="Export CSV"
+      />
+
+      <ReportFilterRow
+        search={q}
+        onSearch={setQ}
+        searchPlaceholder="Bill number or customer"
+        selects={[
+          { key: 'customer', label: 'All customers', value: customer, onChange: setCustomer, options: customerOptions },
+          { key: 'outcome',  label: 'All bills',     value: outcome,  onChange: setOutcome,
+            options: [
+              { value: 'LOSS',   label: `Sold at a loss${lossCount ? ` (${lossCount})` : ''}` },
+              { value: 'PROFIT', label: 'Profitable' },
+            ] },
+        ]}
+        resultCount={rows.length}
+        totalCount={allRows.length}
+        onClear={clearFilters}
       />
 
       <StatStrip loading={loading} items={[

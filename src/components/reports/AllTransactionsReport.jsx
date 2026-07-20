@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import useReportData from './useReportData';
 import ReportHeader from './ReportHeader';
+import ReportFilterRow from './ReportFilterRow';
 import { KPI, SectionHead } from './ReportBits';
 import { isCountableSale, presetRange } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
@@ -30,6 +31,8 @@ const AllTransactionsReport = () => {
   const [customEnd,   setCustomEnd]   = useState('');
   const [showCustom,  setShowCustom]  = useState(false);
   const [typeFilter,  setTypeFilter]  = useState('ALL');
+  const [q,           setQ]           = useState('');
+  const [dirFilter,   setDirFilter]   = useState('ALL');
 
   const filters = useMemo(() => ({ dateRange: range }), [range]);
 
@@ -57,7 +60,7 @@ const AllTransactionsReport = () => {
     return m;
   }, [clients]);
 
-  const { allRows, kpis } = useMemo(() => {
+  const { allRows } = useMemo(() => {
     const rows = [];
 
     sales.forEach(s => {
@@ -112,19 +115,34 @@ const AllTransactionsReport = () => {
     // Sort newest first
     rows.sort((a, b) => b.date.localeCompare(a.date) || b.ref.localeCompare(a.ref));
 
-    const totalIn  = rows.filter(r => r.dir === 'in').reduce((s, r) => s + r.amount, 0);
-    const totalOut = rows.filter(r => r.dir === 'out').reduce((s, r) => s + r.amount, 0);
-
-    return {
-      allRows: rows,
-      kpis: { totalIn, totalOut, net: totalIn - totalOut, count: rows.length },
-    };
+    return { allRows: rows };
   }, [sales, payments, purchases, expenses, clientMap]);
 
-  const filteredRows = useMemo(() =>
-    typeFilter === 'ALL' ? allRows : allRows.filter(r => r.type === typeFilter),
-    [allRows, typeFilter]
-  );
+  const filteredRows = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    return allRows.filter(r => {
+      if (typeFilter !== 'ALL' && r.type !== typeFilter) return false;
+      if (dirFilter  !== 'ALL' && r.dir  !== dirFilter)  return false;
+      if (!needle) return true;
+      return (r.party || '').toLowerCase().includes(needle)
+          || (r.ref   || '').toLowerCase().includes(needle);
+    });
+  }, [allRows, typeFilter, dirFilter, q]);
+
+  // Counts per option, so each dropdown shows what is behind it.
+  const typeCounts = useMemo(() => {
+    const m = new Map();
+    allRows.forEach(r => m.set(r.type, (m.get(r.type) || 0) + 1));
+    return m;
+  }, [allRows]);
+
+  const clearFilters = () => { setQ(''); setTypeFilter('ALL'); setDirFilter('ALL'); };
+
+  const kpis = useMemo(() => {
+    const totalIn  = filteredRows.filter(r => r.dir === 'in').reduce((s, r) => s + r.amount, 0);
+    const totalOut = filteredRows.filter(r => r.dir === 'out').reduce((s, r) => s + r.amount, 0);
+    return { totalIn, totalOut, net: totalIn - totalOut, count: filteredRows.length };
+  }, [filteredRows]);
 
   const exportCSV = () => {
     const csvRows = [
@@ -164,23 +182,21 @@ const AllTransactionsReport = () => {
         <KPI label="Transactions" loading={loading} value={kpis.count}                  icon={Hash}           color="#8b5cf6" />
       </div>
 
-      {/* Type filter pills */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mr-1">Filter:</span>
-        {TYPE_FILTERS.map(t => (
-          <button key={t} onClick={() => setTypeFilter(t)}
-            className={`px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all border ${
-              typeFilter === t
-                ? 'bg-card text-foreground font-semibold shadow-sm'
-                : 'bg-card text-muted-foreground border-black/8 hover:border-black/20 hover:text-foreground'
-            }`}>
-            {t}
-          </button>
-        ))}
-        <span className="ml-auto text-[10px] font-semibold text-muted-foreground bg-canvas px-2 py-1 rounded-full">
-          {filteredRows.length} transactions
-        </span>
-      </div>
+      <ReportFilterRow
+        search={q}
+        onSearch={setQ}
+        searchPlaceholder="Party, description or reference"
+        selects={[
+          { key: 'type', label: 'All types', value: typeFilter, onChange: setTypeFilter,
+            options: TYPE_FILTERS.filter(t => t !== 'ALL')
+              .map(t => ({ value: t, label: `${t}${typeCounts.get(t) ? ` (${typeCounts.get(t)})` : ''}` })) },
+          { key: 'dir', label: 'In and out', value: dirFilter, onChange: setDirFilter,
+            options: [{ value: 'in', label: 'Money in' }, { value: 'out', label: 'Money out' }] },
+        ]}
+        resultCount={filteredRows.length}
+        totalCount={allRows.length}
+        onClear={clearFilters}
+      />
 
       {/* Ledger Table */}
       <div className="bg-card rounded-[10px] border border-border/60 shadow-sm overflow-hidden">
