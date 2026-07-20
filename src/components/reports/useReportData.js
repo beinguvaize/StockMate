@@ -30,7 +30,8 @@ const useReportData = ({
   dateColumn = 'date',
   params = {}, // Additional static equality params
   nullFilters = {}, // Columns that must be NULL e.g. { deleted_at: null }
-  skipTenantFilter = false // Opt-out for global/admin reports
+  skipTenantFilter = false, // Opt-out for global/admin reports
+  rowLimit = 5000 // Hard cap; nothing in the report layer was bounded before
 }) => {
   const { currentTenantId } = useTenant();
   const [data, setData] = useState([]);
@@ -89,9 +90,18 @@ const useReportData = ({
         query = query.is('deleted_at', null);
       }
 
-      const { data: result, error: fetchError } = await query;
+      // Nothing in the report layer was bounded, so a report over a wide date
+      // range could ask for the entire table. Cap it, and surface truncation
+      // rather than silently showing a partial total as if it were complete.
+      const { data: result, error: fetchError } = await query.limit(rowLimit);
 
       if (fetchError) throw fetchError;
+
+      if (result && result.length === rowLimit) {
+        console.warn(
+          `[useReportData] ${table} hit the ${rowLimit}-row cap — figures on this report may be incomplete. Narrow the date range or raise rowLimit.`
+        );
+      }
 
       if (isMounted.current) {
         setData(result || []);
@@ -108,7 +118,7 @@ const useReportData = ({
         setLoading(false);
       }
     }
-  }, [table, select, JSON.stringify(filters), dateColumn, JSON.stringify(params), JSON.stringify(nullFilters), currentTenantId, skipTenantFilter]);
+  }, [table, select, JSON.stringify(filters), dateColumn, JSON.stringify(params), JSON.stringify(nullFilters), currentTenantId, skipTenantFilter, rowLimit]);
 
   // Initial Fetch on Perspective Change
   useEffect(() => {
@@ -120,40 +130,46 @@ const useReportData = ({
     };
   }, [table, select, JSON.stringify(filters), JSON.stringify(params), JSON.stringify(nullFilters), currentTenantId, skipTenantFilter]);
 
-  // --- STRICT DATABASE SYNC (Realtime) ---
+  // --- DATABASE SYNC (Realtime) ---
+  // Held in a ref so the subscription effect below does NOT depend on
+  // fetchData. fetchData is rebuilt whenever filters change, so depending on
+  // it tore the channel down and re-subscribed on every date-preset click.
+  // Each re-subscribe makes Supabase Realtime re-evaluate its publication
+  // tables — measured at 18k calls / 523s of database time on prod.
+  const fetchDataRef = useRef(fetchData);
+  useEffect(() => { fetchDataRef.current = fetchData; }, [fetchData]);
+
   useEffect(() => {
-    // 1. Create a logical channel for this reporting node
+    if (!skipTenantFilter && !currentTenantId) return undefined;
+
+    // Scoped to this tenant. Previously subscribed with no filter at all, so
+    // every write by every tenant in the database was replicated to every
+    // client and triggered a full refetch here.
     const channel = supabase
-      .channel(`sync_${table}_node`)
+      .channel(`report_${table}_${currentTenantId || 'global'}_${Math.random().toString(36).slice(2, 8)}`)
       .on(
         'postgres_changes',
-        { 
-          event: '*', 
-          schema: 'public', 
-          table: table 
+        {
+          event: '*',
+          schema: 'public',
+          table,
+          ...(skipTenantFilter || !currentTenantId
+            ? {}
+            : { filter: `tenant_id=eq.${currentTenantId}` }),
         },
-        (payload) => {
-          console.info(`[Matrix-Sync] Remote update detected in ${table}. Synchronizing...`);
-          // Trigger silent revalidation to update the UI without showing a loader
-          if (!document.hidden) {
-            fetchData(true);
-          }
+        () => {
+          // Silent revalidation — no loader, no layout shift.
+          if (!document.hidden) fetchDataRef.current?.(true);
         }
       )
       .subscribe();
 
-    // 2. Background Revalidation Fallback (Safety Buffer)
-    const interval = setInterval(() => {
-      if (!document.hidden) {
-        fetchData(true);
-      }
-    }, 60000); // 1-minute safety revalidation for non-realtime changes
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(interval);
-    };
-  }, [table, fetchData]);
+    // No polling fallback. Realtime covers live changes, and the shared
+    // useRefetchOnFocus hook already refreshes on tab focus. The old 60s
+    // interval re-ran every mounted report's full query every minute for as
+    // long as the page stayed open.
+    return () => { supabase.removeChannel(channel); };
+  }, [table, currentTenantId, skipTenantFilter]);
 
   return {
     data,

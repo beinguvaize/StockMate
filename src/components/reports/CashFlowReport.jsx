@@ -19,7 +19,7 @@ const CashFlowReport = () => {
   const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, paymentMethod, date', dateColumn: 'date' });
   const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date' });
   const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: 'amount, processed_at', dateColumn: 'processed_at' });
-  const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: '*', dateColumn: 'date' });
+  const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, payment_type', dateColumn: 'date' });
   const { data: vehicles, loading: l5 } = useReportData({ table: 'vehicles', select: '*' });
 
   const loading = l1 || l2 || l3 || l4 || l5;

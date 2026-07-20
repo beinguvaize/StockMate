@@ -7,7 +7,8 @@ const SalesSummaryReport = () => {
   // 1. Fetch Sales Data
   const { data: rawData, loading, error, lastUpdated } = useReportData({
     table: 'sales',
-    select: '*', 
+    // Narrowed from '*': this report never reads the items JSONB.
+    select: 'id, date, totalAmount, totalCogs, paymentMethod, paymentStatus, status, voided_at',
     dateColumn: 'date'
   });
 
