@@ -392,11 +392,13 @@ const PurchasesReport = () => {
     <div className="flex flex-col gap-4">
       {/* Period filter */}
       <div className="flex items-center gap-2 flex-wrap no-print">
-        <div className="flex items-center gap-0.5 p-1 rounded-xl bg-black/[0.04]">
+        <div className="flex items-center bg-muted rounded-lg p-0.5">
           {PERIODS.map(([id, label]) => (
             <button key={id} onClick={() => applyPreset(id)}
-              className={`px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-colors flex items-center gap-1.5 ${
-                preset === id ? 'bg-accent-signature text-white shadow-sm shadow-accent-signature/20' : 'text-muted-foreground hover:text-foreground'
+              className={`px-3 py-1.5 rounded-md text-[11px] whitespace-nowrap transition-colors flex items-center gap-1.5 ${
+                preset === id
+                  ? 'bg-card text-foreground font-semibold shadow-sm'
+                  : 'text-muted-foreground font-medium hover:text-foreground'
               }`}>
               {id === 'CUSTOM' && <Calendar size={12} />}{label}
             </button>

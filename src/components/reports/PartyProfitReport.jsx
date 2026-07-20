@@ -5,12 +5,13 @@
  */
 import React, { useState, useMemo } from 'react';
 import {
-  TrendingUp, DollarSign, Users, BarChart3, Calendar, Download,
+  TrendingUp, DollarSign, Users, BarChart3,
 } from 'lucide-react';
 import useReportData from './useReportData';
+import ReportHeader from './ReportHeader';
 import { KPI, SectionHead } from './ReportBits';
 import PLTieOut from './PLTieOut';
-import { isCountableSale, PRESETS, presetRange } from './reportUtils';
+import { isCountableSale, presetRange } from './reportUtils';
 import { formatCurrency } from '../../lib/utils';
 
 function calcItemRevenue(item) {
@@ -137,52 +138,20 @@ const PartyProfitReport = () => {
 
   return (
     <div className="space-y-4 pb-16">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-        <div>
-          <h1 className="text-base font-semibold text-foreground tracking-tight">
-            Party Profit & Loss
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {range.start === range.end ? range.start : `${range.start} → ${range.end}`}
-          </p>
-        </div>
-        <div className="flex-1" />
-        <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
-          {PRESETS.map(p => (
-            <button key={p.id} onClick={() => applyPreset(p.id)}
-              className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
-                preset === p.id ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
-              }`}>{p.label}</button>
-          ))}
-          <button onClick={() => applyPreset('CUSTOM')}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-[11px] transition-colors ${
-              preset === 'CUSTOM' ? 'bg-card text-foreground font-semibold shadow-sm' : 'text-muted-foreground font-medium hover:text-foreground'
-            }`}>
-            <Calendar size={11} /> Custom
-          </button>
-        </div>
-        <button onClick={exportCSV}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-[11px] font-medium text-foreground hover:bg-muted/60 transition-colors">
-          <Download size={13} /> Export CSV
-        </button>
-      </div>
-
-      {/* Custom date inputs */}
-      {showCustom && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <Calendar size={14} className="text-muted-foreground shrink-0" />
-          <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)}
-            className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-          <span className="text-muted-foreground text-xs font-semibold">to</span>
-          <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)}
-            className="bg-card border border-border rounded-lg px-3 py-1.5 text-xs text-foreground outline-none focus:ring-1 focus:ring-ring" />
-          <button onClick={applyCustom}
-            className="px-3.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors">
-            Apply
-          </button>
-        </div>
-      )}
+      <ReportHeader
+        title="Party Profit & Loss"
+        subtitle={range.start === range.end ? range.start : `${range.start} → ${range.end}`}
+        preset={preset}
+        onPreset={applyPreset}
+        showCustom={showCustom}
+        customStart={customStart}
+        customEnd={customEnd}
+        setCustomStart={setCustomStart}
+        setCustomEnd={setCustomEnd}
+        onApplyCustom={applyCustom}
+        onExport={exportCSV}
+        exportLabel="Export CSV"
+      />
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
