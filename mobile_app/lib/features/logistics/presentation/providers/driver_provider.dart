@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/features/logistics/data/models/route.dart';
@@ -216,6 +217,22 @@ Future<({bool success, String? error})> placeVanSale({
       'p_route_id':       routeId,
       'p_source_app':     'VAN',
     });
+
+    // Record the tender, matching the POS path in add_sale_screen.dart. Van
+    // sales went through process_sale only, so amount_received was never
+    // written for them — leaving cash reporting to infer collection from
+    // payment status. A credit sale hands over nothing at the van; anything
+    // else is settled on the spot.
+    final tendered = paymentMethod == 'CREDIT' ? 0.0 : totalAmount;
+    try {
+      await supabase.from('sales')
+          .update({'amount_received': tendered}).eq('id', saleId);
+    } catch (e) {
+      // Non-fatal: the sale is already recorded. Logged, never swallowed —
+      // a silent failure here is how the column stayed empty in the first place.
+      debugPrint('[VAN SALE] amount_received save failed: $e');
+    }
+
     return (success: true, error: null);
   } catch (e) {
     return (success: false, error: e.toString());
