@@ -11,6 +11,9 @@ class Invoice {
   final String? dueDate;      // YYYY-MM-DD — used for overdue detection
   final double grandTotal;    // total including tax
   final double paidAmount;    // amount already paid (partial or full)
+  /// Actual tender, when recorded. Null on historical sales and on
+  /// anything rung from a phone older than v1.5.73.
+  final double? amountReceived;
   final String paymentStatus; // 'PAID' | 'PARTIAL' | 'UNPAID'
   final double? taxableAmount;
   final double? cgstAmount;
@@ -49,6 +52,7 @@ class Invoice {
     this.dueDate,
     this.grandTotal = 0,
     this.paidAmount = 0,
+    this.amountReceived,
     this.paymentStatus = 'UNPAID',
     this.taxableAmount,
     this.cgstAmount,
@@ -118,6 +122,7 @@ class Invoice {
       // balance due (was zeroed for anything not fully PAID — the Record
       // Payment sheet then showed the full total, not the remaining due).
       paidAmount:    s.paidAmount ?? ((s.paymentStatus?.toUpperCase() == 'PAID') ? total : 0.0),
+      amountReceived: s.amountReceived,
       paymentStatus: s.paymentStatus?.toUpperCase() ?? 'UNPAID',
       taxableAmount: taxable,
       igstAmount:    taxAmt > 0 ? taxAmt : null,
@@ -142,6 +147,7 @@ class Invoice {
       dueDate:       j['due_date'] as String?,
       grandTotal:    toNum(j['grand_total']),
       paidAmount:    toNum(j['paid_amount']),
+      amountReceived: j['amount_received'] != null ? toNum(j['amount_received']) : null,
       paymentStatus: (j['payment_status'] as String? ?? 'UNPAID').toUpperCase(),
       taxableAmount: j['taxable_amount'] != null ? toNum(j['taxable_amount']) : null,
       cgstAmount:    j['cgst_amount']    != null ? toNum(j['cgst_amount'])    : null,

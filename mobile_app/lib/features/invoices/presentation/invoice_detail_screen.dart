@@ -1763,6 +1763,29 @@ class _InvoiceCard extends StatelessWidget {
                   ],
                 ),
 
+                // Payment breakdown. Only rendered when there is something to
+                // say: paidAmount is capped at the bill, so a customer who
+                // handed over more leaves no trace without amountReceived.
+                // That value is null on historical sales and on phones older
+                // than v1.5.73, and showing paidAmount relabelled as
+                // "received" would assert a tender nobody captured.
+                if (invoice.paidAmount > 0) ...[
+                  const SizedBox(height: 8),
+                  const Divider(height: 1),
+                  const SizedBox(height: 8),
+                  _TaxRow(label: 'Paid on this bill', value: invoice.paidAmount),
+                  if (invoice.amountReceived != null && invoice.amountReceived! > 0) ...[
+                    _TaxRow(label: 'Amount received', value: invoice.amountReceived!),
+                    if (invoice.amountReceived! - grandTotal > 0.5)
+                      _TaxRow(
+                        label: 'Change / to account',
+                        value: invoice.amountReceived! - grandTotal,
+                      ),
+                  ],
+                  if (invoice.outstanding > 0.5)
+                    _TaxRow(label: 'Outstanding', value: invoice.outstanding),
+                ],
+
                 const SizedBox(height: 4),
               ],
             ),
