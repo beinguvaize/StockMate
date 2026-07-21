@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import { BookOpen, TrendingUp, TrendingDown, Calendar, Receipt, Tag, Landmark } from 'lucide-react';
 import { formatINR, round2 } from '../../utils/financialCalculations';
@@ -20,10 +21,13 @@ import { formatDate } from '../../lib/utils';
  *   PURCHASE      : DR Inventory       CR Accounts Payable (or Cash)
  */
 const GeneralLedgerReport = () => {
-  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'id, date, totalAmount, totalCogs, paymentMethod, customerInfo, shopId, paymentStatus, status, voided_at', dateColumn: 'date' });
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: '*', dateColumn: 'date' });
-  const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: '*', dateColumn: 'processed_at' });
-  const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, supplier_name, payment_type', dateColumn: 'date' });
+  // Financial year to date by default. These queries were previously
+  // unfiltered and read the whole table on every load.
+  const win = useDateWindow('YEAR');
+  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'id, date, totalAmount, totalCogs, paymentMethod, customerInfo, shopId, paymentStatus, status, voided_at', dateColumn: 'date', filters: win.filters });
+  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: '*', dateColumn: 'date', filters: win.filters });
+  const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: '*', dateColumn: 'processed_at', filters: win.filters });
+  const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, supplier_name, payment_type', dateColumn: 'date', filters: win.filters });
 
   const loading = l1 || l2 || l3 || l4;
 
@@ -318,7 +322,7 @@ const GeneralLedgerReport = () => {
     ],
   };
 
-  return <PremiumReportView title="General Ledger" tabs={[journalTab, accountTab]} />;
+  return <PremiumReportView dateWindow={win} title="General Ledger" tabs={[journalTab, accountTab]} />;
 };
 
 export default GeneralLedgerReport;

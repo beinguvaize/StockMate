@@ -18,6 +18,7 @@ import {
 } from 'recharts';
 import { TrendingUp, TrendingDown, Minus, Download, BarChart3, FileSpreadsheet, Printer, FileText, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { PRESETS } from './reportUtils';
 import { useTenant } from '../../context/TenantContext';
 import ReportTable from './ReportTable';
 import { exportToCSV, exportExcel, printReport, letterheadFrom, safeFilename } from '../../lib/reportExport';
@@ -203,7 +204,7 @@ const ChartPanel = ({ config, loading }) => {
 /* ════════════════════════════════════════════════════════════════════════════
    MAIN
    ════════════════════════════════════════════════════════════════════════════ */
-const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
+const PremiumReportView = ({ tabs = [], title = 'Report', subtitle, dateWindow = null }) => {
   const { hasPermission } = useAuth();
   const { businessProfile, currentTenant } = useTenant();
   const [exportOpen, setExportOpen] = useState(false);
@@ -294,6 +295,22 @@ const PremiumReportView = ({ tabs = [], title = 'Report', subtitle }) => {
           </p>
         </div>
         <div className="flex-1" />
+
+        {/* Optional date window (useDateWindow). Reports that pass this were
+            previously unfiltered — they read whole tables on every load. */}
+        {dateWindow && (
+          <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
+            {PRESETS.map(p => (
+              <button key={p.id} onClick={() => dateWindow.headerProps.onPreset(p.id)}
+                className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                  dateWindow.preset === p.id
+                    ? 'bg-card text-foreground font-semibold shadow-sm'
+                    : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+                {p.label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Tab pills */}
         {allowedTabs.length > 1 && (

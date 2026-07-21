@@ -55,11 +55,19 @@ const YoYComparisonReport = () => {
   const [cyYear, setCyYear] = useState(currentYear);
   const lyYear = cyYear - 1;
 
-  // Pull full history — filtering happens in-memory to get both years efficiently
-  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: 'totalAmount, date',      dateColumn: 'date' });
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date' });
-  const { data: payroll,  loading: l3 } = useReportData({ table: 'payroll',  select: 'amount, processed_at',   dateColumn: 'processed_at' });
-  const { data: purchases,loading: l4 } = useReportData({ table: 'purchases',select: 'total_amount, date',     dateColumn: 'date' });
+  // Only the two years being compared are needed. This used to fetch the whole
+  // history of four tables on every load and filter in memory; the selector
+  // already tells us the exact window, so push it down to the query.
+  const yoyRange = useMemo(
+    () => ({ start: `${lyYear}-01-01`, end: `${cyYear}-12-31` }),
+    [lyYear, cyYear],
+  );
+  const yoyFilters = useMemo(() => ({ dateRange: yoyRange }), [yoyRange]);
+
+  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: 'totalAmount, date',      dateColumn: 'date',         filters: yoyFilters });
+  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date',         filters: yoyFilters });
+  const { data: payroll,  loading: l3 } = useReportData({ table: 'payroll',  select: 'amount, processed_at',   dateColumn: 'processed_at', filters: yoyFilters });
+  const { data: purchases,loading: l4 } = useReportData({ table: 'purchases',select: 'total_amount, date',     dateColumn: 'date',         filters: yoyFilters });
   const loading = l1 || l2 || l3 || l4;
 
   /* ------------------------------------------------------------------ *

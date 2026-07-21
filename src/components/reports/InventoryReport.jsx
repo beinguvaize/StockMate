@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import { parseLocalDate } from '../../lib/utils';
 import { 
@@ -8,17 +9,20 @@ import {
 } from 'lucide-react';
 
 const InventoryReport = () => {
+  // Financial year to date by default. These queries were previously
+  // unfiltered and read the whole table on every load.
+  const win = useDateWindow('YEAR');
   // 1. Fetch Master Data (Products & Sales for context)
   const { data: products, loading: productsLoading } = useReportData({
     table: 'products',
     select: '*',
-    dateColumn: 'created_at'
+    dateColumn: 'created_at', filters: win.filters
   });
 
   const { data: sales, loading: salesLoading } = useReportData({
     table: 'sales',
     select: 'date, items',
-    dateColumn: 'date'
+    dateColumn: 'date', filters: win.filters
   });
 
   const loading = productsLoading || salesLoading;
@@ -173,7 +177,7 @@ const InventoryReport = () => {
     ]
   };
 
-  return <PremiumReportView title="Inventory Report" tabs={[valuationTab, deadStockTab]} />;
+  return <PremiumReportView dateWindow={win} title="Inventory Report" tabs={[valuationTab, deadStockTab]} />;
 };
 
 export default InventoryReport;

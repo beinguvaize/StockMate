@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import { 
   Truck, Navigation, Fuel, Timer, MapPin, 
@@ -7,17 +8,20 @@ import {
 } from 'lucide-react';
 
 const LogisticsReport = () => {
+  // Financial year to date by default. These queries were previously
+  // unfiltered and read the whole table on every load.
+  const win = useDateWindow('YEAR');
   // 1. Fetch Logistics Master Data
   const { data: sales, loading: salesLoading } = useReportData({
     table: 'sales',
     select: 'totalAmount, vehicleId, routeId',
-    dateColumn: 'date'
+    dateColumn: 'date', filters: win.filters
   });
 
   const { data: vehicles, loading: vehiclesLoading } = useReportData({
     table: 'vehicles',
     select: '*',
-    dateColumn: 'created_at'
+    dateColumn: 'created_at', filters: win.filters
   });
 
   const { data: routes, loading: routesLoading } = useReportData({
@@ -127,7 +131,7 @@ const LogisticsReport = () => {
     }
   };
 
-  return <PremiumReportView title="Logistics Report" tabs={[fleetTab, routeTab]} />;
+  return <PremiumReportView dateWindow={win} title="Logistics Report" tabs={[fleetTab, routeTab]} />;
 };
 
 export default LogisticsReport;

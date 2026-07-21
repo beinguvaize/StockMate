@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import {
   ArrowDownCircle, ArrowUpCircle, Wallet, Briefcase,
@@ -16,10 +17,13 @@ import { formatINR, round2 } from '../../utils/financialCalculations';
  *   3. Financing activities (owner contributions, loans — placeholder)
  */
 const CashFlowReport = () => {
-  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, paymentMethod, date', dateColumn: 'date' });
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date' });
-  const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: 'amount, processed_at', dateColumn: 'processed_at' });
-  const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, payment_type', dateColumn: 'date' });
+  // Financial year to date by default. These queries were previously
+  // unfiltered and read the whole table on every load.
+  const win = useDateWindow('YEAR');
+  const { data: sales, loading: l1 } = useReportData({ table: 'sales', select: 'totalAmount, paymentMethod, date', dateColumn: 'date', filters: win.filters });
+  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date', filters: win.filters });
+  const { data: payroll, loading: l3 } = useReportData({ table: 'payroll', select: 'amount, processed_at', dateColumn: 'processed_at', filters: win.filters });
+  const { data: purchases, loading: l4 } = useReportData({ table: 'purchases', select: 'id, date, total_amount, paid_amount, payment_type', dateColumn: 'date', filters: win.filters });
   const { data: vehicles, loading: l5 } = useReportData({ table: 'vehicles', select: '*' });
 
   const loading = l1 || l2 || l3 || l4 || l5;
@@ -222,7 +226,7 @@ const CashFlowReport = () => {
     ],
   };
 
-  return <PremiumReportView title="Cash Flow" tabs={[cashTab]} />;
+  return <PremiumReportView dateWindow={win} title="Cash Flow" tabs={[cashTab]} />;
 };
 
 export default CashFlowReport;

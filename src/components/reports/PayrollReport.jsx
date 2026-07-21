@@ -1,13 +1,18 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import ReportShell from './ReportShell';
+import { PRESETS } from './reportUtils';
 import { User, Briefcase, DollarSign, Calendar, Info, Tag, Hash } from 'lucide-react';
 
 const PayrollReport = () => {
+  // Financial year to date by default. These queries were previously
+  // unfiltered and read the whole table on every load.
+  const win = useDateWindow('YEAR');
   const { data: rawData, loading } = useReportData({
     table: 'payroll',
     select: '*',
-    dateColumn: 'processed_at'
+    dateColumn: 'processed_at', filters: win.filters
   });
 
   const metrics = useMemo(() => {
@@ -58,7 +63,27 @@ const PayrollReport = () => {
     ]
   };
 
-  return <ReportShell tabs={[payrollTab]} />;
+  // ReportShell has no filter slot, so the window is surfaced above it —
+  // otherwise the report would be silently filtered with no way to change it.
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <p className="text-xs text-muted-foreground">Showing {win.subtitle}</p>
+        <div className="flex items-center bg-muted rounded-lg p-0.5 flex-wrap">
+          {PRESETS.map(p => (
+            <button key={p.id} onClick={() => win.headerProps.onPreset(p.id)}
+              className={`px-3 py-1.5 rounded-md text-[11px] transition-colors ${
+                win.preset === p.id
+                  ? 'bg-card text-foreground font-semibold shadow-sm'
+                  : 'text-muted-foreground font-medium hover:text-foreground'}`}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+      <ReportShell tabs={[payrollTab]} />
+    </div>
+  );
 };
 
 export default PayrollReport;

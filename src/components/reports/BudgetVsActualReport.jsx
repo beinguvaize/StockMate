@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import {
   TrendingUp, Calendar, Copy, Sparkles, Wallet,
@@ -70,14 +71,17 @@ const BADGE_CLS = {
 };
 
 const BudgetVsActualReport = () => {
+  // Financial year to date by default. These queries were previously
+  // unfiltered and read the whole table on every load.
+  const win = useDateWindow('YEAR');
   const periods = useMemo(() => recentPeriods(12), []);
   const [period, setPeriod] = useState(periods[0]);
   const [migrated, setMigrated] = useState(false);
 
   // --- Pull actuals ---
-  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: 'totalAmount, date',      dateColumn: 'date' });
-  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date' });
-  const { data: payroll,  loading: l3 } = useReportData({ table: 'payroll',  select: 'amount, processed_at',   dateColumn: 'processed_at' });
+  const { data: sales,    loading: l1 } = useReportData({ table: 'sales',    select: 'totalAmount, date',      dateColumn: 'date', filters: win.filters });
+  const { data: expenses, loading: l2 } = useReportData({ table: 'expenses', select: 'amount, category, date', dateColumn: 'date', filters: win.filters });
+  const { data: payroll,  loading: l3 } = useReportData({ table: 'payroll',  select: 'amount, processed_at',   dateColumn: 'processed_at', filters: win.filters });
 
   // --- Pull budget rows straight from Supabase with realtime subscription.
   // useReportData handles tenant RLS and the realtime channel for us.
@@ -505,7 +509,7 @@ const BudgetVsActualReport = () => {
         </span>
       </div>
 
-      <PremiumReportView title="Budget vs Actual" tabs={[expenseTab, revenueTab]} />
+      <PremiumReportView dateWindow={win} title="Budget vs Actual" tabs={[expenseTab, revenueTab]} />
     </div>
   );
 };
