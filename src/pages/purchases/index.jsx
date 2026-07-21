@@ -424,7 +424,10 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
           <div className="text-sm font-semibold text-foreground">{product?.name || ret.product_name || 'Unknown'}</div>
         </td>
         <td className="px-4 py-3">
-          <div className="text-xs font-semibold text-muted-foreground">{supplier?.name || ret.supplier_name || '—'}</div>
+          <div className="text-[11px] text-muted-foreground truncate mt-0.5"
+               title={supplier?.name || ret.supplier_name || ''}>
+            {supplier?.name || ret.supplier_name || '—'}
+          </div>
         </td>
         <td className="px-4 py-3 text-center">
           <div className="text-sm font-semibold text-rose-500">−{ret.quantity}</div>
@@ -451,9 +454,22 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
         <td className="px-4 py-3">
           <div className="text-sm font-semibold text-foreground">#{pur.id.split('-').pop()}</div>
         </td>
-        <td className="px-4 py-3">
-          <div className="text-sm font-semibold text-foreground">{product?.name || 'Unknown Product'}</div>
-          <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{supplier?.name || pur.supplier_name || 'N/A'}</div>
+        <td className="px-4 py-3 max-w-[260px]">
+          <div className="text-sm font-medium text-foreground truncate" title={product?.name || ''}>
+            {product?.name || 'Unknown Product'}
+          </div>
+          {/* Supplier was 10px, semibold, uppercase, tracking-widest. Names in
+              this data are already stored uppercase (SHAFEEQ KOLLAM
+              WHOLESALE, 24 chars), so the wide letter-spacing on top of that
+              was the real problem — a long all-caps string stretched into an
+              unreadable band and pushed the column wide. Now 11px, normal
+              weight, no added tracking, truncated with the full name on
+              hover. The CSS uppercase is dropped so any supplier entered in
+              mixed case keeps it. */}
+          <div className="text-[11px] text-muted-foreground truncate mt-0.5"
+               title={supplier?.name || pur.supplier_name || ''}>
+            {supplier?.name || pur.supplier_name || '—'}
+          </div>
         </td>
         <td className="px-4 py-3 text-center">
           <div className="text-sm font-semibold text-emerald-500">+{pur.quantity}</div>
