@@ -129,9 +129,9 @@ const ItemDetailView = ({
   const inStock = totalStock > 0;
 
   const Field = ({ label, value, accent }) => (
-    <div className="rounded-xl border border-black/[0.06] bg-white p-3.5">
-      <div className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</div>
-      <div className={`text-sm font-bold mt-1 ${accent || 'text-ink-primary'}`}>{value}</div>
+    <div className="rounded-xl border border-border/60 bg-card p-3.5">
+      <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
+      <div className={`text-sm font-semibold mt-1 ${accent || 'text-foreground'}`}>{value}</div>
     </div>
   );
 
@@ -149,17 +149,17 @@ const ItemDetailView = ({
   return createPortal((
     <div className="fixed inset-0 z-[200] bg-canvas flex">
       {/* Master list */}
-      <aside className="w-72 shrink-0 border-r border-black/[0.07] bg-white flex flex-col">
+      <aside className="w-72 shrink-0 border-r border-border/60 bg-card flex flex-col">
         <div className="p-3 border-b border-black/[0.05] space-y-2">
           <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300" />
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input value={listSearch} onChange={e => setListSearch(e.target.value)}
               placeholder="Search item"
-              className="w-full bg-canvas border border-black/[0.06] rounded-lg pl-9 pr-3 py-2 text-xs font-semibold outline-none focus:border-black/20" />
+              className="w-full bg-canvas border border-border/60 rounded-lg pl-9 pr-3 py-2 text-xs font-semibold outline-none focus:border-black/20" />
           </div>
           {onCreate && (
             <button onClick={onCreate}
-              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-accent-signature/50 text-accent-signature text-xs font-bold hover:bg-accent-signature/5 transition-colors">
+              className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-dashed border-accent-signature/50 text-accent-signature text-xs font-semibold hover:bg-accent-signature/5 transition-colors">
               <Plus size={14} /> Create Item
             </button>
           )}
@@ -168,14 +168,14 @@ const ItemDetailView = ({
           {filteredItems.map(it => (
             <button key={it.id} onClick={() => onSelect?.(it)}
               className={`w-full text-left rounded-xl border p-3 transition-colors ${
-                it.id === pid ? 'border-accent-signature bg-accent-signature/5' : 'border-black/[0.06] hover:border-black/15 bg-white'
+                it.id === pid ? 'border-accent-signature bg-accent-signature/5' : 'border-border/60 hover:border-black/15 bg-card'
               }`}>
-              <div className="text-[13px] font-bold text-ink-primary truncate">{it.name}</div>
-              <div className="text-[10px] font-mono text-gray-400 mt-0.5 uppercase">{it.sku || it.barcode || ''}</div>
+              <div className="text-[13px] font-semibold text-foreground truncate">{it.name}</div>
+              <div className="text-[10px] tabular-nums text-muted-foreground mt-0.5 uppercase">{it.sku || it.barcode || ''}</div>
             </button>
           ))}
           {filteredItems.length === 0 && (
-            <div className="px-3 py-8 text-center text-[11px] text-gray-400 font-semibold">No items</div>
+            <div className="px-3 py-8 text-center text-[11px] text-muted-foreground font-semibold">No items</div>
           )}
         </div>
       </aside>
@@ -185,39 +185,39 @@ const ItemDetailView = ({
       <div className="max-w-4xl mx-auto p-4 md:p-6">
         {/* Header */}
         <div className="flex flex-wrap items-center gap-3 mb-5">
-          <button onClick={onClose} className="w-9 h-9 rounded-lg border border-black/10 flex items-center justify-center text-gray-600 hover:bg-white transition-colors">
+          <button onClick={onClose} className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:bg-card transition-colors">
             <ArrowLeft size={16} />
           </button>
-          <h1 className="text-[20px] font-black text-ink-primary">{product?.name}</h1>
-          <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wide ${inStock ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+          <h1 className="text-[20px] font-semibold text-foreground">{product?.name}</h1>
+          <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${inStock ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
             {inStock ? 'In Stock' : 'Out of Stock'}
           </span>
           <div className="flex items-center gap-2 ml-auto">
-            <button onClick={() => onPrintBarcode?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-black/10 text-xs font-bold text-gray-700 hover:bg-white transition-colors">
+            <button onClick={() => onPrintBarcode?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-gray-700 hover:bg-card transition-colors">
               <ScanLine size={14} /> Print Barcode
             </button>
             {onAdjust && (
-              <button onClick={() => onAdjust(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-black/10 text-xs font-bold text-gray-700 hover:bg-white transition-colors">
+              <button onClick={() => onAdjust(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-gray-700 hover:bg-card transition-colors">
                 <SlidersHorizontal size={14} /> Adjust Stock
               </button>
             )}
-            <button onClick={() => onEdit?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-black/10 text-xs font-bold text-gray-700 hover:bg-white transition-colors">
+            <button onClick={() => onEdit?.(product)} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-xs font-semibold text-gray-700 hover:bg-card transition-colors">
               <Pencil size={14} /> Edit
             </button>
-            <button onClick={() => onDelete?.(product)} className="w-9 h-9 rounded-lg border border-black/10 flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors">
+            <button onClick={() => onDelete?.(product)} className="w-9 h-9 rounded-lg border border-border flex items-center justify-center text-red-500 hover:bg-red-50 transition-colors">
               <Trash2 size={14} />
             </button>
           </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-black/[0.07] mb-5 overflow-x-auto">
+        <div className="flex gap-1 border-b border-border/60 mb-5 overflow-x-auto">
           {TABS.map(t => {
             const Icon = t.icon;
             return (
               <button key={t.id} onClick={() => setTab(t.id)}
-                className={`inline-flex items-center gap-2 px-3.5 py-2.5 text-[13px] font-bold whitespace-nowrap border-b-2 -mb-px transition-colors ${
-                  tab === t.id ? 'border-accent-signature text-accent-signature' : 'border-transparent text-gray-400 hover:text-ink-primary'
+                className={`inline-flex items-center gap-2 px-3.5 py-2.5 text-[13px] font-semibold whitespace-nowrap border-b-2 -mb-px transition-colors ${
+                  tab === t.id ? 'border-accent-signature text-accent-signature' : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}>
                 <Icon size={15} /> {t.label}
               </button>
@@ -291,7 +291,7 @@ const ItemDetailView = ({
                         return [
                           m.date ? String(m.date).slice(0, 10) : '—',
                           m.reason || '—',
-                          <span key="q" className={`font-bold ${isIn ? 'text-emerald-600' : 'text-red-500'}`}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</span>,
+                          <span key="q" className={`font-semibold ${isIn ? 'text-emerald-600' : 'text-red-500'}`}>{isIn ? '+' : '−'}{Math.abs(Number(m.quantity) || 0)}</span>,
                         ];
                       })} />
                   )}
@@ -342,24 +342,24 @@ const ItemDetailView = ({
 };
 
 const Card = ({ title, children }) => (
-  <div className="rounded-2xl border border-black/[0.07] bg-white overflow-hidden">
-    <div className="px-4 py-3 border-b border-black/[0.05] text-[11px] font-black text-gray-500 uppercase tracking-wider">{title}</div>
+  <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+    <div className="px-4 py-3 border-b border-black/[0.05] text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{title}</div>
     {children}
   </div>
 );
-const Empty = ({ text }) => <div className="px-4 py-10 text-center text-xs font-semibold text-gray-400">{text}</div>;
+const Empty = ({ text }) => <div className="px-4 py-10 text-center text-xs font-semibold text-muted-foreground">{text}</div>;
 const Tbl = ({ head, rows }) => (
   <div className="overflow-x-auto">
     <table className="w-full text-left">
       <thead>
-        <tr className="text-[10px] font-bold text-gray-400 uppercase tracking-wider border-b border-black/[0.05]">
+        <tr className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider border-b border-black/[0.05]">
           {head.map((h, i) => <th key={i} className={`px-4 py-2.5 ${i >= head.length - 1 ? 'text-right' : ''}`}>{h}</th>)}
         </tr>
       </thead>
       <tbody>
         {rows.map((r, i) => (
           <tr key={i} className="border-b border-black/[0.04] last:border-0">
-            {r.map((c, j) => <td key={j} className={`px-4 py-2.5 text-xs font-semibold text-gray-700 ${j >= r.length - 1 ? 'text-right font-bold text-ink-primary' : ''}`}>{c}</td>)}
+            {r.map((c, j) => <td key={j} className={`px-4 py-2.5 text-xs font-semibold text-gray-700 ${j >= r.length - 1 ? 'text-right font-semibold text-foreground' : ''}`}>{c}</td>)}
           </tr>
         ))}
       </tbody>

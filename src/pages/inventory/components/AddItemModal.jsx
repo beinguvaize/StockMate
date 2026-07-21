@@ -210,12 +210,12 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
       subtitle={editingProduct ? 'Update product details' : 'Add new product to inventory'}
     >
       {(() => {
-        const inputCls = "w-full bg-white border border-gray-300 rounded-xl px-3.5 py-3 text-xs font-bold text-ink-primary placeholder:text-gray-400 placeholder:font-medium outline-none transition-all hover:border-gray-300 focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 shadow-sm";
-        const labelCls = "block text-[10px] font-black text-ink-secondary uppercase tracking-wider mb-2";
+        const inputCls = "w-full bg-card border border-border rounded-xl px-3.5 py-3 text-xs font-semibold text-foreground placeholder:text-muted-foreground placeholder:font-medium outline-none transition-all hover:border-border focus:border-accent-signature focus:ring-4 focus:ring-accent-signature/10 shadow-sm";
+        const labelCls = "block text-[10px] font-semibold text-ink-secondary uppercase tracking-wider mb-2";
         const Section = ({ children }) => (
           <div className="flex items-center gap-2 pt-1.5">
             <span className="w-1 h-3.5 rounded-full bg-accent-signature" />
-            <span className="text-[11px] font-black text-ink-primary uppercase tracking-widest">{children}</span>
+            <span className="text-[11px] font-semibold text-foreground uppercase tracking-widest">{children}</span>
           </div>
         );
         const c = parseFloat(formData.costPrice);
@@ -249,7 +249,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       setFormData({ ...formData, sku });
                     }}
                     title="Auto-generate a SKU"
-                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-bold hover:bg-accent-signature/10">
+                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
                     <Wand2 size={13} /> Assign
                   </button>
                 </div>
@@ -275,7 +275,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               <div>
                 <label className={labelCls}>Barcode (EAN-13 / UPC / custom)</label>
                 <div className="flex gap-2">
-                  <input type="text" className={`${inputCls} font-mono flex-1`} placeholder="Scan or type barcode…"
+                  <input type="text" className={`${inputCls} tabular-nums flex-1`} placeholder="Scan or type barcode…"
                     value={formData.barcode || ''}
                     onChange={e => setFormData({ ...formData, barcode: e.target.value })} />
                   <button type="button"
@@ -285,7 +285,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       setFormData({ ...formData, barcode: body + ean13CheckDigit(body) });
                     }}
                     title="Auto-generate an EAN-13 barcode"
-                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-bold hover:bg-accent-signature/10">
+                    className="shrink-0 flex items-center gap-1.5 px-3 rounded-lg border border-accent-signature/40 text-accent-signature text-[11px] font-semibold hover:bg-accent-signature/10">
                     <Wand2 size={13} /> Assign
                   </button>
                 </div>
@@ -311,11 +311,11 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 onClick={() => setFormData({ ...formData, track_serial: !formData.track_serial })}
                 className={`relative w-10 h-6 rounded-full transition-colors ${formData.track_serial ? 'bg-accent-signature' : 'bg-gray-300'}`}
               >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${formData.track_serial ? 'translate-x-4' : ''}`} />
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-card shadow transition-transform ${formData.track_serial ? 'translate-x-4' : ''}`} />
               </button>
               <span className="flex flex-col">
-                <span className="text-[13px] font-bold text-ink-primary">Track IMEI / serial per unit</span>
-                <span className="text-[11px] text-gray-400">Phones, electronics — capture the serial on purchase &amp; sale</span>
+                <span className="text-[13px] font-semibold text-foreground">Track IMEI / serial per unit</span>
+                <span className="text-[11px] text-muted-foreground">Phones, electronics — capture the serial on purchase &amp; sale</span>
               </span>
             </label>
 
@@ -336,10 +336,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                           key={o.v}
                           type="button"
                           onClick={() => setFormData({ ...formData, food_type: formData.food_type === o.v ? '' : o.v })}
-                          className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border text-xs font-bold transition-all ${
+                          className={`flex-1 flex items-center justify-center gap-1.5 h-10 rounded-xl border text-xs font-semibold transition-all ${
                             formData.food_type === o.v
-                              ? 'border-accent-signature bg-accent-signature/10 text-ink-primary'
-                              : 'border-black/10 text-gray-500 hover:border-black/20'
+                              ? 'border-accent-signature bg-accent-signature/10 text-foreground'
+                              : 'border-border text-muted-foreground hover:border-black/20'
                           }`}
                         >
                           <span className={`w-2.5 h-2.5 rounded-sm ${o.dot}`} />{o.label}
@@ -348,7 +348,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     </div>
                   </div>
                   <div>
-                    <label className={labelCls}>Kitchen Station <span className="text-gray-400 font-normal">— optional</span></label>
+                    <label className={labelCls}>Kitchen Station <span className="text-muted-foreground font-normal">— optional</span></label>
                     <input type="text" className={inputCls} placeholder="Tandoor, Bar, Grill…"
                       value={formData.station || ''} onChange={e => setFormData({ ...formData, station: e.target.value })} />
                   </div>
@@ -357,52 +357,52 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <input type="checkbox" className="w-4 h-4 rounded accent-accent-signature"
                     checked={formData.is_available !== false}
                     onChange={e => setFormData({ ...formData, is_available: e.target.checked })} />
-                  <span className="text-sm font-semibold text-ink-primary">Available on menu</span>
-                  <span className="text-[11px] text-gray-400">— uncheck to 86 (mark out of stock)</span>
+                  <span className="text-sm font-semibold text-foreground">Available on menu</span>
+                  <span className="text-[11px] text-muted-foreground">— uncheck to 86 (mark out of stock)</span>
                 </label>
 
                 {/* Modifier groups */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <label className={labelCls}>Modifiers <span className="text-gray-400 font-normal normal-case">— add-ons / variations</span></label>
+                    <label className={labelCls}>Modifiers <span className="text-muted-foreground font-normal normal-case">— add-ons / variations</span></label>
                     <button type="button" onClick={addGroup}
-                      className="text-[11px] font-bold text-accent-signature hover:underline">+ Add group</button>
+                      className="text-[11px] font-semibold text-accent-signature hover:underline">+ Add group</button>
                   </div>
                   <div className="space-y-3">
                     {mgroups.map((g, i) => (
-                      <div key={g.id || i} className="rounded-xl border border-black/10 p-3 bg-canvas/40">
+                      <div key={g.id || i} className="rounded-xl border border-border p-3 bg-canvas/40">
                         <div className="flex items-center gap-2 mb-2">
                           <input value={g.name} onChange={e => updateGroup(i, { name: e.target.value })}
                             placeholder="Group name (Size, Add-ons…)"
-                            className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature" />
-                          <label className="flex items-center gap-1 text-[11px] font-bold text-gray-500 whitespace-nowrap">
+                            className="flex-1 bg-card border border-border rounded-lg px-3 py-1.5 text-xs font-semibold outline-none focus:border-accent-signature" />
+                          <label className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
                             <input type="checkbox" checked={!!g.multi} onChange={e => updateGroup(i, { multi: e.target.checked })} className="accent-accent-signature" />
                             multi
                           </label>
-                          <button type="button" onClick={() => removeGroup(i)} className="text-gray-300 hover:text-red-500"><X size={14} /></button>
+                          <button type="button" onClick={() => removeGroup(i)} className="text-muted-foreground hover:text-red-500"><X size={14} /></button>
                         </div>
                         <div className="space-y-1.5">
                           {(g.options || []).map((o, oi) => (
                             <div key={oi} className="flex items-center gap-2">
                               <input value={o.name} onChange={e => updateOption(i, oi, { name: e.target.value })}
                                 placeholder="Option (Large, Extra cheese…)"
-                                className="flex-1 bg-white border border-black/10 rounded-lg px-3 py-1.5 text-xs outline-none focus:border-accent-signature" />
+                                className="flex-1 bg-card border border-border rounded-lg px-3 py-1.5 text-xs outline-none focus:border-accent-signature" />
                               <div className="flex items-center gap-1">
-                                <span className="text-[11px] text-gray-400">₹</span>
+                                <span className="text-[11px] text-muted-foreground">₹</span>
                                 <input type="number" step="1" value={o.price}
                                   onChange={e => updateOption(i, oi, { price: parseFloat(e.target.value) || 0 })}
-                                  className="w-16 bg-white border border-black/10 rounded-lg px-2 py-1.5 text-xs font-mono outline-none focus:border-accent-signature" />
+                                  className="w-16 bg-card border border-border rounded-lg px-2 py-1.5 text-xs tabular-nums outline-none focus:border-accent-signature" />
                               </div>
-                              <button type="button" onClick={() => removeOption(i, oi)} className="text-gray-300 hover:text-red-500"><X size={13} /></button>
+                              <button type="button" onClick={() => removeOption(i, oi)} className="text-muted-foreground hover:text-red-500"><X size={13} /></button>
                             </div>
                           ))}
                           <button type="button" onClick={() => addOption(i)}
-                            className="text-[11px] font-bold text-gray-400 hover:text-accent-signature">+ Option</button>
+                            className="text-[11px] font-semibold text-muted-foreground hover:text-accent-signature">+ Option</button>
                         </div>
                       </div>
                     ))}
                     {mgroups.length === 0 && (
-                      <p className="text-[11px] text-gray-400">No modifiers. Add a group for sizes or add-ons.</p>
+                      <p className="text-[11px] text-muted-foreground">No modifiers. Add a group for sizes or add-ons.</p>
                     )}
                   </div>
                 </div>
@@ -435,7 +435,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
               )}
               <div>
                 <label className={labelCls}>
-                  {isService ? 'Service Price (₹)' : 'Selling Price (₹)'}{formData.product_type === 'RAW' && <span className="text-gray-400 font-normal"> — optional</span>}
+                  {isService ? 'Service Price (₹)' : 'Selling Price (₹)'}{formData.product_type === 'RAW' && <span className="text-muted-foreground font-normal"> — optional</span>}
                 </label>
                 <input required={formData.product_type !== 'RAW'} type="number" step="0.01" className={inputCls} placeholder="0.00"
                   value={formData.sellingPrice} onChange={e => setFormData({ ...formData, sellingPrice: e.target.value})} />
@@ -454,8 +454,8 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             {!isService && (
               <div className="mt-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400">Price tiers</span>
-                  <label className="flex items-center gap-1.5 text-[11px] font-bold text-gray-500">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Price tiers</span>
+                  <label className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground">
                     <input type="checkbox" checked={!!formData.price_inclusive}
                       onChange={e => setFormData({ ...formData, price_inclusive: e.target.checked })} />
                     Prices include tax
@@ -463,16 +463,16 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className={labelCls}>Wholesale (₹) <span className="text-gray-400 font-normal">— bulk</span></label>
+                    <label className={labelCls}>Wholesale (₹) <span className="text-muted-foreground font-normal">— bulk</span></label>
                     <input type="number" step="0.01" className={inputCls} placeholder="0.00"
                       value={formData.wholesale_price} onChange={e => setFormData({ ...formData, wholesale_price: e.target.value })} />
                   </div>
                   <div>
-                    <label className={labelCls}>Distributor (₹) <span className="text-gray-400 font-normal">— reseller</span></label>
+                    <label className={labelCls}>Distributor (₹) <span className="text-muted-foreground font-normal">— reseller</span></label>
                     <input type="number" step="0.01" className={inputCls} placeholder="0.00"
                       value={formData.distributor_price} onChange={e => setFormData({ ...formData, distributor_price: e.target.value })} />
                   </div>
-                  <div className="flex items-end pb-2 text-[11px] text-gray-400">
+                  <div className="flex items-end pb-2 text-[11px] text-muted-foreground">
                     Retail = Selling Price above. Distributor is your lowest (reseller) rate.
                   </div>
                 </div>
@@ -484,7 +484,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className={labelCls}>
-                  Alternate Unit <span className="text-gray-400 font-normal">— optional</span>
+                  Alternate Unit <span className="text-muted-foreground font-normal">— optional</span>
                 </label>
                 <select className={inputCls} value={formData.secondary_unit || ''}
                   onChange={e => setFormData({ ...formData, secondary_unit: e.target.value })}>
@@ -497,7 +497,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   Conversion {formData.secondary_unit && `(1 ${formData.secondary_unit} = ? ${formData.unit})`}
                 </label>
                 <input type="number" step="0.0001" min="0"
-                  className={`${inputCls} ${!formData.secondary_unit ? 'opacity-60 cursor-not-allowed !bg-gray-50 hover:!border-gray-200' : ''}`}
+                  className={`${inputCls} ${!formData.secondary_unit ? 'opacity-60 cursor-not-allowed !bg-gray-50 hover:!border-border' : ''}`}
                   placeholder={`e.g. 24`}
                   disabled={!formData.secondary_unit}
                   value={formData.conversion_factor}
@@ -508,9 +508,9 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             {/* Margin indicator + floor guard */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {showMargin && (
-                <div className="flex items-center justify-between bg-white border border-gray-300 rounded-xl px-4 py-3 shadow-sm self-end">
-                  <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Current Margin</span>
-                  <span className={`text-sm font-black tabular-nums ${marginColor}`}>
+                <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3 shadow-sm self-end">
+                  <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Current Margin</span>
+                  <span className={`text-sm font-semibold tabular-nums ${marginColor}`}>
                     {margin.toFixed(1)}%{margin < 0 ? ' · loss' : margin < 10 ? ' · low' : ''}
                   </span>
                 </div>
@@ -521,9 +521,9 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <input type="number" step="1" min="0" max="100" className={inputCls} placeholder="e.g. 15"
                     value={formData.min_margin}
                     onChange={e => setFormData({ ...formData, min_margin: e.target.value })} />
-                  <Percent size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <Percent size={12} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 </div>
-                <p className="text-[10px] text-gray-400 mt-1">POS warns / blocks if margin drops below this</p>
+                <p className="text-[10px] text-muted-foreground mt-1">POS warns / blocks if margin drops below this</p>
               </div>
             </div>
             </>)}
@@ -539,10 +539,10 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                 ].map(s => (
                   <button key={s.id} type="button"
                     onClick={() => setFormData({ ...formData, tax_status: s.id, ...(s.id !== 'TAXABLE' ? { taxRate: 0, cess_rate: 0 } : {}) })}
-                    className={`px-3 py-2 rounded-lg text-xs font-black border transition-all ${
+                    className={`px-3 py-2 rounded-lg text-xs font-semibold border transition-all ${
                       (formData.tax_status || 'TAXABLE') === s.id
                         ? 'bg-accent-signature text-button-text border-accent-signature shadow-md'
-                        : 'bg-white border-gray-200 text-gray-500 hover:border-accent-signature/40'
+                        : 'bg-card border-border text-muted-foreground hover:border-accent-signature/40'
                     }`}>{s.label}</button>
                 ))}
               </div>
@@ -560,7 +560,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     const s = TAX_SLABS_WITH_CESS[Number(e.target.value)];
                     if (s) setFormData({ ...formData, taxRate: s.value, cess_rate: s.cess });
                   }}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white border border-gray-200 shadow-sm text-xs font-bold text-ink-primary focus:outline-none focus:border-accent-signature/40"
+                  className="w-full px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground focus:outline-none focus:border-accent-signature/40"
                 >
                   {/* When the saved combo isn't a standard slab, findIndex returns -1 */}
                   {TAX_SLABS_WITH_CESS.findIndex(s => s.value === Number(formData.taxRate) && s.cess === Number(formData.cess_rate || 0)) === -1 && (
@@ -570,7 +570,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                     <option key={i} value={i}>{s.label}</option>
                   ))}
                 </select>
-                <p className="text-[10px] text-gray-400 mt-1">GST + Compensation Cess. Applied on invoice & POS checkout.</p>
+                <p className="text-[10px] text-muted-foreground mt-1">GST + Compensation Cess. Applied on invoice & POS checkout.</p>
               </div>
 
               {/* HSN / SAC code */}
@@ -583,9 +583,9 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   onChange={(e) => setFormData({ ...formData, hsn_code: e.target.value.replace(/[^0-9]/g, '') })}
                   placeholder="e.g. 39231090"
                   maxLength={8}
-                  className="w-full px-3 py-2.5 rounded-xl bg-white border border-gray-200 shadow-sm text-xs font-bold text-ink-primary focus:outline-none focus:border-accent-signature/40"
+                  className="w-full px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground focus:outline-none focus:border-accent-signature/40"
                 />
-                <p className="text-[10px] text-gray-400 mt-1">Required for GSTR-1 HSN summary (Table 12).</p>
+                <p className="text-[10px] text-muted-foreground mt-1">Required for GSTR-1 HSN summary (Table 12).</p>
               </div>
             </div>
             )}
@@ -595,7 +595,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             <div>
               <div className="flex gap-3 items-start">
                 {/* Preview */}
-                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-white border border-gray-300 shadow-sm flex-shrink-0 flex items-center justify-center">
+                <div className="relative w-20 h-20 rounded-xl overflow-hidden bg-card border border-border shadow-sm flex-shrink-0 flex items-center justify-center">
                   {imagePreview ? (
                     <>
                       <img src={imagePreview} alt="preview" className="w-full h-full object-cover" />
@@ -608,7 +608,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                       </button>
                     </>
                   ) : (
-                    <Camera size={20} className="text-gray-300" />
+                    <Camera size={20} className="text-muted-foreground" />
                   )}
                 </div>
 
@@ -617,18 +617,18 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-gray-300 shadow-sm text-xs font-bold text-ink-primary hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
                   >
                     <Upload size={13} /> Upload New Photo
                   </button>
                   <button
                     type="button"
                     onClick={openPhotoLib}
-                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white border border-gray-300 shadow-sm text-xs font-bold text-ink-primary hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
+                    className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-card border border-border shadow-sm text-xs font-semibold text-foreground hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-all"
                   >
                     <Images size={13} /> Choose from Library
                   </button>
-                  <p className="text-[10px] text-gray-400">Max 5 MB · JPG, PNG, WEBP</p>
+                  <p className="text-[10px] text-muted-foreground">Max 5 MB · JPG, PNG, WEBP</p>
                 </div>
 
                 <input
@@ -642,19 +642,19 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
 
               {/* ── Photo Library Panel ── */}
               {showPhotoLib && (
-                <div className="mt-3 bg-white border border-gray-300 shadow-sm rounded-xl p-3">
+                <div className="mt-3 bg-card border border-border shadow-sm rounded-xl p-3">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Recent Photos</span>
+                    <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Recent Photos</span>
                     <button type="button" onClick={() => setShowPhotoLib(false)}>
-                      <X size={14} className="text-gray-400 hover:text-ink-primary" />
+                      <X size={14} className="text-muted-foreground hover:text-foreground" />
                     </button>
                   </div>
                   {libLoading ? (
                     <div className="flex items-center justify-center py-6">
-                      <Loader2 size={18} className="animate-spin text-gray-400" />
+                      <Loader2 size={18} className="animate-spin text-muted-foreground" />
                     </div>
                   ) : libPhotos.length === 0 ? (
-                    <div className="text-center py-6 text-xs text-gray-400">
+                    <div className="text-center py-6 text-xs text-muted-foreground">
                       No photos uploaded yet. Upload your first photo above.
                     </div>
                   ) : (
@@ -683,7 +683,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   <button
                     type="button"
                     onClick={() => { fileInputRef.current?.click(); setShowPhotoLib(false); }}
-                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-black/10 text-[10px] font-bold text-gray-500 hover:border-accent-signature hover:text-accent-signature transition-colors"
+                    className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-dashed border-border text-[10px] font-semibold text-muted-foreground hover:border-accent-signature hover:text-accent-signature transition-colors"
                   >
                     <Upload size={11} /> Upload new photo
                   </button>
@@ -692,7 +692,7 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
             </div>
 
             {saveError && (
-              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs font-bold text-red-600">
+              <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-xs font-semibold text-red-600">
                 {saveError}
               </div>
             )}

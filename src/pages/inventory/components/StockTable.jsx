@@ -31,7 +31,7 @@ const statusOf = (qty, reorder) => {
   return qty <= thr ? 'low' : 'ok';
 };
 const dotCls = (s) => s === 'crit' ? 'bg-red-500' : s === 'low' ? 'bg-accent-signature' : 'bg-emerald-500';
-const qtyCls = (s) => s === 'crit' ? 'text-red-600' : s === 'low' ? 'text-accent-signature' : 'text-ink-primary';
+const qtyCls = (s) => s === 'crit' ? 'text-red-600' : s === 'low' ? 'text-accent-signature' : 'text-foreground';
 
 const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onAdjust, onBatches, onBulkEdit, onBulkDelete, currencySymbol = '₹' }) => {
   const { businessType } = useTenant();
@@ -92,19 +92,19 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
 
   if (!products.length) {
     return (
-      <div className="rounded-2xl bg-white border border-black/[0.08] p-16 text-center shadow-sm">
+      <div className="rounded-2xl bg-card border border-border/60 p-16 text-center shadow-sm">
         <PackagePlus size={48} strokeWidth={1} className="mx-auto opacity-10 mb-4" />
-        <p className="text-sm font-semibold text-gray-400">No products registered in the catalog</p>
+        <p className="text-sm font-semibold text-muted-foreground">No products registered in the catalog</p>
       </div>
     );
   }
 
   const TH = ({ children, align = 'left', extra = '', sortKey = null }) => (
-    <th className={`px-3 py-2.5 font-mono text-[10px] font-bold uppercase tracking-widest text-gray-400 ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''} ${extra}`}>
+    <th className={`px-3 py-2.5 text-[11px] font-medium text-muted-foreground ${align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : ''} ${extra}`}>
       {sortKey ? (
-        <button onClick={() => toggleSort(sortKey)} className="inline-flex items-center gap-1 hover:text-ink-primary transition-colors cursor-pointer uppercase tracking-widest">
+        <button onClick={() => toggleSort(sortKey)} className="inline-flex items-center gap-1 hover:text-foreground transition-colors cursor-pointer">
           {children}
-          <span className={`text-[8px] ${sort.key === sortKey ? 'text-accent-signature' : 'text-gray-300'}`}>
+          <span className={`text-[8px] ${sort.key === sortKey ? 'text-accent-signature' : 'text-muted-foreground'}`}>
             {sort.key === sortKey ? (sort.dir === 'asc' ? '▲' : '▼') : '▲▼'}
           </span>
         </button>
@@ -113,19 +113,19 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
   );
 
   return (
-    <div className="rounded-2xl bg-white border border-black/[0.08] overflow-hidden shadow-sm">
-      <div className="px-5 py-3 border-b border-black/[0.06] flex items-center justify-between">
-        <span className="font-mono text-[11px] font-bold text-accent-signature">$ inventory --group=category</span>
-        <span className="font-mono text-[10px] text-gray-400">{products.length} rows · {groups.length} groups</span>
+    <div className="rounded-2xl bg-card border border-border/60 overflow-hidden shadow-sm">
+      <div className="px-5 py-3 border-b border-border/60 flex items-center justify-between">
+        <span className="text-[11px] font-medium text-foreground">Grouped by category</span>
+        <span className="text-[11px] text-muted-foreground tabular-nums">{products.length} products · {groups.length} categories</span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-left">
           <thead>
-            <tr className="border-b border-black/10">
+            <tr className="border-b border-border">
               {(onBulkEdit || onBulkDelete) && (
                 <th className="pl-5 pr-1 py-2.5 w-px">
                   <input type="checkbox" checked={allSelected} onChange={toggleAll}
-                    className="w-3.5 h-3.5 rounded border-gray-300 accent-accent-signature cursor-pointer" />
+                    className="w-3.5 h-3.5 rounded border-border accent-accent-signature cursor-pointer" />
                 </th>
               )}
               <TH extra="pl-5 w-full" sortKey="name">{isService ? 'Service' : 'Product'}</TH>
@@ -143,11 +143,11 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
             {groups.map(({ cat, items, subValue }) => (
               <React.Fragment key={cat}>
                 <tr className="bg-black/[0.025]">
-                  <td colSpan={(onBulkEdit || onBulkDelete) ? 3 : 2} className="px-5 py-2 text-[11px] font-black uppercase tracking-widest text-gray-500">
-                    {cat} <span className="text-gray-400 ml-1">{items.length}</span>
+                  <td colSpan={(onBulkEdit || onBulkDelete) ? 3 : 2} className="px-5 py-2 text-[11px] font-semibold text-foreground">
+                    {cat} <span className="text-muted-foreground ml-1">{items.length}</span>
                   </td>
                   <td colSpan={4} />
-                  <td className="px-3 py-2 text-right font-mono text-[11px] font-bold text-gray-500 whitespace-nowrap">
+                  <td className="px-3 py-2 text-right tabular-nums text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
                     {currencySymbol}{Math.round(subValue).toLocaleString('en-IN')}
                   </td>
                   <td colSpan={2} />
@@ -164,7 +164,7 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
                       {(onBulkEdit || onBulkDelete) && (
                         <td className="pl-5 pr-1 py-2.5 w-px" onClick={(e) => e.stopPropagation()}>
                           <input type="checkbox" checked={selected.has(product.id)} onChange={() => toggleOne(product.id)}
-                            className="w-3.5 h-3.5 rounded border-gray-300 accent-accent-signature cursor-pointer" />
+                            className="w-3.5 h-3.5 rounded border-border accent-accent-signature cursor-pointer" />
                         </td>
                       )}
                       <td className="px-5 py-2.5 pl-9 max-w-0 w-full">
@@ -172,41 +172,41 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
                           {isResto && <FoodMark type={product.food_type} />}
                           {onView ? (
                             <button onClick={() => onView(product)}
-                              className="text-[13px] font-bold text-ink-primary truncate hover:text-accent-signature hover:underline text-left">
+                              className="text-[13px] font-semibold text-foreground truncate hover:text-accent-signature hover:underline text-left">
                               {product.name}
                             </button>
                           ) : (
-                            <span className="text-[13px] font-bold text-ink-primary truncate">{product.name}</span>
+                            <span className="text-[13px] font-semibold text-foreground truncate">{product.name}</span>
                           )}
                           {isResto && product.is_available === false && (
-                            <span className="shrink-0 text-[9px] font-black uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">86</span>
+                            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-red-600 bg-red-50 border border-red-200 rounded px-1.5 py-0.5">86</span>
                           )}
                           {isResto && product.station && (
-                            <span className="shrink-0 text-[9px] font-bold uppercase tracking-wider text-gray-400">{product.station}</span>
+                            <span className="shrink-0 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground">{product.station}</span>
                           )}
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 font-mono text-[11px] text-gray-400 uppercase whitespace-nowrap">{product.sku || '—'}</td>
+                      <td className="px-3 py-2.5 tabular-nums text-[11px] text-muted-foreground uppercase whitespace-nowrap">{product.sku || '—'}</td>
                       <td className="px-3 py-2.5 text-right whitespace-nowrap">
                         {(isService || product.product_type === 'SERVICE') ? (
-                          <span className="font-mono text-[12px] font-bold text-violet-500">{product.duration_min ? `${product.duration_min}m` : 'Service'}</span>
+                          <span className="tabular-nums text-[12px] font-semibold text-violet-500">{product.duration_min ? `${product.duration_min}m` : 'Service'}</span>
                         ) : (<>
-                          <span className={`font-mono text-[13px] font-bold ${qtyCls(st)}`}>{qty}</span>
-                          <span className="text-[9px] text-gray-400 uppercase ml-0.5">{product.unit || 'pcs'}</span>
+                          <span className={`tabular-nums text-[13px] font-semibold ${qtyCls(st)}`}>{qty}</span>
+                          <span className="text-[9px] text-muted-foreground uppercase ml-0.5">{product.unit || 'pcs'}</span>
                         </>)}
                       </td>
-                      <td className="px-3 py-2.5 text-right font-mono text-[12px] text-gray-400 whitespace-nowrap">{isService ? '' : (reorder > 0 ? reorder : '—')}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-[12px] text-gray-500 whitespace-nowrap">{isService ? '' : `${currencySymbol}${toNum(product.costPrice).toFixed(2)}`}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-[12px] font-semibold whitespace-nowrap"><span className="text-accent-signature/70">{currencySymbol}</span>{sell.toFixed(2)}</td>
-                      <td className="px-3 py-2.5 text-right font-mono text-[13px] font-bold whitespace-nowrap">{isService ? '' : <><span className="text-accent-signature/70">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">{isService ? '' : (reorder > 0 ? reorder : '—')}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">{isService ? '' : `${currencySymbol}${toNum(product.costPrice).toFixed(2)}`}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[12px] font-semibold whitespace-nowrap"><span className="text-accent-signature/70">{currencySymbol}</span>{sell.toFixed(2)}</td>
+                      <td className="px-3 py-2.5 text-right tabular-nums text-[13px] font-semibold whitespace-nowrap">{isService ? '' : <><span className="text-accent-signature/70">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
                       <td className="px-3 py-2.5 text-center">{isService ? null : <span className={`inline-block w-2 h-2 rounded-full ${dotCls(st)}`} />}</td>
                       <td className="px-4 py-2.5 w-px" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                           {onAdjust && (
-                            <button onClick={() => onAdjust(product)} title="Adjust stock" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"><SlidersHorizontal size={14} /></button>
+                            <button onClick={() => onAdjust(product)} title="Adjust stock" className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-accent-signature/15 hover:text-accent-signature-hover transition-colors"><SlidersHorizontal size={14} /></button>
                           )}
-                          <button onClick={() => onEdit(product)} title="View / edit" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:bg-black/[0.05] hover:text-ink-primary transition-colors"><Eye size={14} /></button>
-                          <button onClick={() => onDelete(product.id)} title="Delete" className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
+                          <button onClick={() => onEdit(product)} title="View / edit" className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-black/[0.05] hover:text-foreground transition-colors"><Eye size={14} /></button>
+                          <button onClick={() => onDelete(product.id)} title="Delete" className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-red-50 hover:text-red-500 transition-colors"><Trash2 size={14} /></button>
                         </div>
                       </td>
                     </tr>
@@ -218,21 +218,21 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
         </table>
       </div>
       {selected.size > 0 && (onBulkEdit || onBulkDelete) && (
-        <div className="sticky bottom-0 px-5 py-3 bg-ink-primary flex items-center gap-3 shadow-2xl">
-          <span className="text-[12px] font-bold text-white">{selected.size} selected</span>
-          <button onClick={clearSelection} className="text-[11px] font-semibold text-white/60 hover:text-white transition-colors">Clear</button>
+        <div className="sticky bottom-0 px-5 py-3 bg-foreground flex items-center gap-3 shadow-2xl">
+          <span className="text-[12px] font-semibold text-background">{selected.size} selected</span>
+          <button onClick={clearSelection} className="text-[11px] font-semibold text-background/70 hover:text-background transition-colors">Clear</button>
           <div className="ml-auto flex items-center gap-2">
             {onBulkEdit && (
               <button
                 onClick={() => onBulkEdit(products.filter(p => selected.has(p.id)), clearSelection)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold bg-accent-signature text-white hover:opacity-90 transition-opacity">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-semibold bg-accent-signature text-white hover:opacity-90 transition-opacity">
                 <Pencil size={13} /> Bulk edit
               </button>
             )}
             {onBulkDelete && (
               <button
                 onClick={() => onBulkDelete(products.filter(p => selected.has(p.id)), clearSelection)}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-bold bg-red-500/90 text-white hover:bg-red-500 transition-colors">
+                className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-[12px] font-semibold bg-red-500/90 text-white hover:bg-red-500 transition-colors">
                 <Trash2 size={13} /> Delete
               </button>
             )}
