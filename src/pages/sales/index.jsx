@@ -293,28 +293,28 @@ const SalesPage = () => {
 
   return (
     <div className="animate-fade-in flex flex-col gap-2">
-      <div className="flex justify-between items-center py-2 border-b border-black/5">
+      <div className="flex justify-between items-center py-2 border-b border-border/60">
         <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-xl font-black font-sora text-ink-primary leading-none">
-            {activeTab === 'tables' ? 'Tables' : activeTab === 'pos' ? (isResto ? 'Order' : 'Sales') : 'History'}<span className="text-accent-signature">.</span>
+          <h1 className="text-base font-semibold text-foreground tracking-tight">
+            {activeTab === 'tables' ? 'Tables' : activeTab === 'pos' ? (isResto ? 'Order' : 'Sales') : 'History'}
           </h1>
           {/* Today's live stats */}
           <div className="hidden sm:flex items-center gap-1.5">
-            <div className="flex items-center gap-1.5 bg-white border border-black/8 text-ink-primary px-2.5 py-1 rounded-lg h-7">
+            <div className="flex items-center gap-1.5 bg-card border border-border text-foreground px-2.5 py-1 rounded-lg h-7">
               <TrendingUp size={10} className="text-emerald-500 shrink-0" />
-              <span className="text-[10px] font-black">{formatCurrency(todayStats.revenue)}</span>
-              <span className="text-[9px] font-medium text-gray-400">today</span>
+              <span className="text-[10px] font-semibold">{formatCurrency(todayStats.revenue)}</span>
+              <span className="text-[9px] font-medium text-muted-foreground">today</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-white border border-black/8 text-ink-primary px-2.5 py-1 rounded-lg h-7">
+            <div className="flex items-center gap-1.5 bg-card border border-border text-foreground px-2.5 py-1 rounded-lg h-7">
               <Receipt size={10} className="opacity-40 shrink-0" />
-              <span className="text-[10px] font-black">{todayStats.count}</span>
-              <span className="text-[9px] font-medium text-gray-400">txns</span>
+              <span className="text-[10px] font-semibold">{todayStats.count}</span>
+              <span className="text-[9px] font-medium text-muted-foreground">txns</span>
             </div>
             {todayStats.count > 0 && (
-              <div className="flex items-center gap-1.5 bg-white border border-black/8 text-ink-primary px-2.5 py-1 rounded-lg h-7">
+              <div className="flex items-center gap-1.5 bg-card border border-border text-foreground px-2.5 py-1 rounded-lg h-7">
                 <BarChart2 size={10} className="opacity-40 shrink-0" />
-                <span className="text-[10px] font-black">{formatCurrency(todayStats.avg)}</span>
-                <span className="text-[9px] font-medium text-gray-400">avg</span>
+                <span className="text-[10px] font-semibold">{formatCurrency(todayStats.avg)}</span>
+                <span className="text-[9px] font-medium text-muted-foreground">avg</span>
               </div>
             )}
           </div>
@@ -323,8 +323,8 @@ const SalesPage = () => {
           {isResto && (
             <button
               onClick={() => { setActiveTable(null); setActiveTab('tables'); }}
-              className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-bold transition-all ${
-                activeTab === 'tables' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-gray-400 hover:text-ink-primary'
+              className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-semibold transition-all ${
+                activeTab === 'tables' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               <LayoutGrid size={13} /> Tables
@@ -332,16 +332,16 @@ const SalesPage = () => {
           )}
           <button
             onClick={() => setActiveTab('pos')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-bold transition-all ${
-              activeTab === 'pos' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-gray-400 hover:text-ink-primary'
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-semibold transition-all ${
+              activeTab === 'pos' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <ShoppingCart size={13} /> {isResto ? 'Order' : 'New Sale'}
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-bold transition-all ${
-              activeTab === 'history' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-gray-400 hover:text-ink-primary'
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-pill text-xs font-semibold transition-all ${
+              activeTab === 'history' ? 'bg-accent-signature text-button-text shadow-lg' : 'text-muted-foreground hover:text-foreground'
             }`}
           >
             <History size={13} /> History
@@ -367,18 +367,18 @@ const SalesPage = () => {
           <>
             {isResto && activeTable && (
               <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-accent-signature/10 border border-accent-signature/25">
-                <span className="text-sm font-bold text-ink-primary">Table {activeTable.table.label}</span>
+                <span className="text-sm font-semibold text-foreground">Table {activeTable.table.label}</span>
                 <button onClick={() => { setActiveTable(null); setActiveTab('tables'); }}
-                  className="text-[12px] font-bold text-accent-signature-hover hover:underline">← Back to floor</button>
+                  className="text-[12px] font-semibold text-accent-signature-hover hover:underline">← Back to floor</button>
               </div>
             )}
             {editingSale && (
               <div className="flex items-center justify-between mb-2 px-4 py-2 rounded-xl bg-accent-signature/10 border border-accent-signature/25">
-                <span className="text-sm font-bold text-ink-primary">
+                <span className="text-sm font-semibold text-foreground">
                   Editing sale #{String(editingSale.id).split('-').pop()} — stock & balance re-sync on save
                 </span>
                 <button onClick={() => { setEditingSale(null); setActiveTab('history'); }}
-                  className="text-[12px] font-bold text-accent-signature-hover hover:underline">Cancel edit</button>
+                  className="text-[12px] font-semibold text-accent-signature-hover hover:underline">Cancel edit</button>
               </div>
             )}
             <InvoiceBuilder
@@ -409,10 +409,10 @@ const SalesPage = () => {
             <div className="flex gap-1 mb-3">
               {[['sales', 'Sales', sales.length], ['returns', 'Returns', salesReturns.length]].map(([k, label, n]) => (
                 <button key={k} onClick={() => setHistoryView(k)}
-                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                    historyView === k ? 'bg-ink-primary text-white' : 'bg-canvas text-gray-500 hover:text-ink-primary'
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    historyView === k ? 'bg-foreground text-background' : 'bg-canvas text-muted-foreground hover:text-foreground'
                   }`}>
-                  {label}<span className={`ml-1.5 ${historyView === k ? 'opacity-60' : 'text-gray-400'}`}>{n}</span>
+                  {label}<span className={`ml-1.5 ${historyView === k ? 'opacity-60' : 'text-muted-foreground'}`}>{n}</span>
                 </button>
               ))}
             </div>

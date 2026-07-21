@@ -95,7 +95,7 @@ const SalesReturnForm = ({ sale, clients, products = [], onSave, loading }) => {
 
   if (!sale || items.length === 0) {
     return (
-      <div className="text-center py-8 text-sm font-bold text-gray-400">
+      <div className="text-center py-8 text-sm font-semibold text-muted-foreground">
         No line items found on this sale.
       </div>
     );
@@ -105,22 +105,22 @@ const SalesReturnForm = ({ sale, clients, products = [], onSave, loading }) => {
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Sale context */}
       <div className="bg-canvas rounded-2xl p-4 space-y-1">
-        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Original Sale</div>
+        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Original Sale</div>
         <div className="flex items-center gap-4">
-          <span className="text-sm font-black text-ink-primary">#{sale.id?.split('-').pop()}</span>
-          {client && <span className="text-xs font-bold text-gray-500">{client.name}</span>}
-          <span className="text-xs font-bold text-gray-500">{formatCurrency(sale.totalAmount ?? sale.total_amount)}</span>
+          <span className="text-sm font-semibold text-foreground">#{sale.id?.split('-').pop()}</span>
+          {client && <span className="text-xs font-semibold text-muted-foreground">{client.name}</span>}
+          <span className="text-xs font-semibold text-muted-foreground">{formatCurrency(sale.totalAmount ?? sale.total_amount)}</span>
         </div>
       </div>
 
       {/* Items */}
       <div className="space-y-2">
-        <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Select Items to Return</div>
+        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Select Items to Return</div>
         {returnItems.map((it, idx) => (
-          <div key={it.id || idx} className="flex items-center gap-3 p-3 bg-canvas rounded-xl border border-black/5">
+          <div key={it.id || idx} className="flex items-center gap-3 p-3 bg-canvas rounded-xl border border-border/60">
             <div className="flex-1">
-              <div className="text-xs font-bold text-ink-primary">{it.name}</div>
-              <div className="text-[10px] font-bold text-gray-400">
+              <div className="text-xs font-semibold text-foreground">{it.name}</div>
+              <div className="text-[10px] font-semibold text-muted-foreground">
                 Sold: {it.maxQty} · {formatCurrency(it.rate)} each
               </div>
             </div>
@@ -131,13 +131,13 @@ const SalesReturnForm = ({ sale, clients, products = [], onSave, loading }) => {
                 max={it.maxQty}
                 step="1"
                 placeholder="0"
-                className="w-full bg-white border border-black/10 rounded-lg p-2 text-xs font-bold text-center outline-none focus:ring-2 focus:ring-accent-signature/20"
+                className="w-full bg-card border border-border rounded-lg p-2 text-xs font-semibold text-center outline-none focus:ring-2 focus:ring-accent-signature/20"
                 value={it.returnQty}
                 onChange={e => setQty(idx, e.target.value)}
               />
             </div>
             {parseFloat(it.returnQty) > 0 && (
-              <div className="text-xs font-black text-rose-600 w-20 text-right">
+              <div className="text-xs font-semibold text-rose-600 w-20 text-right">
                 {formatCurrency(parseFloat(it.returnQty) * it.rate)}
               </div>
             )}
@@ -147,27 +147,27 @@ const SalesReturnForm = ({ sale, clients, products = [], onSave, loading }) => {
 
       {returnTotal > 0 && (
         <div className="flex justify-between items-center px-3 py-2 bg-rose-50 rounded-xl border border-rose-100">
-          <span className="text-xs font-bold text-rose-600">Total Return Value</span>
-          <span className="text-sm font-black text-rose-600">{formatCurrency(returnTotal)}</span>
+          <span className="text-xs font-semibold text-rose-600">Total Return Value</span>
+          <span className="text-sm font-semibold text-rose-600">{formatCurrency(returnTotal)}</span>
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Date</label>
+          <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Date</label>
           <input
             required
             type="date"
-            className="w-full bg-white border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             value={date}
             onChange={e => setDate(e.target.value)}
           />
         </div>
         <div>
-          <label className="block text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Reason</label>
+          <label className="block text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Reason</label>
           <input
             type="text"
-            className="w-full bg-white border border-gray-300 shadow-sm rounded-xl p-3 text-xs font-bold outline-none focus:ring-2 focus:ring-accent-signature/20"
+            className="w-full bg-card border border-border shadow-sm rounded-xl p-3 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
             placeholder="Damaged, wrong item..."
             value={reason}
             onChange={e => setReason(e.target.value)}

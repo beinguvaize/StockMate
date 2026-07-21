@@ -33,19 +33,19 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
 
   return (
     <div className="fixed inset-0 z-[120] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-white rounded-2xl border border-black/5 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-black/5">
+      <div className="w-full max-w-sm bg-card rounded-2xl border border-border/60 shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border/60">
           <div>
-            <h3 className="text-base font-extrabold text-ink-primary">{product.name}</h3>
-            <p className="text-[11px] text-gray-400">Choose options</p>
+            <h3 className="text-base font-extrabold text-foreground">{product.name}</h3>
+            <p className="text-[11px] text-muted-foreground">Choose options</p>
           </div>
-          <button onClick={onCancel} className="text-gray-400 hover:text-ink-primary"><X size={18} /></button>
+          <button onClick={onCancel} className="text-muted-foreground hover:text-foreground"><X size={18} /></button>
         </div>
         <div className="p-5 space-y-4 overflow-y-auto">
           {groups.map(g => (
             <div key={g.id}>
-              <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-2">
-                {g.name} {g.multi && <span className="text-gray-400 font-normal normal-case">· choose any</span>}
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                {g.name} {g.multi && <span className="text-muted-foreground font-normal normal-case">· choose any</span>}
               </div>
               <div className="space-y-1.5">
                 {(g.options || []).map(o => {
@@ -53,10 +53,10 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
                   return (
                     <button key={o.name} type="button" onClick={() => toggle(g, o.name)}
                       className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl border text-sm transition-all ${
-                        on ? 'border-accent-signature bg-accent-signature/10' : 'border-black/10 hover:border-black/20'
+                        on ? 'border-accent-signature bg-accent-signature/10' : 'border-border hover:border-black/20'
                       }`}>
-                      <span className="font-semibold text-ink-primary">{o.name}</span>
-                      <span className="font-mono text-xs text-gray-500">{o.price > 0 ? `+${currencySymbol}${o.price}` : '—'}</span>
+                      <span className="font-semibold text-foreground">{o.name}</span>
+                      <span className="tabular-nums text-xs text-muted-foreground">{o.price > 0 ? `+${currencySymbol}${o.price}` : '—'}</span>
                     </button>
                   );
                 })}
@@ -64,10 +64,10 @@ const ModifierSheet = ({ product, onCancel, onConfirm, currencySymbol = '₹' })
             </div>
           ))}
         </div>
-        <div className="p-4 border-t border-black/5">
+        <div className="p-4 border-t border-border/60">
           <button onClick={() => onConfirm(chosen)}
-            className="w-full h-11 rounded-xl bg-accent-signature text-white text-sm font-bold hover:bg-accent-signature-hover transition-all flex items-center justify-center gap-2">
-            Add · <span className="font-mono">{currencySymbol}{total}</span>
+            className="w-full h-11 rounded-xl bg-accent-signature text-white text-sm font-semibold hover:bg-accent-signature-hover transition-all flex items-center justify-center gap-2">
+            Add · <span className="tabular-nums">{currencySymbol}{total}</span>
           </button>
         </div>
       </div>
@@ -842,19 +842,19 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       {/* Product Selection Area */}
       <div className="flex-1 flex flex-col gap-4 overflow-hidden">
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
           <input
             ref={searchInputRef}
             type="text"
             placeholder="Search by name, SKU or scan barcode…"
-            className="w-full bg-white rounded-2xl py-4 pl-12 pr-12 border border-black/5 outline-none focus:ring-2 focus:ring-accent-signature/20 shadow-sm font-medium"
+            className="w-full bg-card rounded-2xl py-4 pl-12 pr-12 border border-border/60 outline-none focus:ring-2 focus:ring-accent-signature/20 shadow-sm font-medium"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             onKeyDown={handleSearchEnter}
           />
           <ScanBarcode
             size={18}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
           />
         </div>
 
@@ -864,24 +864,24 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 -mb-1 flex-1">
               <button
                 onClick={() => setCategoryFilter('ALL')}
-                className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === 'ALL' ? 'bg-accent-signature text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+                className={`px-3 py-1.5 rounded-pill text-[11px] whitespace-nowrap transition-colors ${categoryFilter === 'ALL' ? 'bg-foreground text-background font-semibold' : 'bg-card border border-border text-muted-foreground font-medium hover:text-foreground'}`}
               >All</button>
               {productCategories.map(c => (
                 <button
                   key={c}
                   onClick={() => setCategoryFilter(c === categoryFilter ? 'ALL' : c)}
-                  className={`px-3 py-1.5 rounded-pill text-[11px] font-bold whitespace-nowrap transition-colors ${categoryFilter === c ? 'bg-accent-signature text-white' : 'bg-white border border-black/8 text-gray-600 hover:text-ink-primary'}`}
+                  className={`px-3 py-1.5 rounded-pill text-[11px] whitespace-nowrap transition-colors ${categoryFilter === c ? 'bg-foreground text-background font-semibold' : 'bg-card border border-border text-muted-foreground font-medium hover:text-foreground'}`}
                 >{c}</button>
               ))}
             </div>
           )}
-          <div className="flex items-center bg-white border border-black/8 rounded-lg p-0.5 shrink-0 ml-auto">
+          <div className="flex items-center bg-card border border-border rounded-lg p-0.5 shrink-0 ml-auto">
             <button onClick={() => setViewMode('list')} aria-label="List view"
-              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-ink-primary text-white' : 'text-gray-400 hover:text-ink-primary'}`}>
+              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'list' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
               <List size={15} />
             </button>
             <button onClick={() => setViewMode('grid')} aria-label="Grid view"
-              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-ink-primary text-white' : 'text-gray-400 hover:text-ink-primary'}`}>
+              className={`w-7 h-7 rounded-md flex items-center justify-center transition-colors ${viewMode === 'grid' ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
               <LayoutGrid size={15} />
             </button>
           </div>
@@ -901,39 +901,39 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             return (
             <div key={product.id}
               className={`relative rounded-2xl border p-3 flex flex-col transition-all ${
-                outOfStock ? 'opacity-40 border-transparent bg-white/60' :
+                outOfStock ? 'opacity-40 border-transparent bg-card/60' :
                 inCart ? 'border-accent-signature/40 bg-accent-signature/5' :
-                'border-black/8 bg-white hover:border-accent-signature/30 hover:shadow-sm'
+                'border-border bg-card hover:border-accent-signature/30 hover:shadow-sm'
               }`}>
               {cartQty > 0 && (
-                <span className="absolute top-2 right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-accent-signature text-button-text text-[9px] font-black flex items-center justify-center shadow ring-2 ring-white">{cartQty}</span>
+                <span className="absolute top-2 right-2 min-w-[18px] h-[18px] px-1 rounded-full bg-accent-signature text-button-text text-[9px] font-semibold flex items-center justify-center shadow ring-2 ring-white">{cartQty}</span>
               )}
-              <div className="w-10 h-10 rounded-lg overflow-hidden bg-white border border-gray-200 flex items-center justify-center mb-2">
+              <div className="w-10 h-10 rounded-lg overflow-hidden bg-card border border-border flex items-center justify-center mb-2">
                 {product.image
                   ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                  : <span className="text-xs font-black text-ink-primary/30 uppercase">{(product.name||'?').slice(0,2)}</span>}
+                  : <span className="text-xs font-semibold text-foreground/30 uppercase">{(product.name||'?').slice(0,2)}</span>}
               </div>
-              <div className="text-sm font-bold text-ink-primary leading-tight line-clamp-2 mb-1">{product.name}</div>
+              <div className="text-sm font-semibold text-foreground leading-tight line-clamp-2 mb-1">{product.name}</div>
               <div className="flex items-center gap-1.5 mb-1">
-                <span className={`font-mono text-sm font-bold tabular-nums ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>{formatCurrency(product.sellingPrice)}</span>
-                {product.taxRate > 0 && <span className="text-[9px] font-black px-1 rounded bg-blue-50 text-blue-500">{product.taxRate}%</span>}
+                <span className={`tabular-nums text-sm font-semibold tabular-nums ${ms.isLoss ? 'text-red-500' : 'text-foreground'}`}>{formatCurrency(product.sellingPrice)}</span>
+                {product.taxRate > 0 && <span className="text-[9px] font-semibold px-1 rounded bg-blue-50 text-blue-500">{product.taxRate}%</span>}
               </div>
-              <div className={`text-[11px] font-semibold mb-2 ${isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-accent-signature' : 'text-gray-400'}`}>
+              <div className={`text-[11px] font-semibold mb-2 ${isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-accent-signature' : 'text-muted-foreground'}`}>
                 {isSvc ? 'SERVICE' : outOfStock ? 'OUT OF STOCK' : lowStock ? `${stock} stk · low` : `${stock} stk`}
               </div>
               {isExpired(product.id) ? (
-                <div className="text-[9px] font-black px-1.5 py-0.5 rounded bg-red-50 text-red-600 mb-1 inline-block">EXPIRED {batchExpiry[product.id]}</div>
+                <div className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-red-50 text-red-600 mb-1 inline-block">EXPIRED {batchExpiry[product.id]}</div>
               ) : isNearExpiry(product.id) ? (
-                <div className="text-[9px] font-black px-1.5 py-0.5 rounded bg-accent-signature/10 text-accent-signature mb-1 inline-block">EXP {batchExpiry[product.id]}</div>
+                <div className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-accent-signature/10 text-accent-signature mb-1 inline-block">EXP {batchExpiry[product.id]}</div>
               ) : null}
               {!outOfStock && (
                 cartQty > 0 ? (
                   <div className="mt-auto flex items-center justify-between gap-1">
                     <button type="button" onClick={() => updateQuantity(product.id, -1)}
-                      className="w-8 h-8 rounded-lg bg-white border border-black/10 text-ink-primary flex items-center justify-center hover:bg-black/5">
+                      className="w-8 h-8 rounded-lg bg-card border border-border text-foreground flex items-center justify-center hover:bg-black/5">
                       <Minus size={14} />
                     </button>
-                    <span className="text-sm font-black text-ink-primary tabular-nums">{cartQty}</span>
+                    <span className="text-sm font-semibold text-foreground tabular-nums">{cartQty}</span>
                     <button type="button" onClick={() => addToCart(product)}
                       className="w-8 h-8 rounded-lg bg-accent-signature text-button-text flex items-center justify-center hover:opacity-90">
                       <Plus size={14} />
@@ -941,7 +941,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   </div>
                 ) : (
                   <button type="button" onClick={() => addToCart(product)}
-                    className="mt-auto w-full py-2 rounded-lg bg-canvas hover:bg-accent-signature hover:text-button-text text-xs font-black text-ink-primary transition-colors flex items-center justify-center gap-1.5">
+                    className="mt-auto w-full py-2 rounded-lg bg-canvas hover:bg-accent-signature hover:text-button-text text-xs font-semibold text-foreground transition-colors flex items-center justify-center gap-1.5">
                     <Plus size={14} /> Add
                   </button>
                 )
@@ -975,19 +975,19 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   ? 'border-orange-200 bg-orange-50/30 hover:bg-orange-50/60'
                   : inCart
                   ? 'border-accent-signature/40 bg-accent-signature/5 hover:bg-accent-signature/10'
-                  : 'border-transparent bg-white/60 hover:bg-white hover:border-accent-signature/20 hover:shadow-sm'
+                  : 'border-transparent bg-card/60 hover:bg-card hover:border-accent-signature/20 hover:shadow-sm'
               } ${inCart && !outOfStock ? 'ring-2 ring-inset ring-accent-signature/30' : ''}`}
             >
               {/* Thumbnail / initial */}
               <div className="relative flex-shrink-0">
-                <div className="w-8 h-8 rounded-md flex items-center justify-center overflow-hidden bg-white border border-gray-300 shadow-sm">
+                <div className="w-8 h-8 rounded-md flex items-center justify-center overflow-hidden bg-card border border-border shadow-sm">
                   {product.image
                     ? <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
-                    : <span className="text-[11px] font-black text-ink-primary/30 uppercase">{(product.name || '?').slice(0, 2)}</span>
+                    : <span className="text-[11px] font-semibold text-foreground/30 uppercase">{(product.name || '?').slice(0, 2)}</span>
                   }
                 </div>
                 {cartQty > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-accent-signature text-button-text text-[9px] font-black flex items-center justify-center shadow ring-2 ring-white">
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-accent-signature text-button-text text-[9px] font-semibold flex items-center justify-center shadow ring-2 ring-white">
                     {cartQty}
                   </span>
                 )}
@@ -995,24 +995,24 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Name + SKU */}
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-ink-primary truncate leading-tight">{product.name}</div>
-                {product.sku && <div className="text-xs font-medium text-gray-400 truncate">{product.sku}</div>}
+                <div className="text-sm font-semibold text-foreground truncate leading-tight">{product.name}</div>
+                {product.sku && <div className="text-xs font-medium text-muted-foreground truncate">{product.sku}</div>}
               </div>
 
               {/* Price + stock + tax */}
               <div className="text-right flex-shrink-0">
                 <div className="flex items-center justify-end gap-1.5">
-                  <div className={`text-sm font-black leading-none ${ms.isLoss ? 'text-red-500' : 'text-ink-primary'}`}>
+                  <div className={`text-sm font-semibold leading-none ${ms.isLoss ? 'text-red-500' : 'text-foreground'}`}>
                     {formatCurrency(product.sellingPrice)}
                   </div>
                   {product.taxRate > 0 && (
-                    <span className="text-[10px] font-black px-1 py-0.5 rounded bg-blue-50 text-blue-500 border border-blue-100">
+                    <span className="text-[10px] font-semibold px-1 py-0.5 rounded bg-blue-50 text-blue-500 border border-blue-100">
                       {product.taxRate}%
                     </span>
                   )}
                 </div>
                 <div className={`text-xs font-semibold mt-0.5 ${
-                  isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-accent-signature' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-gray-400'
+                  isSvc ? 'text-violet-500' : outOfStock ? 'text-red-400' : lowStock ? 'text-accent-signature' : ms.isLoss || ms.belowFloor ? 'text-orange-500' : 'text-muted-foreground'
                 }`}>
                   {isSvc ? 'SERVICE' : outOfStock ? 'OUT' : lowStock ? `${stock} stk · low` : `${stock} stk`}
                 </div>
@@ -1020,7 +1020,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Warning badge */}
               {(ms.isLoss || ms.belowFloor) && !outOfStock && (
-                <div className={`flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-black uppercase ${
+                <div className={`flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase ${
                   ms.isLoss ? 'bg-red-100 text-red-600' : 'bg-orange-100 text-orange-600'
                 }`}>
                   <AlertTriangle size={7} />
@@ -1037,9 +1037,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     <button
                       type="button"
                       onClick={() => updateQuantity(product.id, -1)}
-                      className="w-7 h-7 rounded-lg bg-white border border-black/10 text-ink-primary flex items-center justify-center hover:bg-black/5"
+                      className="w-7 h-7 rounded-lg bg-card border border-border text-foreground flex items-center justify-center hover:bg-black/5"
                     ><Minus size={13} /></button>
-                    <span className="w-6 text-center text-sm font-black text-ink-primary tabular-nums">{cartQty}</span>
+                    <span className="w-6 text-center text-sm font-semibold text-foreground tabular-nums">{cartQty}</span>
                     <button
                       type="button"
                       onClick={() => updateQuantity(product.id, 1)}
@@ -1051,7 +1051,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     type="button"
                     onClick={e => { e.stopPropagation(); addToCart(product); }}
                     aria-label={`Add ${product.name}`}
-                    className="w-7 h-7 rounded-lg bg-canvas text-gray-500 flex items-center justify-center opacity-60 group-hover:opacity-100 hover:bg-accent-signature hover:text-button-text transition-all flex-shrink-0"
+                    className="w-7 h-7 rounded-lg bg-canvas text-muted-foreground flex items-center justify-center opacity-60 group-hover:opacity-100 hover:bg-accent-signature hover:text-button-text transition-all flex-shrink-0"
                   ><Plus size={14} /></button>
                 )
               )}
@@ -1063,23 +1063,23 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       </div>
 
       {/* Cart Area */}
-      <div className="w-full lg:w-[580px] xl:w-[640px] glass-panel !p-0 flex flex-col overflow-hidden border-l border-black/5 shadow-2xl">
+      <div className="w-full lg:w-[580px] xl:w-[640px] glass-panel !p-0 flex flex-col overflow-hidden border-l border-border/60 shadow-2xl">
         {/* Cart header */}
-        <div className="px-4 py-3 border-b border-black/5 flex justify-between items-center bg-canvas/30">
+        <div className="px-4 py-3 border-b border-border/60 flex justify-between items-center bg-canvas/30">
           <div className="flex items-center gap-2">
             <CartIcon size={18} className="text-accent-signature" />
-            <h2 className="font-semibold text-sm text-ink-primary">Cart</h2>
+            <h2 className="font-semibold text-sm text-foreground">Cart</h2>
           </div>
           <div className="flex items-center gap-2">
             {/* Store selector — only when the tenant has more than one POS
                 store. Tags the sale with where it was rung. */}
             {stores.length > 1 && (
-              <div className="flex items-center gap-1.5 bg-white border border-black/8 rounded-pill pl-2.5 pr-1 py-1">
-                <Store size={12} className="text-gray-400" />
+              <div className="flex items-center gap-1.5 bg-card border border-border rounded-pill pl-2.5 pr-1 py-1">
+                <Store size={12} className="text-muted-foreground" />
                 <select
                   value={storeId}
                   onChange={e => setStoreId(e.target.value)}
-                  className="text-[11px] font-bold text-ink-primary bg-transparent outline-none cursor-pointer pr-1"
+                  className="text-[11px] font-semibold text-foreground bg-transparent outline-none cursor-pointer pr-1"
                 >
                   {stores.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
@@ -1087,17 +1087,17 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
             )}
             {tableLabel && cart.length > 0 && (
               <button onClick={handleSendKOT} disabled={unsentKOTCount === 0} title="Send to kitchen"
-                className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide px-2.5 py-1 rounded-pill bg-ink-primary text-accent-signature/70 hover:bg-black disabled:opacity-40 transition-colors">
+                className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-pill bg-ink-primary text-accent-signature/70 hover:bg-black disabled:opacity-40 transition-colors">
                 🍳 Send KOT{unsentKOTCount > 0 ? ` (${unsentKOTCount})` : ''}
               </button>
             )}
             {cart.length > 0 && (
               <button onClick={holdSale} title="Hold sale"
-                className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-pill border border-black/10 text-gray-500 hover:border-accent-signature/70 hover:text-accent-signature-hover transition-colors">
+                className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide px-2.5 py-1 rounded-pill border border-border text-muted-foreground hover:border-accent-signature/70 hover:text-accent-signature-hover transition-colors">
                 ⏸ Hold
               </button>
             )}
-            <div className="bg-accent-signature text-button-text text-[10px] font-black px-2 py-1 rounded-pill ring-4 ring-accent-signature/10">
+            <div className="bg-accent-signature text-button-text text-[10px] font-semibold px-2 py-1 rounded-pill ring-4 ring-accent-signature/10">
               {cart.reduce((acc, i) => acc + i.quantity, 0)} items
             </div>
           </div>
@@ -1106,12 +1106,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         {/* Parked / held sales — tap to resume. */}
         {parked.length > 0 && (
           <div className="flex items-center gap-2 px-4 py-2 bg-accent-signature/5 border-b border-accent-signature/20 overflow-x-auto">
-            <span className="text-[9px] font-black uppercase tracking-widest text-accent-signature-hover shrink-0">Held · {parked.length}</span>
+            <span className="text-[9px] font-semibold uppercase tracking-widest text-accent-signature-hover shrink-0">Held · {parked.length}</span>
             {parked.map(p => (
               <button key={p.id} onClick={() => resumeSale(p)}
-                className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-pill bg-white border border-accent-signature/25 text-[11px] font-bold text-ink-primary hover:border-accent-signature/70 transition-colors">
+                className="flex items-center gap-1.5 shrink-0 px-2.5 py-1 rounded-pill bg-card border border-accent-signature/25 text-[11px] font-semibold text-foreground hover:border-accent-signature/70 transition-colors">
                 {p.label}
-                <span onClick={(e) => { e.stopPropagation(); persistParked(parked.filter(x => x.id !== p.id)); }} className="text-gray-300 hover:text-red-500">✕</span>
+                <span onClick={(e) => { e.stopPropagation(); persistParked(parked.filter(x => x.id !== p.id)); }} className="text-muted-foreground hover:text-red-500">✕</span>
               </button>
             ))}
           </div>
@@ -1119,11 +1119,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
         {/* Column headers */}
         {cart.length > 0 && (
-          <div className="grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-black/5">
-            <span className="text-xs font-black text-gray-400 uppercase tracking-widest">Product</span>
-            <span className="text-xs font-black text-gray-400 uppercase tracking-widest text-center">Qty</span>
-            <span className="text-xs font-black text-gray-400 uppercase tracking-widest text-right">Unit Price</span>
-            <span className="text-xs font-black text-gray-400 uppercase tracking-widest text-right">Total</span>
+          <div className="grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 px-4 py-2 bg-canvas/50 border-b border-border/60">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Product</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest text-center">Qty</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest text-right">Unit Price</span>
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest text-right">Total</span>
             <span />
           </div>
         )}
@@ -1137,28 +1137,28 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               <div
                 key={k}
                 data-cart-row={k}
-                className={`grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 items-center px-4 py-2.5 border-b border-black/5 last:border-0 transition-colors ${
+                className={`grid grid-cols-[1fr_90px_80px_64px_20px] gap-2 items-center px-4 py-2.5 border-b border-border/60 last:border-0 transition-colors ${
                   belowCost ? 'bg-red-50/60' : 'hover:bg-canvas/40'
                 }`}
               >
                 {/* Product name + modifiers + below-cost hint */}
                 <div className="min-w-0">
-                  <div className="text-sm font-bold text-ink-primary truncate uppercase">{item.name}</div>
+                  <div className="text-sm font-semibold text-foreground truncate uppercase">{item.name}</div>
                   {item.modLabel && (
                     <div className="text-[11px] font-semibold text-accent-signature-hover truncate">+ {item.modLabel}</div>
                   )}
                   {belowCost && (
-                    <div className="text-xs font-bold text-red-500 mt-0.5">
+                    <div className="text-xs font-semibold text-red-500 mt-0.5">
                       Min cost: {formatCurrency(cost)}
                     </div>
                   )}
                 </div>
 
                 {/* Qty stepper */}
-                <div className="flex items-center justify-center gap-0.5 bg-white border border-black/8 rounded-lg p-0.5">
+                <div className="flex items-center justify-center gap-0.5 bg-card border border-border rounded-lg p-0.5">
                   <button
                     onClick={() => updateQuantity(k, -1)}
-                    className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-ink-primary shrink-0"
+                    className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-foreground shrink-0"
                   >
                     <Minus size={9} strokeWidth={3} />
                   </button>
@@ -1167,11 +1167,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     min="1"
                     value={item.quantity}
                     onChange={e => setQuantityDirect(k, e.target.value)}
-                    className="w-8 text-center text-sm font-black text-ink-primary bg-transparent outline-none tabular-nums"
+                    className="w-8 text-center text-sm font-semibold text-foreground bg-transparent outline-none tabular-nums"
                   />
                   <button
                     onClick={() => updateQuantity(k, 1)}
-                    className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-ink-primary shrink-0"
+                    className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-foreground shrink-0"
                   >
                     <Plus size={9} strokeWidth={3} />
                   </button>
@@ -1179,30 +1179,30 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
                 {/* Unit price input */}
                 <div className="relative">
-                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-gray-400 font-bold pointer-events-none">₹</span>
+                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground font-semibold pointer-events-none">₹</span>
                   <input
                     type="number"
                     min="0"
                     step="0.01"
                     value={item.price}
                     onChange={e => setItemPrice(k, e.target.value)}
-                    className={`w-full pl-4 pr-1 py-1 text-sm font-bold bg-canvas rounded-lg outline-none focus:ring-1 tabular-nums border ${
+                    className={`w-full pl-4 pr-1 py-1 text-sm font-semibold bg-canvas rounded-lg outline-none focus:ring-1 tabular-nums border ${
                       belowCost
                         ? 'border-red-300 text-red-600 focus:ring-red-300/40'
-                        : 'border-black/8 text-ink-primary focus:ring-accent-signature/30'
+                        : 'border-border text-foreground focus:ring-accent-signature/30'
                     }`}
                   />
                 </div>
 
                 {/* Line total */}
-                <div className="font-mono text-sm font-bold text-ink-primary tabular-nums text-right">
+                <div className="tabular-nums text-sm font-semibold text-foreground tabular-nums text-right">
                   {formatCurrency(item.price * item.quantity)}
                 </div>
 
                 {/* Remove */}
                 <button
                   onClick={() => setCart(prev => prev.filter(i => (i.uid || i.productId) !== k))}
-                  className="text-gray-300 hover:text-red-400 transition-colors flex items-center justify-center"
+                  className="text-muted-foreground hover:text-red-400 transition-colors flex items-center justify-center"
                 >
                   <X size={11} strokeWidth={2.5} />
                 </button>
@@ -1212,20 +1212,20 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           {cart.length === 0 && (
             <div className="h-full flex flex-col items-center justify-center p-6 text-center">
               <Package size={40} className="mb-3 opacity-20" />
-              <div className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-5">Cart is empty</div>
+              <div className="text-sm text-muted-foreground mb-5">Cart is empty</div>
               {quickAddProducts.length > 0 && (
                 <div className="w-full">
-                  <div className="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2.5">Quick add</div>
+                  <div className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground mb-2.5">Quick add</div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {quickAddProducts.map(p => (
                       <button
                         key={p.id}
                         type="button"
                         onClick={() => addToCart(p)}
-                        className="px-3 py-2.5 rounded-xl border border-black/8 bg-white hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-colors text-left"
+                        className="px-3 py-2.5 rounded-xl border border-border bg-card hover:border-accent-signature/40 hover:bg-accent-signature/5 transition-colors text-left"
                       >
-                        <div className="text-xs font-bold text-ink-primary truncate">{p.name}</div>
-                        <div className="text-[11px] font-semibold text-gray-400 tabular-nums mt-0.5">{formatCurrency(p.sellingPrice)}</div>
+                        <div className="text-xs font-semibold text-foreground truncate">{p.name}</div>
+                        <div className="text-[11px] font-semibold text-muted-foreground tabular-nums mt-0.5">{formatCurrency(p.sellingPrice)}</div>
                       </button>
                     ))}
                   </div>
@@ -1235,10 +1235,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           )}
         </div>
 
-        <div className="p-6 border-t border-black/5 bg-canvas/10">
+        <div className="p-6 border-t border-border/60 bg-canvas/10">
           {/* Client picker — combobox, always-visible search */}
           <div className="mb-4">
-            <label className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">
+            <label className="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">
               <User size={12} /> Client
             </label>
             <div ref={clientDropRef} className="relative">
@@ -1249,20 +1249,20 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 return (
                   <div className="w-full bg-accent-signature/5 border border-accent-signature/20 rounded-xl px-4 py-3 flex items-center justify-between gap-2">
                     <span className="flex flex-col min-w-0 flex-1">
-                      <span className="text-xs font-black text-ink-primary uppercase tracking-tight truncate">{(sel?.name || 'Unknown').toUpperCase()}</span>
+                      <span className="text-xs font-semibold text-foreground uppercase tracking-tight truncate">{(sel?.name || 'Unknown').toUpperCase()}</span>
                       {(sel?.phone || sel?.address) && (
-                        <span className="text-[9px] text-gray-400 font-medium truncate mt-0.5">{sel?.phone || sel?.address}</span>
+                        <span className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">{sel?.phone || sel?.address}</span>
                       )}
                     </span>
                     {Number(sel?.outstanding_balance) > 0 && (
-                      <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500 whitespace-nowrap">
+                      <span className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500 whitespace-nowrap">
                         Due {formatCurrency(sel.outstanding_balance)}
                       </span>
                     )}
                     <button
                       type="button"
                       onClick={() => { setSelectedClientId('WALKIN'); setClientSearch(''); setClientDropOpen(false); }}
-                      className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center text-gray-400 hover:bg-black/10 shrink-0"
+                      className="w-6 h-6 rounded-full bg-black/5 flex items-center justify-center text-muted-foreground hover:bg-black/10 shrink-0"
                     >
                       <X size={10} />
                     </button>
@@ -1271,11 +1271,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               })() : (
                 /* Search input — always visible when no client selected or editing */
                 <div className="relative">
-                  <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  <Search size={13} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                   <input
                     type="text"
                     placeholder="Type client name to search…"
-                    className="w-full bg-white rounded-xl py-3 pl-9 pr-4 border border-black/8 outline-none focus:ring-2 focus:ring-accent-signature/20 text-xs font-semibold text-ink-primary placeholder:text-gray-400 placeholder:font-normal"
+                    className="w-full bg-card rounded-xl py-3 pl-9 pr-4 border border-border outline-none focus:ring-2 focus:ring-accent-signature/20 text-xs font-semibold text-foreground placeholder:text-muted-foreground placeholder:font-normal"
                     value={clientSearch}
                     onChange={e => { setClientSearch(e.target.value); setClientDropOpen(true); }}
                     onFocus={() => setClientDropOpen(true)}
@@ -1284,7 +1284,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     <button
                       type="button"
                       onClick={() => { setClientSearch(''); setClientDropOpen(false); }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-muted-foreground"
                     >
                       <X size={11} />
                     </button>
@@ -1294,13 +1294,13 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Dropdown results */}
               {clientDropOpen && (
-                <div className="absolute z-50 bottom-full mb-1 left-0 right-0 bg-white border border-black/10 rounded-xl shadow-xl overflow-hidden">
+                <div className="absolute z-50 bottom-full mb-1 left-0 right-0 bg-card border border-border rounded-xl shadow-xl overflow-hidden">
                   <div className="max-h-52 overflow-y-auto">
                     {/* Walk-in option */}
                     <button
                       type="button"
                       onClick={() => { setSelectedClientId('WALKIN'); setClientDropOpen(false); setClientSearch(''); }}
-                      className={`w-full text-left px-4 py-3 text-xs font-bold uppercase tracking-tight flex items-center justify-between hover:bg-canvas transition-colors border-b border-black/5 ${selectedClientId === 'WALKIN' ? 'text-accent-signature bg-accent-signature/5' : 'text-gray-400'}`}
+                      className={`w-full text-left px-4 py-3 text-xs font-semibold uppercase tracking-tight flex items-center justify-between hover:bg-canvas transition-colors border-b border-border/60 ${selectedClientId === 'WALKIN' ? 'text-accent-signature bg-accent-signature/5' : 'text-muted-foreground'}`}
                     >
                       Walk-in / No client
                       {selectedClientId === 'WALKIN' && <Check size={12} />}
@@ -1322,17 +1322,17 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                           className={`w-full text-left px-4 py-2.5 flex items-center justify-between hover:bg-canvas transition-colors ${selectedClientId === c.id ? 'bg-accent-signature/5' : ''}`}
                         >
                           <span className="flex flex-col min-w-0 flex-1">
-                            <span className={`text-xs font-bold uppercase tracking-tight truncate ${selectedClientId === c.id ? 'text-accent-signature' : 'text-ink-primary'}`}>
+                            <span className={`text-xs font-semibold uppercase tracking-tight truncate ${selectedClientId === c.id ? 'text-accent-signature' : 'text-foreground'}`}>
                               {(c.name || 'Unnamed').toUpperCase()}
                             </span>
                             {(c.phone || c.address) && (
-                              <span className="text-[9px] text-gray-400 font-medium truncate mt-0.5">
+                              <span className="text-[9px] text-muted-foreground font-medium truncate mt-0.5">
                                 {c.phone || c.address}
                               </span>
                             )}
                           </span>
                           {Number(c.outstanding_balance) > 0 && (
-                            <span className="shrink-0 ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500">
+                            <span className="shrink-0 ml-2 text-[9px] font-semibold px-1.5 py-0.5 rounded-full bg-red-50 text-red-500">
                               Due {formatCurrency(c.outstanding_balance)}
                             </span>
                           )}
@@ -1346,7 +1346,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       (c.name || '').toLowerCase().includes(clientSearch.toLowerCase()) ||
                       (c.phone || '').toLowerCase().includes(clientSearch.toLowerCase())
                     ).length === 0 && (
-                      <div className="px-4 py-5 text-center text-[10px] text-gray-400">No clients match "{clientSearch}"</div>
+                      <div className="px-4 py-5 text-center text-[10px] text-muted-foreground">No clients match "{clientSearch}"</div>
                     )}
                   </div>
 
@@ -1355,40 +1355,40 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     <button
                       type="button"
                       onClick={() => { setShowAddCust(true); setNewCust(n => ({ ...n, name: clientSearch.trim() })); }}
-                      className="w-full text-left px-4 py-3 text-[11px] font-bold uppercase tracking-tight flex items-center gap-2 text-accent-signature hover:bg-accent-signature/5 border-t border-black/5"
+                      className="w-full text-left px-4 py-3 text-[11px] font-semibold uppercase tracking-tight flex items-center gap-2 text-accent-signature hover:bg-accent-signature/5 border-t border-border/60"
                     >
                       <Plus size={13} /> Add new customer
                     </button>
                   ) : (
-                    <div className="p-3 border-t border-black/5 bg-canvas/40 space-y-2">
-                      <div className="flex gap-1 bg-white rounded-lg p-0.5 border border-black/5">
+                    <div className="p-3 border-t border-border/60 bg-canvas/40 space-y-2">
+                      <div className="flex gap-1 bg-card rounded-lg p-0.5 border border-border/60">
                         {[['B2C', 'Individual'], ['B2B', 'Business']].map(([v, label]) => (
                           <button key={v} type="button" onClick={() => setNewCust(n => ({ ...n, type: v }))}
-                            className={`flex-1 h-7 rounded-md text-[11px] font-bold transition-all ${newCust.type === v ? 'bg-accent-signature text-button-text' : 'text-gray-400'}`}>
+                            className={`flex-1 h-7 rounded-md text-[11px] font-semibold transition-all ${newCust.type === v ? 'bg-accent-signature text-button-text' : 'text-muted-foreground'}`}>
                             {label}
                           </button>
                         ))}
                       </div>
                       <input value={newCust.name} onChange={e => setNewCust(n => ({ ...n, name: e.target.value }))}
                         placeholder="Customer name*"
-                        className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
+                        className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
                       <input value={newCust.phone} onChange={e => setNewCust(n => ({ ...n, phone: e.target.value }))}
                         inputMode="numeric" placeholder="Phone number*"
-                        className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
+                        className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
                       {newCust.type === 'B2C' ? (
                         <input value={newCust.aadhaar} onChange={e => setNewCust(n => ({ ...n, aadhaar: e.target.value }))}
                           inputMode="numeric" placeholder="Aadhaar (optional, 12 digits)"
-                          className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
+                          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
                       ) : (
                         <input value={newCust.gstin} onChange={e => setNewCust(n => ({ ...n, gstin: e.target.value.toUpperCase() }))}
                           placeholder="GSTIN (optional, 15 chars)"
-                          className="w-full bg-white border border-black/10 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
+                          className="w-full bg-card border border-border rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/40" />
                       )}
                       <div className="flex gap-2 pt-0.5">
                         <button type="button" onClick={() => setShowAddCust(false)}
-                          className="flex-1 h-8 rounded-lg text-[11px] font-bold text-gray-500 border border-black/10 hover:bg-white">Cancel</button>
+                          className="flex-1 h-8 rounded-lg text-[11px] font-semibold text-muted-foreground border border-border hover:bg-card">Cancel</button>
                         <button type="button" onClick={saveNewCustomer} disabled={savingCust}
-                          className="flex-1 h-8 rounded-lg text-[11px] font-bold bg-accent-signature text-button-text disabled:opacity-50">
+                          className="flex-1 h-8 rounded-lg text-[11px] font-semibold bg-accent-signature text-button-text disabled:opacity-50">
                           {savingCust ? 'Saving…' : 'Save & select'}
                         </button>
                       </div>
@@ -1401,12 +1401,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           {/* Service charge (restaurant) */}
           {isRestoPOS && (
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Service</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Service</span>
               <div className="flex gap-1 flex-1">
                 {[0, 5, 10].map(pct => (
                   <button key={pct} type="button" onClick={() => setServiceChargePct(pct)}
-                    className={`flex-1 h-8 rounded-lg text-[12px] font-bold transition-all ${
-                      Number(serviceChargePct) === pct ? 'bg-accent-signature text-white' : 'bg-black/[0.04] text-gray-500 hover:text-ink-primary'
+                    className={`flex-1 h-8 rounded-lg text-[12px] font-semibold transition-all ${
+                      Number(serviceChargePct) === pct ? 'bg-accent-signature text-white' : 'bg-black/[0.04] text-muted-foreground hover:text-foreground'
                     }`}>
                     {pct === 0 ? 'None' : `${pct}%`}
                   </button>
@@ -1417,59 +1417,59 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           {/* Split bill (restaurant) — equal split display aid */}
           {isRestoPOS && total > 0 && (
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Split</span>
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Split</span>
               <div className="flex items-center gap-1 bg-black/[0.04] rounded-lg p-0.5">
-                <button type="button" onClick={() => setSplitN(n => Math.max(1, n - 1))} className="w-7 h-7 rounded grid place-items-center hover:bg-white"><Minus size={12} /></button>
-                <span className="w-7 text-center text-[13px] font-bold font-mono">{splitN}</span>
-                <button type="button" onClick={() => setSplitN(n => n + 1)} className="w-7 h-7 rounded grid place-items-center hover:bg-white"><Plus size={12} /></button>
+                <button type="button" onClick={() => setSplitN(n => Math.max(1, n - 1))} className="w-7 h-7 rounded grid place-items-center hover:bg-card"><Minus size={12} /></button>
+                <span className="w-7 text-center text-[13px] font-semibold tabular-nums">{splitN}</span>
+                <button type="button" onClick={() => setSplitN(n => n + 1)} className="w-7 h-7 rounded grid place-items-center hover:bg-card"><Plus size={12} /></button>
               </div>
               {splitN > 1 && (
-                <span className="text-[12px] font-bold text-accent-signature-hover ml-auto">
-                  {formatCurrency(total / splitN)} <span className="text-gray-400 font-normal">/ guest</span>
+                <span className="text-[12px] font-semibold text-accent-signature-hover ml-auto">
+                  {formatCurrency(total / splitN)} <span className="text-muted-foreground font-normal">/ guest</span>
                 </span>
               )}
             </div>
           )}
           {/* Order discount (flat amount) */}
-          <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-black/[0.03] border border-black/8 focus-within:border-accent-signature/70">
-            <span className="text-accent-signature text-sm font-bold">%</span>
+          <div className="flex items-center gap-2 mb-3 px-3 py-2 rounded-xl bg-black/[0.03] border border-border focus-within:border-accent-signature/70">
+            <span className="text-accent-signature text-sm font-semibold">%</span>
             <input
               type="number" min="0" inputMode="decimal" placeholder="Discount (flat ₹)"
-              className="flex-1 bg-transparent outline-none text-[13px] font-semibold font-mono text-ink-primary placeholder:text-gray-400 placeholder:font-sans"
+              className="flex-1 bg-transparent outline-none text-[13px] font-semibold tabular-nums text-foreground placeholder:text-muted-foreground placeholder:font-sans"
               value={discount}
               onChange={e => setDiscount(e.target.value)}
             />
             {discountAmt > 0 && (
-              <button onClick={() => setDiscount('')} className="text-gray-400 hover:text-red-500"><X size={13} /></button>
+              <button onClick={() => setDiscount('')} className="text-muted-foreground hover:text-red-500"><X size={13} /></button>
             )}
           </div>
           <div className="space-y-2 mb-6">
-            <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
+            <div className="flex justify-between text-xs font-semibold text-muted-foreground uppercase tracking-widest">
               <span>{taxInclusive ? 'Subtotal (excl. tax)' : 'Subtotal'}</span>
-              <span className="font-mono tabular-nums">{formatCurrency(taxableAmount)}</span>
+              <span className="tabular-nums">{formatCurrency(taxableAmount)}</span>
             </div>
-            <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
+            <div className="flex justify-between text-xs font-semibold text-muted-foreground uppercase tracking-widest">
               <span>Tax{taxInclusive ? ' (included)' : ''}</span>
-              <span className="font-mono tabular-nums">{formatCurrency(tax)}</span>
+              <span className="tabular-nums">{formatCurrency(tax)}</span>
             </div>
             {serviceChargeAmt > 0 && (
-              <div className="flex justify-between text-xs font-bold text-gray-400 uppercase tracking-widest">
+              <div className="flex justify-between text-xs font-semibold text-muted-foreground uppercase tracking-widest">
                 <span>Service charge ({serviceChargePct}%)</span>
-                <span className="font-mono tabular-nums">{formatCurrency(serviceChargeAmt)}</span>
+                <span className="tabular-nums">{formatCurrency(serviceChargeAmt)}</span>
               </div>
             )}
             {discountAmt > 0 && (
-              <div className="flex justify-between text-xs font-bold text-red-500 uppercase tracking-widest">
+              <div className="flex justify-between text-xs font-semibold text-red-500 uppercase tracking-widest">
                 <span>Discount</span>
-                <span className="font-mono tabular-nums">−{formatCurrency(discountAmt)}</span>
+                <span className="tabular-nums">−{formatCurrency(discountAmt)}</span>
               </div>
             )}
-            <div className="flex justify-between text-xl font-black text-ink-primary pt-2 border-t border-black/5">
+            <div className="flex justify-between text-xl font-semibold text-foreground pt-2 border-t border-border/60">
               <span>Total</span>
-              <span className="font-mono tabular-nums">{formatCurrency(total)}</span>
+              <span className="tabular-nums">{formatCurrency(total)}</span>
             </div>
             {taxInclusive && (
-              <p className="text-[10px] text-gray-400 font-medium text-right">
+              <p className="text-[10px] text-muted-foreground font-medium text-right">
                 Listed prices include GST — subtotal shown net of tax.
               </p>
             )}
@@ -1490,7 +1490,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 {belowCostItems.length > 0 && (
                   <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-50 border border-red-300 text-red-700 mb-2">
                     <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                    <p className="text-xs font-bold leading-snug">
+                    <p className="text-xs font-semibold leading-snug">
                       Cannot sell below purchase cost. Adjust price for: {belowCostItems.map(i => i.name).join(', ')}.
                     </p>
                   </div>
@@ -1498,7 +1498,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                 {hasFloorWarn && belowCostItems.length === 0 && (
                   <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-orange-50 border border-orange-200 text-orange-700 mb-2">
                     <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                    <p className="text-xs font-bold leading-snug">
+                    <p className="text-xs font-semibold leading-snug">
                       Some items are below your minimum margin floor.
                     </p>
                   </div>
@@ -1521,19 +1521,19 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       {showCheckout && (
       <div className="fixed inset-0 z-50 bg-canvas flex flex-col">
         {/* Header */}
-        <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-black/5 shrink-0">
+        <div className="flex items-center gap-4 px-6 py-4 bg-card border-b border-border/60 shrink-0">
           <button
             onClick={() => setShowCheckout(false)}
-            className="flex items-center gap-2 text-xs font-black text-gray-500 hover:text-ink-primary transition-colors"
+            className="flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
           >
             <ChevronLeft size={16} /> Back to Cart
           </button>
           <div className="flex-1" />
-          <h1 className="text-base font-black font-sora uppercase text-ink-primary">
+          <h1 className="text-base font-semibold text-foreground tracking-tight">
             Checkout<span className="text-accent-signature">.</span>
           </h1>
           <div className="flex-1" />
-          <span className="text-xs font-semibold text-gray-400">{cart.length} item{cart.length !== 1 ? 's' : ''}</span>
+          <span className="text-xs font-semibold text-muted-foreground">{cart.length} item{cart.length !== 1 ? 's' : ''}</span>
         </div>
 
         {/* Body */}
@@ -1542,19 +1542,19 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
             {/* Left: Order Summary */}
             <div className="space-y-4">
-              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Order Summary</p>
-              <div className="bg-white rounded-2xl border border-black/5 overflow-hidden">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Order Summary</p>
+              <div className="bg-card rounded-2xl border border-border/60 overflow-hidden">
                 {cart.map((item, idx) => (
-                  <div key={item.uid || item.productId} className={`flex items-center gap-4 px-5 py-3.5 ${idx !== cart.length - 1 ? 'border-b border-black/5' : ''}`}>
-                    <div className="w-8 h-8 rounded-lg bg-white border border-gray-300 shadow-sm flex items-center justify-center shrink-0">
-                      <Package size={14} className="text-gray-400" />
+                  <div key={item.uid || item.productId} className={`flex items-center gap-4 px-5 py-3.5 ${idx !== cart.length - 1 ? 'border-b border-border/60' : ''}`}>
+                    <div className="w-8 h-8 rounded-lg bg-card border border-border shadow-sm flex items-center justify-center shrink-0">
+                      <Package size={14} className="text-muted-foreground" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-semibold text-ink-primary truncate">{item.name}</div>
+                      <div className="text-sm font-semibold text-foreground truncate">{item.name}</div>
                       {item.modLabel && <div className="text-[10px] text-accent-signature-hover font-semibold truncate">+ {item.modLabel}</div>}
-                      <div className="text-[10px] text-gray-400 font-medium">{formatCurrency(item.price)} × {item.quantity}</div>
+                      <div className="text-[10px] text-muted-foreground font-medium">{formatCurrency(item.price)} × {item.quantity}</div>
                     </div>
-                    <div className="text-sm font-black text-ink-primary tabular-nums shrink-0">
+                    <div className="text-sm font-semibold text-foreground tabular-nums shrink-0">
                       {formatCurrency(item.price * item.quantity)}
                     </div>
                   </div>
@@ -1562,35 +1562,35 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               </div>
 
               {/* Totals */}
-              <div className="bg-white rounded-2xl border border-black/5 p-5 space-y-2">
+              <div className="bg-card rounded-2xl border border-border/60 p-5 space-y-2">
                 <div className="flex items-center justify-between mb-1">
-                  <span className={`text-[9px] font-black px-2 py-0.5 rounded-full ${taxInclusive ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>
+                  <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full ${taxInclusive ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-muted-foreground'}`}>
                     {taxInclusive ? 'TAX INCLUSIVE' : 'TAX EXCLUSIVE'}
                   </span>
                 </div>
-                <div className="flex justify-between text-xs font-semibold text-gray-500">
+                <div className="flex justify-between text-xs font-semibold text-muted-foreground">
                   <span>{taxInclusive ? 'Taxable (extracted)' : 'Subtotal'}</span>
                   <span className="tabular-nums">{formatCurrency(taxableAmount)}</span>
                 </div>
                 {tax > 0 && (
-                  <div className="flex justify-between text-xs font-semibold text-gray-500">
+                  <div className="flex justify-between text-xs font-semibold text-muted-foreground">
                     <span>GST {taxInclusive ? '(incl.)' : ''}</span><span className="tabular-nums">{formatCurrency(tax)}</span>
                   </div>
                 )}
                 {deliveryFeeAmt > 0 && (
-                  <div className="flex justify-between text-xs font-semibold text-gray-500 items-center">
+                  <div className="flex justify-between text-xs font-semibold text-muted-foreground items-center">
                     <span className="flex items-center gap-1"><Truck size={11} /> Delivery Fee</span>
                     <span className="tabular-nums">+ {formatCurrency(deliveryFeeAmt)}</span>
                   </div>
                 )}
                 {discountAmt > 0 && (
-                  <div className="flex justify-between text-xs font-bold text-red-500 items-center">
+                  <div className="flex justify-between text-xs font-semibold text-red-500 items-center">
                     <span>Discount</span>
                     <span className="tabular-nums">− {formatCurrency(discountAmt)}</span>
                   </div>
                 )}
-                <div className="border-t border-black/8 pt-2 flex justify-between text-base font-black text-ink-primary">
-                  <span>Total</span><span className="font-mono tabular-nums">{formatCurrency(total)}</span>
+                <div className="border-t border-border pt-2 flex justify-between text-base font-semibold text-foreground">
+                  <span>Total</span><span className="tabular-nums">{formatCurrency(total)}</span>
                 </div>
               </div>
 
@@ -1598,16 +1598,16 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               {selectedClientId !== 'WALKIN' && (() => {
                 const client = allClients.find(c => c.id === selectedClientId);
                 return client ? (
-                  <div className="bg-white rounded-2xl border border-black/5 p-4 flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-accent-signature/10 border border-accent-signature/20 flex items-center justify-center text-sm font-black text-ink-primary shrink-0">
+                  <div className="bg-card rounded-2xl border border-border/60 p-4 flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-accent-signature/10 border border-accent-signature/20 flex items-center justify-center text-sm font-semibold text-foreground shrink-0">
                       {client.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-bold text-ink-primary truncate">{client.name}</div>
-                      {client.phone && <div className="text-[10px] text-gray-400 font-medium">{client.phone}</div>}
+                      <div className="text-sm font-semibold text-foreground truncate">{client.name}</div>
+                      {client.phone && <div className="text-[10px] text-muted-foreground font-medium">{client.phone}</div>}
                     </div>
                     {Number(client.outstanding_balance) > 0 && (
-                      <span className="shrink-0 text-[10px] font-bold px-2 py-1 rounded-full bg-red-50 text-red-500 whitespace-nowrap">
+                      <span className="shrink-0 text-[10px] font-semibold px-2 py-1 rounded-full bg-red-50 text-red-500 whitespace-nowrap">
                         Due {formatCurrency(client.outstanding_balance)}
                       </span>
                     )}
@@ -1621,7 +1621,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Fulfillment */}
               <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Fulfillment</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Fulfillment</p>
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { key: 'PICKUP',   label: 'Store Pickup', icon: <Store size={20} />,  desc: 'Collect from store' },
@@ -1634,14 +1634,14 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${
                         fulfillmentType === key
                           ? 'border-accent-signature bg-accent-signature/5'
-                          : 'border-black/8 bg-white hover:border-black/15'
+                          : 'border-border bg-card hover:border-black/15'
                       }`}
                     >
-                      <div className={`p-2 rounded-xl ${fulfillmentType === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-gray-400'}`}>
+                      <div className={`p-2 rounded-xl ${fulfillmentType === key ? 'bg-accent-signature text-button-text' : 'bg-canvas text-muted-foreground'}`}>
                         {icon}
                       </div>
-                      <span className="text-xs font-black uppercase tracking-widest">{label}</span>
-                      <span className="text-[9px] text-gray-400">{desc}</span>
+                      <span className="text-xs font-semibold uppercase tracking-widest">{label}</span>
+                      <span className="text-[9px] text-muted-foreground">{desc}</span>
                     </button>
                   ))}
                 </div>
@@ -1649,12 +1649,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Delivery Details */}
               {fulfillmentType === 'DELIVERY' && (
-                <div className="bg-white rounded-2xl border border-black/5 p-4 space-y-3">
-                  <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Delivery Details</p>
+                <div className="bg-card rounded-2xl border border-border/60 p-4 space-y-3">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Delivery Details</p>
 
                   {/* Address — pre-filled from client, user can pick or override */}
                   <div>
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1">
+                    <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5 flex items-center gap-1">
                       <MapPin size={9} /> Delivery Address
                     </label>
                     {/* Client address shortcut */}
@@ -1668,8 +1668,8 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         >
                           <MapPin size={11} className="text-accent-signature shrink-0" />
                           <div className="min-w-0">
-                            <div className="text-[8px] font-black text-accent-signature uppercase tracking-wider">Use client address</div>
-                            <div className="text-[10px] font-semibold text-ink-primary truncate">{client.address}</div>
+                            <div className="text-[8px] font-semibold text-accent-signature uppercase tracking-wider">Use client address</div>
+                            <div className="text-[10px] font-semibold text-foreground truncate">{client.address}</div>
                           </div>
                           <Check size={11} className="text-accent-signature shrink-0 ml-auto" />
                         </button>
@@ -1680,45 +1680,45 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       placeholder="Full delivery address…"
                       value={deliveryDetails.address}
                       onChange={e => setDeliveryDetails(p => ({ ...p, address: e.target.value }))}
-                      className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 resize-none"
+                      className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 resize-none"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1.5">Zone / Area</label>
+                      <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5">Zone / Area</label>
                       <input type="text" placeholder="e.g. North Zone"
                         value={deliveryDetails.zone}
                         onChange={e => setDeliveryDetails(p => ({ ...p, zone: e.target.value }))}
-                        className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                        className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
                       />
                     </div>
                     <div>
-                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1"><Calendar size={9} /> Date</label>
+                      <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5 flex items-center gap-1"><Calendar size={9} /> Date</label>
                       <input type="date"
                         value={deliveryDetails.date}
                         min={new Date().toISOString().split('T')[0]}
                         onChange={e => setDeliveryDetails(p => ({ ...p, date: e.target.value }))}
-                        className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                        className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
                       />
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1"><DollarSign size={9} /> Delivery Fee</label>
+                      <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5 flex items-center gap-1"><DollarSign size={9} /> Delivery Fee</label>
                       <input type="number" placeholder="0" min="0"
                         value={deliveryDetails.fee}
                         onChange={e => setDeliveryDetails(p => ({ ...p, fee: e.target.value }))}
-                        className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                        className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
                       />
                     </div>
                     <div>
-                      <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1.5 flex items-center gap-1"><MessageSquare size={9} /> Notes</label>
+                      <label className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest block mb-1.5 flex items-center gap-1"><MessageSquare size={9} /> Notes</label>
                       <input type="text" placeholder="e.g. Call before"
                         value={deliveryDetails.notes}
                         onChange={e => setDeliveryDetails(p => ({ ...p, notes: e.target.value }))}
-                        className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
+                        className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2 text-xs font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20"
                       />
                     </div>
                   </div>
@@ -1728,11 +1728,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               {/* IMEI / serial capture for serialized products */}
               {serialLines.length > 0 && (
                 <div className="rounded-2xl border border-accent-signature/25 bg-accent-signature/5 p-3">
-                  <p className="text-[10px] font-black text-accent-signature-hover uppercase tracking-widest mb-2">IMEI / Serial Number</p>
+                  <p className="text-[10px] font-semibold text-accent-signature-hover uppercase tracking-widest mb-2">IMEI / Serial Number</p>
                   <div className="space-y-3">
                     {serialLines.map(l => (
                       <div key={l.uid}>
-                        <div className="text-[11px] font-bold text-ink-primary mb-1">{l.name} · {l.quantity} unit{l.quantity > 1 ? 's' : ''}</div>
+                        <div className="text-[11px] font-semibold text-foreground mb-1">{l.name} · {l.quantity} unit{l.quantity > 1 ? 's' : ''}</div>
                         <div className="space-y-1.5">
                           {Array.from({ length: l.quantity }).map((_, idx) => (
                             <input
@@ -1741,7 +1741,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                               onChange={e => setImei(l.uid, idx, e.target.value)}
                               inputMode="numeric"
                               placeholder={`Unit ${idx + 1} — scan or type IMEI/serial`}
-                              className="w-full bg-white border border-accent-signature/25 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/70"
+                              className="w-full bg-card border border-accent-signature/25 rounded-lg px-3 py-2 text-xs font-semibold outline-none focus:border-accent-signature/70"
                             />
                           ))}
                         </div>
@@ -1753,7 +1753,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Payment Method */}
               <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Payment Method</p>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Payment Method</p>
 
                 {/* Type pills — one per type (CASH / UPI / BANK / CARD) */}
                 <div className="flex flex-wrap gap-2">
@@ -1777,11 +1777,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 transition-all ${
                           isActive
                             ? 'border-accent-signature bg-accent-signature/5'
-                            : 'border-black/8 bg-white hover:border-black/15'
+                            : 'border-border bg-card hover:border-black/15'
                         }`}
                       >
-                        <span className={`shrink-0 ${isActive ? 'text-accent-signature' : 'text-gray-400'}`}>{icon}</span>
-                        <span className="text-xs font-black uppercase tracking-widest leading-none">{label}</span>
+                        <span className={`shrink-0 ${isActive ? 'text-accent-signature' : 'text-muted-foreground'}`}>{icon}</span>
+                        <span className="text-xs font-semibold uppercase tracking-widest leading-none">{label}</span>
                         {isActive && <Check size={12} className="text-accent-signature shrink-0" />}
                       </button>
                     );
@@ -1794,22 +1794,22 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   if (!activeGroup || activeGroup.accs.length <= 1) return null;
                   return (
                     <div className="mt-2 flex flex-wrap gap-1.5">
-                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-widest self-center mr-1">Account:</span>
+                      <span className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest self-center mr-1">Account:</span>
                       {activeGroup.accs.map(a => {
                         const isSelected = paymentAccountId === a.id || (!paymentAccountId && a.id === activeGroup.defaultAcc.id);
                         return (
                           <button key={a.id} type="button"
                             onClick={() => setPaymentAccountId(a.id)}
-                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all ${
                               isSelected
                                 ? 'border-accent-signature text-accent-signature bg-accent-signature/5'
-                                : 'border-black/10 text-gray-500 hover:border-black/20 bg-white'
+                                : 'border-border text-muted-foreground hover:border-black/20 bg-card'
                             }`}
                           >
                             {a.name}
                             {a.is_default && (
-                              <span className={`text-[7px] font-black uppercase tracking-wider px-1 py-0.5 rounded ${
-                                isSelected ? 'bg-accent-signature/20 text-accent-signature' : 'bg-black/5 text-gray-400'
+                              <span className={`text-[7px] font-semibold uppercase tracking-wider px-1 py-0.5 rounded ${
+                                isSelected ? 'bg-accent-signature/20 text-accent-signature' : 'bg-black/5 text-muted-foreground'
                               }`}>DEFAULT</span>
                             )}
                           </button>
@@ -1827,16 +1827,16 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   }}
                   className={`mt-2 w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 transition-all ${
                     selectedClientId === 'WALKIN'
-                      ? 'opacity-40 cursor-not-allowed border-black/8 bg-white'
+                      ? 'opacity-40 cursor-not-allowed border-border bg-card'
                       : paymentMethod === 'CREDIT'
                       ? 'border-accent-signature bg-accent-signature/5'
-                      : 'border-black/8 bg-white hover:border-black/15'
+                      : 'border-border bg-card hover:border-black/15'
                   }`}
                 >
-                  <CreditCard size={15} className={paymentMethod === 'CREDIT' ? 'text-accent-signature' : 'text-gray-400'} />
+                  <CreditCard size={15} className={paymentMethod === 'CREDIT' ? 'text-accent-signature' : 'text-muted-foreground'} />
                   <div className="flex-1 text-left">
-                    <div className="text-xs font-black uppercase tracking-widest leading-none">Client Credit</div>
-                    {selectedClientId === 'WALKIN' && <div className="text-[9px] text-gray-400 mt-0.5">Select a client first</div>}
+                    <div className="text-xs font-semibold uppercase tracking-widest leading-none">Client Credit</div>
+                    {selectedClientId === 'WALKIN' && <div className="text-[9px] text-muted-foreground mt-0.5">Select a client first</div>}
                   </div>
                   {paymentMethod === 'CREDIT' && <Check size={13} className="text-accent-signature shrink-0" />}
                 </button>
@@ -1873,15 +1873,15 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   `&cur=${encodeURIComponent(businessProfile?.currencySymbol || '₹')}`;
                 return (
                   <div className="rounded-2xl border-2 border-accent-signature/20 bg-accent-signature/5 p-4 flex flex-col items-center gap-3">
-                    <div className="bg-white p-3 rounded-xl border border-black/5">
+                    <div className="bg-card p-3 rounded-xl border border-border/60">
                       <QRCodeSVG value={upiUri} size={150} level="M" includeMargin={false} />
                     </div>
-                    <div className="text-sm font-black text-ink-primary tabular-nums">
+                    <div className="text-sm font-semibold text-foreground tabular-nums">
                       {formatCurrency(total)}
                     </div>
-                    <div className="text-[10px] text-gray-500">
+                    <div className="text-[10px] text-muted-foreground">
                       UPI: <b>{upiId}</b>
-                      {selectedUpiAcc && <span className="text-gray-400"> · {selectedUpiAcc.name}</span>}
+                      {selectedUpiAcc && <span className="text-muted-foreground"> · {selectedUpiAcc.name}</span>}
                     </div>
                     <button
                       type="button"
@@ -1889,7 +1889,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                         popoutUrl, 'payqr',
                         'width=520,height=720,menubar=no,toolbar=no,location=no,status=no'
                       )}
-                      className="text-xs font-bold text-accent-signature underline"
+                      className="text-xs font-semibold text-accent-signature underline"
                     >
                       Show on customer screen ↗
                     </button>
@@ -1899,7 +1899,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
 
               {/* Amount Received — partial pay + change calc */}
               <div>
-                <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">
                   {paymentMethod === 'CREDIT' ? 'Part Payment Now (optional)' : 'Amount Received (optional)'}
                 </p>
                 <input
@@ -1907,7 +1907,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   placeholder={paymentMethod === 'CREDIT' ? 'e.g. 100 — rest to credit' : 'Leave blank if paid in full'}
                   value={amountReceived}
                   onChange={(e) => setAmountReceived(e.target.value)}
-                  className="w-full bg-white border border-gray-300 shadow-sm rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
+                  className="w-full bg-card border border-border shadow-sm rounded-xl px-3 py-2.5 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent-signature/20 tabular-nums"
                 />
                 {amountReceived.trim() !== '' && (() => {
                   const paid = Math.max(0, parseFloat(amountReceived) || 0);
@@ -1916,7 +1916,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   const isChange = diff > 0;
                   const color = isChange ? 'text-emerald-600 bg-emerald-50 border-emerald-200' : 'text-red-600 bg-red-50 border-red-200';
                   return (
-                    <div className={`mt-2 px-3 py-2 rounded-xl border text-xs font-bold tabular-nums flex items-center justify-between ${color}`}>
+                    <div className={`mt-2 px-3 py-2 rounded-xl border text-xs font-semibold tabular-nums flex items-center justify-between ${color}`}>
                       <span>{isChange ? 'Change due' : 'Balance to credit'}</span>
                       <span>{formatCurrency(Math.abs(diff))}</span>
                     </div>
@@ -1968,16 +1968,16 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
+      <div className="bg-card rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden">
 
         {/* Header */}
-        <div className="px-6 pt-6 pb-4 border-b border-black/5">
+        <div className="px-6 pt-6 pb-4 border-b border-border/60">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-accent-signature/10 flex items-center justify-center text-lg font-black text-accent-signature">
+            <div className="w-10 h-10 rounded-2xl bg-accent-signature/10 flex items-center justify-center text-lg font-semibold text-accent-signature">
               {clientName.charAt(0).toUpperCase()}
             </div>
             <div>
-              <p className="font-bold text-sm text-ink-primary leading-tight">{clientName}</p>
+              <p className="font-semibold text-sm text-foreground leading-tight">{clientName}</p>
               <p className="text-xs text-red-500 font-semibold">{fmt(outstanding)} outstanding</p>
             </div>
           </div>
@@ -1988,7 +1988,7 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
             /* ── Excess mode ── */
             <>
               <p className="text-sm text-ink-secondary">
-                Customer paid <span className="font-bold text-ink-primary">{fmt(excess)}</span> extra.
+                Customer paid <span className="font-semibold text-foreground">{fmt(excess)}</span> extra.
                 Apply to their balance?
               </p>
 
@@ -1998,7 +1998,7 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
                 disabled={busy}
                 className="w-full text-left rounded-2xl border-2 border-signature p-4 hover:bg-signature/5 transition-colors disabled:opacity-50"
               >
-                <p className="font-bold text-sm text-ink-primary">Apply {fmt(excess)} to outstanding</p>
+                <p className="font-semibold text-sm text-foreground">Apply {fmt(excess)} to outstanding</p>
                 <p className="text-xs text-ink-secondary mt-0.5">
                   Balance: {fmt(outstanding)} → {fmt(outstanding - excess)} · Change: {currency}0
                 </p>
@@ -2008,9 +2008,9 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
               <button
                 onClick={onClose}
                 disabled={busy}
-                className="w-full text-left rounded-2xl border border-black/10 p-4 hover:bg-canvas transition-colors disabled:opacity-50"
+                className="w-full text-left rounded-2xl border border-border p-4 hover:bg-canvas transition-colors disabled:opacity-50"
               >
-                <p className="font-bold text-sm text-ink-primary">Give {fmt(excess)} as change</p>
+                <p className="font-semibold text-sm text-foreground">Give {fmt(excess)} as change</p>
                 <p className="text-xs text-ink-secondary mt-0.5">Outstanding stays {fmt(outstanding)}</p>
               </button>
             </>
@@ -2021,14 +2021,14 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
 
               {/* Amount */}
               <div>
-                <p className="text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">Amount</p>
-                <div className="flex items-center border border-black/10 rounded-xl px-3 py-2.5 bg-canvas">
-                  <span className="text-sm font-bold text-signature mr-1">{currency}</span>
+                <p className="text-xs font-semibold text-ink-tertiary uppercase tracking-wider mb-1.5">Amount</p>
+                <div className="flex items-center border border-border rounded-xl px-3 py-2.5 bg-canvas">
+                  <span className="text-sm font-semibold text-signature mr-1">{currency}</span>
                   <input
                     type="number"
                     value={collectAmt}
                     onChange={e => setCollectAmt(e.target.value)}
-                    className="flex-1 bg-transparent text-sm font-semibold text-ink-primary outline-none"
+                    className="flex-1 bg-transparent text-sm font-semibold text-foreground outline-none"
                     min="0"
                     max={outstanding}
                   />
@@ -2037,16 +2037,16 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
 
               {/* Method */}
               <div>
-                <p className="text-xs font-bold text-ink-tertiary uppercase tracking-wider mb-1.5">Method</p>
+                <p className="text-xs font-semibold text-ink-tertiary uppercase tracking-wider mb-1.5">Method</p>
                 <div className="flex gap-2">
                   {methods.map(m => (
                     <button
                       key={m}
                       onClick={() => setMethod(m)}
-                      className={`flex-1 py-2 rounded-xl text-xs font-bold transition-colors ${
+                      className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${
                         method === m
                           ? 'bg-signature text-white'
-                          : 'bg-canvas border border-black/10 text-ink-secondary'
+                          : 'bg-canvas border border-border text-ink-secondary'
                       }`}
                     >
                       {m}
@@ -2060,14 +2060,14 @@ function OutstandingPromptModal({ clientId, clientName, outstanding, excess, pay
                 <button
                   onClick={onClose}
                   disabled={busy}
-                  className="flex-1 py-3 rounded-2xl border border-black/10 text-sm font-bold text-ink-secondary hover:bg-canvas transition-colors"
+                  className="flex-1 py-3 rounded-2xl border border-border text-sm font-semibold text-ink-secondary hover:bg-canvas transition-colors"
                 >
                   Skip
                 </button>
                 <button
                   onClick={() => collect(Math.min(parseFloat(collectAmt) || 0, outstanding))}
                   disabled={busy || !parseFloat(collectAmt)}
-                  className="flex-2 flex-grow py-3 rounded-2xl bg-signature text-white text-sm font-bold hover:opacity-90 transition-opacity disabled:opacity-40"
+                  className="flex-2 flex-grow py-3 rounded-2xl bg-signature text-white text-sm font-semibold hover:opacity-90 transition-opacity disabled:opacity-40"
                 >
                   {busy ? 'Recording…' : `Collect ${fmt(Math.min(parseFloat(collectAmt)||0, outstanding))}`}
                 </button>

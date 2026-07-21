@@ -19,16 +19,16 @@ import React, { useMemo, useState } from 'react';
 
 const Field = ({ label, required, children, hint }) => (
   <label className="block">
-    <span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">
+    <span className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
       {label}{required && <span className="text-red-500 ml-0.5">*</span>}
     </span>
     {children}
-    {hint && <div className="text-[10px] text-gray-400 mt-0.5">{hint}</div>}
+    {hint && <div className="text-[10px] text-muted-foreground mt-0.5">{hint}</div>}
   </label>
 );
 
 const inputCls =
-  'mt-1 w-full px-3 py-2 rounded-lg bg-white border border-black/10 ' +
+  'mt-1 w-full px-3 py-2 rounded-lg bg-card border border-border ' +
   'focus:outline-none focus:ring-2 focus:ring-accent-signature/30 text-sm';
 
 const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitting }) => {
@@ -116,16 +116,16 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
           autoFocus
         />
         {suggestions.length > 0 && !form.client_id && (
-          <div className="mt-1 border border-black/10 rounded-lg overflow-hidden bg-white shadow-sm">
+          <div className="mt-1 border border-border rounded-lg overflow-hidden bg-card shadow-sm">
             {suggestions.map(c => (
               <button
                 type="button"
                 key={c.id}
                 onClick={() => pickClient(c)}
-                className="block w-full text-left px-3 py-2 text-sm hover:bg-accent-signature/10 border-b border-black/5 last:border-0"
+                className="block w-full text-left px-3 py-2 text-sm hover:bg-accent-signature/10 border-b border-border/60 last:border-0"
               >
-                <div className="font-semibold text-ink-primary">{c.name}</div>
-                <div className="text-[10px] text-gray-500">
+                <div className="font-semibold text-foreground">{c.name}</div>
+                <div className="text-[10px] text-muted-foreground">
                   {c.gstin || c.gst_no || 'No GSTIN'} · {c.phone || '—'}
                 </div>
               </button>
@@ -138,7 +138,7 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
             <button
               type="button"
               onClick={() => set('client_id', null)}
-              className="ml-2 text-gray-400 underline"
+              className="ml-2 text-muted-foreground underline"
             >clear</button>
           </div>
         )}
@@ -216,7 +216,7 @@ const ConvertToInvoiceSheet = ({ sale, clients = [], onCancel, onSubmit, submitt
           type="button"
           onClick={onCancel}
           disabled={submitting}
-          className="flex-1 px-4 py-2.5 rounded-xl bg-black/5 hover:bg-black/10 text-sm font-semibold text-ink-primary disabled:opacity-50"
+          className="flex-1 px-4 py-2.5 rounded-xl bg-black/5 hover:bg-black/10 text-sm font-semibold text-foreground disabled:opacity-50"
         >
           Cancel
         </button>
