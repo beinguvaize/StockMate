@@ -6,6 +6,7 @@
 // identical fallback slip instead of each hand-rolling their own.
 import 'dart:typed_data';
 
+import 'package:mobile_app/core/utils/units.dart';
 import 'package:mobile_app/features/invoices/data/models/invoice.dart';
 import 'package:mobile_app/features/settings/data/models/business_profile.dart';
 import 'package:pdf/pdf.dart';
@@ -15,7 +16,7 @@ class PdfLineItem {
   final String name;
   final String sku;
   final String unit;
-  final int qty;
+  final double qty;
   final double price;
   final double taxRate;
   PdfLineItem({
@@ -39,7 +40,10 @@ List<PdfLineItem> parsePdfItems(Invoice invoice) {
       name: m['name']?.toString() ?? m['productName']?.toString() ?? m['product_name']?.toString() ?? 'Item',
       sku: m['sku']?.toString() ?? '',
       unit: m['unit']?.toString() ?? 'PCS',
-      qty: int.tryParse((m['quantity'] ?? m['qty'])?.toString() ?? '1') ?? 1,
+      // Was int.tryParse(...) ?? 1 — a stored 0.25 failed the parse and fell
+      // back to 1, so lineTotal (qty * price) printed 4x the real amount on
+      // the customer's receipt.
+      qty: double.tryParse((m['quantity'] ?? m['qty'])?.toString() ?? '1') ?? 1,
       // Web saves `rate`; old sales saved `price`. Also fall back to unitPrice/sellingPrice.
       price: double.tryParse(
             (m['rate'] ?? m['price'] ?? m['unitPrice'] ?? m['unit_price'] ?? m['sellingPrice'])
@@ -210,7 +214,7 @@ Future<Uint8List> buildPosReceiptPdf(
                           style: pw.TextStyle(fontSize: 7, color: subtle)),
                   ],
                 )),
-                pw.SizedBox(width: 22, child: pw.Text(it.qty.toString(),
+                pw.SizedBox(width: 22, child: pw.Text(formatQty(it.qty, it.unit),
                     textAlign: pw.TextAlign.right,
                     style: pw.TextStyle(fontSize: 8, color: ink))),
                 pw.SizedBox(width: 46, child: pw.Text(fmtReceiptAmount(it.price),

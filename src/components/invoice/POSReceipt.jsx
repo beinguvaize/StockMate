@@ -1,3 +1,4 @@
+import { formatQty } from '../../lib/units';
 import React, { useEffect } from 'react';
 import { useDialogClose } from '../../hooks/useDialogClose';
 import { createPortal } from 'react-dom';
@@ -205,7 +206,7 @@ const POSReceipt = ({ invoice, businessProfile, client, onClose, tendered = null
                 <span className="flex-1 text-[9px] text-gray-500">
                   {!noGst && item.taxRate > 0 ? `GST ${item.taxRate}%` : ''}
                 </span>
-                <span className="w-6 text-right">{item.qty}</span>
+                <span className="w-8 text-right">{formatQty(item.qty, item.unit)}</span>
                 <span className="w-14 text-right">{fmt(item.rate)}</span>
                 <span className="w-14 text-right font-semibold">{fmt(amt)}</span>
               </div>

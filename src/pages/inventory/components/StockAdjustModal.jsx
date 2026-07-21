@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { formatCurrency } from '../../../lib/utils';
 import { useDialogClose } from '../../../hooks/useDialogClose';
 import { X, TrendingUp, TrendingDown, Target, AlertCircle, Loader2, CheckCircle2, ArrowRight, Minus, Plus, ChevronLeft } from 'lucide-react';
 
@@ -234,7 +235,7 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
           {isAddition && qtyNum > 0 && (
             <div>
               <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-2">
-                Purchase price / unit <span className="text-muted-foreground normal-case font-semibold tracking-normal">(optional)</span>
+                Purchase price / unit
               </label>
               <input
                 type="number"
@@ -246,9 +247,23 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
                 onChange={e => setUnitCost(e.target.value)}
                 className="w-full bg-card border border-border shadow-sm rounded-2xl px-4 py-3 text-sm font-semibold outline-none focus:ring-2 focus:ring-accent-signature/25 transition-all"
               />
-              <p className="text-[10px] text-muted-foreground font-medium mt-1.5 px-1">
-                Enter what you paid so profit on these units is exact — creates a cost batch. Leave blank to use the saved cost.
-              </p>
+              {/* Stock added without a cost still creates a batch, but priced at
+                  the product's saved cost. On products stocked this way and
+                  never purchased, that saved figure is a typed-in assertion —
+                  which is how ~31% of COGS ended up resting on unverified
+                  numbers. Say so at the moment of entry. */}
+              {unitCost.trim() === '' ? (
+                <p className="text-[11px] text-accent-signature-hover font-medium mt-1.5 px-1">
+                  Leaving this blank costs these {qtyNum} {product.unit || 'units'} at the saved
+                  ₹{Number(product.costPrice ?? product.cost ?? 0)} each. Profit on them is only as
+                  accurate as that figure — enter the supplier's price if you have the bill.
+                </p>
+              ) : (
+                <p className="text-[11px] text-emerald-700 font-medium mt-1.5 px-1">
+                  Creates a cost batch of {qtyNum} {product.unit || 'units'} at ₹{Number(unitCost)} each
+                  ({formatCurrency(qtyNum * Number(unitCost || 0))} total), so profit on these units is exact.
+                </p>
+              )}
             </div>
           )}
 

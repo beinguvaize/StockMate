@@ -129,7 +129,7 @@ const SalesReturnForm = ({ sale, clients, products = [], onSave, loading }) => {
                 type="number"
                 min="0"
                 max={it.maxQty}
-                step="1"
+                step="any"
                 placeholder="0"
                 className="w-full bg-card border border-border rounded-lg p-2 text-xs font-semibold text-center outline-none focus:ring-2 focus:ring-accent-signature/20"
                 value={it.returnQty}

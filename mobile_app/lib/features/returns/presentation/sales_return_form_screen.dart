@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/core/utils/units.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -15,12 +16,16 @@ class _ParsedItem {
   final String name;
   final num quantity;
   final double rate;
+  /// Needed to decide whether a fractional return quantity is meaningful —
+  /// 0.25 KG is, 0.25 carry bags is not.
+  final String? unit;
   final Map<String, dynamic> raw;
 
   const _ParsedItem({
     required this.name,
     required this.quantity,
     required this.rate,
+    this.unit,
     required this.raw,
   });
 }
@@ -49,6 +54,8 @@ List<_ParsedItem> _parseItems(Invoice invoice) {
     final itemQty =
         num.tryParse((m['quantity'] ?? m['qty'])?.toString() ?? '1') ?? 1;
 
+    final itemUnit = m['unit']?.toString();
+
     double rate = double.tryParse(
           (m['rate'] ??
                   m['price'] ??
@@ -67,6 +74,7 @@ List<_ParsedItem> _parseItems(Invoice invoice) {
 
     return _ParsedItem(
       name: name,
+      unit: itemUnit,
       quantity: itemQty,
       rate: rate,
       raw: m,
@@ -452,7 +460,9 @@ class _SalesReturnFormScreenState
                                     SizedBox(
                                       width: 40,
                                       child: Text(
-                                        qty.toInt().toString(),
+                                        // Was qty.toInt() — truncated the display
+                                        // while line 173 sent the true double.
+                                        formatQty(qty, item.unit),
                                         textAlign: TextAlign.center,
                                         style: GoogleFonts.jetBrainsMono(
                                           fontSize: 14,

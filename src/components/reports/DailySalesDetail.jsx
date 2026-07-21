@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Calendar, ChevronDown, Truck } from 'lucide-react';
 import { SectionHead } from './ReportBits';
+import { formatQty } from '../../lib/units';
 import { formatCurrency } from '../../lib/utils';
 
 /**
@@ -94,7 +95,12 @@ const DailySalesDetail = ({ sales, clients, vehicles = [], users = [], loading }
                   const cname    = (cid && clients.find(c => c.id === cid)?.name) || s.customerInfo?.name || 'Walk-in';
                   const items    = Array.isArray(s.items) ? s.items : [];
                   const itemQty  = items.reduce((acc, it) => acc + Number(it.quantity || 0), 0);
-                  const prodList = items.map(it => `${it.name}${it.quantity > 1 ? ` ×${it.quantity}` : ''}`).join(', ');
+                  // `> 1` hid the quantity on a fractional line entirely — 0.25 KG read
+                  // as a bare product name. Show it whenever it is not exactly 1.
+                  const prodList = items.map(it => {
+                    const q = Number(it.quantity || 0);
+                    return `${it.name}${q !== 1 ? ` ×${formatQty(q, it.unit)}` : ''}`;
+                  }).join(', ');
                   const method   = (s.paymentMethod || 'CASH').toUpperCase();
                   const badgeCls = PAY_BADGE[method] || 'bg-gray-100 text-gray-600';
                   const isVan    = !!(s.routeId || s.vehicleId) || s.source_app === 'VAN';

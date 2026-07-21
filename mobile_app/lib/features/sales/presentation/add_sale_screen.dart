@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/core/utils/units.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -46,7 +47,9 @@ final posStoresProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async
 
 class CartItem {
   final Product product;
-  int quantity;
+  /// double, not int: loose goods sell by weight (0.25 KG). Whether fractions
+  /// are actually accepted is decided per product by allowsFraction(unit).
+  double quantity;
   double unitPrice; // supports price override per item
   CartItem({required this.product, required this.quantity, double? unitPrice})
       : unitPrice = unitPrice ?? product.sellingPrice;
@@ -97,7 +100,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
   // ── Cart ops ────────────────────────────────────────────────────────────────
 
   /// Called from product detail sheet — sets qty + price for a product.
-  void _setCartItem(Product p, int qty, double price) {
+  void _setCartItem(Product p, double qty, double price) {
     setState(() {
       if (qty <= 0) {
         _cart.removeWhere((c) => c.product.id == p.id);
@@ -118,9 +121,14 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     setState(() {
       final i = _cart.indexWhere((c) => c.product.id == p.id);
       if (i != -1) {
-        if (_cart[i].quantity < p.stock.toInt()) _cart[i].quantity++;
+        // stock.toInt() truncated 0.75 KG to 0 and made the item unsellable.
+        final step = qtyStepButton(p.unit);
+        final next = clampQty(_cart[i].quantity + step, p.unit);
+        if (!exceedsStock(next, p.stock)) _cart[i].quantity = next;
       } else {
-        if (p.stock > 0) _cart.add(CartItem(product: p, quantity: 1));
+        if (p.stock > 0) {
+          _cart.add(CartItem(product: p, quantity: clampQty(qtyStepButton(p.unit), p.unit)));
+        }
       }
     });
   }
@@ -130,8 +138,10 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     setState(() {
       final i = _cart.indexWhere((c) => c.product.id == p.id);
       if (i != -1) {
-        if (_cart[i].quantity > 1) {
-          _cart[i].quantity--;
+        final step = qtyStepButton(_cart[i].product.unit);
+        final next = clampQty(_cart[i].quantity - step, _cart[i].product.unit);
+        if (next > 0) {
+          _cart[i].quantity = next;
         } else {
           _cart.removeAt(i);
         }
@@ -143,7 +153,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
     setState(() => _cart.removeWhere((c) => c.product.id == p.id));
   }
 
-  int _cartQty(Product p) {
+  double _cartQty(Product p) {
     final i = _cart.indexWhere((c) => c.product.id == p.id);
     return i != -1 ? _cart[i].quantity : 0;
   }
@@ -160,7 +170,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
       backgroundColor: Colors.transparent,
       builder: (_) => _ProductDetailSheet(
         product: p,
-        initialQty: currentItem?.quantity ?? 1,
+        initialQty: currentItem?.quantity ?? qtyStepButton(p.unit),
         initialPrice: currentItem?.unitPrice ?? p.sellingPrice,
         onConfirm: (qty, price) => _setCartItem(p, qty, price),
       ),
@@ -836,7 +846,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
 
 class _ProductCard extends StatelessWidget {
   final Product product;
-  final int qty;
+  final double qty;
   final VoidCallback onTap;   // opens detail sheet
   final VoidCallback onAdd;   // quick +1
   final VoidCallback onRemove;
@@ -1098,9 +1108,9 @@ class _ProductCard extends StatelessWidget {
 
 class _ProductDetailSheet extends StatefulWidget {
   final Product product;
-  final int initialQty;
+  final double initialQty;
   final double initialPrice;
-  final void Function(int qty, double price) onConfirm;
+  final void Function(double qty, double price) onConfirm;
 
   const _ProductDetailSheet({
     required this.product,
@@ -1114,7 +1124,7 @@ class _ProductDetailSheet extends StatefulWidget {
 }
 
 class _ProductDetailSheetState extends State<_ProductDetailSheet> {
-  late int _qty;
+  late double _qty;
   late TextEditingController _priceController;
   late TextEditingController _qtyController;
   double _price = 0;
@@ -1129,11 +1139,13 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
       final v = double.tryParse(_priceController.text);
       if (v != null) setState(() => _price = v);
     });
-    _qtyController = TextEditingController(text: '$_qty');
+    _qtyController = TextEditingController(text: formatQty(_qty, widget.product.unit));
     _qtyController.addListener(() {
-      final v = int.tryParse(_qtyController.text);
-      if (v != null && v > 0 && v <= _maxStock) {
-        setState(() => _qty = v);
+      // double, not int: typing 0.25 used to be ignored outright, so the field
+      // showed a decimal while the cart silently kept the old whole number.
+      final v = double.tryParse(_qtyController.text);
+      if (v != null && v > 0 && !exceedsStock(v, _maxStock)) {
+        setState(() => _qty = clampQty(v, widget.product.unit));
       }
     });
   }
@@ -1146,19 +1158,28 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
   }
 
   double get _total => _qty * _price;
-  int get _maxStock => widget.product.stock.toInt();
+
+  /// Selling under what the stock cost. The web POS already blocks this at
+  /// checkout; mobile had no equivalent, so loss-making lines went straight
+  /// through (RUBBER BAND at ₹60 against a ₹270 cost).
+  double get _cost => widget.product.costPrice;
+  bool get _belowCost => _cost > 0 && _price > 0 && _price < _cost;
+  // Was stock.toInt(), which truncated 0.75 KG of stock to 0.
+  double get _maxStock => widget.product.stock.toDouble();
 
   void _increment() {
-    if (_qty < _maxStock) {
-      setState(() => _qty++);
-      _qtyController.text = '$_qty';
+    final next = clampQty(_qty + qtyStepButton(widget.product.unit), widget.product.unit);
+    if (!exceedsStock(next, _maxStock)) {
+      setState(() => _qty = next);
+      _qtyController.text = formatQty(_qty, widget.product.unit);
     }
   }
 
   void _decrement() {
-    if (_qty > 1) {
-      setState(() => _qty--);
-      _qtyController.text = '$_qty';
+    final next = clampQty(_qty - qtyStepButton(widget.product.unit), widget.product.unit);
+    if (next > 0) {
+      setState(() => _qty = next);
+      _qtyController.text = formatQty(_qty, widget.product.unit);
     }
   }
 
@@ -1316,10 +1337,19 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                       width: 120,
                       child: TextField(
                         controller: _qtyController,
-                        keyboardType: TextInputType.number,
+                        keyboardType: allowsFraction(widget.product.unit)
+                            ? const TextInputType.numberWithOptions(decimal: true)
+                            : TextInputType.number,
                         textAlign: TextAlign.center,
                         inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
+                          // digitsOnly strips the decimal point outright, so the
+                          // decimal keypad above would have been useless on its
+                          // own. Weight units allow up to 3 dp (1 gram on a KG
+                          // product); piece units stay digits-only.
+                          if (allowsFraction(widget.product.unit))
+                            FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,3}'))
+                          else
+                            FilteringTextInputFormatter.digitsOnly,
                         ],
                         style: GoogleFonts.manrope(
                           fontSize: 48,
@@ -1421,6 +1451,36 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                 ),
               ),
 
+              // Visible before the confirm dialog, so the cashier can correct
+              // the price rather than being stopped at the end.
+              if (_belowCost) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEF2F2),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFECACA)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.alertTriangle, size: 15, color: Color(0xFFB91C1C)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Below cost — this stock cost ₹${_cost.toStringAsFixed(2)}',
+                          style: GoogleFonts.manrope(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: const Color(0xFFB91C1C),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+
               const SizedBox(height: 28),
 
               // ── Estimated total ───────────────────────────────────
@@ -1473,7 +1533,33 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {
+                  onPressed: () async {
+                    if (_belowCost) {
+                      final proceed = await showDialog<bool>(
+                        context: context,
+                        builder: (dCtx) => AlertDialog(
+                          title: const Text('Selling below cost'),
+                          content: Text(
+                            '${widget.product.name} costs ₹${_cost.toStringAsFixed(2)} '
+                            'but you are charging ₹${_price.toStringAsFixed(2)}.\n\n'
+                            'That is a loss of ₹${((_cost - _price) * _qty).toStringAsFixed(2)} '
+                            'on this line. Continue only if you meant to.',
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(dCtx, false),
+                              child: const Text('Change price'),
+                            ),
+                            TextButton(
+                              onPressed: () => Navigator.pop(dCtx, true),
+                              child: const Text('Sell anyway'),
+                            ),
+                          ],
+                        ),
+                      );
+                      if (proceed != true) return;
+                    }
+                    if (!context.mounted) return;
                     widget.onConfirm(_qty, _price);
                     Navigator.pop(context);
                   },
@@ -1769,7 +1855,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             borderRadius: BorderRadius.circular(99),
                           ),
                           child: Text(
-                            '${_localCart.fold(0, (s, c) => s + c.quantity)} ITEMS',
+                            '${_localCart.length} ITEMS',
                             style: GoogleFonts.jetBrainsMono(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -1812,7 +1898,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '${item.product.name} ×${item.quantity}',
+                                        '${item.product.name} ×${formatQty(item.quantity, item.product.unit)}',
                                         style: GoogleFonts.manrope(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,

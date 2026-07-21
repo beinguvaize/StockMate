@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useDialogClose } from '../../../hooks/useDialogClose';
 import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
 import Button from '../../../shared/Button';
+import { allowsFraction, qtyStep, qtyMin, qtyStepButton, clampQty, formatQty, formatQtyWithUnit, exceedsStock } from '../../../lib/units';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { tierPrice } from '../../../lib/priceResolver';
 import { useAccounts, accountForMethod, buildPaymentMethods } from '../../../hooks/useAccounts';
@@ -493,13 +494,20 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   // Cart-mutation handlers key by uid (falling back to productId for any
   // legacy/parked line that predates uids).
   const keyOf = (i) => i.uid || i.productId;
+  /** Unit of the product on a cart line — decides whether fractions are allowed. */
+  const unitOf = (productId) => productById[productId]?.unit;
+
   const updateQuantity = (uid, delta) => {
     setCart(prev => prev.map(item => {
       if (keyOf(item) === uid) {
+        const unit = unitOf(item.productId);
         const available = getAvailableStock(item.productId);
-        const next = Math.max(0, item.quantity + delta);
-        if (next > available) {
-          addNotification(`Only ${available} units in stock`, 'error');
+        // Step by unit: whole pieces, or half-kilos on weight goods. Rounded
+        // through clampQty so 0.1 + 0.2 never lands as 0.30000000000000004.
+        const step = delta * qtyStepButton(unit);
+        const next = clampQty(Math.max(0, item.quantity + step), unit);
+        if (exceedsStock(next, available)) {
+          addNotification(`Only ${formatQtyWithUnit(available, unit)} in stock`, 'error');
           return item;
         }
         return { ...item, quantity: next };
@@ -509,21 +517,24 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   };
 
   const setQuantityDirect = (uid, val) => {
-    const qty = parseInt(val, 10);
-    if (isNaN(qty) || qty < 0) return;
-    if (qty === 0) {
-      setCart(prev => prev.filter(i => keyOf(i) !== uid));
-    } else {
-      setCart(prev => prev.map(i => {
-        if (keyOf(i) !== uid) return i;
-        const available = getAvailableStock(i.productId);
-        if (qty > available) {
-          addNotification(`Only ${available} units in stock`, 'error');
-          return { ...i, quantity: available };
-        }
-        return { ...i, quantity: qty };
-      }));
-    }
+    // parseFloat, not parseInt: typing 0.25 used to yield 0 and silently
+    // delete the cart line, which is why part-kilo sales were entered as
+    // quantity 1 with the real money typed into the rate.
+    const raw = parseFloat(val);
+    if (isNaN(raw) || raw < 0) return;
+    setCart(prev => {
+      const line = prev.find(i => keyOf(i) === uid);
+      if (!line) return prev;
+      const unit = unitOf(line.productId);
+      const qty = clampQty(raw, unit);
+      if (qty === 0) return prev.filter(i => keyOf(i) !== uid);
+      const available = getAvailableStock(line.productId);
+      if (exceedsStock(qty, available)) {
+        addNotification(`Only ${formatQtyWithUnit(available, unit)} in stock`, 'error');
+        return prev.map(i => (keyOf(i) === uid ? { ...i, quantity: clampQty(available, unit) } : i));
+      }
+      return prev.map(i => (keyOf(i) === uid ? { ...i, quantity: qty } : i));
+    });
   };
 
   const setItemPrice = (uid, val) => {
@@ -637,7 +648,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     // Serial pre-flight — every serialized unit needs an IMEI/serial.
     const missingSerial = serialLines.filter(l => {
       const filled = (lineImeis[l.uid] || []).filter(s => s && s.trim()).length;
-      return filled < l.quantity;
+      // Serialised items are discrete; ceil so a fractional line still
+      // demands at least one serial rather than passing the check vacuously.
+      return filled < Math.max(1, Math.ceil(l.quantity));
     });
     if (missingSerial.length > 0) {
       addNotification(`Enter IMEI/serial for: ${missingSerial.map(l => l.name).join(', ')}`, 'error');
@@ -1098,7 +1111,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
               </button>
             )}
             <div className="bg-accent-signature text-button-text text-[10px] font-semibold px-2 py-1 rounded-pill ring-4 ring-accent-signature/10">
-              {cart.reduce((acc, i) => acc + i.quantity, 0)} items
+              {cart.length} item{cart.length === 1 ? '' : 's'}
             </div>
           </div>
         </div>
@@ -1162,12 +1175,16 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   >
                     <Minus size={9} strokeWidth={3} />
                   </button>
+                  {/* Without a step the browser defaults to 1 and rejects 0.25
+                      outright. Weight units get gram precision; pieces stay whole. */}
                   <input
                     type="number"
-                    min="1"
+                    min={qtyMin(unitOf(item.productId))}
+                    step={qtyStep(unitOf(item.productId))}
+                    inputMode={allowsFraction(unitOf(item.productId)) ? 'decimal' : 'numeric'}
                     value={item.quantity}
                     onChange={e => setQuantityDirect(k, e.target.value)}
-                    className="w-8 text-center text-sm font-semibold text-foreground bg-transparent outline-none tabular-nums"
+                    className={`${allowsFraction(unitOf(item.productId)) ? 'w-14' : 'w-8'} text-center text-sm font-semibold text-foreground bg-transparent outline-none tabular-nums`}
                   />
                   <button
                     onClick={() => updateQuantity(k, 1)}
@@ -1732,9 +1749,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   <div className="space-y-3">
                     {serialLines.map(l => (
                       <div key={l.uid}>
-                        <div className="text-[11px] font-semibold text-foreground mb-1">{l.name} · {l.quantity} unit{l.quantity > 1 ? 's' : ''}</div>
+                        <div className="text-[11px] font-semibold text-foreground mb-1">{l.name} · {formatQtyWithUnit(l.quantity, unitOf(l.productId))}</div>
                         <div className="space-y-1.5">
-                          {Array.from({ length: l.quantity }).map((_, idx) => (
+                          {Array.from({ length: Math.max(1, Math.ceil(l.quantity)) }).map((_, idx) => (
                             <input
                               key={idx}
                               value={(lineImeis[l.uid] || [])[idx] || ''}
