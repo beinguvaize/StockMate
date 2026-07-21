@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import { 
   User, Briefcase, DollarSign, Calendar, Info, 
@@ -7,17 +8,21 @@ import {
 } from 'lucide-react';
 
 const HRReport = () => {
+  // Financial year to date by default. The dated queries below passed
+  // dateColumn without filters, so they read the whole table each load.
+  const win = useDateWindow('YEAR');
   // 1. Fetch Employees & Payroll Data
   const { data: employees, loading: employeesLoading } = useReportData({
     table: 'employees',
     select: '*',
-    dateColumn: 'created_at'
+    // Dimension table: never date-windowed. Filtering by created_at would
+    // drop everyone hired before the window from the roster.
   });
 
   const { data: payroll, loading: payrollLoading } = useReportData({
     table: 'payroll',
     select: '*',
-    dateColumn: 'processed_at'
+    dateColumn: 'processed_at', filters: win.filters
   });
 
   const loading = employeesLoading || payrollLoading;
@@ -111,7 +116,7 @@ const HRReport = () => {
     }
   };
 
-  return <PremiumReportView title="HR & Payroll" tabs={[workforceTab, auditTab]} />;
+  return <PremiumReportView dateWindow={win} title="HR & Payroll" tabs={[workforceTab, auditTab]} />;
 };
 
 export default HRReport;

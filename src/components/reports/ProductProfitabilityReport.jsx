@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
+import useDateWindow from './useDateWindow';
 import PLTieOut from './PLTieOut';
 import PremiumReportView from './PremiumReportView';
 import {
@@ -40,16 +41,20 @@ const marginTier = (pct) => {
 };
 
 const ProductProfitabilityReport = () => {
+  // Financial year to date by default. The dated queries below passed
+  // dateColumn without filters, so they read the whole table each load.
+  const win = useDateWindow('YEAR');
   const { data: products, loading: productsLoading } = useReportData({
     table: 'products',
     select: '*',
-    dateColumn: 'created_at',
+    // Dimension table: never date-windowed. Products created before the
+    // window still have sales inside it, and would lose their cost basis.
   });
 
   const { data: sales, loading: salesLoading } = useReportData({
     table: 'sales',
     select: 'id, date, items, status',
-    dateColumn: 'date',
+    dateColumn: 'date', filters: win.filters,
   });
 
   // FIFO truth: what each sale actually consumed, at the batch cost of that
@@ -499,7 +504,7 @@ const ProductProfitabilityReport = () => {
 
   return (
     <div>
-      <PremiumReportView title="Product Profitability" tabs={tabs} />
+      <PremiumReportView dateWindow={win} title="Product Profitability" tabs={tabs} />
       {/* all-time report — reconcile against the P&L over all time */}
       <PLTieOut from="2000-01-01" to="2100-01-01" revenue={totals.revenue} cogs={totals.cogs}
         note="SKU rows are pre-discount — small differences are bill discounts and returns." />
