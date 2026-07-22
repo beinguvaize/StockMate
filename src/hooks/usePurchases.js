@@ -181,51 +181,34 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     return { error };
   };
 
-  // Recost a purchase's batches to a new per-unit cost. Routed through the
-  // recost_purchase_batches RPC so it also retro-corrects the COGS already
-  // booked: the cost snapshots of units already sold (sale_batch_consumption)
-  // and each affected sale's totalCogs are updated, re-posting the ledger.
-  // Without this, fixing a cost left historical profit reports reading the
-  // old (wrong) cost on already-sold units.
-  const recostBatches = async (purchaseId, unitCost) => {
-    const { error } = await restRpc('recost_purchase_batches', {
-      p_purchase_id: purchaseId,
-      p_unit_cost:   unitCost,
-      p_tenant_id:   tenantId,
-    });
-    return { error };
-  };
-
-  // Move the purchase's FIFO batch back in step with the purchase row after an
-  // edit — quantity, received date and supplier. process_purchase writes the
-  // batch once at insert and nothing wrote it again, so a corrected quantity
-  // never reached Stock Details and FIFO kept costing against the old lot size.
-  // Batch quantity is inventory state, so the arithmetic (and the refusal to
-  // shrink a lot below what has already been sold from it) lives in the RPC.
-  const resyncBatch = async (purchaseId) => {
-    const { error } = await restRpc('resync_purchase_batch', {
-      p_purchase_id: purchaseId,
-      p_tenant_id:   tenantId,
-    });
-    return { error };
-  };
-
-  // Move the money after an edit changed what was owed or paid. Editing a
-  // total used to update the purchase row and stop: the cash ledger kept the
-  // original figure and a credit purchase's supplier balance stayed stale.
-  // Takes the pre-edit values because the row has already changed by the time
-  // this runs. Posts a correcting entry rather than rewriting the original.
+  // Edit a purchase in one transaction.
   //
-  // NOT idempotent — it posts deltas. Call it exactly once per edit.
-  const reconcileMoney = async (purchaseId, before, accountId) => {
-    const { error } = await restRpc('reconcile_purchase_money', {
-      p_purchase_id:      purchaseId,
-      p_tenant_id:        tenantId,
-      p_old_total:        Number(before.total_amount) || 0,
-      p_old_payment_type: before.payment_type,
-      p_old_supplier_id:  before.supplier_id,
-      p_account_id:       accountId || null,
+  // This was five sequential calls — update the row, recost the batches,
+  // resync the batch, adjust stock, reconcile the money — each able to fail on
+  // its own. A failure partway left the row already changed while the batch,
+  // stock or ledger still held the old values: a half-applied edit that only a
+  // second save would clear. The RPC does all five inside one transaction, so
+  // an edit either lands completely or not at all.
+  //
+  // It reads the pre-edit values itself, so the caller no longer has to
+  // snapshot them.
+  const editPurchase = async ({ id, productId, supplierId, quantity, totalAmount,
+                                unitCost, paymentType, date, notes, userId, accountId }) => {
+    const { error } = await restRpc('edit_purchase', {
+      p_purchase_id:  id,
+      p_tenant_id:    tenantId,
+      p_product_id:   productId,
+      p_supplier_id:  supplierId,
+      p_quantity:     Number(quantity),
+      p_total_amount: Number(totalAmount),
+      p_unit_cost:    Number(unitCost) || 0,
+      p_payment_type: paymentType,
+      p_date:         date,
+      p_notes:        notes || null,
+      p_user_id:      userId,
+      p_account_id:   accountId || null,
     });
+    if (!error) await fetchPurchases();
     return { error };
   };
 
@@ -326,9 +309,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     refetch: fetchPurchases,
     add,
     update,
-    recostBatches,
-    resyncBatch,
-    reconcileMoney,
+    editPurchase,
     updateStatus,
     remove,
     addReturn,

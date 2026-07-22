@@ -20,9 +20,9 @@ const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, recostBatches, resyncBatch, reconcileMoney, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, suppliers, add: addPurchase, editPurchase, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
   const { accounts: payAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
-  const { products, inventoryLocations, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
+  const { products, inventoryLocations, loading: prodLoading, updateProduct, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
 
   const [activeTab, setActiveTab] = useState('purchases'); // 'purchases' | 'returns'
@@ -309,76 +309,30 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
   const handleEditPurchase = async (data) => {
     setEditLoading(true);
     const orig = editTarget;
-    // Snapshot the money-relevant fields before step 1 overwrites the row —
-    // reconcileMoney needs to know what changed, not just what it is now.
-    const before = {
-      total_amount: Number(orig.total_amount) || 0,
-      payment_type: orig.payment_type,
-      supplier_id:  orig.supplier_id,
-    };
     try {
-      const qtyDelta = Number(data.quantity) - Number(orig.quantity);
-
-      // 1. Update the purchase record.
-      const { error } = await withTimeout(updatePurchase(orig.id, {
-        linked_product_id: data.linked_product_id,
-        supplier_id:       data.supplier_id,
-        supplier_name:     suppliers.find(s => s.id === data.supplier_id)?.name || orig.supplier_name,
-        quantity:          Number(data.quantity),
-        total_amount:      Number(data.total_amount),
-        payment_type:      data.payment_type,
-        date:              data.date,
-        notes:             data.notes,
-      }), 10000, 'Save');
+      // One RPC, one transaction. This used to be five sequential calls, and a
+      // failure at any of them left the edit half-applied — the row already
+      // changed while the batch, stock or ledger still held the old values.
+      // Now it either lands completely or not at all, so a failure needs no
+      // partial-state message: nothing moved.
+      //
+      // It refuses to move a batch to a different product once units have been
+      // sold from it, because that would rewrite COGS on closed periods. The
+      // exception explains which sales are in the way.
+      const { error } = await withTimeout(editPurchase({
+        id:          orig.id,
+        productId:   data.linked_product_id,
+        supplierId:  data.supplier_id,
+        quantity:    data.quantity,
+        totalAmount: data.total_amount,
+        unitCost:    data.unit_cost,
+        paymentType: data.payment_type,
+        date:        data.date,
+        notes:       data.notes,
+        userId:      currentUser?.id,
+        accountId:   accountForMethod(payAccounts, data.payment_type),
+      }), 15000, 'Save');
       if (error) throw error;
-
-      // 2. Recost the batches this purchase created so FIFO/COGS/margin pick up
-      //    the corrected unit price (the old flow never touched batches).
-      if (Number(data.unit_cost) > 0) {
-        const { error: rcErr } = await withTimeout(
-          recostBatches(orig.id, Number(data.unit_cost)), 10000, 'Batch recost');
-        if (rcErr) addNotification('Saved, but batch cost not updated: ' + rcErr.message, 'error');
-      }
-
-      // 3. Move the batch's product, quantity, received date and supplier back
-      //    in step with the row. Without this the Stock Details pane and FIFO
-      //    both keep the lot as it was first received, however often the
-      //    purchase is corrected — and a re-linked purchase leaves its stock
-      //    and cost stranded on the old product entirely. Runs after the recost
-      //    so cost is recomputed against the final lot size, and before the
-      //    stock adjust below so the two compose: the RPC moves the whole lot
-      //    at its original size, then step 4 applies the delta to the new
-      //    product.
-      const productChanged = data.linked_product_id !== orig.linked_product_id;
-      if (productChanged || qtyDelta !== 0 || data.date !== orig.date || data.supplier_id !== orig.supplier_id) {
-        const { error: rsErr } = await withTimeout(resyncBatch(orig.id), 10000, 'Batch resync');
-        // Loud, not a footnote: the purchase row has already changed, so a
-        // failure here means the bill and the stock lot now disagree. The RPC
-        // refuses a product move once any of the lot has been sold, because
-        // that would rewrite COGS on closed periods — its message says so.
-        if (rsErr) addNotification('Saved, but the stock batch was not updated — ' + rsErr.message, 'error');
-      }
-
-      // 4. Adjust inventory for the quantity delta.
-      if (qtyDelta !== 0 && data.linked_product_id) {
-        const { error: adjErr } = await withTimeout(
-          adjustStock(data.linked_product_id, qtyDelta, `Purchase edit: ${orig.id}`, null), 10000, 'Stock adjust');
-        if (adjErr) addNotification('Saved, but stock not adjusted: ' + adjErr.message, 'error');
-      }
-
-      // 5. Move the money. Changing the amount used to update the row and stop:
-      //    the cash ledger kept the original figure, and a credit purchase's
-      //    supplier balance stayed stale. `before` is captured at the top,
-      //    because step 1 has already overwritten the row.
-      //    Posts deltas, so it must run exactly once per edit.
-      if (before.total_amount !== Number(data.total_amount)
-          || before.payment_type !== data.payment_type
-          || before.supplier_id !== data.supplier_id) {
-        const acc = accountForMethod(payAccounts, data.payment_type);
-        const { error: recErr } = await withTimeout(
-          reconcileMoney(orig.id, before, acc), 10000, 'Money reconcile');
-        if (recErr) addNotification('Saved, but the ledger and supplier balance were not adjusted: ' + recErr.message, 'error');
-      }
 
       addNotification('Purchase updated', 'success');
       setEditTarget(null);
