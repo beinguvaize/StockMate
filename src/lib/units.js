@@ -83,3 +83,23 @@ export const clampQty = (qty, unit) => {
  * makes 0.3 > 0.3 true and the cart clamps a perfectly valid entry down.
  */
 export const exceedsStock = (qty, available) => Number(qty) - Number(available) > 1e-6;
+
+/**
+ * Smaller companion unit for a weight/volume quantity — "500 g" beneath
+ * "0.5 KG". Display only: storage stays in the product's own unit, because
+ * mixing units in one column is how stock and cost go wrong.
+ *
+ * Only returned when the conversion actually helps — a whole 2 KG reads fine
+ * on its own, but 0.5 KG is easier to check against a scale as 500 g.
+ */
+const SUB_UNIT = { KG: ['g', 1000], LITRE: ['ml', 1000], LTR: ['ml', 1000], L: ['ml', 1000] };
+
+export const subQtyLabel = (qty, unit) => {
+  const conv = SUB_UNIT[norm(unit)];
+  if (!conv) return null;
+  const n = Number(qty);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  if (Number.isInteger(n)) return null;          // 2 KG needs no gloss
+  const [suffix, factor] = conv;
+  return `${Math.round(n * factor)} ${suffix}`;
+};

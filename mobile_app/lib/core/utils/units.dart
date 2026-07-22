@@ -67,3 +67,27 @@ double clampQty(num? qty, String? unit) {
 /// Compare against available stock with a tolerance. Without it, float error
 /// makes 0.3 > 0.3 true and the cart clamps a valid entry down.
 bool exceedsStock(num qty, num available) => qty.toDouble() - available.toDouble() > 1e-6;
+
+/// Smaller companion unit for a weight/volume quantity — "500 g" beneath
+/// "0.5 KG". Display only: storage stays in the product's own unit, because
+/// mixing units in one column is how stock and cost go wrong.
+///
+/// Returns null when the conversion would not help — a whole 2 KG reads fine
+/// on its own, but 0.5 KG is easier to check against a scale as 500 g.
+const _subUnit = <String, List<Object>>{
+  'KG': ['g', 1000],
+  'LITRE': ['ml', 1000],
+  'LTR': ['ml', 1000],
+  'L': ['ml', 1000],
+};
+
+String? subQtyLabel(num? qty, String? unit) {
+  final conv = _subUnit[_norm(unit)];
+  if (conv == null) return null;
+  final n = (qty ?? 0).toDouble();
+  if (!n.isFinite || n <= 0) return null;
+  if (n == n.roundToDouble()) return null;
+  final suffix = conv[0] as String;
+  final factor = conv[1] as int;
+  return '${(n * factor).round()} $suffix';
+}

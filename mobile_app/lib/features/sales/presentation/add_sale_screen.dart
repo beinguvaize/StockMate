@@ -909,7 +909,7 @@ class _ProductCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                        '×$qty',
+                        '×${formatQty(qty, product.unit)}${(product.unit ?? '').trim().isEmpty ? '' : ' ${product.unit!.trim()}'}',
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 9,
                           fontWeight: FontWeight.w800,
@@ -1327,14 +1327,27 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         child: Icon(
                           LucideIcons.minus,
                           size: 22,
-                          color: _qty > 1 ? AppColors.inkPrimary : AppColors.inkTertiary,
+                          color: _qty > qtyMin(widget.product.unit)
+                              ? AppColors.inkPrimary
+                              : AppColors.inkTertiary,
                         ),
                       ),
                     ),
 
-                    // Quantity — editable field
+                    // Quantity — editable field, with its unit beside it and
+                    // the gram equivalent underneath. The number alone gave no
+                    // clue what it counted, and "0.5" is harder to check
+                    // against a scale than "500 g".
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.baseline,
+                          textBaseline: TextBaseline.alphabetic,
+                          children: [
                     SizedBox(
-                      width: 120,
+                      width: allowsFraction(widget.product.unit) ? 116 : 96,
                       child: TextField(
                         controller: _qtyController,
                         keyboardType: allowsFraction(widget.product.unit)
@@ -1367,6 +1380,33 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                           extentOffset: _qtyController.text.length,
                         ),
                       ),
+                    ),
+                            if ((widget.product.unit ?? '').trim().isNotEmpty) ...[
+                              const SizedBox(width: 6),
+                              Text(
+                                widget.product.unit!.trim(),
+                                style: GoogleFonts.manrope(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.inkSecondary,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (subQtyLabel(_qty, widget.product.unit) != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(
+                              subQtyLabel(_qty, widget.product.unit)!,
+                              style: GoogleFonts.manrope(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                                color: AppColors.inkTertiary,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
 
                     // Increment

@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useDialogClose } from '../../../hooks/useDialogClose';
 import { ShoppingCart as CartIcon, Search, Plus, Minus, CreditCard, Banknote, Check, ArrowRight, Package, X, User, Smartphone, Landmark, AlertTriangle, Truck, Store, ChevronLeft, MapPin, Calendar, MessageSquare, DollarSign, ScanBarcode, List, LayoutGrid } from 'lucide-react';
 import Button from '../../../shared/Button';
-import { allowsFraction, qtyStep, qtyMin, qtyStepButton, clampQty, formatQty, formatQtyWithUnit, exceedsStock } from '../../../lib/units';
+import { allowsFraction, qtyStep, qtyMin, qtyStepButton, clampQty, formatQty, formatQtyWithUnit, subQtyLabel, exceedsStock } from '../../../lib/units';
 import { formatCurrency, generateRef } from '../../../lib/utils';
 import { tierPrice } from '../../../lib/priceResolver';
 import { useAccounts, accountForMethod, buildPaymentMethods } from '../../../hooks/useAccounts';
@@ -1186,6 +1186,13 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     onChange={e => setQuantityDirect(k, e.target.value)}
                     className={`${allowsFraction(unitOf(item.productId)) ? 'w-14' : 'w-8'} text-center text-sm font-semibold text-foreground bg-transparent outline-none tabular-nums`}
                   />
+                  {/* Unit beside the number, gram equivalent under it — the
+                      figure alone said nothing about what it counted. */}
+                  {String(unitOf(item.productId) ?? '').trim() && (
+                    <span className="text-[10px] text-muted-foreground shrink-0 leading-none">
+                      {String(unitOf(item.productId)).trim()}
+                    </span>
+                  )}
                   <button
                     onClick={() => updateQuantity(k, 1)}
                     className="w-5 h-5 rounded flex items-center justify-center hover:bg-canvas transition-all text-foreground shrink-0"
@@ -1193,6 +1200,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     <Plus size={9} strokeWidth={3} />
                   </button>
                 </div>
+                {subQtyLabel(item.quantity, unitOf(item.productId)) && (
+                  <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                    {subQtyLabel(item.quantity, unitOf(item.productId))}
+                  </div>
+                )}
 
                 {/* Unit price input */}
                 <div className="relative">
