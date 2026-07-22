@@ -20,7 +20,7 @@ const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, recostBatches, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, recostBatches, resyncBatch, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
   const { accounts: payAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
   const { products, inventoryLocations, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
@@ -333,7 +333,26 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
         if (rcErr) addNotification('Saved, but batch cost not updated: ' + rcErr.message, 'error');
       }
 
-      // 3. Adjust inventory for the quantity delta.
+      // 3. Move the batch's product, quantity, received date and supplier back
+      //    in step with the row. Without this the Stock Details pane and FIFO
+      //    both keep the lot as it was first received, however often the
+      //    purchase is corrected — and a re-linked purchase leaves its stock
+      //    and cost stranded on the old product entirely. Runs after the recost
+      //    so cost is recomputed against the final lot size, and before the
+      //    stock adjust below so the two compose: the RPC moves the whole lot
+      //    at its original size, then step 4 applies the delta to the new
+      //    product.
+      const productChanged = data.linked_product_id !== orig.linked_product_id;
+      if (productChanged || qtyDelta !== 0 || data.date !== orig.date || data.supplier_id !== orig.supplier_id) {
+        const { error: rsErr } = await withTimeout(resyncBatch(orig.id), 10000, 'Batch resync');
+        // Loud, not a footnote: the purchase row has already changed, so a
+        // failure here means the bill and the stock lot now disagree. The RPC
+        // refuses a product move once any of the lot has been sold, because
+        // that would rewrite COGS on closed periods — its message says so.
+        if (rsErr) addNotification('Saved, but the stock batch was not updated — ' + rsErr.message, 'error');
+      }
+
+      // 4. Adjust inventory for the quantity delta.
       if (qtyDelta !== 0 && data.linked_product_id) {
         const { error: adjErr } = await withTimeout(
           adjustStock(data.linked_product_id, qtyDelta, `Purchase edit: ${orig.id}`, null), 10000, 'Stock adjust');

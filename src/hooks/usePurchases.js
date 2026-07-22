@@ -196,6 +196,20 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     return { error };
   };
 
+  // Move the purchase's FIFO batch back in step with the purchase row after an
+  // edit — quantity, received date and supplier. process_purchase writes the
+  // batch once at insert and nothing wrote it again, so a corrected quantity
+  // never reached Stock Details and FIFO kept costing against the old lot size.
+  // Batch quantity is inventory state, so the arithmetic (and the refusal to
+  // shrink a lot below what has already been sold from it) lives in the RPC.
+  const resyncBatch = async (purchaseId) => {
+    const { error } = await restRpc('resync_purchase_batch', {
+      p_purchase_id: purchaseId,
+      p_tenant_id:   tenantId,
+    });
+    return { error };
+  };
+
   const remove = async (id) => {
     const { error } = await restUpdate('purchases', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
     if (!error) await fetchPurchases();
@@ -294,6 +308,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     add,
     update,
     recostBatches,
+    resyncBatch,
     updateStatus,
     remove,
     addReturn,
