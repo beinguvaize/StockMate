@@ -92,6 +92,36 @@ mobile sale from syncing.
 
 ---
 
+## Data repairs: snapshot first, in `snap`
+
+Any repair that writes to prod takes a before-image first. Snapshots live in
+the **`snap` schema — never in `public`**, where seventeen of them once piled
+up over eleven days, reachable by PostgREST and indistinguishable from real
+tables.
+
+```sql
+SELECT snap.take(
+  'purchase_transfer',                                    -- lower_snake_case slug
+  $$SELECT * FROM purchases WHERE id = 'PUR-E6PRCT'$$,    -- what to capture
+  'before moving the batch to 13*16 Pkt Cover',           -- why (required)
+  30);                                                    -- keep days, default 30
+-- -> snap.purchase_transfer_20260722
+```
+
+- `snap.registry` — one row per snapshot: reason, row count, who, expiry.
+- `snap.pin('<table>')` — sets `expires_at` NULL so the sweep skips it. Pin
+  anything backing work that is not yet settled.
+- `snap.sweep()` — drops everything past expiry and returns what it removed.
+  Runs weekly via the `snapshot-sweep` cron job (Sun 03:30).
+- `snap.unregistered` — tables created by hand that never registered, and so
+  would never expire. Should stay empty.
+
+`snap.take()` executes the SQL it is handed, so it is **not** granted to
+`authenticated` — it is a repair tool, not something the app may call. The
+slug is validated against `^[a-z][a-z0-9_]*$` before it reaches the table
+name. Snapshots are verbatim copies carrying none of the source table's RLS,
+which is why `anon` and `authenticated` have no access to the schema at all.
+
 ## Environment + deploy
 
 - Dev first, prod after sign-off. Two Supabase projects:
