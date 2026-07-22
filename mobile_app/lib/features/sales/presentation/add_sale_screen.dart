@@ -1895,7 +1895,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                             borderRadius: BorderRadius.circular(99),
                           ),
                           child: Text(
-                            '${_localCart.length} ITEMS',
+                            '${_localCart.length} ${_localCart.length == 1 ? 'item' : 'items'}',
                             style: GoogleFonts.jetBrainsMono(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -1938,7 +1938,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                                         CrossAxisAlignment.start,
                                     children: [
                                       Text(
-                                        '${item.product.name} ×${formatQty(item.quantity, item.product.unit)}',
+                                        '${item.product.name} ×${formatQtyWithUnit(item.quantity, item.product.unit)}',
                                         style: GoogleFonts.manrope(
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600,
@@ -2009,7 +2009,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     // > total (cash) → show change due.
                     if (_selectedPayType != 'CREDIT_SALE') ...[
                       Text(
-                        'Amount Received (optional)',
+                        'Amount received',
                         style: GoogleFonts.manrope(
                           fontSize: 14, fontWeight: FontWeight.w700,
                           color: AppColors.inkPrimary,
@@ -2021,7 +2021,7 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                         keyboardType: const TextInputType.numberWithOptions(decimal: true),
                         onChanged: (_) => setState(() {}),
                         decoration: InputDecoration(
-                          hintText: 'Leave blank if customer paid in full',
+                          hintText: 'Blank means paid in full — ₹${_netTotal.toStringAsFixed(2)}',
                           prefixText: '₹ ',
                           filled: true,
                           fillColor: AppColors.surfaceContainer,
@@ -2092,10 +2092,16 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                           _billRow(
                               _taxMode == 'INCLUSIVE' ? 'Taxable' : 'Subtotal',
                               '₹${_subtotal.toStringAsFixed(2)}'),
-                          const SizedBox(height: 10),
-                          _billRow(
-                              'Tax (${_avgTaxRate.toStringAsFixed(_avgTaxRate % 1 == 0 ? 0 : 1)}%${_taxMode == 'INCLUSIVE' ? ' incl' : ''})',
-                              '₹${_tax.toStringAsFixed(2)}'),
+                          // Hidden when there is no tax to show. On a tenant
+                          // with tax_mode NONE this row read "Tax (18%) ₹0.00"
+                          // on every bill — a line that can never be anything
+                          // but zero, next to a rate that is not being charged.
+                          if (_tax > 0) ...[
+                            const SizedBox(height: 10),
+                            _billRow(
+                                'Tax (${_avgTaxRate.toStringAsFixed(_avgTaxRate % 1 == 0 ? 0 : 1)}%${_taxMode == 'INCLUSIVE' ? ' incl' : ''})',
+                                '₹${_tax.toStringAsFixed(2)}'),
+                          ],
                           const SizedBox(height: 14),
                           // ── Discount input (flat ₹ or %) ──────────
                           Row(
@@ -2327,11 +2333,18 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
         margin: const EdgeInsets.only(bottom: 10),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isActive ? AppColors.primaryContainer : Colors.white,
+          // primaryContainer is a solid amber fill — it dominated the sheet and
+          // competed with the Checkout button. A faint tint plus a definite
+          // border reads as "selected" without shouting, and keeps the label
+          // on a light background where it stays legible.
+          color: isActive
+              ? AppColors.primary.withValues(alpha: 0.08)
+              : Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [AppColors.cardShadow],
           border: Border.all(
             color: isActive ? AppColors.primary : Colors.transparent,
+            width: isActive ? 1.5 : 1,
           ),
         ),
         child: Row(
@@ -2356,15 +2369,20 @@ class _CheckoutSheetState extends State<_CheckoutSheet> {
                     style: GoogleFonts.manrope(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: isActive ? AppColors.primary : AppColors.inkPrimary,
+                      // Deeper amber: AppColors.primary measured 2.92:1 on the
+                      // selected tint, under the 4.5:1 floor for body text.
+                      color: isActive ? const Color(0xFF92400E) : AppColors.inkPrimary,
                     ),
                   ),
                   Text(
                     m.subtitle,
                     style: GoogleFonts.manrope(
                         fontSize: 12,
+                        // 70% opacity amber on the tint measured ~2.2:1.
+                        // Opacity on text always drifts against its surface —
+                        // use a solid colour instead.
                         color: isActive
-                            ? AppColors.primary.withValues(alpha: 0.7)
+                            ? const Color(0xFF92400E)
                             : AppColors.inkTertiary),
                   ),
                 ],
