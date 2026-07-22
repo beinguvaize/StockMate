@@ -11,6 +11,7 @@ import 'package:mobile_app/core/database/realtime_sync.dart';
 import 'package:mobile_app/core/update/auto_updater.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/features/auth/data/auth_provider.dart';
 import 'package:mobile_app/features/auth/presentation/login_screen.dart';
 import 'package:mobile_app/features/dashboard/presentation/dashboard_screen.dart';
@@ -151,12 +152,75 @@ class _LedgrAppState extends ConsumerState<LedgrApp> with WidgetsBindingObserver
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
+            foregroundColor: AppColors.onPrimary,
+            disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.5),
+            disabledForegroundColor: AppColors.onPrimary.withValues(alpha: 0.6),
             elevation: 0,
-            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-            shape: const StadiumBorder(),
-            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 15),
+            padding: const EdgeInsets.symmetric(horizontal: Gap.xl, vertical: 14),
+            shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
+            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 14),
           ),
+        ),
+        // Absent before, so all 32 OutlinedButton sites styled themselves.
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.onSurface,
+            side: const BorderSide(color: AppColors.outline),
+            padding: const EdgeInsets.symmetric(horizontal: Gap.lg, vertical: 12),
+            shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
+            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: AppColors.onPrimary,
+            padding: const EdgeInsets.symmetric(horizontal: Gap.xl, vertical: 14),
+            shape: const RoundedRectangleBorder(borderRadius: Radii.rMd),
+            textStyle: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 14),
+          ),
+        ),
+        // 15 screens each declared this same iconTheme on their own AppBar.
+        appBarTheme: AppBarTheme(
+          backgroundColor: AppColors.canvas,
+          surfaceTintColor: Colors.transparent,
+          foregroundColor: AppColors.onSurface,
+          elevation: 0,
+          scrolledUnderElevation: 0,
+          iconTheme: const IconThemeData(color: AppColors.onSurface),
+          titleTextStyle: GoogleFonts.manrope(
+            fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+        ),
+        floatingActionButtonTheme: const FloatingActionButtonThemeData(
+          backgroundColor: AppColors.primary,
+          foregroundColor: AppColors.onPrimary,
+          elevation: 2,
+        ),
+        chipTheme: ChipThemeData(
+          backgroundColor: AppColors.surfaceContainer,
+          selectedColor: AppColors.primaryContainer,
+          side: const BorderSide(color: AppColors.outlineVariant),
+          shape: const RoundedRectangleBorder(borderRadius: Radii.rPill),
+          labelStyle: GoogleFonts.manrope(
+            fontSize: 12, fontWeight: FontWeight.w500, color: AppColors.onSurface),
+        ),
+        dividerTheme: const DividerThemeData(
+          color: AppColors.outlineVariant, thickness: 1, space: 1),
+        dialogTheme: DialogThemeData(
+          backgroundColor: AppColors.canvas,
+          surfaceTintColor: Colors.transparent,
+          shape: const RoundedRectangleBorder(borderRadius: Radii.rLg),
+          titleTextStyle: GoogleFonts.manrope(
+            fontSize: 17, fontWeight: FontWeight.w600, color: AppColors.onSurface),
+          contentTextStyle: GoogleFonts.manrope(
+            fontSize: 14, height: 1.5, color: AppColors.onSurfaceVariant),
+        ),
+        snackBarTheme: SnackBarThemeData(
+          backgroundColor: AppColors.onSurface,
+          contentTextStyle: GoogleFonts.manrope(
+            fontSize: 13, color: AppColors.canvas),
+          behavior: SnackBarBehavior.floating,
+          shape: const RoundedRectangleBorder(borderRadius: Radii.rSm),
         ),
         cardTheme: CardThemeData(
           color: AppColors.surface,
