@@ -6,6 +6,7 @@
  */
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { AUDIT_ACTIONS } from '../lib/auditLog';
 import { SkeletonRows } from '../components/ui/States';
@@ -71,6 +72,7 @@ const relativeTime = (iso) => {
 /* ═══════════════════════════════════════════════════════════════ */
 const AuditLog = () => {
   const { currentUser } = useAuth();
+  const { currentTenantId } = useTenant();
 
   /* ── access gate ── */
   const roles = currentUser?.roles || (currentUser?.role ? [currentUser.role] : []);
@@ -93,12 +95,17 @@ const AuditLog = () => {
 
   /* ── fetch ── */
   const fetchLogs = useCallback(async () => {
-    if (!isSupabaseConfigured || !isOwner) return;
+    if (!isSupabaseConfigured || !isOwner || !currentTenantId) return;
     setLoading(true);
     try {
+      // Filter by tenant explicitly. The audit_log RLS policy reads
+      // `is_global_admin() OR tenant_id = current_tenant_id()`, so a global
+      // admin viewing this tenant-scoped page would otherwise see every
+      // tenant's activity merged into one trail.
       let query = supabase
         .from('audit_log')
         .select('*', { count: 'exact' })
+        .eq('tenant_id', currentTenantId)
         .order('created_at', { ascending: false });
 
       // action filter
@@ -135,7 +142,7 @@ const AuditLog = () => {
     } finally {
       setLoading(false);
     }
-  }, [isOwner, actionFilter, dateRange, search, page]);
+  }, [currentTenantId, isOwner, actionFilter, dateRange, search, page]);
 
   useEffect(() => { fetchLogs(); }, [fetchLogs]);
 

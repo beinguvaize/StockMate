@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import useReportData from './useReportData';
+import { useTenant } from '../../context/TenantContext';
 import useDateWindow from './useDateWindow';
 import PremiumReportView from './PremiumReportView';
 import {
@@ -71,6 +72,7 @@ const BADGE_CLS = {
 };
 
 const BudgetVsActualReport = () => {
+  const { currentTenantId } = useTenant();
   // Financial year to date by default. These queries were previously
   // unfiltered and read the whole table on every load.
   const win = useDateWindow('YEAR');
@@ -217,17 +219,17 @@ const BudgetVsActualReport = () => {
 
   // --- Handlers (all go through Supabase; realtime channel refreshes the UI) ---
   const handleBudgetChange = useCallback(async (category, type, value) => {
-    await upsertBudgetLine(period, category, value, type);
+    await upsertBudgetLine(currentTenantId, period, category, value, type);
     refetchBudgets();
-  }, [period, refetchBudgets]);
+  }, [currentTenantId, period, refetchBudgets]);
 
   const handleCopyLastMonth = useCallback(async () => {
     const idx = periods.indexOf(period);
     const prev = periods[idx + 1];
     if (!prev) return;
-    await copyBudget(prev, period);
+    await copyBudget(currentTenantId, prev, period);
     refetchBudgets();
-  }, [period, periods, refetchBudgets]);
+  }, [currentTenantId, period, periods, refetchBudgets]);
 
   const handleSuggestAvg = useCallback(async () => {
     const idx = periods.indexOf(period);
@@ -254,9 +256,9 @@ const BudgetVsActualReport = () => {
       type: v.type,
     }));
 
-    await bulkUpsertBudget(period, entries);
+    await bulkUpsertBudget(currentTenantId, period, entries);
     refetchBudgets();
-  }, [period, periods, actualsByMonth, refetchBudgets]);
+  }, [currentTenantId, period, periods, actualsByMonth, refetchBudgets]);
 
   // --- KPIs ---
   const kpis = useMemo(() => ([

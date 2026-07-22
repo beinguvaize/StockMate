@@ -92,6 +92,44 @@ mobile sale from syncing.
 
 ---
 
+## Always filter by tenant_id. RLS is not the filter.
+
+Nearly every tenant-table policy reads:
+
+```sql
+is_global_admin() OR tenant_id = (SELECT current_tenant_id())
+```
+
+A global admin is therefore **entitled to every tenant's rows**. Leaning on RLS
+alone means any list, aggregate, or delete silently spans all tenants the moment
+an admin — or anyone impersonating — runs it. Every Supabase query against a
+tenant table gets an explicit `.eq('tenant_id', currentTenantId)`, including
+deletes and upserts.
+
+These are not hypothetical; all four shipped:
+
+| Bug | Effect |
+|---|---|
+| `ExpiryAlertCard` | dashboard totalled every tenant's expiring stock into one figure |
+| `AuditLog` | tenant activity trail showed all tenants' entries to an admin |
+| `budgetRepo.fetchBudget` | merged all tenants' lines into one category-keyed map, colliding |
+| `budgetRepo.upsertBudgetLine` | setting a line to 0 **deleted that category for every tenant** |
+
+Two traps that go with it:
+
+- **Never rely on the `tenant_id` column default.** 22 tables default it to
+  `a0000000-0000-0000-0000-000000000001`, which belongs to no tenant. Omitting
+  `tenant_id` on an insert orphans the row: invisible to the shop that created
+  it, visible only to global admins. This is how 14 budget lines were stranded.
+- **Put `currentTenantId` in the dependency array.** A query that filters
+  correctly but never re-runs shows the previous tenant's data after a switch or
+  an impersonation, which looks identical to the unfiltered bug.
+
+Deliberate exceptions, all admin surfaces: `AdminPanel`, `SuperAdminPortal`,
+`useBugReports` in `adminMode`. Cross-tenant is the point there — leave them.
+
+---
+
 ## Data repairs: snapshot first, in `snap`
 
 Any repair that writes to prod takes a before-image first. Snapshots live in
