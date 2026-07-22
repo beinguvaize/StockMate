@@ -23,6 +23,17 @@ const _kSupplierGreenBg = Color(0xFFE6F4EC);
 const _kClientOrangeBg = Color(0xFFFEEDE4);
 const _kClientOrange = Color(0xFFA03A0A);
 const _kDanger = Color(0xFFC0320A);
+
+/// Indian-grouped rupee amount: 12000 → ₹12,000.
+String _rupees(num v) {
+  final whole = v.abs().truncate();
+  final str = whole.toString();
+  if (str.length <= 3) return '₹$str';
+  final last3 = str.substring(str.length - 3);
+  final rest = str.substring(0, str.length - 3);
+  final grouped = rest.replaceAllMapped(RegExp(r'(\d)(?=(\d{2})+$)'), (m) => '${m[1]},');
+  return '₹$grouped,$last3';
+}
 const _kDangerBg = Color(0xFFFEEDE4);
 
 Color _avatarBg(String? name, {bool supplier = false}) {
@@ -277,8 +288,15 @@ class _CRMHeader extends StatelessWidget {
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 200),
-      color: _kHeaderBg,
-      padding: const EdgeInsets.fromLTRB(14, 18, 14, 18),
+      // Was a solid amber block. Every piece of text on it failed WCAG AA —
+      // title 3.19:1, the "CRM" eyebrow and stat labels 2.43:1, stat values
+      // inside the translucent tiles 2.76:1. A light surface fixes all three
+      // and gives the list back roughly a third of the screen.
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: AppColors.outlineVariant)),
+      ),
+      padding: const EdgeInsets.fromLTRB(14, 14, 14, 14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -294,7 +312,7 @@ class _CRMHeader extends StatelessWidget {
                       style: GoogleFonts.manrope(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
-                        color: Colors.white.withValues(alpha: 0.55),
+                        color: AppColors.inkTertiary,
                         letterSpacing: 0.08 * 10,
                       ),
                     ),
@@ -307,7 +325,7 @@ class _CRMHeader extends StatelessWidget {
                         style: GoogleFonts.manrope(
                           fontSize: 20,
                           fontWeight: FontWeight.w600,
-                          color: Colors.white,
+                          color: AppColors.inkPrimary,
                           letterSpacing: -0.3,
                         ),
                       ),
@@ -318,12 +336,12 @@ class _CRMHeader extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(9),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.13),
+                  color: AppColors.surfaceContainer,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(
                   isClient ? LucideIcons.building : LucideIcons.truck,
-                  color: Colors.white,
+                  color: AppColors.inkSecondary,
                   size: 18,
                 ),
               ),
@@ -364,14 +382,15 @@ class _StatTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.16),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(s.icon, size: 11, color: Colors.white.withValues(alpha: 0.55)),
+            Icon(s.icon, size: 11, color: AppColors.inkTertiary),
             const SizedBox(width: 4),
             Expanded(
               child: Text(
@@ -379,7 +398,7 @@ class _StatTile extends StatelessWidget {
                 style: GoogleFonts.manrope(
                   fontSize: 10,
                   fontWeight: FontWeight.w500,
-                  color: Colors.white.withValues(alpha: 0.55),
+                  color: AppColors.inkSecondary,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -392,7 +411,7 @@ class _StatTile extends StatelessWidget {
             style: GoogleFonts.manrope(
               fontSize: 17,
               fontWeight: FontWeight.w600,
-              color: Colors.white,
+              color: AppColors.inkPrimary,
               letterSpacing: -0.3,
             ),
             maxLines: 1,
@@ -403,7 +422,7 @@ class _StatTile extends StatelessWidget {
             s.hint,
             style: GoogleFonts.manrope(
               fontSize: 10,
-              color: Colors.white.withValues(alpha: 0.45),
+              color: AppColors.inkTertiary,
             ),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -696,11 +715,19 @@ class _ClientRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  balance == 0 ? '—' : '₹${balance.toStringAsFixed(0)}',
+                  balance > 0
+                      ? _rupees(balance)
+                      : balance < 0
+                          ? '${_rupees(balance)} advance'
+                          : 'Settled',
                   style: GoogleFonts.manrope(
-                    fontSize: 13,
+                    fontSize: balance < 0 ? 11 : 13,
                     fontWeight: FontWeight.w600,
-                    color: balance > 0 ? _kDanger : AppColors.inkTertiary,
+                    color: balance > 0
+                        ? _kDanger
+                        : balance < 0
+                            ? _kSupplierGreen
+                            : AppColors.inkTertiary,
                   ),
                 ),
                 const SizedBox(height: 3),
