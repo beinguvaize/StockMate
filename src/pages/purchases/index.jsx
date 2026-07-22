@@ -20,7 +20,7 @@ const PurchasesPage = () => {
   const { currentTenantId, businessProfile } = useTenant();
   const { currentUser } = useAuth();
   const { addNotification } = useNotifications();
-  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, recostBatches, resyncBatch, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
+  const { purchases, purchaseReturns, suppliers, add: addPurchase, update: updatePurchase, recostBatches, resyncBatch, reconcileMoney, updateStatus: updatePurchaseStatus, remove: removePurchase, addReturn, payPurchase, loading: purLoading } = usePurchases(currentTenantId);
   const { accounts: payAccounts = [], addTxn: addAccountTxn } = useAccounts(currentTenantId);
   const { products, inventoryLocations, loading: prodLoading, updateProduct, adjustStock, addProduct } = useInventory(currentTenantId);
   const warehouses = (inventoryLocations || []).filter(l => l.type === 'WAREHOUSE');
@@ -309,6 +309,13 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
   const handleEditPurchase = async (data) => {
     setEditLoading(true);
     const orig = editTarget;
+    // Snapshot the money-relevant fields before step 1 overwrites the row —
+    // reconcileMoney needs to know what changed, not just what it is now.
+    const before = {
+      total_amount: Number(orig.total_amount) || 0,
+      payment_type: orig.payment_type,
+      supplier_id:  orig.supplier_id,
+    };
     try {
       const qtyDelta = Number(data.quantity) - Number(orig.quantity);
 
@@ -357,6 +364,20 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
         const { error: adjErr } = await withTimeout(
           adjustStock(data.linked_product_id, qtyDelta, `Purchase edit: ${orig.id}`, null), 10000, 'Stock adjust');
         if (adjErr) addNotification('Saved, but stock not adjusted: ' + adjErr.message, 'error');
+      }
+
+      // 5. Move the money. Changing the amount used to update the row and stop:
+      //    the cash ledger kept the original figure, and a credit purchase's
+      //    supplier balance stayed stale. `before` is captured at the top,
+      //    because step 1 has already overwritten the row.
+      //    Posts deltas, so it must run exactly once per edit.
+      if (before.total_amount !== Number(data.total_amount)
+          || before.payment_type !== data.payment_type
+          || before.supplier_id !== data.supplier_id) {
+        const acc = accountForMethod(payAccounts, data.payment_type);
+        const { error: recErr } = await withTimeout(
+          reconcileMoney(orig.id, before, acc), 10000, 'Money reconcile');
+        if (recErr) addNotification('Saved, but the ledger and supplier balance were not adjusted: ' + recErr.message, 'error');
       }
 
       addNotification('Purchase updated', 'success');

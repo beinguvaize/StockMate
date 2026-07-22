@@ -210,6 +210,25 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     return { error };
   };
 
+  // Move the money after an edit changed what was owed or paid. Editing a
+  // total used to update the purchase row and stop: the cash ledger kept the
+  // original figure and a credit purchase's supplier balance stayed stale.
+  // Takes the pre-edit values because the row has already changed by the time
+  // this runs. Posts a correcting entry rather than rewriting the original.
+  //
+  // NOT idempotent — it posts deltas. Call it exactly once per edit.
+  const reconcileMoney = async (purchaseId, before, accountId) => {
+    const { error } = await restRpc('reconcile_purchase_money', {
+      p_purchase_id:      purchaseId,
+      p_tenant_id:        tenantId,
+      p_old_total:        Number(before.total_amount) || 0,
+      p_old_payment_type: before.payment_type,
+      p_old_supplier_id:  before.supplier_id,
+      p_account_id:       accountId || null,
+    });
+    return { error };
+  };
+
   const remove = async (id) => {
     const { error } = await restUpdate('purchases', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
     if (!error) await fetchPurchases();
@@ -309,6 +328,7 @@ export const usePurchases = (tenantId, { withReturns = true, withPayments = true
     update,
     recostBatches,
     resyncBatch,
+    reconcileMoney,
     updateStatus,
     remove,
     addReturn,
