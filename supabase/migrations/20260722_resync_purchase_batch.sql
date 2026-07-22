@@ -117,10 +117,6 @@ BEGIN
 
     UPDATE public.product_batches SET product_id = v_product WHERE id = v_batch_id;
 
-    -- Keep the vestigial column in step. It is the one the edit handler never
-    -- wrote, which is how the two references drifted apart in the first place.
-    UPDATE public.purchases SET product_id = v_product WHERE id = p_purchase_id;
-
     UPDATE public.inventory_balances
        SET quantity = quantity - v_remaining
      WHERE product_id = v_old_prod AND location_id = v_loc;

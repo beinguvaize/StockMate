@@ -71,10 +71,12 @@ const PurchasesReport = () => {
 
   /* ── Resolve product name ───────────────────────────────────────────── */
   const resolveName = (purchase) => {
-    const pid = purchase.linked_product_id || purchase.product_id;
-    if (!pid) return purchase.product_id || 'Unknown Product';
-    const found = products.find(p => p.id === pid);
-    return found?.name || purchase.product_id || pid;
+    // linked_product_id is the only product reference on a purchase. The old
+    // product_id column duplicated it, drifted whenever a purchase was
+    // re-linked, and has been dropped.
+    const pid = purchase.linked_product_id;
+    if (!pid) return 'Unknown Product';
+    return products.find(p => p.id === pid)?.name || pid;
   };
 
   /* ── 1. Overview metrics ─────────────────────────────────────────────── */
@@ -143,7 +145,7 @@ const PurchasesReport = () => {
     const map = {};
     purchases.forEach(p => {
       const name = resolveName(p);
-      const key  = p.linked_product_id || p.product_id || name;
+      const key  = p.linked_product_id || name;
       if (!map[key]) map[key] = { _id: key, productName: name, totalAmount: 0, totalUnits: 0, orderCount: 0, avgUnit: 0 };
       map[key].totalAmount += Number(p.total_amount || 0);
       map[key].totalUnits  += Number(p.quantity     || 0);

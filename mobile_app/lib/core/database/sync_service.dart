@@ -594,7 +594,9 @@ class SyncService {
               id:          item['id'] as String,
               tenantId:    item['tenant_id'] as String,
               supplierId:  Value(item['supplier_id'] as String?),
-              productId:   Value(item['product_id'] as String?),
+              // purchases.product_id was dropped server-side; it duplicated
+              // linked_product_id and drifted whenever a purchase was re-linked.
+              productId:   Value(item['linked_product_id'] as String?),
               quantity:    (item['quantity'] ?? 0).toDouble(),
               totalAmount: (item['total_amount'] ?? 0).toDouble(),
               date:        date,
