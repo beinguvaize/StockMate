@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_app/core/utils/units.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -1311,7 +1313,9 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Decrement
-                    GestureDetector(
+                    AppTappable(
+                      pressedScale: 0.90,
+                      borderRadius: Radii.rPill,
                       onTap: _decrement,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 120),
@@ -1410,7 +1414,9 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                     ),
 
                     // Increment
-                    GestureDetector(
+                    AppTappable(
+                      pressedScale: 0.90,
+                      borderRadius: Radii.rPill,
                       onTap: _increment,
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 120),
@@ -3109,9 +3115,15 @@ class _SaleSuccessSheetState extends State<_SaleSuccessSheet> {
           const SizedBox(height: 24),
           // Print + Share row
           Row(children: [
-            Expanded(child: _ActionBtn(icon: LucideIcons.printer, label: 'Print', loading: _printing, onTap: _print)),
+            Expanded(child: AppButton(
+              label: 'Print', icon: LucideIcons.printer, loading: _printing,
+              variant: AppButtonVariant.secondary, size: AppButtonSize.large,
+              fullWidth: true, onPressed: _print)),
             const SizedBox(width: 12),
-            Expanded(child: _ActionBtn(icon: LucideIcons.share2,  label: 'Share', loading: _sharing, onTap: _share)),
+            Expanded(child: AppButton(
+              label: 'Share', icon: LucideIcons.share2, loading: _sharing,
+              variant: AppButtonVariant.secondary, size: AppButtonSize.large,
+              fullWidth: true, onPressed: _share)),
           ]),
           const SizedBox(height: 12),
 
@@ -3328,37 +3340,3 @@ class _OutstandingTile extends StatelessWidget {
   }
 }
 
-class _ActionBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool loading;
-  final VoidCallback onTap;
-  const _ActionBtn({required this.icon, required this.label, required this.loading, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: loading ? null : onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.outline),
-          borderRadius: BorderRadius.circular(14),
-          color: loading ? AppColors.surfaceContainer : Colors.white,
-        ),
-        child: loading
-          ? const Center(child: SizedBox(width: 20, height: 20,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)))
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, size: 18, color: AppColors.inkPrimary),
-                const SizedBox(width: 8),
-                Text(label, style: GoogleFonts.manrope(fontWeight: FontWeight.w700,
-                  fontSize: 14, color: AppColors.inkPrimary)),
-              ],
-            ),
-      ),
-    );
-  }
-}

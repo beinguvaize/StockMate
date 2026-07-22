@@ -164,3 +164,76 @@ class _AppButtonState extends State<AppButton> {
     );
   }
 }
+
+/// Press-feedback wrapper for anything that is tappable but is not a button —
+/// tab bars, list rows, cards, chips, steppers.
+///
+/// The app has 116 `GestureDetector` call sites and `onTapDown` appears in
+/// none of them, so none of those targets respond to touch until their action
+/// completes. Wrapping the child here gives the same scale response as
+/// [AppButton] without imposing button styling.
+///
+///     AppTappable(onTap: () => _switchTab(i), child: ...)
+class AppTappable extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+
+  /// How far to scale on press. Keep subtle for large targets.
+  final double pressedScale;
+
+  /// Set false for targets that paint their own background, where a ripple
+  /// would fight the existing decoration.
+  final bool ripple;
+
+  final BorderRadius borderRadius;
+
+  const AppTappable({
+    super.key,
+    required this.child,
+    required this.onTap,
+    this.pressedScale = 0.97,
+    this.ripple = true,
+    this.borderRadius = Radii.rMd,
+  });
+
+  @override
+  State<AppTappable> createState() => _AppTappableState();
+}
+
+class _AppTappableState extends State<AppTappable> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final enabled = widget.onTap != null;
+    final content = AnimatedScale(
+      scale: _pressed ? widget.pressedScale : 1.0,
+      duration: Motion.fast,
+      curve: Motion.standard,
+      child: widget.child,
+    );
+
+    if (!widget.ripple) {
+      return GestureDetector(
+        onTap: widget.onTap,
+        onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
+        onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
+        onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
+        behavior: HitTestBehavior.opaque,
+        child: content,
+      );
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: widget.onTap,
+        onTapDown: enabled ? (_) => setState(() => _pressed = true) : null,
+        onTapUp: enabled ? (_) => setState(() => _pressed = false) : null,
+        onTapCancel: enabled ? () => setState(() => _pressed = false) : null,
+        borderRadius: widget.borderRadius,
+        child: content,
+      ),
+    );
+  }
+}

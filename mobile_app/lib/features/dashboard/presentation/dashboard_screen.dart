@@ -7,6 +7,8 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/theme/dimens.dart';
+import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/widgets/trial_banner.dart';
 import 'package:mobile_app/core/widgets/banner_carousel.dart';
 import 'package:mobile_app/core/widgets/expiry_alert_card.dart';
@@ -156,14 +158,16 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       final i = e.key;
                       final item = e.value;
                       final isActive = selIdx == i;
-                      return GestureDetector(
+                      return AppTappable(
                         onTap: () => _switchTab(i),
-                        behavior: HitTestBehavior.opaque,
+                        ripple: false,
+                        pressedScale: 0.94,
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             AnimatedContainer(
-                              duration: const Duration(milliseconds: 200),
+                              duration: Motion.base,
+                              curve: Motion.standard,
                               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                               decoration: BoxDecoration(
                                 color: isActive ? AppColors.primaryContainer : Colors.transparent,
@@ -1251,14 +1255,16 @@ class _QuickBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: GestureDetector(
+      child: AppTappable(
         onTap: onTap,
+        ripple: false,
+        borderRadius: Radii.rMd,
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
+            color: AppColors.canvas,
+            borderRadius: Radii.rMd,
+            border: Border.all(color: AppColors.outlineVariant),
             boxShadow: [AppColors.cardShadow],
           ),
           child: Column(
