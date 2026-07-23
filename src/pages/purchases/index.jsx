@@ -6,7 +6,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Users } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
@@ -39,6 +39,8 @@ const PurchasesPage = () => {
   const [fPay, setFPay]       = useState('ALL');   // ALL | CASH | CREDIT
   const [fStatus, setFStatus] = useState('ALL');   // ALL | PENDING | ORDERED | RECEIVED | CANCELLED
   const [sortBy, setSortBy]   = useState('DATE_DESC'); // DATE_DESC | DATE_ASC | AMT_DESC | AMT_ASC
+  const [onlyUnpaid, setOnlyUnpaid] = useState(false); // quick chip: credit purchases still owing
+  const [groupBySupplier, setGroupBySupplier] = useState(true);
 
   // ── Pay / Duplicate / Print targets ─────────────────────────────────────────
   const [payTarget, setPayTarget] = useState(null);
@@ -94,6 +96,7 @@ const PurchasesPage = () => {
       if (fPay === 'CASH' && _credit(p.payment_type)) return false;
       if (fPay === 'CREDIT' && !_credit(p.payment_type)) return false;
       if (fStatus !== 'ALL' && (p.status || 'RECEIVED').toUpperCase() !== fStatus) return false;
+      if (onlyUnpaid && dueOf(p) <= 0.5) return false;
       return true;
     });
     const amt = (p) => Number(p.total_amount || 0);
@@ -104,7 +107,43 @@ const PurchasesPage = () => {
       return String(b.date).localeCompare(String(a.date)); // DATE_DESC
     });
     return rows;
-  }, [purchases, search, fSupplier, fPay, fStatus, sortBy, productNameById]);
+  }, [purchases, search, fSupplier, fPay, fStatus, sortBy, onlyUnpaid, productNameById]);
+
+  // Count for the Unpaid chip badge — credit purchases still carrying a balance.
+  const unpaidCount = useMemo(
+    () => (purchases || []).filter(p => dueOf(p) > 0.5).length,
+    [purchases]);
+
+  // Age of a bill in days, and whether an unpaid credit purchase is overdue
+  // (>30 days). Turns the list into a light ageing view.
+  const ageDays = (p) => {
+    const d = new Date(p.date);
+    if (isNaN(d)) return 0;
+    return Math.floor((Date.now() - d.getTime()) / 86400000);
+  };
+  const isOverdue = (p) => dueOf(p) > 0.5 && ageDays(p) > 30;
+
+  // Group the filtered rows by supplier for display, each group carrying its
+  // spend + outstanding subtotal. Flattened into one array with {__group}
+  // marker rows so the shared Table can render headers and rows in one pass.
+  const displayRows = useMemo(() => {
+    if (!groupBySupplier) return filteredPurchases;
+    const map = new Map();
+    filteredPurchases.forEach(p => {
+      const key = p.supplier_id || p.supplier_name || '—';
+      if (!map.has(key)) map.set(key, { name: p.supplier_name || 'Unknown supplier', rows: [], total: 0, due: 0 });
+      const g = map.get(key);
+      g.rows.push(p);
+      g.total += Number(p.total_amount) || 0;
+      g.due += dueOf(p);
+    });
+    const out = [];
+    for (const [key, g] of map) {
+      out.push({ __group: true, key, name: g.name, count: g.rows.length, total: g.total, due: g.due });
+      g.rows.forEach(r => out.push(r));
+    }
+    return out;
+  }, [filteredPurchases, groupBySupplier]);
 
   // Professional, self-contained printable purchase voucher (own CSS — the
   // print window has none of the app's styles).
@@ -374,15 +413,20 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
 
   // ── Purchases table ──────────────────────────────────────────────────────────
   const headers = [
-    { label: 'Date' },
-    { label: 'Reference' },
-    { label: 'Product / Supplier' },
-    { label: 'Quantity', className: 'text-center' },
-    { label: 'Payment', className: 'text-center' },
+    { label: 'Ref · bill' },
+    { label: 'Product / supplier' },
+    { label: 'Qty', className: 'text-center' },
+    { label: 'Payment' },
     { label: 'Total', className: 'text-right' },
     { label: 'Status', className: 'text-center' },
     { label: '', className: 'text-right' },
   ];
+  const PUR_COLS = 7;
+
+  // Two-letter supplier initials for the neutral avatar.
+  const initialsOf = (name) => (name || '?')
+    .trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
+  const shortDate = (d) => { const x = new Date(d); return isNaN(x) ? '' : x.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }); };
 
   const _STATUS_STYLES = {
     PENDING:   { bg: 'bg-accent-signature/10',   text: 'text-accent-signature-hover',   border: 'border-accent-signature/25',   label: 'Pending'   },
@@ -436,56 +480,94 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
     );
   };
 
-  const renderRow = (pur) => {
+  // Supplier subtotal band, injected between groups.
+  const renderGroupHeader = (g) => (
+    <tr key={`g-${g.key}`} className="bg-canvas/70 border-y border-black/[0.04]">
+      <td colSpan={PUR_COLS} className="px-4 py-2">
+        <div className="flex items-center gap-2.5">
+          <div className="w-6 h-6 rounded-md bg-card border border-border/60 flex items-center justify-center text-[10px] font-semibold text-muted-foreground shrink-0">{initialsOf(g.name)}</div>
+          <span className="text-xs font-semibold text-foreground truncate" title={g.name}>{g.name}</span>
+          <span className="text-[11px] text-muted-foreground">{g.count} bill{g.count === 1 ? '' : 's'}</span>
+          <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+            {formatCurrency(g.total)}
+            {g.due > 0.5
+              ? <> · <span className="text-[color:var(--color-neg)]">{formatCurrency(g.due)} due</span></>
+              : <> · settled</>}
+          </span>
+        </div>
+      </td>
+    </tr>
+  );
+
+  const renderRow = (row) => {
+    if (row.__group) return renderGroupHeader(row);
+    const pur = row;
     const product = products.find(p => p.id === pur.linked_product_id);
     const supplier = suppliers.find(s => s.id === pur.supplier_id);
+    const credit = _credit(pur.payment_type);
+    const due = dueOf(pur);
+    const overdue = isOverdue(pur);
 
     return (
-      <tr key={pur.id} className="hover:bg-canvas transition-colors">
-        <td className="px-4 py-3">
-          <div className="text-xs font-semibold text-muted-foreground uppercase">{formatDate(pur.date)}</div>
-        </td>
-        <td className="px-4 py-3">
-          <div className="text-sm font-semibold text-foreground">#{pur.id.split('-').pop()}</div>
-        </td>
-        <td className="px-4 py-3 max-w-[260px]">
-          <div className="text-sm font-medium text-foreground truncate" title={product?.name || ''}>
-            {product?.name || 'Unknown Product'}
-          </div>
-          {/* Supplier was 10px, semibold, uppercase, tracking-widest. Names in
-              this data are already stored uppercase (SHAFEEQ KOLLAM
-              WHOLESALE, 24 chars), so the wide letter-spacing on top of that
-              was the real problem — a long all-caps string stretched into an
-              unreadable band and pushed the column wide. Now 11px, normal
-              weight, no added tracking, truncated with the full name on
-              hover. The CSS uppercase is dropped so any supplier entered in
-              mixed case keeps it. */}
-          <div className="text-[11px] text-muted-foreground truncate mt-0.5"
-               title={supplier?.name || pur.supplier_name || ''}>
-            {supplier?.name || pur.supplier_name || '—'}
+      <tr key={pur.id}
+        className="hover:bg-canvas transition-colors"
+        style={overdue ? { boxShadow: 'inset 2px 0 0 0 var(--color-neg)' } : undefined}>
+        {/* Ref · bill no · date */}
+        <td className="px-4 py-3 align-top">
+          <div className="font-mono text-[12px] text-foreground">{pur.id.split('-').pop()}</div>
+          <div className="text-[10px] text-muted-foreground mt-1">
+            {pur.bill_no ? `bill ${pur.bill_no}` : 'no bill'} · {shortDate(pur.date)}
           </div>
         </td>
-        <td className="px-4 py-3 text-center">
-          <div className="text-sm font-semibold text-emerald-500">+{pur.quantity}</div>
+        {/* Avatar + product + supplier */}
+        <td className="px-4 py-3 max-w-[280px]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-7 h-7 rounded-md bg-canvas border border-border/60 flex items-center justify-center text-[10px] font-semibold text-muted-foreground shrink-0">
+              {initialsOf(supplier?.name || pur.supplier_name)}
+            </div>
+            <div className="min-w-0">
+              <div className="text-[13px] font-medium text-foreground truncate" title={product?.name || ''}>
+                {product?.name || 'Unknown Product'}
+              </div>
+              <div className="text-[11px] text-muted-foreground truncate mt-0.5"
+                   title={supplier?.name || pur.supplier_name || ''}>
+                {supplier?.name || pur.supplier_name || '—'}
+              </div>
+            </div>
+          </div>
         </td>
-        <td className="px-4 py-3 text-center">
+        {/* Qty */}
+        <td className="px-4 py-3 text-center tabular-nums text-[13px] text-foreground">{pur.quantity}</td>
+        {/* Payment — dot + label, due underneath, overdue age tag */}
+        <td className="px-4 py-3">
           {(() => {
-            const credit = _credit(pur.payment_type);
-            const due = dueOf(pur);
-            if (!credit) return <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700">{pur.payment_type || 'Cash'}</span>;
-            if (due <= 0.5) return <span className="inline-flex px-2.5 py-1 rounded-full text-[10px] font-medium bg-emerald-100 text-emerald-700">Paid</span>;
-            const partial = Number(pur.paid_amount || 0) > 0;
+            const dot = !credit ? 'var(--color-ink-tertiary)'
+              : due <= 0.5 ? 'var(--color-pos)'
+              : overdue ? 'var(--color-neg)' : '#B45309';
+            const label = !credit ? (pur.payment_type || 'Cash')
+              : due <= 0.5 ? 'Paid'
+              : (Number(pur.paid_amount || 0) > 0 ? 'Partial' : 'Credit');
             return (
-              <div className="flex flex-col items-center gap-0.5">
-                <span className={`inline-flex px-2.5 py-1 rounded-full text-[10px] font-medium ${partial ? 'bg-orange-50 text-orange-800' : 'bg-accent-signature/10 text-accent-signature-hover'}`}>{partial ? 'Partial' : 'Credit'}</span>
-                <span className="tabular-nums text-[10px] text-red-500">due {formatCurrency(due)}</span>
+              <div className="flex items-start gap-2">
+                <span className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0" style={{ background: dot }} />
+                <div className="min-w-0">
+                  <div className="text-[12px] text-muted-foreground">
+                    {label}
+                    {credit && due > 0.5 && overdue && (
+                      <span className="text-[color:var(--color-neg)] text-[10px]"> · {ageDays(pur)}d</span>
+                    )}
+                  </div>
+                  {credit && due > 0.5 && (
+                    <div className="tabular-nums text-[11px] text-[color:var(--color-neg)] mt-0.5">due {formatCurrency(due)}</div>
+                  )}
+                </div>
               </div>
             );
           })()}
         </td>
-        <td className="px-4 py-3 text-right">
-          <div className="tabular-nums text-sm font-semibold text-foreground tabular-nums">{formatCurrency(pur.total_amount)}</div>
-        </td>
+        {/* Total */}
+        <td className="px-4 py-3 text-right tabular-nums text-[14px] font-semibold text-foreground">{formatCurrency(pur.total_amount)}</td>
+        {/* Status select */}
         <td className="px-4 py-3 text-center">
           {(() => {
             const st = (pur.status || 'RECEIVED').toUpperCase();
@@ -504,15 +586,16 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
             );
           })()}
         </td>
+        {/* Actions */}
         <td className="px-4 py-3 text-right">
           <div className="flex items-center gap-1.5 justify-end">
-            {_credit(pur.payment_type) && dueOf(pur) > 0.5 && (
+            {credit && due > 0.5 && (
               <button
-                onClick={() => { setPayTarget(pur); setPayAmount(String(dueOf(pur))); setPayMethod('CASH'); }}
-                title={`Due ${formatCurrency(dueOf(pur))}`}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-widest text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors"
+                onClick={() => { setPayTarget(pur); setPayAmount(String(due)); setPayMethod('CASH'); }}
+                title={`Due ${formatCurrency(due)}`}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium text-accent-signature-hover border border-accent-signature/40 hover:bg-accent-signature/10 transition-colors"
               >
-                <Banknote size={11} /> Pay
+                <Banknote size={12} /> Pay
               </button>
             )}
             <button
@@ -609,6 +692,28 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
             <option value="DATE_DESC">Newest</option><option value="DATE_ASC">Oldest</option><option value="AMT_DESC">Amount ↓</option><option value="AMT_ASC">Amount ↑</option>
           </select>
+          {/* Quick chip — jump straight to bills still owing. */}
+          <button
+            onClick={() => setOnlyUnpaid(v => !v)}
+            className={`h-9 px-3 rounded-lg text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-colors ${
+              onlyUnpaid ? 'bg-[color:var(--color-neg)]/10 border-[color:var(--color-neg)]/30 text-[color:var(--color-neg)]'
+                         : 'border-border text-muted-foreground hover:text-foreground'}`}
+          >
+            Unpaid
+            {unpaidCount > 0 && (
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${onlyUnpaid ? 'bg-[color:var(--color-neg)]/15' : 'bg-black/5'}`}>{unpaidCount}</span>
+            )}
+          </button>
+          {/* Group by supplier toggle. */}
+          <button
+            onClick={() => setGroupBySupplier(v => !v)}
+            title="Group by supplier"
+            className={`h-9 px-3 rounded-lg text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-colors ${
+              groupBySupplier ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
+                              : 'border-border text-muted-foreground hover:text-foreground'}`}
+          >
+            <Users size={13} /> Group
+          </button>
           <span className="text-[11px] font-semibold text-muted-foreground ml-auto">{filteredPurchases.length} of {purchases.length}</span>
         </div>
       )}
@@ -616,7 +721,7 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
       {activeTab === 'purchases' && (
         <Table
           headers={headers}
-          rows={filteredPurchases}
+          rows={displayRows}
           renderRow={renderRow}
           emptyMessage="No purchases match the filters"
         />
