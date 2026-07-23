@@ -331,6 +331,20 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                     statusLabel = 'In Stock';
                                   }
 
+                                  // Current margin on the latest prices — sell
+                                  // vs weighted-average cost. Null when no sell
+                                  // price, so it reads "—" not a bogus 0%.
+                                  final double? marginPct = product.sellingPrice > 0
+                                      ? (product.sellingPrice - product.costPrice) / product.sellingPrice * 100
+                                      : null;
+                                  final Color marginColor = marginPct == null
+                                      ? AppColors.inkTertiary
+                                      : marginPct < 0
+                                          ? AppColors.error
+                                          : marginPct < 10
+                                              ? AppColors.warning
+                                              : AppColors.success;
+
                                   return GestureDetector(
                                     onTap: () => _showProductSheet(context, product),
                                     child: Container(
@@ -389,6 +403,15 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                                   fontSize: 15,
                                                   fontWeight: FontWeight.w700,
                                                   color: AppColors.inkPrimary,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                marginPct == null ? '—' : '${marginPct.toStringAsFixed(1)}% margin',
+                                                style: GoogleFonts.manrope(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: marginColor,
                                                 ),
                                               ),
                                               const SizedBox(height: 4),
@@ -805,6 +828,19 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
           _DetailRow(label: 'Category', value: p.category ?? 'N/A'),
           _DetailRow(label: 'Cost Price', value: '₹${p.costPrice.toStringAsFixed(2)}'),
           _DetailRow(label: 'Selling Price', value: '₹${p.sellingPrice.toStringAsFixed(2)}'),
+          _DetailRow(
+            label: 'Margin',
+            value: p.sellingPrice > 0
+                ? '${((p.sellingPrice - p.costPrice) / p.sellingPrice * 100).toStringAsFixed(1)}%'
+                : '—',
+            valueColor: p.sellingPrice <= 0
+                ? AppColors.inkTertiary
+                : (p.sellingPrice - p.costPrice) < 0
+                    ? AppColors.error
+                    : ((p.sellingPrice - p.costPrice) / p.sellingPrice * 100) < 10
+                        ? AppColors.warning
+                        : AppColors.success,
+          ),
           _DetailRow(label: 'Stock', value: '${p.stock.toInt()} ${p.unit ?? "pcs"}'),
           _DetailRow(label: 'Tax Rate', value: '${p.taxRate.toStringAsFixed(0)}%'),
 
@@ -889,7 +925,8 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
 class _DetailRow extends StatelessWidget {
   final String label;
   final String value;
-  const _DetailRow({required this.label, required this.value});
+  final Color? valueColor;
+  const _DetailRow({required this.label, required this.value, this.valueColor});
 
   @override
   Widget build(BuildContext context) {
@@ -907,7 +944,7 @@ class _DetailRow extends StatelessWidget {
             style: GoogleFonts.manrope(
               fontSize: 13,
               fontWeight: FontWeight.w600,
-              color: AppColors.inkPrimary,
+              color: valueColor ?? AppColors.inkPrimary,
             ),
           ),
         ],
