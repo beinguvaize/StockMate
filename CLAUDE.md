@@ -128,6 +128,43 @@ Two traps that go with it:
 Deliberate exceptions, all admin surfaces: `AdminPanel`, `SuperAdminPortal`,
 `useBugReports` in `adminMode`. Cross-tenant is the point there — leave them.
 
+### SECURITY DEFINER functions must guard the tenant arg
+
+A `SECURITY DEFINER` RPC runs **past RLS**. If it takes `p_tenant_id` and acts
+on it without checking the caller owns it, any authenticated user reads or
+writes any tenant by passing a different uuid. This is wider than the RLS-lean
+bug — it leaks to *every* user, not just admins.
+
+Every DEFINER function that accepts `p_tenant_id` and is client-callable opens
+with:
+
+```sql
+IF p_tenant_id <> public.current_tenant_id() AND NOT public.is_global_admin() THEN
+  RAISE EXCEPTION 'Access denied';
+END IF;
+```
+
+`get_pl_ranged`, `get_gl_balances`, `get_dashboard_kpis`, `edit_purchase`,
+`resync_purchase_batch`, `reconcile_purchase_money`, `settle_client_payment`,
+`settle_sale_payment`, `issue_invoice_number`, `lock_van_opening_stock`,
+`submit_van_eod`, `complete_production_order`, `dispatch_vehicle_route` all
+carry it. Writes that resolve tenant from `p_user_id` + a `GLOBAL_ADMIN` role
+check (`process_sale`, `process_purchase`, …) are already safe — they don't
+trust the arg.
+
+Two rules that go with it:
+
+- **A DEFINER function with no client caller should be revoked, not left
+  callable.** `create_staff_account` (mints an account in any tenant with any
+  roles), `consume_fifo`, `next_invoice_number`, `recompute_client_outstanding`
+  are `REVOKE EXECUTE … FROM authenticated, anon, public`. Internal DEFINER
+  callers still reach them — the call runs as the postgres owner, so the
+  EXECUTE check only bites a direct client call.
+- **The guard is transparent to internal callers.** `current_tenant_id()`
+  reads `auth.uid()`, which is preserved across DEFINER-to-DEFINER calls, so a
+  guarded helper called inside another DEFINER function still sees the real
+  session user's tenant.
+
 ---
 
 ## Data repairs: snapshot first, in `snap`

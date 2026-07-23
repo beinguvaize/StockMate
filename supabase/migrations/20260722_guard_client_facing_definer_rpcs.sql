@@ -1,0 +1,22 @@
+-- Applied to prod (lmviftlynuhopzmvaxeu) via Supabase apply_migration on
+-- 2026-07-22. This file records intent; the full guarded bodies are in the
+-- database. Each client-facing SECURITY DEFINER write below gained the same
+-- guard get_pl_ranged / get_dashboard_kpis carry, inserted immediately after
+-- BEGIN, bodies otherwise verbatim, signatures unchanged:
+--
+--   IF p_tenant_id <> public.current_tenant_id() AND NOT public.is_global_admin() THEN
+--     RAISE EXCEPTION 'Access denied';
+--   END IF;
+--
+-- Functions guarded:
+--   settle_client_payment(text,uuid,text,numeric,date,text,text,text)
+--   settle_sale_payment(text,numeric,uuid)
+--   issue_invoice_number(uuid,text)
+--   lock_van_opening_stock(text,text,uuid)
+--   submit_van_eod(text,text,uuid,jsonb)
+--   complete_production_order(uuid,uuid)
+--   dispatch_vehicle_route(text,text,text,numeric,jsonb,jsonb,uuid,text,numeric,text)
+--
+-- Verified live: cross-tenant calls raise 'Access denied'; own-tenant calls
+-- (settle_sale_payment, settle_client_payment) return correct results with
+-- bodies intact.
