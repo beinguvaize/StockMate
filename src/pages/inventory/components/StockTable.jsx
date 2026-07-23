@@ -33,6 +33,23 @@ const statusOf = (qty, reorder) => {
 const dotCls = (s) => s === 'crit' ? 'bg-red-500' : s === 'low' ? 'bg-accent-signature' : 'bg-emerald-500';
 const qtyCls = (s) => s === 'crit' ? 'text-red-600' : s === 'low' ? 'text-accent-signature' : 'text-foreground';
 
+// Current margin on the LATEST prices — sell vs weighted-average cost
+// (products.costPrice, kept fresh from open batches). Null when no sell price,
+// so a serviceless/priceless row shows "—" rather than a bogus 0%.
+const marginPct = (p) => {
+  const sell = toNum(p.sellingPrice);
+  const cost = toNum(p.costPrice);
+  if (sell <= 0) return null;
+  return ((sell - cost) / sell) * 100;
+};
+// Loss red, thin amber (<10%), healthy emerald. Tiers let the eye catch the
+// items bleeding margin without reading every number.
+const marginCls = (m) =>
+  m == null ? 'text-muted-foreground'
+  : m < 0    ? 'text-red-600'
+  : m < 10   ? 'text-accent-signature'
+  :            'text-emerald-600';
+
 const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onAdjust, onBatches, onBulkEdit, onBulkDelete, currencySymbol = '₹' }) => {
   const { businessType } = useTenant();
   const isResto = businessType === 'RESTAURANT';
@@ -58,6 +75,7 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
         case 'reorder': return reorderOf(p);
         case 'cost':    return toNum(p.costPrice);
         case 'sell':    return toNum(p.sellingPrice);
+        case 'margin':  return marginPct(p);
         case 'value':   return stockOf(p) * toNum(p.sellingPrice);
         default:        return 0;
       }
@@ -134,6 +152,7 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
               <TH align="right" sortKey={isService ? null : 'reorder'}>{isService ? '' : 'Reorder'}</TH>
               <TH align="right" sortKey={isService ? null : 'cost'}>{isService ? '' : 'Cost'}</TH>
               <TH align="right" sortKey="sell">{isService ? 'Price' : 'Sell'}</TH>
+              <TH align="right" sortKey={isService ? null : 'margin'}>{isService ? '' : 'Margin'}</TH>
               <TH align="right" sortKey={isService ? null : 'value'}>{isService ? '' : 'Value'}</TH>
               <TH align="center"> </TH>
               <TH align="right"> </TH>
@@ -146,7 +165,7 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
                   <td colSpan={(onBulkEdit || onBulkDelete) ? 3 : 2} className="px-5 py-2 text-[11px] font-semibold text-foreground">
                     {cat} <span className="text-muted-foreground ml-1">{items.length}</span>
                   </td>
-                  <td colSpan={4} />
+                  <td colSpan={5} />
                   <td className="px-3 py-2 text-right tabular-nums text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
                     {currencySymbol}{Math.round(subValue).toLocaleString('en-IN')}
                   </td>
@@ -157,6 +176,7 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
                   const reorder = reorderOf(product);
                   const st = statusOf(qty, reorder);
                   const sell = toNum(product.sellingPrice);
+                  const margin = marginPct(product);
                   return (
                     <tr key={product.id}
                       onClick={onView ? () => onView(product) : undefined}
@@ -198,6 +218,7 @@ const StockTable = ({ products, inventoryBalances, onView, onEdit, onDelete, onA
                       <td className="px-3 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">{isService ? '' : (reorder > 0 ? reorder : '—')}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-[12px] text-muted-foreground whitespace-nowrap">{isService ? '' : `${currencySymbol}${toNum(product.costPrice).toFixed(2)}`}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-[12px] font-semibold whitespace-nowrap"><span className="text-accent-signature/70">{currencySymbol}</span>{sell.toFixed(2)}</td>
+                      <td className={`px-3 py-2.5 text-right tabular-nums text-[12px] font-semibold whitespace-nowrap ${marginCls(margin)}`}>{isService ? '' : (margin == null ? '—' : `${margin.toFixed(1)}%`)}</td>
                       <td className="px-3 py-2.5 text-right tabular-nums text-[13px] font-semibold whitespace-nowrap">{isService ? '' : <><span className="text-accent-signature/70">{currencySymbol}</span>{Math.round(qty * sell).toLocaleString('en-IN')}</>}</td>
                       <td className="px-3 py-2.5 text-center">{isService ? null : <span className={`inline-block w-2 h-2 rounded-full ${dotCls(st)}`} />}</td>
                       <td className="px-4 py-2.5 w-px" onClick={(e) => e.stopPropagation()}>
