@@ -502,6 +502,21 @@ const AddItemModal = ({ isOpen, onClose, onSave, editingProduct, productCategori
                   disabled={!formData.secondary_unit}
                   value={formData.conversion_factor}
                   onChange={e => setFormData({ ...formData, conversion_factor: e.target.value })} />
+                {/* Live two-way readout — confirms the factor the moment it's
+                    typed, and shows the reciprocal so a fraction like 0.25 reads
+                    plainly ("4 PACK = 1 KG"). */}
+                {(() => {
+                  const f = parseFloat(formData.conversion_factor);
+                  if (!formData.secondary_unit || !(f > 0)) return null;
+                  const tidy = (n) => Number(n.toFixed(4)).toLocaleString('en-IN');
+                  return (
+                    <div className="mt-1.5 text-[11px] text-muted-foreground tabular-nums">
+                      1 {formData.secondary_unit} = <span className="font-semibold text-foreground">{tidy(f)} {formData.unit}</span>
+                      <span className="mx-1.5 opacity-40">·</span>
+                      {tidy(1 / f)} {formData.secondary_unit} = 1 {formData.unit}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
 
