@@ -2,7 +2,7 @@ enum MethodKind { cash, bank, credit, other }
 
 MethodKind methodKindFromString(String? s) {
   final v = (s ?? '').toUpperCase();
-  if (['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS'].contains(v)) return MethodKind.bank;
+  if (['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS', 'CARD', 'CHEQUE'].contains(v)) return MethodKind.bank;
   if (v == 'CREDIT') return MethodKind.credit;
   if (v == 'CASH') return MethodKind.cash;
   return MethodKind.other;

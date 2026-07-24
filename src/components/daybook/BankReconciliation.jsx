@@ -91,19 +91,19 @@ const BankReconciliation = ({ tenantId, currentUserId, selectedDate, daySales = 
   const candidates = useMemo(() => {
     const list = [];
     daySales
-      .filter(s => ['BANK','UPI','TRANSFER','NEFT','RTGS'].includes((s.paymentMethod || '').toUpperCase()))
+      .filter(s => ['BANK','UPI','TRANSFER','NEFT','RTGS','CARD','CHEQUE'].includes((s.paymentMethod || '').toUpperCase()))
       .forEach(s => list.push({
         kind: 'sale', id: s.id, date: s.date, amount: Number(s.totalAmount || s.paidAmount || 0),
         label: `Sale ${s.id?.slice(0, 8)} · ${s.paymentMethod}`,
       }));
     dayCollect
-      .filter(p => ['BANK','UPI','TRANSFER','NEFT','RTGS'].includes((p.payment_method || '').toUpperCase()))
+      .filter(p => ['BANK','UPI','TRANSFER','NEFT','RTGS','CARD','CHEQUE'].includes((p.payment_method || '').toUpperCase()))
       .forEach(p => list.push({
         kind: 'payment', id: p.id, date: p.date, amount: Number(p.amount || 0),
         label: `Collection ${(p.id || '').slice(0, 8)} · ${p.payment_method}`,
       }));
     dayExpenses
-      .filter(e => ['BANK','UPI','TRANSFER','NEFT','RTGS'].includes((e.paymentMethod || e.payment_method || '').toUpperCase()))
+      .filter(e => ['BANK','UPI','TRANSFER','NEFT','RTGS','CARD','CHEQUE'].includes((e.paymentMethod || e.payment_method || '').toUpperCase()))
       .forEach(e => list.push({
         kind: 'expense', id: e.id, date: e.date, amount: Number(e.amount || 0),
         label: `Expense ${(e.id || '').slice(0, 8)} · ${e.category || ''}`,

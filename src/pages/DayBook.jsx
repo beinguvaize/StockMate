@@ -23,6 +23,15 @@ import { todayISOInAppTZ } from '../lib/utils';
 const fmt = (n) =>
   (Number(n) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+// Non-cash methods that settle to a bank/UPI account rather than the physical
+// drawer. One shared list so sales, client collections and purchases can't
+// drift apart — CARD, NEFT, RTGS and CHEQUE used to be missing from one bucket
+// or another, so a card sale or card collection fell into neither cash nor
+// bank and vanished from the day's totals. CREDIT is deliberately absent: a
+// credit purchase is settled later as a supplier payment, not counted here.
+const BANK_METHODS = ['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS', 'CARD', 'CHEQUE'];
+const isBankMethod = (m) => BANK_METHODS.includes((m || '').toUpperCase());
+
 const addDays = (dateStr, n) => {
   const d = new Date(dateStr + 'T00:00:00');
   d.setDate(d.getDate() + n);
@@ -127,7 +136,7 @@ const DayBook = () => {
       if (rawPaid == null && method !== 'CREDIT') return t;
       return Math.min(Number(rawPaid) || 0, t);
     };
-    const isBank = (m) => ['BANK','UPI','TRANSFER'].includes((m || '').toUpperCase());
+    const isBank = isBankMethod;
     const cashSales   = daySales.filter(s => (s.paymentMethod || '').toUpperCase() === 'CASH')
                                 .reduce((t, s) => t + recv(s), 0);
     const bankSales   = daySales.filter(s => isBank(s.paymentMethod))
@@ -140,7 +149,7 @@ const DayBook = () => {
                                 .reduce((t, s) => t + recv(s), 0);
     const cashCollect = dayCollect.filter(p => (p.payment_method || '').toUpperCase() === 'CASH')
                                   .reduce((t, p) => t + (Number(p.amount) || 0), 0);
-    const bankCollect = dayCollect.filter(p => ['BANK','UPI','TRANSFER','NEFT','RTGS'].includes((p.payment_method || '').toUpperCase()))
+    const bankCollect = dayCollect.filter(p => isBankMethod(p.payment_method))
                                   .reduce((t, p) => t + (Number(p.amount) || 0), 0);
     // cashIn = money that hits the physical cash drawer (incl. amounts paid up
     // front on partial credit sales).
@@ -162,7 +171,7 @@ const DayBook = () => {
       .filter(p => (p.payment_type || 'CASH').toUpperCase() === 'CASH')
       .reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
     const bankPurchPaid   = dayPurchases
-      .filter(p => ['BANK','UPI','TRANSFER'].includes((p.payment_type || '').toUpperCase()))
+      .filter(p => isBankMethod(p.payment_type))
       .reduce((t, p) => t + (Number(p.total_amount) || 0), 0);
     // Supplier repayments (credit purchases settled later). Cash → drawer.
     const cashSupPay      = daySupPays.filter(p => isCash(p.payment_method))

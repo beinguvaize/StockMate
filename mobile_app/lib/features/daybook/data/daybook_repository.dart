@@ -46,7 +46,7 @@ class DaybookRepository {
     final collections = (results[2] as List).cast<Map<String, dynamic>>();
     final purchases = (results[3] as List).cast<Map<String, dynamic>>();
 
-    const bankMethods = ['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS'];
+    const bankMethods = ['BANK', 'UPI', 'TRANSFER', 'NEFT', 'RTGS', 'CARD', 'CHEQUE'];
 
     // Compute aggregates
     double cashSales = 0, bankSales = 0, creditSales = 0;
