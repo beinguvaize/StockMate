@@ -1,8 +1,11 @@
 import React, { useMemo } from 'react';
 import useReportData from './useReportData';
 import PremiumReportView from './PremiumReportView';
-import { Download, AlertTriangle } from 'lucide-react';
+import { Download, AlertTriangle, Trash2 } from 'lucide-react';
 import { round2 } from '../../utils/financialCalculations';
+import { restRpc } from '../../lib/supabase';
+import { useTenant } from '../../context/TenantContext';
+import { useNotifications } from '../../context/NotificationContext';
 
 // Expiry tracking — dated batches with qty remaining, bucketed by urgency.
 // Value at risk = qty_remaining × unit_cost.
@@ -17,11 +20,28 @@ const BUCKETS = [
 ];
 
 const ExpiryReport = () => {
-  const { data: batches, loading } = useReportData({
+  const { currentTenantId } = useTenant();
+  const { addNotification } = useNotifications();
+  const { data: batches, loading, refetch } = useReportData({
     table: 'product_batches',
     select: 'id, product_id, expiry_date, qty_remaining, unit_cost, received_date, supplier_id',
   });
   const { data: products } = useReportData({ table: 'products', select: 'id, name, sku' });
+
+  // Deliberate disposal of expired stock: removes the remaining qty and books
+  // the cost as a non-cash loss (server-side write_off_batch). Never automatic.
+  const writeOff = async (r) => {
+    if (!window.confirm(
+      `Write off ${r.qty_remaining} × ${r._product}?\n` +
+      `This removes the stock and books a ₹${r._value} loss. Cannot be undone here.`
+    )) return;
+    const { error } = await restRpc('write_off_batch', {
+      p_batch_id: r.id, p_tenant_id: currentTenantId, p_reason: 'Expiry write-off',
+    });
+    if (error) { addNotification('Write-off failed: ' + error.message, 'error'); return; }
+    addNotification(`Wrote off ${r._product} — ₹${r._value} loss booked`, 'success');
+    refetch?.();
+  };
 
   const rows = useMemo(() => (batches || [])
     .filter(b => b.expiry_date && Number(b.qty_remaining) > 0)
@@ -98,6 +118,18 @@ const ExpiryReport = () => {
       { key: 'qty_remaining', label: 'Qty left', align: 'right', sortable: true },
       { key: '_value', label: 'Value at risk', type: 'currency', align: 'right', sortable: true },
       { key: 'received_date', label: 'Received', type: 'date', width: 110 },
+      {
+        key: '_writeoff', label: '', width: 110, align: 'right',
+        render: (_v, r) => r._days < 0 ? (
+          <button
+            onClick={(e) => { e.stopPropagation(); writeOff(r); }}
+            title="Remove this expired stock and book the loss"
+            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+          >
+            <Trash2 size={11} /> Write off
+          </button>
+        ) : null,
+      },
     ],
     data: rows,
     loading,

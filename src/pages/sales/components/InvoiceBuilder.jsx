@@ -444,10 +444,12 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
     const groups = Array.isArray(product.modifier_groups) ? product.modifier_groups : [];
     // Open the picker for dishes with modifiers (unless options already chosen).
     if (mods === undefined && groups.length > 0) { setModPicker({ product }); return; }
-    // Pharmacy: refuse to sell stock whose earliest (FEFO) batch is expired.
+    // Expired stock: warn, don't block. A hard refusal was wrong for soft-dated
+    // goods (packaging, covers) where a day past the printed date is still
+    // saleable — it stranded perfectly good stock. The cashier confirms an
+    // expired sale deliberately; the EXPIRED badge already flags it on the tile.
     if (isExpired(product.id)) {
-      addNotification(`${product.name}: stock expired (${batchExpiry[product.id]}) — cannot sell`, 'error');
-      return;
+      if (!window.confirm(`${product.name}: stock expired on ${batchExpiry[product.id]}.\nSell anyway?`)) return;
     }
     const chosen = mods || [];
     const addPrice = chosen.reduce((s, o) => s + (Number(o.price) || 0), 0);
