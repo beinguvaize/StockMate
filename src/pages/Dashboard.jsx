@@ -97,7 +97,7 @@ const Dashboard = () => {
   const { currentTenant, currentTenantId, businessProfile } = useTenant();
   const slug = currentTenant?.slug || '';
   const { products, inventoryBalances, refetch: refetchInventory, loading: invLoading, error: invError } = useInventory(currentTenantId);
-  const { sales, refetch: refetchSales, loading: salesLoading } = useSales(currentTenantId);
+  const { sales, refetch: refetchSales, loading: salesLoading } = useSales(currentTenantId, { lean: true });
   const { purchases, refetch: refetchPurchases, loading: purLoading } = usePurchases(currentTenantId, { withReturns: false, withPayments: false });
   const { expenses, dayBook, refetch: refetchFinance, loading: finLoading } = useFinance(currentTenantId);
   const { clients, employees, refetch: refetchPeople } = usePeople(currentTenantId);

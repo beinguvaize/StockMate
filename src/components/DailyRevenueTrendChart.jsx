@@ -20,7 +20,7 @@ import { parseLocalDate } from '../lib/utils';
  */
 const DailyRevenueTrendChart = () => {
  const { currentTenantId, businessProfile } = useTenant();
- const { sales } = useSales(currentTenantId);
+ const { sales } = useSales(currentTenantId, { lean: true });
  const { employees } = usePeople(currentTenantId);
  const currency = businessProfile?.currencySymbol || '₹';
 

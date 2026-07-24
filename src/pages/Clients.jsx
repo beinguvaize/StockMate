@@ -26,7 +26,7 @@ const Clients = () => {
   const { 
     clients, addClient, updateClient, deleteClient 
   } = usePeople(currentTenantId);
-  const { sales } = useSales(currentTenantId);
+  const { sales } = useSales(currentTenantId, { lean: true });
   const [clientPayments, setClientPayments] = useState([]);
   const [clientDeliveries, setClientDeliveries] = useState([]);
 

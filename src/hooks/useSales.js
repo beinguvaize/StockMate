@@ -9,6 +9,14 @@ import { getPlanLimits } from '../lib/tenancy';
 // Postgres `numeric` -> JS string over the wire. Coerce on fetch so downstream
 // `reduce(sum + x, 0)` doesn't string-concat and `.toFixed` doesn't throw.
 const NUMERIC_SALE_COLS = ['totalAmount', 'subtotal', 'tax', 'discount', 'totalCogs', 'paidAmount'];
+
+// Every sales column EXCEPT the items JSONB. items is ~65% of a sale row's
+// bytes (~460 B/sale), and screens that only show totals/status/dates — the
+// dashboard, revenue trend, clients list — never read it. A lean select drops
+// it, cutting the sales payload ~3x. Web only: desktop keeps the full fetch so
+// the shared offline cache under the 'sales' key never loses items for the POS
+// list, which does need them (edit, return, reprint).
+const SALE_LEAN_COLS = '"id", "shopId", "customerInfo", "paymentMethod", "paymentStatus", "routeId", "subtotal", "discount", "tax", "totalAmount", "totalCogs", "date", "salesRepId", "bookedBy", "status", "scheduledDate", "deliveredBy", "note", "paidAmount", "lastPaymentDate", "created_at", "payment_type", "is_seed", "vehicleid", "vehicleId", "tenant_id", "delivery_method", "fulfillment_status", "sale_type", "route_id", "invoice_id", "place_of_supply", "billing_address", "shipping_address", "terms_id", "eway_bill_number", "transport_name", "vehicle_number", "lr_number", "tds_amount", "tcs_amount", "round_off", "is_pos", "cashier_id", "updated_at", "deleted_at", "source_app", "voided_at", "void_reason", "location_id", "amount_received"';
 const NUMERIC_CLIENT_COLS = ['outstanding_balance', 'credit_limit'];
 const NUMERIC_INVOICE_COLS = ['amount', 'grand_total', 'taxable_amount', 'tax_total', 'discount_total', 'cgst_amount', 'sgst_amount', 'igst_amount', 'round_off', 'paid_amount'];
 
@@ -21,7 +29,7 @@ const normalizeRow = (row, cols) => {
   return out;
 };
 
-export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
+export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
   const { currentUser } = useAuth();
   const [data, setData] = useState([]);
   const [clients, setClients] = useState([]);
@@ -43,7 +51,9 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
     try {
       const [sales, clients, invoicesRows, returns] = await Promise.all([
         readCacheThenRevalidate('sales',
-          () => supabase.from('sales').select('*').is('deleted_at', null).eq('tenant_id', tenantId).order('created_at', { ascending: false, nullsFirst: false }).limit(500),
+          // Lean (items-less) only on web — desktop keeps '*' so the shared
+          // 'sales' cache stays complete for the POS list that needs items.
+          () => supabase.from('sales').select(lean && !isElectron() ? SALE_LEAN_COLS : '*').is('deleted_at', null).eq('tenant_id', tenantId).order('created_at', { ascending: false, nullsFirst: false }).limit(500),
           (fresh) => setData(fresh.map(r => normalizeRow(r, NUMERIC_SALE_COLS))),
         ),
         readCacheThenRevalidate('clients',
@@ -71,7 +81,7 @@ export const useSales = (tenantId, { plan = 'STARTER' } = {}) => {
       setLoading(false);
       initialLoadDone.current = true;
     }
-  }, [tenantId]);
+  }, [tenantId, lean]);
 
   fetchRef.current = fetchSales;
 
