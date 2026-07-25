@@ -501,14 +501,41 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   /** Unit of the product on a cart line — decides whether fractions are allowed. */
   const unitOf = (productId) => productById[productId]?.unit;
 
+  // ── Sell-by-alternate-unit (e.g. sell a KG product by 250 g packet) ──────────
+  // A line is ALWAYS stored in the base unit — quantity and price are base, so
+  // stock, COGS, the below-cost guard and the sale payload never see packets and
+  // the money math is identical to a base sale. `sellUnit === 'ALT'` only changes
+  // how the line is DISPLAYED and how typed entry is interpreted, via conv
+  // (base per one alt unit, e.g. 0.25 KG per packet).
+  const convOf = (productId) => {
+    const p = productById[productId];
+    const c = Number(p?.conversion_factor);
+    return (p?.secondary_unit && c > 0) ? c : 0;
+  };
+  const isAlt = (item) => item.sellUnit === 'ALT' && convOf(item.productId) > 0;
+  // Unit label + fraction rules for how the line reads right now.
+  const dispUnit = (item) => isAlt(item) ? productById[item.productId].secondary_unit : unitOf(item.productId);
+  // Base <-> display conversions. Round display qty to 3dp to kill float noise.
+  const toDispQty   = (item) => isAlt(item) ? Number((item.quantity / convOf(item.productId)).toFixed(3)) : item.quantity;
+  const toDispPrice = (item) => isAlt(item) ? Number((item.price   * convOf(item.productId)).toFixed(2)) : item.price;
+
+  const toggleLineUnit = (uid) => {
+    setCart(prev => prev.map(i => {
+      if (keyOf(i) !== uid) return i;
+      if (!(convOf(i.productId) > 0)) return i;         // no alt unit → no toggle
+      return { ...i, sellUnit: i.sellUnit === 'ALT' ? 'BASE' : 'ALT' };
+    }));
+  };
+
   const updateQuantity = (uid, delta) => {
     setCart(prev => prev.map(item => {
       if (keyOf(item) === uid) {
         const unit = unitOf(item.productId);
         const available = getAvailableStock(item.productId);
-        // Step by unit: whole pieces, or half-kilos on weight goods. Rounded
-        // through clampQty so 0.1 + 0.2 never lands as 0.30000000000000004.
-        const step = delta * qtyStepButton(unit);
+        // Step by unit: whole pieces, or half-kilos on weight goods — or one
+        // whole alt unit (a packet = conv base) when the line sells by packet.
+        // Rounded through clampQty so 0.1 + 0.2 never lands as 0.30000000000000004.
+        const step = delta * (isAlt(item) ? convOf(item.productId) : qtyStepButton(unit));
         const next = clampQty(Math.max(0, item.quantity + step), unit);
         if (exceedsStock(next, available)) {
           addNotification(`Only ${formatQtyWithUnit(available, unit)} in stock`, 'error');
@@ -530,7 +557,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       const line = prev.find(i => keyOf(i) === uid);
       if (!line) return prev;
       const unit = unitOf(line.productId);
-      const qty = clampQty(raw, unit);
+      // Typed value is in the display unit. For a packet line, one typed packet
+      // is conv base units, so convert before storing (stock stays in base).
+      const baseRaw = isAlt(line) ? raw * convOf(line.productId) : raw;
+      const qty = clampQty(baseRaw, unit);
       if (qty === 0) return prev.filter(i => keyOf(i) !== uid);
       const available = getAvailableStock(line.productId);
       if (exceedsStock(qty, available)) {
@@ -544,7 +574,9 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   const setItemPrice = (uid, val) => {
     const price = parseFloat(val);
     setCart(prev => prev.map(i =>
-      keyOf(i) === uid ? { ...i, price: isNaN(price) ? i.price : price } : i
+      // Typed price is per display unit. A per-packet price divided by conv is
+      // the per-base price we store (so quantity*price stays the true total).
+      keyOf(i) === uid ? { ...i, price: isNaN(price) ? i.price : (isAlt(i) ? price / convOf(i.productId) : price) } : i
     ));
   };
 
@@ -681,11 +713,20 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
       const saleId = editId || generateRef('SAL');
       // Attach captured serials to their line so they print on the bill and
       // persist in sale.items (no app release needed for the receipt to show them).
-      const itemsWithSerials = cart.map(l =>
-        productById[l.productId]?.track_serial
-          ? { ...l, imeis: (lineImeis[l.uid] || []).map(s => s.trim()).filter(Boolean) }
-          : l
-      );
+      const itemsWithSerials = cart.map(l => {
+        let out = l;
+        if (productById[l.productId]?.track_serial) {
+          out = { ...out, imeis: (lineImeis[l.uid] || []).map(s => s.trim()).filter(Boolean) };
+        }
+        // Snapshot the packet view so the receipt can print "4 Packet @ ₹40"
+        // without needing the product's conversion at render time. quantity and
+        // price stay base — the money and stock are unaffected.
+        if (isAlt(l)) {
+          out = { ...out, sellUnitName: productById[l.productId].secondary_unit,
+                          sellQty: toDispQty(l), sellUnitPrice: toDispPrice(l) };
+        }
+        return out;
+      });
       const saleData = {
         id: saleId,
         clientId: selectedClientId,
@@ -1158,11 +1199,24 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   belowCost ? 'bg-red-50/60' : 'hover:bg-canvas/40'
                 }`}
               >
-                {/* Product name + modifiers + below-cost hint */}
+                {/* Product name + modifiers + below-cost hint + unit toggle */}
                 <div className="min-w-0">
                   <div className="text-sm font-semibold text-foreground truncate uppercase">{item.name}</div>
                   {item.modLabel && (
                     <div className="text-[11px] font-semibold text-accent-signature-hover truncate">+ {item.modLabel}</div>
+                  )}
+                  {/* Sell by base unit or alternate (packet). Only shown when the
+                      product carries an alt unit. Deducts base either way. */}
+                  {convOf(item.productId) > 0 && (
+                    <button
+                      onClick={() => toggleLineUnit(k)}
+                      className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-accent-signature-hover hover:underline"
+                      title={`1 ${productById[item.productId].secondary_unit} = ${convOf(item.productId)} ${unitOf(item.productId)}`}
+                    >
+                      {isAlt(item)
+                        ? <>by {productById[item.productId].secondary_unit} · {formatQtyWithUnit(item.quantity, unitOf(item.productId))} stock</>
+                        : <>sell by {productById[item.productId].secondary_unit}?</>}
+                    </button>
                   )}
                   {belowCost && (
                     <div className="text-xs font-semibold text-red-500 mt-0.5">
@@ -1183,18 +1237,17 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                       outright. Weight units get gram precision; pieces stay whole. */}
                   <input
                     type="number"
-                    min={qtyMin(unitOf(item.productId))}
-                    step={qtyStep(unitOf(item.productId))}
-                    inputMode={allowsFraction(unitOf(item.productId)) ? 'decimal' : 'numeric'}
-                    value={item.quantity}
+                    min={qtyMin(dispUnit(item))}
+                    step={qtyStep(dispUnit(item))}
+                    inputMode={allowsFraction(dispUnit(item)) ? 'decimal' : 'numeric'}
+                    value={toDispQty(item)}
                     onChange={e => setQuantityDirect(k, e.target.value)}
-                    className={`${allowsFraction(unitOf(item.productId)) ? 'w-14' : 'w-8'} text-center text-sm font-semibold text-foreground bg-transparent outline-none tabular-nums`}
+                    className={`${allowsFraction(dispUnit(item)) ? 'w-14' : 'w-8'} text-center text-sm font-semibold text-foreground bg-transparent outline-none tabular-nums`}
                   />
-                  {/* Unit beside the number, gram equivalent under it — the
-                      figure alone said nothing about what it counted. */}
-                  {String(unitOf(item.productId) ?? '').trim() && (
+                  {/* Unit beside the number — base or the alt (packet) label. */}
+                  {String(dispUnit(item) ?? '').trim() && (
                     <span className="text-[10px] text-muted-foreground shrink-0 leading-none">
-                      {String(unitOf(item.productId)).trim()}
+                      {String(dispUnit(item)).trim()}
                     </span>
                   )}
                   <button
@@ -1204,7 +1257,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     <Plus size={9} strokeWidth={3} />
                   </button>
                 </div>
-                {subQtyLabel(item.quantity, unitOf(item.productId)) && (
+                {!isAlt(item) && subQtyLabel(item.quantity, unitOf(item.productId)) && (
                   <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
                     {subQtyLabel(item.quantity, unitOf(item.productId))}
                   </div>
@@ -1217,7 +1270,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                     type="number"
                     min="0"
                     step="0.01"
-                    value={item.price}
+                    value={toDispPrice(item)}
                     onChange={e => setItemPrice(k, e.target.value)}
                     className={`w-full pl-4 pr-1 py-1 text-sm font-semibold bg-canvas rounded-lg outline-none focus:ring-1 tabular-nums border ${
                       belowCost

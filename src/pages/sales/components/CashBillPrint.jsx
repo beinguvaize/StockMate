@@ -95,11 +95,14 @@ const CashBillPrint = ({ sale, business = {}, onClose, currencySymbol = '₹', p
         </div>
         <div className={`pb-1 mb-1 border-b ${div_}`}>
           {items.map((it, i) => {
-            const rate = Number(it.price || it.sellingPrice || 0);
-            const q = Number(it.quantity || 0);
+            // Packet-sold line: show the packet count + per-packet rate the
+            // customer bought. Row total is identical to the base figures.
+            const isPkt = !!it.sellUnitName;
+            const rate = isPkt ? Number(it.sellUnitPrice || 0) : Number(it.price || it.sellingPrice || 0);
+            const q = isPkt ? Number(it.sellQty || 0) : Number(it.quantity || 0);
             return (
               <div key={i} className="text-[10px] py-0.5">
-                <div className="truncate">{it.name || 'Item'}</div>
+                <div className="truncate">{it.name || 'Item'}{isPkt ? ` · ${q} ${it.sellUnitName}` : ''}</div>
                 <div className="flex">
                   <div className="flex-1" />
                   <div className="w-8 text-right">{q}</div>
