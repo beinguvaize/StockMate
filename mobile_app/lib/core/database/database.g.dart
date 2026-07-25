@@ -362,6 +362,12 @@ late final GeneratedColumn<String> category = GeneratedColumn<String>('category'
 static const VerificationMeta _unitMeta = const VerificationMeta('unit');
 @override
 late final GeneratedColumn<String> unit = GeneratedColumn<String>('unit', aliasedName, true, type: DriftSqlType.string, requiredDuringInsert: false);
+static const VerificationMeta _secondaryUnitMeta = const VerificationMeta('secondaryUnit');
+@override
+late final GeneratedColumn<String> secondaryUnit = GeneratedColumn<String>('secondary_unit', aliasedName, true, type: DriftSqlType.string, requiredDuringInsert: false);
+static const VerificationMeta _conversionFactorMeta = const VerificationMeta('conversionFactor');
+@override
+late final GeneratedColumn<double> conversionFactor = GeneratedColumn<double>('conversion_factor', aliasedName, true, type: DriftSqlType.double, requiredDuringInsert: false);
 static const VerificationMeta _costPriceMeta = const VerificationMeta('costPrice');
 @override
 late final GeneratedColumn<double> costPrice = GeneratedColumn<double>('cost_price', aliasedName, false, type: DriftSqlType.double, requiredDuringInsert: false, defaultValue: const Constant(0));
@@ -387,7 +393,7 @@ static const VerificationMeta _updatedAtMeta = const VerificationMeta('updatedAt
 @override
 late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>('updated_at', aliasedName, true, type: DriftSqlType.dateTime, requiredDuringInsert: false);
 @override
-List<GeneratedColumn> get $columns => [id, tenantId, sku, name, category, unit, costPrice, sellingPrice, stock, taxRate, cessRate, hsnCode, image, updatedAt];
+List<GeneratedColumn> get $columns => [id, tenantId, sku, name, category, unit, secondaryUnit, conversionFactor, costPrice, sellingPrice, stock, taxRate, cessRate, hsnCode, image, updatedAt];
 @override
 String get aliasedName => _alias ?? actualTableName;
 @override
@@ -412,7 +418,9 @@ context.missing(_nameMeta);
 }
 if (data.containsKey('category')) {
 context.handle(_categoryMeta, category.isAcceptableOrUnknown(data['category']!, _categoryMeta));}if (data.containsKey('unit')) {
-context.handle(_unitMeta, unit.isAcceptableOrUnknown(data['unit']!, _unitMeta));}if (data.containsKey('cost_price')) {
+context.handle(_unitMeta, unit.isAcceptableOrUnknown(data['unit']!, _unitMeta));}if (data.containsKey('secondary_unit')) {
+context.handle(_secondaryUnitMeta, secondaryUnit.isAcceptableOrUnknown(data['secondary_unit']!, _secondaryUnitMeta));}if (data.containsKey('conversion_factor')) {
+context.handle(_conversionFactorMeta, conversionFactor.isAcceptableOrUnknown(data['conversion_factor']!, _conversionFactorMeta));}if (data.containsKey('cost_price')) {
 context.handle(_costPriceMeta, costPrice.isAcceptableOrUnknown(data['cost_price']!, _costPriceMeta));}if (data.containsKey('selling_price')) {
 context.handle(_sellingPriceMeta, sellingPrice.isAcceptableOrUnknown(data['selling_price']!, _sellingPriceMeta));}if (data.containsKey('stock')) {
 context.handle(_stockMeta, stock.isAcceptableOrUnknown(data['stock']!, _stockMeta));}if (data.containsKey('tax_rate')) {
@@ -425,7 +433,7 @@ context.handle(_updatedAtMeta, updatedAt.isAcceptableOrUnknown(data['updated_at'
 @override
 Set<GeneratedColumn> get $primaryKey => {id};
 @override Product map(Map<String, dynamic> data, {String? tablePrefix})  {
-final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';return Product(id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!, tenantId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!, sku: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}sku']), name: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}name'])!, category: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}category']), unit: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}unit']), costPrice: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}cost_price'])!, sellingPrice: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}selling_price'])!, stock: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}stock'])!, taxRate: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}tax_rate'])!, cessRate: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}cess_rate'])!, hsnCode: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}hsn_code']), image: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}image']), updatedAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at']), );
+final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';return Product(id: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}id'])!, tenantId: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}tenant_id'])!, sku: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}sku']), name: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}name'])!, category: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}category']), unit: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}unit']), secondaryUnit: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}secondary_unit']), conversionFactor: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}conversion_factor']), costPrice: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}cost_price'])!, sellingPrice: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}selling_price'])!, stock: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}stock'])!, taxRate: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}tax_rate'])!, cessRate: attachedDatabase.typeMapping.read(DriftSqlType.double, data['${effectivePrefix}cess_rate'])!, hsnCode: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}hsn_code']), image: attachedDatabase.typeMapping.read(DriftSqlType.string, data['${effectivePrefix}image']), updatedAt: attachedDatabase.typeMapping.read(DriftSqlType.dateTime, data['${effectivePrefix}updated_at']), );
 }
 @override
 $ProductsTable createAlias(String alias) {
@@ -437,6 +445,8 @@ final String? sku;
 final String name;
 final String? category;
 final String? unit;
+final String? secondaryUnit;
+final double? conversionFactor;
 final double costPrice;
 final double sellingPrice;
 final double stock;
@@ -445,7 +455,7 @@ final double cessRate;
 final String? hsnCode;
 final String? image;
 final DateTime? updatedAt;
-const Product({required this.id, required this.tenantId, this.sku, required this.name, this.category, this.unit, required this.costPrice, required this.sellingPrice, required this.stock, required this.taxRate, required this.cessRate, this.hsnCode, this.image, this.updatedAt});@override
+const Product({required this.id, required this.tenantId, this.sku, required this.name, this.category, this.unit, this.secondaryUnit, this.conversionFactor, required this.costPrice, required this.sellingPrice, required this.stock, required this.taxRate, required this.cessRate, this.hsnCode, this.image, this.updatedAt});@override
 Map<String, Expression> toColumns(bool nullToAbsent) {
 final map = <String, Expression> {};map['id'] = Variable<String>(id);
 map['tenant_id'] = Variable<String>(tenantId);
@@ -453,6 +463,8 @@ if (!nullToAbsent || sku != null){map['sku'] = Variable<String>(sku);
 }map['name'] = Variable<String>(name);
 if (!nullToAbsent || category != null){map['category'] = Variable<String>(category);
 }if (!nullToAbsent || unit != null){map['unit'] = Variable<String>(unit);
+}if (!nullToAbsent || secondaryUnit != null){map['secondary_unit'] = Variable<String>(secondaryUnit);
+}if (!nullToAbsent || conversionFactor != null){map['conversion_factor'] = Variable<double>(conversionFactor);
 }map['cost_price'] = Variable<double>(costPrice);
 map['selling_price'] = Variable<double>(sellingPrice);
 map['stock'] = Variable<double>(stock);
@@ -464,23 +476,23 @@ if (!nullToAbsent || hsnCode != null){map['hsn_code'] = Variable<String>(hsnCode
 }return map; 
 }
 ProductsCompanion toCompanion(bool nullToAbsent) {
-return ProductsCompanion(id: Value(id),tenantId: Value(tenantId),sku: sku == null && nullToAbsent ? const Value.absent() : Value(sku),name: Value(name),category: category == null && nullToAbsent ? const Value.absent() : Value(category),unit: unit == null && nullToAbsent ? const Value.absent() : Value(unit),costPrice: Value(costPrice),sellingPrice: Value(sellingPrice),stock: Value(stock),taxRate: Value(taxRate),cessRate: Value(cessRate),hsnCode: hsnCode == null && nullToAbsent ? const Value.absent() : Value(hsnCode),image: image == null && nullToAbsent ? const Value.absent() : Value(image),updatedAt: updatedAt == null && nullToAbsent ? const Value.absent() : Value(updatedAt),);
+return ProductsCompanion(id: Value(id),tenantId: Value(tenantId),sku: sku == null && nullToAbsent ? const Value.absent() : Value(sku),name: Value(name),category: category == null && nullToAbsent ? const Value.absent() : Value(category),unit: unit == null && nullToAbsent ? const Value.absent() : Value(unit),secondaryUnit: secondaryUnit == null && nullToAbsent ? const Value.absent() : Value(secondaryUnit),conversionFactor: conversionFactor == null && nullToAbsent ? const Value.absent() : Value(conversionFactor),costPrice: Value(costPrice),sellingPrice: Value(sellingPrice),stock: Value(stock),taxRate: Value(taxRate),cessRate: Value(cessRate),hsnCode: hsnCode == null && nullToAbsent ? const Value.absent() : Value(hsnCode),image: image == null && nullToAbsent ? const Value.absent() : Value(image),updatedAt: updatedAt == null && nullToAbsent ? const Value.absent() : Value(updatedAt),);
 }
 factory Product.fromJson(Map<String, dynamic> json, {ValueSerializer? serializer}) {
 serializer ??= driftRuntimeOptions.defaultSerializer;
-return Product(id: serializer.fromJson<String>(json['id']),tenantId: serializer.fromJson<String>(json['tenantId']),sku: serializer.fromJson<String?>(json['sku']),name: serializer.fromJson<String>(json['name']),category: serializer.fromJson<String?>(json['category']),unit: serializer.fromJson<String?>(json['unit']),costPrice: serializer.fromJson<double>(json['costPrice']),sellingPrice: serializer.fromJson<double>(json['sellingPrice']),stock: serializer.fromJson<double>(json['stock']),taxRate: serializer.fromJson<double>(json['taxRate']),cessRate: serializer.fromJson<double>(json['cessRate']),hsnCode: serializer.fromJson<String?>(json['hsnCode']),image: serializer.fromJson<String?>(json['image']),updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),);}
+return Product(id: serializer.fromJson<String>(json['id']),tenantId: serializer.fromJson<String>(json['tenantId']),sku: serializer.fromJson<String?>(json['sku']),name: serializer.fromJson<String>(json['name']),category: serializer.fromJson<String?>(json['category']),unit: serializer.fromJson<String?>(json['unit']),secondaryUnit: serializer.fromJson<String?>(json['secondaryUnit']),conversionFactor: serializer.fromJson<double?>(json['conversionFactor']),costPrice: serializer.fromJson<double>(json['costPrice']),sellingPrice: serializer.fromJson<double>(json['sellingPrice']),stock: serializer.fromJson<double>(json['stock']),taxRate: serializer.fromJson<double>(json['taxRate']),cessRate: serializer.fromJson<double>(json['cessRate']),hsnCode: serializer.fromJson<String?>(json['hsnCode']),image: serializer.fromJson<String?>(json['image']),updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),);}
 @override Map<String, dynamic> toJson({ValueSerializer? serializer}) {
 serializer ??= driftRuntimeOptions.defaultSerializer;
 return <String, dynamic>{
-'id': serializer.toJson<String>(id),'tenantId': serializer.toJson<String>(tenantId),'sku': serializer.toJson<String?>(sku),'name': serializer.toJson<String>(name),'category': serializer.toJson<String?>(category),'unit': serializer.toJson<String?>(unit),'costPrice': serializer.toJson<double>(costPrice),'sellingPrice': serializer.toJson<double>(sellingPrice),'stock': serializer.toJson<double>(stock),'taxRate': serializer.toJson<double>(taxRate),'cessRate': serializer.toJson<double>(cessRate),'hsnCode': serializer.toJson<String?>(hsnCode),'image': serializer.toJson<String?>(image),'updatedAt': serializer.toJson<DateTime?>(updatedAt),};}Product copyWith({String? id,String? tenantId,Value<String?> sku = const Value.absent(),String? name,Value<String?> category = const Value.absent(),Value<String?> unit = const Value.absent(),double? costPrice,double? sellingPrice,double? stock,double? taxRate,double? cessRate,Value<String?> hsnCode = const Value.absent(),Value<String?> image = const Value.absent(),Value<DateTime?> updatedAt = const Value.absent()}) => Product(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,sku: sku.present ? sku.value : this.sku,name: name ?? this.name,category: category.present ? category.value : this.category,unit: unit.present ? unit.value : this.unit,costPrice: costPrice ?? this.costPrice,sellingPrice: sellingPrice ?? this.sellingPrice,stock: stock ?? this.stock,taxRate: taxRate ?? this.taxRate,cessRate: cessRate ?? this.cessRate,hsnCode: hsnCode.present ? hsnCode.value : this.hsnCode,image: image.present ? image.value : this.image,updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,);Product copyWithCompanion(ProductsCompanion data) {
+'id': serializer.toJson<String>(id),'tenantId': serializer.toJson<String>(tenantId),'sku': serializer.toJson<String?>(sku),'name': serializer.toJson<String>(name),'category': serializer.toJson<String?>(category),'unit': serializer.toJson<String?>(unit),'secondaryUnit': serializer.toJson<String?>(secondaryUnit),'conversionFactor': serializer.toJson<double?>(conversionFactor),'costPrice': serializer.toJson<double>(costPrice),'sellingPrice': serializer.toJson<double>(sellingPrice),'stock': serializer.toJson<double>(stock),'taxRate': serializer.toJson<double>(taxRate),'cessRate': serializer.toJson<double>(cessRate),'hsnCode': serializer.toJson<String?>(hsnCode),'image': serializer.toJson<String?>(image),'updatedAt': serializer.toJson<DateTime?>(updatedAt),};}Product copyWith({String? id,String? tenantId,Value<String?> sku = const Value.absent(),String? name,Value<String?> category = const Value.absent(),Value<String?> unit = const Value.absent(),Value<String?> secondaryUnit = const Value.absent(),Value<double?> conversionFactor = const Value.absent(),double? costPrice,double? sellingPrice,double? stock,double? taxRate,double? cessRate,Value<String?> hsnCode = const Value.absent(),Value<String?> image = const Value.absent(),Value<DateTime?> updatedAt = const Value.absent()}) => Product(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,sku: sku.present ? sku.value : this.sku,name: name ?? this.name,category: category.present ? category.value : this.category,unit: unit.present ? unit.value : this.unit,secondaryUnit: secondaryUnit.present ? secondaryUnit.value : this.secondaryUnit,conversionFactor: conversionFactor.present ? conversionFactor.value : this.conversionFactor,costPrice: costPrice ?? this.costPrice,sellingPrice: sellingPrice ?? this.sellingPrice,stock: stock ?? this.stock,taxRate: taxRate ?? this.taxRate,cessRate: cessRate ?? this.cessRate,hsnCode: hsnCode.present ? hsnCode.value : this.hsnCode,image: image.present ? image.value : this.image,updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,);Product copyWithCompanion(ProductsCompanion data) {
 return Product(
-id: data.id.present ? data.id.value : this.id,tenantId: data.tenantId.present ? data.tenantId.value : this.tenantId,sku: data.sku.present ? data.sku.value : this.sku,name: data.name.present ? data.name.value : this.name,category: data.category.present ? data.category.value : this.category,unit: data.unit.present ? data.unit.value : this.unit,costPrice: data.costPrice.present ? data.costPrice.value : this.costPrice,sellingPrice: data.sellingPrice.present ? data.sellingPrice.value : this.sellingPrice,stock: data.stock.present ? data.stock.value : this.stock,taxRate: data.taxRate.present ? data.taxRate.value : this.taxRate,cessRate: data.cessRate.present ? data.cessRate.value : this.cessRate,hsnCode: data.hsnCode.present ? data.hsnCode.value : this.hsnCode,image: data.image.present ? data.image.value : this.image,updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,);
+id: data.id.present ? data.id.value : this.id,tenantId: data.tenantId.present ? data.tenantId.value : this.tenantId,sku: data.sku.present ? data.sku.value : this.sku,name: data.name.present ? data.name.value : this.name,category: data.category.present ? data.category.value : this.category,unit: data.unit.present ? data.unit.value : this.unit,secondaryUnit: data.secondaryUnit.present ? data.secondaryUnit.value : this.secondaryUnit,conversionFactor: data.conversionFactor.present ? data.conversionFactor.value : this.conversionFactor,costPrice: data.costPrice.present ? data.costPrice.value : this.costPrice,sellingPrice: data.sellingPrice.present ? data.sellingPrice.value : this.sellingPrice,stock: data.stock.present ? data.stock.value : this.stock,taxRate: data.taxRate.present ? data.taxRate.value : this.taxRate,cessRate: data.cessRate.present ? data.cessRate.value : this.cessRate,hsnCode: data.hsnCode.present ? data.hsnCode.value : this.hsnCode,image: data.image.present ? data.image.value : this.image,updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,);
 }
 @override
-String toString() {return (StringBuffer('Product(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('sku: $sku, ')..write('name: $name, ')..write('category: $category, ')..write('unit: $unit, ')..write('costPrice: $costPrice, ')..write('sellingPrice: $sellingPrice, ')..write('stock: $stock, ')..write('taxRate: $taxRate, ')..write('cessRate: $cessRate, ')..write('hsnCode: $hsnCode, ')..write('image: $image, ')..write('updatedAt: $updatedAt')..write(')')).toString();}
+String toString() {return (StringBuffer('Product(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('sku: $sku, ')..write('name: $name, ')..write('category: $category, ')..write('unit: $unit, ')..write('secondaryUnit: $secondaryUnit, ')..write('conversionFactor: $conversionFactor, ')..write('costPrice: $costPrice, ')..write('sellingPrice: $sellingPrice, ')..write('stock: $stock, ')..write('taxRate: $taxRate, ')..write('cessRate: $cessRate, ')..write('hsnCode: $hsnCode, ')..write('image: $image, ')..write('updatedAt: $updatedAt')..write(')')).toString();}
 @override
- int get hashCode => Object.hash(id, tenantId, sku, name, category, unit, costPrice, sellingPrice, stock, taxRate, cessRate, hsnCode, image, updatedAt);@override
-bool operator ==(Object other) => identical(this, other) || (other is Product && other.id == this.id && other.tenantId == this.tenantId && other.sku == this.sku && other.name == this.name && other.category == this.category && other.unit == this.unit && other.costPrice == this.costPrice && other.sellingPrice == this.sellingPrice && other.stock == this.stock && other.taxRate == this.taxRate && other.cessRate == this.cessRate && other.hsnCode == this.hsnCode && other.image == this.image && other.updatedAt == this.updatedAt);
+ int get hashCode => Object.hash(id, tenantId, sku, name, category, unit, secondaryUnit, conversionFactor, costPrice, sellingPrice, stock, taxRate, cessRate, hsnCode, image, updatedAt);@override
+bool operator ==(Object other) => identical(this, other) || (other is Product && other.id == this.id && other.tenantId == this.tenantId && other.sku == this.sku && other.name == this.name && other.category == this.category && other.unit == this.unit && other.secondaryUnit == this.secondaryUnit && other.conversionFactor == this.conversionFactor && other.costPrice == this.costPrice && other.sellingPrice == this.sellingPrice && other.stock == this.stock && other.taxRate == this.taxRate && other.cessRate == this.cessRate && other.hsnCode == this.hsnCode && other.image == this.image && other.updatedAt == this.updatedAt);
 }class ProductsCompanion extends UpdateCompanion<Product> {
 final Value<String> id;
 final Value<String> tenantId;
@@ -488,6 +500,8 @@ final Value<String?> sku;
 final Value<String> name;
 final Value<String?> category;
 final Value<String?> unit;
+final Value<String?> secondaryUnit;
+final Value<double?> conversionFactor;
 final Value<double> costPrice;
 final Value<double> sellingPrice;
 final Value<double> stock;
@@ -497,14 +511,16 @@ final Value<String?> hsnCode;
 final Value<String?> image;
 final Value<DateTime?> updatedAt;
 final Value<int> rowid;
-const ProductsCompanion({this.id = const Value.absent(),this.tenantId = const Value.absent(),this.sku = const Value.absent(),this.name = const Value.absent(),this.category = const Value.absent(),this.unit = const Value.absent(),this.costPrice = const Value.absent(),this.sellingPrice = const Value.absent(),this.stock = const Value.absent(),this.taxRate = const Value.absent(),this.cessRate = const Value.absent(),this.hsnCode = const Value.absent(),this.image = const Value.absent(),this.updatedAt = const Value.absent(),this.rowid = const Value.absent(),});
-ProductsCompanion.insert({required String id,required String tenantId,this.sku = const Value.absent(),required String name,this.category = const Value.absent(),this.unit = const Value.absent(),this.costPrice = const Value.absent(),this.sellingPrice = const Value.absent(),this.stock = const Value.absent(),this.taxRate = const Value.absent(),this.cessRate = const Value.absent(),this.hsnCode = const Value.absent(),this.image = const Value.absent(),this.updatedAt = const Value.absent(),this.rowid = const Value.absent(),}): id = Value(id), tenantId = Value(tenantId), name = Value(name);
+const ProductsCompanion({this.id = const Value.absent(),this.tenantId = const Value.absent(),this.sku = const Value.absent(),this.name = const Value.absent(),this.category = const Value.absent(),this.unit = const Value.absent(),this.secondaryUnit = const Value.absent(),this.conversionFactor = const Value.absent(),this.costPrice = const Value.absent(),this.sellingPrice = const Value.absent(),this.stock = const Value.absent(),this.taxRate = const Value.absent(),this.cessRate = const Value.absent(),this.hsnCode = const Value.absent(),this.image = const Value.absent(),this.updatedAt = const Value.absent(),this.rowid = const Value.absent(),});
+ProductsCompanion.insert({required String id,required String tenantId,this.sku = const Value.absent(),required String name,this.category = const Value.absent(),this.unit = const Value.absent(),this.secondaryUnit = const Value.absent(),this.conversionFactor = const Value.absent(),this.costPrice = const Value.absent(),this.sellingPrice = const Value.absent(),this.stock = const Value.absent(),this.taxRate = const Value.absent(),this.cessRate = const Value.absent(),this.hsnCode = const Value.absent(),this.image = const Value.absent(),this.updatedAt = const Value.absent(),this.rowid = const Value.absent(),}): id = Value(id), tenantId = Value(tenantId), name = Value(name);
 static Insertable<Product> custom({Expression<String>? id, 
 Expression<String>? tenantId, 
 Expression<String>? sku, 
 Expression<String>? name, 
 Expression<String>? category, 
 Expression<String>? unit, 
+Expression<String>? secondaryUnit, 
+Expression<double>? conversionFactor, 
 Expression<double>? costPrice, 
 Expression<double>? sellingPrice, 
 Expression<double>? stock, 
@@ -515,9 +531,9 @@ Expression<String>? image,
 Expression<DateTime>? updatedAt, 
 Expression<int>? rowid, 
 }) {
-return RawValuesInsertable({if (id != null)'id': id,if (tenantId != null)'tenant_id': tenantId,if (sku != null)'sku': sku,if (name != null)'name': name,if (category != null)'category': category,if (unit != null)'unit': unit,if (costPrice != null)'cost_price': costPrice,if (sellingPrice != null)'selling_price': sellingPrice,if (stock != null)'stock': stock,if (taxRate != null)'tax_rate': taxRate,if (cessRate != null)'cess_rate': cessRate,if (hsnCode != null)'hsn_code': hsnCode,if (image != null)'image': image,if (updatedAt != null)'updated_at': updatedAt,if (rowid != null)'rowid': rowid,});
-}ProductsCompanion copyWith({Value<String>? id, Value<String>? tenantId, Value<String?>? sku, Value<String>? name, Value<String?>? category, Value<String?>? unit, Value<double>? costPrice, Value<double>? sellingPrice, Value<double>? stock, Value<double>? taxRate, Value<double>? cessRate, Value<String?>? hsnCode, Value<String?>? image, Value<DateTime?>? updatedAt, Value<int>? rowid}) {
-return ProductsCompanion(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,sku: sku ?? this.sku,name: name ?? this.name,category: category ?? this.category,unit: unit ?? this.unit,costPrice: costPrice ?? this.costPrice,sellingPrice: sellingPrice ?? this.sellingPrice,stock: stock ?? this.stock,taxRate: taxRate ?? this.taxRate,cessRate: cessRate ?? this.cessRate,hsnCode: hsnCode ?? this.hsnCode,image: image ?? this.image,updatedAt: updatedAt ?? this.updatedAt,rowid: rowid ?? this.rowid,);
+return RawValuesInsertable({if (id != null)'id': id,if (tenantId != null)'tenant_id': tenantId,if (sku != null)'sku': sku,if (name != null)'name': name,if (category != null)'category': category,if (unit != null)'unit': unit,if (secondaryUnit != null)'secondary_unit': secondaryUnit,if (conversionFactor != null)'conversion_factor': conversionFactor,if (costPrice != null)'cost_price': costPrice,if (sellingPrice != null)'selling_price': sellingPrice,if (stock != null)'stock': stock,if (taxRate != null)'tax_rate': taxRate,if (cessRate != null)'cess_rate': cessRate,if (hsnCode != null)'hsn_code': hsnCode,if (image != null)'image': image,if (updatedAt != null)'updated_at': updatedAt,if (rowid != null)'rowid': rowid,});
+}ProductsCompanion copyWith({Value<String>? id, Value<String>? tenantId, Value<String?>? sku, Value<String>? name, Value<String?>? category, Value<String?>? unit, Value<String?>? secondaryUnit, Value<double?>? conversionFactor, Value<double>? costPrice, Value<double>? sellingPrice, Value<double>? stock, Value<double>? taxRate, Value<double>? cessRate, Value<String?>? hsnCode, Value<String?>? image, Value<DateTime?>? updatedAt, Value<int>? rowid}) {
+return ProductsCompanion(id: id ?? this.id,tenantId: tenantId ?? this.tenantId,sku: sku ?? this.sku,name: name ?? this.name,category: category ?? this.category,unit: unit ?? this.unit,secondaryUnit: secondaryUnit ?? this.secondaryUnit,conversionFactor: conversionFactor ?? this.conversionFactor,costPrice: costPrice ?? this.costPrice,sellingPrice: sellingPrice ?? this.sellingPrice,stock: stock ?? this.stock,taxRate: taxRate ?? this.taxRate,cessRate: cessRate ?? this.cessRate,hsnCode: hsnCode ?? this.hsnCode,image: image ?? this.image,updatedAt: updatedAt ?? this.updatedAt,rowid: rowid ?? this.rowid,);
 }
 @override
 Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -533,6 +549,10 @@ if (category.present) {
 map['category'] = Variable<String>(category.value);}
 if (unit.present) {
 map['unit'] = Variable<String>(unit.value);}
+if (secondaryUnit.present) {
+map['secondary_unit'] = Variable<String>(secondaryUnit.value);}
+if (conversionFactor.present) {
+map['conversion_factor'] = Variable<double>(conversionFactor.value);}
 if (costPrice.present) {
 map['cost_price'] = Variable<double>(costPrice.value);}
 if (sellingPrice.present) {
@@ -554,7 +574,7 @@ map['rowid'] = Variable<int>(rowid.value);}
 return map; 
 }
 @override
-String toString() {return (StringBuffer('ProductsCompanion(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('sku: $sku, ')..write('name: $name, ')..write('category: $category, ')..write('unit: $unit, ')..write('costPrice: $costPrice, ')..write('sellingPrice: $sellingPrice, ')..write('stock: $stock, ')..write('taxRate: $taxRate, ')..write('cessRate: $cessRate, ')..write('hsnCode: $hsnCode, ')..write('image: $image, ')..write('updatedAt: $updatedAt, ')..write('rowid: $rowid')..write(')')).toString();}
+String toString() {return (StringBuffer('ProductsCompanion(')..write('id: $id, ')..write('tenantId: $tenantId, ')..write('sku: $sku, ')..write('name: $name, ')..write('category: $category, ')..write('unit: $unit, ')..write('secondaryUnit: $secondaryUnit, ')..write('conversionFactor: $conversionFactor, ')..write('costPrice: $costPrice, ')..write('sellingPrice: $sellingPrice, ')..write('stock: $stock, ')..write('taxRate: $taxRate, ')..write('cessRate: $cessRate, ')..write('hsnCode: $hsnCode, ')..write('image: $image, ')..write('updatedAt: $updatedAt, ')..write('rowid: $rowid')..write(')')).toString();}
 }
 class $ClientsTable extends Clients with TableInfo<$ClientsTable, Client>{
 @override final GeneratedDatabase attachedDatabase;
@@ -2421,8 +2441,8 @@ GeneratedColumn<DateTime> get createdAt => $composableBuilder(
     (Tenant,BaseReferences<_$AppDatabase,$TenantsTable,Tenant>),
     Tenant,
     PrefetchHooks Function()
-    >;typedef $$ProductsTableCreateCompanionBuilder = ProductsCompanion Function({required String id,required String tenantId,Value<String?> sku,required String name,Value<String?> category,Value<String?> unit,Value<double> costPrice,Value<double> sellingPrice,Value<double> stock,Value<double> taxRate,Value<double> cessRate,Value<String?> hsnCode,Value<String?> image,Value<DateTime?> updatedAt,Value<int> rowid,});
-typedef $$ProductsTableUpdateCompanionBuilder = ProductsCompanion Function({Value<String> id,Value<String> tenantId,Value<String?> sku,Value<String> name,Value<String?> category,Value<String?> unit,Value<double> costPrice,Value<double> sellingPrice,Value<double> stock,Value<double> taxRate,Value<double> cessRate,Value<String?> hsnCode,Value<String?> image,Value<DateTime?> updatedAt,Value<int> rowid,});
+    >;typedef $$ProductsTableCreateCompanionBuilder = ProductsCompanion Function({required String id,required String tenantId,Value<String?> sku,required String name,Value<String?> category,Value<String?> unit,Value<String?> secondaryUnit,Value<double?> conversionFactor,Value<double> costPrice,Value<double> sellingPrice,Value<double> stock,Value<double> taxRate,Value<double> cessRate,Value<String?> hsnCode,Value<String?> image,Value<DateTime?> updatedAt,Value<int> rowid,});
+typedef $$ProductsTableUpdateCompanionBuilder = ProductsCompanion Function({Value<String> id,Value<String> tenantId,Value<String?> sku,Value<String> name,Value<String?> category,Value<String?> unit,Value<String?> secondaryUnit,Value<double?> conversionFactor,Value<double> costPrice,Value<double> sellingPrice,Value<double> stock,Value<double> taxRate,Value<double> cessRate,Value<String?> hsnCode,Value<String?> image,Value<DateTime?> updatedAt,Value<int> rowid,});
 class $$ProductsTableFilterComposer extends Composer<
         _$AppDatabase,
         $ProductsTable> {
@@ -2460,6 +2480,16 @@ ColumnFilters<String> get category => $composableBuilder(
       
 ColumnFilters<String> get unit => $composableBuilder(
       column: $table.unit,
+      builder: (column) => 
+      ColumnFilters(column));
+      
+ColumnFilters<String> get secondaryUnit => $composableBuilder(
+      column: $table.secondaryUnit,
+      builder: (column) => 
+      ColumnFilters(column));
+      
+ColumnFilters<double> get conversionFactor => $composableBuilder(
+      column: $table.conversionFactor,
       builder: (column) => 
       ColumnFilters(column));
       
@@ -2544,6 +2574,16 @@ ColumnOrderings<String> get unit => $composableBuilder(
       builder: (column) => 
       ColumnOrderings(column));
       
+ColumnOrderings<String> get secondaryUnit => $composableBuilder(
+      column: $table.secondaryUnit,
+      builder: (column) => 
+      ColumnOrderings(column));
+      
+ColumnOrderings<double> get conversionFactor => $composableBuilder(
+      column: $table.conversionFactor,
+      builder: (column) => 
+      ColumnOrderings(column));
+      
 ColumnOrderings<double> get costPrice => $composableBuilder(
       column: $table.costPrice,
       builder: (column) => 
@@ -2619,6 +2659,14 @@ GeneratedColumn<String> get unit => $composableBuilder(
       column: $table.unit,
       builder: (column) => column);
       
+GeneratedColumn<String> get secondaryUnit => $composableBuilder(
+      column: $table.secondaryUnit,
+      builder: (column) => column);
+      
+GeneratedColumn<double> get conversionFactor => $composableBuilder(
+      column: $table.conversionFactor,
+      builder: (column) => column);
+      
 GeneratedColumn<double> get costPrice => $composableBuilder(
       column: $table.costPrice,
       builder: (column) => column);
@@ -2671,8 +2719,8 @@ GeneratedColumn<DateTime> get updatedAt => $composableBuilder(
         createFilteringComposer: () => $$ProductsTableFilterComposer($db: db,$table:table),
         createOrderingComposer: () => $$ProductsTableOrderingComposer($db: db,$table:table),
         createComputedFieldComposer: () => $$ProductsTableAnnotationComposer($db: db,$table:table),
-        updateCompanionCallback: ({Value<String> id = const Value.absent(),Value<String> tenantId = const Value.absent(),Value<String?> sku = const Value.absent(),Value<String> name = const Value.absent(),Value<String?> category = const Value.absent(),Value<String?> unit = const Value.absent(),Value<double> costPrice = const Value.absent(),Value<double> sellingPrice = const Value.absent(),Value<double> stock = const Value.absent(),Value<double> taxRate = const Value.absent(),Value<double> cessRate = const Value.absent(),Value<String?> hsnCode = const Value.absent(),Value<String?> image = const Value.absent(),Value<DateTime?> updatedAt = const Value.absent(),Value<int> rowid = const Value.absent(),})=> ProductsCompanion(id: id,tenantId: tenantId,sku: sku,name: name,category: category,unit: unit,costPrice: costPrice,sellingPrice: sellingPrice,stock: stock,taxRate: taxRate,cessRate: cessRate,hsnCode: hsnCode,image: image,updatedAt: updatedAt,rowid: rowid,),
-        createCompanionCallback: ({required String id,required String tenantId,Value<String?> sku = const Value.absent(),required String name,Value<String?> category = const Value.absent(),Value<String?> unit = const Value.absent(),Value<double> costPrice = const Value.absent(),Value<double> sellingPrice = const Value.absent(),Value<double> stock = const Value.absent(),Value<double> taxRate = const Value.absent(),Value<double> cessRate = const Value.absent(),Value<String?> hsnCode = const Value.absent(),Value<String?> image = const Value.absent(),Value<DateTime?> updatedAt = const Value.absent(),Value<int> rowid = const Value.absent(),})=> ProductsCompanion.insert(id: id,tenantId: tenantId,sku: sku,name: name,category: category,unit: unit,costPrice: costPrice,sellingPrice: sellingPrice,stock: stock,taxRate: taxRate,cessRate: cessRate,hsnCode: hsnCode,image: image,updatedAt: updatedAt,rowid: rowid,),
+        updateCompanionCallback: ({Value<String> id = const Value.absent(),Value<String> tenantId = const Value.absent(),Value<String?> sku = const Value.absent(),Value<String> name = const Value.absent(),Value<String?> category = const Value.absent(),Value<String?> unit = const Value.absent(),Value<String?> secondaryUnit = const Value.absent(),Value<double?> conversionFactor = const Value.absent(),Value<double> costPrice = const Value.absent(),Value<double> sellingPrice = const Value.absent(),Value<double> stock = const Value.absent(),Value<double> taxRate = const Value.absent(),Value<double> cessRate = const Value.absent(),Value<String?> hsnCode = const Value.absent(),Value<String?> image = const Value.absent(),Value<DateTime?> updatedAt = const Value.absent(),Value<int> rowid = const Value.absent(),})=> ProductsCompanion(id: id,tenantId: tenantId,sku: sku,name: name,category: category,unit: unit,secondaryUnit: secondaryUnit,conversionFactor: conversionFactor,costPrice: costPrice,sellingPrice: sellingPrice,stock: stock,taxRate: taxRate,cessRate: cessRate,hsnCode: hsnCode,image: image,updatedAt: updatedAt,rowid: rowid,),
+        createCompanionCallback: ({required String id,required String tenantId,Value<String?> sku = const Value.absent(),required String name,Value<String?> category = const Value.absent(),Value<String?> unit = const Value.absent(),Value<String?> secondaryUnit = const Value.absent(),Value<double?> conversionFactor = const Value.absent(),Value<double> costPrice = const Value.absent(),Value<double> sellingPrice = const Value.absent(),Value<double> stock = const Value.absent(),Value<double> taxRate = const Value.absent(),Value<double> cessRate = const Value.absent(),Value<String?> hsnCode = const Value.absent(),Value<String?> image = const Value.absent(),Value<DateTime?> updatedAt = const Value.absent(),Value<int> rowid = const Value.absent(),})=> ProductsCompanion.insert(id: id,tenantId: tenantId,sku: sku,name: name,category: category,unit: unit,secondaryUnit: secondaryUnit,conversionFactor: conversionFactor,costPrice: costPrice,sellingPrice: sellingPrice,stock: stock,taxRate: taxRate,cessRate: cessRate,hsnCode: hsnCode,image: image,updatedAt: updatedAt,rowid: rowid,),
         withReferenceMapper: (p0) => p0
               .map(
                   (e) =>

@@ -355,6 +355,8 @@ class SyncService {
               sku: Value(item['sku']),
               category: Value(item['category']),
               unit: Value(item['unit']),
+              secondaryUnit: Value(item['secondary_unit'] as String?),
+              conversionFactor: Value((item['conversion_factor'] as num?)?.toDouble()),
               costPrice: Value((item['costPrice'] ?? 0).toDouble()),
               sellingPrice: Value((item['sellingPrice'] ?? 0).toDouble()),
               stock: Value((item['stock'] ?? 0).toDouble()),

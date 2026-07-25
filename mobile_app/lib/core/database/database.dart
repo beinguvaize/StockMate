@@ -46,6 +46,10 @@ class Products extends Table {
   TextColumn get name => text()();
   TextColumn get category => text().nullable()();
   TextColumn get unit => text().nullable()();
+  // Alternate sell unit (e.g. PACKET) + how many base units it holds
+  // (conversionFactor, e.g. 0.25 KG per packet). Null when the product has none.
+  TextColumn get secondaryUnit => text().nullable()();
+  RealColumn get conversionFactor => real().nullable()();
   RealColumn get costPrice => real().withDefault(const Constant(0))();
   RealColumn get sellingPrice => real().withDefault(const Constant(0))();
   RealColumn get stock => real().withDefault(const Constant(0))();
@@ -207,7 +211,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -232,6 +236,10 @@ class AppDatabase extends _$AppDatabase {
       if (from < 4) {
         await m.addColumn(products, products.cessRate);
         await m.addColumn(products, products.hsnCode);
+      }
+      if (from < 5) {
+        await m.addColumn(products, products.secondaryUnit);
+        await m.addColumn(products, products.conversionFactor);
       }
     },
   );

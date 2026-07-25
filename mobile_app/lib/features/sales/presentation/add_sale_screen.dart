@@ -1135,6 +1135,17 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
   late TextEditingController _qtyController;
   double _price = 0;
 
+  // Sell by the alternate unit (e.g. packet). _qty and _price stay in the BASE
+  // unit throughout — only the fields display and accept the packet view, so
+  // stock, cost and the below-cost guard never see packets. conv = base units
+  // per one alt unit (e.g. 0.25 KG per packet).
+  bool _alt = false;
+  double get _conv => widget.product.conversionFactor ?? 0;
+  bool get _hasAlt => (widget.product.secondaryUnit ?? '').isNotEmpty && _conv > 0;
+  String get _dispUnit => _alt ? widget.product.secondaryUnit! : (widget.product.unit ?? 'pcs');
+  double get _dispQty => _alt ? _qty / _conv : _qty;
+  double get _dispPrice => _alt ? _price * _conv : _price;
+
   @override
   void initState() {
     super.initState();
@@ -1143,15 +1154,21 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
     _priceController = TextEditingController(text: _price.toStringAsFixed(2));
     _priceController.addListener(() {
       final v = double.tryParse(_priceController.text);
-      if (v != null) setState(() => _price = v);
+      if (v == null) return;
+      // Typed value is per display unit; a per-packet price ÷ conv is the base
+      // price we store.
+      setState(() => _price = _alt ? v / _conv : v);
     });
     _qtyController = TextEditingController(text: formatQty(_qty, widget.product.unit));
     _qtyController.addListener(() {
       // double, not int: typing 0.25 used to be ignored outright, so the field
       // showed a decimal while the cart silently kept the old whole number.
       final v = double.tryParse(_qtyController.text);
-      if (v != null && v > 0 && !exceedsStock(v, _maxStock)) {
-        setState(() => _qty = clampQty(v, widget.product.unit));
+      if (v == null || v <= 0) return;
+      // Typed value is in the display unit; packets × conv is the base qty.
+      final base = _alt ? v * _conv : v;
+      if (!exceedsStock(base, _maxStock)) {
+        setState(() => _qty = clampQty(base, widget.product.unit));
       }
     });
   }
@@ -1173,20 +1190,33 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
   // Was stock.toInt(), which truncated 0.75 KG of stock to 0.
   double get _maxStock => widget.product.stock.toDouble();
 
+  // One step = one whole alt unit (a packet = conv base) when selling by packet,
+  // else the product's normal step.
+  double get _step => _alt ? _conv : qtyStepButton(widget.product.unit);
+  void _syncQtyField() =>
+      _qtyController.text = _alt ? _dispQty.toStringAsFixed(3) : formatQty(_qty, widget.product.unit);
+
   void _increment() {
-    final next = clampQty(_qty + qtyStepButton(widget.product.unit), widget.product.unit);
+    final next = clampQty(_qty + _step, widget.product.unit);
     if (!exceedsStock(next, _maxStock)) {
       setState(() => _qty = next);
-      _qtyController.text = formatQty(_qty, widget.product.unit);
+      _syncQtyField();
     }
   }
 
   void _decrement() {
-    final next = clampQty(_qty - qtyStepButton(widget.product.unit), widget.product.unit);
+    final next = clampQty(_qty - _step, widget.product.unit);
     if (next > 0) {
       setState(() => _qty = next);
-      _qtyController.text = formatQty(_qty, widget.product.unit);
+      _syncQtyField();
     }
+  }
+
+  // Flip between base and packet entry, reformatting both fields to the new unit.
+  void _toggleAlt() {
+    setState(() => _alt = !_alt);
+    _syncQtyField();
+    _priceController.text = _dispPrice.toStringAsFixed(2);
   }
 
   @override
@@ -1389,10 +1419,10 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                         ),
                       ),
                     ),
-                            if ((widget.product.unit ?? '').trim().isNotEmpty) ...[
+                            if (_dispUnit.trim().isNotEmpty) ...[
                               const SizedBox(width: 6),
                               Text(
-                                widget.product.unit!.trim(),
+                                _dispUnit.trim(),
                                 style: GoogleFonts.manrope(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
@@ -1402,7 +1432,33 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                             ],
                           ],
                         ),
-                        if (subQtyLabel(_qty, widget.product.unit) != null)
+                        // Sell by base unit or alternate (packet).
+                        if (_hasAlt)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 6),
+                            child: GestureDetector(
+                              onTap: _toggleAlt,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: _alt ? AppColors.primary.withValues(alpha: 0.12) : AppColors.canvas,
+                                  border: Border.all(color: _alt ? AppColors.primary : AppColors.outline),
+                                  borderRadius: BorderRadius.circular(999),
+                                ),
+                                child: Text(
+                                  _alt
+                                      ? 'by ${widget.product.secondaryUnit} · ${formatQty(_qty, widget.product.unit)} ${widget.product.unit ?? ''}'
+                                      : 'Sell by ${widget.product.secondaryUnit}?',
+                                  style: GoogleFonts.manrope(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: _alt ? AppColors.primary : AppColors.inkTertiary,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        if (!_alt && subQtyLabel(_qty, widget.product.unit) != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
                             child: Text(
@@ -1465,7 +1521,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                     color: AppColors.inkPrimary,
                   ),
                   decoration: InputDecoration(
-                    labelText: 'UNIT PRICE',
+                    labelText: _alt ? 'PRICE / ${widget.product.secondaryUnit!.toUpperCase()}' : 'UNIT PRICE',
                     labelStyle: GoogleFonts.jetBrainsMono(
                       fontSize: 10,
                       fontWeight: FontWeight.w700,
