@@ -1225,7 +1225,10 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   )}
                 </div>
 
-                {/* Qty stepper */}
+                {/* Qty stepper + gram gloss stacked in ONE grid cell — the
+                    gloss used to be a separate grid child, which stole the price
+                    column and pushed the remove button onto its own line. */}
+                <div className="flex flex-col items-center gap-0.5">
                 <div className="flex items-center justify-center gap-0.5 bg-card border border-border rounded-lg p-0.5">
                   <button
                     onClick={() => updateQuantity(k, -1)}
@@ -1258,10 +1261,11 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   </button>
                 </div>
                 {!isAlt(item) && subQtyLabel(item.quantity, unitOf(item.productId)) && (
-                  <div className="text-[10px] text-muted-foreground mt-0.5 tabular-nums">
+                  <div className="text-[10px] text-muted-foreground tabular-nums leading-none">
                     {subQtyLabel(item.quantity, unitOf(item.productId))}
                   </div>
                 )}
+                </div>
 
                 {/* Unit price input */}
                 <div className="relative">
