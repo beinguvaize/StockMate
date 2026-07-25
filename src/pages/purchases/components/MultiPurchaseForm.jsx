@@ -205,13 +205,25 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
     if (!valid.length) return;
     onSave({
       header,
-      items: valid.map(l => ({
-        linked_product_id: l.linked_product_id,
-        quantity:          parseFloat(l.quantity),
-        unit_price:        parseFloat(l.unit_price) || (parseFloat(l.total_amount) / parseFloat(l.quantity)),
-        total_amount:      parseFloat(l.total_amount),
-        expiry_date:       l.expiry_date || null,
-      })),
+      items: valid.map(l => {
+        const total = parseFloat(l.total_amount);
+        let qty = parseFloat(l.quantity);
+        // Bought by the alternate unit (e.g. packet): convert to the base unit
+        // for storage. total_amount is the money truth, so derive unit_price
+        // from the base qty to keep qty × price === total.
+        const prod = products.find(p => p.id === l.linked_product_id);
+        const conv = Number(prod?.conversion_factor);
+        if (l.buyUnit === 'ALT' && prod?.secondary_unit && conv > 0) {
+          qty = qty * conv;
+        }
+        return {
+          linked_product_id: l.linked_product_id,
+          quantity:          qty,
+          unit_price:        qty > 0 ? total / qty : (parseFloat(l.unit_price) || 0),
+          total_amount:      total,
+          expiry_date:       l.expiry_date || null,
+        };
+      }),
     });
   };
 
@@ -347,16 +359,38 @@ const MultiPurchaseForm = ({ products, suppliers, warehouses = [], onSave, loadi
                     )}
                   </div>
 
-                  {/* Qty */}
-                  <input required type="number" min="0" placeholder="0" className={inp}
-                    value={line.quantity}
-                    onChange={e => updateLine(line._key, { quantity: e.target.value })} />
+                  {/* Qty + optional buy-by-alternate-unit toggle */}
+                  <div>
+                    <input required type="number" min="0" placeholder="0" className={inp}
+                      value={line.quantity}
+                      onChange={e => updateLine(line._key, { quantity: e.target.value })} />
+                    {product?.secondary_unit && Number(product.conversion_factor) > 0 && (() => {
+                      const conv = Number(product.conversion_factor);
+                      const alt = line.buyUnit === 'ALT';
+                      const q = parseFloat(line.quantity);
+                      return (
+                        <div className="mt-1 ml-0.5">
+                          <button type="button"
+                            onClick={() => updateLine(line._key, { buyUnit: alt ? 'BASE' : 'ALT' })}
+                            className={`text-[8px] font-semibold px-1.5 py-0.5 rounded ${alt ? 'bg-accent-signature/15 text-accent-signature-hover' : 'bg-gray-100 text-muted-foreground'}`}>
+                            {alt ? product.secondary_unit : product.unit}
+                          </button>
+                          {alt && q > 0 && (
+                            <span className="text-[8px] text-muted-foreground ml-1 tabular-nums">= {(q * conv).toLocaleString()} {product.unit}</span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
 
                   {/* Unit Price */}
                   <div>
                     <input type="number" min="0" step="0.01" placeholder="0.00" className={inp}
                       value={line.unit_price}
                       onChange={e => updateLine(line._key, { unit_price: e.target.value })} />
+                    {product?.secondary_unit && line.buyUnit === 'ALT' && (
+                      <p className="text-[8px] text-muted-foreground mt-1 ml-1">per {product.secondary_unit}</p>
+                    )}
                     {unitCost !== null && product?.costPrice > 0 && (
                       <p className={`text-[8px] font-semibold mt-1 ml-1 ${unitCost > product.costPrice ? 'text-accent-signature' : 'text-emerald-500'}`}>
                         {unitCost > product.costPrice ? '▲' : '▼'} ₹{product.costPrice}
