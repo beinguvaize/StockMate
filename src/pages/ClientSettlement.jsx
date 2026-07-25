@@ -10,7 +10,7 @@ import {
   ArrowLeft, Calendar, FileText,
   CheckCircle2, AlertCircle, Search, Clock, Receipt,
   Wallet, CreditCard, Smartphone, Landmark, History, BookOpen,
-  TrendingUp, TrendingDown, Phone, MapPin, Trash2, ChevronDown
+  TrendingUp, TrendingDown, Phone, MapPin, Trash2, ChevronDown, Eye
 } from 'lucide-react';
 import { todayISOInAppTZ, formatDate, formatDateTime, formatCurrency } from '../lib/utils';
 
@@ -574,6 +574,22 @@ const ClientSettlement = () => {
                           </td>
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2 justify-end">
+                              {/* Open the actual printable bill — invoice page for
+                                  an invoiced sale, receipt for a cash POS sale. */}
+                              <button
+                                type="button"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  const url = inv.isSale
+                                    ? `/embed/receipt/${inv.id.slice(5)}`
+                                    : `/embed/invoice/${inv.id}`;
+                                  window.open(url, '_blank', 'noopener');
+                                }}
+                                className="w-6 h-6 rounded-lg flex items-center justify-center text-gray-400 hover:bg-black/5 hover:text-ink-primary transition-colors"
+                                title="View bill"
+                              >
+                                <Eye size={13} />
+                              </button>
                               <button
                                 type="button"
                                 onClick={e => { e.stopPropagation(); setExpandedInvoiceId(isExpanded ? null : inv.id); }}
