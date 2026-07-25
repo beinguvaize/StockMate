@@ -7,6 +7,7 @@ import { formatCurrency, generateRef } from '../../../lib/utils';
 import { tierPrice } from '../../../lib/priceResolver';
 import { useAccounts, accountForMethod, buildPaymentMethods } from '../../../hooks/useAccounts';
 import { useNotifications } from '../../../context/NotificationContext';
+import { useAuth } from '../../../context/AuthContext';
 import { supabase, restInsert } from '../../../lib/supabase';
 import { QRCodeSVG } from 'qrcode.react';
 import CashBillPrint from './CashBillPrint';
@@ -88,6 +89,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
   // Services + restaurant sell from a catalog without unit stock.
   const noStockGate = isRestoPOS || businessType === 'SERVICES';
   const { addNotification } = useNotifications();
+  const { isOwner } = useAuth();
   const [cart, setCart] = useState(() => (Array.isArray(initialCart) ? initialCart : []));
   // Bound to a table tab → persist cart changes back to the open tab.
   useEffect(() => {
@@ -1146,7 +1148,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
         <div ref={cartScrollRef} className="flex-1 overflow-y-auto scroll-smooth">
           {cart.map(item => {
             const cost = fifoCosts[item.productId] ?? 0;
-            const belowCost = cost > 0 && item.price < cost;
+            const belowCost = cost > 0 && item.price <= cost;
             const k = item.uid || item.productId;
             return (
               <div
@@ -1510,7 +1512,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
           {(() => {
             const belowCostItems = cart.filter(item => {
               const cost = fifoCosts[item.productId] ?? 0;
-              return cost > 0 && item.price < cost;
+              return cost > 0 && item.price <= cost;  // at OR below cost — same-as-purchase counts
             });
             const hasFloorWarn = cart.some(item => {
               const ms = marginStatus[item.productId];
@@ -1522,7 +1524,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   <div className="flex items-start gap-2 px-3 py-2.5 rounded-xl bg-red-50 border border-red-300 text-red-700 mb-2">
                     <AlertTriangle size={14} className="shrink-0 mt-0.5" />
                     <p className="text-xs font-semibold leading-snug">
-                      Cannot sell below purchase cost. Adjust price for: {belowCostItems.map(i => i.name).join(', ')}.
+                      {isOwner ? 'At or below purchase cost' : 'Cannot sell at or below purchase cost'}. {belowCostItems.map(i => i.name).join(', ')}.{isOwner ? ' Owner override — you may still checkout.' : ''}
                     </p>
                   </div>
                 )}
@@ -1535,7 +1537,7 @@ const InvoiceBuilder = ({ products, inventoryBalances = [], clients, onPlaceSale
                   </div>
                 )}
                 <Button
-                  disabled={cart.length === 0 || belowCostItems.length > 0}
+                  disabled={cart.length === 0 || (belowCostItems.length > 0 && !isOwner)}
                   onClick={() => setShowCheckout(true)}
                   className="w-full !rounded-xl !h-14 shadow-xl"
                   icon={ArrowRight}

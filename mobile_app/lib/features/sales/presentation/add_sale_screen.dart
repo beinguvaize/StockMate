@@ -175,6 +175,7 @@ class _AddSaleScreenState extends ConsumerState<AddSaleScreen> {
         initialQty: currentItem?.quantity ?? qtyStepButton(p.unit),
         initialPrice: currentItem?.unitPrice ?? p.sellingPrice,
         onConfirm: (qty, price) => _setCartItem(p, qty, price),
+        isOwner: ref.read(tenantContextProvider).valueOrNull?.isOwner ?? false,
       ),
     );
   }
@@ -1113,12 +1114,15 @@ class _ProductDetailSheet extends StatefulWidget {
   final double initialQty;
   final double initialPrice;
   final void Function(double qty, double price) onConfirm;
+  // Owner may override a below-cost sale; staff are blocked.
+  final bool isOwner;
 
   const _ProductDetailSheet({
     required this.product,
     required this.initialQty,
     required this.initialPrice,
     required this.onConfirm,
+    required this.isOwner,
   });
 
   @override
@@ -1165,7 +1169,7 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
   /// checkout; mobile had no equivalent, so loss-making lines went straight
   /// through (RUBBER BAND at ₹60 against a ₹270 cost).
   double get _cost => widget.product.costPrice;
-  bool get _belowCost => _cost > 0 && _price > 0 && _price < _cost;
+  bool get _belowCost => _cost > 0 && _price > 0 && _price <= _cost;
   // Was stock.toInt(), which truncated 0.75 KG of stock to 0.
   double get _maxStock => widget.product.stock.toDouble();
 
@@ -1584,22 +1588,24 @@ class _ProductDetailSheetState extends State<_ProductDetailSheet> {
                       final proceed = await showDialog<bool>(
                         context: context,
                         builder: (dCtx) => AlertDialog(
-                          title: const Text('Selling below cost'),
+                          title: Text(widget.isOwner
+                              ? 'Selling at or below cost'
+                              : 'Blocked: at or below cost'),
                           content: Text(
                             '${widget.product.name} costs ₹${_cost.toStringAsFixed(2)} '
                             'but you are charging ₹${_price.toStringAsFixed(2)}.\n\n'
-                            'That is a loss of ₹${((_cost - _price) * _qty).toStringAsFixed(2)} '
-                            'on this line. Continue only if you meant to.',
+                            '${widget.isOwner ? 'That leaves no margin (or a loss of ₹${((_cost - _price) * _qty).toStringAsFixed(2)}). Continue only if you meant to.' : 'Selling at or below purchase cost is not allowed. Ask the owner to override, or change the price.'}',
                           ),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(dCtx, false),
                               child: const Text('Change price'),
                             ),
-                            TextButton(
-                              onPressed: () => Navigator.pop(dCtx, true),
-                              child: const Text('Sell anyway'),
-                            ),
+                            if (widget.isOwner)
+                              TextButton(
+                                onPressed: () => Navigator.pop(dCtx, true),
+                                child: const Text('Sell anyway'),
+                              ),
                           ],
                         ),
                       );
