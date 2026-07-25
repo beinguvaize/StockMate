@@ -6,7 +6,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { usePurchases } from '../../hooks/usePurchases';
 import { useAccounts, accountForMethod } from '../../hooks/useAccounts';
 import { useInventory } from '../../hooks/useInventory';
-import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Users } from 'lucide-react';
+import { Plus, RotateCcw, Pencil, Trash2, ShoppingCart, ArrowLeftRight, Search, Banknote, Copy, Printer, X, MoreVertical, Calendar } from 'lucide-react';
 import Button from '../../shared/Button';
 import Modal from '../../shared/Modal';
 import Table from '../../shared/Table';
@@ -40,7 +40,7 @@ const PurchasesPage = () => {
   const [fStatus, setFStatus] = useState('ALL');   // ALL | PENDING | ORDERED | RECEIVED | CANCELLED
   const [sortBy, setSortBy]   = useState('DATE_DESC'); // DATE_DESC | DATE_ASC | AMT_DESC | AMT_ASC
   const [onlyUnpaid, setOnlyUnpaid] = useState(false); // quick chip: credit purchases still owing
-  const [groupBySupplier, setGroupBySupplier] = useState(true);
+  const [groupBy, setGroupBy] = useState('DATE'); // NONE | SUPPLIER | DATE
 
   // ── Pay / Duplicate / Print targets ─────────────────────────────────────────
   const [payTarget, setPayTarget] = useState(null);
@@ -100,9 +100,12 @@ const PurchasesPage = () => {
       return true;
     });
     const amt = (p) => Number(p.total_amount || 0);
+    const qty = (p) => Number(p.quantity || 0);
     rows = [...rows].sort((a, b) => {
       if (sortBy === 'AMT_DESC') return amt(b) - amt(a);
       if (sortBy === 'AMT_ASC')  return amt(a) - amt(b);
+      if (sortBy === 'QTY_DESC') return qty(b) - qty(a);
+      if (sortBy === 'QTY_ASC')  return qty(a) - qty(b);
       if (sortBy === 'DATE_ASC') return String(a.date).localeCompare(String(b.date));
       return String(b.date).localeCompare(String(a.date)); // DATE_DESC
     });
@@ -123,15 +126,23 @@ const PurchasesPage = () => {
   };
   const isOverdue = (p) => dueOf(p) > 0.5 && ageDays(p) > 30;
 
-  // Group the filtered rows by supplier for display, each group carrying its
+  // Group the filtered rows by supplier OR by date, each group carrying its
   // spend + outstanding subtotal. Flattened into one array with {__group}
   // marker rows so the shared Table can render headers and rows in one pass.
+  // Date groups keep filteredPurchases' order, so the active sort (newest /
+  // oldest) decides which day leads.
   const displayRows = useMemo(() => {
-    if (!groupBySupplier) return filteredPurchases;
+    if (groupBy === 'NONE') return filteredPurchases;
+    const byDate = groupBy === 'DATE';
     const map = new Map();
     filteredPurchases.forEach(p => {
-      const key = p.supplier_id || p.supplier_name || '—';
-      if (!map.has(key)) map.set(key, { name: p.supplier_name || 'Unknown supplier', rows: [], total: 0, due: 0 });
+      const key = byDate ? (p.date || '—') : (p.supplier_id || p.supplier_name || '—');
+      if (!map.has(key)) {
+        map.set(key, {
+          name: byDate ? (p.date || 'No date') : (p.supplier_name || 'Unknown supplier'),
+          isDate: byDate, rows: [], total: 0, due: 0,
+        });
+      }
       const g = map.get(key);
       g.rows.push(p);
       g.total += Number(p.total_amount) || 0;
@@ -139,11 +150,11 @@ const PurchasesPage = () => {
     });
     const out = [];
     for (const [key, g] of map) {
-      out.push({ __group: true, key, name: g.name, count: g.rows.length, total: g.total, due: g.due });
+      out.push({ __group: true, key, name: g.name, isDate: g.isDate, count: g.rows.length, total: g.total, due: g.due });
       g.rows.forEach(r => out.push(r));
     }
     return out;
-  }, [filteredPurchases, groupBySupplier]);
+  }, [filteredPurchases, groupBy]);
 
   // Professional, self-contained printable purchase voucher (own CSS — the
   // print window has none of the app's styles).
@@ -480,13 +491,18 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
     );
   };
 
-  // Supplier subtotal band, injected between groups.
+  // Subtotal band between groups. Date groups lead with a calendar glyph and
+  // the full date; supplier groups with the supplier's initials.
   const renderGroupHeader = (g) => (
     <tr key={`g-${g.key}`} className="bg-canvas/70 border-y border-black/[0.04]">
       <td colSpan={PUR_COLS} className="px-4 py-2">
         <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded-md bg-card border border-border/60 flex items-center justify-center text-[10px] font-semibold text-muted-foreground shrink-0">{initialsOf(g.name)}</div>
-          <span className="text-xs font-semibold text-foreground truncate" title={g.name}>{g.name}</span>
+          {g.isDate ? (
+            <div className="w-6 h-6 rounded-md bg-card border border-border/60 flex items-center justify-center text-muted-foreground shrink-0"><Calendar size={12} /></div>
+          ) : (
+            <div className="w-6 h-6 rounded-md bg-card border border-border/60 flex items-center justify-center text-[10px] font-semibold text-muted-foreground shrink-0">{initialsOf(g.name)}</div>
+          )}
+          <span className="text-xs font-semibold text-foreground truncate" title={g.name}>{g.isDate ? formatDate(g.name) : g.name}</span>
           <span className="text-[11px] text-muted-foreground">{g.count} bill{g.count === 1 ? '' : 's'}</span>
           <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
             {formatCurrency(g.total)}
@@ -536,8 +552,11 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
             </div>
           </div>
         </td>
-        {/* Qty */}
-        <td className="px-4 py-3 text-center tabular-nums text-[13px] text-foreground">{pur.quantity}</td>
+        {/* Qty + unit */}
+        <td className="px-4 py-3 text-center whitespace-nowrap">
+          <span className="tabular-nums text-[13px] text-foreground">{pur.quantity}</span>
+          <span className="text-[9px] text-muted-foreground uppercase ml-0.5">{product?.unit || 'pcs'}</span>
+        </td>
         {/* Payment — dot + label, due underneath, overdue age tag */}
         <td className="px-4 py-3">
           {(() => {
@@ -690,7 +709,9 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
             <option value="ALL">All status</option><option value="PENDING">Pending</option><option value="ORDERED">Ordered</option><option value="RECEIVED">Received</option><option value="CANCELLED">Cancelled</option>
           </select>
           <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="h-9 px-2 border border-border rounded-lg text-[12px] font-semibold">
-            <option value="DATE_DESC">Newest</option><option value="DATE_ASC">Oldest</option><option value="AMT_DESC">Amount ↓</option><option value="AMT_ASC">Amount ↑</option>
+            <option value="DATE_DESC">Newest</option><option value="DATE_ASC">Oldest</option>
+            <option value="AMT_DESC">Amount ↓</option><option value="AMT_ASC">Amount ↑</option>
+            <option value="QTY_DESC">Qty ↓</option><option value="QTY_ASC">Qty ↑</option>
           </select>
           {/* Quick chip — jump straight to bills still owing. */}
           <button
@@ -704,16 +725,16 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
               <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${onlyUnpaid ? 'bg-[color:var(--color-neg)]/15' : 'bg-black/5'}`}>{unpaidCount}</span>
             )}
           </button>
-          {/* Group by supplier toggle. */}
-          <button
-            onClick={() => setGroupBySupplier(v => !v)}
-            title="Group by supplier"
-            className={`h-9 px-3 rounded-lg text-[12px] font-semibold border inline-flex items-center gap-1.5 transition-colors ${
-              groupBySupplier ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
-                              : 'border-border text-muted-foreground hover:text-foreground'}`}
-          >
-            <Users size={13} /> Group
-          </button>
+          {/* Group control — by date (default) or supplier, or a flat list. */}
+          <select value={groupBy} onChange={e => setGroupBy(e.target.value)}
+            title="Group the list"
+            className={`h-9 px-2 border rounded-lg text-[12px] font-semibold ${
+              groupBy !== 'NONE' ? 'bg-accent-signature/10 border-accent-signature/30 text-accent-signature-hover'
+                                 : 'border-border text-muted-foreground'}`}>
+            <option value="DATE">Group by date</option>
+            <option value="SUPPLIER">Group by supplier</option>
+            <option value="NONE">No grouping</option>
+          </select>
           <span className="text-[11px] font-semibold text-muted-foreground ml-auto">{filteredPurchases.length} of {purchases.length}</span>
         </div>
       )}
