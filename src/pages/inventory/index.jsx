@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useDialogClose } from '../../hooks/useDialogClose';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useInventory } from '../../hooks/useInventory';
@@ -34,6 +35,29 @@ const Inventory = () => {
   const { priceLists, upsertPrice, deletePrice } = useOrders(currentTenantId);
   const navigate = useNavigate();
   const [viewingProduct, setViewingProduct] = useState(null);
+
+  // Last purchase rate per product = the newest batch's unit_cost. Distinct
+  // from products.costPrice (the weighted average of open batches): this is
+  // today's restock cost, the number that answers "is my price above what it
+  // now costs me to buy". Lean select — just the three columns needed.
+  const [lastBuy, setLastBuy] = useState({});
+  useEffect(() => {
+    if (!currentTenantId) return;
+    let cancelled = false;
+    supabase
+      .from('product_batches')
+      .select('product_id, unit_cost, received_date')
+      .eq('tenant_id', currentTenantId)
+      .order('received_date', { ascending: false })
+      .then(({ data, error }) => {
+        if (cancelled || error || !data) return;
+        const m = {};
+        // First row per product = newest received = last buy.
+        data.forEach(b => { if (!(b.product_id in m)) m[b.product_id] = Number(b.unit_cost); });
+        setLastBuy(m);
+      });
+    return () => { cancelled = true; };
+  }, [currentTenantId, products.length]);
 
   const [showAddModal,    setShowAddModal]    = useState(false);
   const [editingProduct,  setEditingProduct]  = useState(null);
@@ -248,6 +272,7 @@ const Inventory = () => {
       <StockTable
         products={filteredProducts}
         inventoryBalances={balances}
+        lastBuy={lastBuy}
         currencySymbol={businessProfile?.currencySymbol || '₹'}
         onView={setViewingProduct}
         onEdit={openEditModal}
