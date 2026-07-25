@@ -228,6 +228,9 @@ td.r{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}td.c{tex
     if (!payTarget) return;
     const amt = Number(payAmount);
     if (!(amt > 0)) { addNotification('Enter a valid amount', 'error'); return; }
+    // Confirm before paying a supplier — blocks the thread so a double-tap can't
+    // fire two payments.
+    if (!window.confirm(`Pay ${formatCurrency(amt)} to ${payTarget.supplier_name || 'supplier'} (${payMethod})?`)) return;
     setPaySubmitting(true);
     const { error } = await payPurchase({ supplierId: payTarget.supplier_id, purchaseId: payTarget.id, amount: amt, method: payMethod, date: payDate });
     setPaySubmitting(false);

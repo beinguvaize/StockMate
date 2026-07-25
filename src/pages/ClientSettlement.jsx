@@ -290,6 +290,11 @@ const ClientSettlement = () => {
     setPaymentError('');
     const amt = parseFloat(paymentData.amount);
     if (isNaN(amt) || amt <= 0) { setPaymentError('Enter a valid payment amount.'); return; }
+    // Explicit confirmation before money is recorded. window.confirm blocks the
+    // thread, so it also serialises a rapid double-tap into a single commit —
+    // the double-payment complaint was recording the same collection twice.
+    const cur = businessProfile?.currencySymbol || '₹';
+    if (!window.confirm(`Record ${cur}${amt.toLocaleString('en-IN')} received from ${client.name} (${paymentData.paymentMethod})?`)) return;
     setIsSubmitting(true);
     try {
       const res = await recordClientPayment(client.id, amt, paymentData.date, paymentData.notes, selectedInvoiceIds, paymentData.paymentMethod);
