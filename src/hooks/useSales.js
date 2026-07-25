@@ -144,8 +144,14 @@ export const useSales = (tenantId, { plan = 'STARTER', lean = false } = {}) => {
     return { error };
   };
 
+  // Delete a sale through delete_sale, which reverses the stock (FIFO batches,
+  // inventory, movement log), reverses the client's outstanding, and cancels the
+  // linked invoice — then hides the sale. A bare soft-delete used to leave stock
+  // missing and the invoice showing as a phantom bill.
   const remove = async (id) => {
-    const { error } = await restUpdate('sales', { deleted_at: new Date().toISOString() }, { id, tenant_id: tenantId });
+    const { error } = await restRpc('delete_sale', {
+      p_id: id, p_tenant_id: tenantId, p_user_id: currentUser?.id || null,
+    });
     if (!error) await fetchSales();
     return { error };
   };
