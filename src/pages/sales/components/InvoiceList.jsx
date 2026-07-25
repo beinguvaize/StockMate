@@ -586,17 +586,32 @@ const InvoiceList = ({ sales, clients, staff = [], products = [], invoices = [],
           subtitle={`${getClientName(detailSale)} · ${formatDate(detailSale.date)}`}
           maxWidth="max-w-2xl"
         >
-          <SaleDetail
-            sale={detailSale}
-            clientName={getClientName(detailSale)}
-            cashier={getCashier(detailSale)}
-            productNameOf={getProductName}
-            outstanding={outstandingOf(detailSale)}
-            settleInput={settleInput}
-            setSettleInput={setSettleInput}
-            onSettle={onSettle ? handleSettle : null}
-            onPrint={() => onPrint(detailSale)}
-          />
+          {(() => {
+            // The client's TOTAL across all bills, so this one bill's balance
+            // isn't mistaken for the whole account.
+            const cid = detailSale.customerInfo?.id || detailSale.shopId || null;
+            const cli = cid ? (clients || []).find(c => c.id === cid) : null;
+            const clientOutstanding = Number(cli?.outstanding_balance) || 0;
+            const clientBills = cid
+              ? (invoices || []).filter(i => i.client_id === cid && !i.deleted_at && (i.payment_status || '').toUpperCase() !== 'PAID').length
+              : 0;
+            return (
+              <SaleDetail
+                sale={detailSale}
+                clientName={getClientName(detailSale)}
+                cashier={getCashier(detailSale)}
+                productNameOf={getProductName}
+                outstanding={outstandingOf(detailSale)}
+                clientName2={cli?.name}
+                clientOutstanding={clientOutstanding}
+                clientBills={clientBills}
+                settleInput={settleInput}
+                setSettleInput={setSettleInput}
+                onSettle={onSettle ? handleSettle : null}
+                onPrint={() => onPrint(detailSale)}
+              />
+            );
+          })()}
         </Modal>
       )}
     </div>
@@ -622,6 +637,7 @@ const SummaryCard = ({ label, value, sub, tone }) => {
 
 const SaleDetail = ({
   sale, clientName, cashier, productNameOf, outstanding,
+  clientName2, clientOutstanding = 0, clientBills = 0,
   settleInput, setSettleInput, onSettle, onPrint
 }) => {
   const items = Array.isArray(sale.items) ? sale.items : [];
@@ -706,8 +722,19 @@ const SaleDetail = ({
             </>
           );
         })()}
+        {/* "Outstanding" alone read as the client's whole account — this is
+            only this bill. Relabelled, with the account total shown separately
+            when it differs. */}
         {!paid && !voided && outstanding > 0 && (
-          <TotalRow label="Outstanding" value={formatCurrency(outstanding)} tone="amber" bold />
+          <TotalRow label="Balance due (this bill)" value={formatCurrency(outstanding)} tone="amber" bold />
+        )}
+        {!paid && !voided && clientOutstanding > 0 && Math.abs(clientOutstanding - outstanding) > 0.5 && (
+          <div className="flex items-center justify-between text-[11px] pt-1">
+            <span className="text-muted-foreground">{clientName2 || clientName} — total outstanding</span>
+            <span className="font-semibold text-amber-600 tabular-nums">
+              {formatCurrency(clientOutstanding)}{clientBills > 1 ? ` · ${clientBills} bills` : ''}
+            </span>
+          </div>
         )}
         {voided && (
           <TotalRow label="Status" value="Voided — no payment due" tone="red" bold />

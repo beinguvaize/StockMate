@@ -571,7 +571,28 @@ const Invoices = () => {
                   <div className="h-px bg-black/10 my-2" />
                   <TotalRow label="Grand Total" value={formatCurrency(inv.grand_total)} bold />
                   {Number(inv.paid_amount) > 0 && <TotalRow label="Paid" value={formatCurrency(inv.paid_amount)} tone="emerald" />}
-                  {out > 0 && status !== 'PAID' && <TotalRow label="Outstanding" value={formatCurrency(out)} tone="amber" bold />}
+                  {/* "Outstanding" alone read as the whole account and confused
+                      customers — this is only THIS bill's balance. */}
+                  {out > 0 && status !== 'PAID' && <TotalRow label="Balance due (this bill)" value={formatCurrency(out)} tone="amber" bold />}
+                  {(() => {
+                    // The client's TOTAL across all their bills — shown only when
+                    // it differs from this bill, so nobody mistakes one for both.
+                    const clientTotal = Number(client?.outstanding_balance) || 0;
+                    const unpaidCount = (invoices || []).filter(i =>
+                      i.client_id === inv.client_id && !i.deleted_at && (i.payment_status || '').toUpperCase() !== 'PAID').length;
+                    if (!(clientTotal > 0) || Math.abs(clientTotal - out) < 0.5) return null;
+                    return (
+                      <>
+                        <div className="h-px bg-black/10 my-2" />
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span className="text-gray-500">{client?.name || 'This client'} — total outstanding</span>
+                          <span className="font-semibold text-amber-600 tabular-nums">
+                            {formatCurrency(clientTotal)}{unpaidCount > 1 ? ` · ${unpaidCount} bills` : ''}
+                          </span>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Settle + print */}
