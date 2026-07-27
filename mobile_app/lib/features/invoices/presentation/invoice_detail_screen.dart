@@ -121,7 +121,19 @@ class InvoiceDetailScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            _InvoiceCard(invoice: invoice, profile: profile),
+            _InvoiceCard(
+              invoice: invoice,
+              profile: profile,
+              clientOutstanding: () {
+                final cid = invoice.clientId;
+                if (cid == null || cid.isEmpty) return 0.0;
+                final cs = ref.read(clientsProvider).valueOrNull ?? const [];
+                for (final c in cs) {
+                  if (c.id == cid) return c.outstandingBalance ?? 0.0;
+                }
+                return 0.0;
+              }(),
+            ),
             const SizedBox(height: 20),
 
             // GST Invoice print/share — only when this view is a real GST invoice.
@@ -1482,7 +1494,10 @@ class InvoiceDetailScreen extends ConsumerWidget {
 class _InvoiceCard extends StatelessWidget {
   final Invoice invoice;
   final BusinessProfile? profile;
-  const _InvoiceCard({required this.invoice, required this.profile});
+  // The client's TOTAL across all their bills, so this bill's balance is not
+  // mistaken for the whole account. 0 when unknown or walk-in.
+  final double clientOutstanding;
+  const _InvoiceCard({required this.invoice, required this.profile, this.clientOutstanding = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -1787,7 +1802,33 @@ class _InvoiceCard extends StatelessWidget {
                       ),
                   ],
                   if (invoice.outstanding > 0.5)
-                    _TaxRow(label: 'Outstanding', value: invoice.outstanding),
+                    _TaxRow(label: 'Balance due (this bill)', value: invoice.outstanding),
+                ],
+                // Account total, shown only when it differs from this bill —
+                // "Outstanding" alone read as everything the client owes.
+                if (invoice.outstanding > 0.5 &&
+                    clientOutstanding > 0.5 &&
+                    (clientOutstanding - invoice.outstanding).abs() > 0.5) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          '${invoice.displayClientName} — total outstanding',
+                          style: GoogleFonts.manrope(
+                              fontSize: 11, color: AppColors.inkTertiary),
+                        ),
+                      ),
+                      Text(
+                        '₹${_fmtAmount(clientOutstanding)}',
+                        style: GoogleFonts.manrope(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.warning),
+                      ),
+                    ],
+                  ),
                 ],
 
                 const SizedBox(height: 4),
