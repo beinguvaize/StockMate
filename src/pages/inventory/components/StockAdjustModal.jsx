@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { formatCurrency } from '../../../lib/utils';
+import { supabase } from '../../../lib/supabase';
+import { formatCurrency, formatDate } from '../../../lib/utils';
 import { useDialogClose } from '../../../hooks/useDialogClose';
 import { X, TrendingUp, TrendingDown, Target, AlertCircle, Loader2, CheckCircle2, ArrowRight, Minus, Plus, ChevronLeft } from 'lucide-react';
 
@@ -30,8 +31,38 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
   const [customReason, setCR]     = useState('');
   const [unitCost, setUnitCost]   = useState('');
   const [done, setDone]           = useState(false);
+  // Last price actually PAID for this product — the newest batch that traces to
+  // a purchase. Adjustments used to fall back to products.costPrice (a blend of
+  // open batches, or a typed number), so stock added by adjustment was costed
+  // from an average rather than from a bill, and the batch it created carried no
+  // purchase reference. Defaulting to the real last price makes that number
+  // answerable: "₹150, bought 10 Jul on PUR-6EI5RO".
+  const [lastBuy, setLastBuy]     = useState(null); // { cost, date, ref }
 
-  useEffect(() => { setQty(''); setUnitCost(''); setDone(false); }, [type]);
+  useEffect(() => {
+    if (!product?.id) return;
+    let cancelled = false;
+    supabase
+      .from('product_batches')
+      .select('unit_cost, received_date, purchase_id')
+      .eq('product_id', product.id)
+      .not('purchase_id', 'is', null)
+      .order('received_date', { ascending: false })
+      .limit(1)
+      .then(({ data, error }) => {
+        if (cancelled || error || !data?.length) return;
+        const b = data[0];
+        setLastBuy({ cost: Number(b.unit_cost), date: b.received_date, ref: b.purchase_id });
+      });
+    return () => { cancelled = true; };
+  }, [product?.id]);
+
+  // Pre-fill the cost when adding stock, so the default is the real last price
+  // rather than a silent fallback. Still fully editable.
+  useEffect(() => {
+    setQty(''); setDone(false);
+    setUnitCost(type === 'add' && lastBuy?.cost > 0 ? String(lastBuy.cost) : '');
+  }, [type, lastBuy]);
 
   const activeType  = TYPES.find(t => t.key === type);
   const qtyNum      = parseFloat(qty) || 0;
@@ -234,9 +265,17 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
           {/* ── Purchase price (only when adding stock) ── */}
           {isAddition && qtyNum > 0 && (
             <div>
-              <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-2">
-                Purchase price / unit
-              </label>
+              <div className="flex items-baseline justify-between mb-2 gap-2">
+                <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                  Purchase price / unit
+                </label>
+                {/* Name the source of the default so the figure is answerable. */}
+                {lastBuy && (
+                  <span className="text-[10px] text-muted-foreground truncate">
+                    last bought {formatDate(lastBuy.date)} · {lastBuy.ref}
+                  </span>
+                )}
+              </div>
               <input
                 type="number"
                 min="0"
@@ -255,7 +294,8 @@ export default function StockAdjustModal({ product, currentStock, onConfirm, onC
               {unitCost.trim() === '' ? (
                 <p className="text-[11px] text-accent-signature-hover font-medium mt-1.5 px-1">
                   Leaving this blank costs these {qtyNum} {product.unit || 'units'} at the saved
-                  ₹{Number(product.costPrice ?? product.cost ?? 0)} each. Profit on them is only as
+                  ₹{Number(product.costPrice ?? product.cost ?? 0)} each
+                  {lastBuy ? `, not the ₹${lastBuy.cost} you last paid` : ''}. Profit on them is only as
                   accurate as that figure — enter the supplier's price if you have the bill.
                 </p>
               ) : (

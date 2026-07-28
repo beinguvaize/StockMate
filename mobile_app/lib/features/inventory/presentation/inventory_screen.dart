@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/database/database.dart';
+import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
 import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
@@ -552,8 +553,38 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
     int adjustment = 0;
     // Typeable new-stock value; +/- keep it in sync.
     final stockCtrl = TextEditingController(text: '$currentStock');
-    // Optional purchase price for a manual stock-add (creates a cost batch).
-    final costCtrl = TextEditingController();
+
+    // Last price actually PAID for this product — the newest batch tracing to a
+    // purchase. Adjustments used to fall back to products.costPrice (a blend of
+    // open batches, or a typed number), so stock added by hand was costed from
+    // an average rather than a bill. Defaulting to the real last price makes the
+    // figure answerable, and it stays editable.
+    double? lastCost;
+    String? lastDate;
+    String? lastRef;
+    try {
+      final rows = await supabase
+          .from('product_batches')
+          .select('unit_cost, received_date, purchase_id')
+          .eq('product_id', widget.product.id)
+          .not('purchase_id', 'is', null)
+          .order('received_date', ascending: false)
+          .limit(1);
+      if (rows.isNotEmpty) {
+        final b = rows.first;
+        lastCost = (b['unit_cost'] as num?)?.toDouble();
+        lastDate = b['received_date'] as String?;
+        lastRef = b['purchase_id'] as String?;
+      }
+    } catch (_) {/* no last price — fall back to the saved cost as before */}
+
+    // Optional purchase price for a manual stock-add (creates a cost batch),
+    // pre-filled with what was last paid.
+    final costCtrl = TextEditingController(
+      text: (lastCost != null && lastCost > 0) ? lastCost.toStringAsFixed(2) : '',
+    );
+
+    if (!mounted) return;
 
     await showDialog(
       context: context,
@@ -659,7 +690,9 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                     style: GoogleFonts.manrope(fontSize: 14, color: AppColors.inkPrimary),
                     decoration: InputDecoration(
                       prefixText: '₹ ',
-                      labelText: 'Purchase price / unit (optional)',
+                      labelText: lastRef != null
+                          ? 'Purchase price / unit · last paid'
+                          : 'Purchase price / unit (optional)',
                       labelStyle: GoogleFonts.manrope(fontSize: 12, color: AppColors.inkSecondary),
                       hintText: 'Cost each — blank uses saved ₹${widget.product.costPrice.toStringAsFixed(2)}',
                       hintStyle: GoogleFonts.manrope(fontSize: 11, color: AppColors.inkTertiary),
@@ -669,7 +702,9 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Enter what you paid so profit on these units is exact.',
+                    lastRef != null
+                        ? 'Defaulted to ₹${lastCost!.toStringAsFixed(2)} — last bought ${lastDate ?? ''} on $lastRef. Change it if this lot cost something else.'
+                        : 'Enter what you paid so profit on these units is exact.',
                     style: GoogleFonts.manrope(fontSize: 10.5, color: AppColors.inkTertiary),
                   ),
                 ],
