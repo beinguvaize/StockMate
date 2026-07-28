@@ -717,7 +717,11 @@ const SaleDetail = ({
             <>
               <TotalRow label="Amount received" value={formatCurrency(received)} tone="emerald" />
               {extra > 0.5 && (
-                <TotalRow label="Change / to account" value={formatCurrency(extra)} />
+                /* "Change / to account" told the cashier neither. The surplus is
+                   either handed back or credited to the client's account (a
+                   deliberate choice at checkout), and reading "Change" on a
+                   credited sale means paying it out twice. */
+                <TotalRow label="Excess received" value={formatCurrency(extra)} />
               )}
             </>
           );

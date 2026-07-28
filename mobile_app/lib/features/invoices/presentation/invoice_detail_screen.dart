@@ -1797,7 +1797,7 @@ class _InvoiceCard extends StatelessWidget {
                     _TaxRow(label: 'Amount received', value: invoice.amountReceived!),
                     if (invoice.amountReceived! - grandTotal > 0.5)
                       _TaxRow(
-                        label: 'Change / to account',
+                        label: 'Excess received',
                         value: invoice.amountReceived! - grandTotal,
                       ),
                   ],
