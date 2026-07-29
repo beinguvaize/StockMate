@@ -106,6 +106,7 @@ dev_dependencies:
 
   # Launcher icon generation
   flutter_launcher_icons: ^0.14.1
+  sqlite3: ^2.9.4
 
 flutter_launcher_icons:
   android: true

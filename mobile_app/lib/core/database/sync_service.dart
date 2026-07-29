@@ -329,6 +329,18 @@ class SyncService {
       _pullSales(),
       _pullExpenses(),
       _pullPurchases(),
+      // Added in schema v6 — these back DayBook, client payments, HR, godown
+      // stock, logistics stops and staff, all of which used to fail offline.
+      _pullDayBook(),
+      _pullClientPayments(),
+      _pullEmployees(),
+      _pullInventoryLocations(),
+      _pullInventoryBalances(),
+      _pullProductBatches(),
+      _pullVehicles(),
+      _pullRouteStops(),
+      _pullPurchaseReturns(),
+      _pullUsers(),
     ]);
   }
 
@@ -609,6 +621,312 @@ class SyncService {
       });
     } catch (e) {
       debugPrint('[pullSync] purchases failed: $e');
+    }
+  }
+
+  // --- Offline cache for the ten tables added in schema v6 ---
+  //
+  // Each is scoped to the current tenant explicitly. RLS already does this
+  // server-side, but the Drift cache has no tenant separation, so a GLOBAL_ADMIN
+  // session would otherwise pour every tenant's rows into one shared local table
+  // (the same trap _pullProducts documents).
+  //
+  // Helpers keep the ten methods honest about the two things that actually vary:
+  // the query and the row mapping.
+
+  DateTime? _ts(dynamic v) => v == null ? null : DateTime.tryParse(v as String);
+
+  /// Fetch a tenant-scoped, non-deleted slice of [table].
+  Future<List<dynamic>?> _fetch(String table, String columns, {int? limit}) async {
+    final tenantId = await _currentTenantId();
+    if (tenantId == null) return null;
+    var q = supabase.from(table).select(columns).eq('tenant_id', tenantId).isFilter('deleted_at', null);
+    final res = limit == null ? await q : await q.limit(limit);
+    return res as List<dynamic>;
+  }
+
+  Future<void> _pullDayBook() async {
+    try {
+      final data = await _fetch('day_book',
+          'id, tenant_id, date, location_id, opening_balance, closing_balance, total_sales, total_expenses, is_closed, closed_at, closed_by, physical_cash, variance, updated_at');
+      if (data == null) return;
+      await db.batch((batch) {
+        for (final i in data) {
+          batch.insert(db.dayBookLocal, DayBookLocalCompanion.insert(
+            id: i['id'] as String,
+            tenantId: i['tenant_id'] as String,
+            date: i['date'] as String,
+            locationId: Value(i['location_id'] as String?),
+            openingBalance: Value((i['opening_balance'] as num?)?.toDouble()),
+            closingBalance: Value((i['closing_balance'] as num?)?.toDouble()),
+            totalSales: Value((i['total_sales'] as num?)?.toDouble()),
+            totalExpenses: Value((i['total_expenses'] as num?)?.toDouble()),
+            isClosed: Value((i['is_closed'] as bool?) ?? false),
+            closedAt: Value(_ts(i['closed_at'])),
+            closedBy: Value(i['closed_by'] as String?),
+            physicalCash: Value((i['physical_cash'] as num?)?.toDouble()),
+            variance: Value((i['variance'] as num?)?.toDouble()),
+            updatedAt: Value(_ts(i['updated_at'])),
+          ), mode: InsertMode.insertOrReplace);
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] day_book failed: $e');
+    }
+  }
+
+  Future<void> _pullClientPayments() async {
+    try {
+      final data = await _fetch('client_payments',
+          'id, tenant_id, client_id, amount, date, payment_method, notes, recorded_by, updated_at');
+      if (data == null) return;
+      await db.batch((batch) {
+        for (final i in data) {
+          batch.insert(db.clientPayments, ClientPaymentsCompanion.insert(
+            id: i['id'] as String,
+            tenantId: i['tenant_id'] as String,
+            clientId: Value(i['client_id'] as String?),
+            amount: Value((i['amount'] as num?)?.toDouble()),
+            date: Value(i['date'] as String?),
+            paymentMethod: Value(i['payment_method'] as String?),
+            notes: Value(i['notes'] as String?),
+            recordedBy: Value(i['recorded_by'] as String?),
+            updatedAt: Value(_ts(i['updated_at'])),
+          ), mode: InsertMode.insertOrReplace);
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] client_payments failed: $e');
+    }
+  }
+
+  Future<void> _pullEmployees() async {
+    try {
+      final data = await _fetch('employees',
+          'id, tenant_id, name, role, position, department, status, pay_type, salary, daily_rate, days_worked, amount_paid, phone, email, bank_account, employment_type, joining_date, notes, user_id, updated_at');
+      if (data == null) return;
+      await db.batch((batch) {
+        for (final i in data) {
+          batch.insert(db.employees, EmployeesCompanion.insert(
+            id: i['id'] as String,
+            tenantId: i['tenant_id'] as String,
+            name: Value(i['name'] as String?),
+            role: Value(i['role'] as String?),
+            position: Value(i['position'] as String?),
+            department: Value(i['department'] as String?),
+            status: Value(i['status'] as String?),
+            payType: Value(i['pay_type'] as String?),
+            salary: Value((i['salary'] as num?)?.toDouble()),
+            dailyRate: Value((i['daily_rate'] as num?)?.toDouble()),
+            daysWorked: Value((i['days_worked'] as num?)?.toDouble()),
+            amountPaid: Value((i['amount_paid'] as num?)?.toDouble()),
+            phone: Value(i['phone'] as String?),
+            email: Value(i['email'] as String?),
+            bankAccount: Value(i['bank_account'] as String?),
+            employmentType: Value(i['employment_type'] as String?),
+            joiningDate: Value(i['joining_date'] as String?),
+            notes: Value(i['notes'] as String?),
+            userId: Value(i['user_id'] as String?),
+            updatedAt: Value(_ts(i['updated_at'])),
+          ), mode: InsertMode.insertOrReplace);
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] employees failed: $e');
+    }
+  }
+
+  Future<void> _pullInventoryLocations() async {
+    try {
+      final data = await _fetch('inventory_locations',
+          'id, tenant_id, name, type, reference_id, updated_at');
+      if (data == null) return;
+      await db.batch((batch) {
+        for (final i in data) {
+          batch.insert(db.inventoryLocations, InventoryLocationsCompanion.insert(
+            id: i['id'] as String,
+            tenantId: i['tenant_id'] as String,
+            name: i['name'] as String,
+            type: i['type'] as String,
+            referenceId: Value(i['reference_id'] as String?),
+            updatedAt: Value(_ts(i['updated_at'])),
+          ), mode: InsertMode.insertOrReplace);
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] inventory_locations failed: $e');
+    }
+  }
+
+  Future<void> _pullInventoryBalances() async {
+    try {
+      final data = await _fetch('inventory_balances',
+          'id, tenant_id, product_id, location_id, quantity, updated_at');
+      if (data == null) return;
+      await db.batch((batch) {
+        for (final i in data) {
+          batch.insert(db.inventoryBalances, InventoryBalancesCompanion.insert(
+            id: i['id'] as String,
+            tenantId: i['tenant_id'] as String,
+            productId: i['product_id'] as String,
+            locationId: Value(i['location_id'] as String?),
+            quantity: Value((i['quantity'] as num?)?.toDouble()),
+            updatedAt: Value(_ts(i['updated_at'])),
+          ), mode: InsertMode.insertOrReplace);
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] inventory_balances failed: $e');
+    }
+  }
+
+  Future<void> _pullProductBatches() async {
+    try {
+      // Only lots with stock left — a closed batch has no bearing on anything
+      // the app displays, and this table grows with every purchase.
+      final tenantId = await _currentTenantId();
+      if (tenantId == null) return;
+      final res = await supabase
+          .from('product_batches')
+          .select('id, tenant_id, product_id, purchase_id, supplier_id, warehouse_id, received_date, expiry_date, unit_cost, qty_received, qty_remaining, origin, cost_basis, note, updated_at')
+          .eq('tenant_id', tenantId)
+          .isFilter('deleted_at', null)
+          .gt('qty_remaining', 0);
+      final List<dynamic> data = res as List<dynamic>;
+      await db.batch((batch) {
+        for (final i in data) {
+          batch.insert(db.productBatches, ProductBatchesCompanion.insert(
+            id: i['id'] as String,
+            tenantId: i['tenant_id'] as String,
+            productId: i['product_id'] as String,
+            purchaseId: Value(i['purchase_id'] as String?),
+            supplierId: Value(i['supplier_id'] as String?),
+            warehouseId: Value(i['warehouse_id'] as String?),
+            receivedDate: Value(i['received_date'] as String?),
+            expiryDate: Value(i['expiry_date'] as String?),
+            unitCost: Value((i['unit_cost'] as num?)?.toDouble()),
+            qtyReceived: Value((i['qty_received'] as num?)?.toDouble()),
+            qtyRemaining: Value((i['qty_remaining'] as num?)?.toDouble()),
+            origin: Value(i['origin'] as String?),
+            costBasis: Value(i['cost_basis'] as String?),
+            note: Value(i['note'] as String?),
+            updatedAt: Value(_ts(i['updated_at'])),
+          ), mode: InsertMode.insertOrReplace);
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] product_batches failed: $e');
+    }
+  }
+
+  Future<void> _pullVehicles() async {
+    try {
+      // Note the camelCase columns — vehicles was created with quoted mixed-case
+      // names server-side, unlike every other table here.
+      final data = await _fetch('vehicles',
+          'id, tenant_id, name, "plateNumber", type, status, capacity, "fuelType", updated_at');
+      if (data == null) return;
+      await db.batch((batch) {
+        for (final i in data) {
+          batch.insert(db.vehicles, VehiclesCompanion.insert(
+            id: i['id'] as String,
+            tenantId: i['tenant_id'] as String,
+            name: Value(i['name'] as String?),
+            plateNumber: Value(i['plateNumber'] as String?),
+            type: Value(i['type'] as String?),
+            status: Value(i['status'] as String?),
+            capacity: Value((i['capacity'] as num?)?.toDouble()),
+            fuelType: Value(i['fuelType'] as String?),
+            updatedAt: Value(_ts(i['updated_at'])),
+          ), mode: InsertMode.insertOrReplace);
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] vehicles failed: $e');
+    }
+  }
+
+  Future<void> _pullRouteStops() async {
+    try {
+      final data = await _fetch('route_stops',
+          'id, tenant_id, route_id, invoice_id, client_id, client_name, sequence, status, notes, cash_collected, items_delivered, visited_at, updated_at');
+      if (data == null) return;
+      await db.batch((batch) {
+        for (final i in data) {
+          batch.insert(db.routeStops, RouteStopsCompanion.insert(
+            id: i['id'] as String,
+            tenantId: i['tenant_id'] as String,
+            routeId: i['route_id'] as String,
+            invoiceId: Value(i['invoice_id'] as String?),
+            clientId: Value(i['client_id'] as String?),
+            clientName: Value(i['client_name'] as String?),
+            sequence: Value((i['sequence'] as num?)?.toInt()),
+            status: Value(i['status'] as String?),
+            notes: Value(i['notes'] as String?),
+            cashCollected: Value((i['cash_collected'] as num?)?.toDouble()),
+            itemsDeliveredJson: Value(
+                i['items_delivered'] == null ? null : jsonEncode(i['items_delivered'])),
+            visitedAt: Value(_ts(i['visited_at'])),
+            updatedAt: Value(_ts(i['updated_at'])),
+          ), mode: InsertMode.insertOrReplace);
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] route_stops failed: $e');
+    }
+  }
+
+  Future<void> _pullPurchaseReturns() async {
+    try {
+      final data = await _fetch('purchase_returns',
+          'id, tenant_id, purchase_id, supplier_id, supplier_name, product_id, product_name, quantity, unit_price, total_amount, reason, date, updated_at');
+      if (data == null) return;
+      await db.batch((batch) {
+        for (final i in data) {
+          batch.insert(db.purchaseReturns, PurchaseReturnsCompanion.insert(
+            id: i['id'] as String,
+            tenantId: i['tenant_id'] as String,
+            purchaseId: Value(i['purchase_id'] as String?),
+            supplierId: Value(i['supplier_id'] as String?),
+            supplierName: Value(i['supplier_name'] as String?),
+            productId: Value(i['product_id'] as String?),
+            productName: Value(i['product_name'] as String?),
+            quantity: Value((i['quantity'] as num?)?.toDouble()),
+            unitPrice: Value((i['unit_price'] as num?)?.toDouble()),
+            totalAmount: Value((i['total_amount'] as num?)?.toDouble()),
+            reason: Value(i['reason'] as String?),
+            date: Value(i['date'] as String?),
+            updatedAt: Value(_ts(i['updated_at'])),
+          ), mode: InsertMode.insertOrReplace);
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] purchase_returns failed: $e');
+    }
+  }
+
+  Future<void> _pullUsers() async {
+    try {
+      final data = await _fetch('users',
+          'id, tenant_id, name, email, status, avatar_url, roles, permissions, updated_at');
+      if (data == null) return;
+      await db.batch((batch) {
+        for (final i in data) {
+          batch.insert(db.usersLocal, UsersLocalCompanion.insert(
+            id: i['id'] as String,
+            tenantId: i['tenant_id'] as String,
+            name: Value(i['name'] as String?),
+            email: Value(i['email'] as String?),
+            status: Value(i['status'] as String?),
+            avatarUrl: Value(i['avatar_url'] as String?),
+            rolesJson: Value(i['roles'] == null ? null : jsonEncode(i['roles'])),
+            permissionsJson: Value(i['permissions'] == null ? null : jsonEncode(i['permissions'])),
+            updatedAt: Value(_ts(i['updated_at'])),
+          ), mode: InsertMode.insertOrReplace);
+        }
+      });
+    } catch (e) {
+      debugPrint('[pullSync] users failed: $e');
     }
   }
 }
