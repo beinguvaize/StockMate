@@ -7,6 +7,8 @@ import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
+import 'package:mobile_app/core/widgets/app_states.dart' show AppSpinner;
 import 'package:mobile_app/core/theme/dimens.dart';
 import 'package:mobile_app/core/widgets/app_button.dart';
 import 'package:mobile_app/core/widgets/trial_banner.dart';
@@ -238,7 +240,8 @@ class _GlobalAppBar extends StatelessWidget {
               Row(
             children: [
               // Hamburger
-              GestureDetector(
+              AppTappable(
+                ripple: false,
                 onTap: onMenuTap,
                 child: Container(
                   width: 42,
@@ -262,7 +265,8 @@ class _GlobalAppBar extends StatelessWidget {
               const SyncStatusPill(),
 
               // Bell
-              GestureDetector(
+              AppTappable(
+                ripple: false,
                 onTap: () => showModalBottomSheet(
                   context: context,
                   backgroundColor: Colors.white,
@@ -445,7 +449,8 @@ class _AppDrawer extends ConsumerWidget {
             // ── Sign out ──────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.all(16),
-              child: GestureDetector(
+              child: AppTappable(
+                ripple: false,
                 onTap: () async {
                   Navigator.pop(context);
                   await supabase.auth.signOut();
@@ -507,7 +512,8 @@ class _DrawerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: 2),
@@ -668,7 +674,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       icon: LucideIcons.trendingUp,
                       isHero: true,
                       onTap: () => widget.onTabSwitch('sales'),
-                      trailing: GestureDetector(
+                      trailing: AppTappable(
+                        ripple: false,
                         onTap: () => setState(() => _revenueVisible = !_revenueVisible),
                         child: Icon(
                           _revenueVisible ? LucideIcons.eye : LucideIcons.eyeOff,
@@ -760,7 +767,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
               Row(
                 children: [
                   Expanded(
-                    child: GestureDetector(
+                    child: AppTappable(
+                      ripple: false,
                       onTap: () {
                         final roles = ref.read(tenantContextProvider).value?.roles ?? [];
                         navigateToNewSale(context, roles);
@@ -786,7 +794,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: GestureDetector(
+                    child: AppTappable(
+                      ripple: false,
                       onTap: () => _push(const AddExpenseScreen()),
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -846,7 +855,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                             ),
                           ],
                         ),
-                        GestureDetector(
+                        AppTappable(
+                          ripple: false,
                           onTap: () => widget.onTabSwitch('sales'),
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -950,7 +960,8 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                       ),
                     ],
                   ),
-                  GestureDetector(
+                  AppTappable(
+                    ripple: false,
                     onTap: () => widget.onTabSwitch('sales'),
                     child: Text(
                       'See All',
@@ -1017,7 +1028,7 @@ class _DashboardHomeState extends ConsumerState<DashboardHome>
                 loading: () => const Center(
                   child: Padding(
                     padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+                    child: AppSpinner(size: 20),
                   ),
                 ),
                 error: (e, _) => Text('Error: $e',
@@ -1119,7 +1130,8 @@ class _KpiCard extends StatelessWidget {
 
     if (isHero) {
       // ── Hero card (TODAY'S REVENUE) — dark gradient, full-width ──
-      return GestureDetector(
+      return AppTappable(
+        ripple: false,
         onTap: onTap,
         child: Container(
           width: double.infinity,
@@ -1193,7 +1205,8 @@ class _KpiCard extends StatelessWidget {
     }
 
     // ── Metric card — white, colored icon + value ──
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(16),

@@ -8,6 +8,7 @@ import 'package:mobile_app/core/auth/feature_gate.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/features/clients_suppliers/presentation/crm_screen.dart';
 import 'package:mobile_app/features/daybook/presentation/daybook_screen.dart';
 import 'package:mobile_app/features/finance/presentation/finance_screen.dart';
@@ -308,7 +309,8 @@ class MenuScreen extends ConsumerWidget {
 
                       // Logout
                       const SizedBox(height: 4),
-                      GestureDetector(
+                      AppTappable(
+                        ripple: false,
                         onTap: () async => await supabase.auth.signOut(),
                         child: Container(
                           margin: const EdgeInsets.only(bottom: 12),
@@ -449,7 +451,8 @@ class _MenuCard extends StatelessWidget {
 
     if (isRoleBlocked && !alwaysShow) return const SizedBox.shrink();
 
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: isPlanLocked
           ? () => ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(

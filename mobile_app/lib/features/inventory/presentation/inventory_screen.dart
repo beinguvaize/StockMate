@@ -8,6 +8,7 @@ import 'package:mobile_app/core/database/database.dart';
 import 'package:mobile_app/core/database/offline_reads.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/main.dart' show databaseProvider;
 import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
@@ -142,7 +143,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                 separatorBuilder: (context, index) => const SizedBox(width: 8),
                 itemBuilder: (context, i) {
                   final isActive = _filterIndex == i;
-                  return GestureDetector(
+                  return AppTappable(
+                    ripple: false,
                     onTap: () => setState(() => _filterIndex = i),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
@@ -349,7 +351,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                                               ? AppColors.warning
                                               : AppColors.success;
 
-                                  return GestureDetector(
+                                  return AppTappable(
+                                    ripple: false,
                                     onTap: () => _showProductSheet(context, product),
                                     child: Container(
                                       padding: const EdgeInsets.all(16),
@@ -1013,7 +1016,8 @@ class _StockAdjustBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: () {
         HapticFeedback.lightImpact();
         onTap();

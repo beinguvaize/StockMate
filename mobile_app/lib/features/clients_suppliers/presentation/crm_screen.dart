@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/core/widgets/app_button.dart' show AppTappable;
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/supplier.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/add_client_screen.dart';
@@ -1335,7 +1336,8 @@ class _ToolbarBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return AppTappable(
+      ripple: false,
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
@@ -1428,7 +1430,8 @@ class _DetailSection extends StatelessWidget {
                           ],
                         ),
                       ),
-                      GestureDetector(
+                      AppTappable(
+                        ripple: false,
                         onTap: () {
                           Clipboard.setData(ClipboardData(text: row.value));
                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
