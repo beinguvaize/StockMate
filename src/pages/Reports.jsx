@@ -24,6 +24,7 @@ import GSTR3BReport from '../components/reports/GSTR3BReport';
 import PurchaseRegisterReport from '../components/reports/PurchaseRegisterReport';
 import GSTR2BReconReport from '../components/reports/GSTR2BReconReport';
 import ExpiryReport from '../components/reports/ExpiryReport';
+import UnverifiedCostReport from '../components/reports/UnverifiedCostReport';
 import IMEISerialReport from '../components/reports/IMEISerialReport';
 import DailySalesReport from '../components/reports/DailySalesReport';
 // --- New operational reports ---
@@ -47,7 +48,7 @@ import {
   FileText, FileCheck, Target, CalendarRange, Receipt, Tag,
   BookMarked, BarChart2, AlertTriangle, Users,
   PieChart, ArrowLeftRight, GitFork,
-  Search, ChevronDown, ShoppingBag,
+  Search, ChevronDown, ShoppingBag, ShieldAlert,
 } from 'lucide-react';
 
 const Reports = () => {
@@ -73,6 +74,7 @@ const Reports = () => {
     { id: 'BILL_PROFIT',      group: 'OPERATIONAL', label: 'Bill Profit',      icon: <BarChart2 size={18} />,    component: <BillWiseProfitReport />,         permission: 'sales' },
     { id: 'LOW_STOCK',        group: 'OPERATIONAL', label: 'Low Stock',        icon: <AlertTriangle size={18} />,component: <LowStockReport />,               permission: 'inventory' },
     { id: 'EXPIRY',           group: 'OPERATIONAL', label: 'Expiry Tracking',  icon: <AlertTriangle size={18} />,component: <ExpiryReport />,                 permission: 'inventory' },
+    { id: 'UNVERIFIED_COST',  group: 'OPERATIONAL', label: 'Unverified Cost',  icon: <ShieldAlert size={18} />,  component: <UnverifiedCostReport />,         permission: 'inventory' },
     { id: 'IMEI_SERIAL',      group: 'OPERATIONAL', label: 'IMEI / Serial',    icon: <Package size={18} />,      component: <IMEISerialReport />,             permission: 'inventory' },
     { id: 'SALES_BY_PARTY',   group: 'OPERATIONAL', label: 'Sales by Party',   icon: <Users size={18} />,        component: <SalePurchaseByPartyReport />,    permission: 'sales' },
     { id: 'PARTY_PROFIT',     group: 'OPERATIONAL', label: 'Party Profit',     icon: <PieChart size={18} />,     component: <PartyProfitReport />,            permission: 'reports' },
