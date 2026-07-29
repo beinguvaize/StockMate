@@ -122,16 +122,35 @@ const ItemDetailView = ({
   }, [sales, clients, pid]);
 
   const cost = Number(product?.costPrice ?? 0);
+
+  // Stock value from the batches themselves, not products.costPrice.
+  //
+  // costPrice is a weighted average; FIFO consumes real batch costs, so valuing
+  // stock at the average made this card disagree with the COGS the same stock
+  // will produce (LD Cover 0: card ₹8,859.17 vs batches ₹8,595.70).
+  //
+  // Batches can also under-cover the balance — that item shows 66 in stock with
+  // 65 across its batches. Rather than hide the gap, value what the batches
+  // cover at their own cost and the remainder at costPrice, and say so.
+  const stockValue = useMemo(() => {
+    const qty = batches.reduce((s, b) => s + Number(b.qty_remaining || 0), 0);
+    const val = batches.reduce((s, b) => s + Number(b.qty_remaining || 0) * Number(b.unit_cost || 0), 0);
+    if (!batches.length) return { value: totalStock * cost, uncosted: 0 };
+    const uncosted = totalStock - qty;                 // stock no batch accounts for
+    return { value: val + Math.max(uncosted, 0) * cost, uncosted };
+  }, [batches, totalStock, cost]);
+
   const sell = Number(product?.sellingPrice ?? 0);
   const margin = sell > 0 ? ((sell - cost) / sell) * 100 : 0;
   const itemCode = product?.sku || product?.barcode || '—';
   const lowThreshold = product?.low_stock_threshold ?? product?.lowStockThreshold ?? 10;
   const inStock = totalStock > 0;
 
-  const Field = ({ label, value, accent }) => (
+  const Field = ({ label, value, accent, hint }) => (
     <div className="rounded-xl border border-border/60 bg-card p-3.5">
       <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</div>
       <div className={`text-sm font-semibold mt-1 ${accent || 'text-foreground'}`}>{value}</div>
+      {hint && <div className="text-[10px] mt-1 text-amber-600 font-medium">{hint}</div>}
     </div>
   );
 
@@ -249,7 +268,10 @@ const ItemDetailView = ({
           <div className="space-y-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <Field label="Total Stock" value={`${totalStock} ${product?.unit || ''}`} accent={inStock ? 'text-emerald-600' : 'text-red-600'} />
-              <Field label="Stock Value (cost)" value={formatCurrency(totalStock * cost, currencySymbol)} />
+              <Field label="Stock Value (cost)" value={formatCurrency(stockValue.value, currencySymbol)}
+                hint={stockValue.uncosted > 0
+                  ? `${stockValue.uncosted} ${product?.unit || ''} not in any batch — valued at average cost`
+                  : null} />
               <Field label="Batches" value={batches.length} />
               <Field label="Low-Stock Alert" value={lowThreshold} />
             </div>
