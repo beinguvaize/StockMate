@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
+import 'package:mobile_app/core/database/offline_reads.dart';
 import 'package:mobile_app/core/supabase/client.dart';
+import 'package:mobile_app/main.dart' show databaseProvider;
 
 /// Dashboard alert: dated batches expired or expiring within 30 days.
 /// Hidden when nothing is at risk. Mirrors the web ExpiryAlertCard.
@@ -10,13 +13,27 @@ final expiryAlertProvider = FutureProvider<Map<String, num>>((ref) async {
   final in30 = DateTime.now().add(const Duration(days: 30));
   final in30Str =
       '${in30.year}-${in30.month.toString().padLeft(2, '0')}-${in30.day.toString().padLeft(2, '0')}';
-  final res = await supabase
-      .from('product_batches')
-      .select('expiry_date, qty_remaining, unit_cost')
-      .not('expiry_date', 'is', null)
-      .gt('qty_remaining', 0)
-      .lte('expiry_date', in30Str);
-  final rows = (res as List).map((e) => Map<String, dynamic>.from(e as Map));
+  Iterable<Map<String, dynamic>> rows;
+  try {
+    final res = await supabase
+        .from('product_batches')
+        .select('expiry_date, qty_remaining, unit_cost')
+        .not('expiry_date', 'is', null)
+        .gt('qty_remaining', 0)
+        .lte('expiry_date', in30Str);
+    rows = (res as List).map((e) => Map<String, dynamic>.from(e as Map));
+  } catch (e) {
+    debugPrint('[expiryAlert] online failed, using Drift cache: $e');
+    final ctx = await ref.read(tenantContextProvider.future);
+    if (ctx == null) return {'expired': 0, 'soon': 0, 'value': 0};
+    final cached = await cachedProductBatches(ref.read(databaseProvider), ctx.tenantId);
+    // The server did this filtering; offline it happens here.
+    rows = cached.where((b) {
+      final exp = b['expiry_date'] as String?;
+      final qty = num.tryParse('${b['qty_remaining']}') ?? 0;
+      return exp != null && qty > 0 && exp.compareTo(in30Str) <= 0;
+    });
+  }
   final today = DateTime.now().toIso8601String().substring(0, 10);
   num expired = 0, soon = 0, value = 0;
   for (final r in rows) {

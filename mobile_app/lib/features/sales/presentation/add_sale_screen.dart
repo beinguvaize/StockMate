@@ -15,11 +15,12 @@ import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:uuid/uuid.dart';
 import 'package:mobile_app/features/clients_suppliers/data/models/client.dart';
 import 'package:mobile_app/features/clients_suppliers/presentation/add_client_screen.dart';
+import 'package:mobile_app/core/database/offline_reads.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/widgets/upi_qr_sheet.dart';
 import 'package:mobile_app/features/dashboard/presentation/providers/telemetry_provider.dart';
-import 'package:mobile_app/main.dart' show syncServiceProvider;
+import 'package:mobile_app/main.dart' show syncServiceProvider, databaseProvider;
 import 'package:mobile_app/features/accounts/presentation/providers/accounts_provider.dart';
 import 'package:mobile_app/core/print/web_print_service.dart';
 import 'package:mobile_app/core/print/pos_receipt_pdf.dart' as pos_pdf;
@@ -33,16 +34,24 @@ import 'package:printing/printing.dart';
 final posStoresProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final ctx = await ref.watch(tenantContextProvider.future);
   if (ctx == null) return [];
-  final res = await supabase
-      .from('inventory_locations')
-      .select('id, name, type')
-      .eq('tenant_id', ctx.tenantId)
-      .isFilter('deleted_at', null)
-      .order('created_at');
-  return (res as List)
-      .cast<Map<String, dynamic>>()
-      .where((l) => (l['type'] ?? 'WAREHOUSE') != 'VEHICLE')
-      .toList();
+  try {
+    final res = await supabase
+        .from('inventory_locations')
+        .select('id, name, type')
+        .eq('tenant_id', ctx.tenantId)
+        .isFilter('deleted_at', null)
+        .order('created_at');
+    return (res as List)
+        .cast<Map<String, dynamic>>()
+        .where((l) => (l['type'] ?? 'WAREHOUSE') != 'VEHICLE')
+        .toList();
+  } catch (e) {
+    // Without this the store picker came up empty offline, which on a
+    // multi-store tenant means the cashier cannot choose where the sale happens.
+    debugPrint('[posStoresProvider] online failed, using Drift cache: $e');
+    final rows = await cachedInventoryLocations(ref.read(databaseProvider), ctx.tenantId);
+    return rows.where((l) => (l['type'] ?? 'WAREHOUSE') != 'VEHICLE').toList();
+  }
 });
 
 // ─── Cart model ───────────────────────────────────────────────────────────────

@@ -3,9 +3,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:mobile_app/core/auth/tenant_provider.dart';
 import 'package:mobile_app/core/database/database.dart';
+import 'package:mobile_app/core/database/offline_reads.dart';
 import 'package:mobile_app/core/supabase/client.dart';
 import 'package:mobile_app/core/theme/colors.dart';
+import 'package:mobile_app/main.dart' show databaseProvider;
 import 'package:mobile_app/features/inventory/presentation/add_product_screen.dart';
 import 'package:mobile_app/features/inventory/presentation/providers/inventory_provider.dart';
 
@@ -562,6 +565,7 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
     double? lastCost;
     String? lastDate;
     String? lastRef;
+    Map<String, dynamic>? lastBatch;
     try {
       final rows = await supabase
           .from('product_batches')
@@ -570,13 +574,27 @@ class _ProductDetailSheetState extends ConsumerState<_ProductDetailSheet> {
           .not('purchase_id', 'is', null)
           .order('received_date', ascending: false)
           .limit(1);
-      if (rows.isNotEmpty) {
-        final b = rows.first;
-        lastCost = (b['unit_cost'] as num?)?.toDouble();
-        lastDate = b['received_date'] as String?;
-        lastRef = b['purchase_id'] as String?;
-      }
-    } catch (_) {/* no last price — fall back to the saved cost as before */}
+      if (rows.isNotEmpty) lastBatch = Map<String, dynamic>.from(rows.first);
+    } catch (e) {
+      // Offline this silently fell back to the stored average, which is the very
+      // guess the last-purchase default exists to replace. The cache holds the
+      // batches, so use them.
+      debugPrint('[adjust] last price online failed, using Drift cache: $e');
+      try {
+        final ctx = await ref.read(tenantContextProvider.future);
+        if (ctx != null) {
+          final cached = await cachedProductBatches(
+              ref.read(databaseProvider), ctx.tenantId, productId: widget.product.id);
+          final billed = cached.where((b) => b['purchase_id'] != null).toList();
+          if (billed.isNotEmpty) lastBatch = billed.last; // cache is oldest-first
+        }
+      } catch (_) {/* no last price — fall back to the saved cost as before */}
+    }
+    if (lastBatch != null) {
+      lastCost = (lastBatch['unit_cost'] as num?)?.toDouble();
+      lastDate = lastBatch['received_date'] as String?;
+      lastRef = lastBatch['purchase_id'] as String?;
+    }
 
     // Optional purchase price for a manual stock-add (creates a cost batch),
     // pre-filled with what was last paid.
